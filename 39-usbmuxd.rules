@@ -1,0 +1,1 @@
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{manufacturer}=="Apple Inc.", ATTR{serial}=="00008030000418C136FB802E", OWNER="shamanec", MODE="0666", RUN+="/usr/bin/curl -X POST http://localhost:10000/start-ios-container/00008030000418C136FB802E"

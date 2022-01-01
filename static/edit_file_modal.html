@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body>
+    <input type="text" id="edit-file-div"></input>
+</body>
+<script>
+    $.ajax({
+        async: false,
+        type: "GET",
+        url: "/dockerfile",
+        success: function (data) {
+            /* Set the modal text */
+            $('#edit-file-div').value(data)
+        }
+    });
+</script>
+
+</html>

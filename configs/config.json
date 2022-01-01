@@ -1,0 +1,33 @@
+{
+  "devicesList": [
+    {
+      "appium_port": 4841,
+      "device_name": "iPhone_11",
+      "device_os_version": "13.5.1",
+      "device_udid": "00008030000418C136FB8022",
+      "wda_mjpeg_port": 20101,
+      "wda_port": 20001
+    },
+    {
+      "appium_port": 4842,
+      "device_name": "iPhone_SE",
+      "device_os_version": "15.0",
+      "device_udid": "00008030000418C136FB802E",
+      "wda_mjpeg_port": 20102,
+      "wda_port": 20002
+    },
+    {
+      "appium_port": 4843,
+      "device_name": "iPad_bejbe",
+      "device_os_version": "15.1",
+      "device_udid": "00008103000A69E23CBB001E",
+      "wda_mjpeg_port": 20103,
+      "wda_port": 20003
+    }
+  ],
+  "devices_host": "10.8.0.1",
+  "selenium_hub_host": "10.8.0.3",
+  "selenium_hub_port": "4446",
+  "selenium_hub_protocol_type": "http",
+  "wda_bundle_id": "com.shamanec.WebDriverAgentRunner.xctrunner"
+}

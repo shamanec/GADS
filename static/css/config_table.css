@@ -1,0 +1,54 @@
+@charset "utf-8";
+
+body {
+    text-align: center;
+}
+
+table, td, th {
+    border: 1px solid #ddd;
+    text-align: center;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+th, td {
+    padding: 15px;
+}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
+    cursor: pointer;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 150px;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px 5px;
+
+    /* Position the tooltip */
+    position: absolute;
+    z-index: 1;
+    top: 25px;
+    left: 50%;
+    transform:translateX(-50%);
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    display:block;
+}
+
+#config-submit {
+    cursor: pointer;
+}

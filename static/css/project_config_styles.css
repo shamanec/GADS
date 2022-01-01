@@ -1,0 +1,65 @@
+.modal {
+    display: none;
+    z-index: 1;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background-color: rgb(0, 0, 0);
+    background-color: rgba(0, 0, 0, 0.4);
+    overflow: inherit;
+    overflow-y: inherit;
+    text-align: center;
+    word-wrap: break-word;
+  }
+  .modal-dialog {
+    padding: 0;
+    display: inline-block;
+    text-align: left;
+    vertical-align: middle;
+    width: 100%;
+    height: 100%;
+  }
+  /* The Close Button */
+  .close {
+    color: #aaaaaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+  }
+  
+  .config-button {
+      display: inline-block;
+          gap: 10px;
+          font-size: 14px;
+          cursor: pointer;
+          text-align: center;
+          text-decoration: none;
+          color: #fff;
+          background-color: #4CAF50;
+          border: none;
+          border-radius: 6px;
+          box-shadow: 0 3px #999;
+          margin: 10px;
+          padding: 2px 5px 2px 5px;
+          width: 200px;
+          height: 50px;
+  }
+
+  .config-button:hover {
+    background-color: #3e8e41
+}
+
+    .config-button:active {
+    background-color: #3e8e41;
+    box-shadow: 0 5px #666;
+    transform: translateY(4px);
+}
+
+  .config-buttons {
+    width:450px;
+    height:360px;
+    border: 1px solid #000;
+    overflow-y: auto;
+    margin:15px;
+    text-align: center;
+  }

@@ -1,0 +1,94 @@
+#!/bin/bash
+
+DEVICE_UDID=$1
+DOCKER_IMAGE_ID=`docker images | grep 'ios-appium' | awk '{print($3)}'`
+CONTAINERS=( `docker ps --format '{{.Names}}' | grep ios_` )
+echo ACTION: $ACTION
+
+
+function delete_container () {
+  local container_name=$1
+  local container_id=`docker ps -a | grep "$container_name" | sed 's/^\([a-z0-9]*\).*$/\1/g'`
+  docker rm $container_id -f || echo "Container $container_name already deleted"
+}
+
+function create_container () {
+  local device_udid=$1
+  local config_json=$(cat project_dir/configs/config.json)
+  echo "device: $device"
+
+  local device_name=`echo "$config_json" | jq -r ".devicesList[] | select(.device_udid==\"$device_udid\") | .device_name"`
+  echo "device_name: $device_name"
+
+  local os_version=`echo "$config_json" | jq -r ".devicesList[] | select(.device_udid==\"$device_udid\") | .device_os_version"`
+  echo "os_version: $os_version"
+
+  local appium_port=`echo "$config_json" | jq -r ".devicesList[] | select(.device_udid==\"$device_udid\") | .appium_port"`
+  echo "appium_port: $appium_port"
+
+  local wda_port=`echo "$config_json" | jq -r ".devicesList[] | select(.device_udid==\"$device_udid\") | .wda_port"`
+  echo "wda_port: $wda_port"
+
+  local mjpeg_port=`echo "$config_json" | jq -r ".devicesList[] | select(.device_udid==\"$device_udid\") | .wda_mjpeg_port"`
+  echo "mjpeg_port: $mjpeg_port"
+
+  local wda_bundle_id=$(echo "$config_json" | jq -r ".wda_bundle_id")
+  echo "wda_bundle_id: $wda_bundle_id"
+
+  local os_version=$(echo "$config_json" | jq -r ".devicesList[] | select(.device_udid==\"$device_udid\") | .device_os_version")
+  echo "os_version: $os_version"
+
+  docker run --name "ios_device_$device_name-$device_udid" \
+  -e ON_GRID="false" \
+  -p "$appium_port":"$appium_port" \
+  -p "$wda_port":"$wda_port" \
+  -p "$mjpeg_port":"$mjpeg_port" \
+  -e DEVICE_UDID="$device_udid" \
+  -e WDA_PORT="$wda_port" \
+  -e MJPEG_PORT="$mjpeg_port" \
+  -e APPIUM_PORT="$appium_port" \
+  -e DEVICE_OS_VERSION="$os_version" \
+  -e DEVICE_NAME="$device_name" \
+  -e WDA_BUNDLEID="$wda_bundle_id" \
+  -v /var/run/usbmuxd:/var/run/usbmuxd \
+  -v /var/lib/lockdown:/var/lib/lockdown \
+  -v project_dir/DeveloperDiskImages/DeviceSupport:/opt/DeveloperDiskImages \
+  -v project_dir/ipa:/opt/ipa \
+  -v "project_dir/logs/container_$device_name-$device_udid":/opt/logs \
+  $DOCKER_IMAGE_ID || echo "Container for device $device_name-$device_udid already created"
+}
+
+
+if [[ $ACTION = "add" ]]
+then
+  sleep 5
+  present=0
+  for container in "${CONTAINERS[@]}"
+  do
+    if [[ $container == *"$DEVICE_UDID"* ]]
+      then
+        present=1
+    fi
+  done
+  if [[ $present = 0 ]]
+  then
+    create_container $DEVICE_UDID
+  fi
+elif [[ $ACTION = "remove" ]]
+then
+  sleep 5
+  #Read the currently connected devices via go-ios
+  read -r -d '' -a udids_array < <(.project_dir/ios list --details | jq -r '.deviceList[].Udid')
+  #For each running container check if there is a device connected with corresponding udid
+  for container in "${CONTAINERS[@]}"
+  do
+    udid_from_container=$(echo $container | cut -d '-' -f 2)
+    #If there is no connected device with corresponding udid to the container - remove the container
+    if [[ ! "${udids_array[*]}" == "$udid_from_container" ]]
+    then
+      echo "Deleting container: $container"
+      delete_container $container
+    fi
+  done
+fi
+exit 0

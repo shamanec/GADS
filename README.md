@@ -1,1 +1,1 @@
-# GADS
+GADS - Go Appium Docker Service
