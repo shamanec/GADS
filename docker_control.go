@@ -223,11 +223,6 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 	// Get the parameters
 	vars := mux.Vars(r)
 	device_udid := vars["device_udid"]
-	// byteValue, err := ioutil.ReadAll(r.Body)
-	// if err != nil {
-	// 	fmt.Fprintf(w, "eror")
-	// }
-	// device_udid := gjson.Get(string(byteValue), "device_udid").Str
 
 	if !CheckIOSDeviceInDevicesList(device_udid) {
 		fmt.Fprintf(w, "Device is not available in the attached devices list from go-ios.")

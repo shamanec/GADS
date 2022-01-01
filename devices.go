@@ -24,7 +24,7 @@ func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 	key := vars["log_type"]
 	key2 := vars["device_udid"]
 	// Execute the command to restart the container by container ID
-	commandString := "tail -n 1000 ./logs/*" + key2 + "/" + key + ".txt"
+	commandString := "tail -n 1000 ./logs/*" + key2 + "/" + key + ".log"
 	cmd := exec.Command("bash", "-c", commandString)
 	var out bytes.Buffer
 	cmd.Stdout = &out
