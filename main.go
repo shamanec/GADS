@@ -210,7 +210,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/androidContainers", getAndroidContainers)
 	myRouter.HandleFunc("/updateConfig", UpdateProjectConfigHandler)
 	myRouter.HandleFunc("/dockerfile", InteractDockerFile)
-	myRouter.HandleFunc("/build-image", BuildDockerImage3)
+	myRouter.HandleFunc("/build-image", BuildDockerImage)
 	myRouter.HandleFunc("/remove-image", RemoveDockerImage)
 	myRouter.HandleFunc("/setup-udev-listener", SetupUdevListener)
 	myRouter.HandleFunc("/remove-udev-listener", RemoveUdevRules)
@@ -219,7 +219,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/set-sudo-password", SetSudoPassword)
 	myRouter.HandleFunc("/test", CreateIOSContainer)
 	myRouter.HandleFunc("/start-ios-container/{device_udid}", CreateIOSContainer)
-	myRouter.HandleFunc("/test2", BuildDockerImage3)
+	//myRouter.HandleFunc("/test2", BuildDockerImage3)
 	myRouter.HandleFunc("/upload-wda", UploadWDA)
 
 	myRouter.HandleFunc("/ws", testWS)

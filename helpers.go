@@ -345,3 +345,12 @@ func UploadIPA(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, "Uploaded and unzipped into 'WebDriverAgent' folder.")
 }
+
+func ConvertToJSONString(data interface{}) string {
+	b, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	return string(b)
+}

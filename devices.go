@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/danielpaulus/go-ios/ios"
 	"github.com/gorilla/mux"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -76,19 +78,34 @@ func ReturnDeviceInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetConnectedIOSDevices(w http.ResponseWriter, r *http.Request) {
-	// The command to get all connected devices with go-ios
-	getPIDcommand := "./ios list --details"
-	cmd := exec.Command("bash", "-c", getPIDcommand)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	// Execute the command and either return error or the connected devices JSON
-	err := cmd.Run()
-	if err != nil || out.String() == "" {
-		JSONError(w, "no_devices_attached", "Couldn't get iOS devices with go-ios or no devices connected to the machine.", 500)
-	} else {
-		fmt.Fprintf(w, out.String())
+	deviceList, err := ios.ListDevices()
+	if err != nil {
+		http.Error(w, "Couldn't get iOS devices with go-ios or no devices connected to the machine. Error: "+err.Error(), http.StatusInternalServerError)
 	}
+	deviceValues, err := outputDetailedList(deviceList)
+	fmt.Fprintf(w, deviceValues)
+}
+
+type detailsEntry struct {
+	Udid           string
+	ProductName    string
+	ProductType    string
+	ProductVersion string
+}
+
+func outputDetailedList(deviceList ios.DeviceList) (string, error) {
+	result := make([]detailsEntry, len(deviceList.DeviceList))
+	for i, device := range deviceList.DeviceList {
+		udid := device.Properties.SerialNumber
+		allValues, err := ios.GetValues(device)
+		if err != nil {
+			return "", errors.New("Failed getting device values")
+		}
+		result[i] = detailsEntry{udid, allValues.Value.ProductName, allValues.Value.ProductType, allValues.Value.ProductVersion}
+	}
+	return ConvertToJSONString(map[string][]detailsEntry{
+		"deviceList": result,
+	}), nil
 }
 
 func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
