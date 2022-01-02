@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
 )
 
 // Create a tar archive from an array of files while preserving directory structure
@@ -165,12 +166,18 @@ func ReadJSONFile(jsonFilePath string) ([]byte, error) {
 
 	// if os.Open returns an error then handle it
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "read_json_file",
+		}).Error("Could not open json file at path: " + jsonFilePath + ", error: " + err.Error())
 		fmt.Println(err)
 	}
 	defer jsonFile.Close()
 
 	byteValue, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "read_json_file",
+		}).Error("Could not read json file at path: " + jsonFilePath + ", error: " + err.Error())
 		return nil, err
 	} else {
 		return byteValue, nil

@@ -198,6 +198,7 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 			"event": "set_sudo_password",
 		}).Error("Could not read ./env.json while attempting to set sudo password. Error: " + err.Error())
 		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
+		return
 	}
 	updatedJSON, _ := sjson.Set(string(byteValue), "sudo_password", sudo_password)
 
@@ -212,6 +213,7 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 			"event": "set_sudo_password",
 		}).Error("Could not write ./env.json while attempting to set sudo password. Error: " + err.Error())
 		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
+		return
 	}
 	log.WithFields(log.Fields{
 		"event": "set_sudo_password",

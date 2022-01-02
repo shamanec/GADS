@@ -174,6 +174,7 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 			"event": "docker_container_restart",
 		}).Error("Could not create docker client while attempting to restart container with ID: " + key + ". Error: " + err.Error())
 		JSONError(w, "docker_container_restart", "Could not restart container with ID: "+key, 500)
+		return
 	}
 
 	if err := cli.ContainerRestart(ctx, key, nil); err != nil {
@@ -181,6 +182,7 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 			"event": "docker_container_restart",
 		}).Error("Could not restart container with ID: " + key + ". Error: " + err.Error())
 		JSONError(w, "docker_container_restart", "Could not restart container with ID: "+key, 500)
+		return
 	}
 	log.WithFields(log.Fields{
 		"event": "docker_container_restart",
@@ -204,6 +206,7 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 			"event": "get_container_logs",
 		}).Error("Could not create docker client while attempting to get logs for container with ID: " + key + ". Error: " + err.Error())
 		JSONError(w, "get_container_logs", "Could not get logs for container with ID: "+key, 500)
+		return
 	}
 
 	options := types.ContainerLogsOptions{ShowStdout: true}
@@ -214,6 +217,7 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 			"event": "get_container_logs",
 		}).Error("Could not get logs for container with ID: " + key + ". Error: " + err.Error())
 		JSONError(w, "get_container_logs", "Could not get logs for container with ID: "+key, 500)
+		return
 	}
 
 	buf := new(bytes.Buffer)
@@ -285,7 +289,7 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",
 		}).Warn("Device with udid: " + device_udid + " is not available in the attached devices list from go-ios.")
-		http.Error(w, "Device is not available in the attached devices list from go-ios.", 500)
+		JSONError(w, "ios_container_create", "Device is not available in the attached devices list from go-ios.", 500)
 		return
 	}
 
