@@ -6,6 +6,7 @@
 	<title>iOS Containers Info</title>
 	<link href="/static/css/ios_containers_styles.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 </head>
 
 <body>
@@ -28,12 +29,12 @@
 	</div>
 	</div>
 	<div class="topnav">
-        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
-        <a href="/">Home</a>
-        <a href="configuration">Project configuration</a>
-        <a class="active" href="iOSContainers">iOS containers</a>
-        <a href="androidContainers">Android containers</a>
-    </div>
+		<link href="/static/css/top_navigation_style.css" rel="stylesheet">
+		<a href="/">Home</a>
+		<a href="configuration">Project configuration</a>
+		<a class="active" href="iOSContainers">iOS containers</a>
+		<a href="androidContainers">Android containers</a>
+	</div>
 	<table>
 		<tr>
 			<th>ContainerID</th>
@@ -48,7 +49,8 @@
 		<tr>
 			<td>{{.ContainerID}}</td>
 			<td style="width: 125px;">{{.ImageName}}</td>
-			<td id="container-status-cell" class="container-status-cells" style="width: 120px;">{{.ContainerStatus}}</td>
+			<td id="container-status-cell" class="container-status-cells" style="width: 120px;">{{.ContainerStatus}}
+			</td>
 			<td style="width: 700px;font-size: 15px">
 				<pre>{{.ContainerPorts}}</pre>
 			</td>
@@ -106,22 +108,26 @@
 
 			/* Call the endpoint that will restart the selected container */
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
 				type: "GET",
 				url: "/restartContainer/" + containerId,
 				success: function (data) {
-					$('.targeted').html(data);
+					$('#loading').css("visibility", "hidden");
+					swal("Event: " + data.event, data.message, "info")
+					.then(() => {
+						location.reload();
+					});
+				},
+				error: function (data) {
+					$('#loading').css("visibility", "hidden");
+					swal("Event: " + data.event, data.error_message, "error")
+					.then(() => {
+						location.reload();
+					});
 				}
 			});
-
-			/* Hide the loading after response is returned */
-			$('#loading').css("visibility", "hidden");
-
-			/* Present an informational alert that the container restart attempt was finished and the ID */
-			alert("Finished restart attempt on container with ID: " + containerId)
-
-			/* Reload the page to get the latest info */
-			location.reload();
 		}
 
 		/* Show info modal with provided text */
@@ -160,11 +166,13 @@
 			refreshButton.value = url
 			/* Call the endpoint that will get the chosen logs */
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
 				type: "GET",
 				url: "/deviceLogs/" + logType + "/" + deviceUDID,
 				success: function (data) {
-					showInfoModal(data)
+					showInfoModal(data.message)
 				}
 			});
 		}
@@ -174,11 +182,16 @@
 			var containerID = buttonObj.value
 			/* Call the endpoint that will get the container logs */
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
 				type: "GET",
 				url: "/containerLogs/" + containerID,
 				success: function (data) {
-					showInfoModal(data)
+					showInfoModal(data.message)
+				},
+				error: function (data) {
+					showInfoModal(data.message)
 				}
 			});
 		}
@@ -187,12 +200,14 @@
 			var refreshButton = document.getElementById("refresh-logs-button")
 			var modalBody = document.getElementsByClassName("modal-body")[0]
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
 				type: "GET",
 				url: refreshButton.value,
 				success: function (data) {
 					/* Set the modal text */
-					$('.modal-body').html(data)
+					$('.modal-body').html(data.message)
 
 					/* Scroll to the bottom of the logs on refresh */
 					modalBody.scrollTop = modalBody.scrollHeight;
@@ -205,7 +220,7 @@
 			// Just scan the DOM for the element one time
 			var containerStatusCells = document.getElementsByClassName('container-status-cells');
 
-			$('.container-status-cells').each(function(i) {
+			$('.container-status-cells').each(function (i) {
 				if (this.textContent.indexOf('Up') > -1) {
 					this.style.backgroundColor = "#4CAF50";
 				} else {

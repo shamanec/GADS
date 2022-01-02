@@ -13,18 +13,23 @@ import (
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
 // Get the respective device logs based on log type
 func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
 
 	// Get the parameters
 	vars := mux.Vars(r)
 	key := vars["log_type"]
 	key2 := vars["device_udid"]
+
+	log.WithFields(log.Fields{
+		"event": "get_device_logs",
+	}).Info("Attempting to get logs of type:" + key + " for device with udid:" + key2)
+
 	// Execute the command to restart the container by container ID
 	commandString := "tail -n 1000 ./logs/*" + key2 + "/" + key + ".log"
 	cmd := exec.Command("bash", "-c", commandString)
@@ -32,10 +37,12 @@ func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		fmt.Fprintf(w, "No logs of this type available for this container.")
+		log.WithFields(log.Fields{
+			"event": "get_device_logs",
+		}).Error("Could not get logs of type:" + key + " for device with udid:" + key2)
+		SimpleJSONResponse(w, "get_container_logs", "No logs of this type available for this container.", 200)
 	}
-
-	fmt.Fprintf(w, out.String())
+	SimpleJSONResponse(w, "get_device_logs", out.String(), 200)
 }
 
 func ReturnDeviceInfo(w http.ResponseWriter, r *http.Request) {

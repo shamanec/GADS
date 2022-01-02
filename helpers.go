@@ -133,6 +133,11 @@ type ErrorJSON struct {
 	ErrorMessage string `json:"error_message"`
 }
 
+type SimpleResponseJSON struct {
+	EventName string `json:"event"`
+	Message   string `json:"message"`
+}
+
 func JSONError(w http.ResponseWriter, event string, error_string string, code int) {
 	var errorMessage = ErrorJSON{
 		EventName:    event,
@@ -141,6 +146,17 @@ func JSONError(w http.ResponseWriter, event string, error_string string, code in
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(errorMessage)
+}
+
+func SimpleJSONResponse(w http.ResponseWriter, event string, response_message string, code int) {
+	var message = SimpleResponseJSON{
+		EventName: event,
+		Message:   response_message,
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(message)
 }
 
 func ReadJSONFile(jsonFilePath string) ([]byte, error) {

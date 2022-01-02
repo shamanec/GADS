@@ -163,34 +163,57 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]
 
+	log.WithFields(log.Fields{
+		"event": "docker_container_restart",
+	}).Info("Attempting to restart container with ID: " + key)
+
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "docker_container_restart",
+		}).Error("Could not create docker client while attempting to restart container with ID: " + key + ". Error: " + err.Error())
+		JSONError(w, "docker_container_restart", "Could not restart container with ID: "+key, 500)
 	}
 
 	if err := cli.ContainerRestart(ctx, key, nil); err != nil {
-		log.Printf("Unable to restart container %s: %s", key, err)
+		log.WithFields(log.Fields{
+			"event": "docker_container_restart",
+		}).Error("Could not restart container with ID: " + key + ". Error: " + err.Error())
+		JSONError(w, "docker_container_restart", "Could not restart container with ID: "+key, 500)
 	}
+	log.WithFields(log.Fields{
+		"event": "docker_container_restart",
+	}).Info("Successfully attempted to restart container with ID: " + key)
+	SimpleJSONResponse(w, "docker_container_restart", "Successfully attempted to restart container with ID: "+key, 200)
 }
 
 // Function that returns all current iOS device containers and their info
 func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]
-	w.Header().Set("Content-Type", "text/plain")
+
+	log.WithFields(log.Fields{
+		"event": "get_container_logs",
+	}).Info("Attempting to get logs for container with ID: " + key)
 
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "get_container_logs",
+		}).Error("Could not create docker client while attempting to get logs for container with ID: " + key + ". Error: " + err.Error())
+		JSONError(w, "get_container_logs", "Could not get logs for container with ID: "+key, 500)
 	}
 
 	options := types.ContainerLogsOptions{ShowStdout: true}
 	// Replace this ID with a container that really exists
 	out, err := cli.ContainerLogs(ctx, key, options)
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "get_container_logs",
+		}).Error("Could not get logs for container with ID: " + key + ". Error: " + err.Error())
+		JSONError(w, "get_container_logs", "Could not get logs for container with ID: "+key, 500)
 	}
 
 	buf := new(bytes.Buffer)
@@ -198,9 +221,9 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	newStr := buf.String()
 
 	if newStr != "" {
-		fmt.Fprintf(w, newStr)
+		SimpleJSONResponse(w, "get_container_logs", newStr, 200)
 	} else {
-		fmt.Fprintf(w, "There are no actual logs for this container.")
+		SimpleJSONResponse(w, "get_container_logs", "There are no actual logs for this container.", 200)
 	}
 }
 
@@ -218,6 +241,9 @@ func ImageExists() (imageStatus string) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_image_status",
+		}).Error("Could not create docker client while attempting to get image status. Error:" + err.Error())
 		imageStatus = "Couldn't create Docker client"
 		return
 	}
@@ -225,6 +251,9 @@ func ImageExists() (imageStatus string) {
 	// Get the images list
 	imageListResponse, err := cli.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_image_status",
+		}).Error("Could not get image list while attempting to get image status. Error:" + err.Error())
 		imageStatus = "Couldn't get Docker images list"
 		return
 	}

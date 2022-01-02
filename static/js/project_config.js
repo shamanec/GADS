@@ -268,20 +268,25 @@ function setSudoPassword() {
     }
     // Send a request to register the device with the respective selected device UDID
     $.ajax({
+        dataType: 'JSON',
         contentType: 'application/json',
         async: true,
         type: "POST",
         data: JSON.stringify({ "sudo_password": sudo_password }),
         url: "/set-sudo-password",
         success: function (data) {
-            alert("Successfully set sudo password")
             modal.style.display = "none";
-            location.reload()
+            swal("Event: " + data.event, data.message, "success")
+            .then(() => {
+                location.reload();
+            });
         },
         error: function (data) {
-            alert("Couldn't set sudo password")
             modal.style.display = "none";
-            location.reload()
+            swal("Event: " + data.event, data.error_message, "error")
+            .then(() => {
+                location.reload();
+            });
         }
     });
 }

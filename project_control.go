@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -59,6 +60,9 @@ func UdevIOSListenerState() (status string) {
 }
 
 func CreateUdevRules() error {
+	log.WithFields(log.Fields{
+		"event": "create_udev_rules",
+	}).Info("Creating udev rules")
 	// Create the rules file that will start/remove containers on event
 	create_container_rules, err := os.Create("./90-usbmuxd.rules")
 	if err != nil {
@@ -173,6 +177,9 @@ func RemoveUdevRules(w http.ResponseWriter, r *http.Request) {
 func CheckSudoPasswordSet() bool {
 	byteValue, err := ReadJSONFile("./env.json")
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "check_sudo_password_set",
+		}).Error("Could not read ./env.json while checking sudo password status.")
 		return false
 	}
 	sudo_password := gjson.Get(string(byteValue), "sudo_password").Str
@@ -187,7 +194,10 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	sudo_password := gjson.Get(string(requestBody), "sudo_password").Str
 	byteValue, err := ReadJSONFile("./env.json")
 	if err != nil {
-		fmt.Errorf(err.Error())
+		log.WithFields(log.Fields{
+			"event": "set_sudo_password",
+		}).Error("Could not read ./env.json while attempting to set sudo password. Error: " + err.Error())
+		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
 	}
 	updatedJSON, _ := sjson.Set(string(byteValue), "sudo_password", sudo_password)
 
@@ -198,9 +208,15 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	// Write the new json to the config.json file
 	err = ioutil.WriteFile("./env.json", []byte(prettyJSON.String()), 0644)
 	if err != nil {
-		JSONError(w, "env_file_error", "Could not write to the env.json file.", 400)
+		log.WithFields(log.Fields{
+			"event": "set_sudo_password",
+		}).Error("Could not write ./env.json while attempting to set sudo password. Error: " + err.Error())
+		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
 	}
-
+	log.WithFields(log.Fields{
+		"event": "set_sudo_password",
+	}).Info("Successfully set sudo password.")
+	SimpleJSONResponse(w, "set_sudo_password", "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./env.json file. Make sure you don't commit this file to public repos :D", 200)
 }
 
 func CheckWDAProvided() bool {
