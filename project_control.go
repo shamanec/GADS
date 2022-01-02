@@ -203,6 +203,14 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func CheckWDAProvided() bool {
+	_, err := os.Stat("WebDriverAgent")
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func GetEnvValue(key string) string {
 	byteValue, _ := ReadJSONFile("./env.json")
 	value := gjson.Get(string(byteValue), key).Str

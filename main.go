@@ -41,10 +41,11 @@ type ProjectConfig struct {
 }
 
 type ProjectConfigPageData struct {
-	SudoPasswordSet       bool
-	UdevIOSListenerStatus string
-	ImageStatus           string
-	ProjectConfigValues   ProjectConfig
+	WebDriverAgentProvided bool
+	SudoPasswordSet        bool
+	UdevIOSListenerStatus  string
+	ImageStatus            string
+	ProjectConfigValues    ProjectConfig
 }
 
 type ContainerRow struct {
@@ -84,7 +85,7 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 		WdaBundleID:             projectConfig.WdaBundleID}
 
 	var index = template.Must(template.ParseFiles("static/project_config.html"))
-	pageData := ProjectConfigPageData{SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), ProjectConfigValues: configRow}
+	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), ProjectConfigValues: configRow}
 	if err := index.Execute(w, pageData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -219,6 +220,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/test", CreateIOSContainer)
 	myRouter.HandleFunc("/start-ios-container/{device_udid}", CreateIOSContainer)
 	myRouter.HandleFunc("/test2", BuildDockerImage3)
+	myRouter.HandleFunc("/upload-wda", UploadWDA)
 
 	myRouter.HandleFunc("/ws", testWS)
 

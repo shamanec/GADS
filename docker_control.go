@@ -86,7 +86,7 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 
 	// Create a tar to be used as build-context for the image build
 	// The tar should include all files needed by the Dockerfile to successfully create the image
-	files := []string{"Dockerfile", "WebDriverAgent.ipa", "configs/nodeconfiggen.sh", "configs/wdaSync.sh"}
+	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wdaSync.sh"}
 	out, err := os.Create("build-context.tar")
 	if err != nil {
 		http.Error(w, "Could not create archive file. Error: "+err.Error(), http.StatusBadRequest)
@@ -366,6 +366,11 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 				Type:   mount.TypeBind,
 				Source: project_dir + "/ipa",
 				Target: "/opt/ipa",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/WebDriverAgent",
+				Target: "/opt/WebDriverAgent",
 			},
 		},
 	}

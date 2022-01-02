@@ -49,6 +49,15 @@
             <button id="submit-sudo-password" type="button" onclick="setSudoPassword()">Submit password</button>
         </div>
     </div>
+    <div class="modal fade" id="upload-wda-modal" tabindex="-1" role="dialog" aria-hidden="true">
+        <form id="wda-upload-form">
+            <label for="myfile">Select a file:</label>
+            <br></br>
+            <input type="file" id="wda-input-file" name="wda-input-file">
+            <br></br>
+            <input type="submit">
+        </form>
+    </div>
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
@@ -90,6 +99,11 @@
                         <span class="tooltiptext">The bundle ID of the targetted WDA application.</span>
                     </div>
                 </th>
+                <th>WebDriverAgent set
+                    <div class="tooltip">?
+                        <span class="tooltiptext">Shows if WebDriverAgent is provided.</span>
+                    </div>
+                </th>
                 <th>Docker Image Status
                     <div class="tooltip">?
                         <span class="tooltiptext">Shows if the 'ios-appium' Docker image is built and available.</span>
@@ -114,6 +128,7 @@
                 <td>{{.ProjectConfigValues.SeleniumHubPort}}</td>
                 <td>{{.ProjectConfigValues.SeleniumHubProtocolType}}</td>
                 <td>{{.ProjectConfigValues.WdaBundleID}}</td>
+                <td id="wda-status-cell">{{.WebDriverAgentProvided}}</td>
                 <td id="image-status-cell">{{.ImageStatus}}</td>
                 <td id="udev-ios-listener-status-cell">{{.UdevIOSListenerStatus}}</td>
                 <td id="sudo-password-cell">{{.SudoPasswordSet}}</td>
@@ -138,12 +153,35 @@
             listener</button>
         <button class="config-button" id="config-button" type="button" onclick="showSudoPasswordInput()">Set sudo
             password</button>
-        <button class="config-button" id="config-button" type="button" onclick="notImplemented()">Remove udev
-            listener</button>
+        <button class="config-button" id="config-button" type="button" onclick="showWDAUploadForm()">Upload WDA</button>
         <button class="config-button" id="config-button" type="button" onclick="notImplemented()">Edit
             Dockerfile</button>
     </div>
     <script>
+        $("#wda-upload-form").submit(function (e) {
+            e.preventDefault();
+            var formData = new FormData();
+            formData.append('file', $('#wda-input-file')[0].files[0]);
+
+            $.ajax({
+                url: '/upload-wda',
+                type: 'POST',
+                data: formData,
+                processData: false,  // tell jQuery not to process the data
+                contentType: false,  // tell jQuery not to set contentType
+                success: function (data) {
+                    console.log(data);
+                    alert(data);
+                    location.reload()
+                },
+                error: function (data) {
+                    console.log(data);
+                    alert(data);
+                    location.reload()
+                }
+            });
+        });
+
         /* Show info modal with provided text */
         function showConfigModal() {
             /* Get the modal element */
@@ -187,6 +225,8 @@
 
         function buildImage(obj) {
             alert("Building Docker image, this could take a while.")
+            var test = document.getElementById("image-status-cell")
+            test.textContent = "Image building"
             /* Call the endpoint that will restart the selected container */
             var req = $.ajax({
                 async: true,
@@ -404,6 +444,20 @@
             });
         }
 
+        function showWDAUploadForm() {
+            var modal = document.getElementById("upload-wda-modal")
+
+            /* Display the modal blocking interaction */
+            modal.style.display = "block";
+
+            /* Close the modal if you click anywhere outside the modal */
+            window.onclick = function (event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+        }
+
         function enableDisableSubmit(dropdownObj) {
             // Check the currently selected option
             // If it is the default one disable the Add button else enable it
@@ -424,10 +478,22 @@
                 alert(e.data)
                 location.reload()
             };
+            setWDAStatusCellBackground()
             setImageStatusCellBackground()
             setUdevIOSListenerCellBackground()
             setSudoPasswordCellBackground()
         });
+
+        function setWDAStatusCellBackground() {
+            let statusCell = document.getElementById("wda-status-cell")
+            if (statusCell.textContent === "true") {
+                statusCell.style.backgroundColor = "#4CAF50"
+                statusCell.setAttribute("value", "true")
+            } else {
+                statusCell.style.backgroundColor = "#eb4f34"
+                statusCell.setAttribute("value", "false")
+            }
+        }
 
         function setImageStatusCellBackground() {
             let statusCell = document.getElementById("image-status-cell");
