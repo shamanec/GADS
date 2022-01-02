@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 var ws_conn *websocket.Conn
@@ -61,8 +61,14 @@ type ContainerRow struct {
 func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 	var index = template.Must(template.ParseFiles("static/index.html"))
 	if err := index.Execute(w, nil); err != nil {
+		log.WithFields(log.Fields{
+			"error": "index_page_load",
+		}).Info("Couldn't load index.html")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	log.WithFields(log.Fields{
+		"error": "index_page_load",
+	}).Info("Loaded index.html")
 }
 
 // Load the initial page with the project configuration info
@@ -196,6 +202,15 @@ func testWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func setLogging() {
+	log.SetFormatter(&log.JSONFormatter{})
+	f, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE, 0755)
+	if err != nil {
+		panic(err)
+	}
+	log.SetOutput(f)
+}
+
 func handleRequests() {
 	// Create a new instance of the mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
@@ -230,12 +245,10 @@ func handleRequests() {
 
 	myRouter.HandleFunc("/", GetInitialPage)
 
-	// finally, instead of passing in nil, we want
-	// to pass in our newly created router as the second
-	// argument
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
 func main() {
+	setLogging()
 	handleRequests()
 }

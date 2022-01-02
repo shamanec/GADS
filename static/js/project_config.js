@@ -81,7 +81,8 @@ function removeImage() {
 
     /* Call the endpoint that will restart the selected container */
     $.ajax({
-        dataType: false,
+        dataType: 'JSON',
+        contentType: 'application/json',
         async: true,
         type: "GET",
         url: "/remove-image",
@@ -89,7 +90,8 @@ function removeImage() {
             alert(data)
         },
         error: function (data) {
-            alert(JSON.stringify(data))
+            var response = JSON.parse(data.responseText)
+            swal("Event: " + response.event, response.error_message, "error");
         }
     });
 

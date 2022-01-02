@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -19,12 +18,18 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 
 var project_dir = GetEnvValue("project_dir")
 
 func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
+	error_message := "Could not build 'ios-appium' image"
+	log.WithFields(log.Fields{
+		"event": "docker_image_build",
+	}).Info("Attempting to build the 'ios-appium' docker image.")
+
 	// Delete build-context.tar if it exists
 	DeleteFile("./build-context.tar")
 	w.WriteHeader(http.StatusAccepted)
@@ -34,13 +39,19 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wdaSync.sh"}
 	out, err := os.Create("build-context.tar")
 	if err != nil {
-		http.Error(w, "Could not create archive file. Error: "+err.Error(), http.StatusBadRequest)
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create build-context.tar archive file. Error: " + err.Error())
+		JSONError(w, "docker_image_build", error_message, 500)
 		return
 	}
 	defer out.Close()
 	err = CreateArchive(files, out)
 	if err != nil {
-		http.Error(w, "Could not create archive. Error: "+err.Error(), http.StatusBadRequest)
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create build-context.tar archive. Error: " + err.Error())
+		JSONError(w, "docker_image_build", error_message, 500)
 		return
 	}
 
@@ -48,7 +59,10 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create docker client while attempting to build image. Error: " + err.Error())
+		JSONError(w, "docker_image_build", error_message, 500)
 		return
 	}
 
@@ -64,28 +78,35 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Get the image build logs on failure
 		buf.ReadFrom(imageBuildResponse.Body)
-		http.Error(w, "Could not build image. Error: "+err.Error()+"\n"+buf.String(), http.StatusBadRequest)
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create build docker image. Error: " + err.Error() + "\n" + buf.String())
+		JSONError(w, "docker_image_build", error_message, 500)
 		return
 	}
 	defer imageBuildResponse.Body.Close()
-
-	// Get the image build logs
 	//buf.ReadFrom(imageBuildResponse.Body)
-	// fmt.Fprintf(w, "\n"+buf.String())
 }
 
 func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
+	error_message := "Could not remove 'ios-appium' image."
 	// Create the context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.WithFields(log.Fields{
+			"event": "docker_image_remove",
+		}).Error("Could not create docker client while attempting to remove 'ios-appium' image. Error: " + err.Error())
+		JSONError(w, "docker_image_remove", error_message, 500)
 		return
 	}
 
 	imageRemoveResponse, err := cli.ImageRemove(ctx, "ios-appium", types.ImageRemoveOptions{PruneChildren: true})
 	if err != nil {
-		http.Error(w, "Could not remove image. "+err.Error(), http.StatusBadRequest)
+		log.WithFields(log.Fields{
+			"event": "docker_image_remove",
+		}).Error("Could not remove 'ios-appium' image. Error: " + err.Error())
+		JSONError(w, "docker_image_remove", error_message, 500)
 		return
 	}
 	fmt.Fprintf(w, "Successfully removed image tagged: '"+imageRemoveResponse[0].Untagged+"'")
@@ -225,26 +246,47 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	device_udid := vars["device_udid"]
 
+	log.WithFields(log.Fields{
+		"event": "ios_container_create",
+	}).Info("Attempting to create a container for iOS device with udid: " + device_udid)
+
+	error_message := "Could not create container for device with udid: " + device_udid
+
 	if !CheckIOSDeviceInDevicesList(device_udid) {
-		fmt.Fprintf(w, "Device is not available in the attached devices list from go-ios.")
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Warn("Device with udid: " + device_udid + " is not available in the attached devices list from go-ios.")
+		http.Error(w, "Device is not available in the attached devices list from go-ios.", 500)
 		return
 	}
 
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not create docker client when attempting to create a container for device with udid: " + device_udid)
+		JSONError(w, "ios_container_create", error_message, 500)
+		return
 	}
 
 	jsonFile, err := os.Open("./configs/config.json")
 	if err != nil {
-		fmt.Println(err)
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not open ./configs/config.json when attempting to create a container for device with udid: " + device_udid)
+		JSONError(w, "ios_container_create", error_message, 500)
+		return
 	}
 	defer jsonFile.Close()
 
 	byteValue, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		fmt.Fprintf(w, "fail")
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not read ./configs/config.json when attempting to create a container for device with udid: " + device_udid)
+		JSONError(w, "ios_container_create", error_message, 500)
+		return
 	}
 	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
 	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
@@ -322,11 +364,19 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "ios_device_"+device_name.Str+"-"+device_udid)
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not create container. Error: " + err.Error())
+		JSONError(w, "ios_container_create", error_message, 500)
+		return
 	}
 
 	err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not start container. Error: " + err.Error())
+		JSONError(w, "ios_container_create", error_message, 500)
+		return
 	}
 }

@@ -129,13 +129,13 @@ func SetFilePermissionsShell(filePath string, permissionsCode string, sudoPasswo
 
 // Device struct which contains device info
 type ErrorJSON struct {
-	ErrorCode    string `json:"error_code"`
+	EventName    string `json:"event"`
 	ErrorMessage string `json:"error_message"`
 }
 
-func JSONError(w http.ResponseWriter, error_code string, error_string string, code int) {
+func JSONError(w http.ResponseWriter, event string, error_string string, code int) {
 	var errorMessage = ErrorJSON{
-		ErrorCode:    error_code,
+		EventName:    event,
 		ErrorMessage: error_string}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
