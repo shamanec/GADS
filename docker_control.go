@@ -24,9 +24,65 @@ import (
 
 var project_dir = GetEnvValue("project_dir")
 
+func BuildDockerImage2(build_image_response chan string) {
+
+	// Delete build-context.tar if it exists
+	DeleteFile("./build-context.tar")
+
+	// Create a tar to be used as build-context for the image build
+	// The tar should include all files needed by the Dockerfile to successfully create the image
+	files := []string{"Dockerfile", "WebDriverAgent.ipa", "configs/nodeconfiggen.sh", "configs/wdaSync.sh"}
+	out, err := os.Create("build-context.tar")
+	if err != nil {
+		build_image_response <- "Could not create archive file. Error: " + err.Error()
+		return
+	}
+	defer out.Close()
+	err = CreateArchive(files, out)
+	if err != nil {
+		build_image_response <- "Could not create archive. Error: " + err.Error()
+		return
+	}
+
+	// Create the context and Docker client
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		build_image_response <- err.Error()
+		return
+	}
+
+	// Read the build-context tar into bytes.Reader
+	buildContextFileReader, err := os.Open("build-context.tar")
+	readBuildContextFile, err := ioutil.ReadAll(buildContextFileReader)
+	buildContextTarReader := bytes.NewReader(readBuildContextFile)
+
+	// Build the Docker image using the tar reader
+	buf := new(bytes.Buffer)
+	imageBuildResponse, err := cli.ImageBuild(ctx, buildContextTarReader, types.ImageBuildOptions{Remove: true, Tags: []string{"ios-appium"}})
+	defer imageBuildResponse.Body.Close()
+	if err != nil {
+		// Get the image build logs on failure
+		buf.ReadFrom(imageBuildResponse.Body)
+		build_image_response <- "Could not build image. Error: " + err.Error() + "\n" + buf.String()
+		return
+	}
+	buf.ReadFrom(imageBuildResponse.Body)
+	build_image_response <- buf.String()
+}
+
+func BuildDockerImage3(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusAccepted)
+	build_image_response := make(chan string)
+	go BuildDockerImage2(build_image_response)
+	x := <-build_image_response
+	ws_conn.WriteMessage(1, []byte(x))
+}
+
 func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 	// Delete build-context.tar if it exists
 	DeleteFile("./build-context.tar")
+	w.WriteHeader(http.StatusAccepted)
 
 	// Create a tar to be used as build-context for the image build
 	// The tar should include all files needed by the Dockerfile to successfully create the image
@@ -66,11 +122,11 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not build image. Error: "+err.Error()+"\n"+buf.String(), http.StatusBadRequest)
 		return
 	}
+	defer imageBuildResponse.Body.Close()
 
 	// Get the image build logs
-	buf.ReadFrom(imageBuildResponse.Body)
-	defer imageBuildResponse.Body.Close()
-	fmt.Fprintf(w, "\n"+buf.String())
+	//buf.ReadFrom(imageBuildResponse.Body)
+	// fmt.Fprintf(w, "\n"+buf.String())
 }
 
 func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {

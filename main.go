@@ -13,6 +13,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var ws_conn *websocket.Conn
+
 // Devices struct which contains
 // an array of devices from the config.json
 type Devices struct {
@@ -174,20 +176,20 @@ var upgrader = websocket.Upgrader{
 }
 
 func testWS(w http.ResponseWriter, r *http.Request) {
-	conn, _ := upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
+	ws_conn, _ = upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
 
 	for {
 		// Read message from browser
-		msgType, msg, err := conn.ReadMessage()
+		msgType, msg, err := ws_conn.ReadMessage()
 		if err != nil {
 			return
 		}
 
 		// Print the message to the console
-		fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
+		fmt.Printf("%s sent: %s\n", ws_conn.RemoteAddr(), string(msg))
 
 		// Write message back to browser
-		if err = conn.WriteMessage(msgType, msg); err != nil {
+		if err = ws_conn.WriteMessage(msgType, msg); err != nil {
 			return
 		}
 	}
@@ -207,7 +209,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/androidContainers", getAndroidContainers)
 	myRouter.HandleFunc("/updateConfig", UpdateProjectConfigHandler)
 	myRouter.HandleFunc("/dockerfile", InteractDockerFile)
-	myRouter.HandleFunc("/build-image", BuildDockerImage)
+	myRouter.HandleFunc("/build-image", BuildDockerImage3)
 	myRouter.HandleFunc("/remove-image", RemoveDockerImage)
 	myRouter.HandleFunc("/setup-udev-listener", SetupUdevListener)
 	myRouter.HandleFunc("/remove-udev-listener", RemoveUdevRules)
@@ -216,6 +218,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/set-sudo-password", SetSudoPassword)
 	myRouter.HandleFunc("/test", CreateIOSContainer)
 	myRouter.HandleFunc("/start-ios-container/{device_udid}", CreateIOSContainer)
+	myRouter.HandleFunc("/test2", BuildDockerImage3)
 
 	myRouter.HandleFunc("/ws", testWS)
 

@@ -123,8 +123,8 @@
     <div class="config-buttons">
         <button class="config-button" id="config-button" type="button" onclick="showConfigModal()">Change project
             config</button>
-        <button class="config-button" id="config-button" type="button" onclick="notImplemented()">Edit
-            Dockerfile</button>
+        <button class="config-button" id="config-button" type="button" onclick="showIOSDeviceSelection()">Add a
+            device</button>
         <button class="config-button" id="config-button" type="button" onclick="buildImage(this)">Build Docker
             image</button>
         <button class="config-button" id="config-button" type="button" onclick="removeImage()">Remove Docker
@@ -136,12 +136,12 @@
             No Grid</button>
         <button class="config-button" id="config-button" type="button" onclick="removeUdevListener()">Remove udev
             listener</button>
-        <button class="config-button" id="config-button" type="button" onclick="showIOSDeviceSelection()">Add a
-            device</button>
         <button class="config-button" id="config-button" type="button" onclick="showSudoPasswordInput()">Set sudo
             password</button>
         <button class="config-button" id="config-button" type="button" onclick="notImplemented()">Remove udev
             listener</button>
+        <button class="config-button" id="config-button" type="button" onclick="notImplemented()">Edit
+            Dockerfile</button>
     </div>
     <script>
         /* Show info modal with provided text */
@@ -186,24 +186,12 @@
         }
 
         function buildImage(obj) {
-            /* Show loading indicator until response is returned */
-            $('#loading').css("visibility", "visible");
-
+            alert("Building Docker image, this could take a while.")
             /* Call the endpoint that will restart the selected container */
             var req = $.ajax({
-                timeout: 120000,
-                async: false,
+                async: true,
                 type: "GET",
-                url: "/build-image",
-                success: function (data) {
-                    alert("Successfully created image tagged: test \n" + data)
-                    /* Hide the loading after response is returned */
-                    $('#loading').css("visibility", "hidden");
-                },
-                error: function (data) {
-                    alert(JSON.stringify(data))
-                    $('#loading').css("visibility", "hidden");
-                }
+                url: "/build-image"
             });
         }
 
@@ -431,6 +419,11 @@
         }
 
         window.addEventListener("DOMContentLoaded", function () {
+            var socket = new WebSocket("ws://localhost:10000/ws");
+            socket.onmessage = function (e) {
+                alert(e.data)
+                location.reload()
+            };
             setImageStatusCellBackground()
             setUdevIOSListenerCellBackground()
             setSudoPasswordCellBackground()
