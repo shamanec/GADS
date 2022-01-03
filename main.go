@@ -268,38 +268,49 @@ func handleRequests() {
 	// Create a new instance of the mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
 
-	// replace http.HandleFunc with myRouter.HandleFunc
+	// iOS containers endpoints
 	myRouter.HandleFunc("/ios-containers", GetIOSContainers)
-	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo)
-	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer)
-	myRouter.HandleFunc("/deviceLogs/{log_type}/{device_udid}", GetDeviceLogs)
-	myRouter.HandleFunc("/containerLogs/{container_id}", GetContainerLogs)
-	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
+	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
+
+	// Android containers endpoints
 	myRouter.HandleFunc("/androidContainers", getAndroidContainers)
-	myRouter.HandleFunc("/updateConfig", UpdateProjectConfigHandler)
-	myRouter.HandleFunc("/dockerfile", InteractDockerFile)
+
+	// General containers endpoints
+	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer)
+	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer)
+	myRouter.HandleFunc("/containerLogs/{container_id}", GetContainerLogs)
+
+	// Configuration endpoints
+	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
 	myRouter.HandleFunc("/build-image", BuildDockerImage)
 	myRouter.HandleFunc("/remove-image", RemoveDockerImage)
 	myRouter.HandleFunc("/setup-udev-listener", SetupUdevListener)
 	myRouter.HandleFunc("/remove-udev-listener", RemoveUdevRules)
-	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices)
-	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice)
+	myRouter.HandleFunc("/updateConfig", UpdateProjectConfigHandler)
 	myRouter.HandleFunc("/set-sudo-password", SetSudoPassword)
-	myRouter.HandleFunc("/test", CreateIOSContainer)
-	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
-	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer)
-	myRouter.HandleFunc("/project-logs", GetLogsPage)
-	myRouter.HandleFunc("/projectLogs", GetLogs)
-	//myRouter.HandleFunc("/test2", BuildDockerImage3)
+	myRouter.HandleFunc("/dockerfile", InteractDockerFile)
 	myRouter.HandleFunc("/upload-wda", UploadWDA)
 
-	myRouter.HandleFunc("/ws", testWS)
+	// Devices endpoints
+	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo)
+	myRouter.HandleFunc("/deviceLogs/{log_type}/{device_udid}", GetDeviceLogs)
+	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices)
+	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice)
 
-	// assets
+	// Logs
+	myRouter.HandleFunc("/projectLogs", GetLogs)
+
+	// Asset endpoints
 	myRouter.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
+	// Page loads
+	myRouter.HandleFunc("/project-logs", GetLogsPage)
 	myRouter.HandleFunc("/", GetInitialPage)
+
+	// Test endpoints
+	myRouter.HandleFunc("/test", CreateIOSContainer)
+	myRouter.HandleFunc("/ws", testWS)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
