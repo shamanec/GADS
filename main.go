@@ -64,8 +64,8 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 	var index = template.Must(template.ParseFiles("static/index.html"))
 	if err := index.Execute(w, nil); err != nil {
 		log.WithFields(log.Fields{
-			"error": "index_page_load",
-		}).Info("Couldn't load index.html")
+			"event": "index_page_load",
+		}).Error("Couldn't load index.html")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -216,37 +216,17 @@ type ProjectLogs struct {
 
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
-	// Execute the command to restart the container by container ID
-	commandString := "tail -n 1000 ./logs/project.log"
-	cmd := exec.Command("bash", "-c", commandString)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	var logs ProjectLogs
-	if err != nil {
+	if err := logs_page.Execute(w, nil); err != nil {
 		log.WithFields(log.Fields{
-			"event": "get_device_logs",
-		}).Error("Attempted to get project logs but no logs available.")
-		logs = ProjectLogs{Logs: "No project logs available"}
-		if err := logs_page.Execute(w, logs); err != nil {
-			log.WithFields(log.Fields{
-				"error": "index_page_load",
-			}).Info("Couldn't load project_logs.html")
-			return
-		}
-	}
-	logs = ProjectLogs{Logs: out.String()}
-	if err := logs_page.Execute(w, logs); err != nil {
-		log.WithFields(log.Fields{
-			"error": "index_page_load",
-		}).Info("Couldn't load project_logs.html. Error: " + err.Error())
+			"event": "project_logs_page",
+		}).Error("Couldn't load project_logs.html")
 		return
 	}
 }
 
 func GetLogs(w http.ResponseWriter, r *http.Request) {
 	// Execute the command to restart the container by container ID
-	commandString := "tail -n 100 ./logs/project.log"
+	commandString := "tail -n 1000 ./logs/project.log"
 	cmd := exec.Command("bash", "-c", commandString)
 	var out bytes.Buffer
 	cmd.Stdout = &out
