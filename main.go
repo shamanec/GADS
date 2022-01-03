@@ -204,7 +204,7 @@ func testWS(w http.ResponseWriter, r *http.Request) {
 
 func setLogging() {
 	log.SetFormatter(&log.JSONFormatter{})
-	f, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE, 0755)
+	f, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
 	if err != nil {
 		panic(err)
 	}
@@ -216,9 +216,9 @@ func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 
 	// replace http.HandleFunc with myRouter.HandleFunc
-	myRouter.HandleFunc("/iOSContainers", GetIOSContainers)
+	myRouter.HandleFunc("/ios-containers", GetIOSContainers)
 	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo)
-	myRouter.HandleFunc("/restartContainer/{container_id}", RestartContainer)
+	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer)
 	myRouter.HandleFunc("/deviceLogs/{log_type}/{device_udid}", GetDeviceLogs)
 	myRouter.HandleFunc("/containerLogs/{container_id}", GetContainerLogs)
 	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
@@ -233,7 +233,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice)
 	myRouter.HandleFunc("/set-sudo-password", SetSudoPassword)
 	myRouter.HandleFunc("/test", CreateIOSContainer)
-	myRouter.HandleFunc("/start-ios-container/{device_udid}", CreateIOSContainer)
+	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
+	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer)
 	//myRouter.HandleFunc("/test2", BuildDockerImage3)
 	myRouter.HandleFunc("/upload-wda", UploadWDA)
 

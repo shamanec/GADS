@@ -44,7 +44,7 @@ table,
 		transform: translateY(4px);
 	}
 
-	.clsRestartButton {
+	.clsActionButtons {
 		font-size: 14px;
 		cursor: pointer;
 		text-align: center;
@@ -59,11 +59,11 @@ table,
 		width: 80px;
 	}
 
-	.clsRestartButton:hover {
+	.clsActionButtons:hover {
 		background-color: #da322a
 	}
 
-	.clsRestartButton:active {
+	.clsActionButtons:active {
 		background-color: #da492a;
 		box-shadow: 0 5px #666;
 		transform: translateY(4px);

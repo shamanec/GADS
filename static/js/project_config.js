@@ -63,15 +63,14 @@ function showDockerfileModal() {
     }
 }
 
-function buildImage(obj) {
-    alert("Building Docker image, this could take a while.")
-    var test = document.getElementById("image-status-cell")
-    test.textContent = "Image building"
-    /* Call the endpoint that will restart the selected container */
-    var req = $.ajax({
+function buildImage() {
+    $.ajax({
         async: true,
         type: "GET",
-        url: "/build-image"
+        url: "/build-image",
+        success: function () {
+            swal("Event: docker_image_build", "Started building docker image, this could take a while. Refresh the page occassionaly to get the image status.", "info");
+        }
     });
 }
 
@@ -81,17 +80,21 @@ function removeImage() {
 
     /* Call the endpoint that will restart the selected container */
     $.ajax({
-        dataType: 'JSON',
-        contentType: 'application/json',
+        dataType: 'json',
         async: true,
         type: "GET",
         url: "/remove-image",
         success: function (data) {
-            alert(data)
+            swal("Event: " + data.event, data.message, "success")
+            .then(() => {
+                location.reload();
+            });
         },
         error: function (data) {
-            var response = JSON.parse(data.responseText)
-            swal("Event: " + response.event, response.error_message, "error");
+            swal("Event: " + JSON.parse(data.responseText).event, JSON.parse(data.responseText).error_message, "error")
+            .then(() => {
+                location.reload();
+            });
         }
     });
 
@@ -276,14 +279,14 @@ function setSudoPassword() {
         url: "/set-sudo-password",
         success: function (data) {
             modal.style.display = "none";
-            swal("Event: " + data.event, data.message, "success")
+            swal("Event: " + data.event, data.message, "info")
             .then(() => {
                 location.reload();
             });
         },
         error: function (data) {
             modal.style.display = "none";
-            swal("Event: " + data.event, data.error_message, "error")
+            swal("Event: " + JSON.parse(data.responseText).event, JSON.parse(data.responseText).error_message, "error")
             .then(() => {
                 location.reload();
             });
