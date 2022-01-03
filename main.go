@@ -68,9 +68,6 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 		}).Info("Couldn't load index.html")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	log.WithFields(log.Fields{
-		"error": "index_page_load",
-	}).Info("Loaded index.html")
 }
 
 // Load the initial page with the project configuration info
@@ -269,11 +266,11 @@ func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 
 	// iOS containers endpoints
-	myRouter.HandleFunc("/ios-containers", GetIOSContainers)
+	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
 	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
 
 	// Android containers endpoints
-	myRouter.HandleFunc("/androidContainers", getAndroidContainers)
+	myRouter.HandleFunc("/android-containers.html", getAndroidContainers)
 
 	// General containers endpoints
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer)
@@ -281,7 +278,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/containerLogs/{container_id}", GetContainerLogs)
 
 	// Configuration endpoints
-	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
+	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
 	myRouter.HandleFunc("/build-image", BuildDockerImage)
 	myRouter.HandleFunc("/remove-image", RemoveDockerImage)
 	myRouter.HandleFunc("/setup-udev-listener", SetupUdevListener)
@@ -298,14 +295,14 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice)
 
 	// Logs
-	myRouter.HandleFunc("/projectLogs", GetLogs)
+	myRouter.HandleFunc("/project-logs", GetLogs)
 
 	// Asset endpoints
 	myRouter.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
 	myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
 	// Page loads
-	myRouter.HandleFunc("/project-logs", GetLogsPage)
+	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
 	// Test endpoints

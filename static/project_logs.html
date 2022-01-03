@@ -55,10 +55,10 @@
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
-        <a href="configuration">Project configuration</a>
-        <a href="ios-containers">iOS containers</a>
-        <a href="androidContainers">Android containers</a>
-        <a class="active" href="project-logs">Project logs</a>
+        <a href="configuration.html">Project configuration</a>
+        <a href="ios-containers.html">iOS containers</a>
+        <a href="android-containers.html">Android containers</a>
+        <a class="active" href="project-logs.html">Project logs</a>
     </div>
     <table id="logs-table">
         <thead>
@@ -84,7 +84,7 @@
         $.ajax({
             async: false,
             type: "GET",
-            url: "/projectLogs",
+            url: "/project-logs",
             success: function (data) {
                 //$('#test').html(data);
                 createLogsTable(data)
