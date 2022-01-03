@@ -30,13 +30,15 @@
         </div>
     </div>
     <div class="modal fade" id="upload-wda-modal" tabindex="-1" role="dialog" aria-hidden="true">
-        <form id="wda-upload-form">
-            <label for="myfile">Select a file:</label>
-            <br></br>
-            <input type="file" id="wda-input-file" name="wda-input-file">
-            <br></br>
-            <input type="submit">
-        </form>
+        <div class="upload-wda-wrapper">
+            <form id="wda-upload-form">
+                <label for="myfile">Select the zipped WebDriverAgent file:</label>
+                <br></br>
+                <input type="file" id="wda-input-file" name="wda-input-file">
+                <br></br>
+                <input type="submit" value="Upload file">
+            </form>
+        </div>
     </div>
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
@@ -44,6 +46,7 @@
         <a class="active" href="configuration">Project configuration</a>
         <a href="ios-containers">iOS containers</a>
         <a href="androidContainers">Android containers</a>
+        <a href="project-logs">Project logs</a>
     </div>
     <div>
         <table id="configurationInfoTable">

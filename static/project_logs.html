@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Docker Info</title>
+</head>
+
+<body>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="configuration">Project configuration</a>
+        <a href="ios-containers">iOS containers</a>
+        <a href="androidContainers">Android containers</a>
+        <a class="active" href="project-logs">Project logs</a>
+    </div>
+    <div id="test"></div>
+    <table id="logs-table">
+        <tr>
+            <th>Time</th>
+            <th>Level</th>
+            <th>Event</th>
+            <th>Message</th>
+        </tr>
+    </table>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</body>
+<style>
+    table,
+    td,
+    th {
+        border: 1px solid #000000;
+        text-align: center;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    th,
+    td {
+        padding: 15px;
+    }
+</style>
+<script>
+    window.addEventListener("DOMContentLoaded", function () {
+        getLogs();
+    });
+
+    function getLogs() {
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: "/projectLogs",
+            success: function (data) {
+                //$('#test').html(data);
+                createLogsTable(data)
+            },
+            error: function (data) {
+                $('#test').html(data);
+            }
+        });
+    }
+
+    function createLogsTable(data) {
+        //var table = document.createElement('table');
+        var table = document.getElementById("logs-table");
+        var lines = data.split(/\r\n|\r|\n/)
+        for (var i = 0; i < lines.length - 1; i++) {
+
+            var tr = document.createElement('tr');
+
+            var td1 = document.createElement('td');
+            var td2 = document.createElement('td');
+            var td3 = document.createElement('td');
+            var td4 = document.createElement('td');
+
+            var event = document.createTextNode(JSON.parse(lines[i]).event);
+            var level = document.createTextNode(JSON.parse(lines[i]).level);
+            var msg = document.createTextNode(JSON.parse(lines[i]).msg);
+            var time = document.createTextNode(JSON.parse(lines[i]).time);
+
+            td1.appendChild(time);
+            td2.appendChild(level);
+            td3.appendChild(event);
+            td4.appendChild(msg);
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            tr.appendChild(td3);
+            tr.appendChild(td4);
+            if (level.textContent === "error") {
+                tr.style.backgroundColor = "#eb4f34"
+            } else if (level.textContent === "info") {
+                tr.style.backgroundColor = "#e5eb34"
+            }
+
+            table.appendChild(tr);
+        }
+        document.body.appendChild(table);
+    }
+</script>
+
+</html>

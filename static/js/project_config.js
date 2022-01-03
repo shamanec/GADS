@@ -297,6 +297,9 @@ function setSudoPassword() {
 function showWDAUploadForm() {
     var modal = document.getElementById("upload-wda-modal")
 
+    // Clear the file input upon loading the modal
+    $("#wda-input-file").val('');
+
     /* Display the modal blocking interaction */
     modal.style.display = "block";
 

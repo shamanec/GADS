@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -211,6 +213,57 @@ func setLogging() {
 	log.SetOutput(f)
 }
 
+type ProjectLogs struct {
+	Logs interface{}
+}
+
+func GetLogsPage(w http.ResponseWriter, r *http.Request) {
+	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
+	// Execute the command to restart the container by container ID
+	commandString := "tail -n 1000 ./logs/project.log"
+	cmd := exec.Command("bash", "-c", commandString)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	var logs ProjectLogs
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_device_logs",
+		}).Error("Attempted to get project logs but no logs available.")
+		logs = ProjectLogs{Logs: "No project logs available"}
+		if err := logs_page.Execute(w, logs); err != nil {
+			log.WithFields(log.Fields{
+				"error": "index_page_load",
+			}).Info("Couldn't load project_logs.html")
+			return
+		}
+	}
+	logs = ProjectLogs{Logs: out.String()}
+	if err := logs_page.Execute(w, logs); err != nil {
+		log.WithFields(log.Fields{
+			"error": "index_page_load",
+		}).Info("Couldn't load project_logs.html. Error: " + err.Error())
+		return
+	}
+}
+
+func GetLogs(w http.ResponseWriter, r *http.Request) {
+	// Execute the command to restart the container by container ID
+	commandString := "tail -n 100 ./logs/project.log"
+	cmd := exec.Command("bash", "-c", commandString)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_project_logs",
+		}).Error("Attempted to get project logs but no logs available.")
+		fmt.Fprintf(w, "No logs available")
+	}
+	//SimpleJSONResponse(w, "get_project_logs", out.String(), 200)
+	fmt.Fprintf(w, out.String())
+}
+
 func handleRequests() {
 	// Create a new instance of the mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
@@ -235,6 +288,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/test", CreateIOSContainer)
 	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer)
+	myRouter.HandleFunc("/project-logs", GetLogsPage)
+	myRouter.HandleFunc("/projectLogs", GetLogs)
 	//myRouter.HandleFunc("/test2", BuildDockerImage3)
 	myRouter.HandleFunc("/upload-wda", UploadWDA)
 
