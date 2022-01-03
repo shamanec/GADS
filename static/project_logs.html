@@ -3,29 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Docker Info</title>
+    <title>Project logs</title>
 </head>
-
-<body>
-    <div class="topnav">
-        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
-        <a href="/">Home</a>
-        <a href="configuration">Project configuration</a>
-        <a href="ios-containers">iOS containers</a>
-        <a href="androidContainers">Android containers</a>
-        <a class="active" href="project-logs">Project logs</a>
-    </div>
-    <div id="test"></div>
-    <table id="logs-table">
-        <tr>
-            <th>Time</th>
-            <th>Level</th>
-            <th>Event</th>
-            <th>Message</th>
-        </tr>
-    </table>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-</body>
 <style>
     table,
     td,
@@ -39,11 +18,63 @@
         width: 100%;
     }
 
-    th,
     td {
         padding: 15px;
     }
+
+    thead th {
+        padding: 16px;
+        padding-left: 15px;
+        border-left: 1px solid #000000;
+        border-bottom: 1px solid #000000;
+        border-right: 1px solid #000000;
+        background: #ffc491;
+        text-align: center;
+        box-shadow: 0px 0px 0 1px #000000;
+    }
+
+    tbody {
+        height: 100px;
+        border: 2px solid black;
+        overflow-y: auto;
+    }
+
+    /* Set header to stick to the top of the container. */
+    thead tr th {
+        position: sticky;
+        top: 50px;
+    }
+
+    .topnav {
+        position: sticky;
+        top: 0;
+    }
 </style>
+
+<body>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="configuration">Project configuration</a>
+        <a href="ios-containers">iOS containers</a>
+        <a href="androidContainers">Android containers</a>
+        <a class="active" href="project-logs">Project logs</a>
+    </div>
+    <table id="logs-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Level</th>
+                <th>Event</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody id="logs-table-body">
+        </tbody>
+    </table>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</body>
+
 <script>
     window.addEventListener("DOMContentLoaded", function () {
         getLogs();
@@ -59,18 +90,22 @@
                 createLogsTable(data)
             },
             error: function (data) {
-                $('#test').html(data);
+                alert("No logs");
             }
         });
     }
 
     function createLogsTable(data) {
-        //var table = document.createElement('table');
-        var table = document.getElementById("logs-table");
-        var lines = data.split(/\r\n|\r|\n/)
+        var table = document.getElementById("logs-table-body");
+        var lines = data.trim().split(/\r\n|\r|\n/)
+
+        //Display the latest logs at the top of the page
+        lines.reverse()
+        
         for (var i = 0; i < lines.length - 1; i++) {
 
             var tr = document.createElement('tr');
+            tr.id = "table-row"
 
             var td1 = document.createElement('td');
             var td2 = document.createElement('td');
@@ -91,14 +126,14 @@
             tr.appendChild(td3);
             tr.appendChild(td4);
             if (level.textContent === "error") {
-                tr.style.backgroundColor = "#eb4f34"
+                tr.style.backgroundColor = "#ff8330"
             } else if (level.textContent === "info") {
-                tr.style.backgroundColor = "#e5eb34"
+                tr.style.backgroundColor = "#ffd163"
             }
 
             table.appendChild(tr);
         }
-        document.body.appendChild(table);
+        //document.body.appendChild(table);
     }
 </script>
 
