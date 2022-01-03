@@ -290,8 +290,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/test", CreateIOSContainer)
 	myRouter.HandleFunc("/ws", testWS)
 
-	log.Fatal(http.ListenAndServeTLS(":10000", "ca-cert.pem", "ca-key.pem", myRouter))
-	//log.Fatal(http.ListenAndServe(":10000", myRouter))
+	//log.Fatal(http.ListenAndServeTLS(":10000", "ca-cert.pem", "ca-key.pem", myRouter))
+	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
 func main() {
