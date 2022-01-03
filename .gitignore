@@ -2,3 +2,5 @@ WebDriverAgent
 logs/*
 build-context.tar
 ipa/*
+ca-cert.pem
+ca-key.pem

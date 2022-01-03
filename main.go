@@ -267,6 +267,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/set-sudo-password", SetSudoPassword)
 	myRouter.HandleFunc("/dockerfile", InteractDockerFile)
 	myRouter.HandleFunc("/upload-wda", UploadWDA)
+	myRouter.HandleFunc("/upload-app", UploadApp)
 
 	// Devices endpoints
 	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo)
@@ -289,7 +290,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/test", CreateIOSContainer)
 	myRouter.HandleFunc("/ws", testWS)
 
-	log.Fatal(http.ListenAndServe(":10000", myRouter))
+	log.Fatal(http.ListenAndServeTLS(":10000", "ca-cert.pem", "ca-key.pem", myRouter))
+	//log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
 func main() {

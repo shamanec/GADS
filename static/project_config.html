@@ -34,7 +34,18 @@
             <form id="wda-upload-form">
                 <label for="myfile">Select the zipped WebDriverAgent file:</label>
                 <br></br>
-                <input type="file" id="wda-input-file" name="wda-input-file">
+                <input type="file" id="wda-input-file" name="wda-input-file" accept=".zip">
+                <br></br>
+                <input type="submit" value="Upload file">
+            </form>
+        </div>
+    </div>
+    <div class="modal fade" id="upload-app-modal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="upload-app-wrapper">
+            <form id="app-upload-form">
+                <label for="myfile">Select *.apk or *.ipa file to upload:</label>
+                <br></br>
+                <input type="file" id="app-input-file" name="app-input-file" accept=".ipa,.apk">
                 <br></br>
                 <input type="submit" value="Upload file">
             </form>
@@ -137,8 +148,7 @@
         <button class="config-button" id="config-button" type="button" onclick="showSudoPasswordInput()">Set sudo
             password</button>
         <button class="config-button" id="config-button" type="button" onclick="showWDAUploadForm()">Upload WDA</button>
-        <button class="config-button" id="config-button" type="button" onclick="notImplemented()">Edit
-            Dockerfile</button>
+        <button class="config-button" id="config-button" type="button" onclick="showAppFileUploadForm()">Upload app file</button>
     </div>
     <script type="text/javascript" src="/static/js/project_config.js"></script>
 </body>

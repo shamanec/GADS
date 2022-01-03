@@ -94,3 +94,12 @@
   width: 500px;
   margin: auto;
 }
+
+.upload-app-wrapper {
+  background-color: whitesmoke;
+  list-style-type: none;
+  padding: 15px;
+  border-radius: 3px;
+  width: 500px;
+  margin: auto;
+}

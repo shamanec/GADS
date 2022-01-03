@@ -22,6 +22,30 @@ $("#wda-upload-form").submit(function (e) {
     });
 });
 
+$("#app-upload-form").submit(function (e) {
+    e.preventDefault();
+    var formData = new FormData();
+    formData.append('file', $('#app-input-file')[0].files[0]);
+
+    $.ajax({
+        url: '/upload-app',
+        type: 'POST',
+        data: formData,
+        processData: false,  // tell jQuery not to process the data
+        contentType: false,  // tell jQuery not to set contentType
+        success: function (data) {
+            console.log(data);
+            alert(data);
+            location.reload()
+        },
+        error: function (data) {
+            console.log(data);
+            alert(data);
+            location.reload()
+        }
+    });
+});
+
 /* Show info modal with provided text */
 function showConfigModal() {
     /* Get the modal element */
@@ -299,6 +323,23 @@ function showWDAUploadForm() {
 
     // Clear the file input upon loading the modal
     $("#wda-input-file").val('');
+
+    /* Display the modal blocking interaction */
+    modal.style.display = "block";
+
+    /* Close the modal if you click anywhere outside the modal */
+    window.onclick = function (event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+}
+
+function showAppFileUploadForm() {
+    var modal = document.getElementById("upload-app-modal")
+
+    // Clear the file input upon loading the modal
+    $("#app-input-file").val('');
 
     /* Display the modal blocking interaction */
     modal.style.display = "block";

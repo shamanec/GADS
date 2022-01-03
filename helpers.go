@@ -259,6 +259,47 @@ func UploadWDA(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Uploaded and unzipped into 'WebDriverAgent' folder.")
 }
 
+func UploadApp(w http.ResponseWriter, r *http.Request) {
+	// truncated for brevity
+
+	// The argument to FormFile must match the name attribute
+	// of the file input on the frontend
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	defer file.Close()
+
+	// Create the WebDriverAgent folder if it doesn't
+	// already exist
+	err = os.MkdirAll("./ipa", os.ModePerm)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create a new file in the uploads directory
+	dst, err := os.Create("./ipa/" + header.Filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	defer dst.Close()
+
+	// Copy the uploaded file to the filesystem
+	// at the specified destination
+	_, err = io.Copy(dst, file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, "Uploaded '"+header.Filename+"' to the ./ipa folder.")
+}
+
 func Unzip(src string, dest string) ([]string, error) {
 
 	var filenames []string
