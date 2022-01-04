@@ -263,7 +263,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/remove-image", RemoveDockerImage)
 	myRouter.HandleFunc("/setup-udev-listener", SetupUdevListener)
 	myRouter.HandleFunc("/remove-udev-listener", RemoveUdevRules)
-	myRouter.HandleFunc("/updateConfig", UpdateProjectConfigHandler)
+	myRouter.HandleFunc("/update-config", UpdateProjectConfigHandler)
 	myRouter.HandleFunc("/set-sudo-password", SetSudoPassword)
 	myRouter.HandleFunc("/dockerfile", InteractDockerFile)
 	myRouter.HandleFunc("/upload-wda", UploadWDA)
@@ -271,7 +271,7 @@ func handleRequests() {
 
 	// Devices endpoints
 	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo)
-	myRouter.HandleFunc("/deviceLogs/{log_type}/{device_udid}", GetDeviceLogs)
+	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs)
 	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices)
 	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice)
 

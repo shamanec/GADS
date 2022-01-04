@@ -156,14 +156,14 @@
 			/* Get the device UDID that is in the value of the button */
 			var deviceUDID = buttonObj.value
 
-			var url = "/deviceLogs/" + logType + "/" + deviceUDID
+			var url = "/device-logs/" + logType + "/" + deviceUDID
 			var refreshButton = document.getElementById("refresh-logs-button")
 			refreshButton.value = url
 			/* Call the endpoint that will get the chosen logs */
 			$.ajax({
 				async: false,
 				type: "GET",
-				url: "/deviceLogs/" + logType + "/" + deviceUDID,
+				url: "/devic-logs/" + logType + "/" + deviceUDID,
 				success: function (data) {
 					showInfoModal(data)
 				}
