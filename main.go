@@ -255,7 +255,7 @@ func handleRequests() {
 	// General containers endpoints
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer)
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer)
-	myRouter.HandleFunc("/containerLogs/{container_id}", GetContainerLogs)
+	myRouter.HandleFunc("/container-logs/{container_id}", GetContainerLogs)
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
