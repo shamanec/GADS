@@ -181,26 +181,6 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func testWS(w http.ResponseWriter, r *http.Request) {
-	ws_conn, _ = upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
-
-	for {
-		// Read message from browser
-		msgType, msg, err := ws_conn.ReadMessage()
-		if err != nil {
-			return
-		}
-
-		// Print the message to the console
-		fmt.Printf("%s sent: %s\n", ws_conn.RemoteAddr(), string(msg))
-
-		// Write message back to browser
-		if err = ws_conn.WriteMessage(msgType, msg); err != nil {
-			return
-		}
-	}
-}
-
 func setLogging() {
 	log.SetFormatter(&log.JSONFormatter{})
 	f, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
@@ -208,10 +188,6 @@ func setLogging() {
 		panic(err)
 	}
 	log.SetOutput(f)
-}
-
-type ProjectLogs struct {
-	Logs interface{}
 }
 
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
@@ -288,7 +264,6 @@ func handleRequests() {
 
 	// Test endpoints
 	myRouter.HandleFunc("/test", CreateIOSContainer)
-	myRouter.HandleFunc("/ws", testWS)
 
 	//log.Fatal(http.ListenAndServeTLS(":10000", "ca-cert.pem", "ca-key.pem", myRouter))
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
