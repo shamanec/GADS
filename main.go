@@ -246,28 +246,25 @@ func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 
 	// iOS containers endpoints
-	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
 	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
 
 	// Android containers endpoints
-	myRouter.HandleFunc("/android-containers.html", getAndroidContainers)
 
 	// General containers endpoints
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer)
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer)
-	myRouter.HandleFunc("/container-logs/{container_id}", GetContainerLogs)
+	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs)
 
 	// Configuration endpoints
-	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
-	myRouter.HandleFunc("/build-image", BuildDockerImage)
-	myRouter.HandleFunc("/remove-image", RemoveDockerImage)
-	myRouter.HandleFunc("/setup-udev-listener", SetupUdevListener)
-	myRouter.HandleFunc("/remove-udev-listener", RemoveUdevRules)
-	myRouter.HandleFunc("/update-config", UpdateProjectConfigHandler)
-	myRouter.HandleFunc("/set-sudo-password", SetSudoPassword)
-	myRouter.HandleFunc("/dockerfile", InteractDockerFile)
-	myRouter.HandleFunc("/upload-wda", UploadWDA)
-	myRouter.HandleFunc("/upload-app", UploadApp)
+	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage)
+	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage)
+	myRouter.HandleFunc("/configuration/setup-udev-listener", SetupUdevListener)
+	myRouter.HandleFunc("/configuration/remove-udev-listener", RemoveUdevRules)
+	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler)
+	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword)
+	myRouter.HandleFunc("/configuration/dockerfile", InteractDockerFile)
+	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA)
+	myRouter.HandleFunc("/configuration/upload-app", UploadApp)
 
 	// Devices endpoints
 	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo)
@@ -283,6 +280,9 @@ func handleRequests() {
 	myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
 	// Page loads
+	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
+	myRouter.HandleFunc("/android-containers.html", getAndroidContainers)
+	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 

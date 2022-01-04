@@ -221,7 +221,7 @@
 				contentType: 'application/json',
 				async: false,
 				type: "GET",
-				url: "/container-logs/" + containerID,
+				url: "/containers/" + containerID + "/logs",
 				success: function (data) {
 					showInfoModal(data.message)
 				},

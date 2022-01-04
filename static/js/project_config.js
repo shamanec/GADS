@@ -4,7 +4,7 @@ $("#wda-upload-form").submit(function (e) {
     formData.append('file', $('#wda-input-file')[0].files[0]);
 
     $.ajax({
-        url: '/upload-wda',
+        url: '/configuration/upload-wda',
         type: 'POST',
         data: formData,
         processData: false,  // tell jQuery not to process the data
@@ -28,7 +28,7 @@ $("#app-upload-form").submit(function (e) {
     formData.append('file', $('#app-input-file')[0].files[0]);
 
     $.ajax({
-        url: '/upload-app',
+        url: '/configuration/upload-app',
         type: 'POST',
         data: formData,
         processData: false,  // tell jQuery not to process the data
@@ -91,7 +91,7 @@ function buildImage() {
     $.ajax({
         async: true,
         type: "GET",
-        url: "/build-image",
+        url: "/configuration/build-image",
         success: function () {
             swal("Event: docker_image_build", "Started building docker image, this could take a while. Refresh the page occassionaly to get the image status.", "info");
         }
@@ -107,7 +107,7 @@ function removeImage() {
         dataType: 'json',
         async: true,
         type: "GET",
-        url: "/remove-image",
+        url: "/configuration/remove-image",
         success: function (data) {
             swal("Event: " + data.event, data.message, "success")
             .then(() => {
@@ -140,7 +140,7 @@ function removeUdevListener() {
         dataType: false,
         async: true,
         type: "GET",
-        url: "/remove-udev-listener",
+        url: "/configuration/remove-udev-listener",
         success: function (data) {
             alert(data)
             /* Reload the page to get the new info */
@@ -172,9 +172,9 @@ function setupUdevListener(gridBool) {
     $('#loading').css("visibility", "visible");
 
     if (gridBool) {
-        url = "/setup-udev-listener"
+        url = "/configuration/setup-udev-listener"
     } else {
-        url = "/setup-udev-listener"
+        url = "/configuration/setup-udev-listener"
     }
 
     /* Call the endpoint that will start the respective listener config */
@@ -300,7 +300,7 @@ function setSudoPassword() {
         async: true,
         type: "POST",
         data: JSON.stringify({ "sudo_password": sudo_password }),
-        url: "/set-sudo-password",
+        url: "/configuration/set-sudo-password",
         success: function (data) {
             modal.style.display = "none";
             swal("Event: " + data.event, data.message, "info")
