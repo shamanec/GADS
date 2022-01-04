@@ -223,6 +223,7 @@ func handleRequests() {
 
 	// iOS containers endpoints
 	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
+	myRouter.HandleFunc("/ios-containers/update", UpdateIOSContainers)
 
 	// Android containers endpoints
 

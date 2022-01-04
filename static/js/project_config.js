@@ -352,6 +352,17 @@ function showAppFileUploadForm() {
     }
 }
 
+function updateContainers() {
+    $.ajax({
+        async: true,
+        type: "POST",
+        url: "/ios-containers/update",
+        success: function () {
+            swal("Containers update", "Started iOS containers update", "info")
+        }
+    });
+}
+
 function enableDisableSubmit(dropdownObj) {
     // Check the currently selected option
     // If it is the default one disable the Add button else enable it

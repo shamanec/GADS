@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -275,7 +276,6 @@ func ImageExists() (imageStatus string) {
 	return
 }
 
-// Restart docker container
 func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 	// Get the parameters
 	vars := mux.Vars(r)
@@ -425,6 +425,204 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func CreateIOSContainerLocal(device_udid string) {
+	log.WithFields(log.Fields{
+		"event": "ios_container_create",
+	}).Info("Attempting to create a container for iOS device with udid: " + device_udid)
+
+	if !CheckIOSDeviceInDevicesList(device_udid) {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Warn("Device with udid: " + device_udid + " is not available in the attached devices list from go-ios.")
+		return
+	}
+
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not create docker client when attempting to create a container for device with udid: " + device_udid)
+		return
+	}
+
+	jsonFile, err := os.Open("./configs/config.json")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not open ./configs/config.json when attempting to create a container for device with udid: " + device_udid)
+		return
+	}
+	defer jsonFile.Close()
+
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not read ./configs/config.json when attempting to create a container for device with udid: " + device_udid)
+		return
+	}
+	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
+	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
+	device_os_version := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_os_version`)
+	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
+	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
+	wda_bundle_id := gjson.Get(string(byteValue), "wda_bundle_id")
+
+	config := &container.Config{
+		Image: "ios-appium",
+		ExposedPorts: nat.PortSet{
+			nat.Port(appium_port.Raw):    struct{}{},
+			nat.Port(wda_port.Raw):       struct{}{},
+			nat.Port(wda_mjpeg_port.Raw): struct{}{},
+		},
+		Env: []string{"ON_GRID=false",
+			"DEVICE_UDID=" + device_udid,
+			"WDA_PORT=" + wda_port.Raw,
+			"MJPEG_PORT=" + wda_mjpeg_port.Raw,
+			"APPIUM_PORT=" + appium_port.Raw,
+			"DEVICE_OS_VERSION=" + device_os_version.Str,
+			"DEVICE_NAME=" + device_name.Str,
+			"WDA_BUNDLEID=" + wda_bundle_id.Str},
+	}
+
+	host_config := &container.HostConfig{
+		PortBindings: nat.PortMap{
+			nat.Port(appium_port.Raw): []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: appium_port.Raw,
+				},
+			},
+			nat.Port(wda_port.Raw): []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: wda_port.Raw,
+				},
+			},
+			nat.Port(wda_mjpeg_port.Raw): []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: wda_mjpeg_port.Raw,
+				},
+			},
+		},
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: "/var/run/usbmuxd",
+				Target: "/var/run/usbmuxd",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: "/var/lib/lockdown",
+				Target: "/var/lib/lockdown",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/logs/container_" + device_name.Str + "-" + device_udid,
+				Target: "/opt/logs",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/ipa",
+				Target: "/opt/ipa",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/WebDriverAgent",
+				Target: "/opt/WebDriverAgent",
+			},
+		},
+	}
+
+	err = os.MkdirAll("./logs/container_"+device_name.Str+"-"+device_udid, os.ModePerm)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not create logs folder when attempting to create a container for device with udid: " + device_udid + ". Error: " + err.Error())
+		return
+	}
+
+	resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "ios_device_"+device_name.Str+"-"+device_udid)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not create a container for device with udid: " + device_udid + ". Error: " + err.Error())
+		return
+	}
+
+	err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not start container for device with udid: " + device_udid + ". Error: " + err.Error())
+		return
+	}
+}
+
+func UpdateIOSContainersLocal() {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "update_containers",
+		}).Error(". Error: " + err.Error())
+	}
+
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "update_containers",
+		}).Error(". Error: " + err.Error())
+	}
+
+	devices, err := ios.ListDevices()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "update_containers",
+		}).Error(". Error: " + err.Error())
+	}
+
+	DestroyIOSContainers(devices, containers)
+	CreateIOSContainers(devices, containers)
+
+}
+
+func CreateIOSContainers(devices ios.DeviceList, containers []types.Container) {
+	device_has_container := false
+	for _, device := range devices.DeviceList {
+		for _, container := range containers {
+			containerName := strings.Replace(container.Names[0], "/", "", -1)
+			if strings.Contains(containerName, device.Properties.SerialNumber) {
+				device_has_container = true
+			}
+		}
+		if !device_has_container {
+			CreateIOSContainerLocal(device.Properties.SerialNumber)
+		}
+	}
+}
+
+func DestroyIOSContainers(devices ios.DeviceList, containers []types.Container) {
+	container_has_device := false
+	for _, container := range containers {
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+		for _, device := range devices.DeviceList {
+			if strings.Contains(containerName, device.Properties.SerialNumber) {
+				container_has_device = true
+			}
+		}
+		if !container_has_device {
+			RemoveIOSContainerLocal(container.ID)
+		}
+	}
+}
+
+func UpdateIOSContainers(w http.ResponseWriter, r *http.Request) {
+	go UpdateIOSContainersLocal()
+	w.WriteHeader(http.StatusAccepted)
+}
+
 func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]
@@ -463,4 +661,38 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 		"event": "docker_container_remove",
 	}).Info("Successfully removed container with ID: " + key)
 	SimpleJSONResponse(w, "docker_container_remove", "Successfully removed container with ID: "+key, 200)
+}
+
+func RemoveIOSContainerLocal(container_id string) {
+
+	log.WithFields(log.Fields{
+		"event": "docker_container_remove",
+	}).Info("Attempting to remove container with ID: " + container_id)
+
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not create docker client while attempting to remove container with ID: " + container_id + ". Error: " + err.Error())
+		return
+	}
+
+	if err := cli.ContainerStop(ctx, container_id, nil); err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not remove container with ID: " + container_id + ". Error: " + err.Error())
+		return
+	}
+
+	if err := cli.ContainerRemove(ctx, container_id, types.ContainerRemoveOptions{}); err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not remove container with ID: " + container_id + ". Error: " + err.Error())
+		return
+	}
+
+	log.WithFields(log.Fields{
+		"event": "docker_container_remove",
+	}).Info("Successfully removed container with ID: " + container_id)
 }
