@@ -487,6 +487,7 @@ func CreateIOSContainerLocal(device_udid string) {
 	}
 
 	host_config := &container.HostConfig{
+		RestartPolicy: container.RestartPolicy{Name: "always", MaximumRetryCount: 0},
 		PortBindings: nat.PortMap{
 			nat.Port(appium_port.Raw): []nat.PortBinding{
 				{

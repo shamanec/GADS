@@ -1,0 +1,13 @@
+[Unit]
+Description=Socket daemon for the usbmux protocol used by Apple devices
+
+[Service]
+ExecStart=/usr/sbin/usbmuxd
+PIDFile=/var/run/usbmuxd.pid
+Restart=always
+
+StandardOutput=syslog
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target
