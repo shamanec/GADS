@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docker/docker/api/types"
@@ -563,11 +564,13 @@ func CreateIOSContainerLocal(device_udid string) {
 }
 
 func UpdateIOSContainersLocal() {
+	time.Sleep(10 * time.Second)
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "update_containers",
 		}).Error(". Error: " + err.Error())
+		return
 	}
 
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
@@ -575,6 +578,7 @@ func UpdateIOSContainersLocal() {
 		log.WithFields(log.Fields{
 			"event": "update_containers",
 		}).Error(". Error: " + err.Error())
+		return
 	}
 
 	devices, err := ios.ListDevices()
@@ -582,6 +586,7 @@ func UpdateIOSContainersLocal() {
 		log.WithFields(log.Fields{
 			"event": "update_containers",
 		}).Error(". Error: " + err.Error())
+		return
 	}
 
 	DestroyIOSContainers(devices, containers)
