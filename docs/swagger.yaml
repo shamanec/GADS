@@ -1,34 +1,15 @@
-definitions:
-  main.Order:
-    properties:
-      fullname:
-        type: string
-      username:
-        type: string
-    type: object
+basePath: /
+host: localhost:8080
 info:
-  contact: {}
-paths:
-  /orders:
-    post:
-      consumes:
-      - application/json
-      description: Create a new order with the input paylod
-      parameters:
-      - description: Create order
-        in: body
-        name: order
-        required: true
-        schema:
-          $ref: '#/definitions/main.Order'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.Order'
-      summary: Create a new order
-      tags:
-      - orders
+  contact:
+    email: soberkoder@gmail.com
+    name: API Support
+  description: This is a sample service for managing orders
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Orders API
+  version: "1.0"
+paths: {}
 swagger: "2.0"

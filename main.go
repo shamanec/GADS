@@ -194,15 +194,6 @@ type Order struct {
 	Fullname string `json:"fullname"`
 }
 
-// CreateOrder godoc
-// @Summary Create a new order
-// @Description Create a new order with the input paylod
-// @Tags orders
-// @Accept  json
-// @Produce  json
-// @Param order body Order true "Create order"
-// @Success 200 {object} Order
-// @Router /orders [post]
 func handleRequests() {
 	// Create a new instance of the mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
@@ -257,6 +248,16 @@ func handleRequests() {
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
+// @title Orders API
+// @version 1.0
+// @description This is a sample service for managing orders
+// @termsOfService http://swagger.io/terms/
+// @contact.name API Support
+// @contact.email soberkoder@gmail.com
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+// @host localhost:8080
+// @BasePath /
 func main() {
 	setLogging()
 	handleRequests()
