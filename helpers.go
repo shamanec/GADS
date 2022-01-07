@@ -128,6 +128,16 @@ func SetFilePermissionsShell(filePath string, permissionsCode string, sudoPasswo
 	return nil
 }
 
+func EnableUsbmuxdService() error {
+	commandString := "sudo systemctl enable usbmuxd.service"
+	cmd := exec.Command("bash", "-c", commandString)
+	err := cmd.Run()
+	if err != nil {
+		return errors.New("Could not enable usbmuxd service. Error: " + err.Error() + "\n")
+	}
+	return nil
+}
+
 // Device struct which contains device info
 type ErrorJSON struct {
 	EventName    string `json:"event"`

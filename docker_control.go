@@ -330,6 +330,10 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
 	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
 	wda_bundle_id := gjson.Get(string(byteValue), "wda_bundle_id")
+	selenium_hub_port := gjson.Get(string(byteValue), "selenium_hub_port")
+	selenium_hub_host := gjson.Get(string(byteValue), "selenium_hub_host")
+	devices_host := gjson.Get(string(byteValue), "devices_host")
+	hub_protocol := gjson.Get(string(byteValue), "hub_protocol")
 
 	config := &container.Config{
 		Image: "ios-appium",
@@ -345,7 +349,11 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 			"APPIUM_PORT=" + appium_port.Raw,
 			"DEVICE_OS_VERSION=" + device_os_version.Str,
 			"DEVICE_NAME=" + device_name.Str,
-			"WDA_BUNDLEID=" + wda_bundle_id.Str},
+			"WDA_BUNDLEID=" + wda_bundle_id.Str,
+			"SELENIUM_HUB_PORT=" + selenium_hub_port.Str,
+			"SELENIUM_HUB_HOST=" + selenium_hub_host.Str,
+			"DEVICES_HOST=" + devices_host.Str,
+			"HUB_PROTOCOL=" + hub_protocol.Str},
 	}
 
 	host_config := &container.HostConfig{

@@ -235,8 +235,8 @@ func handleRequests() {
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage)
 	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage)
-	myRouter.HandleFunc("/configuration/setup-udev-listener", SetupUdevListener)
-	myRouter.HandleFunc("/configuration/remove-udev-listener", RemoveUdevRules)
+	myRouter.HandleFunc("/configuration/setup-ios-listener", SetupUdevListener)
+	myRouter.HandleFunc("/configuration/remove-ios-listener", RemoveUdevListener)
 	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler)
 	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword)
 	myRouter.HandleFunc("/configuration/dockerfile", InteractDockerFile)

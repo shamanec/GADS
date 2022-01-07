@@ -67,26 +67,6 @@ function showConfigModal() {
     }
 };
 
-function showDockerfileModal() {
-    /* Get the modal element */
-    var modal = document.getElementById("configuration-modal")
-
-    /* Get the close button */
-    var span = document.getElementsByClassName("close")[0]
-
-    $("#modal-body").load("/static/edit_file_modal.html");
-
-    /* Display the modal blocking interaction */
-    modal.style.display = "block";
-
-    /* Close the modal if you click anywhere outside the modal */
-    window.onclick = function (event) {
-        if (event.target == modal) {
-            modal.style.display = "none";
-        }
-    }
-}
-
 function buildImage() {
     $.ajax({
         async: true,
@@ -129,7 +109,7 @@ function removeImage() {
 function removeUdevListener() {
     var sudoPasswordStatus = document.getElementById("sudo-password-cell").getAttribute("value")
     if (sudoPasswordStatus === "false") {
-        alert("Elevated permissions are needed to perform this action. Please set your user sudo password in the '.config.yaml' file.")
+        swal("Warning", "Elevated permissions are needed to perform this action. Please set your user sudo password in the '.config.yaml' file or directly through the UI.", "info")
         return
     }
     /* Show loading indicator until response is returned */
@@ -140,7 +120,7 @@ function removeUdevListener() {
         dataType: false,
         async: true,
         type: "GET",
-        url: "/configuration/remove-udev-listener",
+        url: "/configuration/remove-ios-listener",
         success: function (data) {
             alert(data)
             /* Reload the page to get the new info */
@@ -157,10 +137,10 @@ function removeUdevListener() {
     $('#loading').css("visibility", "hidden");
 }
 
-function setupUdevListener(gridBool) {
+function setupUdevListener() {
     var sudoPasswordStatus = document.getElementById("sudo-password-cell").getAttribute("value")
     if (sudoPasswordStatus === "false") {
-        alert("Elevated permissions are needed to perform this action. Please set your user sudo password in the '.config.yaml' file.")
+        swal("Warning", "Elevated permissions are needed to perform this action. Please set your user sudo password in the '.config.yaml' file or directly through the UI.", "info")
         return
     }
     var imageStatus = document.getElementById("image-status-cell").getAttribute("value")
@@ -171,18 +151,12 @@ function setupUdevListener(gridBool) {
     /* Show loading indicator until response is returned */
     $('#loading').css("visibility", "visible");
 
-    if (gridBool) {
-        url = "/configuration/setup-udev-listener"
-    } else {
-        url = "/configuration/setup-udev-listener"
-    }
-
     /* Call the endpoint that will start the respective listener config */
     $.ajax({
         dataType: false,
         async: true,
         type: "GET",
-        url: url,
+        url: "/configuration/setup-ios-listener",
         success: function (data) {
             alert(data)
             /* Reload the page to get the new info */

@@ -18,6 +18,10 @@ import (
 var sudo_password = GetEnvValue("sudo_password")
 
 func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
+	if sudo_password == "undefined" {
+		JSONError(w, "create_udev_rules_error", "Elevated permissions are required to perform this action. Please set your sudo password in './env.json' or via the '/configuration/set-sudo-password' endpoint.", 500)
+		return
+	}
 	DeleteTempUdevFiles()
 	err := CreateUdevRules()
 	if err != nil {
@@ -32,6 +36,20 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 		DeleteTempUdevFiles()
 		return
 	}
+	err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
+	if err != nil {
+		DeleteTempUdevFiles()
+		JSONError(w, "setup_udev_rules_error", "Could not copy usbmuxd.service. Error: "+err.Error(), 500)
+		return
+	}
+
+	err = EnableUsbmuxdService()
+	if err != nil {
+		DeleteTempUdevFiles()
+		JSONError(w, "setup_udev_rules_error", "Could not enable usbmuxd.service. Error: "+err.Error(), 500)
+		return
+	}
+
 	DeleteTempUdevFiles()
 	fmt.Fprintf(w, "Successfully set udev rules.")
 }
@@ -42,7 +60,8 @@ func DeleteTempUdevFiles() {
 
 func UdevIOSListenerState() (status string) {
 	_, ruleErr := os.Stat("/etc/udev/rules.d/39-usbmuxd.rules")
-	if ruleErr != nil {
+	_, usbmuxdErr := os.Stat("/lib/systemd/system/usbmuxd.service")
+	if ruleErr != nil || usbmuxdErr != nil {
 		status = "Udev rules not set."
 		return
 	} else {
@@ -89,7 +108,7 @@ func SetUdevRules() error {
 	return nil
 }
 
-func RemoveUdevRules(w http.ResponseWriter, r *http.Request) {
+func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 	err := DeleteFileShell("/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
 	if err != nil {
 		JSONError(w, "delete_file_error", err.Error(), 500)
