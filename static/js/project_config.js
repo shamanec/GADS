@@ -70,7 +70,7 @@ function showConfigModal() {
 function buildImage() {
     $.ajax({
         async: true,
-        type: "GET",
+        type: "POST",
         url: "/configuration/build-image",
         success: function () {
             swal("Event: docker_image_build", "Started building docker image, this could take a while. Refresh the page occassionaly to get the image status.", "info");
@@ -86,7 +86,7 @@ function removeImage() {
     $.ajax({
         dataType: 'json',
         async: true,
-        type: "GET",
+        type: "POST",
         url: "/configuration/remove-image",
         success: function (data) {
             swal("Event: " + data.event, data.message, "success")
@@ -119,7 +119,7 @@ function removeUdevListener() {
     $.ajax({
         dataType: false,
         async: true,
-        type: "GET",
+        type: "POST",
         url: "/configuration/remove-ios-listener",
         success: function (data) {
             alert(data)
@@ -155,7 +155,7 @@ function setupUdevListener() {
     $.ajax({
         dataType: false,
         async: true,
-        type: "GET",
+        type: "POST",
         url: "/configuration/setup-ios-listener",
         success: function (data) {
             alert(data)
@@ -272,7 +272,7 @@ function setSudoPassword() {
         dataType: 'JSON',
         contentType: 'application/json',
         async: true,
-        type: "POST",
+        type: "PUT",
         data: JSON.stringify({ "sudo_password": sudo_password }),
         url: "/configuration/set-sudo-password",
         success: function (data) {

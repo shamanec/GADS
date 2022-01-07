@@ -114,7 +114,7 @@
 				dataType: 'JSON',
 				contentType: 'application/json',
 				async: false,
-				type: "GET",
+				type: "POST",
 				url: "/containers/" + containerId + "/restart",
 				success: function (data) {
 					$('#loading').css("visibility", "hidden");
@@ -146,7 +146,7 @@
 				dataType: 'JSON',
 				contentType: 'application/json',
 				async: false,
-				type: "GET",
+				type: "POST",
 				url: "/containers/" + containerId + "/remove",
 				success: function (data) {
 					$('#loading').css("visibility", "hidden");

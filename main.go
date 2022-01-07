@@ -206,31 +206,6 @@ func UpdateProjectConfigHandler2(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func InteractDockerFile(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "GET":
-		dockerfile, err := os.Open("./Dockerfile")
-		if err != nil {
-			fmt.Println(err)
-		}
-		defer dockerfile.Close()
-
-		byteValue, _ := ioutil.ReadAll(dockerfile)
-
-		fmt.Fprintf(w, string(byteValue))
-	case "POST":
-		dockerfile, err := os.Open("./Dockerfile")
-		if err != nil {
-			fmt.Println(err)
-		}
-		defer dockerfile.Close()
-
-		byteValue, _ := ioutil.ReadAll(dockerfile)
-
-		fmt.Fprintf(w, "THIS IS ON POST"+string(byteValue))
-	}
-}
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -278,34 +253,33 @@ func handleRequests() {
 
 	// iOS containers endpoints
 	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
-	myRouter.HandleFunc("/ios-containers/update", UpdateIOSContainers)
+	myRouter.HandleFunc("/ios-containers/update", UpdateIOSContainers).Methods("POST")
 
 	// Android containers endpoints
 
 	// General containers endpoints
-	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer)
-	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer)
-	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs)
+	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
+	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
+	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
 
 	// Configuration endpoints
-	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage)
-	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage)
-	myRouter.HandleFunc("/configuration/setup-ios-listener", SetupUdevListener)
-	myRouter.HandleFunc("/configuration/remove-ios-listener", RemoveUdevListener)
-	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler2)
-	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword)
-	myRouter.HandleFunc("/configuration/dockerfile", InteractDockerFile)
-	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA)
-	myRouter.HandleFunc("/configuration/upload-app", UploadApp)
+	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage).Methods("POST")
+	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage).Methods("POST")
+	myRouter.HandleFunc("/configuration/setup-ios-listener", SetupUdevListener).Methods("POST")
+	myRouter.HandleFunc("/configuration/remove-ios-listener", RemoveUdevListener).Methods("POST")
+	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler2).Methods("PUT")
+	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword).Methods("PUT")
+	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA).Methods("POST")
+	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
 
 	// Devices endpoints
-	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo)
-	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs)
-	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices)
-	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice)
+	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo).Methods("GET")
+	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs).Methods("GET")
+	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices).Methods("GET")
+	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice).Methods("POST")
 
 	// Logs
-	myRouter.HandleFunc("/project-logs", GetLogs)
+	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
 
 	// Asset endpoints
 	myRouter.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))

@@ -138,7 +138,6 @@ func EnableUsbmuxdService() error {
 	return nil
 }
 
-// Device struct which contains device info
 type ErrorJSON struct {
 	EventName    string `json:"event"`
 	ErrorMessage string `json:"error_message"`
@@ -171,10 +170,8 @@ func SimpleJSONResponse(w http.ResponseWriter, event string, response_message st
 }
 
 func ReadJSONFile(jsonFilePath string) ([]byte, error) {
-	// Open the env.json
 	jsonFile, err := os.Open(jsonFilePath)
 
-	// if os.Open returns an error then handle it
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "read_json_file",
@@ -215,10 +212,6 @@ func CheckIOSDeviceInDevicesList(device_udid string) bool {
 }
 
 func UploadWDA(w http.ResponseWriter, r *http.Request) {
-	// truncated for brevity
-
-	// The argument to FormFile must match the name attribute
-	// of the file input on the frontend
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -270,10 +263,6 @@ func UploadWDA(w http.ResponseWriter, r *http.Request) {
 }
 
 func UploadApp(w http.ResponseWriter, r *http.Request) {
-	// truncated for brevity
-
-	// The argument to FormFile must match the name attribute
-	// of the file input on the frontend
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -282,7 +271,7 @@ func UploadApp(w http.ResponseWriter, r *http.Request) {
 
 	defer file.Close()
 
-	// Create the WebDriverAgent folder if it doesn't
+	// Create the ipa folder if it doesn't
 	// already exist
 	err = os.MkdirAll("./ipa", os.ModePerm)
 	if err != nil {
