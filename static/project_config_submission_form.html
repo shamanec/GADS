@@ -44,12 +44,12 @@
           contentType: 'JSON',
           data: JSON.stringify(getFormData(data)),
           success: function () {
-              alert("Successfully updated project config")
-              /* Reload the page to get the new info */
+              swal("Info message", "Successfully updated project config", "success")
               location.reload();
           },
           error: function () {
-              alert("Could not update project config");
+            swal("Info message", "Could not update project config", "error")
+              location.reload();
           }
       })
   });

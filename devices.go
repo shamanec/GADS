@@ -120,6 +120,7 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	requestBody, _ := ioutil.ReadAll(r.Body)
 	device_udid := gjson.Get(string(requestBody), "device_udid")
 	device_os_version := gjson.Get(string(requestBody), "device_os_version")
+	device_name := gjson.Get(string(requestBody), "device_name")
 
 	// Open the configuration json file
 	jsonFile, err := os.Open("./configs/config.json")
@@ -148,7 +149,7 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	// Create the object for the new device
 	var deviceInfo = Device{
 		AppiumPort:      4841 + len(jsonDevicesUDIDs.Array()),
-		DeviceName:      "test",
+		DeviceName:      device_name.Str,
 		DeviceOSVersion: device_os_version.String(),
 		DeviceUDID:      device_udid.String(),
 		WdaMjpegPort:    20101 + len(jsonDevicesUDIDs.Array()),

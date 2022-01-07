@@ -13,6 +13,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 var ws_conn *websocket.Conn
@@ -145,7 +147,60 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	err = ioutil.WriteFile("./configs/config.json", byteValue, 0644)
+	// Prettify the json so it looks good inside the file
+	var prettyJSON bytes.Buffer
+	json.Indent(&prettyJSON, []byte(byteValue), "", "  ")
+
+	err = ioutil.WriteFile("./configs/config.json", []byte(prettyJSON.String()), 0644)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func UpdateProjectConfigHandler2(w http.ResponseWriter, r *http.Request) {
+	requestBody, _ := ioutil.ReadAll(r.Body)
+	devices_host := gjson.Get(string(requestBody), "devices_host").Str
+	selenium_hub_host := gjson.Get(string(requestBody), "selenium_hub_host").Str
+	selenium_hub_port := gjson.Get(string(requestBody), "selenium_hub_port").Str
+	selenium_hub_protocol_type := gjson.Get(string(requestBody), "selenium_hub_protocol_type").Str
+	wda_bundle_id := gjson.Get(string(requestBody), "wda_bundle_id").Str
+	// Open the configuration json file
+	jsonFile, err := os.Open("./configs/config.json")
+	if err != nil {
+		JSONError(w, "config_file_error", "Could not open the config.json file.", 500)
+	}
+	defer jsonFile.Close()
+
+	// Read the configuration json file into byte array
+	configJson, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		JSONError(w, "config_file_error", "Could not read the config.json file.", 500)
+	}
+
+	var updatedJSON string
+	updatedJSON, _ = sjson.Set(string(configJson), "devicesList.-1", devices_host)
+
+	if devices_host != "" {
+		updatedJSON, _ = sjson.Set(string(configJson), "devices_host", devices_host)
+	}
+	if selenium_hub_host != "" {
+		updatedJSON, _ = sjson.Set(string(configJson), "selenium_hub_host", selenium_hub_host)
+	}
+	if selenium_hub_port != "" {
+		updatedJSON, _ = sjson.Set(string(configJson), "selenium_hub_port", selenium_hub_port)
+	}
+	if selenium_hub_protocol_type != "" {
+		updatedJSON, _ = sjson.Set(string(configJson), "selenium_hub_protocol_type", selenium_hub_protocol_type)
+	}
+	if wda_bundle_id != "" {
+		updatedJSON, _ = sjson.Set(string(configJson), "wda_bundle_id", wda_bundle_id)
+	}
+
+	// Prettify the json so it looks good inside the file
+	var prettyJSON bytes.Buffer
+	json.Indent(&prettyJSON, []byte(updatedJSON), "", "  ")
+
+	err = ioutil.WriteFile("./configs/config.json", []byte(prettyJSON.String()), 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -237,7 +292,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage)
 	myRouter.HandleFunc("/configuration/setup-ios-listener", SetupUdevListener)
 	myRouter.HandleFunc("/configuration/remove-ios-listener", RemoveUdevListener)
-	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler)
+	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler2)
 	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword)
 	myRouter.HandleFunc("/configuration/dockerfile", InteractDockerFile)
 	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA)
