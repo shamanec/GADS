@@ -232,7 +232,7 @@ function registerIOSDevice() {
         contentType: 'application/json',
         async: true,
         type: "POST",
-        data: JSON.stringify({ "device_udid": deviceInfoArray[0], "device_os_version": deviceInfoArray[1], "deviceName": device_name }),
+        data: JSON.stringify({ "device_udid": deviceInfoArray[0], "device_os_version": deviceInfoArray[1], "device_name": device_name }),
         url: "/ios-devices/register",
         success: function (data) {
             alert("Successfully added device with UDID: " + deviceInfoArray[0] + " to the config.json file.")
