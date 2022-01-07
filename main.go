@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -99,65 +100,6 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var request_config ProjectConfig
-	err := decoder.Decode(&request_config)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	jsonFile, err := os.Open("./configs/config.json")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer jsonFile.Close()
-
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(byteValue, &result)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	if request_config.DevicesHost != "" {
-		result["devices_host"] = request_config.DevicesHost
-	}
-	if request_config.SeleniumHubHost != "" {
-		result["selenium_hub_host"] = request_config.SeleniumHubHost
-	}
-	if request_config.SeleniumHubPort != "" {
-		result["selenium_hub_port"] = request_config.SeleniumHubPort
-	}
-	if request_config.SeleniumHubProtocolType != "" {
-		result["selenium_hub_protocol_type"] = request_config.SeleniumHubProtocolType
-	}
-	if request_config.WdaBundleID != "" {
-		result["wda_bundle_id"] = request_config.WdaBundleID
-	}
-
-	byteValue, err = json.Marshal(result)
-	if err != nil {
-		panic(err)
-	}
-
-	// Prettify the json so it looks good inside the file
-	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, []byte(byteValue), "", "  ")
-
-	err = ioutil.WriteFile("./configs/config.json", []byte(prettyJSON.String()), 0644)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func UpdateProjectConfigHandler2(w http.ResponseWriter, r *http.Request) {
 	requestBody, _ := ioutil.ReadAll(r.Body)
 	devices_host := gjson.Get(string(requestBody), "devices_host").Str
 	selenium_hub_host := gjson.Get(string(requestBody), "selenium_hub_host").Str
@@ -247,9 +189,25 @@ func GetLogs(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, out.String())
 }
 
+type Order struct {
+	Username string `json:"username"`
+	Fullname string `json:"fullname"`
+}
+
+// CreateOrder godoc
+// @Summary Create a new order
+// @Description Create a new order with the input paylod
+// @Tags orders
+// @Accept  json
+// @Produce  json
+// @Param order body Order true "Create order"
+// @Success 200 {object} Order
+// @Router /orders [post]
 func handleRequests() {
 	// Create a new instance of the mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
+
+	myRouter.PathPrefix("/swagger").Handler(httpSwagger.WrapHandler)
 
 	// iOS containers endpoints
 	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
@@ -267,7 +225,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/setup-ios-listener", SetupUdevListener).Methods("POST")
 	myRouter.HandleFunc("/configuration/remove-ios-listener", RemoveUdevListener).Methods("POST")
-	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler2).Methods("PUT")
+	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler).Methods("PUT")
 	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword).Methods("PUT")
 	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA).Methods("POST")
 	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
