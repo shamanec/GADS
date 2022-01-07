@@ -10,14 +10,16 @@ $("#wda-upload-form").submit(function (e) {
         processData: false,  // tell jQuery not to process the data
         contentType: false,  // tell jQuery not to set contentType
         success: function (data) {
-            console.log(data);
-            alert(data);
-            location.reload()
+            swal("Upload WDA", data, "success")
+            .then(() => {
+                location.reload();
+            });
         },
         error: function (data) {
-            console.log(data);
-            alert(data);
-            location.reload()
+            swal("Upload WDA", data, "error")
+            .then(() => {
+                location.reload();
+            });
         }
     });
 });
@@ -35,13 +37,17 @@ $("#app-upload-form").submit(function (e) {
         contentType: false,  // tell jQuery not to set contentType
         success: function (data) {
             console.log(data);
-            alert(data);
-            location.reload()
+            swal("Upload app", data, "success")
+            .then(() => {
+                location.reload();
+            });
         },
         error: function (data) {
             console.log(data);
-            alert(data);
-            location.reload()
+            swal("Upload app", data, "error")
+            .then(() => {
+                location.reload();
+            });
         }
     });
 });
@@ -73,7 +79,7 @@ function buildImage() {
         type: "POST",
         url: "/configuration/build-image",
         success: function () {
-            swal("Event: docker_image_build", "Started building docker image, this could take a while. Refresh the page occassionaly to get the image status.", "info");
+            swal("Build image", "Started building docker image, this could take a while. Refresh the page occassionaly to get the image status.", "info");
         }
     });
 }
@@ -122,14 +128,16 @@ function removeUdevListener() {
         type: "POST",
         url: "/configuration/remove-ios-listener",
         success: function (data) {
-            alert(data)
-            /* Reload the page to get the new info */
-            location.reload();
+            swal("Remove listener", data, "error")
+            .then(() => {
+                location.reload();
+            });
         },
         error: function (data) {
-            alert(JSON.stringify(data))
-            /* Reload the page to get the new info */
-            location.reload();
+            swal("Remove listener", JSON.stringify(data), "error")
+            .then(() => {
+                location.reload();
+            });
         }
     });
 
@@ -145,31 +153,30 @@ function setupUdevListener() {
     }
     var imageStatus = document.getElementById("image-status-cell").getAttribute("value")
     if (imageStatus === "is-not-available") {
-        alert("The 'ios-appium' Docker image is not available, listener will not be started.")
+        swal("Warning", "The 'ios-appium' Docker image is not available, listener will not be started.", "error")
         return
     }
-    /* Show loading indicator until response is returned */
     $('#loading').css("visibility", "visible");
 
-    /* Call the endpoint that will start the respective listener config */
     $.ajax({
         dataType: false,
         async: true,
         type: "POST",
         url: "/configuration/setup-ios-listener",
         success: function (data) {
-            alert(data)
-            /* Reload the page to get the new info */
-            location.reload();
+            swal("Setup ios listener", data, "sucess")
+            .then(() => {
+                location.reload();
+            });
         },
         error: function (data) {
-            alert(JSON.stringify(data))
-            /* Reload the page to get the new info */
-            location.reload();
+            swal("Setup ios listener", JSON.stringify(data), "error")
+            .then(() => {
+                location.reload();
+            });
         }
     });
 
-    /* Hide the loading after response is returned */
     $('#loading').css("visibility", "hidden");
 }
 
@@ -211,7 +218,7 @@ function showIOSDeviceSelection() {
             }
         },
         error: function (data) {
-            alert($.parseJSON(data.responseText).error_message)
+            swal("Show device selection", $.parseJSON(data.responseText).error_message, "error")
         }
     });
 }
@@ -222,7 +229,7 @@ function registerIOSDevice() {
     var device_info = $("#device-dropdown").val();
     var device_name = $("#register-device-name").val();
     if (device_name === "") {
-        alert("Please provide a device name. Avoid using special characters and spaces except for '_'. Example: iPhone_11")
+        swal("Register device", "Please provide a device name. Avoid using special characters and spaces except for '_'. Example: iPhone_11", "info")
         return
     }
     deviceInfoArray = device_info.split(new RegExp(":"));
@@ -235,11 +242,11 @@ function registerIOSDevice() {
         data: JSON.stringify({ "device_udid": deviceInfoArray[0], "device_os_version": deviceInfoArray[1], "device_name": device_name }),
         url: "/ios-devices/register",
         success: function (data) {
-            alert("Successfully added device with UDID: " + deviceInfoArray[0] + " to the config.json file.")
+            swal("Info message", "Successfully added device with UDID: " + deviceInfoArray[0] + " to the config.json file.", "success")
             modal.style.display = "none";
         },
         error: function (data) {
-            alert($.parseJSON(data.responseText).error_message)
+            swal("Register device error", $.parseJSON(data.responseText).error_message, "error")
             modal.style.display = "none";
         }
     });
@@ -264,7 +271,7 @@ function setSudoPassword() {
     var modal = document.getElementById("sudo-password-input-modal")
     var sudo_password = $("#sudo-password-input").val();
     if (sudo_password === "") {
-        alert("Please provide a non-empty value for the sudo password.")
+        swal("Info message", "Please provide a non-empty value for the sudo password.", "error")
         return
     }
     // Send a request to register the device with the respective selected device UDID
@@ -348,15 +355,10 @@ function enableDisableSubmit(dropdownObj) {
 }
 
 function notImplemented() {
-    alert("Not implemented")
+    swal("Not implemented", "Not implemented", "info")
 }
 
 window.addEventListener("DOMContentLoaded", function () {
-    var socket = new WebSocket("ws://localhost:10000/ws");
-    socket.onmessage = function (e) {
-        alert(e.data)
-        location.reload()
-    };
     setWDAStatusCellBackground()
     setImageStatusCellBackground()
     setUdevIOSListenerCellBackground()
