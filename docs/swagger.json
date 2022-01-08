@@ -1,20 +1,413 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This is a sample service for managing orders",
-        "title": "Orders API",
-        "termsOfService": "http://swagger.io/terms/",
-        "contact": {
-            "name": "API Support",
-            "email": "soberkoder@gmail.com"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
-        "version": "1.0"
+        "contact": {}
     },
-    "host": "localhost:8080",
-    "basePath": "/",
-    "paths": {}
+    "paths": {
+        "/configuration/build-image": {
+            "post": {
+                "description": "Starts building the 'ios-appium' image in a goroutine and just returns Accepted",
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Build 'ios-appium' image",
+                "responses": {
+                    "202": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/configuration/remove-image": {
+            "post": {
+                "description": "Removes the 'ios-appium' Docker image",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Remove 'ios-appium' image",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/configuration/remove-ios-listener": {
+            "post": {
+                "description": "Deletes udev rules from /etc/udev/rules.d and reloads udev",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Removes iOS device listener",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/configuration/set-sudo-password": {
+            "put": {
+                "description": "Sets your sudo password in ./env.json. The password is needed for operations requiring elevated permissions like setting up udev.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Set sudo password",
+                "parameters": [
+                    {
+                        "description": "Sudo password value",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.SudoPassword"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/configuration/setup-ios-listener": {
+            "post": {
+                "description": "Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Sets up iOS device listener",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/configuration/update-config": {
+            "put": {
+                "description": "Updates one  or multiple configuration values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Update project configuration",
+                "parameters": [
+                    {
+                        "description": "Update config",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.ProjectConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/containers/{container_id}/logs": {
+            "post": {
+                "description": "Get logs of container by providing container ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "containers"
+                ],
+                "summary": "Get container logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/containers/{container_id}/remove": {
+            "post": {
+                "description": "Removes container by provided container ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "containers"
+                ],
+                "summary": "Remove container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/containers/{container_id}/restart": {
+            "post": {
+                "description": "Restarts container by provided container ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "containers"
+                ],
+                "summary": "Restart container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Container ID",
+                        "name": "container_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/device-logs/{log_type}/{device_udid}": {
+            "get": {
+                "description": "Get logs by type",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device-logs"
+                ],
+                "summary": "Get logs for iOS device container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Log Type",
+                        "name": "log_type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/ios_containers/update": {
+            "post": {
+                "description": "Creates (or removes respectively) iOS containers based on the connected and registered devices",
+                "tags": [
+                    "ios-devices"
+                ],
+                "summary": "Update iOS containers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/ios_containers/{device_udid}/create": {
+            "post": {
+                "description": "Creates a docker container for iOS device for provided device UDID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ios-devices"
+                ],
+                "summary": "Create iOS container",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.ErrorJSON": {
+            "type": "object",
+            "properties": {
+                "error_message": {
+                    "type": "string"
+                },
+                "event": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.ProjectConfig": {
+            "type": "object",
+            "properties": {
+                "devices_host": {
+                    "type": "string"
+                },
+                "selenium_hub_host": {
+                    "type": "string"
+                },
+                "selenium_hub_port": {
+                    "type": "string"
+                },
+                "selenium_hub_protocol_type": {
+                    "type": "string"
+                },
+                "wda_bundle_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.SimpleResponseJSON": {
+            "type": "object",
+            "properties": {
+                "event": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.SudoPassword": {
+            "type": "object",
+            "properties": {
+                "sudo_password": {
+                    "type": "string"
+                }
+            }
+        }
+    }
 }

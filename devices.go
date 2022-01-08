@@ -18,7 +18,15 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-// Get the respective device logs based on log type
+// @Summary      Get logs for iOS device container
+// @Description  Get logs by type
+// @Tags         device-logs
+// @Produce      json
+// @Param        log_type path string true "Log Type"
+// @Param        device_udid path string true "Device UDID"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      200 {object} SimpleResponseJSON
+// @Router       /device-logs/{log_type}/{device_udid} [get]
 func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 
 	// Get the parameters
@@ -40,7 +48,8 @@ func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"event": "get_device_logs",
 		}).Error("Could not get logs of type:" + key + " for device with udid:" + key2)
-		SimpleJSONResponse(w, "get_container_logs", "No logs of this type available for this container.", 200)
+		SimpleJSONResponse(w, "get_device_logs", "No logs of this type available for this container.", 200)
+		return
 	}
 	SimpleJSONResponse(w, "get_device_logs", out.String(), 200)
 }

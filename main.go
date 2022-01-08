@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 
+	_ "GADS/docs"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -99,6 +101,15 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary      Update project configuration
+// @Description  Updates one  or multiple configuration values
+// @Tags         configuration
+// @Param        config body ProjectConfig true "Update config"
+// @Accept		 json
+// @Produce      json
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /configuration/update-config [put]
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	requestBody, _ := ioutil.ReadAll(r.Body)
 	devices_host := gjson.Get(string(requestBody), "devices_host").Str
@@ -109,14 +120,16 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	// Open the configuration json file
 	jsonFile, err := os.Open("./configs/config.json")
 	if err != nil {
-		JSONError(w, "config_file_error", "Could not open the config.json file.", 500)
+		JSONError(w, "config_file_interaction", "Could not open the config.json file.", 500)
+		return
 	}
 	defer jsonFile.Close()
 
 	// Read the configuration json file into byte array
 	configJson, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		JSONError(w, "config_file_error", "Could not read the config.json file.", 500)
+		JSONError(w, "config_file_interaction", "Could not read the config.json file.", 500)
+		return
 	}
 
 	var updatedJSON string
@@ -144,8 +157,10 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = ioutil.WriteFile("./configs/config.json", []byte(prettyJSON.String()), 0644)
 	if err != nil {
-		panic(err)
+		JSONError(w, "config_file_interaction", "Could not write to the config.json file.", 500)
+		return
 	}
+	SimpleJSONResponse(w, "config_file_interaction", "Successfully updated project config in ./configs/config.json", 200)
 }
 
 var upgrader = websocket.Upgrader{
@@ -200,6 +215,13 @@ func handleRequests() {
 
 	myRouter.PathPrefix("/swagger").Handler(httpSwagger.WrapHandler)
 
+	myRouter.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:10000/swagger/doc.json"), //The url pointing to API definition
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("#swagger-ui"),
+	))
+
 	// iOS containers endpoints
 	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
 	myRouter.HandleFunc("/ios-containers/update", UpdateIOSContainers).Methods("POST")
@@ -248,16 +270,6 @@ func handleRequests() {
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
-// @title Orders API
-// @version 1.0
-// @description This is a sample service for managing orders
-// @termsOfService http://swagger.io/terms/
-// @contact.name API Support
-// @contact.email soberkoder@gmail.com
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-// @host localhost:8080
-// @BasePath /
 func main() {
 	setLogging()
 	handleRequests()

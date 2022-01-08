@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -17,41 +16,48 @@ import (
 
 var sudo_password = GetEnvValue("sudo_password")
 
+// @Summary      Sets up iOS device listener
+// @Description  Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it
+// @Tags         configuration
+// @Produce      json
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /configuration/setup-ios-listener [post]
 func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	if sudo_password == "undefined" {
-		JSONError(w, "create_udev_rules_error", "Elevated permissions are required to perform this action. Please set your sudo password in './env.json' or via the '/configuration/set-sudo-password' endpoint.", 500)
+		JSONError(w, "setup_udev_listener", "Elevated permissions are required to perform this action. Please set your sudo password in './env.json' or via the '/configuration/set-sudo-password' endpoint.", 500)
 		return
 	}
 	DeleteTempUdevFiles()
 	err := CreateUdevRules()
 	if err != nil {
-		JSONError(w, "create_udev_rules_error", err.Error(), 500)
+		JSONError(w, "setup_udev_listener", err.Error(), 500)
 		DeleteTempUdevFiles()
 		return
 	}
 
 	err = SetUdevRules()
 	if err != nil {
-		JSONError(w, "setup_udev_rules_error", err.Error(), 500)
+		JSONError(w, "setup_udev_listener", err.Error(), 500)
 		DeleteTempUdevFiles()
 		return
 	}
 	err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
 	if err != nil {
 		DeleteTempUdevFiles()
-		JSONError(w, "setup_udev_rules_error", "Could not copy usbmuxd.service. Error: "+err.Error(), 500)
+		JSONError(w, "setup_udev_listener", "Could not copy usbmuxd.service. Error: "+err.Error(), 500)
 		return
 	}
 
 	err = EnableUsbmuxdService()
 	if err != nil {
 		DeleteTempUdevFiles()
-		JSONError(w, "setup_udev_rules_error", "Could not enable usbmuxd.service. Error: "+err.Error(), 500)
+		JSONError(w, "setup_udev_listener", "Could not enable usbmuxd.service. Error: "+err.Error(), 500)
 		return
 	}
 
 	DeleteTempUdevFiles()
-	fmt.Fprintf(w, "Successfully set udev rules.")
+	SimpleJSONResponse(w, "setup_udev_listener", "Successfully set udev rules.", 200)
 }
 
 func DeleteTempUdevFiles() {
@@ -108,6 +114,13 @@ func SetUdevRules() error {
 	return nil
 }
 
+// @Summary      Removes iOS device listener
+// @Description  Deletes udev rules from /etc/udev/rules.d and reloads udev
+// @Tags         configuration
+// @Produce      json
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /configuration/remove-ios-listener [post]
 func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 	err := DeleteFileShell("/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
 	if err != nil {
@@ -138,6 +151,19 @@ func CheckSudoPasswordSet() bool {
 	return true
 }
 
+type SudoPassword struct {
+	SudoPassword string `json:"sudo_password"`
+}
+
+// @Summary      Set sudo password
+// @Description  Sets your sudo password in ./env.json. The password is needed for operations requiring elevated permissions like setting up udev.
+// @Tags         configuration
+// @Accept		 json
+// @Produce      json
+// @Param        config body SudoPassword true "Sudo password value"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /configuration/set-sudo-password [put]
 func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	requestBody, _ := ioutil.ReadAll(r.Body)
 	sudo_password := gjson.Get(string(requestBody), "sudo_password").Str

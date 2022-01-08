@@ -86,12 +86,23 @@ func buildDockerImage() {
 	}).Info("Built 'ios-appium' docker image:\n")
 }
 
+// @Summary      Build 'ios-appium' image
+// @Description  Starts building the 'ios-appium' image in a goroutine and just returns Accepted
+// @Tags         configuration
+// @Success      202
+// @Router       /configuration/build-image [post]
 func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 	go buildDockerImage()
 	w.WriteHeader(http.StatusAccepted)
-	//buf.ReadFrom(imageBuildResponse.Body)
 }
 
+// @Summary      Remove 'ios-appium' image
+// @Description  Removes the 'ios-appium' Docker image
+// @Tags         configuration
+// @Produce      json
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /configuration/remove-image [post]
 func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 	error_message := "Could not remove ios-appium image."
 	// Create the context and Docker client
@@ -116,7 +127,6 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 	SimpleJSONResponse(w, "docker_image_remove", "Successfully removed image tagged: '"+imageRemoveResponse[0].Untagged+"'", 200)
 }
 
-// Function that returns all current iOS device containers and their info
 func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -162,7 +172,14 @@ func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Restart docker container
+// @Summary      Restart container
+// @Description  Restarts container by provided container ID
+// @Tags         containers
+// @Produce      json
+// @Param        container_id path string true "Container ID"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /containers/{container_id}/restart [post]
 func RestartContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]
@@ -194,7 +211,14 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 	SimpleJSONResponse(w, "docker_container_restart", "Successfully attempted to restart container with ID: "+key, 200)
 }
 
-// Function that returns all current iOS device containers and their info
+// @Summary      Get container logs
+// @Description  Get logs of container by providing container ID
+// @Tags         containers
+// @Produce      json
+// @Param        container_id path string true "Container ID"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /containers/{container_id}/logs [post]
 func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]
@@ -277,6 +301,14 @@ func ImageExists() (imageStatus string) {
 	return
 }
 
+// @Summary      Create iOS container
+// @Description  Creates a docker container for iOS device for provided device UDID
+// @Tags         ios-devices
+// @Produce      json
+// @Param        device_udid path string true "Device UDID"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /ios_containers/{device_udid}/create [post]
 func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 	// Get the parameters
 	vars := mux.Vars(r)
@@ -632,11 +664,25 @@ func DestroyIOSContainers(devices ios.DeviceList, containers []types.Container) 
 	}
 }
 
+// @Summary      Update iOS containers
+// @Description  Creates (or removes respectively) iOS containers based on the connected and registered devices
+// @Tags         ios-devices
+// @Param        device_udid path string true "Device UDID"
+// @Success      202
+// @Router       /ios_containers/update [post]
 func UpdateIOSContainers(w http.ResponseWriter, r *http.Request) {
 	go UpdateIOSContainersLocal()
 	w.WriteHeader(http.StatusAccepted)
 }
 
+// @Summary      Remove container
+// @Description  Removes container by provided container ID
+// @Tags         containers
+// @Produce      json
+// @Param        container_id path string true "Container ID"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJson
+// @Router       /containers/{container_id}/remove [post]
 func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]

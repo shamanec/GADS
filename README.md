@@ -23,6 +23,8 @@ Developed and tested on Ubuntu 18.04 LTS
 3. Execute 'go run main.go'
 4. Open your browser and go to *localhost:10000*.
 
+You can access Swagger documentation on *http://localhost:10000/swagger/index.html*
+
 ## Prepare WebDriverAgent file
 
 You need an Apple Developer account to sign and build **WebDriverAgent**
