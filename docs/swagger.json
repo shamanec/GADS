@@ -201,6 +201,12 @@
                         "schema": {
                             "$ref": "#/definitions/main.SimpleResponseJSON"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
                     }
                 }
             }
@@ -230,6 +236,12 @@
                         "schema": {
                             "$ref": "#/definitions/main.SimpleResponseJSON"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
                     }
                 }
             }
@@ -258,6 +270,12 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
                         }
                     }
                 }
@@ -351,8 +369,22 @@
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.ErrorJSON"
                         }
+                    }
+                }
+            }
+        },
+        "/project-logs": {
+            "get": {
+                "description": "Provides project logs as plain text response",
+                "tags": [
+                    "project-logs"
+                ],
+                "summary": "Get project logs",
+                "responses": {
+                    "200": {
+                        "description": ""
                     }
                 }
             }

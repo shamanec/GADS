@@ -165,6 +165,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.SimpleResponseJSON'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
       summary: Get container logs
       tags:
       - containers
@@ -184,6 +188,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.SimpleResponseJSON'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
       summary: Remove container
       tags:
       - containers
@@ -203,6 +211,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/main.SimpleResponseJSON'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
       summary: Restart container
       tags:
       - containers
@@ -249,7 +261,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.ErrorJSON'
       summary: Create iOS container
       tags:
       - ios-devices
@@ -269,4 +281,13 @@ paths:
       summary: Update iOS containers
       tags:
       - ios-devices
+  /project-logs:
+    get:
+      description: Provides project logs as plain text response
+      responses:
+        "200":
+          description: ""
+      summary: Get project logs
+      tags:
+      - project-logs
 swagger: "2.0"

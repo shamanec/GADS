@@ -681,7 +681,7 @@ func UpdateIOSContainers(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        container_id path string true "Container ID"
 // @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJson
+// @Failure      500 {object} ErrorJSON
 // @Router       /containers/{container_id}/remove [post]
 func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

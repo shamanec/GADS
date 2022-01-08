@@ -187,6 +187,12 @@ func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary      Get project logs
+// @Description  Provides project logs as plain text response
+// @Tags         project-logs
+// @Success      200
+// @Failure      200
+// @Router       /project-logs [get]
 func GetLogs(w http.ResponseWriter, r *http.Request) {
 	// Execute the command to restart the container by container ID
 	commandString := "tail -n 1000 ./logs/project.log"
@@ -199,6 +205,7 @@ func GetLogs(w http.ResponseWriter, r *http.Request) {
 			"event": "get_project_logs",
 		}).Error("Attempted to get project logs but no logs available.")
 		fmt.Fprintf(w, "No logs available")
+		return
 	}
 	//SimpleJSONResponse(w, "get_project_logs", out.String(), 200)
 	fmt.Fprintf(w, out.String())
