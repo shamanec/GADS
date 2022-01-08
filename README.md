@@ -15,6 +15,7 @@ The project has minimum dependencies:
 2. Install usbmuxd (from apt is sufficient)  
 3. Install Go 1.17 (that is what I'm using, lower might also work)  
 
+Developed and tested on Ubuntu 18.04 LTS
 
 ## Run the project  
 1. Clone the project.
