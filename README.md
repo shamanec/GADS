@@ -6,10 +6,21 @@ GADS - Go Appium Docker Service
 * For the moment the service has only iOS containers integrated.  
 * Right now no connection to Selenium Grid is made after starting Appium for a device - TODO  
 * I will attempt to provide capability to do everything via UI and also REST  
+* UI is simple but I am trying to make it intuitive so you can easily control most of the project config via the browser  
 * **NB** This is my first attempt at Go and web dev in general so a lot of the code is probably messy as hell. I will be doing my best to cleanup and improve all the time but for now this is just a working POC.  
 
-1. Execute 'go run main.go'
-2. Open your browser and go to *localhost:10000*.
+## Dependencies  
+The project has minimum dependencies:  
+1. Install Docker.  
+2. Install usbmuxd (from apt is sufficient)  
+3. Install Go 1.17 (that is what I'm using, lower might also work)  
+
+
+## Run the project  
+1. Clone the project.
+2. Cd into 'GADS' folder.
+3. Execute 'go run main.go'
+4. Open your browser and go to *localhost:10000*.
 
 ## Prepare WebDriverAgent file
 
