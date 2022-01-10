@@ -4,3 +4,4 @@ build-context.tar
 ipa/*
 ca-cert.pem
 ca-key.pem
+configs/supervision.p12
