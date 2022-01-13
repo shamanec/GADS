@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 var project_dir = GetEnvValue("project_dir")
 var on_grid = GetEnvValue("connect_selenium_grid")
 var supervision_password = GetEnvValue("supervision_password")
+var supervision_identity_file = GetEnvValue("supervision_identity_file")
 
 func buildDockerImage() {
 	//error_message := "Could not build 'ios-appium' image"
@@ -639,42 +641,46 @@ func UpdateIOSContainersLocal() {
 
 }
 
-func PairDevice(ios_device_udid string) {
+func PairDevice(ios_device_udid string) error {
 	log.WithFields(log.Fields{
 		"event": "pair_device",
 	}).Info("Pairing device with UDID:" + ios_device_udid)
-	p12, err := os.ReadFile("./configs/supervision.p12")
+	p12, err := os.ReadFile(supervision_identity_file)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "pair_device",
+		}).Error("Could not read supervision identity file on path:" + supervision_identity_file + " when attempting to pair device with UDID:" + ios_device_udid)
+		return errors.New("Could not read supervision identity file when attempting to pair device with UDID:" + ios_device_udid)
+	}
 	ios_device, err := ios.GetDevice(ios_device_udid)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "pair_device",
 		}).Error("Could not get device with UDID:" + ios_device_udid + ". Error: " + err.Error())
-		return
+		return errors.New("Could not get device with UDID:" + ios_device_udid + ". Error: " + err.Error())
 	}
 	if string(p12) == "" {
-		err = ios.Pair(ios_device)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"event": "pair_device",
-			}).Error("Could not pair device with UDID:" + ios_device_udid + ". Error: " + err.Error())
-			return
-		}
+		log.WithFields(log.Fields{
+			"event": "pair_device",
+		}).Error("Empty supervision identity file when pairing device with UDID:" + ios_device_udid)
+		return errors.New("Empty supervision identity file when pairing device with UDID:" + ios_device_udid)
 	} else {
 		if supervision_password == "" {
 			log.WithFields(log.Fields{
 				"event": "pair_device",
 			}).Error("Attempted to perform supervised pairing on device with UDID:" + ios_device_udid + " but no supervision password is provided.")
-			return
+			return errors.New("Attempted to perform supervised pairing on device with UDID:" + ios_device_udid + " but no supervision password is provided.")
 		} else {
 			err = ios.PairSupervised(ios_device, p12, supervision_password)
 			if err != nil {
 				log.WithFields(log.Fields{
 					"event": "pair_device",
 				}).Error("Could not pair supervised device with UDID:" + ios_device_udid + ". Error: " + err.Error())
-				return
+				return errors.New("Could not pair supervised device with UDID:" + ios_device_udid + ". Error: " + err.Error())
 			}
 		}
 	}
+	return nil
 }
 
 func CreateIOSContainers(devices ios.DeviceList, containers []types.Container) {
@@ -687,8 +693,10 @@ func CreateIOSContainers(devices ios.DeviceList, containers []types.Container) {
 			}
 		}
 		if !device_has_container {
-			PairDevice(device.Properties.SerialNumber)
-			CreateIOSContainerLocal(device.Properties.SerialNumber)
+			err := PairDevice(device.Properties.SerialNumber)
+			if err == nil {
+				CreateIOSContainerLocal(device.Properties.SerialNumber)
+			}
 		}
 	}
 }

@@ -23,6 +23,14 @@
       "device_udid": "00008103000A69E23CBB001E",
       "wda_mjpeg_port": 20103,
       "wda_port": 20003
+    },
+    {
+      "appium_port": 4844,
+      "device_name": "iPhone_7",
+      "device_os_version": "14.6",
+      "device_udid": "ccec159ba0219c9fa0d0fc3d85451ab0dcfebd16",
+      "wda_mjpeg_port": 20104,
+      "wda_port": 20004
     }
   ],
   "devices_host": "10.8.0.1",

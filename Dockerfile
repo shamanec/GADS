@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:18.04
 #Setup libimobile device, usbmuxd and some tools 
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y install unzip  wget curl libimobiledevice-utils libimobiledevice6 usbmuxd cmake git build-essential python
 
@@ -19,4 +19,7 @@ RUN export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \
 #Copy scripts and WDA ipa to the image
 COPY configs/nodeconfiggen.sh /opt/nodeconfiggen.sh
 COPY configs/wdaSync.sh / 
+COPY configs/ios-healthcheck /usr/local/bin
 ENTRYPOINT ["/bin/bash","-c","/wdaSync.sh"]
+
+HEALTHCHECK CMD ["ios-healthcheck"]
