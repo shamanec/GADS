@@ -220,24 +220,16 @@ func UploadWDA(w http.ResponseWriter, r *http.Request) {
 
 	defer file.Close()
 
-	if _, err := os.Stat("./WebDriverAgent"); !os.IsNotExist(err) {
-		err = os.RemoveAll("./WebDriverAgent")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Create the WebDriverAgent folder if it doesn't
+	// Create the ipa folder if it doesn't
 	// already exist
-	err = os.MkdirAll("./WebDriverAgent", os.ModePerm)
+	err = os.MkdirAll("./ipa", os.ModePerm)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Create a new file in the uploads directory
-	dst, err := os.Create("WDA.zip")
+	dst, err := os.Create("./ipa/WebDriverAgent.ipa")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -253,13 +245,7 @@ func UploadWDA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = Unzip("./WDA.zip", "WebDriverAgent")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	DeleteFile("./WDA.zip")
-	fmt.Fprintf(w, "Uploaded and unzipped into 'WebDriverAgent' folder.")
+	fmt.Fprintf(w, "Uploaded and saved as WebDriverAgent.ipa in the './ipa' folder.")
 }
 
 func UploadApp(w http.ResponseWriter, r *http.Request) {
@@ -353,60 +339,6 @@ func Unzip(src string, dest string) ([]string, error) {
 		}
 	}
 	return filenames, nil
-}
-
-func UploadIPA(w http.ResponseWriter, r *http.Request) {
-	// truncated for brevity
-
-	// The argument to FormFile must match the name attribute
-	// of the file input on the frontend
-	file, _, err := r.FormFile("file")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	defer file.Close()
-
-	if _, err := os.Stat("./WebDriverAgent"); !os.IsNotExist(err) {
-		err = os.RemoveAll("./WebDriverAgent")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Create the WebDriverAgent folder if it doesn't
-	// already exist
-	err = os.MkdirAll("./WebDriverAgent", os.ModePerm)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Create a new file in the uploads directory
-	dst, err := os.Create("WDA.zip")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	defer dst.Close()
-
-	// Copy the uploaded file to the filesystem
-	// at the specified destination
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	_, err = Unzip("./WDA.zip", "WebDriverAgent")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	fmt.Fprintf(w, "Uploaded and unzipped into 'WebDriverAgent' folder.")
 }
 
 func ConvertToJSONString(data interface{}) string {

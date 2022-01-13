@@ -197,7 +197,7 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func CheckWDAProvided() bool {
-	_, err := os.Stat("WebDriverAgent")
+	_, err := os.Stat("ipa/WebDriverAgent.ipa")
 	if err != nil {
 		return false
 	}

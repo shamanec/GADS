@@ -40,7 +40,7 @@ func buildDockerImage() {
 
 	// Create a tar to be used as build-context for the image build
 	// The tar should include all files needed by the Dockerfile to successfully create the image
-	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "configs/ios-healthcheck"}
+	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "ipa/WebDriverAgent.ipa"}
 	out, err := os.Create("build-context.tar")
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -434,11 +434,6 @@ func CreateIOSContainer(w http.ResponseWriter, r *http.Request) {
 				Source: project_dir + "/ipa",
 				Target: "/opt/ipa",
 			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/WebDriverAgent",
-				Target: "/opt/WebDriverAgent",
-			},
 		},
 	}
 
@@ -475,22 +470,6 @@ func CreateIOSContainerLocal(device_udid string) {
 		"event": "ios_container_create",
 	}).Info("Attempting to create a container for iOS device with udid: " + device_udid)
 
-	if !CheckIOSDeviceInDevicesList(device_udid) {
-		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Warn("Device with udid: " + device_udid + " is not available in the attached devices list from go-ios.")
-		return
-	}
-
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Error("Could not create docker client when attempting to create a container for device with udid: " + device_udid)
-		return
-	}
-
 	jsonFile, err := os.Open("./configs/config.json")
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -507,12 +486,35 @@ func CreateIOSContainerLocal(device_udid string) {
 		}).Error("Could not read ./configs/config.json when attempting to create a container for device with udid: " + device_udid)
 		return
 	}
+
 	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
+	if appium_port.Raw == "" {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+		return
+	}
 	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
 	device_os_version := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_os_version`)
 	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
 	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
 	wda_bundle_id := gjson.Get(string(byteValue), "wda_bundle_id")
+
+	if !CheckIOSDeviceInDevicesList(device_udid) {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Warn("Device with udid: " + device_udid + " is not available in the attached devices list from go-ios.")
+		return
+	}
+
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not create docker client when attempting to create a container for device with udid: " + device_udid)
+		return
+	}
 
 	config := &container.Config{
 		Image: "ios-appium",
@@ -521,7 +523,7 @@ func CreateIOSContainerLocal(device_udid string) {
 			nat.Port(wda_port.Raw):       struct{}{},
 			nat.Port(wda_mjpeg_port.Raw): struct{}{},
 		},
-		Env: []string{"ON_GRID=false",
+		Env: []string{"ON_GRID=" + on_grid,
 			"DEVICE_UDID=" + device_udid,
 			"WDA_PORT=" + wda_port.Raw,
 			"MJPEG_PORT=" + wda_mjpeg_port.Raw,
@@ -573,11 +575,6 @@ func CreateIOSContainerLocal(device_udid string) {
 				Type:   mount.TypeBind,
 				Source: project_dir + "/ipa",
 				Target: "/opt/ipa",
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/WebDriverAgent",
-				Target: "/opt/WebDriverAgent",
 			},
 		},
 	}
@@ -684,8 +681,9 @@ func PairDevice(ios_device_udid string) error {
 }
 
 func CreateIOSContainers(devices ios.DeviceList, containers []types.Container) {
-	device_has_container := false
+	var device_has_container bool
 	for _, device := range devices.DeviceList {
+		device_has_container = false
 		for _, container := range containers {
 			containerName := strings.Replace(container.Names[0], "/", "", -1)
 			if strings.Contains(containerName, device.Properties.SerialNumber) {

@@ -21,7 +21,7 @@ kill-wda() {
 #Install the WebDriverAgent app on the device
 install-wda() {
   echo "[$(date +'%d/%m/%Y %H:%M:%S')] Installing WDA application on device"
-  ./go-ios/ios install --path=/opt/WebDriverAgent --udid=$DEVICE_UDID
+  ./go-ios/ios install --path=/opt/WebDriverAgent.ipa --udid=$DEVICE_UDID
   sleep 5
 }
 
@@ -41,7 +41,6 @@ start-wda() {
       break
     fi
   done
-  echo $deviceIP > /opt/device_ip
 }
 
 #Hit WDA status URL and if service not available start it again
