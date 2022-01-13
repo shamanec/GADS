@@ -20,7 +20,7 @@ Initially there were two separate *.txt files for devices info and environment v
 
 All looks straightforward and you should not have issues with updating the file but for ease of use you can do it via the main script. You can update the environment vars by executing **./services.sh control** and selecting option **4) Setup environment vars**. You can add more devices (that are connected to the machine) by executing **./services.sh control** and selecting option **9) Add a device**.
 
-## wdaSync.sh
+## wda-sync.sh
 
  * This is the cornerstone of keeping the WebDriverAgent up and running on the device as long as possible or in an ideal scenario - indefinitely as long as the device is working and connected to the machine.
  * Please refer to the diagram below:  

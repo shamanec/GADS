@@ -18,8 +18,8 @@ RUN export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \
 
 #Copy scripts and WDA ipa to the image
 COPY configs/nodeconfiggen.sh /opt/nodeconfiggen.sh
-COPY configs/wdaSync.sh / 
+COPY configs/wda-sync.sh / 
 COPY configs/ios-healthcheck /usr/local/bin
-ENTRYPOINT ["/bin/bash","-c","/wdaSync.sh"]
+ENTRYPOINT ["/bin/bash","-c","/wda-sync.sh"]
 
 HEALTHCHECK CMD ["ios-healthcheck"]

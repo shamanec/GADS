@@ -8,14 +8,14 @@ echo $(cat /opt/device_ip)
 ip = $(cat /opt/device_ip)
 echo "THE IP IS: $ip"
 #Hit the WDA status URL to see if it is available
-echo "curl -Is http:$ip:$WDA_PORT/status | head -1 | grep -q '200 OK'" >> /opt/logs/wdaSync.log
-curl -Is "http:$ip:$WDA_PORT/status" >> /opt/logs/wdaSync.log
-curl -Is "http:$ip:$WDA_PORT/status" | head -1 | grep -q '200 OK' >> /opt/logs/wdaSync.log
+echo "curl -Is http:$ip:$WDA_PORT/status | head -1 | grep -q '200 OK'" >> /opt/logs/wda-sync.log
+curl -Is "http:$ip:$WDA_PORT/status" >> /opt/logs/wda-sync.log
+curl -Is "http:$ip:$WDA_PORT/status" | head -1 | grep -q '200 OK' >> /opt/logs/wda-sync.log
 if curl -Is "http:$ip:$WDA_PORT/status" | head -1 | grep -q '200 OK'
  then
-  echo "[$(date +'%d/%m/%Y %H:%M:%S')] WDA is up and running. Nothing to do" >> /opt/logs/wdaSync.log
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] WDA is up and running. Nothing to do" >> /opt/logs/wda-sync.log
  else
-  echo "[$(date +'%d/%m/%Y %H:%M:%S')] WDA service is unhealthy!" >> /opt/logs/wdaSync.log
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] WDA service is unhealthy!" >> /opt/logs/wda-sync.log
    pkill node
    exit 1
 fi

@@ -3,7 +3,7 @@
 #Start the WebDriverAgent on specific WDA and MJPEG ports
 start-wda-go-ios() {
   echo "[$(date +'%d/%m/%Y %H:%M:%S')] Starting WebDriverAgent application on port $WDA_PORT"
-  ./go-ios/ios runwda --bundleid=$WDA_BUNDLEID --testrunnerbundleid=$WDA_BUNDLEID --xctestconfig=WebDriverAgentRunner.xctest --env USE_PORT=$WDA_PORT --env MJPEG_SERVER_PORT=$MJPEG_PORT --udid $DEVICE_UDID >"/opt/logs/wdaLogs.log" 2>&1 &
+  ./go-ios/ios runwda --bundleid=$WDA_BUNDLEID --testrunnerbundleid=$WDA_BUNDLEID --xctestconfig=WebDriverAgentRunner.xctest --env USE_PORT=$WDA_PORT --env MJPEG_SERVER_PORT=$MJPEG_PORT --udid $DEVICE_UDID >"/opt/logs/wda-logs.log" 2>&1 &
   sleep 2
 }
 
@@ -35,7 +35,7 @@ start-wda() {
   #We are trying several times because it takes a few seconds to start the WDA but we want to avoid hardcoding specific seconds wait
   for i in {1..10}; do
     if [ -z "$deviceIP" ]; then
-      deviceIP=$(grep "ServerURLHere-" "/opt/logs/wdaLogs.log" | cut -d ':' -f 7)
+      deviceIP=$(grep "ServerURLHere-" "/opt/logs/wda-logs.log" | cut -d ':' -f 7)
       sleep 2
     else
       break
@@ -72,12 +72,12 @@ start-appium() {
       --log-timestamp \
       --default-capabilities \
       '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'", "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000"}' \
-      --nodeconfig /opt/nodeconfig.json >>"/opt/logs/appiumLogs.log" 2>&1 &
+      --nodeconfig /opt/nodeconfig.json >>"/opt/logs/appium-logs.log" 2>&1 &
   else
     appium -p $APPIUM_PORT --udid "$DEVICE_UDID" \
       --log-timestamp \
       --default-capabilities \
-      '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'",  "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000"}' >>"/opt/logs/appiumLogs.log" 2>&1 &
+      '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'",  "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000"}' >>"/opt/logs/appium-logs.log" 2>&1 &
   fi
 }
 
@@ -99,9 +99,9 @@ export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 if [ ${ON_GRID} == "true" ]; then
   ./opt/nodeconfiggen.sh >/opt/nodeconfig.json
 fi
-touch /opt/logs/wdaSync.log
-mount-disk-images >>"/opt/logs/wdaSync.log"
+touch /opt/logs/wda-sync.log
+mount-disk-images >>"/opt/logs/wda-sync.log"
 while true; do
-  check-wda-status >>"/opt/logs/wdaSync.log"
-  check-appium-status >>"/opt/logs/wdaSync.log"
+  check-wda-status >>"/opt/logs/wda-sync.log"
+  check-appium-status >>"/opt/logs/wda-sync.log"
 done

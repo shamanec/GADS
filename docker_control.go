@@ -40,7 +40,7 @@ func buildDockerImage() {
 
 	// Create a tar to be used as build-context for the image build
 	// The tar should include all files needed by the Dockerfile to successfully create the image
-	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wdaSync.sh", "configs/ios-healthcheck"}
+	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "configs/ios-healthcheck"}
 	out, err := os.Create("build-context.tar")
 	if err != nil {
 		log.WithFields(log.Fields{
