@@ -1,5 +1,3 @@
-GADS - Go Appium Docker Service
-
 ## Introduction
 
 * GADS or Go Appium Docker Service is a small webserver that allows you to configure and monitor Appium docker containers and essentially create your own device farm for Appium test execution.  
@@ -50,10 +48,10 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
 4. Set your supervision identity file path and the supervision identity password(same applies as step 1). The project assumes you are supervising your devices so that everything could happen automatically.  
 
 ## Run the project  
-1. clone the project.  
-2. cd into 'GADS' folder.  
-3. execute 'go run main.go'  
-4. open your browser and go to *localhost:10000*.  
+1. Clone the project.  
+2. Cd into 'GADS' folder.  
+3. Execute 'go run main.go'  
+4. Open your browser and go to *localhost:10000*.  
 
 You can access Swagger documentation on *http://localhost:10000/swagger/index.html*  
 
@@ -110,4 +108,5 @@ WORK IN PROGRESS
 | |About|
 |---|---|
 |[go-ios](https://github.com/danielpaulus/go-ios)|Many thanks for creating this tool to communicate with iOS devices on Linux, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode|
+|[iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)|This is an app for OS X that can (re)sign apps and bundle them into ipa files that are ready to be installed on an iOS device.|
 
