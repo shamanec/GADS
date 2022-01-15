@@ -20,4 +20,5 @@ RUN export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \
 COPY configs/nodeconfiggen.sh /opt/nodeconfiggen.sh
 COPY configs/wda-sync.sh /
 COPY ipa/WebDriverAgent.ipa /opt
+COPY configs/supervision.p12 /opt
 ENTRYPOINT ["/bin/bash","-c","/wda-sync.sh"]
