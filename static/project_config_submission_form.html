@@ -35,6 +35,7 @@
         </ul>
     </form>
     <script>
+        // Need to fix the reload here, sweet alert is displayed only for a brief second
         $("#config-form").submit(function (e) {
             e.preventDefault();
             var form = $(this);
@@ -47,15 +48,15 @@
                 data: JSON.stringify(getFormData(data)),
                 success: function () {
                     swal("Info message", "Successfully updated project config", "success")
-                        .then(() => {
-                            location.reload();
-                        });
+                    .then(() => {
+                location.reload();
+            });
                 },
                 error: function () {
                     swal("Info message", "Could not update project config", "error")
-                        .then(() => {
-                            location.reload();
-                        });
+                    .then(() => {
+                location.reload();
+            });
                 }
             })
         });
