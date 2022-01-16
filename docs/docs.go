@@ -359,41 +359,6 @@ var doc = `{
                 }
             }
         },
-        "/ios_containers/{device_udid}/create": {
-            "post": {
-                "description": "Creates a docker container for iOS device for provided device UDID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ios-devices"
-                ],
-                "summary": "Create iOS container",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Device UDID",
-                        "name": "device_udid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
-                        }
-                    }
-                }
-            }
-        },
         "/project-logs": {
             "get": {
                 "description": "Provides project logs as plain text response",

@@ -230,7 +230,6 @@ func handleRequests() {
 	))
 
 	// iOS containers endpoints
-	myRouter.HandleFunc("/ios-containers/{device_udid}/create", CreateIOSContainer)
 	myRouter.HandleFunc("/ios-containers/update", UpdateIOSContainers).Methods("POST")
 
 	// Android containers endpoints
@@ -269,9 +268,6 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/", GetInitialPage)
-
-	// Test endpoints
-	myRouter.HandleFunc("/test", CreateIOSContainer)
 
 	//log.Fatal(http.ListenAndServeTLS(":10000", "ca-cert.pem", "ca-key.pem", myRouter))
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
