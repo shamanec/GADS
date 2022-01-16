@@ -1,69 +1,76 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 </head>
+
 <body>
-<form id="config-form">
-    <link href="/static/css/change_config_styles.css" rel="stylesheet">
-    <ul class="wrapper">
-        <li class="form-row">
-            <label for="devices_host">Devices Host</label>
-            <input autocomplete="off" name="devices_host" type="text" id="devices_host">
-        </li>
-        <li class="form-row">
-            <label for="selenium_hub_host">Selenium Hub Host</label>
-            <input autocomplete="off" name="selenium_hub_host" type="text" id="selenium_hub_host">
-        </li>
-        <li class="form-row">
-            <label for="selenium_hub_port">Selenium Hub Port</label>
-            <input autocomplete="off" name="selenium_hub_port" type="text" id="selenium_hub_port">
-        </li>
-        <li class="form-row">
-            <label for="selenium_hub_protocol_type">Selenium Hub Protocol Type</label>
-            <input autocomplete="off" name="selenium_hub_protocol_type" type="text" id="selenium_hub_protocol_type">
-        </li>
-        <li class="form-row">
-            <label for="wda_bundle_id">WDA Bundle ID</label>
-            <input autocomplete="off" name="wda_bundle_id" type="text" id="wda_bundle_id">
-        </li>
-        <li class="form-row">
-            <button id="config-submit" type="submit">Update configuration</button>
-        </li>
-    </ul>
-</form>
-<script>
-  $("#config-form").submit(function (e) {
-      e.preventDefault();
-      var form = $(this);
-      var data = $(form).serializeArray();
-      $.ajax({
-          url: "/configuration/update-config",
-          type: 'PUT',
-          processData: false,
-          contentType: 'JSON',
-          data: JSON.stringify(getFormData(data)),
-          success: function () {
-              swal("Info message", "Successfully updated project config", "success")
-              location.reload();
-          },
-          error: function () {
-            swal("Info message", "Could not update project config", "error")
-              location.reload();
-          }
-      })
-  });
-  /* Convert the form data array to a proper json */
-  function getFormData(data) {
-      var unindexed_array = data;
-      var indexed_array = {};
+    <form id="config-form">
+        <link href="/static/css/change_config_styles.css" rel="stylesheet">
+        <ul class="wrapper">
+            <li class="form-row">
+                <label for="devices_host">Devices Host</label>
+                <input autocomplete="off" name="devices_host" type="text" id="devices_host">
+            </li>
+            <li class="form-row">
+                <label for="selenium_hub_host">Selenium Hub Host</label>
+                <input autocomplete="off" name="selenium_hub_host" type="text" id="selenium_hub_host">
+            </li>
+            <li class="form-row">
+                <label for="selenium_hub_port">Selenium Hub Port</label>
+                <input autocomplete="off" name="selenium_hub_port" type="text" id="selenium_hub_port">
+            </li>
+            <li class="form-row">
+                <label for="selenium_hub_protocol_type">Selenium Hub Protocol Type</label>
+                <input autocomplete="off" name="selenium_hub_protocol_type" type="text" id="selenium_hub_protocol_type">
+            </li>
+            <li class="form-row">
+                <label for="wda_bundle_id">WDA Bundle ID</label>
+                <input autocomplete="off" name="wda_bundle_id" type="text" id="wda_bundle_id">
+            </li>
+            <li class="form-row">
+                <button id="config-submit" type="submit">Update configuration</button>
+            </li>
+        </ul>
+    </form>
+    <script>
+        $("#config-form").submit(function (e) {
+            e.preventDefault();
+            var form = $(this);
+            var data = $(form).serializeArray();
+            $.ajax({
+                url: "/configuration/update-config",
+                type: 'PUT',
+                processData: false,
+                contentType: 'JSON',
+                data: JSON.stringify(getFormData(data)),
+                success: function () {
+                    swal("Info message", "Successfully updated project config", "success")
+                        .then(() => {
+                            location.reload();
+                        });
+                },
+                error: function () {
+                    swal("Info message", "Could not update project config", "error")
+                        .then(() => {
+                            location.reload();
+                        });
+                }
+            })
+        });
+        /* Convert the form data array to a proper json */
+        function getFormData(data) {
+            var unindexed_array = data;
+            var indexed_array = {};
 
-      $.map(unindexed_array, function (n, i) {
-          indexed_array[n['name']] = n['value'];
-      });
+            $.map(unindexed_array, function (n, i) {
+                indexed_array[n['name']] = n['value'];
+            });
 
-      return indexed_array;
-  }
-</script>
+            return indexed_array;
+        }
+    </script>
 </body>
+
 </html>
