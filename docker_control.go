@@ -22,7 +22,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var project_dir = GetEnvValue("project_dir")
+var project_dir, _ = os.Getwd()
 var on_grid = GetEnvValue("connect_selenium_grid")
 
 func buildDockerImage() {

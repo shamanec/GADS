@@ -50,15 +50,14 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
 3. Set it up for supervision using a new(or existing) supervision identity. You can do that for free without having a paid MDM account.  
 4. Connect each consecutive device and supervise it using the same supervision identity.  
 5. Export your supervision identity file and choose a password.  
-6. Save your new supervision identity file in the project *./configs* (or other) folder.  
+6. Save your new supervision identity file in the project *./configs* (or other) folder as *supervision.p12*.  
 
 **Note** I'll see if I can add the option to manually accept devices pairing when no supervision is provided but it doesn't make sense in the context of self-sustaining device farm.  
 
 ## Update the environment file  
-1. Set your sudo password - it is used by the commands that apply the systemd usbmuxd.service and the udev rules. It is used only locally so there should be no security risk unless you publicly commit it.  
-2. Set the project dir - I'll rework it to identify it automatically but for now this is the implementation.  
-3. Set Selenium Grid connection - true or false. True attempts to connect each Appium server to the Selenium Grid instance defined in *./configs/config.json*  
-4. Set your supervision identity file path and the supervision identity password(same applies as step 1). The project assumes you are supervising your devices so that everything could happen automatically.  
+1. Set your sudo password - it is used by the commands that apply the systemd usbmuxd.service and the udev rules. It is used only locally so there should be no security risk unless you publicly commit it.   
+2. Set Selenium Grid connection - true or false. True attempts to connect each Appium server to the Selenium Grid instance defined in *./configs/config.json*  
+4. Set your supervision identity password(same applies as step 1). The project assumes you are supervising your devices so that everything could happen automatically.  
 
 ## Run the project  
 1. Clone the project.  
