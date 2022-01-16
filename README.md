@@ -1,13 +1,20 @@
 ## Introduction
 
 * GADS or Go Appium Docker Service is a small webserver that allows you to configure and monitor Appium docker containers and essentially create your own device farm for Appium test execution.  
-* For the moment the service has only iOS containers integrated. The project uses [go-ios](https://github.com/danielpaulus/go-ios) to pair devices, install and run WebDriverAgent  
-* Right now no connection to Selenium Grid is made after starting Appium for a device - TODO  
-* UI is simple but I am trying to make it intuitive so you can easily control most of the project config via the browser  
-* Containers are automatically controlled and sustained - they are updated when a registered device is connected/disconnected, they also restart after host reboot which combined with the usbmuxd.service lets them keep working when a host failure occurs without needing intervention.  
-* Appium server inside containers is also self-healing(kinda). WDA server is polled and restarted in case it fails making test execution (hopefully) for iOS devices pretty reliable.  
+* The project uses [go-ios](https://github.com/danielpaulus/go-ios) to pair devices, install and run WebDriverAgent   
 * **NB** This is my first attempt at Go and web dev in general so a lot of the code is probably messy as hell. I will be doing my best to cleanup and improve all the time but for now this is just a working POC.  
 **NB** I've been doing this having only 2 iOS devices available. It looks like everything is pretty much working but I do not know how it would behave on a bigger scale.  
+
+## Features
+* Easy setup  
+* Simple and intuitive UI so you can easily control most of the project config via the browser  
+* Endpoints to control the project without the UI  
+* iOS Appium servers in Docker containers  
+  - Automatically spin up when registered device is connected/disconnected  
+  - Self-healing checks to reinstall/restart WebDriverAgent if it fails  
+  - Selenium Grid 3 connection  
+  - Run iOS Appium tests on cheap hardware on much bigger scale with only one host machine  
+* TODO - Android Appium servers in Docker containers  
 
 ### Known limitations
 1. It is not possible to execute **driver.executeScript("mobile: startPerfRecord")** to record application performance since Xcode tools are not available.  
