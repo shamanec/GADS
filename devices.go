@@ -2,14 +2,12 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/gorilla/mux"
@@ -34,10 +32,6 @@ func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 	key := vars["log_type"]
 	key2 := vars["device_udid"]
 
-	log.WithFields(log.Fields{
-		"event": "get_device_logs",
-	}).Info("Attempting to get logs of type:" + key + " for device with udid:" + key2)
-
 	// Execute the command to restart the container by container ID
 	commandString := "tail -n 1000 ./logs/*" + key2 + "/" + key + ".log"
 	cmd := exec.Command("bash", "-c", commandString)
@@ -47,59 +41,69 @@ func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "get_device_logs",
-		}).Error("Could not get logs of type:" + key + " for device with udid:" + key2)
+		}).Error("Could not get logs of type: '" + key + "' for device with udid:" + key2)
 		SimpleJSONResponse(w, "get_device_logs", "No logs of this type available for this container.", 200)
 		return
 	}
+	log.WithFields(log.Fields{
+		"event": "get_device_logs",
+	}).Info("Successfully got logs of type: '" + key + "' for device with udid:" + key2)
 	SimpleJSONResponse(w, "get_device_logs", out.String(), 200)
 }
 
 func ReturnDeviceInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	key := vars["device_udid"]
+	device_udid := vars["device_udid"]
 
 	// Open our jsonFile
 	jsonFile, err := os.Open("./configs/config.json")
 
 	// if os.Open returns an error then handle it
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_device_info",
+		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
 		fmt.Println(err)
+		return
 	}
 
 	// defer the closing of our jsonFile so that we can parse it later on
 	defer jsonFile.Close()
 
 	byteValue, _ := ioutil.ReadAll(jsonFile)
-
-	// we initialize the devices array
-	var devices Devices
-
-	// we unmarshal our byteArray which contains our
-	// jsonFile's content into 'users' which we defined above
-	json.Unmarshal(byteValue, &devices)
-
-	w.Header().Set("Content-Type", "text/plain")
-
-	// Loop over the devices and return info only on the device which UDID matches the path key
-	for i := 0; i < len(devices.Devices); i++ {
-		if devices.Devices[i].DeviceUDID == key {
-			fmt.Fprintf(w, "Device Name: "+devices.Devices[i].DeviceName+"\n")
-			fmt.Fprintf(w, "Appium Port: "+strconv.Itoa(devices.Devices[i].AppiumPort)+"\n")
-			fmt.Fprintf(w, "Device OS version: "+devices.Devices[i].DeviceOSVersion+"\n")
-			fmt.Fprintf(w, "Device UDID: "+devices.Devices[i].DeviceUDID+"\n")
-			fmt.Fprintf(w, "WDA Mjpeg port: "+strconv.Itoa(devices.Devices[i].WdaMjpegPort)+"\n")
-			fmt.Fprintf(w, "WDA Port: "+strconv.Itoa(devices.Devices[i].WdaPort)+"\n")
-		}
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_device_info",
+		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		fmt.Println(err)
+		return
 	}
+	json_object := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`")`)
+	fmt.Fprintf(w, PrettifyJSON(json_object.Raw))
 }
 
 func GetConnectedIOSDevices(w http.ResponseWriter, r *http.Request) {
 	deviceList, err := ios.ListDevices()
 	if err != nil {
-		http.Error(w, "Couldn't get iOS devices with go-ios or no devices connected to the machine. Error: "+err.Error(), http.StatusInternalServerError)
+		log.WithFields(log.Fields{
+			"event": "get_connected_ios_devices",
+		}).Error("Could not get connected devices. Error: " + err.Error())
+		JSONError(w, "get_connected_ios_devices", "Could not get connected devices. Error: "+err.Error(), 500)
+		return
 	}
 	deviceValues, err := outputDetailedList(deviceList)
-	fmt.Fprintf(w, deviceValues)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_connected_ios_devices",
+		}).Error("Could not get connected devices detailed list. Error: " + err.Error())
+		JSONError(w, "get_connected_ios_devices", "Could not get connected devices detailed list. Error: "+err.Error(), 500)
+		return
+	}
+	log.WithFields(log.Fields{
+		"event": "get_connected_ios_devices",
+	}).Info("Successfully got connected iOS devices detailed list.")
+
+	fmt.Fprintf(w, PrettifyJSON(deviceValues))
 }
 
 type detailsEntry struct {
@@ -134,14 +138,20 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	// Open the configuration json file
 	jsonFile, err := os.Open("./configs/config.json")
 	if err != nil {
-		JSONError(w, "config_file_error", "Could not open the config.json file.", 500)
+		log.WithFields(log.Fields{
+			"event": "register_ios_device",
+		}).Error("Could not open ./configs/config.json when attempting to register iOS device with UDID: '" + device_udid.Str + "'")
+		JSONError(w, "register_ios_device", "Could not open the config.json file.", 500)
 	}
 	defer jsonFile.Close()
 
 	// Read the configuration json file into byte array
 	configJson, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		JSONError(w, "config_file_error", "Could not read the config.json file.", 500)
+		log.WithFields(log.Fields{
+			"event": "register_ios_device",
+		}).Error("Could not read ./configs/config.json when attempting to register iOS device with UDID: '" + device_udid.Str + "'")
+		JSONError(w, "register_ios_device", "Could not read the config.json file.", 500)
 	}
 
 	// Get the UDIDs of all devices registered in the config.json
@@ -150,7 +160,10 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	//Loop over the devices UDIDs and return message if device is already registered
 	// for _, udid := range jsonDevicesUDIDs.Array() {
 	// 	if udid.String() == device_udid.String() {
-	// 		JSONError(w, "device_registered", "The device with UDID: "+device_udid.String()+" is already registered.", 400)
+	// 		log.WithFields(log.Fields{
+	// 			"event": "register_ios_device",
+	// 		}).Error("Attempted to register an already registered iOS device with UDID: '" + device_udid.Str + "'")
+	// 		JSONError(w, "device_registered", "The device with UDID: "+device_udid.Str+" is already registered.", 400)
 	// 		return
 	// 	}
 	// }
@@ -168,12 +181,18 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	updatedJSON, _ := sjson.Set(string(configJson), "devicesList.-1", deviceInfo)
 
 	// Prettify the json so it looks good inside the file
-	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, []byte(updatedJSON), "", "  ")
+	//var prettyJSON bytes.Buffer
+	//json.Indent(&prettyJSON, []byte(updatedJSON), "", "  ")
 
 	// Write the new json to the config.json file
-	err = ioutil.WriteFile("./configs/config.json", []byte(prettyJSON.String()), 0644)
+	err = ioutil.WriteFile("./configs/config.json", []byte(PrettifyJSON(updatedJSON)), 0644)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "register_ios_device",
+		}).Error("Could not write to ./configs/config.json when attempting to register iOS device with UDID: '" + device_udid.Str + "'")
 		JSONError(w, "config_file_error", "Could not write to the config.json file.", 400)
 	}
+	log.WithFields(log.Fields{
+		"event": "register_ios_device",
+	}).Info("Successfully registered iOS device with UDID: '" + device_udid.Str + "' in ./configs/config.json")
 }
