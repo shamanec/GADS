@@ -63,7 +63,7 @@ func ReturnDeviceInfo(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"event": "get_device_info",
 		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		fmt.Println(err)
+		JSONError(w, "get_device_info", "Could not open ./configs/config.json file. Error: "+err.Error(), 500)
 		return
 	}
 
@@ -75,7 +75,7 @@ func ReturnDeviceInfo(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"event": "get_device_info",
 		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		fmt.Println(err)
+		JSONError(w, "get_device_info", "Could not read ./configs/config.json file. Error: "+err.Error(), 500)
 		return
 	}
 	json_object := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`")`)
