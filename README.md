@@ -59,11 +59,9 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
 2. Set Selenium Grid connection - true or false. True attempts to connect each Appium server to the Selenium Grid instance defined in *./configs/config.json*  
 4. Set your supervision identity password(same applies as step 1). The project assumes you are supervising your devices so that everything could happen automatically.  
 
-## Run the project  
-1. Clone the project.  
-2. Cd into 'GADS' folder.  
-3. Execute 'go run main.go'  
-4. Open your browser and go to *localhost:10000*.  
+## Run the project   
+1. Execute 'go run main.go'  
+2. Open your browser and go to *http://localhost:10000*.  
 
 You can access Swagger documentation on *http://localhost:10000/swagger/index.html*  
 
