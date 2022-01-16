@@ -33,9 +33,9 @@
       "wda_port": 20004
     }
   ],
-  "devices_host": "10.8.0.1",
-  "selenium_hub_host": "10.8.0.3",
-  "selenium_hub_port": "4446",
+  "devices_host": "192.168.1.7",
+  "selenium_hub_host": "192.168.1.7",
+  "selenium_hub_port": "4444",
   "selenium_hub_protocol_type": "http",
   "wda_bundle_id": "com.shamanec.WebDriverAgentRunner.xctrunner"
 }

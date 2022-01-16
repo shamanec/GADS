@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docker/docker/api/types"
@@ -496,6 +495,10 @@ func CreateIOSContainerLocal(device_udid string) {
 	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
 	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
 	wda_bundle_id := gjson.Get(string(byteValue), "wda_bundle_id")
+	selenium_hub_port := gjson.Get(string(byteValue), "selenium_hub_port")
+	selenium_hub_host := gjson.Get(string(byteValue), "selenium_hub_host")
+	devices_host := gjson.Get(string(byteValue), "devices_host")
+	hub_protocol := gjson.Get(string(byteValue), "hub_protocol")
 
 	if !CheckIOSDeviceInDevicesList(device_udid) {
 		log.WithFields(log.Fields{
@@ -528,7 +531,11 @@ func CreateIOSContainerLocal(device_udid string) {
 			"DEVICE_OS_VERSION=" + device_os_version.Str,
 			"DEVICE_NAME=" + device_name.Str,
 			"WDA_BUNDLEID=" + wda_bundle_id.Str,
-			"SUPERVISION_PASSWORD=" + GetEnvValue("supervision_password")},
+			"SUPERVISION_PASSWORD=" + GetEnvValue("supervision_password"),
+			"SELENIUM_HUB_PORT=" + selenium_hub_port.Str,
+			"SELENIUM_HUB_HOST=" + selenium_hub_host.Str,
+			"DEVICES_HOST=" + devices_host.Str,
+			"HUB_PROTOCOL=" + hub_protocol.Str},
 	}
 
 	host_config := &container.HostConfig{
@@ -606,7 +613,7 @@ func UpdateIOSContainersLocal() {
 	log.WithFields(log.Fields{
 		"event": "pair_device",
 	}).Info("Updating devices")
-	time.Sleep(5 * time.Second)
+	//time.Sleep(5 * time.Second)
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.WithFields(log.Fields{
