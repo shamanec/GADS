@@ -242,29 +242,6 @@ paths:
       summary: Get logs for iOS device container
       tags:
       - device-logs
-  /ios_containers/{device_udid}/create:
-    post:
-      description: Creates a docker container for iOS device for provided device UDID
-      parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.ErrorJSON'
-      summary: Create iOS container
-      tags:
-      - ios-devices
   /ios_containers/update:
     post:
       description: Creates (or removes respectively) iOS containers based on the connected
