@@ -10,6 +10,7 @@ import (
 	"os/exec"
 
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -195,4 +196,39 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(log.Fields{
 		"event": "register_ios_device",
 	}).Info("Successfully registered iOS device with UDID: '" + device_udid.Str + "' in ./configs/config.json")
+}
+
+func IOSDeviceState(w http.ResponseWriter, r *http.Request) {
+	// Get the parameters
+	vars := mux.Vars(r)
+	device_udid := vars["device_udid"]
+
+	device, err := ios.GetDevice(device_udid)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_device_state",
+		}).Error("Could not get device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		JSONError(w, "ios_device_state", "Could not get device with UDID: '"+device_udid+"'", 500)
+	}
+
+	control, _ := instruments.NewDeviceStateControl(device)
+	profileTypes, _ := control.List()
+
+	if r.Method == "GET" {
+		ConvertToJSONString(profileTypes)
+		fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(profileTypes)))
+	} else if r.Method == "POST" {
+		requestBody, _ := ioutil.ReadAll(r.Body)
+		profileTypeId := gjson.Get(string(requestBody), "profileTypeID").Str
+		profileId := gjson.Get(string(requestBody), "profileID").Str
+
+		pType, profile, _ := instruments.VerifyProfileAndType(profileTypes, profileTypeId, profileId)
+		if pType.ActiveProfile == profileId {
+			err = control.Disable(pType)
+			SimpleJSONResponse(w, "ios_device_state", "Disabled profile with ID:'"+profileId+"' for profile type with ID:'"+profileTypeId+"' for device with UDID:'"+device_udid+"'", 200)
+		} else {
+			err = control.Enable(pType, profile)
+			SimpleJSONResponse(w, "ios_device_state", "Enabled profile with ID:'"+profileId+"' for profile type with ID:'"+profileTypeId+"' for device with UDID:'"+device_udid+"'", 200)
+		}
+	}
 }
