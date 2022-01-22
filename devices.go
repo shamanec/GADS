@@ -240,6 +240,11 @@ type IOSDeviceInfo struct {
 	DeviceConfig *Device  `json:"deviceConfig"`
 }
 
+type AndroidDeviceInfo struct {
+	BundleIDs    []string `json:"installedAppsBundleIDs"`
+	DeviceConfig *Device  `json:"deviceConfig"`
+}
+
 // @Summary      Get info for iOS device
 // @Description  Get info for an iOS device - installed apps, Appium config
 // @Tags         ios-devices

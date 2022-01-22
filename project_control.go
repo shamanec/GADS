@@ -2,13 +2,19 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
+	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -208,4 +214,72 @@ func GetEnvValue(key string) string {
 	byteValue, _ := ReadJSONFile("./env.json")
 	value := gjson.Get(string(byteValue), key).Str
 	return value
+}
+
+//=======================================================================================//
+
+type DeviceControlInfo struct {
+	RunningContainers []string            `json:"running-containers"`
+	IOSInfo           []IOSDeviceInfo     `json:"ios-devices-info"`
+	AndroidInfo       []AndroidDeviceInfo `json:"android-devices-info"`
+}
+
+func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
+	var runningContainerNames = getRunningContainerNames()
+	var info = DeviceControlInfo{
+		RunningContainers: runningContainerNames,
+		IOSInfo:           getIOSDevicesInfo(runningContainerNames),
+	}
+	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
+}
+
+func getRunningContainerNames() []string {
+	var containerNames []string
+
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return containerNames
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		return containerNames
+	}
+
+	// Loop through the containers list
+	for _, container := range containers {
+		// Parse plain container name
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+		if strings.Contains(containerName, "ios_device") || strings.Contains(containerName, "android_device") {
+			containerNames = append(containerNames, containerName)
+		}
+	}
+	return containerNames
+}
+
+func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
+	var combinedInfo []IOSDeviceInfo
+	for _, containerName := range runningContainers {
+		if strings.Contains(containerName, "ios_device") {
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^-]*$")
+			device_udid := re.FindStringSubmatch(containerName)
+
+			var installed_apps []string
+			installed_apps, err := IOSDeviceApps(device_udid[0])
+			if err != nil {
+				installed_apps = append(installed_apps, "")
+			}
+
+			var device_config *Device
+			device_config, err = IOSDeviceConfig(device_udid[0])
+
+			var deviceInfo = IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
+			combinedInfo = append(combinedInfo, deviceInfo)
+		} else if strings.Contains(containerName, "android_device") {
+			print("test")
+		}
+	}
+	return combinedInfo
 }
