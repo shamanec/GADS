@@ -10,6 +10,7 @@ import (
 	"os/exec"
 
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
@@ -231,4 +232,111 @@ func IOSDeviceState(w http.ResponseWriter, r *http.Request) {
 			SimpleJSONResponse(w, "ios_device_state", "Enabled profile with ID:'"+profileId+"' for profile type with ID:'"+profileTypeId+"' for device with UDID:'"+device_udid+"'", 200)
 		}
 	}
+}
+
+type IOSDeviceInfo struct {
+	BundleIDs    []string `json:"installedAppsBundleIDs"`
+	DeviceConfig *Device  `json:"deviceConfig"`
+}
+
+// @Summary      Get info for iOS device
+// @Description  Get info for an iOS device - installed apps, Appium config
+// @Tags         ios-devices
+// @Produce      json
+// @Param        device_udid path string true "Device UDID"
+// @Success      200 {object} IOSDeviceInfo
+// @Failure      500 {object} ErrorJSON
+// @Router       /ios-devices/{device_udid}/info [get]
+func GetIOSDeviceInfo(w http.ResponseWriter, r *http.Request) {
+	// Get the parameters
+	vars := mux.Vars(r)
+	device_udid := vars["device_udid"]
+
+	var installed_apps []string
+	installed_apps, err := IOSDeviceApps(device_udid)
+	if err != nil {
+		installed_apps = append(installed_apps, "")
+	}
+
+	var device_config *Device
+	device_config, err = IOSDeviceConfig(device_udid)
+
+	device_info := IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
+	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(device_info)))
+}
+
+func IOSDeviceConfig(device_udid string) (*Device, error) {
+	jsonFile, err := os.Open("./configs/config.json")
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_ios_device_config",
+		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return nil, errors.New("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	}
+
+	// defer the closing of our jsonFile so that we can parse it later on
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_ios_device_config",
+		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return nil, errors.New("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	}
+	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
+	if appium_port.Raw == "" {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+		return nil, errors.New("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+	}
+	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
+	device_os_version := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_os_version`)
+	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
+	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
+
+	return &Device{
+			AppiumPort:      int(appium_port.Num),
+			DeviceName:      device_name.Str,
+			DeviceOSVersion: device_os_version.Str,
+			WdaMjpegPort:    int(wda_mjpeg_port.Num),
+			WdaPort:         int(wda_port.Num),
+			DeviceUDID:      device_udid},
+		nil
+}
+
+func IOSDeviceApps(device_udid string) ([]string, error) {
+	device, err := ios.GetDevice(device_udid)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_device_apps",
+		}).Error("Could not get device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return nil, errors.New("Could not get device with UDID: '" + device_udid + "'. Error: " + err.Error())
+	}
+
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_device_apps",
+		}).Error("Could not create installation proxy for device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return nil, errors.New("Could not create installation proxy for device with UDID: '" + device_udid + "'. Error: " + err.Error())
+	}
+
+	user_apps, err := svc.BrowseUserApps()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_device_apps",
+		}).Error("Could not get user apps for device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return nil, errors.New("Could not get user apps for device with UDID: '" + device_udid + "'. Error: " + err.Error())
+	}
+
+	var bundleIDs []string
+	parsedBundleIDs := gjson.Get(ConvertToJSONString(user_apps), "#.CFBundleIdentifier")
+	for _, bundleID := range parsedBundleIDs.Array() {
+		bundleIDs = append(bundleIDs, bundleID.Str)
+	}
+
+	return bundleIDs, nil
 }

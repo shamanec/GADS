@@ -1,10 +1,34 @@
 definitions:
+  main.Device:
+    properties:
+      appium_port:
+        type: integer
+      device_name:
+        type: string
+      device_os_version:
+        type: string
+      device_udid:
+        type: string
+      wda_mjpeg_port:
+        type: integer
+      wda_port:
+        type: integer
+    type: object
   main.ErrorJSON:
     properties:
       error_message:
         type: string
       event:
         type: string
+    type: object
+  main.IOSDeviceInfo:
+    properties:
+      deviceConfig:
+        $ref: '#/definitions/main.Device'
+      installedAppsBundleIDs:
+        items:
+          type: string
+        type: array
     type: object
   main.ProjectConfig:
     properties:
@@ -242,6 +266,29 @@ paths:
       summary: Get logs for iOS device container
       tags:
       - device-logs
+  /ios-devices/{device_udid}/info:
+    get:
+      description: Get info for an iOS device - installed apps, Appium config
+      parameters:
+      - description: Device UDID
+        in: path
+        name: device_udid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.IOSDeviceInfo'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
+      summary: Get info for iOS device
+      tags:
+      - ios-devices
   /ios_containers/update:
     post:
       description: Creates (or removes respectively) iOS containers based on the connected

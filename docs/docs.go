@@ -336,6 +336,41 @@ var doc = `{
                 }
             }
         },
+        "/ios-devices/{device_udid}/info": {
+            "get": {
+                "description": "Get info for an iOS device - installed apps, Appium config",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ios-devices"
+                ],
+                "summary": "Get info for iOS device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.IOSDeviceInfo"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
         "/ios_containers/update": {
             "post": {
                 "description": "Creates (or removes respectively) iOS containers based on the connected and registered devices",
@@ -375,6 +410,29 @@ var doc = `{
         }
     },
     "definitions": {
+        "main.Device": {
+            "type": "object",
+            "properties": {
+                "appium_port": {
+                    "type": "integer"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "device_os_version": {
+                    "type": "string"
+                },
+                "device_udid": {
+                    "type": "string"
+                },
+                "wda_mjpeg_port": {
+                    "type": "integer"
+                },
+                "wda_port": {
+                    "type": "integer"
+                }
+            }
+        },
         "main.ErrorJSON": {
             "type": "object",
             "properties": {
@@ -383,6 +441,20 @@ var doc = `{
                 },
                 "event": {
                     "type": "string"
+                }
+            }
+        },
+        "main.IOSDeviceInfo": {
+            "type": "object",
+            "properties": {
+                "deviceConfig": {
+                    "$ref": "#/definitions/main.Device"
+                },
+                "installedAppsBundleIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
