@@ -46,7 +46,7 @@ start-wda() {
     # Below exit completely destroys container as there is no sense to continue with undefined WDA_HOST ip!
     exit -1
     else
-      docker-cli add-wda-url --wda_url="http:$deviceIP:$WDA_PORT"
+      docker-cli add-wda-url --wda_url="http:$deviceIP:$MJPEG_PORT"
   fi
 }
 
