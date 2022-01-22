@@ -4,10 +4,14 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y instal
 
 RUN apt update && apt install -y ffmpeg
 
-#Grab gidevice from github and extract it in a folder
+#Grab go-ios from github and extract it in a folder
 RUN wget https://github.com/danielpaulus/go-ios/releases/latest/download/go-ios-linux.zip
 RUN mkdir go-ios
 RUN unzip go-ios-linux.zip -d go-ios
+
+#Grab GADS-docker-cli from github and extract it in /usr/local/bin
+RUN wget https://github.com/shamanec/GADS-docker-cli/releases/latest/download/docker-cli.zip
+RUN unzip docker-cli.zip -d /usr/local/bin
 
 #Setup nvm and install latest appium
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
