@@ -223,10 +223,6 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]
 
-	log.WithFields(log.Fields{
-		"event": "get_container_logs",
-	}).Info("Attempting to get logs for container with ID: " + key)
-
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {

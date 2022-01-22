@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"archive/zip"
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
@@ -348,4 +349,10 @@ func ConvertToJSONString(data interface{}) string {
 		return ""
 	}
 	return string(b)
+}
+
+func PrettifyJSON(data string) string {
+	var prettyJSON bytes.Buffer
+	json.Indent(&prettyJSON, []byte(data), "", "  ")
+	return prettyJSON.String()
 }
