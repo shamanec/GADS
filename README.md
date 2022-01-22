@@ -1,7 +1,6 @@
 ## Introduction
 
-* GADS or Go Appium Docker Service is a small webserver that allows you to configure and monitor Appium docker containers and essentially create your own device farm for Appium test execution.  
-* The project uses [go-ios](https://github.com/danielpaulus/go-ios) to pair devices, install and run WebDriverAgent   
+* GADS or Go Appium Docker Service is a small webserver that allows you to configure and monitor Appium docker containers and essentially create your own device farm for Appium test execution.   
 * **NB** This is my first attempt at Go and web dev in general so a lot of the code is probably messy as hell. I will be doing my best to cleanup and improve all the time but for now this is just a working POC.  
 **NB** I've been doing this having only 2 iOS devices available. It looks like everything is pretty much working but I do not know how it would behave on a bigger scale.  
 
@@ -10,6 +9,7 @@
 * Simple and intuitive UI so you can easily control most of the project config via the browser  
 * Endpoints to control the project without the UI  
 * iOS Appium servers in Docker containers  
+  - Most of the available functionality on iOS devices is essentially a wrapper of the amazing [go-ios](https://github.com/danielpaulus/go-ios) project without which none of this would be possible  
   - Automatically spin up when registered device is connected/disconnected  
   - Self-healing checks to reinstall/restart WebDriverAgent if it fails  
   - Selenium Grid 3 connection  

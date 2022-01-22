@@ -12,6 +12,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/instruments"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -339,4 +340,122 @@ func IOSDeviceApps(device_udid string) ([]string, error) {
 	}
 
 	return bundleIDs, nil
+}
+
+type IOSAppInstall struct {
+	IpaName string `json:"ipa_name"`
+}
+
+// @Summary      Install app on iOS device
+// @Description  Installs *.ipa or *.app from the './ipa' folder
+// @Tags         ios-devices
+// @Produce      json
+// @Param        device_udid path string true "Device UDID"
+// @Param        config body IOSAppInstall true "Install iOS app"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /ios-devices/{device_udid}/install-app [post]
+func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
+	requestBody, _ := ioutil.ReadAll(r.Body)
+	ipa_name := gjson.Get(string(requestBody), "ipa_name").Str
+
+	vars := mux.Vars(r)
+	device_udid := vars["device_udid"]
+
+	err := InstallIOSAppLocal(device_udid, ipa_name)
+	if err != nil {
+		JSONError(w, "install_ios_app", "Failed to install app on device with UDID:'"+device_udid+"'", 500)
+		return
+	}
+	SimpleJSONResponse(w, "install_ios_app", "Successfully installed '"+ipa_name+"'", 200)
+}
+
+func InstallIOSAppLocal(device_udid string, ipa_name string) error {
+	device, err := ios.GetDevice(device_udid)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "install_ios_app",
+		}).Error("Could not get device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return errors.New("Error")
+	}
+
+	conn, err := zipconduit.New(device)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "install_ios_app",
+		}).Error("Failed connecting zipconduit when installing app:'" + ipa_name + "' on device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return errors.New("Error")
+	}
+
+	// Disable logging from go-ios
+	log.SetOutput(ioutil.Discard)
+	err = conn.SendFile("./ipa/" + ipa_name)
+	// Re-enable logging after finishing conn.SendFile()
+	log.SetOutput(project_log_file)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "install_ios_app",
+		}).Error("Failed writing app on device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return errors.New("Error")
+	}
+	return nil
+}
+
+type IOSAppUninstall struct {
+	BundleID string `json:"bundle_id"`
+}
+
+// @Summary      Uninstall app from iOS device
+// @Description  Uninstalls app from iOS device by provided bundleID
+// @Tags         ios-devices
+// @Produce      json
+// @Param        device_udid path string true "Device UDID"
+// @Param        config body IOSAppUninstall true "Uninstall iOS app"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /ios-devices/{device_udid}/uninstall-app [post]
+func UninstallIOSApp(w http.ResponseWriter, r *http.Request) {
+	requestBody, _ := ioutil.ReadAll(r.Body)
+	bundle_id := gjson.Get(string(requestBody), "bundle_id").Str
+
+	vars := mux.Vars(r)
+	device_udid := vars["device_udid"]
+
+	err := UninstallIOSAppLocal(device_udid, bundle_id)
+	if err != nil {
+		JSONError(w, "uninstall_ios_app", "Failed uninstalling app with bundleID:'"+bundle_id+"'", 500)
+		return
+	}
+	SimpleJSONResponse(w, "uninstall_ios_app", "Successfully uninstalled app with bundleID:'"+bundle_id+"'", 200)
+}
+
+func UninstallIOSAppLocal(device_udid string, bundle_id string) error {
+	device, err := ios.GetDevice(device_udid)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "uninstall_ios_app",
+		}).Error("Could not get device with UDID: '" + device_udid + "' when uninstalling app with bundleID:'" + bundle_id + "'. Error: " + err.Error())
+		return errors.New("Error")
+	}
+
+	svc, err := installationproxy.New(device)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "uninstall_ios_app",
+		}).Error("Failed connecting installationproxy when uninstalling app with bundleID:'" + bundle_id + "'on device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return errors.New("Error")
+	}
+
+	// Disable logging from go-ios
+	log.SetOutput(ioutil.Discard)
+	err = svc.Uninstall(bundle_id)
+	// Re-enable logging after finishing svs.Uninstall()
+	log.SetOutput(project_log_file)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "uninstall_ios_app",
+		}).Error("Failed uninstalling app with bundleID:'" + bundle_id + "'on device with UDID: '" + device_udid + "'. Error: " + err.Error())
+		return errors.New("Error")
+	}
+	return nil
 }
