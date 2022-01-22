@@ -371,6 +371,94 @@ var doc = `{
                 }
             }
         },
+        "/ios-devices/{device_udid}/install-app": {
+            "post": {
+                "description": "Installs *.ipa or *.app from the './ipa' folder",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ios-devices"
+                ],
+                "summary": "Install app on iOS device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Install iOS app",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.IOSAppInstall"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/ios-devices/{device_udid}/uninstall-app": {
+            "post": {
+                "description": "Uninstalls app from iOS device by provided bundleID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ios-devices"
+                ],
+                "summary": "Uninstall app from iOS device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Uninstall iOS app",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.IOSAppUninstall"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
         "/ios_containers/update": {
             "post": {
                 "description": "Creates (or removes respectively) iOS containers based on the connected and registered devices",
@@ -440,6 +528,22 @@ var doc = `{
                     "type": "string"
                 },
                 "event": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.IOSAppInstall": {
+            "type": "object",
+            "properties": {
+                "ipa_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.IOSAppUninstall": {
+            "type": "object",
+            "properties": {
+                "bundle_id": {
                     "type": "string"
                 }
             }

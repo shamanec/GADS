@@ -21,6 +21,7 @@ import (
 )
 
 var ws_conn *websocket.Conn
+var project_log_file *os.File
 
 // Devices struct which contains
 // an array of devices from the config.json
@@ -170,11 +171,11 @@ var upgrader = websocket.Upgrader{
 
 func setLogging() {
 	log.SetFormatter(&log.JSONFormatter{})
-	f, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+	project_log_file, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
 	if err != nil {
 		panic(err)
 	}
-	log.SetOutput(f)
+	log.SetOutput(project_log_file)
 }
 
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
@@ -256,6 +257,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/device-state", IOSDeviceState).Methods("POST", "GET")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/info", GetIOSDeviceInfo).Methods("GET")
+	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
+	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
 
 	// Logs
 	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")

@@ -21,6 +21,16 @@ definitions:
       event:
         type: string
     type: object
+  main.IOSAppInstall:
+    properties:
+      ipa_name:
+        type: string
+    type: object
+  main.IOSAppUninstall:
+    properties:
+      bundle_id:
+        type: string
+    type: object
   main.IOSDeviceInfo:
     properties:
       deviceConfig:
@@ -287,6 +297,64 @@ paths:
           schema:
             $ref: '#/definitions/main.ErrorJSON'
       summary: Get info for iOS device
+      tags:
+      - ios-devices
+  /ios-devices/{device_udid}/install-app:
+    post:
+      description: Installs *.ipa or *.app from the './ipa' folder
+      parameters:
+      - description: Device UDID
+        in: path
+        name: device_udid
+        required: true
+        type: string
+      - description: Install iOS app
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/main.IOSAppInstall'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.SimpleResponseJSON'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
+      summary: Install app on iOS device
+      tags:
+      - ios-devices
+  /ios-devices/{device_udid}/uninstall-app:
+    post:
+      description: Uninstalls app from iOS device by provided bundleID
+      parameters:
+      - description: Device UDID
+        in: path
+        name: device_udid
+        required: true
+        type: string
+      - description: Uninstall iOS app
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/main.IOSAppUninstall'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.SimpleResponseJSON'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
+      summary: Uninstall app from iOS device
       tags:
       - ios-devices
   /ios_containers/update:
