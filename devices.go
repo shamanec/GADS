@@ -236,13 +236,13 @@ func IOSDeviceState(w http.ResponseWriter, r *http.Request) {
 }
 
 type IOSDeviceInfo struct {
-	BundleIDs    []string `json:"installedAppsBundleIDs"`
-	DeviceConfig *Device  `json:"deviceConfig"`
+	BundleIDs    []string   `json:"installedAppsBundleIDs"`
+	DeviceConfig *IOSDevice `json:"deviceConfig"`
 }
 
 type AndroidDeviceInfo struct {
-	BundleIDs    []string `json:"installedAppsBundleIDs"`
-	DeviceConfig *Device  `json:"deviceConfig"`
+	BundleIDs    []string   `json:"installedAppsBundleIDs"`
+	DeviceConfig *IOSDevice `json:"deviceConfig"`
 }
 
 // @Summary      Get info for iOS device
@@ -264,14 +264,14 @@ func GetIOSDeviceInfo(w http.ResponseWriter, r *http.Request) {
 		installed_apps = append(installed_apps, "")
 	}
 
-	var device_config *Device
+	var device_config *IOSDevice
 	device_config, err = IOSDeviceConfig(device_udid)
 
 	device_info := IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
 	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(device_info)))
 }
 
-func IOSDeviceConfig(device_udid string) (*Device, error) {
+func IOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	jsonFile, err := os.Open("./configs/config.json")
 
 	if err != nil {
@@ -303,7 +303,7 @@ func IOSDeviceConfig(device_udid string) (*Device, error) {
 	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
 	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
 
-	return &Device{
+	return &IOSDevice{
 			AppiumPort:      int(appium_port.Num),
 			DeviceName:      device_name.Str,
 			DeviceOSVersion: device_os_version.Str,
@@ -463,4 +463,33 @@ func UninstallIOSAppLocal(device_udid string, bundle_id string) error {
 		return errors.New("Error")
 	}
 	return nil
+}
+
+func GetIOSDeviceMjpegStreamURL(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	device_udid := vars["device_udid"]
+
+	jsonFile, err := os.Open("./logs/*" + device_udid + ".json")
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not open WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		fmt.Fprintf(w, PrettifyJSON("{\"wda_url\":\"\""))
+		return
+	}
+
+	// defer the closing of our jsonFile so that we can parse it later on
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not read WDA file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		fmt.Fprintf(w, PrettifyJSON("{\"wda_url\":\"\""))
+		return
+	}
+	url := gjson.Get(string(byteValue), `wda_url`)
+	fmt.Fprintf(w, PrettifyJSON("{\"wda_url\":\""+url.Str+"\""))
 }

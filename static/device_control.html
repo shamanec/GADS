@@ -23,10 +23,10 @@
         <a class="active" href="device-control.html">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
-    <select id="device-dropdown" name="devices">
+    <select id="device-dropdown" name="devices" onchange="changeStream()">
     </select>
     <div>
-        <img id="image-stream" src="http://192.168.1.37:20102"></img>
+        <img id="image-stream"></img>
     </div>
     <!-- <h2>openssl req -x509 -newkey rsa:4096 -days 365 -nodes -keyout ca-key.pem -out ca-cert.pem</h2> -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -35,6 +35,7 @@
 <script>
     window.addEventListener("DOMContentLoaded", function () {
         getDeviceControlInfo();
+        changeStream()
     });
 
     function getDeviceControlInfo() {
@@ -59,13 +60,30 @@
         //device_dropdown.append('<option>Choose device</option>');
         device_dropdown.prop('selectedIndex', 0);
         var response = JSON.parse(data)
-        console.log("TEST")
-        console.log(response)
-        console.log(response["running-containers"].length)
         for (let i = 0; i < response["running-containers"].length; i++) {
             var match = response["running-containers"][i].match(/[^-]*$/)
             device_dropdown.append($('<option></option>').attr('value', match[0]).text(response["running-containers"][i]));
         }
+    }
+
+    function changeStream() {
+        // Get the device UDID from the value of the selected option
+        var device_udid = $("#device-dropdown").val();
+        let image_stream = $('#image-stream')
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: "/devices/device-control",
+            success: function (data) {
+                var response = JSON.parse(data)
+                for (let i = 0; i < response["ios-devices-info"].length; i++) {
+                    if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                        console.log("Changing stream to this url: " + response["ios-devices-info"][i].deviceConfig.wda_url)
+                        image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_url)
+                    }
+                }
+            }
+        });
     }
 </script>
 
