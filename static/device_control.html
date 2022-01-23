@@ -42,6 +42,7 @@
         border: 1px solid black;
         border-collapse: collapse;
     }
+
     td {
         text-align: center;
     }
@@ -80,22 +81,28 @@
                     <td id="appium-port"></td>
                 </tr>
                 <tr>
-                    <th>WebDriverAgent Port:</th>
+                    <th>WDA Port:</th>
                     <td id="wda-port"></td>
                 </tr>
                 <tr>
-                    <th>WebDriverAgent Mjpeg Port:</th>
+                    <th>WDA Mjpeg Port:</th>
                     <td id="wda-mjpeg-port"></td>
                 </tr>
                 <tr>
-                    <th>WDA Stream URL:</th>
+                    <th>WDA URL:</th>
                     <td id="wda-url"></td>
+                </tr>
+                <tr>
+                    <th>WDA Stream URL:</th>
+                    <td id="wda-stream-url"></td>
                 </tr>
             </table>
             <h4>Installed apps</h4>
-            <div id="installed-apps-div">
-                <p3>Installed apps</p3>
-            </div>
+            <select id="installed-apps-dropdown" name="installed-apps"></select>
+            <button id="uninstall-app" onclick="uninstallApp()">Uninstall app</button>
+            <h4>Installable apps</h4>
+            <select id="installable-apps-dropdown" name="installable-apps"></select>
+            <button id="install-app" onclick="installApp()">Install app</button>
         </div>
         <div id="stream-div">
             <img id="image-stream"></img>
@@ -146,9 +153,11 @@
                         $("#appium-port").text(response["ios-devices-info"][i].deviceConfig.appium_port)
                         $("#wda-port").text(response["ios-devices-info"][i].deviceConfig.wda_port)
                         $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
+                        $("#wda-stream-url").text(response["ios-devices-info"][i].deviceConfig.wda_stream_url)
                         $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
                     }
                 }
+                createIOSAppsDropdown(data)
                 changeStream();
             },
             error: function (data) {
@@ -171,6 +180,25 @@
         }
     }
 
+    function createIOSAppsDropdown(data) {
+        // Get the device UDID from the value of the selected option
+        var device_udid = $("#device-dropdown").val();
+
+        let apps_dropdown = $('#installed-apps-dropdown');
+        apps_dropdown.empty();
+        apps_dropdown.prop('selectedIndex', 0);
+
+        var response = JSON.parse(data)
+        for (let i = 0; i < response["ios-devices-info"].length; i++) {
+            if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                for (let x = 0; x < response["ios-devices-info"][i].installedAppsBundleIDs.length; x++) {
+                    console.log("TEST:" + x)
+                    apps_dropdown.append($('<option></option>').attr('value', response["ios-devices-info"][i].installedAppsBundleIDs[x]).text(response["ios-devices-info"][i].installedAppsBundleIDs[x]));
+                }
+            }
+        }
+    }
+
     function changeStream() {
         // Get the device UDID from the value of the selected option
         var device_udid = $("#device-dropdown").val();
@@ -183,10 +211,31 @@
                 var response = JSON.parse(data)
                 for (let i = 0; i < response["ios-devices-info"].length; i++) {
                     if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                        console.log("Changing stream to this url: " + response["ios-devices-info"][i].deviceConfig.wda_url)
-                        image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_url)
+                        console.log("Changing stream to this url: " + response["ios-devices-info"][i].deviceConfig.wda_stream_url)
+                        image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
                     }
                 }
+            }
+        });
+    }
+
+    function uninstallApp() {
+        var bundle_id = $('#installed-apps-dropdown').val();
+        var device_udid = $("#device-dropdown").val();
+
+        $.ajax({
+            contentType: 'application/json',
+            async: true,
+            type: "POST",
+            data: JSON.stringify({ "bundle_id": bundle_id }),
+            url: "/ios-devices/" + device_udid + "/uninstall-app",
+            success: function (data) {
+                swal("Info message", "Successfully uninstalled app with bundleID:'" + bundle_id + "'", "success")
+                modal.style.display = "none";
+            },
+            error: function (data) {
+                swal("Uninstall app error", $.parseJSON(data.responseText).error_message, "error")
+                modal.style.display = "none";
             }
         });
     }

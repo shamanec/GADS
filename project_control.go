@@ -232,7 +232,8 @@ type IOSDevice struct {
 	DeviceUDID      string `json:"device_udid"`
 	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
 	WdaPort         int    `json:"wda_port"`
-	WdaMjpegURL     string `json:"wda_url"`
+	WdaURL          string `json:"wda_url"`
+	WdaMjpegURL     string `json:"wda_stream_url"`
 }
 
 func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
@@ -327,6 +328,39 @@ func getIOSDeviceMjpegStreamURL(device_udid string) string {
 	return url.Str
 }
 
+func getIOSDeviceWdaURLs(device_udid string) (string, string) {
+	// Get the path of the WDA url file using regex
+	pattern := "./logs/*" + device_udid + "/ios-wda-url.json"
+	matches, err := filepath.Glob(pattern)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Open the first match, should be only one file
+	jsonFile, err := os.Open(matches[0])
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not open WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return "", ""
+	}
+
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not read WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return "", ""
+	}
+	url := gjson.Get(string(byteValue), `wda_url`)
+	stream_url := gjson.Get(string(byteValue), `wda_stream_url`)
+	return url.Str, stream_url.Str
+}
+
 func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	jsonFile, err := os.Open("./configs/config.json")
 
@@ -358,6 +392,8 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
 	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
 
+	wda_url, wda_stream_url := getIOSDeviceWdaURLs(device_udid)
+
 	return &IOSDevice{
 			AppiumPort:      int(appium_port.Num),
 			DeviceName:      device_name.Str,
@@ -365,6 +401,7 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 			WdaMjpegPort:    int(wda_mjpeg_port.Num),
 			WdaPort:         int(wda_port.Num),
 			DeviceUDID:      device_udid,
-			WdaMjpegURL:     getIOSDeviceMjpegStreamURL(device_udid)},
+			WdaMjpegURL:     wda_stream_url,
+			WdaURL:          wda_url},
 		nil
 }
