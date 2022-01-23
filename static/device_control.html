@@ -169,7 +169,9 @@
         <div id="elements-div">
             <div>
                 <h3>Page source</h3>
-                <div id="page-source"></div>
+                <pre>
+                    <div id="page-source"></div>
+                </pre>
             </div>
         </div>
     </div>
@@ -430,11 +432,10 @@
         $.ajax({
             async: true,
             type: "GET",
-            url: wda_url + "/session/" + wda_session_id + "/source",
+            url: wda_url + "/session/" + wda_session_id + "/source?format=json",
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
-                let decoded = decodeURI(data.value);
-                page_source.text(decoded)
+                page_source.text(JSON.stringify(data))
             },
             error: function () {
                 $('#loading').css("visibility", "hidden");
