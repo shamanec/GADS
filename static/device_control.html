@@ -30,6 +30,7 @@
 
     #actions-div {
         width: 25%;
+        margin-left: 10px;
     }
 
     #elements-div {
@@ -47,9 +48,32 @@
     td {
         text-align: center;
     }
+
+    #loading {
+        visibility: hidden;
+        position: fixed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        text-align: center;
+        opacity: 0.7;
+        background-color: #fff;
+        z-index: 99;
+    }
+
+    #loading-image {
+        position: relative;
+    }
 </style>
 
 <body>
+    <div id="loading">
+        <img id="loading-image" src="/static/images/loader.gif">
+    </div>
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
@@ -159,6 +183,7 @@
                     }
                 }
                 createIOSAppsDropdown(data)
+                createInstallableAppsDropdown(data)
                 changeStream();
             },
             error: function (data) {
@@ -172,7 +197,8 @@
 
         device_dropdown.empty();
 
-        //device_dropdown.append('<option>Choose device</option>');
+        device_dropdown.append('<option>Choose device</option>');
+
         device_dropdown.prop('selectedIndex', 0);
         var response = JSON.parse(data)
         for (let i = 0; i < response["running-containers"].length; i++) {
@@ -193,9 +219,29 @@
         for (let i = 0; i < response["ios-devices-info"].length; i++) {
             if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
                 for (let x = 0; x < response["ios-devices-info"][i].installedAppsBundleIDs.length; x++) {
-                    console.log("TEST:" + x)
                     apps_dropdown.append($('<option></option>').attr('value', response["ios-devices-info"][i].installedAppsBundleIDs[x]).text(response["ios-devices-info"][i].installedAppsBundleIDs[x]));
                 }
+            }
+        }
+    }
+
+    function createInstallableAppsDropdown(data) {
+        // Get the device UDID from the value of the selected option
+        var device_udid = $("#device-dropdown").val();
+
+        let apps_dropdown = $('#installable-apps-dropdown');
+
+        let container_name = $("#device-dropdown option:selected").text()
+
+        apps_dropdown.empty();
+        apps_dropdown.prop('selectedIndex', 0);
+
+        var response = JSON.parse(data)
+        for (let i = 0; i < response["installable-apps"].length; i++) {
+            if (container_name.includes("ios_device") && response["installable-apps"][i].includes(".ipa") || response["installable-apps"][i].includes(".app")) {
+                apps_dropdown.append($('<option></option>').attr('value', response["installable-apps"][i]).text(response["installable-apps"][i]));
+            } else if (container_name.includes("android_device") && response["installable-apps"][i].includes(".apk")) {
+                apps_dropdown.append($('<option></option>').attr('value', response["installable-apps"][i]).text(response["installable-apps"][i]));
             }
         }
     }
@@ -238,6 +284,33 @@
             },
             error: function (data) {
                 swal("Uninstall app error", $.parseJSON(data.responseText).error_message, "error")
+            }
+        });
+    }
+
+    function installApp() {
+        var ipa_name = $('#installable-apps-dropdown').val();
+        var device_udid = $("#device-dropdown").val();
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            contentType: 'application/json',
+            async: true,
+            type: "POST",
+            data: JSON.stringify({ "ipa_name": ipa_name }),
+            url: "/ios-devices/" + device_udid + "/install-app",
+            success: function (data) {
+                $('#loading').css("visibility", "hidden");
+                swal("Info message", "Successfully installed app :'" + ipa_name + "'", "success")
+                    .then(() => {
+                        location.reload();
+                    });
+            },
+            error: function (data) {
+                $('#loading').css("visibility", "hidden");
+                swal("Install app error", $.parseJSON(data.responseText).error_message, "error")
             }
         });
     }

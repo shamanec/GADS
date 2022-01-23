@@ -223,6 +223,7 @@ type DeviceControlInfo struct {
 	RunningContainers []string            `json:"running-containers"`
 	IOSInfo           []IOSDeviceInfo     `json:"ios-devices-info"`
 	AndroidInfo       []AndroidDeviceInfo `json:"android-devices-info"`
+	InstallableApps   []string            `json:"installable-apps"`
 }
 
 type IOSDevice struct {
@@ -241,6 +242,7 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 	var info = DeviceControlInfo{
 		RunningContainers: runningContainerNames,
 		IOSInfo:           getIOSDevicesInfo(runningContainerNames),
+		InstallableApps:   getInstallableApps(),
 	}
 	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
 }
@@ -294,38 +296,6 @@ func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 		}
 	}
 	return combinedInfo
-}
-
-func getIOSDeviceMjpegStreamURL(device_udid string) string {
-	// Get the path of the WDA url file using regex
-	pattern := "./logs/*" + device_udid + "/ios-wda-url.json"
-	matches, err := filepath.Glob(pattern)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Open the first match, should be only one file
-	jsonFile, err := os.Open(matches[0])
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_wda_url",
-		}).Error("Could not open WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return ""
-	}
-
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_wda_url",
-		}).Error("Could not read WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return ""
-	}
-	url := gjson.Get(string(byteValue), `wda_url`)
-	return url.Str
 }
 
 func getIOSDeviceWdaURLs(device_udid string) (string, string) {
@@ -404,4 +374,20 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 			WdaMjpegURL:     wda_stream_url,
 			WdaURL:          wda_url},
 		nil
+}
+
+func getInstallableApps() []string {
+	var appNames []string
+
+	files, err := ioutil.ReadDir("./ipa/")
+	if err != nil {
+		return appNames
+	}
+
+	for _, file := range files {
+		if strings.Contains(file.Name(), ".ipa") || strings.Contains(file.Name(), ".app") || strings.Contains(file.Name(), ".apk") {
+			appNames = append(appNames, file.Name())
+		}
+	}
+	return appNames
 }
