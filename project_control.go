@@ -2,13 +2,20 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -208,4 +215,193 @@ func GetEnvValue(key string) string {
 	byteValue, _ := ReadJSONFile("./env.json")
 	value := gjson.Get(string(byteValue), key).Str
 	return value
+}
+
+//=======================================================================================//
+
+type DeviceControlInfo struct {
+	RunningContainers []string            `json:"running-containers"`
+	IOSInfo           []IOSDeviceInfo     `json:"ios-devices-info"`
+	AndroidInfo       []AndroidDeviceInfo `json:"android-devices-info"`
+}
+
+type IOSDevice struct {
+	AppiumPort      int    `json:"appium_port"`
+	DeviceName      string `json:"device_name"`
+	DeviceOSVersion string `json:"device_os_version"`
+	DeviceUDID      string `json:"device_udid"`
+	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
+	WdaPort         int    `json:"wda_port"`
+	WdaURL          string `json:"wda_url"`
+	WdaMjpegURL     string `json:"wda_stream_url"`
+}
+
+func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
+	var runningContainerNames = getRunningContainerNames()
+	var info = DeviceControlInfo{
+		RunningContainers: runningContainerNames,
+		IOSInfo:           getIOSDevicesInfo(runningContainerNames),
+	}
+	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
+}
+
+func getRunningContainerNames() []string {
+	var containerNames []string
+
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return containerNames
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		return containerNames
+	}
+
+	// Loop through the containers list
+	for _, container := range containers {
+		// Parse plain container name
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+		if strings.Contains(containerName, "ios_device") || strings.Contains(containerName, "android_device") {
+			containerNames = append(containerNames, containerName)
+		}
+	}
+	return containerNames
+}
+
+func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
+	var combinedInfo []IOSDeviceInfo
+	for _, containerName := range runningContainers {
+		if strings.Contains(containerName, "ios_device") {
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^-]*$")
+			device_udid := re.FindStringSubmatch(containerName)
+
+			var installed_apps []string
+			installed_apps, err := IOSDeviceApps(device_udid[0])
+			if err != nil {
+				installed_apps = append(installed_apps, "")
+			}
+
+			var device_config *IOSDevice
+			device_config, err = iOSDeviceConfig(device_udid[0])
+
+			var deviceInfo = IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
+			combinedInfo = append(combinedInfo, deviceInfo)
+		} else if strings.Contains(containerName, "android_device") {
+			print("test")
+		}
+	}
+	return combinedInfo
+}
+
+func getIOSDeviceMjpegStreamURL(device_udid string) string {
+	// Get the path of the WDA url file using regex
+	pattern := "./logs/*" + device_udid + "/ios-wda-url.json"
+	matches, err := filepath.Glob(pattern)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Open the first match, should be only one file
+	jsonFile, err := os.Open(matches[0])
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not open WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return ""
+	}
+
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not read WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return ""
+	}
+	url := gjson.Get(string(byteValue), `wda_url`)
+	return url.Str
+}
+
+func getIOSDeviceWdaURLs(device_udid string) (string, string) {
+	// Get the path of the WDA url file using regex
+	pattern := "./logs/*" + device_udid + "/ios-wda-url.json"
+	matches, err := filepath.Glob(pattern)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Open the first match, should be only one file
+	jsonFile, err := os.Open(matches[0])
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not open WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return "", ""
+	}
+
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_wda_url",
+		}).Error("Could not read WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return "", ""
+	}
+	url := gjson.Get(string(byteValue), `wda_url`)
+	stream_url := gjson.Get(string(byteValue), `wda_stream_url`)
+	return url.Str, stream_url.Str
+}
+
+func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
+	jsonFile, err := os.Open("./configs/config.json")
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_ios_device_config",
+		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return nil, errors.New("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	}
+
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_ios_device_config",
+		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return nil, errors.New("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	}
+	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
+	if appium_port.Raw == "" {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+		return nil, errors.New("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+	}
+	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
+	device_os_version := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_os_version`)
+	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
+	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
+
+	wda_url, wda_stream_url := getIOSDeviceWdaURLs(device_udid)
+
+	return &IOSDevice{
+			AppiumPort:      int(appium_port.Num),
+			DeviceName:      device_name.Str,
+			DeviceOSVersion: device_os_version.Str,
+			WdaMjpegPort:    int(wda_mjpeg_port.Num),
+			WdaPort:         int(wda_port.Num),
+			DeviceUDID:      device_udid,
+			WdaMjpegURL:     wda_stream_url,
+			WdaURL:          wda_url},
+		nil
 }

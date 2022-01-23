@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Device Control</title>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+</head>
+<style>
+    #image-stream {
+        height: 1136px;
+        width: 640px;
+        margin-top: 20px;
+    }
+
+    #container {
+        height: 100%;
+        width: 100%;
+        font-size: 0;
+    }
+
+    #actions-div,
+    #elements-div,
+    #stream-div {
+        display: inline-block;
+        *display: inline;
+        zoom: 1;
+        vertical-align: top;
+    }
+
+    #actions-div {
+        width: 25%;
+    }
+
+    #elements-div {
+        margin-left: 20px;
+        /* border: 1px solid #000; */
+    }
+
+    #device-info-table,
+    th,
+    td {
+        border: 1px solid black;
+        border-collapse: collapse;
+    }
+
+    td {
+        text-align: center;
+    }
+</style>
+
+<body>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="configuration.html">Project configuration</a>
+        <a href="ios-containers.html">iOS containers</a>
+        <a href="android-containers.html">Android containers</a>
+        <a href="project-logs.html">Project logs</a>
+        <a class="active" href="device-control.html">Device Control</a>
+        <a href="swagger/index.html" target="_blank">Swagger</a>
+    </div>
+    <div id="container-div">
+        <div id="actions-div">
+            <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
+            <h3>Device Config Info</h3>
+            <table id="device-info-table" style="width:100%">
+                <tr>
+                    <th>Device name:</th>
+                    <td id="device-name"></td>
+                </tr>
+                <tr>
+                    <th>Device OS version:</th>
+                    <td id="device-os-version"></td>
+                </tr>
+                <tr>
+                    <th>Device UDID:</th>
+                    <td id="device-udid"></td>
+                </tr>
+                <tr>
+                    <th>Appium Port:</th>
+                    <td id="appium-port"></td>
+                </tr>
+                <tr>
+                    <th>WDA Port:</th>
+                    <td id="wda-port"></td>
+                </tr>
+                <tr>
+                    <th>WDA Mjpeg Port:</th>
+                    <td id="wda-mjpeg-port"></td>
+                </tr>
+                <tr>
+                    <th>WDA URL:</th>
+                    <td id="wda-url"></td>
+                </tr>
+                <tr>
+                    <th>WDA Stream URL:</th>
+                    <td id="wda-stream-url"></td>
+                </tr>
+            </table>
+            <h4>Installed apps</h4>
+            <select id="installed-apps-dropdown" name="installed-apps"></select>
+            <button id="uninstall-app" onclick="uninstallApp()">Uninstall app</button>
+            <h4>Installable apps</h4>
+            <select id="installable-apps-dropdown" name="installable-apps"></select>
+            <button id="install-app" onclick="installApp()">Install app</button>
+        </div>
+        <div id="stream-div">
+            <img id="image-stream"></img>
+        </div>
+        <div id="elements-div">
+            <h1>test</h1>
+        </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</body>
+
+<script>
+    window.addEventListener("DOMContentLoaded", function () {
+        getDeviceControlInfo();
+        changeStream()
+        updateDeviceInfo()
+    });
+
+    function getDeviceControlInfo() {
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: "/devices/device-control",
+            success: function (data) {
+                createDeviceDropdown(data)
+            },
+            error: function (data) {
+                alert("Broken data");
+            }
+        });
+    }
+
+    function updateDeviceInfo(data) {
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: "/devices/device-control",
+            success: function (data) {
+                // Get the device UDID from the value of the selected option
+                var device_udid = $("#device-dropdown").val();
+
+                var response = JSON.parse(data)
+                for (let i = 0; i < response["ios-devices-info"].length; i++) {
+                    if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                        $("#device-name").text(response["ios-devices-info"][i].deviceConfig.device_name)
+                        $("#device-os-version").text(response["ios-devices-info"][i].deviceConfig.device_os_version)
+                        $("#device-udid").text(response["ios-devices-info"][i].deviceConfig.device_udid)
+                        $("#appium-port").text(response["ios-devices-info"][i].deviceConfig.appium_port)
+                        $("#wda-port").text(response["ios-devices-info"][i].deviceConfig.wda_port)
+                        $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
+                        $("#wda-stream-url").text(response["ios-devices-info"][i].deviceConfig.wda_stream_url)
+                        $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
+                    }
+                }
+                createIOSAppsDropdown(data)
+                changeStream();
+            },
+            error: function (data) {
+                alert("Broken data");
+            }
+        });
+    }
+
+    function createDeviceDropdown(data) {
+        let device_dropdown = $('#device-dropdown');
+
+        device_dropdown.empty();
+
+        //device_dropdown.append('<option>Choose device</option>');
+        device_dropdown.prop('selectedIndex', 0);
+        var response = JSON.parse(data)
+        for (let i = 0; i < response["running-containers"].length; i++) {
+            var match = response["running-containers"][i].match(/[^-]*$/)
+            device_dropdown.append($('<option></option>').attr('value', match[0]).text(response["running-containers"][i]));
+        }
+    }
+
+    function createIOSAppsDropdown(data) {
+        // Get the device UDID from the value of the selected option
+        var device_udid = $("#device-dropdown").val();
+
+        let apps_dropdown = $('#installed-apps-dropdown');
+        apps_dropdown.empty();
+        apps_dropdown.prop('selectedIndex', 0);
+
+        var response = JSON.parse(data)
+        for (let i = 0; i < response["ios-devices-info"].length; i++) {
+            if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                for (let x = 0; x < response["ios-devices-info"][i].installedAppsBundleIDs.length; x++) {
+                    console.log("TEST:" + x)
+                    apps_dropdown.append($('<option></option>').attr('value', response["ios-devices-info"][i].installedAppsBundleIDs[x]).text(response["ios-devices-info"][i].installedAppsBundleIDs[x]));
+                }
+            }
+        }
+    }
+
+    function changeStream() {
+        // Get the device UDID from the value of the selected option
+        var device_udid = $("#device-dropdown").val();
+        let image_stream = $('#image-stream')
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: "/devices/device-control",
+            success: function (data) {
+                var response = JSON.parse(data)
+                for (let i = 0; i < response["ios-devices-info"].length; i++) {
+                    if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                        console.log("Changing stream to this url: " + response["ios-devices-info"][i].deviceConfig.wda_stream_url)
+                        image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
+                    }
+                }
+            }
+        });
+    }
+
+    function uninstallApp() {
+        var bundle_id = $('#installed-apps-dropdown').val();
+        var device_udid = $("#device-dropdown").val();
+
+        $.ajax({
+            contentType: 'application/json',
+            async: true,
+            type: "POST",
+            data: JSON.stringify({ "bundle_id": bundle_id }),
+            url: "/ios-devices/" + device_udid + "/uninstall-app",
+            success: function (data) {
+                swal("Info message", "Successfully uninstalled app with bundleID:'" + bundle_id + "'", "success")
+                    .then(() => {
+                        location.reload();
+                    });
+            },
+            error: function (data) {
+                swal("Uninstall app error", $.parseJSON(data.responseText).error_message, "error")
+            }
+        });
+    }
+</script>
+
+</html>

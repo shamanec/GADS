@@ -37,6 +37,7 @@ type Device struct {
 	DeviceUDID      string `json:"device_udid"`
 	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
 	WdaPort         int    `json:"wda_port"`
+	WdaMjpegURL     string `json:"wda_url"`
 }
 
 // ProjectConfig struct which contains the project configuration values
@@ -188,6 +189,16 @@ func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func GetDeviceControlPage(w http.ResponseWriter, r *http.Request) {
+	var device_control_page = template.Must(template.ParseFiles("static/device_control.html"))
+	if err := device_control_page.Execute(w, nil); err != nil {
+		log.WithFields(log.Fields{
+			"event": "device_control_page",
+		}).Error("Couldn't load device_control.html")
+		return
+	}
+}
+
 // @Summary      Get project logs
 // @Description  Provides project logs as plain text response
 // @Tags         project-logs
@@ -239,6 +250,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
+	myRouter.HandleFunc("/containers/running-containers", GetRunningContainerNames).Methods("GET")
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage).Methods("POST")
@@ -259,6 +271,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-devices/{device_udid}/info", GetIOSDeviceInfo).Methods("GET")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
+	myRouter.HandleFunc("/ios-devices/{device_udid}/wda-stream-url", GetIOSDeviceMjpegStreamURL).Methods("GET")
+	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
 
 	// Logs
 	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
@@ -272,6 +286,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/android-containers.html", getAndroidContainers)
 	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
+	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
 	//log.Fatal(http.ListenAndServeTLS(":10000", "ca-cert.pem", "ca-key.pem", myRouter))

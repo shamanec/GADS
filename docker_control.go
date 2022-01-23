@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -125,6 +126,31 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	SimpleJSONResponse(w, "docker_image_remove", "Successfully removed image tagged: '"+imageRemoveResponse[0].Untagged+"'", 200)
+}
+
+func GetRunningContainerNames(w http.ResponseWriter, r *http.Request) {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		panic(err)
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		panic(err)
+	}
+
+	var containerNames []string
+
+	// Loop through the containers list
+	for _, container := range containers {
+		// Parse plain container name
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+		if strings.Contains(containerName, "ios_device") || strings.Contains(containerName, "android_device") {
+			containerNames = append(containerNames, containerName)
+		}
+	}
+	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(containerNames)))
 }
 
 func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
