@@ -11,12 +11,13 @@
         height: 1136px;
         width: 640px;
         margin-top: 20px;
+        margin-left: 10px;
     }
 
-    #container {
+    #container-div {
         height: 100%;
         width: 100%;
-        font-size: 0;
+        display: flex;
     }
 
     #actions-div,
@@ -67,6 +68,11 @@
 
     #loading-image {
         position: relative;
+    }
+
+    #page-source {
+        width: 100%;
+        margin-left: 10px;
     }
 </style>
 
@@ -121,6 +127,10 @@
                     <th>WDA Stream URL:</th>
                     <td id="wda-stream-url"></td>
                 </tr>
+                <tr>
+                    <th>WDA session ID:</th>
+                    <td id="wda-session-id">No session</td>
+                </tr>
             </table>
             <h4>Installed apps</h4>
             <select id="installed-apps-dropdown" name="installed-apps"></select>
@@ -128,12 +138,39 @@
             <h4>Installable apps</h4>
             <select id="installable-apps-dropdown" name="installable-apps"></select>
             <button id="install-app" onclick="installApp()">Install app</button>
+            <h4>Create WDA session</h4>
+            <input id="bundleid-name" type="text"></input>
+            <button id="create-wda-session" onclick="createWDASession()">
+                Create session
+            </button>
+            <button id="delete-wda-session" onclick="deleteWDASession()" disabled>
+                Delete session
+            </button>
+            <button id="get-page-source" onclick="getPageSource()">Get page source</button>
+            <h4>Element interactions</h4>
+            <select id="element-query-type">
+                <option value="xpath" selected>Xpath</option>
+                <option value="class chain">Class chain</option>
+                <option value="accessibility id">Accessibility ID</option>
+                <option value="predicate string">Predicate string</option>
+            </select>
+            <input id="element-query" type="text"></input>
+            <button id="query-elements" onclick="createElementsDropdown()">
+                Query elements
+            </button>
+            <select id="found-elements-dropdown"></select>
+            <button id="tap-element" onclick="tapElement()">
+                Tap element
+            </button>
         </div>
         <div id="stream-div">
             <img id="image-stream"></img>
         </div>
         <div id="elements-div">
-            <h1>test</h1>
+            <div>
+                <h3>Page source</h3>
+                <div id="page-source"></div>
+            </div>
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -311,6 +348,156 @@
             error: function (data) {
                 $('#loading').css("visibility", "hidden");
                 swal("Install app error", $.parseJSON(data.responseText).error_message, "error")
+            }
+        });
+    }
+
+    function createWDASession() {
+        let wda_url = $("#wda-url").text()
+        let wda_session = $("#wda-session-id")
+        let bundle_id = $("#bundleid-name").val()
+        let json = JSON.stringify({
+            "capabilities": {
+                "firstMatch": [
+                    {
+                        "bundleId": "" + bundle_id + "",
+                        "arguments": [],
+                        "environment": {},
+                        "eventloopIdleDelaySec": 0,
+                        "shouldWaitForQuiescence": true,
+                        "shouldUseTestManagerForVisibilityDetection": false,
+                        "maxTypingFrequency": 60,
+                        "shouldUseSingletonTestManager": true,
+                        "shouldTerminateApp": true,
+                        "forceAppLaunch": true,
+                        "useNativeCachingStrategy": true,
+                        "forceSimulatorSoftwareKeyboardPresence": false
+                    }
+                ],
+                "alwaysMatch": {}
+            }
+        })
+        console.log(json)
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: false,
+            type: "POST",
+            url: wda_url + "/session",
+            data: json,
+            success: function (data) {
+                $('#loading').css("visibility", "hidden");
+                wda_session.text(data.sessionId)
+            },
+            error: function (data) {
+                $('#loading').css("visibility", "hidden");
+                swal("Error", "Could not start session for bundleID:" + bundle_id, "error")
+            }
+        });
+    }
+
+    function deleteWDASession() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "DELETE",
+            url: wda_url + "/session/" + wda_session_id,
+            success: function () {
+                $('#loading').css("visibility", "hidden");
+                wda_session.text("No session")
+            },
+            error: function () {
+                $('#loading').css("visibility", "hidden");
+                swal("Error", "Could not delete session for bundleID:" + wda_session_id, "error")
+            }
+        });
+    }
+
+    function getPageSource() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let page_source = $("#page-source")
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "GET",
+            url: wda_url + "/session/" + wda_session_id + "/source",
+            success: function (data) {
+                $('#loading').css("visibility", "hidden");
+                let decoded = decodeURI(data.value);
+                page_source.text(decoded)
+            },
+            error: function () {
+                $('#loading').css("visibility", "hidden");
+                page_source.text("No source")
+            }
+        });
+    }
+
+    function createElementsDropdown() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let query_type = $('#element-query-type option:selected').val();
+        let query_string = $("#element-query").val()
+        let found_elements = $('#found-elements-dropdown');
+
+        console.log("QUERY TYPE")
+        console.log(query_type)
+
+        found_elements.empty();
+        found_elements.append('<option>Choose element</option>');
+        found_elements.prop('selectedIndex', 0);
+
+        let json = JSON.stringify({
+            "using": query_type,
+            "value": query_string
+        })
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "POST",
+            data: json,
+            url: wda_url + "/session/" + wda_session_id + "/elements",
+            success: function (data) {
+                $('#loading').css("visibility", "hidden");
+                for (let i = 0; i < data.value.length; i++) {
+                    found_elements.append($('<option></option>').attr('value', data.value[i].ELEMENT).text(data.value[i].ELEMENT));
+                }
+                
+            }
+        });
+    }
+
+    function tapElement() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let element_id = $('#found-elements-dropdown option:selected').val();
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "POST",
+            data: "{}",
+            url: wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/click",
+            success: function () {
+                $('#loading').css("visibility", "hidden");
+            },
+            error: function () {
+                $('#loading').css("visibility", "hidden");
             }
         });
     }
