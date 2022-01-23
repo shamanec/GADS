@@ -9,6 +9,41 @@
     #image-stream {
         height: 1136px;
         width: 640px;
+        margin-top: 20px;
+    }
+
+    #container {
+        height: 100%;
+        width: 100%;
+        font-size: 0;
+    }
+
+    #actions-div,
+    #elements-div,
+    #stream-div {
+        display: inline-block;
+        *display: inline;
+        zoom: 1;
+        vertical-align: top;
+    }
+
+    #actions-div {
+        width: 25%;
+    }
+
+    #elements-div {
+        margin-left: 20px;
+        /* border: 1px solid #000; */
+    }
+
+    #device-info-table,
+    th,
+    td {
+        border: 1px solid black;
+        border-collapse: collapse;
+    }
+    td {
+        text-align: center;
     }
 </style>
 
@@ -23,12 +58,52 @@
         <a class="active" href="device-control.html">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
-    <select id="device-dropdown" name="devices" onchange="changeStream()">
-    </select>
-    <div>
-        <img id="image-stream"></img>
+    <div id="container-div">
+        <div id="actions-div">
+            <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
+            <h3>Device Config Info</h3>
+            <table id="device-info-table" style="width:100%">
+                <tr>
+                    <th>Device name:</th>
+                    <td id="device-name"></td>
+                </tr>
+                <tr>
+                    <th>Device OS version:</th>
+                    <td id="device-os-version"></td>
+                </tr>
+                <tr>
+                    <th>Device UDID:</th>
+                    <td id="device-udid"></td>
+                </tr>
+                <tr>
+                    <th>Appium Port:</th>
+                    <td id="appium-port"></td>
+                </tr>
+                <tr>
+                    <th>WebDriverAgent Port:</th>
+                    <td id="wda-port"></td>
+                </tr>
+                <tr>
+                    <th>WebDriverAgent Mjpeg Port:</th>
+                    <td id="wda-mjpeg-port"></td>
+                </tr>
+                <tr>
+                    <th>WDA Stream URL:</th>
+                    <td id="wda-url"></td>
+                </tr>
+            </table>
+            <h4>Installed apps</h4>
+            <div id="installed-apps-div">
+                <p3>Installed apps</p3>
+            </div>
+        </div>
+        <div id="stream-div">
+            <img id="image-stream"></img>
+        </div>
+        <div id="elements-div">
+            <h1>test</h1>
+        </div>
     </div>
-    <!-- <h2>openssl req -x509 -newkey rsa:4096 -days 365 -nodes -keyout ca-key.pem -out ca-cert.pem</h2> -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 </body>
 
@@ -36,6 +111,7 @@
     window.addEventListener("DOMContentLoaded", function () {
         getDeviceControlInfo();
         changeStream()
+        updateDeviceInfo()
     });
 
     function getDeviceControlInfo() {
@@ -45,6 +121,35 @@
             url: "/devices/device-control",
             success: function (data) {
                 createDeviceDropdown(data)
+            },
+            error: function (data) {
+                alert("Broken data");
+            }
+        });
+    }
+
+    function updateDeviceInfo(data) {
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: "/devices/device-control",
+            success: function (data) {
+                // Get the device UDID from the value of the selected option
+                var device_udid = $("#device-dropdown").val();
+
+                var response = JSON.parse(data)
+                for (let i = 0; i < response["ios-devices-info"].length; i++) {
+                    if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                        $("#device-name").text(response["ios-devices-info"][i].deviceConfig.device_name)
+                        $("#device-os-version").text(response["ios-devices-info"][i].deviceConfig.device_os_version)
+                        $("#device-udid").text(response["ios-devices-info"][i].deviceConfig.device_udid)
+                        $("#appium-port").text(response["ios-devices-info"][i].deviceConfig.appium_port)
+                        $("#wda-port").text(response["ios-devices-info"][i].deviceConfig.wda_port)
+                        $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
+                        $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
+                    }
+                }
+                changeStream();
             },
             error: function (data) {
                 alert("Broken data");
