@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Device Control</title>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 </head>
 <style>
     #image-stream {
@@ -231,11 +232,12 @@
             url: "/ios-devices/" + device_udid + "/uninstall-app",
             success: function (data) {
                 swal("Info message", "Successfully uninstalled app with bundleID:'" + bundle_id + "'", "success")
-                modal.style.display = "none";
+                    .then(() => {
+                        location.reload();
+                    });
             },
             error: function (data) {
                 swal("Uninstall app error", $.parseJSON(data.responseText).error_message, "error")
-                modal.style.display = "none";
             }
         });
     }
