@@ -4,19 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <title>Device Control</title>
-    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 </head>
 <style>
-    #image-stream {
-        height: 1136px;
-        width: 640px;
+    #image-stream,
+    #actions-canvas {
         margin-top: 20px;
+        margin-left: 10px;
     }
 
-    #container {
+    #container-div {
         height: 100%;
         width: 100%;
-        font-size: 0;
+        display: flex;
     }
 
     #actions-div,
@@ -68,6 +67,11 @@
     #loading-image {
         position: relative;
     }
+
+    #page-source {
+        width: 100%;
+        margin-left: 10px;
+    }
 </style>
 
 <body>
@@ -85,6 +89,10 @@
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div id="container-div">
+        <div id="stream-div" style="position: relative;">
+            <canvas id="actions-canvas" style="position: absolute;"></canvas>
+            <img id="image-stream"></img>
+        </div>
         <div id="actions-div">
             <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
             <h3>Device Config Info</h3>
@@ -121,6 +129,14 @@
                     <th>WDA Stream URL:</th>
                     <td id="wda-stream-url"></td>
                 </tr>
+                <tr>
+                    <th>WDA session ID:</th>
+                    <td id="wda-session-id">No session</td>
+                </tr>
+                <tr>
+                    <th>Device size</th>
+                    <th id="device-size"></th>
+                </tr>
             </table>
             <h4>Installed apps</h4>
             <select id="installed-apps-dropdown" name="installed-apps"></select>
@@ -128,22 +144,46 @@
             <h4>Installable apps</h4>
             <select id="installable-apps-dropdown" name="installable-apps"></select>
             <button id="install-app" onclick="installApp()">Install app</button>
-        </div>
-        <div id="stream-div">
-            <img id="image-stream"></img>
+            <h4>Create WDA session</h4>
+            <input id="bundleid-name" type="text"></input>
+            <button id="create-wda-session" onclick="createWDASession()">
+                Create session
+            </button>
+            <button id="delete-wda-session" onclick="deleteWDASession()" disabled>
+                Delete session
+            </button>
+            <button id="get-page-source" onclick="getPageSource()">Get page source</button>
+            <h4>Element interactions</h4>
+            <select id="element-query-type">
+                <option value="xpath" selected>Xpath</option>
+                <option value="class chain">Class chain</option>
+                <option value="accessibility id">Accessibility ID</option>
+                <option value="predicate string">Predicate string</option>
+            </select>
+            <input id="element-query" type="text"></input>
+            <button id="query-elements" onclick="createElementsDropdown()">
+                Query elements
+            </button>
+            <select id="found-elements-dropdown" onchange="drawRectangle()"></select>
+            <button id="tap-element" onclick="tapElement()">
+                Tap element
+            </button>
+            <button onclick="clearCanvas()">Clear canvas</button>
         </div>
         <div id="elements-div">
-            <h1>test</h1>
+            <div>
+                <h3>Page source</h3>
+                <div id="page-source"></div>
+            </div>
         </div>
     </div>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 </body>
 
 <script>
     window.addEventListener("DOMContentLoaded", function () {
         getDeviceControlInfo();
-        changeStream()
-        updateDeviceInfo()
     });
 
     function getDeviceControlInfo() {
@@ -184,12 +224,70 @@
                 }
                 createIOSAppsDropdown(data)
                 createInstallableAppsDropdown(data)
+                createWDASession()
+                getIOSDeviceSizeFromWDA()
+                updateIOSStreamSize()
                 changeStream();
             },
             error: function (data) {
                 alert("Broken data");
             }
         });
+    }
+
+    function drawRectangle() {
+        clearCanvas()
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let element_id = $("#found-elements-dropdown").val();
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.strokeStyle = '#32a852'
+        context.lineWidth = 3;
+
+        var elementX = "";
+        var elementY = "";
+        var elementWidth = "";
+        var elementHeight = "";
+
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/rect",
+            success: function (data) {
+                elementX = data.value.x
+                elementY = data.value.y
+                elementWidth = data.value.width
+                elementHeight = data.value.height
+            }
+        });
+        context.strokeRect(
+            elementX,
+            elementY,
+            elementWidth,
+            elementHeight
+        );
+    }
+
+    function drawRectangle1() {
+        clearCanvas()
+        const canvas = document.getElementById('actions-canvas')
+        const ctx = canvas.getContext('2d')
+        ctx.strokeStyle = '#32a852'
+        ctx.lineWidth = 3;
+
+        ctx.strokeRect(
+            0,
+            455,
+            375,
+            52
+        );
+    }
+
+    function clearCanvas() {
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     function createDeviceDropdown(data) {
@@ -205,6 +303,15 @@
             var match = response["running-containers"][i].match(/[^-]*$/)
             device_dropdown.append($('<option></option>').attr('value', match[0]).text(response["running-containers"][i]));
         }
+    }
+
+    function updateIOSStreamSize() {
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let width = dimensions[0] + "px"
+        let height = dimensions[1] + "px"
+        $("#image-stream").attr('width', width).attr('height', height)
+        $("#actions-canvas").attr('width', width).attr('height', height)
     }
 
     function createIOSAppsDropdown(data) {
@@ -258,7 +365,6 @@
                 var response = JSON.parse(data)
                 for (let i = 0; i < response["ios-devices-info"].length; i++) {
                     if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                        console.log("Changing stream to this url: " + response["ios-devices-info"][i].deviceConfig.wda_stream_url)
                         image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
                     }
                 }
@@ -314,6 +420,264 @@
             }
         });
     }
+
+    function createWDASession() {
+        let wda_url = $("#wda-url").text()
+        let wda_session = $("#wda-session-id")
+        let bundle_id = $("#bundleid-name").val()
+        let json = ""
+        if (bundle_id != "") {
+            json = JSON.stringify({
+                "capabilities": {
+                    "firstMatch": [
+                        {
+                            "bundleId": "" + bundle_id + "",
+                            "arguments": [],
+                            "environment": {},
+                            "eventloopIdleDelaySec": 0,
+                            "shouldWaitForQuiescence": true,
+                            "shouldUseTestManagerForVisibilityDetection": false,
+                            "maxTypingFrequency": 60,
+                            "shouldUseSingletonTestManager": true,
+                            "shouldTerminateApp": true,
+                            "forceAppLaunch": true,
+                            "useNativeCachingStrategy": true,
+                            "forceSimulatorSoftwareKeyboardPresence": false
+                        }
+                    ],
+                    "alwaysMatch": {}
+                }
+            })
+        } else {
+            json = JSON.stringify({
+                "capabilities": {
+                    "firstMatch": [
+                        {
+                            "arguments": [],
+                            "environment": {},
+                            "eventloopIdleDelaySec": 0,
+                            "shouldWaitForQuiescence": true,
+                            "shouldUseTestManagerForVisibilityDetection": false,
+                            "maxTypingFrequency": 60,
+                            "shouldUseSingletonTestManager": true,
+                            "shouldTerminateApp": true,
+                            "forceAppLaunch": true,
+                            "useNativeCachingStrategy": true,
+                            "forceSimulatorSoftwareKeyboardPresence": false
+                        }
+                    ],
+                    "alwaysMatch": {}
+                }
+            })
+        }
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: false,
+            type: "POST",
+            url: wda_url + "/session",
+            data: json,
+            success: function (data) {
+                $('#loading').css("visibility", "hidden");
+                wda_session.text(data.sessionId)
+            },
+            error: function (data) {
+                $('#loading').css("visibility", "hidden");
+                swal("Error", "Could not start session for bundleID:" + bundle_id, "error")
+            }
+        });
+    }
+
+    function getIOSDeviceSizeFromWDA() {
+        let wda_url = $("#wda-url").text()
+        let wda_session = $("#wda-session-id").text()
+
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: wda_url + "/session/" + wda_session + "/window/size",
+            success: function (data) {
+                $("#device-size").text(data.value.width + "x" + data.value.height)
+            },
+            error: function (data) {
+                console.log("Could not get iOS device size, setting 375x667")
+                $("#device-size").text("375x667")
+            }
+        });
+    }
+
+    function deleteWDASession() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "DELETE",
+            url: wda_url + "/session/" + wda_session_id,
+            success: function () {
+                $('#loading').css("visibility", "hidden");
+                wda_session.text("No session")
+            },
+            error: function () {
+                $('#loading').css("visibility", "hidden");
+                swal("Error", "Could not delete session for bundleID:" + wda_session_id, "error")
+            }
+        });
+    }
+
+    function getPageSource() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let page_source = $("#page-source")
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "GET",
+            url: wda_url + "/session/" + wda_session_id + "/source?format=json",
+            success: function (data) {
+                $('#loading').css("visibility", "hidden");
+                page_source.text(JSON.stringify(data))
+            },
+            error: function () {
+                $('#loading').css("visibility", "hidden");
+                page_source.text("No source")
+            }
+        });
+    }
+
+    function createElementsDropdown() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let query_type = $('#element-query-type option:selected').val();
+        let query_string = $("#element-query").val()
+        let found_elements = $('#found-elements-dropdown');
+
+        console.log("QUERY TYPE")
+        console.log(query_type)
+
+        found_elements.empty();
+        found_elements.append('<option>Choose element</option>');
+        found_elements.prop('selectedIndex', 0);
+
+        let json = JSON.stringify({
+            "using": query_type,
+            "value": query_string
+        })
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "POST",
+            data: json,
+            url: wda_url + "/session/" + wda_session_id + "/elements",
+            success: function (data) {
+                $('#loading').css("visibility", "hidden");
+                for (let i = 0; i < data.value.length; i++) {
+                    found_elements.append($('<option></option>').attr('value', data.value[i].ELEMENT).text(data.value[i].ELEMENT));
+                }
+
+            }
+        });
+    }
+
+    function tapElement() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let element_id = $('#found-elements-dropdown option:selected').val();
+
+        /* Show loading indicator until response is returned */
+        $('#loading').css("visibility", "visible");
+
+        $.ajax({
+            async: true,
+            type: "POST",
+            data: "{}",
+            url: wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/click",
+            success: function () {
+                $('#loading').css("visibility", "hidden");
+            },
+            error: function () {
+                $('#loading').css("visibility", "hidden");
+            }
+        });
+    }
+
+    //=============CANVAS INTERACTIONS===================//
+    var canvas = document.getElementById("actions-canvas")
+
+    canvas.onmousedown = function (event) {
+        var pos = getCursorPosition(canvas, event);
+        doMouseDown(pos)
+    }
+
+    function getCursorPosition(canvas, event) {
+        const rect = canvas.getBoundingClientRect()
+        const x = event.clientX - rect.left
+        const y = event.clientY - rect.top
+        console.log("x: " + x + " y: " + y)
+        return [x, y];
+    }
+
+    function doMouseDown(pos) {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": pos[0],
+                            "y": pos[1]
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pause",
+                            "duration": 200
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        $.ajax({
+            async: false,
+            type: "POST",
+            data: jsonData,
+            url: wda_url + "/session/" + wda_session_id + "/actions",
+            success: function () {
+                console.log("Performed WDA tap")
+            },
+            error: function () {
+                console.log("Could not perform WDA tap")
+            }
+        });
+    }
+
+
 </script>
 
 </html>
