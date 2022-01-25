@@ -4,7 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Device Control</title>
-    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 </head>
 <style>
     #image-stream {
@@ -91,6 +90,9 @@
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div id="container-div">
+        <div id="stream-div">
+            <img id="image-stream"></img>
+        </div>
         <div id="actions-div">
             <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
             <h3>Device Config Info</h3>
@@ -163,19 +165,15 @@
                 Tap element
             </button>
         </div>
-        <div id="stream-div">
-            <img id="image-stream"></img>
-        </div>
         <div id="elements-div">
             <div>
                 <h3>Page source</h3>
-                <pre>
-                    <div id="page-source"></div>
-                </pre>
+                <div id="page-source"></div>
             </div>
         </div>
     </div>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 </body>
 
 <script>
@@ -476,7 +474,7 @@
                 for (let i = 0; i < data.value.length; i++) {
                     found_elements.append($('<option></option>').attr('value', data.value[i].ELEMENT).text(data.value[i].ELEMENT));
                 }
-                
+
             }
         });
     }
