@@ -183,10 +183,6 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	// Append the new device object to the devicesList array
 	updatedJSON, _ := sjson.Set(string(configJson), "devicesList.-1", deviceInfo)
 
-	// Prettify the json so it looks good inside the file
-	//var prettyJSON bytes.Buffer
-	//json.Indent(&prettyJSON, []byte(updatedJSON), "", "  ")
-
 	// Write the new json to the config.json file
 	err = ioutil.WriteFile("./configs/config.json", []byte(PrettifyJSON(updatedJSON)), 0644)
 	if err != nil {

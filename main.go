@@ -37,7 +37,6 @@ type Device struct {
 	DeviceUDID      string `json:"device_udid"`
 	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
 	WdaPort         int    `json:"wda_port"`
-	WdaMjpegURL     string `json:"wda_url"`
 }
 
 // ProjectConfig struct which contains the project configuration values
