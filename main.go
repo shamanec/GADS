@@ -265,7 +265,6 @@ func handleRequests() {
 	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs).Methods("GET")
 	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices).Methods("GET")
 	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice).Methods("POST")
-	myRouter.HandleFunc("/ios-devices/{device_udid}/device-state", IOSDeviceState).Methods("POST", "GET")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")

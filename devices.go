@@ -264,47 +264,6 @@ func outputDetailedList(deviceList ios.DeviceList) (string, error) {
 	}), nil
 }
 
-func IOSDeviceConfig(device_udid string) (*IOSDevice, error) {
-	jsonFile, err := os.Open("./configs/config.json")
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_ios_device_config",
-		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return nil, errors.New("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-	}
-
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_ios_device_config",
-		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return nil, errors.New("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-	}
-	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
-	if appium_port.Raw == "" {
-		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
-		return nil, errors.New("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
-	}
-	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
-	device_os_version := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_os_version`)
-	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
-	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
-
-	return &IOSDevice{
-			AppiumPort:      int(appium_port.Num),
-			DeviceName:      device_name.Str,
-			DeviceOSVersion: device_os_version.Str,
-			WdaMjpegPort:    int(wda_mjpeg_port.Num),
-			WdaPort:         int(wda_port.Num),
-			DeviceUDID:      device_udid},
-		nil
-}
-
 func IOSDeviceApps(device_udid string) ([]string, error) {
 	device, err := ios.GetDevice(device_udid)
 	if err != nil {
