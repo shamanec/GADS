@@ -45,6 +45,7 @@ func JSONError(w http.ResponseWriter, event string, error_string string, code in
 	json.NewEncoder(w).Encode(errorMessage)
 }
 
+// Write to a ResponseWriter an event and message with a response code
 func SimpleJSONResponse(w http.ResponseWriter, event string, response_message string, code int) {
 	var message = SimpleResponseJSON{
 		EventName: event,
@@ -56,6 +57,13 @@ func SimpleJSONResponse(w http.ResponseWriter, event string, response_message st
 	json.NewEncoder(w).Encode(message)
 }
 
+// @Summary      Upload WDA
+// @Description  Uploads the provided *.ipa into the ./ipa folder with the expected "WebDriverAgent.ipa" name
+// @Tags         configuration
+// @Produce      json
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /configuration/upload-wda [post]
 func UploadWDA(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")
 	if err != nil {
