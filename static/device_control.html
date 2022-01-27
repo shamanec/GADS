@@ -25,10 +25,12 @@
         *display: inline;
         zoom: 1;
         vertical-align: top;
+        visibility: hidden;
     }
 
     #actions-div {
         width: 25%;
+        max-width: 650px;
         margin-left: 10px;
     }
 
@@ -88,13 +90,15 @@
         <a class="active" href="device-control.html">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
+    <div>Please select a device
+        <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
+    </div>
     <div id="container-div">
         <div id="stream-div" style="position: relative;">
             <canvas id="actions-canvas" style="position: absolute;"></canvas>
             <img id="image-stream"></img>
         </div>
         <div id="actions-div">
-            <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
             <h3>Device Config Info</h3>
             <table id="device-info-table" style="width:100%">
                 <tr>
@@ -138,37 +142,39 @@
                     <th id="device-size"></th>
                 </tr>
             </table>
-            <h4>Installed apps</h4>
-            <select id="installed-apps-dropdown" name="installed-apps"></select>
-            <button id="uninstall-app" onclick="uninstallApp()">Uninstall app</button>
-            <h4>Installable apps</h4>
-            <select id="installable-apps-dropdown" name="installable-apps"></select>
-            <button id="install-app" onclick="installApp()">Install app</button>
-            <h4>Create WDA session</h4>
-            <input id="bundleid-name" type="text"></input>
-            <button id="create-wda-session" onclick="createWDASession()">
-                Create session
-            </button>
-            <button id="delete-wda-session" onclick="deleteWDASession()" disabled>
-                Delete session
-            </button>
-            <button id="get-page-source" onclick="getPageSource()">Get page source</button>
-            <h4>Element interactions</h4>
-            <select id="element-query-type">
-                <option value="xpath" selected>Xpath</option>
-                <option value="class chain">Class chain</option>
-                <option value="accessibility id">Accessibility ID</option>
-                <option value="predicate string">Predicate string</option>
-            </select>
-            <input id="element-query" type="text"></input>
-            <button id="query-elements" onclick="createElementsDropdown()">
-                Query elements
-            </button>
-            <select id="found-elements-dropdown" onchange="drawRectangle()"></select>
-            <button id="tap-element" onclick="tapElement()">
-                Tap element
-            </button>
-            <button onclick="clearCanvas()">Clear canvas</button>
+            <div>
+                <h4>Installed apps</h4>
+                <select id="installed-apps-dropdown" name="installed-apps"></select>
+                <button id="uninstall-app" onclick="uninstallApp()">Uninstall app</button>
+            </div>
+            <div>
+                <h4>Installable apps</h4>
+                <select id="installable-apps-dropdown" name="installable-apps"></select>
+                <button id="install-app" onclick="installApp()">Install app</button>
+            </div>
+            <div>
+                <h4>Get page source</h4>
+                <button id="get-page-source" onclick="getPageSource()">Get page source</button>
+            </div>
+            <div>
+                <h4>Element interactions</h4>
+                <select id="element-query-type">
+                    <option value="xpath" selected>Xpath</option>
+                    <option value="class chain">Class chain</option>
+                    <option value="accessibility id">Accessibility ID</option>
+                    <option value="predicate string">Predicate string</option>
+                </select>
+                <input id="element-query" type="text"></input>
+                <button id="query-elements" onclick="createElementsDropdown()">
+                    Query elements
+                </button></br>
+                <select id="found-elements-dropdown" onchange="drawRectangle()"
+                    style="visibility: hidden;"></select></br>
+                <button id="tap-element" onclick="tapElement()">
+                    Tap element
+                </button>
+                <button onclick="clearCanvas()">Clear canvas</button>
+            </div>
         </div>
         <div id="elements-div">
             <div>
@@ -201,6 +207,8 @@
     }
 
     function updateDeviceInfo(data) {
+        $('#loading').css("visibility", "visible");
+
         $.ajax({
             async: false,
             type: "GET",
@@ -228,9 +236,12 @@
                 getIOSDeviceSizeFromWDA()
                 updateIOSStreamSize()
                 changeStream();
+                $('#actions-div').css("visibility", "visible")
+                $('#stream-div').css("visibility", "visible")
+                $('#loading').css("visibility", "hidden");
             },
             error: function (data) {
-                alert("Broken data");
+                $('#loading').css("visibility", "hidden");
             }
         });
     }
@@ -424,8 +435,9 @@
     function createWDASession() {
         let wda_url = $("#wda-url").text()
         let wda_session = $("#wda-session-id")
-        let bundle_id = $("#bundleid-name").val()
+        //let bundle_id = $("#bundleid-name").val()
         let json = ""
+        var bundle_id = ""
         if (bundle_id != "") {
             json = JSON.stringify({
                 "capabilities": {
@@ -563,7 +575,6 @@
         console.log(query_type)
 
         found_elements.empty();
-        found_elements.append('<option>Choose element</option>');
         found_elements.prop('selectedIndex', 0);
 
         let json = JSON.stringify({
@@ -581,10 +592,20 @@
             url: wda_url + "/session/" + wda_session_id + "/elements",
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
-                for (let i = 0; i < data.value.length; i++) {
-                    found_elements.append($('<option></option>').attr('value', data.value[i].ELEMENT).text(data.value[i].ELEMENT));
+                if (data.value.length == 0) {
+                    found_elements.append($('<option></option>').text("No elements found"));
+                    $("#found-elements-dropdown").css("visibility", "visible")
+                } else {
+                    found_elements.append('<option>Choose element</option>');
+                    for (let i = 0; i < data.value.length; i++) {
+                        found_elements.append($('<option></option>').attr('value', data.value[i].ELEMENT).text(data.value[i].ELEMENT));
+                        $("#found-elements-dropdown").css("visibility", "visible")
+                    }
                 }
-
+            },
+            error: function () {
+                found_elements.append($('<option></option>').text("Could not get elements"));
+                $("#found-elements-dropdown").css("visibility", "visible")
             }
         });
     }
@@ -616,7 +637,7 @@
 
     canvas.onmousedown = function (event) {
         var pos = getCursorPosition(canvas, event);
-        doMouseDown(pos)
+        tapCoordinates(pos)
     }
 
     function getCursorPosition(canvas, event) {
@@ -627,7 +648,7 @@
         return [x, y];
     }
 
-    function doMouseDown(pos) {
+    function tapCoordinates(pos) {
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
 
