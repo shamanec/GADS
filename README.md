@@ -82,6 +82,7 @@ You can access Swagger documentation on *http://localhost:10000/swagger/index.ht
 This will add a new object in the *./configs/config.json* file with the device name and UDID and will auto increment all used ports for the Appium connection for you.  
 
 ### Setup the usbmuxd.service and udev listener  
+**NB** You don't need to do this if you want to just run the iOS container update yourself, this is just to make it sustain better on connection/disconnection/reboot  
 1. Open the Project Config page.  
 2. Tap on "Setup listener" - you need to have your sudo password set up in the *./env.json* file.  
 
