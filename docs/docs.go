@@ -336,30 +336,58 @@ var doc = `{
                 }
             }
         },
-        "/ios-devices/{device_udid}/info": {
+        "/ios-devices": {
             "get": {
-                "description": "Get info for an iOS device - installed apps, Appium config",
+                "description": "Returns the connected iOS devices with go-ios",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "ios-devices"
                 ],
-                "summary": "Get info for iOS device",
+                "summary": "Get connected iOS devices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.detailsList"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/ios-devices/register": {
+            "post": {
+                "description": "Registers a new iOS device in config.json",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ios-devices"
+                ],
+                "summary": "Register a new iOS device",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Device UDID",
-                        "name": "device_udid",
-                        "in": "path",
-                        "required": true
+                        "description": "Register iOS device",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.registerIOSDevice"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.IOSDeviceInfo"
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
                         }
                     },
                     "500": {
@@ -373,7 +401,7 @@ var doc = `{
         },
         "/ios-devices/{device_udid}/install-app": {
             "post": {
-                "description": "Installs *.ipa or *.app from the './ipa' folder",
+                "description": "Installs *.ipa or *.app from the './ipa' folder with go-ios",
                 "produces": [
                     "application/json"
                 ],
@@ -395,7 +423,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.IOSAppInstall"
+                            "$ref": "#/definitions/main.iOSAppInstall"
                         }
                     }
                 ],
@@ -417,7 +445,7 @@ var doc = `{
         },
         "/ios-devices/{device_udid}/uninstall-app": {
             "post": {
-                "description": "Uninstalls app from iOS device by provided bundleID",
+                "description": "Uninstalls app from iOS device by provided bundleID with go-ios",
                 "produces": [
                     "application/json"
                 ],
@@ -439,7 +467,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.IOSAppUninstall"
+                            "$ref": "#/definitions/main.iOSAppUninstall"
                         }
                     }
                 ],
@@ -498,29 +526,6 @@ var doc = `{
         }
     },
     "definitions": {
-        "main.Device": {
-            "type": "object",
-            "properties": {
-                "appium_port": {
-                    "type": "integer"
-                },
-                "device_name": {
-                    "type": "string"
-                },
-                "device_os_version": {
-                    "type": "string"
-                },
-                "device_udid": {
-                    "type": "string"
-                },
-                "wda_mjpeg_port": {
-                    "type": "integer"
-                },
-                "wda_port": {
-                    "type": "integer"
-                }
-            }
-        },
         "main.ErrorJSON": {
             "type": "object",
             "properties": {
@@ -529,36 +534,6 @@ var doc = `{
                 },
                 "event": {
                     "type": "string"
-                }
-            }
-        },
-        "main.IOSAppInstall": {
-            "type": "object",
-            "properties": {
-                "ipa_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.IOSAppUninstall": {
-            "type": "object",
-            "properties": {
-                "bundle_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.IOSDeviceInfo": {
-            "type": "object",
-            "properties": {
-                "deviceConfig": {
-                    "$ref": "#/definitions/main.Device"
-                },
-                "installedAppsBundleIDs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -597,6 +572,64 @@ var doc = `{
             "type": "object",
             "properties": {
                 "sudo_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.detailsEntry": {
+            "type": "object",
+            "properties": {
+                "productName": {
+                    "type": "string"
+                },
+                "productType": {
+                    "type": "string"
+                },
+                "productVersion": {
+                    "type": "string"
+                },
+                "udid": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.detailsList": {
+            "type": "object",
+            "properties": {
+                "deviceList": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.detailsEntry"
+                    }
+                }
+            }
+        },
+        "main.iOSAppInstall": {
+            "type": "object",
+            "properties": {
+                "ipa_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.iOSAppUninstall": {
+            "type": "object",
+            "properties": {
+                "bundle_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.registerIOSDevice": {
+            "type": "object",
+            "properties": {
+                "device_name": {
+                    "type": "string"
+                },
+                "device_os_version": {
+                    "type": "string"
+                },
+                "device_udid": {
                     "type": "string"
                 }
             }

@@ -60,8 +60,6 @@
 			<td style="width: 350px;">{{.ContainerName}}</td>
 			<td style="width: 125px;">
 				<div>
-					<button class="clsInfoButtons" id="clsInfoButton" onclick="showDeviceInfo(this);"
-						value={{.DeviceUDID}}>Device Info</button>
 					<button class="clsInfoButtons" id="containerLogsButton" onclick="getContainerLogs(this);"
 						value={{.ContainerID}}>Container Logs</button>
 					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'appium-logs');"
@@ -85,23 +83,6 @@
 	</table>
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script>
-		/* Presents modal with the devices info parsed from the config.json */
-		function showDeviceInfo(objButton) {
-			/* Get the device UDID that is in the value of the 'Device Info' button */
-			var udidFromButton = objButton.value
-
-			/* Call the endpoint that will get the device info */
-			/* Then present the modal with the returned data */
-			$.ajax({
-				async: false,
-				dataType: "text",
-				type: "GET",
-				url: "/device/" + udidFromButton,
-				success: function (data) {
-					showInfoModal(data);
-				}
-			});
-		}
 
 		/* Restart container when clicking on the 'Restart container' button for the row */
 		function restartContainer(objButton) {

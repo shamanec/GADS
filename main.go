@@ -262,15 +262,12 @@ func handleRequests() {
 	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
 
 	// Devices endpoints
-	myRouter.HandleFunc("/device/{device_udid}", ReturnDeviceInfo).Methods("GET")
 	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs).Methods("GET")
 	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices).Methods("GET")
 	myRouter.HandleFunc("/ios-devices/register", RegisterIOSDevice).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/device-state", IOSDeviceState).Methods("POST", "GET")
-	myRouter.HandleFunc("/ios-devices/{device_udid}/info", GetIOSDeviceInfo).Methods("GET")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
-	myRouter.HandleFunc("/ios-devices/{device_udid}/wda-stream-url", GetIOSDeviceMjpegStreamURL).Methods("GET")
 	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
 
 	// Logs
