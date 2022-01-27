@@ -249,7 +249,6 @@ func handleRequests() {
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
-	myRouter.HandleFunc("/containers/running-containers", GetRunningContainerNames).Methods("GET")
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage).Methods("POST")
@@ -284,7 +283,6 @@ func handleRequests() {
 	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
-	//log.Fatal(http.ListenAndServeTLS(":10000", "ca-cert.pem", "ca-key.pem", myRouter))
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 

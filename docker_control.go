@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -26,66 +25,8 @@ import (
 var project_dir, _ = os.Getwd()
 var on_grid = GetEnvValue("connect_selenium_grid")
 
-func buildDockerImage() {
-	//error_message := "Could not build 'ios-appium' image"
-	log.WithFields(log.Fields{
-		"event": "docker_image_build",
-	}).Info("Attempting to build the 'ios-appium' docker image.")
-
-	// Delete build-context.tar if it exists
-	DeleteFile("./build-context.tar")
-
-	// Create a tar to be used as build-context for the image build
-	// The tar should include all files needed by the Dockerfile to successfully create the image
-	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "ipa/WebDriverAgent.ipa", "configs/supervision.p12"}
-	out, err := os.Create("build-context.tar")
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_image_build",
-		}).Error("Could not create build-context.tar archive file. Error: " + err.Error())
-		return
-	}
-	defer out.Close()
-	err = CreateArchive(files, out)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_image_build",
-		}).Error("Could not create build-context.tar archive. Error: " + err.Error())
-		return
-	}
-
-	// Create the context and Docker client
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_image_build",
-		}).Error("Could not create docker client while attempting to build image. Error: " + err.Error())
-		return
-	}
-
-	// Read the build-context tar into bytes.Reader
-	buildContextFileReader, err := os.Open("build-context.tar")
-	readBuildContextFile, err := ioutil.ReadAll(buildContextFileReader)
-	buildContextTarReader := bytes.NewReader(readBuildContextFile)
-
-	// Build the Docker image using the tar reader
-	buf := new(bytes.Buffer)
-	imageBuildResponse, err := cli.ImageBuild(ctx, buildContextTarReader, types.ImageBuildOptions{Remove: true, Tags: []string{"ios-appium"}})
-	if err != nil {
-		// Get the image build logs on failure
-		buf.ReadFrom(imageBuildResponse.Body)
-		log.WithFields(log.Fields{
-			"event": "docker_image_build",
-		}).Error("Could not create build docker image. Error: " + err.Error() + "\n" + buf.String())
-		return
-	}
-	defer imageBuildResponse.Body.Close()
-	buf.ReadFrom(imageBuildResponse.Body)
-	log.WithFields(log.Fields{
-		"event": "docker_image_build",
-	}).Info("Built 'ios-appium' docker image:\n")
-}
+//=======================//
+//=====API FUNCTIONS=====//
 
 // @Summary      Build 'ios-appium' image
 // @Description  Starts building the 'ios-appium' image in a goroutine and just returns Accepted
@@ -126,76 +67,6 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	SimpleJSONResponse(w, "docker_image_remove", "Successfully removed image tagged: '"+imageRemoveResponse[0].Untagged+"'", 200)
-}
-
-func GetRunningContainerNames(w http.ResponseWriter, r *http.Request) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		panic(err)
-	}
-
-	// Get the current containers list
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	if err != nil {
-		panic(err)
-	}
-
-	var containerNames []string
-
-	// Loop through the containers list
-	for _, container := range containers {
-		// Parse plain container name
-		containerName := strings.Replace(container.Names[0], "/", "", -1)
-		if strings.Contains(containerName, "ios_device") || strings.Contains(containerName, "android_device") {
-			containerNames = append(containerNames, containerName)
-		}
-	}
-	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(containerNames)))
-}
-
-func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		panic(err)
-	}
-
-	// Get the current containers list
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	if err != nil {
-		panic(err)
-	}
-
-	// Define the rows that will be built for the struct used by the template for the table
-	var rows []ContainerRow
-
-	// Loop through the containers list
-	for _, container := range containers {
-		// Parse plain container name
-		containerName := strings.Replace(container.Names[0], "/", "", -1)
-
-		// Get all the container ports from the returned array into string
-		containerPorts := ""
-		for i, s := range container.Ports {
-			if i > 0 {
-				containerPorts += "\n"
-			}
-			containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
-		}
-
-		// Extract the device UDID from the container name
-		re := regexp.MustCompile("[^-]*$")
-		match := re.FindStringSubmatch(containerName)
-
-		// Create a struct object for the respective container using the parameters by the above split
-		var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
-		// Append each struct object to the rows that will be displayed in the table
-		rows = append(rows, containerRow)
-	}
-	// Parse the template and return response with the container table rows
-	var index = template.Must(template.ParseFiles("static/ios_containers.html"))
-	if err := index.Execute(w, rows); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 }
 
 // @Summary      Restart container
@@ -244,7 +115,7 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 // @Param        container_id path string true "Container ID"
 // @Success      200 {object} SimpleResponseJSON
 // @Failure      500 {object} ErrorJSON
-// @Router       /containers/{container_id}/logs [post]
+// @Router       /containers/{container_id}/logs [get]
 func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["container_id"]
@@ -289,9 +160,173 @@ func getAndroidContainers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Check if the ios-appium image exists and return info string
+// @Summary      Update iOS containers
+// @Description  Creates (or removes respectively) iOS containers based on the connected and registered devices
+// @Tags         ios-devices
+// @Param        device_udid path string true "Device UDID"
+// @Success      202
+// @Router       /ios_containers/update [post]
+func UpdateIOSContainers(w http.ResponseWriter, r *http.Request) {
+	go updateIOSContainers()
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// @Summary      Remove container
+// @Description  Removes container by provided container ID
+// @Tags         containers
+// @Produce      json
+// @Param        container_id path string true "Container ID"
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /containers/{container_id}/remove [post]
+func RemoveContainer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	key := vars["container_id"]
+
+	log.WithFields(log.Fields{
+		"event": "docker_container_remove",
+	}).Info("Attempting to remove container with ID: " + key)
+
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not create docker client while attempting to remove container with ID: " + key + ". Error: " + err.Error())
+		JSONError(w, "docker_container_remove", "Could not remove container with ID: "+key, 500)
+		return
+	}
+
+	if err := cli.ContainerStop(ctx, key, nil); err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not remove container with ID: " + key + ". Error: " + err.Error())
+		JSONError(w, "docker_container_remove", "Could not remove container with ID: "+key, 500)
+		return
+	}
+
+	if err := cli.ContainerRemove(ctx, key, types.ContainerRemoveOptions{}); err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not remove container with ID: " + key + ". Error: " + err.Error())
+		JSONError(w, "docker_container_remove", "Could not remove container with ID: "+key, 500)
+		return
+	}
+
+	log.WithFields(log.Fields{
+		"event": "docker_container_remove",
+	}).Info("Successfully removed container with ID: " + key)
+	SimpleJSONResponse(w, "docker_container_remove", "Successfully removed container with ID: "+key, 200)
+}
+
+// IOS Containers html page
+func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		panic(err)
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		panic(err)
+	}
+
+	var rows []ContainerRow
+
+	// Loop through the containers list
+	for _, container := range containers {
+		// Parse plain container name
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+
+		if strings.Contains(containerName, "ios_device") {
+			// Get all the container ports from the returned array into string
+			containerPorts := ""
+			for i, s := range container.Ports {
+				if i > 0 {
+					containerPorts += "\n"
+				}
+				containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
+			}
+
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^-]*$")
+			match := re.FindStringSubmatch(containerName)
+
+			var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
+			rows = append(rows, containerRow)
+		}
+	}
+	// Parse the template and return response with the container table rows
+	var index = template.Must(template.ParseFiles("static/ios_containers.html"))
+	if err := index.Execute(w, rows); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+//===================//
+//=====FUNCTIONS=====//
+
+func buildDockerImage() {
+	log.WithFields(log.Fields{
+		"event": "docker_image_build",
+	}).Info("Started building the 'ios-appium' docker image.")
+
+	DeleteFile("./build-context.tar")
+
+	// Create a tar to be used as build-context for the image build
+	// The tar should include all files needed by the Dockerfile to successfully create the image
+	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "ipa/WebDriverAgent.ipa", "configs/supervision.p12"}
+	out, err := os.Create("build-context.tar")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create build-context.tar archive file. Error: " + err.Error())
+		return
+	}
+	defer out.Close()
+	err = CreateArchive(files, out)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create build-context.tar archive. Error: " + err.Error())
+		return
+	}
+
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create docker client while attempting to build image. Error: " + err.Error())
+		return
+	}
+
+	// Read the build-context tar into bytes.Reader
+	buildContextFileReader, err := os.Open("build-context.tar")
+	readBuildContextFile, err := ioutil.ReadAll(buildContextFileReader)
+	buildContextTarReader := bytes.NewReader(readBuildContextFile)
+
+	// Build the Docker image using the tar reader
+	buf := new(bytes.Buffer)
+	imageBuildResponse, err := cli.ImageBuild(ctx, buildContextTarReader, types.ImageBuildOptions{Remove: true, Tags: []string{"ios-appium"}})
+	if err != nil {
+		// Get the image build logs on failure
+		buf.ReadFrom(imageBuildResponse.Body)
+		log.WithFields(log.Fields{
+			"event": "docker_image_build",
+		}).Error("Could not create build docker image. Error: " + err.Error() + "\n" + buf.String())
+		return
+	}
+	defer imageBuildResponse.Body.Close()
+	buf.ReadFrom(imageBuildResponse.Body)
+	log.WithFields(log.Fields{
+		"event": "docker_image_build",
+	}).Info("Built 'ios-appium' docker image:\n")
+}
+
+// Check if the 'ios-appium' image exists and return info string
 func ImageExists() (imageStatus string) {
-	// Create the context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -302,7 +337,6 @@ func ImageExists() (imageStatus string) {
 		return
 	}
 
-	// Get the images list
 	imageListResponse, err := cli.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -323,6 +357,7 @@ func ImageExists() (imageStatus string) {
 	return
 }
 
+// Create an iOS container for a specific device(by UDID) using data from config.json so if device is not registered there it will not attempt to create a container for it
 func CreateIOSContainer(device_udid string) {
 	log.WithFields(log.Fields{
 		"event": "ios_container_create",
@@ -475,11 +510,11 @@ func CreateIOSContainer(device_udid string) {
 	}).Info("Successfully created a container for iOS device with udid: " + device_udid)
 }
 
-func UpdateIOSContainersLocal() {
+// Create or respectively destroy iOS containers depending on the currently connected iOS devices
+func updateIOSContainers() {
 	log.WithFields(log.Fields{
 		"event": "pair_device",
 	}).Info("Updating devices")
-	//time.Sleep(5 * time.Second)
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -508,6 +543,7 @@ func UpdateIOSContainersLocal() {
 	CreateIOSContainers(devices, containers)
 }
 
+// Create container for each iOS device that is connected to the machine, registered in config.json and doesn't have a running container
 func CreateIOSContainers(devices ios.DeviceList, containers []types.Container) {
 	var device_has_container bool
 	for _, device := range devices.DeviceList {
@@ -524,6 +560,7 @@ func CreateIOSContainers(devices ios.DeviceList, containers []types.Container) {
 	}
 }
 
+// Loop through running containers and if there is no device connected related to a running container - destroy that container
 func DestroyIOSContainers(devices ios.DeviceList, containers []types.Container) {
 	container_has_device := false
 	for _, container := range containers {
@@ -539,65 +576,7 @@ func DestroyIOSContainers(devices ios.DeviceList, containers []types.Container) 
 	}
 }
 
-// @Summary      Update iOS containers
-// @Description  Creates (or removes respectively) iOS containers based on the connected and registered devices
-// @Tags         ios-devices
-// @Param        device_udid path string true "Device UDID"
-// @Success      202
-// @Router       /ios_containers/update [post]
-func UpdateIOSContainers(w http.ResponseWriter, r *http.Request) {
-	go UpdateIOSContainersLocal()
-	w.WriteHeader(http.StatusAccepted)
-}
-
-// @Summary      Remove container
-// @Description  Removes container by provided container ID
-// @Tags         containers
-// @Produce      json
-// @Param        container_id path string true "Container ID"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
-// @Router       /containers/{container_id}/remove [post]
-func RemoveContainer(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	key := vars["container_id"]
-
-	log.WithFields(log.Fields{
-		"event": "docker_container_remove",
-	}).Info("Attempting to remove container with ID: " + key)
-
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_container_remove",
-		}).Error("Could not create docker client while attempting to remove container with ID: " + key + ". Error: " + err.Error())
-		JSONError(w, "docker_container_remove", "Could not remove container with ID: "+key, 500)
-		return
-	}
-
-	if err := cli.ContainerStop(ctx, key, nil); err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_container_remove",
-		}).Error("Could not remove container with ID: " + key + ". Error: " + err.Error())
-		JSONError(w, "docker_container_remove", "Could not remove container with ID: "+key, 500)
-		return
-	}
-
-	if err := cli.ContainerRemove(ctx, key, types.ContainerRemoveOptions{}); err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_container_remove",
-		}).Error("Could not remove container with ID: " + key + ". Error: " + err.Error())
-		JSONError(w, "docker_container_remove", "Could not remove container with ID: "+key, 500)
-		return
-	}
-
-	log.WithFields(log.Fields{
-		"event": "docker_container_remove",
-	}).Info("Successfully removed container with ID: " + key)
-	SimpleJSONResponse(w, "docker_container_remove", "Successfully removed container with ID: "+key, 200)
-}
-
+// Remove iOS container by provided container_id
 func RemoveIOSContainer(container_id string) {
 
 	log.WithFields(log.Fields{
