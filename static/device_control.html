@@ -246,61 +246,6 @@
         });
     }
 
-    function drawRectangle() {
-        clearCanvas()
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
-        let element_id = $("#found-elements-dropdown").val();
-        const canvas = document.getElementById('actions-canvas')
-        const context = canvas.getContext('2d')
-        context.strokeStyle = '#32a852'
-        context.lineWidth = 3;
-
-        var elementX = "";
-        var elementY = "";
-        var elementWidth = "";
-        var elementHeight = "";
-
-        $.ajax({
-            async: false,
-            type: "GET",
-            url: wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/rect",
-            success: function (data) {
-                elementX = data.value.x
-                elementY = data.value.y
-                elementWidth = data.value.width
-                elementHeight = data.value.height
-            }
-        });
-        context.strokeRect(
-            elementX,
-            elementY,
-            elementWidth,
-            elementHeight
-        );
-    }
-
-    function drawRectangle1() {
-        clearCanvas()
-        const canvas = document.getElementById('actions-canvas')
-        const ctx = canvas.getContext('2d')
-        ctx.strokeStyle = '#32a852'
-        ctx.lineWidth = 3;
-
-        ctx.strokeRect(
-            0,
-            455,
-            375,
-            52
-        );
-    }
-
-    function clearCanvas() {
-        const canvas = document.getElementById('actions-canvas')
-        const context = canvas.getContext('2d')
-        context.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
     function createDeviceDropdown(data) {
         let device_dropdown = $('#device-dropdown');
 
@@ -571,9 +516,6 @@
         let query_string = $("#element-query").val()
         let found_elements = $('#found-elements-dropdown');
 
-        console.log("QUERY TYPE")
-        console.log(query_type)
-
         found_elements.empty();
         found_elements.prop('selectedIndex', 0);
 
@@ -582,7 +524,6 @@
             "value": query_string
         })
 
-        /* Show loading indicator until response is returned */
         $('#loading').css("visibility", "visible");
 
         $.ajax({
@@ -598,12 +539,14 @@
                 } else {
                     found_elements.append('<option>Choose element</option>');
                     for (let i = 0; i < data.value.length; i++) {
+                        $('#loading').css("visibility", "hidden");
                         found_elements.append($('<option></option>').attr('value', data.value[i].ELEMENT).text(data.value[i].ELEMENT));
                         $("#found-elements-dropdown").css("visibility", "visible")
                     }
                 }
             },
             error: function () {
+                $('#loading').css("visibility", "hidden");
                 found_elements.append($('<option></option>').text("Could not get elements"));
                 $("#found-elements-dropdown").css("visibility", "visible")
             }
@@ -634,6 +577,46 @@
 
     //=============CANVAS INTERACTIONS===================//
     var canvas = document.getElementById("actions-canvas")
+
+    function clearCanvas() {
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawRectangle() {
+        clearCanvas()
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        let element_id = $("#found-elements-dropdown").val();
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.strokeStyle = '#d2eb34'
+        context.lineWidth = 2;
+
+        var elementX = "";
+        var elementY = "";
+        var elementWidth = "";
+        var elementHeight = "";
+
+        $.ajax({
+            async: false,
+            type: "GET",
+            url: wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/rect",
+            success: function (data) {
+                elementX = data.value.x
+                elementY = data.value.y
+                elementWidth = data.value.width
+                elementHeight = data.value.height
+            }
+        });
+        context.strokeRect(
+            elementX,
+            elementY,
+            elementWidth,
+            elementHeight
+        );
+    }
 
     canvas.onmousedown = function (event) {
         var pos = getCursorPosition(canvas, event);

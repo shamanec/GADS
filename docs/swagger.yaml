@@ -1,44 +1,10 @@
 definitions:
-  main.Device:
-    properties:
-      appium_port:
-        type: integer
-      device_name:
-        type: string
-      device_os_version:
-        type: string
-      device_udid:
-        type: string
-      wda_mjpeg_port:
-        type: integer
-      wda_port:
-        type: integer
-    type: object
   main.ErrorJSON:
     properties:
       error_message:
         type: string
       event:
         type: string
-    type: object
-  main.IOSAppInstall:
-    properties:
-      ipa_name:
-        type: string
-    type: object
-  main.IOSAppUninstall:
-    properties:
-      bundle_id:
-        type: string
-    type: object
-  main.IOSDeviceInfo:
-    properties:
-      deviceConfig:
-        $ref: '#/definitions/main.Device'
-      installedAppsBundleIDs:
-        items:
-          type: string
-        type: array
     type: object
   main.ProjectConfig:
     properties:
@@ -63,6 +29,43 @@ definitions:
   main.SudoPassword:
     properties:
       sudo_password:
+        type: string
+    type: object
+  main.detailsEntry:
+    properties:
+      productName:
+        type: string
+      productType:
+        type: string
+      productVersion:
+        type: string
+      udid:
+        type: string
+    type: object
+  main.detailsList:
+    properties:
+      deviceList:
+        items:
+          $ref: '#/definitions/main.detailsEntry'
+        type: array
+    type: object
+  main.iOSAppInstall:
+    properties:
+      ipa_name:
+        type: string
+    type: object
+  main.iOSAppUninstall:
+    properties:
+      bundle_id:
+        type: string
+    type: object
+  main.registerIOSDevice:
+    properties:
+      device_name:
+        type: string
+      device_os_version:
+        type: string
+      device_udid:
         type: string
     type: object
 info:
@@ -276,32 +279,26 @@ paths:
       summary: Get logs for iOS device container
       tags:
       - device-logs
-  /ios-devices/{device_udid}/info:
+  /ios-devices:
     get:
-      description: Get info for an iOS device - installed apps, Appium config
-      parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
-        required: true
-        type: string
+      description: Returns the connected iOS devices with go-ios
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.IOSDeviceInfo'
+            $ref: '#/definitions/main.detailsList'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/main.ErrorJSON'
-      summary: Get info for iOS device
+      summary: Get connected iOS devices
       tags:
       - ios-devices
   /ios-devices/{device_udid}/install-app:
     post:
-      description: Installs *.ipa or *.app from the './ipa' folder
+      description: Installs *.ipa or *.app from the './ipa' folder with go-ios
       parameters:
       - description: Device UDID
         in: path
@@ -313,7 +310,7 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.IOSAppInstall'
+          $ref: '#/definitions/main.iOSAppInstall'
       produces:
       - application/json
       responses:
@@ -330,7 +327,7 @@ paths:
       - ios-devices
   /ios-devices/{device_udid}/uninstall-app:
     post:
-      description: Uninstalls app from iOS device by provided bundleID
+      description: Uninstalls app from iOS device by provided bundleID with go-ios
       parameters:
       - description: Device UDID
         in: path
@@ -342,7 +339,7 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.IOSAppUninstall'
+          $ref: '#/definitions/main.iOSAppUninstall'
       produces:
       - application/json
       responses:
@@ -355,6 +352,30 @@ paths:
           schema:
             $ref: '#/definitions/main.ErrorJSON'
       summary: Uninstall app from iOS device
+      tags:
+      - ios-devices
+  /ios-devices/register:
+    post:
+      description: Registers a new iOS device in config.json
+      parameters:
+      - description: Register iOS device
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/main.registerIOSDevice'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.SimpleResponseJSON'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
+      summary: Register a new iOS device
       tags:
       - ios-devices
   /ios_containers/update:
