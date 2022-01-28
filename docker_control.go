@@ -66,7 +66,7 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "docker_image_remove", error_message, 500)
 		return
 	}
-	SimpleJSONResponse(w, "docker_image_remove", "Successfully removed image tagged: '"+imageRemoveResponse[0].Untagged+"'", 200)
+	SimpleJSONResponse(w, "Successfully removed image tagged: '"+imageRemoveResponse[0].Untagged+"'", 200)
 }
 
 // @Summary      Restart container
@@ -105,7 +105,7 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(log.Fields{
 		"event": "docker_container_restart",
 	}).Info("Successfully attempted to restart container with ID: " + key)
-	SimpleJSONResponse(w, "docker_container_restart", "Successfully attempted to restart container with ID: "+key, 200)
+	SimpleJSONResponse(w, "Successfully attempted to restart container with ID: "+key, 200)
 }
 
 // @Summary      Get container logs
@@ -131,7 +131,6 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	options := types.ContainerLogsOptions{ShowStdout: true}
-	// Replace this ID with a container that really exists
 	out, err := cli.ContainerLogs(ctx, key, options)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -146,9 +145,9 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	newStr := buf.String()
 
 	if newStr != "" {
-		SimpleJSONResponse(w, "get_container_logs", newStr, 200)
+		SimpleJSONResponse(w, newStr, 200)
 	} else {
-		SimpleJSONResponse(w, "get_container_logs", "There are no actual logs for this container.", 200)
+		SimpleJSONResponse(w, "There are no actual logs for this container.", 200)
 	}
 }
 
@@ -216,7 +215,7 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(log.Fields{
 		"event": "docker_container_remove",
 	}).Info("Successfully removed container with ID: " + key)
-	SimpleJSONResponse(w, "docker_container_remove", "Successfully removed container with ID: "+key, 200)
+	SimpleJSONResponse(w, "Successfully removed container with ID: "+key, 200)
 }
 
 // IOS Containers html page

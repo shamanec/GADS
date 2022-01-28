@@ -161,7 +161,7 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "config_file_interaction", "Could not write to the config.json file.", 500)
 		return
 	}
-	SimpleJSONResponse(w, "config_file_interaction", "Successfully updated project config in ./configs/config.json", 200)
+	SimpleJSONResponse(w, "Successfully updated project config in ./configs/config.json", 200)
 }
 
 var upgrader = websocket.Upgrader{

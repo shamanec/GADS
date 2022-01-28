@@ -195,8 +195,34 @@ var doc = `{
                 }
             }
         },
-        "/containers/{container_id}/logs": {
+        "/configuration/upload-wda": {
             "post": {
+                "description": "Uploads the provided *.ipa into the ./ipa folder with the expected \"WebDriverAgent.ipa\" name",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Upload WDA",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
+        "/containers/{container_id}/logs": {
+            "get": {
                 "description": "Get logs of container by providing container ID",
                 "produces": [
                     "application/json"
@@ -560,9 +586,6 @@ var doc = `{
         "main.SimpleResponseJSON": {
             "type": "object",
             "properties": {
-                "event": {
-                    "type": "string"
-                },
                 "message": {
                     "type": "string"
                 }

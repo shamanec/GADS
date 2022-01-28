@@ -95,13 +95,13 @@ function removeImage() {
         type: "POST",
         url: "/configuration/remove-image",
         success: function (data) {
-            swal("Event: " + data.event, data.message, "success")
+            swal("Remove image", data.message, "success")
             .then(() => {
                 location.reload();
             });
         },
         error: function (data) {
-            swal("Event: " + JSON.parse(data.responseText).event, JSON.parse(data.responseText).error_message, "error")
+            swal("Remove image", JSON.parse(data.responseText).error_message, "error")
             .then(() => {
                 location.reload();
             });
@@ -128,7 +128,7 @@ function removeUdevListener() {
         type: "POST",
         url: "/configuration/remove-ios-listener",
         success: function (data) {
-            swal("Remove listener", data, "error")
+            swal("Remove listener", "Succesfully removed iOS udev listener", "success")
             .then(() => {
                 location.reload();
             });
@@ -164,7 +164,7 @@ function setupUdevListener() {
         type: "POST",
         url: "/configuration/setup-ios-listener",
         success: function (data) {
-            swal("Setup ios listener", data, "sucess")
+            swal("Setup ios listener", data, "success")
             .then(() => {
                 location.reload();
             });
@@ -218,7 +218,7 @@ function showIOSDeviceSelection() {
             }
         },
         error: function (data) {
-            swal("Show device selection", $.parseJSON(data.responseText).error_message, "error")
+            swal($.parseJSON(data.responseText).event, $.parseJSON(data.responseText).error_message, "error")
         }
     });
 }
@@ -246,7 +246,7 @@ function registerIOSDevice() {
             modal.style.display = "none";
         },
         error: function (data) {
-            swal("Register device error", $.parseJSON(data.responseText).error_message, "error")
+            swal($.parseJSON(data.responseText).event, $.parseJSON(data.responseText).error_message, "error")
             modal.style.display = "none";
         }
     });
@@ -284,14 +284,14 @@ function setSudoPassword() {
         url: "/configuration/set-sudo-password",
         success: function (data) {
             modal.style.display = "none";
-            swal("Event: " + data.event, data.message, "info")
+            swal("Set sudo password", data.message, "info")
             .then(() => {
                 location.reload();
             });
         },
         error: function (data) {
             modal.style.display = "none";
-            swal("Event: " + JSON.parse(data.responseText).event, JSON.parse(data.responseText).error_message, "error")
+            swal(JSON.parse(data.responseText).event, JSON.parse(data.responseText).error_message, "error")
             .then(() => {
                 location.reload();
             });

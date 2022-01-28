@@ -70,6 +70,26 @@
         position: relative;
     }
 
+    #small-loader {
+        visibility: hidden;
+        position: fixed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        text-align: center;
+        opacity: 0.7;
+        background-color: #fff;
+        z-index: 99;
+    }
+
+    #small-loader-image {
+        position: relative;
+    }
+
     #page-source {
         width: 100%;
         margin-left: 10px;
@@ -95,6 +115,9 @@
     </div>
     <div id="container-div">
         <div id="stream-div" style="position: relative;">
+            <div id="small-loader" style="visibility: hidden;position: absolute;">
+                <img id="small-loader-image" src="/static/images/small-loader.gif">
+            </div>
             <canvas id="actions-canvas" style="position: absolute;"></canvas>
             <img id="image-stream"></img>
         </div>
@@ -365,14 +388,14 @@
             url: "/ios-devices/" + device_udid + "/install-app",
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
-                swal("Info message", "Successfully installed app :'" + ipa_name + "'", "success")
+                swal("Install app", "Successfully installed app :'" + ipa_name + "'", "success")
                     .then(() => {
                         location.reload();
                     });
             },
             error: function (data) {
                 $('#loading').css("visibility", "hidden");
-                swal("Install app error", $.parseJSON(data.responseText).error_message, "error")
+                swal($.parseJSON(data.responseText).event, $.parseJSON(data.responseText).error_message, "error")
             }
         });
     }
@@ -667,18 +690,37 @@
             ]
         })
 
+        showCanvasLoader()
+
         $.ajax({
             async: false,
             type: "POST",
             data: jsonData,
             url: wda_url + "/session/" + wda_session_id + "/actions",
             success: function () {
+                hideCanvasLoader()
                 console.log("Performed WDA tap")
             },
             error: function () {
+                hideCanvasLoader()
                 console.log("Could not perform WDA tap")
             }
         });
+    }
+
+    function showCanvasLoader() {
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.fillStyle = "rgba(204, 201, 194, 0.4)";
+        context.fillRect(0,0,canvas.width,canvas.height);
+        $('#actions-canvas').css("cursor: not-allowed;pointer-events: none;")
+        $('#small-loader-image').css("visibility", "visible");
+    }
+
+    function hideCanvasLoader() {
+        $('#small-loader-image').css("visibility", "hidden");
+        clearCanvas()
+        $('#actions-canvas').css("cursor: allowed;pointer-events: all;")
     }
 
 
