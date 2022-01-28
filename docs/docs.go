@@ -197,7 +197,7 @@ var doc = `{
         },
         "/configuration/upload-wda": {
             "post": {
-                "description": "Uploads the provided *.ipa into the ./ipa folder with the expected \"WebDriverAgent.ipa\" name",
+                "description": "Uploads the provided *.ipa into the ./apps folder with the expected \"WebDriverAgent.ipa\" name",
                 "produces": [
                     "application/json"
                 ],
@@ -362,6 +362,32 @@ var doc = `{
                 }
             }
         },
+        "/devices/device-control": {
+            "post": {
+                "description": "Provides the running containers, IOS devices info and apps available for installing",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "devices"
+                ],
+                "summary": "Get device control info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.DeviceControlInfo"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorJSON"
+                        }
+                    }
+                }
+            }
+        },
         "/ios-devices": {
             "get": {
                 "description": "Returns the connected iOS devices with go-ios",
@@ -427,7 +453,7 @@ var doc = `{
         },
         "/ios-devices/{device_udid}/install-app": {
             "post": {
-                "description": "Installs *.ipa or *.app from the './ipa' folder with go-ios",
+                "description": "Installs *.ipa or *.app from the './apps' folder with go-ios",
                 "produces": [
                     "application/json"
                 ],
@@ -552,6 +578,49 @@ var doc = `{
         }
     },
     "definitions": {
+        "main.AndroidDeviceInfo": {
+            "type": "object",
+            "properties": {
+                "deviceConfig": {
+                    "$ref": "#/definitions/main.IOSDevice"
+                },
+                "installedAppsBundleIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "main.DeviceControlInfo": {
+            "type": "object",
+            "properties": {
+                "android-devices-info": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.AndroidDeviceInfo"
+                    }
+                },
+                "installable-apps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ios-devices-info": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.IOSDeviceInfo"
+                    }
+                },
+                "running-containers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "main.ErrorJSON": {
             "type": "object",
             "properties": {
@@ -560,6 +629,49 @@ var doc = `{
                 },
                 "event": {
                     "type": "string"
+                }
+            }
+        },
+        "main.IOSDevice": {
+            "type": "object",
+            "properties": {
+                "appium_port": {
+                    "type": "integer"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "device_os_version": {
+                    "type": "string"
+                },
+                "device_udid": {
+                    "type": "string"
+                },
+                "wda_mjpeg_port": {
+                    "type": "integer"
+                },
+                "wda_port": {
+                    "type": "integer"
+                },
+                "wda_stream_url": {
+                    "type": "string"
+                },
+                "wda_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.IOSDeviceInfo": {
+            "type": "object",
+            "properties": {
+                "deviceConfig": {
+                    "$ref": "#/definitions/main.IOSDevice"
+                },
+                "installedAppsBundleIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

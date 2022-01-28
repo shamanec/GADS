@@ -23,6 +23,34 @@ import (
 
 var sudo_password = GetEnvValue("sudo_password")
 
+//=================//
+//=====STRUCTS=====//
+
+type SudoPassword struct {
+	SudoPassword string `json:"sudo_password"`
+}
+
+type DeviceControlInfo struct {
+	RunningContainers []string            `json:"running-containers"`
+	IOSInfo           []IOSDeviceInfo     `json:"ios-devices-info"`
+	AndroidInfo       []AndroidDeviceInfo `json:"android-devices-info"`
+	InstallableApps   []string            `json:"installable-apps"`
+}
+
+type IOSDevice struct {
+	AppiumPort      int    `json:"appium_port"`
+	DeviceName      string `json:"device_name"`
+	DeviceOSVersion string `json:"device_os_version"`
+	DeviceUDID      string `json:"device_udid"`
+	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
+	WdaPort         int    `json:"wda_port"`
+	WdaURL          string `json:"wda_url"`
+	WdaMjpegURL     string `json:"wda_stream_url"`
+}
+
+//=======================//
+//=====API FUNCTIONS=====//
+
 // @Summary      Sets up iOS device listener
 // @Description  Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it
 // @Tags         configuration
@@ -32,13 +60,19 @@ var sudo_password = GetEnvValue("sudo_password")
 // @Router       /configuration/setup-ios-listener [post]
 func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	if sudo_password == "undefined" {
-		JSONError(w, "setup_udev_listener", "Elevated permissions are required to perform this action. Please set your sudo password in './env.json' or via the '/configuration/set-sudo-password' endpoint.", 500)
+		log.WithFields(log.Fields{
+			"event": "setup_udev_listener",
+		}).Error("Elevated permissions are required to perform this action. Please set your sudo password in './env.json' or via the '/configuration/set-sudo-password' endpoint.")
+		JSONError(w, "setup_udev_listener", "Elevated permissions are required to perform this action.", 500)
 		return
 	}
 	DeleteTempUdevFiles()
 	err := CreateUdevRules()
 	if err != nil {
-		JSONError(w, "setup_udev_listener", err.Error(), 500)
+		log.WithFields(log.Fields{
+			"event": "setup_udev_listener",
+		}).Error("Could not create udev rules file. Error:" + err.Error())
+		JSONError(w, "setup_udev_listener", "Could not create udev rules", 500)
 		DeleteTempUdevFiles()
 		return
 	}
@@ -67,60 +101,6 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	SimpleJSONResponse(w, "Successfully set udev rules.", 200)
 }
 
-func DeleteTempUdevFiles() {
-	DeleteFileShell("./39-usbmuxd.rules", sudo_password)
-}
-
-func UdevIOSListenerState() (status string) {
-	_, ruleErr := os.Stat("/etc/udev/rules.d/39-usbmuxd.rules")
-	_, usbmuxdErr := os.Stat("/lib/systemd/system/usbmuxd.service")
-	if ruleErr != nil || usbmuxdErr != nil {
-		status = "Udev rules not set."
-		return
-	} else {
-		status = "Udev rules set."
-		return
-	}
-}
-
-func CreateUdevRules() error {
-	log.WithFields(log.Fields{
-		"event": "create_udev_rules",
-	}).Info("Creating udev rules")
-	// Create the rules file that will start usbmuxd on the first connected device
-	create_container_rules, err := os.Create("./39-usbmuxd.rules")
-	if err != nil {
-		return errors.New("Could not create 39-usbmuxd.rules")
-	}
-	defer create_container_rules.Close()
-
-	// Create rules for add and remove udev events
-	rule_line1 := "ACTION==\"add\", SUBSYSTEM==\"usb\", ENV{DEVTYPE}==\"usb_device\", ATTR{manufacturer}==\"Apple Inc.\", ENV{PRODUCT}==\"5ac/12[9a][0-9a-f]/*|5ac/190[1-4]/*|5ac/8600/*\", MODE=\"0666\", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/ios-containers/update\""
-	rule_line2 := "SUBSYSTEM==\"usb\", ENV{DEVTYPE}==\"usb_device\", ENV{PRODUCT}==\"5ac/12[9a][0-9a-f]/*|5ac/1901/*|5ac/8600/*\", ACTION==\"remove\", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/ios-containers/update\""
-	if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
-		return errors.New("Could not write to 39-usbmuxd.rules")
-	}
-
-	if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
-		return errors.New("Could not write to 39-usbmuxd.rules")
-	}
-	return nil
-}
-
-func SetUdevRules() error {
-	err := CopyFileShell("./39-usbmuxd.rules", "/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
-	if err != nil {
-		return err
-	}
-	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
-	cmd := exec.Command("bash", "-c", commandString)
-	err = cmd.Run()
-	if err != nil {
-		return errors.New("Could not reload udev rules")
-	}
-	return nil
-}
-
 // @Summary      Removes iOS device listener
 // @Description  Deletes udev rules from /etc/udev/rules.d and reloads udev
 // @Tags         configuration
@@ -131,35 +111,22 @@ func SetUdevRules() error {
 func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 	err := DeleteFileShell("/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
 	if err != nil {
-		JSONError(w, "delete_file_error", err.Error(), 500)
+		log.WithFields(log.Fields{
+			"event": "remove_udev_listener",
+		}).Error("Could not delete udev rules file. Error: " + err.Error())
+		JSONError(w, "remove_udev_listener", "Could not delete usbmuxd rules file.", 500)
 		return
 	}
 	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
 	cmd := exec.Command("bash", "-c", commandString)
 	err = cmd.Run()
 	if err != nil {
-		JSONError(w, "reload_udev_rules_error", "Could not reload udev rules: "+err.Error(), 500)
+		log.WithFields(log.Fields{
+			"event": "remove_udev_listener",
+		}).Error("Could not reload udev rules file. Error: " + err.Error())
+		JSONError(w, "remove_udev_listener", "Could not reload udev rules", 500)
 		return
 	}
-}
-
-func CheckSudoPasswordSet() bool {
-	byteValue, err := ReadJSONFile("./env.json")
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "check_sudo_password_set",
-		}).Error("Could not read ./env.json while checking sudo password status.")
-		return false
-	}
-	sudo_password := gjson.Get(string(byteValue), "sudo_password").Str
-	if sudo_password == "undefined" {
-		return false
-	}
-	return true
-}
-
-type SudoPassword struct {
-	SudoPassword string `json:"sudo_password"`
 }
 
 // @Summary      Set sudo password
@@ -203,40 +170,13 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	SimpleJSONResponse(w, "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./env.json file. Make sure you don't commit this file to public repos :D", 200)
 }
 
-func CheckWDAProvided() bool {
-	_, err := os.Stat("ipa/WebDriverAgent.ipa")
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func GetEnvValue(key string) string {
-	byteValue, _ := ReadJSONFile("./env.json")
-	value := gjson.Get(string(byteValue), key).Str
-	return value
-}
-
-//=======================================================================================//
-
-type DeviceControlInfo struct {
-	RunningContainers []string            `json:"running-containers"`
-	IOSInfo           []IOSDeviceInfo     `json:"ios-devices-info"`
-	AndroidInfo       []AndroidDeviceInfo `json:"android-devices-info"`
-	InstallableApps   []string            `json:"installable-apps"`
-}
-
-type IOSDevice struct {
-	AppiumPort      int    `json:"appium_port"`
-	DeviceName      string `json:"device_name"`
-	DeviceOSVersion string `json:"device_os_version"`
-	DeviceUDID      string `json:"device_udid"`
-	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
-	WdaPort         int    `json:"wda_port"`
-	WdaURL          string `json:"wda_url"`
-	WdaMjpegURL     string `json:"wda_stream_url"`
-}
-
+// @Summary      Get device control info
+// @Description  Provides the running containers, IOS devices info and apps available for installing
+// @Tags         devices
+// @Produce      json
+// @Success      200 {object} DeviceControlInfo
+// @Failure      500 {object} ErrorJSON
+// @Router       /devices/device-control [post]
 func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 	var runningContainerNames = getRunningContainerNames()
 	var info = DeviceControlInfo{
@@ -247,6 +187,106 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
 }
 
+//=======================//
+//=====FUNCTIONS=====//
+
+// Check if the sudo password in env.json is different than "undefined" meaning something is set
+func CheckSudoPasswordSet() bool {
+	byteValue, err := ReadJSONFile("./env.json")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "check_sudo_password",
+		}).Error("Could not read ./env.json while checking sudo password status.")
+		return false
+	}
+	sudo_password := gjson.Get(string(byteValue), "sudo_password").Str
+	if sudo_password == "undefined" || sudo_password == "" {
+		return false
+	}
+	return true
+}
+
+// Delete the temporary iOS udev rule file
+func DeleteTempUdevFiles() {
+	DeleteFileShell("./39-usbmuxd.rules", sudo_password)
+}
+
+// Check if the iOS udev rules and usbmuxd service are set
+func UdevIOSListenerState() (status string) {
+	_, ruleErr := os.Stat("/etc/udev/rules.d/39-usbmuxd.rules")
+	_, usbmuxdErr := os.Stat("/lib/systemd/system/usbmuxd.service")
+	if ruleErr != nil || usbmuxdErr != nil {
+		log.WithFields(log.Fields{
+			"event": "udev_rules_state",
+		}).Error("Udev rules are not set.")
+		status = "Udev rules not set."
+		return
+	} else {
+		status = "Udev rules set."
+		return
+	}
+}
+
+// Generate the temporary iOS udev rule file
+func CreateUdevRules() error {
+	log.WithFields(log.Fields{
+		"event": "create_udev_rules",
+	}).Info("Creating udev rules")
+	// Create the rules file that will start usbmuxd on the first connected device
+	create_container_rules, err := os.Create("./39-usbmuxd.rules")
+	if err != nil {
+		return errors.New("Could not create 39-usbmuxd.rules")
+	}
+	defer create_container_rules.Close()
+
+	// Create rules for add and remove udev events
+	rule_line1 := "ACTION==\"add\", SUBSYSTEM==\"usb\", ENV{DEVTYPE}==\"usb_device\", ATTR{manufacturer}==\"Apple Inc.\", ENV{PRODUCT}==\"5ac/12[9a][0-9a-f]/*|5ac/190[1-4]/*|5ac/8600/*\", MODE=\"0666\", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/ios-containers/update\""
+	rule_line2 := "SUBSYSTEM==\"usb\", ENV{DEVTYPE}==\"usb_device\", ENV{PRODUCT}==\"5ac/12[9a][0-9a-f]/*|5ac/1901/*|5ac/8600/*\", ACTION==\"remove\", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/ios-containers/update\""
+	if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
+		return errors.New("Could not write to 39-usbmuxd.rules")
+	}
+
+	if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
+		return errors.New("Could not write to 39-usbmuxd.rules")
+	}
+	return nil
+}
+
+// Copy the iOS udev rules to /etc/udev/rules.d and reload udev
+func SetUdevRules() error {
+	err := CopyFileShell("./39-usbmuxd.rules", "/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
+	if err != nil {
+		return err
+	}
+	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
+	cmd := exec.Command("bash", "-c", commandString)
+	err = cmd.Run()
+	if err != nil {
+		return errors.New("Could not reload udev rules")
+	}
+	return nil
+}
+
+// Check if WebDriverAgent.ipa exists in  the ./apps folder
+func CheckWDAProvided() bool {
+	_, err := os.Stat("apps/WebDriverAgent.ipa")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "wda_ipa_present",
+		}).Error("Could not find WebDriverAgent.ipa at ./apps")
+		return false
+	}
+	return true
+}
+
+// Get a value from env.json
+func GetEnvValue(key string) string {
+	byteValue, _ := ReadJSONFile("./env.json")
+	value := gjson.Get(string(byteValue), key).Str
+	return value
+}
+
+// Get the names of the currently running containers(that are for devices)
 func getRunningContainerNames() []string {
 	var containerNames []string
 
@@ -272,6 +312,8 @@ func getRunningContainerNames() []string {
 	return containerNames
 }
 
+// For each running container extract the info for each respective device from ./configs/config.json to provide to the device-control info endpoint.
+// Provides installed apps, configuration info, wda urls
 func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 	var combinedInfo []IOSDeviceInfo
 	for _, containerName := range runningContainers {
@@ -298,6 +340,7 @@ func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 	return combinedInfo
 }
 
+// Get the WDA and WDA stream urls from the container logs folder for a specific device
 func getIOSDeviceWdaURLs(device_udid string) (string, string) {
 	// Get the path of the WDA url file using regex
 	pattern := "./logs/*" + device_udid + "/ios-wda-url.json"
@@ -331,6 +374,7 @@ func getIOSDeviceWdaURLs(device_udid string) (string, string) {
 	return url.Str, stream_url.Str
 }
 
+// Get the configuration info for iOS device from ./configs/config.json
 func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	jsonFile, err := os.Open("./configs/config.json")
 
@@ -376,10 +420,11 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 		nil
 }
 
+// Get the installable apps list from the ./apps folder
 func getInstallableApps() []string {
 	var appNames []string
 
-	files, err := ioutil.ReadDir("./ipa/")
+	files, err := ioutil.ReadDir("./apps/")
 	if err != nil {
 		return appNames
 	}

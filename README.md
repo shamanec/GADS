@@ -97,7 +97,7 @@ This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable t
 1. Open the Project Config page.
 2. Click on **Upload WDA**.
 3. Select the ipa you created in step 7 and submit it.
-4. The file will be uploaded in the **./ipa** folder and named **WebDriverAgent.ipa** making it ready to be used by the iOS containers.  
+4. The file will be uploaded in the **./apps** folder and named **WebDriverAgent.ipa** making it ready to be used by the iOS containers.  
 
 ### Spin up containers  
 1. Open the Project Config page.  
@@ -109,7 +109,7 @@ This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable t
 1. Open the Project Config page.  
 2. Tap on "Upload app file" button.  
 3. Select the AUT *.ipa file and submit it.  
-4. It will be uploaded in the *./ipa* folder which is mounted to each container and then you can access this app and install it using Appium.  
+4. It will be uploaded in the *./apps* folder which is mounted to each container and then you can access this app and install it using Appium.  
 
 **NB** For a way to perform most of these actions without the UI you can refer to the Swagger documentation.  
 

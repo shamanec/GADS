@@ -56,7 +56,7 @@ func SimpleJSONResponse(w http.ResponseWriter, response_message string, code int
 }
 
 // @Summary      Upload WDA
-// @Description  Uploads the provided *.ipa into the ./ipa folder with the expected "WebDriverAgent.ipa" name
+// @Description  Uploads the provided *.ipa into the ./apps folder with the expected "WebDriverAgent.ipa" name
 // @Tags         configuration
 // @Produce      json
 // @Success      200 {object} SimpleResponseJSON
@@ -73,14 +73,14 @@ func UploadWDA(w http.ResponseWriter, r *http.Request) {
 
 	// Create the ipa folder if it doesn't
 	// already exist
-	err = os.MkdirAll("./ipa", os.ModePerm)
+	err = os.MkdirAll("./apps", os.ModePerm)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Create a new file in the uploads directory
-	dst, err := os.Create("./ipa/WebDriverAgent.ipa")
+	dst, err := os.Create("./apps/WebDriverAgent.ipa")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -96,7 +96,7 @@ func UploadWDA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Uploaded and saved as WebDriverAgent.ipa in the './ipa' folder.")
+	fmt.Fprintf(w, "Uploaded and saved as WebDriverAgent.ipa in the './apps' folder.")
 }
 
 func UploadApp(w http.ResponseWriter, r *http.Request) {
@@ -110,14 +110,14 @@ func UploadApp(w http.ResponseWriter, r *http.Request) {
 
 	// Create the ipa folder if it doesn't
 	// already exist
-	err = os.MkdirAll("./ipa", os.ModePerm)
+	err = os.MkdirAll("./apps", os.ModePerm)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Create a new file in the uploads directory
-	dst, err := os.Create("./ipa/" + header.Filename)
+	dst, err := os.Create("./apps/" + header.Filename)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -133,7 +133,7 @@ func UploadApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Uploaded '"+header.Filename+"' to the ./ipa folder.")
+	fmt.Fprintf(w, "Uploaded '"+header.Filename+"' to the ./apps folder.")
 }
 
 //=======================//
@@ -207,12 +207,18 @@ func addToArchive(tw *tar.Writer, filename string) error {
 func DeleteFile(filePath string) {
 	_, err := os.Stat(filePath)
 	if err != nil {
-		fmt.Printf("File at path: '" + filePath + "' doesn't exist\n")
+		log.WithFields(log.Fields{
+			"event": "delete_file",
+		}).Error("Could not find file:" + filePath + ". Error:" + err.Error())
+		fmt.Printf("Could not find file:'" + filePath)
 		return
 	} else {
 		err = os.Remove(string(filePath))
 		if err != nil {
-			panic("Could not delete file at: " + string(filePath) + ". " + err.Error())
+			log.WithFields(log.Fields{
+				"event": "delete_file",
+			}).Error("Could not delete file:" + filePath + ". Error:" + err.Error())
+			fmt.Printf("Could not delete file:'" + filePath)
 		}
 	}
 }
@@ -223,7 +229,10 @@ func CopyFileShell(currentFilePath string, newFilePath string, sudoPassword stri
 	cmd := exec.Command("bash", "-c", commandString)
 	err := cmd.Run()
 	if err != nil {
-		return errors.New("Could not copy file: " + err.Error() + "\n")
+		log.WithFields(log.Fields{
+			"event": "delete_file_shell",
+		}).Error("Could not copy file:" + currentFilePath + " to:" + newFilePath + ". Error:" + err.Error())
+		return errors.New("Could not copy file:" + currentFilePath + " with shell.")
 	}
 	return nil
 }
@@ -234,7 +243,10 @@ func DeleteFileShell(filePath string, sudoPassword string) error {
 	cmd := exec.Command("bash", "-c", commandString)
 	err := cmd.Run()
 	if err != nil {
-		return errors.New("Could not delete file: " + err.Error() + "\n")
+		log.WithFields(log.Fields{
+			"event": "delete_file_shell",
+		}).Error("Could not delete file:" + filePath + " with shell. Error:" + err.Error())
+		return errors.New("Could not delete file: " + filePath + "with shell")
 	}
 	return nil
 }
@@ -245,7 +257,10 @@ func SetFilePermissionsShell(filePath string, permissionsCode string, sudoPasswo
 	cmd := exec.Command("bash", "-c", commandString)
 	err := cmd.Run()
 	if err != nil {
-		return errors.New("Could not set " + permissionsCode + " permissions to file at path: " + filePath + "\n" + err.Error())
+		log.WithFields(log.Fields{
+			"event": "file_permissions_shell",
+		}).Error("Could not set permissions on file:" + filePath + " with shell. Error:" + err.Error())
+		return errors.New("Could not set permissions on file:" + filePath + " with shell.")
 	}
 	return nil
 }
@@ -256,7 +271,10 @@ func EnableUsbmuxdService() error {
 	cmd := exec.Command("bash", "-c", commandString)
 	err := cmd.Run()
 	if err != nil {
-		return errors.New("Could not enable usbmuxd service. Error: " + err.Error() + "\n")
+		log.WithFields(log.Fields{
+			"event": "enabled_usbmuxd_service",
+		}).Error("Could not enable usbmuxd service. Error: " + err.Error())
+		return errors.New("Could not enable usbmuxd service.")
 	}
 	return nil
 }
