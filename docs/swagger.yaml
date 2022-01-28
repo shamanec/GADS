@@ -21,8 +21,6 @@ definitions:
     type: object
   main.SimpleResponseJSON:
     properties:
-      event:
-        type: string
       message:
         type: string
     type: object
@@ -186,8 +184,26 @@ paths:
       summary: Update project configuration
       tags:
       - configuration
-  /containers/{container_id}/logs:
+  /configuration/upload-wda:
     post:
+      description: Uploads the provided *.ipa into the ./ipa folder with the expected
+        "WebDriverAgent.ipa" name
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.SimpleResponseJSON'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
+      summary: Upload WDA
+      tags:
+      - configuration
+  /containers/{container_id}/logs:
+    get:
       description: Get logs of container by providing container ID
       parameters:
       - description: Container ID
