@@ -27,8 +27,7 @@ type ErrorJSON struct {
 }
 
 type SimpleResponseJSON struct {
-	EventName string `json:"event"`
-	Message   string `json:"message"`
+	Message string `json:"message"`
 }
 
 //=======================//
@@ -46,10 +45,9 @@ func JSONError(w http.ResponseWriter, event string, error_string string, code in
 }
 
 // Write to a ResponseWriter an event and message with a response code
-func SimpleJSONResponse(w http.ResponseWriter, event string, response_message string, code int) {
+func SimpleJSONResponse(w http.ResponseWriter, response_message string, code int) {
 	var message = SimpleResponseJSON{
-		EventName: event,
-		Message:   response_message,
+		Message: response_message,
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")

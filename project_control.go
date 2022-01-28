@@ -64,7 +64,7 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	}
 
 	DeleteTempUdevFiles()
-	SimpleJSONResponse(w, "setup_udev_listener", "Successfully set udev rules.", 200)
+	SimpleJSONResponse(w, "Successfully set udev rules.", 200)
 }
 
 func DeleteTempUdevFiles() {
@@ -200,7 +200,7 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(log.Fields{
 		"event": "set_sudo_password",
 	}).Info("Successfully set sudo password.")
-	SimpleJSONResponse(w, "set_sudo_password", "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./env.json file. Make sure you don't commit this file to public repos :D", 200)
+	SimpleJSONResponse(w, "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./env.json file. Make sure you don't commit this file to public repos :D", 200)
 }
 
 func CheckWDAProvided() bool {

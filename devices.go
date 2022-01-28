@@ -132,7 +132,7 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(log.Fields{
 		"event": "register_ios_device",
 	}).Info("Successfully registered iOS device with UDID: '" + device_udid.Str + "' in ./configs/config.json")
-	SimpleJSONResponse(w, "test", "test", 200)
+	SimpleJSONResponse(w, "Successfully registered iOS device with UDID: '"+device_udid.Str+"' in ./configs/config.json", 200)
 }
 
 // @Summary      Get logs for iOS device container
@@ -158,13 +158,13 @@ func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{
 			"event": "get_device_logs",
 		}).Error("Could not get logs of type: '" + key + "' for device with udid:" + key2)
-		SimpleJSONResponse(w, "get_device_logs", "No logs of this type available for this container.", 200)
+		SimpleJSONResponse(w, "No logs of this type available for this container.", 200)
 		return
 	}
 	log.WithFields(log.Fields{
 		"event": "get_device_logs",
 	}).Info("Successfully got logs of type: '" + key + "' for device with udid:" + key2)
-	SimpleJSONResponse(w, "get_device_logs", out.String(), 200)
+	SimpleJSONResponse(w, out.String(), 200)
 }
 
 // @Summary      Get connected iOS devices
@@ -219,7 +219,7 @@ func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "install_ios_app", "Failed to install app on device with UDID:'"+device_udid+"'", 500)
 		return
 	}
-	SimpleJSONResponse(w, "install_ios_app", "Successfully installed '"+ipa_name+"'", 200)
+	SimpleJSONResponse(w, "Successfully installed '"+ipa_name+"'", 200)
 }
 
 // @Summary      Uninstall app from iOS device
@@ -243,7 +243,7 @@ func UninstallIOSApp(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "uninstall_ios_app", "Failed uninstalling app with bundleID:'"+bundle_id+"'", 500)
 		return
 	}
-	SimpleJSONResponse(w, "uninstall_ios_app", "Successfully uninstalled app with bundleID:'"+bundle_id+"'", 200)
+	SimpleJSONResponse(w, "Successfully uninstalled app with bundleID:'"+bundle_id+"'", 200)
 }
 
 //===================//
