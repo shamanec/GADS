@@ -255,7 +255,7 @@
                 }
                 createIOSAppsDropdown(data)
                 createInstallableAppsDropdown(data)
-                createWDASession()
+                checkWDASession()
                 getIOSDeviceSizeFromWDA()
                 updateIOSStreamSize()
                 changeStream();
@@ -400,10 +400,29 @@
         });
     }
 
+    function checkWDASession() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_el = $("#wda-session-id")
+
+        $.ajax({
+            type: "GET",
+            url: wda_url + "/status",
+            success: function (data) {
+                if (data.sessionId === null) {
+                    createWDASession()
+                } else {
+                    wda_session_el.text(data.sessionId)
+                }
+            },
+            error: function (data) {
+                console.log("could not get session")
+            }
+        });
+    }
+
     function createWDASession() {
         let wda_url = $("#wda-url").text()
         let wda_session = $("#wda-session-id")
-        //let bundle_id = $("#bundleid-name").val()
         let json = ""
         var bundle_id = ""
         if (bundle_id != "") {
@@ -454,7 +473,6 @@
         $('#loading').css("visibility", "visible");
 
         $.ajax({
-            async: false,
             type: "POST",
             url: wda_url + "/session",
             data: json,
@@ -712,7 +730,7 @@
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
         context.fillStyle = "rgba(204, 201, 194, 0.4)";
-        context.fillRect(0,0,canvas.width,canvas.height);
+        context.fillRect(0, 0, canvas.width, canvas.height);
         $('#actions-canvas').css("cursor: not-allowed;pointer-events: none;")
         $('#small-loader-image').css("visibility", "visible");
     }
