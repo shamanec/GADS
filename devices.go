@@ -199,7 +199,7 @@ func GetConnectedIOSDevices(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Install app on iOS device
-// @Description  Installs *.ipa or *.app from the './ipa' folder with go-ios
+// @Description  Installs *.ipa or *.app from the './apps' folder with go-ios
 // @Tags         ios-devices
 // @Produce      json
 // @Param        device_udid path string true "Device UDID"
@@ -317,7 +317,7 @@ func InstallIOSAppLocal(device_udid string, ipa_name string) error {
 
 	// Disable logging from go-ios
 	log.SetOutput(ioutil.Discard)
-	err = conn.SendFile("./ipa/" + ipa_name)
+	err = conn.SendFile("./apps/" + ipa_name)
 	// Re-enable logging after finishing conn.SendFile()
 	log.SetOutput(project_log_file)
 	if err != nil {

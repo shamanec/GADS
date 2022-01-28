@@ -1,7 +1,7 @@
 WebDriverAgent
 logs/*
 build-context.tar
-ipa/*
+apps/*
 ca-cert.pem
 ca-key.pem
 configs/supervision.p12

@@ -275,7 +275,7 @@ func buildDockerImage() {
 
 	// Create a tar to be used as build-context for the image build
 	// The tar should include all files needed by the Dockerfile to successfully create the image
-	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "ipa/WebDriverAgent.ipa", "configs/supervision.p12"}
+	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "apps/WebDriverAgent.ipa", "configs/supervision.p12"}
 	out, err := os.Create("build-context.tar")
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -474,7 +474,7 @@ func CreateIOSContainer(device_udid string) {
 			},
 			{
 				Type:   mount.TypeBind,
-				Source: project_dir + "/ipa",
+				Source: project_dir + "/apps",
 				Target: "/opt/ipa",
 			},
 		},

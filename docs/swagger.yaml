@@ -1,10 +1,66 @@
 definitions:
+  main.AndroidDeviceInfo:
+    properties:
+      deviceConfig:
+        $ref: '#/definitions/main.IOSDevice'
+      installedAppsBundleIDs:
+        items:
+          type: string
+        type: array
+    type: object
+  main.DeviceControlInfo:
+    properties:
+      android-devices-info:
+        items:
+          $ref: '#/definitions/main.AndroidDeviceInfo'
+        type: array
+      installable-apps:
+        items:
+          type: string
+        type: array
+      ios-devices-info:
+        items:
+          $ref: '#/definitions/main.IOSDeviceInfo'
+        type: array
+      running-containers:
+        items:
+          type: string
+        type: array
+    type: object
   main.ErrorJSON:
     properties:
       error_message:
         type: string
       event:
         type: string
+    type: object
+  main.IOSDevice:
+    properties:
+      appium_port:
+        type: integer
+      device_name:
+        type: string
+      device_os_version:
+        type: string
+      device_udid:
+        type: string
+      wda_mjpeg_port:
+        type: integer
+      wda_port:
+        type: integer
+      wda_stream_url:
+        type: string
+      wda_url:
+        type: string
+    type: object
+  main.IOSDeviceInfo:
+    properties:
+      deviceConfig:
+        $ref: '#/definitions/main.IOSDevice'
+      installedAppsBundleIDs:
+        items:
+          type: string
+        type: array
     type: object
   main.ProjectConfig:
     properties:
@@ -186,7 +242,7 @@ paths:
       - configuration
   /configuration/upload-wda:
     post:
-      description: Uploads the provided *.ipa into the ./ipa folder with the expected
+      description: Uploads the provided *.ipa into the ./apps folder with the expected
         "WebDriverAgent.ipa" name
       produces:
       - application/json
@@ -295,6 +351,24 @@ paths:
       summary: Get logs for iOS device container
       tags:
       - device-logs
+  /devices/device-control:
+    post:
+      description: Provides the running containers, IOS devices info and apps available
+        for installing
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.DeviceControlInfo'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorJSON'
+      summary: Get device control info
+      tags:
+      - devices
   /ios-devices:
     get:
       description: Returns the connected iOS devices with go-ios
@@ -314,7 +388,7 @@ paths:
       - ios-devices
   /ios-devices/{device_udid}/install-app:
     post:
-      description: Installs *.ipa or *.app from the './ipa' folder with go-ios
+      description: Installs *.ipa or *.app from the './apps' folder with go-ios
       parameters:
       - description: Device UDID
         in: path
