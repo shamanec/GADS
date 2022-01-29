@@ -125,6 +125,10 @@
             <h3>Device Config Info</h3>
             <table id="device-info-table" style="width:100%">
                 <tr>
+                    <th>Device model:</th>
+                    <td id="device-model"></td>
+                </tr>
+                <tr>
                     <th>Device name:</th>
                     <td id="device-name"></td>
                 </tr>
@@ -251,12 +255,13 @@
                         $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
                         $("#wda-stream-url").text(response["ios-devices-info"][i].deviceConfig.wda_stream_url)
                         $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
+                        $("#device-size").text(response["ios-devices-info"][i].deviceConfig.viewport_size)
+                        $("#device-model").text(response["ios-devices-info"][i].deviceConfig.device_model)
                     }
                 }
                 createIOSAppsDropdown(data)
                 createInstallableAppsDropdown(data)
                 checkWDASession()
-                getIOSDeviceSizeFromWDA()
                 updateIOSStreamSize()
                 changeStream();
                 $('#actions-div').css("visibility", "visible")
@@ -483,24 +488,6 @@
             error: function (data) {
                 $('#loading').css("visibility", "hidden");
                 swal("Error", "Could not start session for bundleID:" + bundle_id, "error")
-            }
-        });
-    }
-
-    function getIOSDeviceSizeFromWDA() {
-        let wda_url = $("#wda-url").text()
-        let wda_session = $("#wda-session-id").text()
-
-        $.ajax({
-            async: false,
-            type: "GET",
-            url: wda_url + "/session/" + wda_session + "/window/size",
-            success: function (data) {
-                $("#device-size").text(data.value.width + "x" + data.value.height)
-            },
-            error: function (data) {
-                console.log("Could not get iOS device size, setting 375x667")
-                $("#device-size").text("375x667")
             }
         });
     }
