@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Device Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css"/>
 </head>
 <style>
     #image-stream,
@@ -93,6 +94,12 @@
     #page-source {
         width: 100%;
         margin-left: 10px;
+    }
+
+    #page-source {
+        list-style: none;
+        padding: 0;
+        margin: 0;
     }
 </style>
 
@@ -212,6 +219,11 @@
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all-deps.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqtree/1.6.2/tree.jquery.min.js"></script>
 </body>
 
 <script>
@@ -266,6 +278,7 @@
                 changeStream();
                 $('#actions-div').css("visibility", "visible")
                 $('#stream-div').css("visibility", "visible")
+                $('#elements-div').css("visibility", "visible")
                 $('#loading').css("visibility", "hidden");
             },
             error: function (data) {
@@ -518,6 +531,7 @@
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
         let page_source = $("#page-source")
+        parser = new DOMParser();
 
         /* Show loading indicator until response is returned */
         $('#loading').css("visibility", "visible");
@@ -525,16 +539,116 @@
         $.ajax({
             async: true,
             type: "GET",
-            url: wda_url + "/session/" + wda_session_id + "/source?format=json",
+            url: wda_url + "/session/" + wda_session_id + "/source",
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
-                page_source.text(JSON.stringify(data))
+                xmlDoc = parser.parseFromString(data.value, "text/xml");
+                var test = generateSourceTreeView(xmlDoc.documentElement)
+                var test2 = generateJSONForTree(xmlDoc.documentElement)
+                console.log("TEST")
+                console.log(JSON.parse(test2))
+
+                // $('#page-source').tree({
+                //     data: JSON.stringify(data.value)
+                // })
+                //page_source.html(test)
+
+                page_source.jstree({
+                    'core': {
+                        'data': [JSON.parse(test2)]
+                    }
+                });
+
             },
             error: function () {
                 $('#loading').css("visibility", "hidden");
                 page_source.text("No source")
             }
         });
+    }
+
+    function generateSourceTreeView(node) {
+        if (node.nodeType != 1) return "";
+
+        var elemType = node.getAttribute('type')
+        var elemX = node.getAttribute('x')
+        var elemY = node.getAttribute('y')
+        var elemWidth = node.getAttribute('width')
+        var elemHeight = node.getAttribute('height')
+        var elemName = node.getAttribute('name')
+        var elemLabel = node.getAttribute('label')
+        var elemVisible = node.getAttribute('visible')
+        var elemEnabled = node.getAttribute('enabled')
+        var elemValue = node.getAttribute('value')
+
+        value_json = `{"type":"` + elemType + `",` +
+            `"x":"` + elemX + `",` +
+            `"y":"` + elemY + `",` +
+            `"width":"` + elemWidth + `",` +
+            `"height":"` + elemHeight + `",` +
+            `"name":"` + elemName + `",` +
+            `"label":"` + elemLabel + `",` +
+            `"visible":"` + elemVisible + `",` +
+            `"enabled":"` + elemEnabled + `",` +
+            `"value":"` + elemValue + `"}`
+
+        var jsonForChildNodes = "";
+
+        var html = `<li class="parent" id="tree-element" data-value='` + value_json + `' onclick="drawRectangleForTree(this)">` + node.nodeName;
+        var htmlForChildNodes = "";
+
+        for (var i = 0; i < node.childNodes.length; i++) {
+            htmlForChildNodes += generateSourceTreeView(node.childNodes[i]);
+        }
+        if (htmlForChildNodes) {
+            html += `<ul class="child">` + htmlForChildNodes + `</ul>`;
+        }
+        html += "</li>";
+        return html;
+    }
+
+    function generateJSONForTree(node) {
+        if (node.nodeType != 1) return "";
+
+        var testJson = `{"state": {"opened": false, "selected": false}, "text":"` + node.nodeName + `"`
+        var jsonForChildNodes = "";
+
+        if (node.childNodes.length > 0) {
+            testJson += `, "children":[`
+        }
+        for (var i = 0; i < node.childNodes.length; i++) {
+            jsonForChildNodes += generateJSONForTree(node.childNodes[i]);
+        }
+        if (jsonForChildNodes) {
+            if (jsonForChildNodes.endsWith("]")) {
+                testJson += `,`
+            }
+            testJson += jsonForChildNodes + `]`
+        }
+        testJson += `}`
+        testJson = testJson.replaceAll("}{", "},{")
+        return testJson;
+    }
+
+    function drawRectangleForTree(obj) {
+        clearCanvas()
+        var json = JSON.parse($(obj).attr('data-value'))
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.strokeStyle = '#d2eb34'
+        context.lineWidth = 2;
+
+        var elementX = json.x;
+        var elementY = json.y;
+        var elementWidth = json.width;
+        var elementHeight = json.height;
+
+        context.strokeRect(
+            elementX,
+            elementY,
+            elementWidth,
+            elementHeight
+        );
     }
 
     function createElementsDropdown() {
@@ -730,5 +844,8 @@
 
 
 </script>
+<!-- <script>
+    $("#page-source").jstree()
+</script> -->
 
 </html>
