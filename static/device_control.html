@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Device Control</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
 </head>
 <style>
     #image-stream,
@@ -543,19 +543,13 @@
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
                 xmlDoc = parser.parseFromString(data.value, "text/xml");
-                var test = generateSourceTreeView(xmlDoc.documentElement)
-                var test2 = generateJSONForTree(xmlDoc.documentElement)
-                console.log("TEST")
-                console.log(JSON.parse(test2))
 
-                // $('#page-source').tree({
-                //     data: JSON.stringify(data.value)
-                // })
-                //page_source.html(test)
+                // parse the xml response into a json format accepted by jstree
+                var jstree_json = generateJSONForTreeFromXML(xmlDoc.documentElement)
 
                 page_source.jstree({
                     'core': {
-                        'data': [JSON.parse(test2)]
+                        'data': [JSON.parse(jstree_json)]
                     }
                 });
 
@@ -607,27 +601,74 @@
         return html;
     }
 
-    function generateJSONForTree(node) {
+    // generate json from xml in format accepted by jstree
+    function generateJSONForTreeFromXML(node) {
         if (node.nodeType != 1) return "";
 
-        var testJson = `{"state": {"opened": false, "selected": false}, "text":"` + node.nodeName + `"`
+        var elemType = node.getAttribute('type')
+        var elemX = node.getAttribute('x')
+        var elemY = node.getAttribute('y')
+        var elemWidth = node.getAttribute('width')
+        var elemHeight = node.getAttribute('height')
+        var elemName = node.getAttribute('name')
+        var elemLabel = node.getAttribute('label')
+        var elemVisible = node.getAttribute('visible')
+        var elemEnabled = node.getAttribute('enabled')
+        var elemValue = node.getAttribute('value')
+
+        value_json = `{'type':'` + elemType + `',` +
+            `'x':'` + elemX + `',` +
+            `'y':'` + elemY + `',` +
+            `'width':'` + elemWidth + `',` +
+            `'height':'` + elemHeight + `',` +
+            `'name':'` + elemName + `',` +
+            `'label':'` + elemLabel + `',` +
+            `'visible':'` + elemVisible + `',` +
+            `'enabled':'` + elemEnabled + `',` +
+            `'value':'` + elemValue + `'}`
+
+        value_json = `{'type':'` + elemType + `',` +
+            `'x':'` + elemX + `',` +
+            `'y':'` + elemY + `',` +
+            `'width':'` + elemWidth + `',` +
+            `'height':'` + elemHeight + `',` +
+            `'name':'` + elemName + `',` +
+            `'label':'` + elemLabel + `',` +
+            `'visible':'` + elemVisible + `',` +
+            `'enabled':'` + elemEnabled + `',` +
+            `'value':'` + elemValue + `'}`
+
+        // for each node open with an object
+        var mainJson = `{"a_attr": {"data-json":"` + value_json + `", "id":"koleo", "onclick":"printLog(this);"}, "state": {"opened": false, "selected": false}, "text":"` + node.nodeName + `"`
         var jsonForChildNodes = "";
 
+        // if the node has children open the children array
         if (node.childNodes.length > 0) {
-            testJson += `, "children":[`
+            mainJson += `, "children":[`
         }
         for (var i = 0; i < node.childNodes.length; i++) {
-            jsonForChildNodes += generateJSONForTree(node.childNodes[i]);
+            // for each child of the main node generate deeper json objects
+            jsonForChildNodes += generateJSONForTreeFromXML(node.childNodes[i]);
         }
         if (jsonForChildNodes) {
-            if (jsonForChildNodes.endsWith("]")) {
-                testJson += `,`
-            }
-            testJson += jsonForChildNodes + `]`
+            // close the children array
+            mainJson += jsonForChildNodes + `]`
         }
-        testJson += `}`
-        testJson = testJson.replaceAll("}{", "},{")
-        return testJson;
+        // close the json object
+        mainJson += `}`
+
+        // cus I am a bad developer I couldn't think of the proper way to 
+        // build the json with all needed commas so I invented this solution
+        // to add the missing commas to make the json valid xD
+        mainJson = mainJson.replaceAll("}{", "},{")
+        return mainJson;
+    }
+
+    function printLog(test) {
+        console.log("KOLEOEOEOE")
+        var value = $(test).attr("data-json")
+        console.log(value)
+        console.log(JSON.stringify(value))
     }
 
     function drawRectangleForTree(obj) {
