@@ -211,7 +211,7 @@
             </div>
         </div>
         <div id="elements-div">
-            <div>
+            <div style="width: 600px;height: 1000px;overflow: auto;">
                 <h3>Page source</h3>
                 <div id="page-source"></div>
             </div>
@@ -627,19 +627,8 @@
             `'enabled':'` + elemEnabled + `',` +
             `'value':'` + elemValue + `'}`
 
-        value_json = `{'type':'` + elemType + `',` +
-            `'x':'` + elemX + `',` +
-            `'y':'` + elemY + `',` +
-            `'width':'` + elemWidth + `',` +
-            `'height':'` + elemHeight + `',` +
-            `'name':'` + elemName + `',` +
-            `'label':'` + elemLabel + `',` +
-            `'visible':'` + elemVisible + `',` +
-            `'enabled':'` + elemEnabled + `',` +
-            `'value':'` + elemValue + `'}`
-
         // for each node open with an object
-        var mainJson = `{"a_attr": {"data-json":"` + value_json + `", "id":"koleo", "onclick":"printLog(this);"}, "state": {"opened": false, "selected": false}, "text":"` + node.nodeName + `"`
+        var mainJson = `{"a_attr": {"data-json":"` + value_json + `", "id":"koleo", "onclick":"drawRectangleForTree(this);"}, "state": {"opened": false, "selected": false}, "text":"` + node.nodeName + `"`
         var jsonForChildNodes = "";
 
         // if the node has children open the children array
@@ -668,15 +657,16 @@
         console.log("KOLEOEOEOE")
         var value = $(test).attr("data-json")
         console.log(value)
-        console.log(JSON.stringify(value))
+        console.log(JSON.parse(value.replaceAll("'", "\"")).type)
     }
 
     function drawRectangleForTree(obj) {
         clearCanvas()
-        var json = JSON.parse($(obj).attr('data-value'))
+        var value = $(obj).attr("data-json")
+        var json = JSON.parse(value.replaceAll("'", "\""))
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
-        context.strokeStyle = '#d2eb34'
+        context.strokeStyle = '#fc0303'
         context.lineWidth = 2;
 
         var elementX = json.x;
