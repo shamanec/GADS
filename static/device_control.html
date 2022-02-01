@@ -42,6 +42,7 @@
     }
 
     #device-info-table,
+    #element-info-table,
     th,
     td {
         border: 1px solid black;
@@ -220,7 +221,50 @@
         <div id="element-div">
             <div style="width: 600px;height: 600px;overflow: auto;">
                 <h3>Selected element</h3>
-                <div id="selected-element">Select an element from the app source</div>
+                <div id="selected-element">Select an element from the app source
+                    <table id="element-info-table" style="width:100%; visibility: hidden;">
+                        <tr>
+                            <th style="width: 50%;">type</th>
+                            <td id="element-type"></td>
+                        </tr>
+                        <tr>
+                            <th>name</th>
+                            <td id="element-name"></td>
+                        </tr>
+                        <tr>
+                            <th>label</th>
+                            <td id="element-label"></td>
+                        </tr>
+                        <tr>
+                            <th>visible</th>
+                            <td id="element-visible"></td>
+                        </tr>
+                        <tr>
+                            <th>enabled</th>
+                            <td id="element-enabled"></td>
+                        </tr>
+                        <tr>
+                            <th>value</th>
+                            <td id="element-value"></td>
+                        </tr>
+                        <tr>
+                            <th>x</th>
+                            <td id="element-x"></td>
+                        </tr>
+                        <tr>
+                            <th>y</th>
+                            <td id="element-y"></td>
+                        </tr>
+                        <tr>
+                            <th>width</th>
+                            <td id="element-width"></td>
+                        </tr>
+                        <tr>
+                            <th>height</th>
+                            <td id="element-height"></td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -637,6 +681,18 @@
             elementWidth,
             elementHeight
         );
+
+        $("#element-info-table").css("visibility", "visible")
+        $("#element-type").text(json.type)
+        $("#element-name").text(json.name)
+        $("#element-label").text(json.label)
+        $("#element-value").text(json.value)
+        $("#element-enabled").text(json.enabled)
+        $("#element-visible").text(json.visible)
+        $("#element-x").text(elementX)
+        $("#element-y").text(elementY)
+        $("#element-width").text(elementWidth)
+        $("#element-height").text(elementHeight)
     }
 
     function createElementsDropdown() {
