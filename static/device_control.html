@@ -20,8 +20,9 @@
     }
 
     #actions-div,
-    #elements-div,
-    #stream-div {
+    #source-div,
+    #stream-div,
+    #element-div {
         display: inline-block;
         *display: inline;
         zoom: 1;
@@ -35,7 +36,7 @@
         margin-left: 10px;
     }
 
-    #elements-div {
+    #source-div {
         margin-left: 20px;
         /* border: 1px solid #000; */
     }
@@ -187,8 +188,8 @@
                 <button id="install-app" onclick="installApp()">Install app</button>
             </div>
             <div>
-                <h4>Get page source</h4>
-                <button id="get-page-source" onclick="getPageSource()">Get page source</button>
+                <h4>Get app source</h4>
+                <button id="get-page-source" onclick="getPageSource()">Get app source</button>
             </div>
             <div>
                 <h4>Element interactions</h4>
@@ -210,20 +211,22 @@
                 <button onclick="clearCanvas()">Clear canvas</button>
             </div>
         </div>
-        <div id="elements-div">
+        <div id="source-div">
             <div style="width: 600px;height: 1000px;overflow: auto;">
-                <h3>Page source</h3>
+                <h3>App source</h3>
                 <div id="page-source"></div>
+            </div>
+        </div>
+        <div id="element-div">
+            <div style="width: 600px;height: 600px;overflow: auto;">
+                <h3>Selected element</h3>
+                <div id="selected-element">Select an element from the app source</div>
             </div>
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all.min.js"></script>
-    <script
-        src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all-deps.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqtree/1.6.2/tree.jquery.min.js"></script>
 </body>
 
 <script>
@@ -278,7 +281,8 @@
                 changeStream();
                 $('#actions-div').css("visibility", "visible")
                 $('#stream-div').css("visibility", "visible")
-                $('#elements-div').css("visibility", "visible")
+                $('#source-div').css("visibility", "visible")
+                $('#element-div').css("visibility", "visible")
                 $('#loading').css("visibility", "hidden");
             },
             error: function (data) {
@@ -547,58 +551,18 @@
                 // parse the xml response into a json format accepted by jstree
                 var jstree_json = generateJSONForTreeFromXML(xmlDoc.documentElement)
 
+                page_source.jstree("destroy");
                 page_source.jstree({
                     'core': {
-                        'data': [JSON.parse(jstree_json)]
+                        'data': JSON.parse(jstree_json)
                     }
                 });
-
             },
             error: function () {
                 $('#loading').css("visibility", "hidden");
                 page_source.text("No source")
             }
         });
-    }
-
-    function generateSourceTreeView(node) {
-        if (node.nodeType != 1) return "";
-
-        var elemType = node.getAttribute('type')
-        var elemX = node.getAttribute('x')
-        var elemY = node.getAttribute('y')
-        var elemWidth = node.getAttribute('width')
-        var elemHeight = node.getAttribute('height')
-        var elemName = node.getAttribute('name')
-        var elemLabel = node.getAttribute('label')
-        var elemVisible = node.getAttribute('visible')
-        var elemEnabled = node.getAttribute('enabled')
-        var elemValue = node.getAttribute('value')
-
-        value_json = `{"type":"` + elemType + `",` +
-            `"x":"` + elemX + `",` +
-            `"y":"` + elemY + `",` +
-            `"width":"` + elemWidth + `",` +
-            `"height":"` + elemHeight + `",` +
-            `"name":"` + elemName + `",` +
-            `"label":"` + elemLabel + `",` +
-            `"visible":"` + elemVisible + `",` +
-            `"enabled":"` + elemEnabled + `",` +
-            `"value":"` + elemValue + `"}`
-
-        var jsonForChildNodes = "";
-
-        var html = `<li class="parent" id="tree-element" data-value='` + value_json + `' onclick="drawRectangleForTree(this)">` + node.nodeName;
-        var htmlForChildNodes = "";
-
-        for (var i = 0; i < node.childNodes.length; i++) {
-            htmlForChildNodes += generateSourceTreeView(node.childNodes[i]);
-        }
-        if (htmlForChildNodes) {
-            html += `<ul class="child">` + htmlForChildNodes + `</ul>`;
-        }
-        html += "</li>";
-        return html;
     }
 
     // generate json from xml in format accepted by jstree
@@ -651,13 +615,6 @@
         // to add the missing commas to make the json valid xD
         mainJson = mainJson.replaceAll("}{", "},{")
         return mainJson;
-    }
-
-    function printLog(test) {
-        console.log("KOLEOEOEOE")
-        var value = $(test).attr("data-json")
-        console.log(value)
-        console.log(JSON.parse(value.replaceAll("'", "\"")).type)
     }
 
     function drawRectangleForTree(obj) {
@@ -853,6 +810,7 @@
             },
             error: function () {
                 hideCanvasLoader()
+                alert("WDA session is invalid, please reload")
                 console.log("Could not perform WDA tap")
             }
         });
@@ -868,8 +826,8 @@
     }
 
     function hideCanvasLoader() {
-        $('#small-loader-image').css("visibility", "hidden");
         clearCanvas()
+        $('#small-loader-image').css("visibility", "hidden");
         $('#actions-canvas').css("cursor: allowed;pointer-events: all;")
     }
 
