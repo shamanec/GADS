@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <title>Device Control</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/skin-lion/ui.fancytree.min.css" />
 </head>
 <style>
     #image-stream,
@@ -93,15 +95,23 @@
         position: relative;
     }
 
-    #page-source {
+    #app-source {
         width: 100%;
         margin-left: 10px;
     }
 
-    #page-source {
+    #app-source {
         list-style: none;
         padding: 0;
         margin: 0;
+    }
+
+    ul.fancytree-container {
+        border: none;
+    }
+
+    span.fancytree-title {
+        font-size: 18px;
     }
 </style>
 
@@ -190,7 +200,7 @@
             </div>
             <div>
                 <h4>Get app source</h4>
-                <button id="get-page-source" onclick="getPageSource()">Get app source</button>
+                <button id="get-app-source" onclick="getAppSource()">Get app source</button>
             </div>
             <div>
                 <h4>Element interactions</h4>
@@ -212,13 +222,13 @@
                 <button onclick="clearCanvas()">Clear canvas</button>
             </div>
         </div>
-        <div id="source-div">
+        <div id="source-div" style="border: 1px solid #000; padding: 10px;">
             <div style="width: 600px;height: 1000px;overflow: auto;">
                 <h3>App source</h3>
-                <div id="page-source"></div>
+                <div id="app-source"></div>
             </div>
         </div>
-        <div id="element-div">
+        <div id="element-div" style="border: 1px solid #000; padding: 10px;margin-left: 5px;">
             <div style="width: 600px;height: 600px;overflow: auto;">
                 <h3>Selected element</h3>
                 <div id="selected-element">Select an element from the app source
@@ -270,7 +280,9 @@
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all-deps.min.js"></script>
 </body>
 
 <script>
@@ -360,7 +372,6 @@
     }
 
     function createIOSAppsDropdown(data) {
-        // Get the device UDID from the value of the selected option
         var device_udid = $("#device-dropdown").val();
 
         let apps_dropdown = $('#installed-apps-dropdown');
@@ -399,7 +410,6 @@
     }
 
     function changeStream() {
-        // Get the device UDID from the value of the selected option
         var device_udid = $("#device-dropdown").val();
         let image_stream = $('#image-stream')
         $.ajax({
@@ -443,7 +453,6 @@
         var ipa_name = $('#installable-apps-dropdown').val();
         var device_udid = $("#device-dropdown").val();
 
-        /* Show loading indicator until response is returned */
         $('#loading').css("visibility", "visible");
 
         $.ajax({
@@ -466,10 +475,13 @@
         });
     }
 
+    // check if a wda session exists and connect to it or create a new one
     function checkWDASession() {
         let wda_url = $("#wda-url").text()
         let wda_session_el = $("#wda-session-id")
 
+        // if there is no session id from the /status endpoint create a new session
+        // else just update the session id in the table with the existing session
         $.ajax({
             type: "GET",
             url: wda_url + "/status",
@@ -486,58 +498,39 @@
         });
     }
 
+    // create a wda session to the iOS device if no session exists
     function createWDASession() {
         let wda_url = $("#wda-url").text()
         let wda_session = $("#wda-session-id")
         let json = ""
-        var bundle_id = ""
-        if (bundle_id != "") {
-            json = JSON.stringify({
-                "capabilities": {
-                    "firstMatch": [
-                        {
-                            "bundleId": "" + bundle_id + "",
-                            "arguments": [],
-                            "environment": {},
-                            "eventloopIdleDelaySec": 0,
-                            "shouldWaitForQuiescence": true,
-                            "shouldUseTestManagerForVisibilityDetection": false,
-                            "maxTypingFrequency": 60,
-                            "shouldUseSingletonTestManager": true,
-                            "shouldTerminateApp": true,
-                            "forceAppLaunch": true,
-                            "useNativeCachingStrategy": true,
-                            "forceSimulatorSoftwareKeyboardPresence": false
-                        }
-                    ],
-                    "alwaysMatch": {}
-                }
-            })
-        } else {
-            json = JSON.stringify({
-                "capabilities": {
-                    "firstMatch": [
-                        {
-                            "arguments": [],
-                            "environment": {},
-                            "eventloopIdleDelaySec": 0,
-                            "shouldWaitForQuiescence": true,
-                            "shouldUseTestManagerForVisibilityDetection": false,
-                            "maxTypingFrequency": 60,
-                            "shouldUseSingletonTestManager": true,
-                            "shouldTerminateApp": true,
-                            "forceAppLaunch": true,
-                            "useNativeCachingStrategy": true,
-                            "forceSimulatorSoftwareKeyboardPresence": false
-                        }
-                    ],
-                    "alwaysMatch": {}
-                }
-            })
-        }
-        /* Show loading indicator until response is returned */
+
+        // build the json to create a session
+        json = JSON.stringify({
+            "capabilities": {
+                "firstMatch": [
+                    {
+                        "arguments": [],
+                        "environment": {},
+                        "eventloopIdleDelaySec": 0,
+                        "shouldWaitForQuiescence": true,
+                        "shouldUseTestManagerForVisibilityDetection": false,
+                        "maxTypingFrequency": 60,
+                        "shouldUseSingletonTestManager": true,
+                        "shouldTerminateApp": true,
+                        "forceAppLaunch": true,
+                        "useNativeCachingStrategy": true,
+                        "forceSimulatorSoftwareKeyboardPresence": false
+                    }
+                ],
+                "alwaysMatch": {}
+            }
+        })
+
+        // show a loading while creating session
         $('#loading').css("visibility", "visible");
 
+        // create the new session
+        // on success update the wda session id in the table
         $.ajax({
             type: "POST",
             url: wda_url + "/session",
@@ -553,35 +546,13 @@
         });
     }
 
-    function deleteWDASession() {
+    //
+    function getAppSource() {
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
-
-        /* Show loading indicator until response is returned */
-        $('#loading').css("visibility", "visible");
-
-        $.ajax({
-            async: true,
-            type: "DELETE",
-            url: wda_url + "/session/" + wda_session_id,
-            success: function () {
-                $('#loading').css("visibility", "hidden");
-                wda_session.text("No session")
-            },
-            error: function () {
-                $('#loading').css("visibility", "hidden");
-                swal("Error", "Could not delete session for bundleID:" + wda_session_id, "error")
-            }
-        });
-    }
-
-    function getPageSource() {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
-        let page_source = $("#page-source")
+        let app_source = $("#app-source")
         parser = new DOMParser();
 
-        /* Show loading indicator until response is returned */
         $('#loading').css("visibility", "visible");
 
         $.ajax({
@@ -590,29 +561,42 @@
             url: wda_url + "/session/" + wda_session_id + "/source",
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
+
+                // parse the xml doc from the Appium response xml
                 xmlDoc = parser.parseFromString(data.value, "text/xml");
 
                 // parse the xml response into a json format accepted by jstree
                 var jstree_json = generateJSONForTreeFromXML(xmlDoc.documentElement)
 
-                page_source.jstree("destroy");
-                page_source.jstree({
-                    'core': {
-                        'data': JSON.parse(jstree_json)
-                    }
-                });
+                // If the tree already exists and has children - reload it with the new data
+                // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
+                if (app_source.children().length > 0) {
+                    $.ui.fancytree.getTree().reload(JSON.parse(jstree_json));
+                } else {
+                    app_source.fancytree({
+                        'source': [
+                            JSON.parse(jstree_json)
+                        ],
+                        activate: function (event, data) {
+                            var element_values = JSON.parse(data.node.key.replaceAll("'", "\""))
+                            showElementInfo(element_values)
+                            drawRectangleForTree(element_values)
+                        }
+                    });
+                }
             },
             error: function () {
                 $('#loading').css("visibility", "hidden");
-                page_source.text("No source")
+                app_source.text("Couldn't get app source")
             }
         });
     }
 
-    // generate json from xml in format accepted by jstree
+    // read the Appium xml and transform it into a json accepted by fancytree
     function generateJSONForTreeFromXML(node) {
         if (node.nodeType != 1) return "";
 
+        // Get all the data from the xml doc returned by Appium
         var elemType = node.getAttribute('type')
         var elemX = node.getAttribute('x')
         var elemY = node.getAttribute('y')
@@ -624,6 +608,8 @@
         var elemEnabled = node.getAttribute('enabled')
         var elemValue = node.getAttribute('value')
 
+        // this is not a valid json but this is the only way I could find to embed it inside another json (bad developer)
+        // it is reworked later into valid json that can be parsed
         value_json = `{'type':'` + elemType + `',` +
             `'x':'` + elemX + `',` +
             `'y':'` + elemY + `',` +
@@ -636,7 +622,12 @@
             `'value':'` + elemValue + `'}`
 
         // for each node open with an object
-        var mainJson = `{"a_attr": {"data-json":"` + value_json + `", "id":"koleo", "onclick":"drawRectangleForTree(this);"}, "state": {"opened": false, "selected": false}, "text":"` + node.nodeName + `"`
+        // the key is the "json" (quotes intended) that will we will read later upon clicking a node in the tree
+        // no icons since its not a folder/file structure
+        // no lazy loading - the whole tree is loaded
+        // no default active nodes in the tree
+        // title is the element type
+        var mainJson = `{"key":"` + value_json + `", "icon": false, "lazy": false, "active": false,"title":"` + node.nodeName + `"`
         var jsonForChildNodes = "";
 
         // if the node has children open the children array
@@ -661,27 +652,8 @@
         return mainJson;
     }
 
-    function drawRectangleForTree(obj) {
-        clearCanvas()
-        var value = $(obj).attr("data-json")
-        var json = JSON.parse(value.replaceAll("'", "\""))
-        const canvas = document.getElementById('actions-canvas')
-        const context = canvas.getContext('2d')
-        context.strokeStyle = '#fc0303'
-        context.lineWidth = 2;
-
-        var elementX = json.x;
-        var elementY = json.y;
-        var elementWidth = json.width;
-        var elementHeight = json.height;
-
-        context.strokeRect(
-            elementX,
-            elementY,
-            elementWidth,
-            elementHeight
-        );
-
+    // Present the element info table with all the values
+    function showElementInfo(json) {
         $("#element-info-table").css("visibility", "visible")
         $("#element-type").text(json.type)
         $("#element-name").text(json.name)
@@ -689,12 +661,37 @@
         $("#element-value").text(json.value)
         $("#element-enabled").text(json.enabled)
         $("#element-visible").text(json.visible)
-        $("#element-x").text(elementX)
-        $("#element-y").text(elementY)
-        $("#element-width").text(elementWidth)
-        $("#element-height").text(elementHeight)
+        $("#element-x").text(json.x)
+        $("#element-y").text(json.y)
+        $("#element-width").text(json.width)
+        $("#element-height").text(json.height)
     }
 
+    // get the element coordinates and size from fancytree node value and build a rectangle on the stream canvas
+    // showing the selected element
+    function drawRectangleForTree(json) {
+        clearCanvas()
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.strokeStyle = '#fc0303'
+        context.lineWidth = 2;
+
+        // get the selected element coordinates and size from the json
+        var elementX = json.x;
+        var elementY = json.y;
+        var elementWidth = json.width;
+        var elementHeight = json.height;
+
+        // draw a rectangle on the canvas stream surrounding the element
+        context.strokeRect(
+            elementX,
+            elementY,
+            elementWidth,
+            elementHeight
+        );
+    }
+
+    // search for elements by locator strategy
     function createElementsDropdown() {
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
@@ -702,16 +699,20 @@
         let query_string = $("#element-query").val()
         let found_elements = $('#found-elements-dropdown');
 
+        // clear the dropdown if you already have a search
         found_elements.empty();
         found_elements.prop('selectedIndex', 0);
 
+        // create the json to search for element by locator strategy and value
         let json = JSON.stringify({
             "using": query_type,
             "value": query_string
         })
 
+        // show loading while searching
         $('#loading').css("visibility", "visible");
 
+        // call the /elements endpoint with the query
         $.ajax({
             async: true,
             type: "POST",
@@ -720,9 +721,11 @@
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
                 if (data.value.length == 0) {
+                    // if response is success but no elements - show no elements in dropdown
                     found_elements.append($('<option></option>').text("No elements found"));
                     $("#found-elements-dropdown").css("visibility", "visible")
                 } else {
+                    // if response is success and has elements - build the dropdown with their session ids
                     found_elements.append('<option>Choose element</option>');
                     for (let i = 0; i < data.value.length; i++) {
                         $('#loading').css("visibility", "hidden");
@@ -732,6 +735,7 @@
                 }
             },
             error: function () {
+                // show could not get elements if something is wrong with the request
                 $('#loading').css("visibility", "hidden");
                 found_elements.append($('<option></option>').text("Could not get elements"));
                 $("#found-elements-dropdown").css("visibility", "visible")
@@ -739,6 +743,7 @@
         });
     }
 
+    // Tap element from found elements dropdown
     function tapElement() {
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
@@ -747,6 +752,7 @@
         /* Show loading indicator until response is returned */
         $('#loading').css("visibility", "visible");
 
+        // call the click endpoint using the element id from the dropdown
         $.ajax({
             async: true,
             type: "POST",
@@ -762,19 +768,27 @@
     }
 
     //=============CANVAS INTERACTIONS===================//
+    // canvas over the WDA image stream that allows us to tap
+    // and also draw element rectangles
     var canvas = document.getElementById("actions-canvas")
 
+    // remove anything drawn on the canvas
     function clearCanvas() {
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
         context.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+    // draw rectangle on the canvas for element found by search for element
     function drawRectangle() {
+        // clear the canvas in case something is already drawn on it
         clearCanvas()
+
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
         let element_id = $("#found-elements-dropdown").val();
+
+        // set canvas context, stroke style and stroke width
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
         context.strokeStyle = '#d2eb34'
@@ -785,6 +799,7 @@
         var elementWidth = "";
         var elementHeight = "";
 
+        // get the coordinates of the selected element by the element ID generated by Appium
         $.ajax({
             async: false,
             type: "GET",
@@ -796,6 +811,8 @@
                 elementHeight = data.value.height
             }
         });
+
+        // draw a rectangle on the stream canvas surrounding the selected element
         context.strokeRect(
             elementX,
             elementY,
@@ -804,23 +821,27 @@
         );
     }
 
+    // perform tap on canvas
     canvas.onmousedown = function (event) {
         var pos = getCursorPosition(canvas, event);
         tapCoordinates(pos)
     }
 
+    // get the coordinates of the cursor position of the canvas tap event
     function getCursorPosition(canvas, event) {
+        // get the canvas rectangle and then the coordinates of the tap event
         const rect = canvas.getBoundingClientRect()
         const x = event.clientX - rect.left
         const y = event.clientY - rect.top
-        console.log("x: " + x + " y: " + y)
         return [x, y];
     }
 
+    // tap with WDA using coordinates
     function tapCoordinates(pos) {
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
 
+        // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
         let jsonData = JSON.stringify({
             "actions": [
                 {
@@ -853,8 +874,12 @@
             ]
         })
 
+        // show a loader on the canvas until the tap action response is returned
+        // this is to prevent fast tapping that will not be handled properly
         showCanvasLoader()
 
+        // call the /actions endpoint sending the tapp coordinates
+        // on response remove the canvas loader
         $.ajax({
             async: false,
             type: "POST",
@@ -862,16 +887,16 @@
             url: wda_url + "/session/" + wda_session_id + "/actions",
             success: function () {
                 hideCanvasLoader()
-                console.log("Performed WDA tap")
             },
             error: function () {
                 hideCanvasLoader()
                 alert("WDA session is invalid, please reload")
-                console.log("Could not perform WDA tap")
             }
         });
     }
 
+    // present a loader and semi-transparent overlay on the canvas while waiting for the tap response
+    // block canvas interaction while waiting
     function showCanvasLoader() {
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
@@ -881,16 +906,14 @@
         $('#small-loader-image').css("visibility", "visible");
     }
 
+    // remove the canvas loader
+    // and allow canvas interactions again
     function hideCanvasLoader() {
         clearCanvas()
         $('#small-loader-image').css("visibility", "hidden");
         $('#actions-canvas').css("cursor: allowed;pointer-events: all;")
     }
 
-
 </script>
-<!-- <script>
-    $("#page-source").jstree()
-</script> -->
 
 </html>
