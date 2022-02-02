@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
@@ -38,14 +39,16 @@ type DeviceControlInfo struct {
 }
 
 type IOSDevice struct {
-	AppiumPort      int    `json:"appium_port"`
-	DeviceName      string `json:"device_name"`
-	DeviceOSVersion string `json:"device_os_version"`
-	DeviceUDID      string `json:"device_udid"`
-	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
-	WdaPort         int    `json:"wda_port"`
-	WdaURL          string `json:"wda_url"`
-	WdaMjpegURL     string `json:"wda_stream_url"`
+	AppiumPort         int    `json:"appium_port"`
+	DeviceName         string `json:"device_name"`
+	DeviceOSVersion    string `json:"device_os_version"`
+	DeviceUDID         string `json:"device_udid"`
+	WdaMjpegPort       int    `json:"wda_mjpeg_port"`
+	WdaPort            int    `json:"wda_port"`
+	WdaURL             string `json:"wda_url"`
+	WdaMjpegURL        string `json:"wda_stream_url"`
+	DeviceModel        string `json:"device_model"`
+	DeviceViewportSize string `json:"viewport_size"`
 }
 
 //=======================//
@@ -408,16 +411,47 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 
 	wda_url, wda_stream_url := getIOSDeviceWdaURLs(device_udid)
 
+	model, viewport_size := getIOSModelAndViewport(string(byteValue), getIOSDeviceProductType(device_udid))
+
 	return &IOSDevice{
-			AppiumPort:      int(appium_port.Num),
-			DeviceName:      device_name.Str,
-			DeviceOSVersion: device_os_version.Str,
-			WdaMjpegPort:    int(wda_mjpeg_port.Num),
-			WdaPort:         int(wda_port.Num),
-			DeviceUDID:      device_udid,
-			WdaMjpegURL:     wda_stream_url,
-			WdaURL:          wda_url},
+			AppiumPort:         int(appium_port.Num),
+			DeviceName:         device_name.Str,
+			DeviceOSVersion:    device_os_version.Str,
+			WdaMjpegPort:       int(wda_mjpeg_port.Num),
+			WdaPort:            int(wda_port.Num),
+			DeviceUDID:         device_udid,
+			WdaMjpegURL:        wda_stream_url,
+			WdaURL:             wda_url,
+			DeviceModel:        model,
+			DeviceViewportSize: viewport_size},
 		nil
+}
+
+func getIOSDeviceProductType(device_udid string) string {
+	deviceList, err := ios.ListDevices()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_connected_ios_devices",
+		}).Error("Could not get connected devices. Error: " + err.Error())
+		return ""
+	}
+	deviceValues, err := outputDetailedList(deviceList)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_connected_ios_devices",
+		}).Error("Could not get connected devices detailed list. Error: " + err.Error())
+		return ""
+	}
+
+	product_type := gjson.Get(deviceValues, `deviceList.#(Udid="`+device_udid+`").ProductType`).Str
+	return product_type
+}
+
+func getIOSModelAndViewport(config_json string, product_type string) (string, string) {
+
+	model := gjson.Get(config_json, `ios_models_sizes.#(product_type="`+product_type+`").device_model`).Str
+	viewport_size := gjson.Get(config_json, `ios_models_sizes.#(product_type="`+product_type+`").screen_size`).Str
+	return model, viewport_size
 }
 
 // Get the installable apps list from the ./apps folder

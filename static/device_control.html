@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Device Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
 </head>
 <style>
     #image-stream,
@@ -19,8 +20,9 @@
     }
 
     #actions-div,
-    #elements-div,
-    #stream-div {
+    #source-div,
+    #stream-div,
+    #element-div {
         display: inline-block;
         *display: inline;
         zoom: 1;
@@ -34,12 +36,13 @@
         margin-left: 10px;
     }
 
-    #elements-div {
+    #source-div {
         margin-left: 20px;
         /* border: 1px solid #000; */
     }
 
     #device-info-table,
+    #element-info-table,
     th,
     td {
         border: 1px solid black;
@@ -94,6 +97,12 @@
         width: 100%;
         margin-left: 10px;
     }
+
+    #page-source {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
 </style>
 
 <body>
@@ -124,6 +133,10 @@
         <div id="actions-div">
             <h3>Device Config Info</h3>
             <table id="device-info-table" style="width:100%">
+                <tr>
+                    <th>Device model:</th>
+                    <td id="device-model"></td>
+                </tr>
                 <tr>
                     <th>Device name:</th>
                     <td id="device-name"></td>
@@ -176,8 +189,8 @@
                 <button id="install-app" onclick="installApp()">Install app</button>
             </div>
             <div>
-                <h4>Get page source</h4>
-                <button id="get-page-source" onclick="getPageSource()">Get page source</button>
+                <h4>Get app source</h4>
+                <button id="get-page-source" onclick="getPageSource()">Get app source</button>
             </div>
             <div>
                 <h4>Element interactions</h4>
@@ -199,15 +212,65 @@
                 <button onclick="clearCanvas()">Clear canvas</button>
             </div>
         </div>
-        <div id="elements-div">
-            <div>
-                <h3>Page source</h3>
+        <div id="source-div">
+            <div style="width: 600px;height: 1000px;overflow: auto;">
+                <h3>App source</h3>
                 <div id="page-source"></div>
+            </div>
+        </div>
+        <div id="element-div">
+            <div style="width: 600px;height: 600px;overflow: auto;">
+                <h3>Selected element</h3>
+                <div id="selected-element">Select an element from the app source
+                    <table id="element-info-table" style="width:100%; visibility: hidden;">
+                        <tr>
+                            <th style="width: 50%;">type</th>
+                            <td id="element-type"></td>
+                        </tr>
+                        <tr>
+                            <th>name</th>
+                            <td id="element-name"></td>
+                        </tr>
+                        <tr>
+                            <th>label</th>
+                            <td id="element-label"></td>
+                        </tr>
+                        <tr>
+                            <th>visible</th>
+                            <td id="element-visible"></td>
+                        </tr>
+                        <tr>
+                            <th>enabled</th>
+                            <td id="element-enabled"></td>
+                        </tr>
+                        <tr>
+                            <th>value</th>
+                            <td id="element-value"></td>
+                        </tr>
+                        <tr>
+                            <th>x</th>
+                            <td id="element-x"></td>
+                        </tr>
+                        <tr>
+                            <th>y</th>
+                            <td id="element-y"></td>
+                        </tr>
+                        <tr>
+                            <th>width</th>
+                            <td id="element-width"></td>
+                        </tr>
+                        <tr>
+                            <th>height</th>
+                            <td id="element-height"></td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
 </body>
 
 <script>
@@ -251,16 +314,19 @@
                         $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
                         $("#wda-stream-url").text(response["ios-devices-info"][i].deviceConfig.wda_stream_url)
                         $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
+                        $("#device-size").text(response["ios-devices-info"][i].deviceConfig.viewport_size)
+                        $("#device-model").text(response["ios-devices-info"][i].deviceConfig.device_model)
                     }
                 }
                 createIOSAppsDropdown(data)
                 createInstallableAppsDropdown(data)
-                createWDASession()
-                getIOSDeviceSizeFromWDA()
+                checkWDASession()
                 updateIOSStreamSize()
                 changeStream();
                 $('#actions-div').css("visibility", "visible")
                 $('#stream-div').css("visibility", "visible")
+                $('#source-div').css("visibility", "visible")
+                $('#element-div').css("visibility", "visible")
                 $('#loading').css("visibility", "hidden");
             },
             error: function (data) {
@@ -400,10 +466,29 @@
         });
     }
 
+    function checkWDASession() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_el = $("#wda-session-id")
+
+        $.ajax({
+            type: "GET",
+            url: wda_url + "/status",
+            success: function (data) {
+                if (data.sessionId === null) {
+                    createWDASession()
+                } else {
+                    wda_session_el.text(data.sessionId)
+                }
+            },
+            error: function (data) {
+                console.log("could not get session")
+            }
+        });
+    }
+
     function createWDASession() {
         let wda_url = $("#wda-url").text()
         let wda_session = $("#wda-session-id")
-        //let bundle_id = $("#bundleid-name").val()
         let json = ""
         var bundle_id = ""
         if (bundle_id != "") {
@@ -454,7 +539,6 @@
         $('#loading').css("visibility", "visible");
 
         $.ajax({
-            async: false,
             type: "POST",
             url: wda_url + "/session",
             data: json,
@@ -465,24 +549,6 @@
             error: function (data) {
                 $('#loading').css("visibility", "hidden");
                 swal("Error", "Could not start session for bundleID:" + bundle_id, "error")
-            }
-        });
-    }
-
-    function getIOSDeviceSizeFromWDA() {
-        let wda_url = $("#wda-url").text()
-        let wda_session = $("#wda-session-id").text()
-
-        $.ajax({
-            async: false,
-            type: "GET",
-            url: wda_url + "/session/" + wda_session + "/window/size",
-            success: function (data) {
-                $("#device-size").text(data.value.width + "x" + data.value.height)
-            },
-            error: function (data) {
-                console.log("Could not get iOS device size, setting 375x667")
-                $("#device-size").text("375x667")
             }
         });
     }
@@ -513,6 +579,7 @@
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
         let page_source = $("#page-source")
+        parser = new DOMParser();
 
         /* Show loading indicator until response is returned */
         $('#loading').css("visibility", "visible");
@@ -520,16 +587,112 @@
         $.ajax({
             async: true,
             type: "GET",
-            url: wda_url + "/session/" + wda_session_id + "/source?format=json",
+            url: wda_url + "/session/" + wda_session_id + "/source",
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
-                page_source.text(JSON.stringify(data))
+                xmlDoc = parser.parseFromString(data.value, "text/xml");
+
+                // parse the xml response into a json format accepted by jstree
+                var jstree_json = generateJSONForTreeFromXML(xmlDoc.documentElement)
+
+                page_source.jstree("destroy");
+                page_source.jstree({
+                    'core': {
+                        'data': JSON.parse(jstree_json)
+                    }
+                });
             },
             error: function () {
                 $('#loading').css("visibility", "hidden");
                 page_source.text("No source")
             }
         });
+    }
+
+    // generate json from xml in format accepted by jstree
+    function generateJSONForTreeFromXML(node) {
+        if (node.nodeType != 1) return "";
+
+        var elemType = node.getAttribute('type')
+        var elemX = node.getAttribute('x')
+        var elemY = node.getAttribute('y')
+        var elemWidth = node.getAttribute('width')
+        var elemHeight = node.getAttribute('height')
+        var elemName = node.getAttribute('name')
+        var elemLabel = node.getAttribute('label')
+        var elemVisible = node.getAttribute('visible')
+        var elemEnabled = node.getAttribute('enabled')
+        var elemValue = node.getAttribute('value')
+
+        value_json = `{'type':'` + elemType + `',` +
+            `'x':'` + elemX + `',` +
+            `'y':'` + elemY + `',` +
+            `'width':'` + elemWidth + `',` +
+            `'height':'` + elemHeight + `',` +
+            `'name':'` + elemName + `',` +
+            `'label':'` + elemLabel + `',` +
+            `'visible':'` + elemVisible + `',` +
+            `'enabled':'` + elemEnabled + `',` +
+            `'value':'` + elemValue + `'}`
+
+        // for each node open with an object
+        var mainJson = `{"a_attr": {"data-json":"` + value_json + `", "id":"koleo", "onclick":"drawRectangleForTree(this);"}, "state": {"opened": false, "selected": false}, "text":"` + node.nodeName + `"`
+        var jsonForChildNodes = "";
+
+        // if the node has children open the children array
+        if (node.childNodes.length > 0) {
+            mainJson += `, "children":[`
+        }
+        for (var i = 0; i < node.childNodes.length; i++) {
+            // for each child of the main node generate deeper json objects
+            jsonForChildNodes += generateJSONForTreeFromXML(node.childNodes[i]);
+        }
+        if (jsonForChildNodes) {
+            // close the children array
+            mainJson += jsonForChildNodes + `]`
+        }
+        // close the json object
+        mainJson += `}`
+
+        // cus I am a bad developer I couldn't think of the proper way to 
+        // build the json with all needed commas so I invented this solution
+        // to add the missing commas to make the json valid xD
+        mainJson = mainJson.replaceAll("}{", "},{")
+        return mainJson;
+    }
+
+    function drawRectangleForTree(obj) {
+        clearCanvas()
+        var value = $(obj).attr("data-json")
+        var json = JSON.parse(value.replaceAll("'", "\""))
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.strokeStyle = '#fc0303'
+        context.lineWidth = 2;
+
+        var elementX = json.x;
+        var elementY = json.y;
+        var elementWidth = json.width;
+        var elementHeight = json.height;
+
+        context.strokeRect(
+            elementX,
+            elementY,
+            elementWidth,
+            elementHeight
+        );
+
+        $("#element-info-table").css("visibility", "visible")
+        $("#element-type").text(json.type)
+        $("#element-name").text(json.name)
+        $("#element-label").text(json.label)
+        $("#element-value").text(json.value)
+        $("#element-enabled").text(json.enabled)
+        $("#element-visible").text(json.visible)
+        $("#element-x").text(elementX)
+        $("#element-y").text(elementY)
+        $("#element-width").text(elementWidth)
+        $("#element-height").text(elementHeight)
     }
 
     function createElementsDropdown() {
@@ -703,6 +866,7 @@
             },
             error: function () {
                 hideCanvasLoader()
+                alert("WDA session is invalid, please reload")
                 console.log("Could not perform WDA tap")
             }
         });
@@ -712,18 +876,21 @@
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
         context.fillStyle = "rgba(204, 201, 194, 0.4)";
-        context.fillRect(0,0,canvas.width,canvas.height);
+        context.fillRect(0, 0, canvas.width, canvas.height);
         $('#actions-canvas').css("cursor: not-allowed;pointer-events: none;")
         $('#small-loader-image').css("visibility", "visible");
     }
 
     function hideCanvasLoader() {
-        $('#small-loader-image').css("visibility", "hidden");
         clearCanvas()
+        $('#small-loader-image').css("visibility", "hidden");
         $('#actions-canvas').css("cursor: allowed;pointer-events: all;")
     }
 
 
 </script>
+<!-- <script>
+    $("#page-source").jstree()
+</script> -->
 
 </html>
