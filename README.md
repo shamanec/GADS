@@ -14,7 +14,11 @@
   - Self-healing checks to reinstall/restart WebDriverAgent if it fails  
   - Selenium Grid 3 connection  
   - Run iOS Appium tests on cheap hardware on much bigger scale with only one host machine  
-  - Simple device control page: select from running containers and observe device video stream with simple tap functionality, information about the device(configuration, installed apps, available apps to install) and a web based 'Appium Inspector' of sorts that allows you to search for elements by the usual iOS identifiers(Xpath, Class chain etc) and visualize an outline upon selection  
+  - Simple device control page: 
+    - select from running containers and observe device video stream with simple tap functionality  
+    - information about the device(configuration, installed apps, available apps to install)  
+    - ugly web based 'Appium Inspector' of sorts that allows you to search for elements by the usual iOS identifiers(Xpath, Class chain etc) and visualize an outline upon selection  
+    - page source tree visualization - tapping on element shows an outline in stream and info about the element
 * TODO - Android Appium servers in Docker containers  
 
 ### Known limitations
