@@ -363,12 +363,35 @@
     }
 
     function updateIOSStreamSize() {
+        // Set max height of 850 pixels for the stream element
+        let maxHeight = 850
+
+        // Get the actual device dimensions
         let deviceSize = $("#device-size").text()
         let dimensions = deviceSize.split('x');
-        let width = dimensions[0] + "px"
-        let height = dimensions[1] + "px"
-        $("#image-stream").attr('width', width).attr('height', height)
-        $("#actions-canvas").attr('width', width).attr('height', height)
+
+        let stream_width = ""
+        let stream_height = ""
+
+        // if the height of the device is less than the max height of the stream element
+        // just set the stream size to the original device size
+        if (dimensions[1] < maxHeight) {
+            stream_width = dimensions[0] + "px"
+            stream_height = dimensions[1] + "px"
+        } else {
+            // else if the height of the device is more than the max height of the stream element
+            // get the actual device screen ratio
+            let device_ratio = dimensions[0] / dimensions[1]
+
+            // Set the stream height to the max height
+            stream_height = maxHeight
+            // set the stream width based on the max height and device ratio
+            stream_width = maxHeight * device_ratio
+        }
+
+
+        $("#image-stream").attr('width', stream_width).attr('height', stream_height)
+        $("#actions-canvas").attr('width', stream_width).attr('height', stream_height)
     }
 
     function createIOSAppsDropdown(data) {
@@ -823,12 +846,12 @@
 
     // perform tap on canvas
     canvas.onmousedown = function (event) {
-        var pos = getCursorPosition(canvas, event);
+        var pos = getTapCoordinates(canvas, event);
         tapCoordinates(pos)
     }
 
     // get the coordinates of the cursor position of the canvas tap event
-    function getCursorPosition(canvas, event) {
+    function getTapCoordinates(canvas, event) {
         // get the canvas rectangle and then the coordinates of the tap event
         const rect = canvas.getBoundingClientRect()
         const x = event.clientX - rect.left
@@ -840,6 +863,23 @@
     function tapCoordinates(pos) {
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
+
+        // get stream size and ratio
+        let stream_height = $("#actions-canvas").height()
+        let stream_width = $("#actions-canvas").width()
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+
+        let x = pos[0]
+        let y = pos[1]
+
+        if (stream_height != deviceHeight) {
+            x = pos[0] * stream_size_ratio
+            y = pos[1] * stream_size_ratio
+        }
 
         // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
         let jsonData = JSON.stringify({
@@ -854,8 +894,8 @@
                         {
                             "type": "pointerMove",
                             "duration": 0,
-                            "x": pos[0],
-                            "y": pos[1]
+                            "x": x,
+                            "y": y
                         },
                         {
                             "type": "pointerDown",
