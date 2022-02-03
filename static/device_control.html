@@ -363,12 +363,35 @@
     }
 
     function updateIOSStreamSize() {
+        // Set max height of 850 pixels for the stream element
+        let maxHeight = 850
+
+        // Get the actual device dimensions
         let deviceSize = $("#device-size").text()
         let dimensions = deviceSize.split('x');
-        let width = dimensions[0] + "px"
-        let height = dimensions[1] + "px"
-        $("#image-stream").attr('width', width).attr('height', height)
-        $("#actions-canvas").attr('width', width).attr('height', height)
+
+        let stream_width = ""
+        let stream_height = ""
+
+        // if the height of the device is less than the max height of the stream element
+        // just set the stream size to the original device size
+        if (dimensions[1] < maxHeight) {
+            stream_width = dimensions[0] + "px"
+            stream_height = dimensions[1] + "px"
+        } else {
+            // else if the height of the device is more than the max height of the stream element
+            // get the actual device screen ratio
+            let device_ratio = dimensions[0] / dimensions[1]
+
+            // Set the stream height to the max height
+            stream_height = maxHeight
+            // set the stream width based on the max height and device ratio
+            stream_width = maxHeight * device_ratio
+        }
+
+
+        $("#image-stream").attr('width', stream_width).attr('height', stream_height)
+        $("#actions-canvas").attr('width', stream_width).attr('height', stream_height)
     }
 
     function createIOSAppsDropdown(data) {
@@ -670,25 +693,54 @@
     // get the element coordinates and size from fancytree node value and build a rectangle on the stream canvas
     // showing the selected element
     function drawRectangleForTree(json) {
+        // clear the canvas before drawing a new object
         clearCanvas()
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
         context.strokeStyle = '#fc0303'
         context.lineWidth = 2;
 
-        // get the selected element coordinates and size from the json
+        // get stream size and ratio
+        let stream_height = $("#actions-canvas").height()
+        let stream_width = $("#actions-canvas").width()
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let device_height = parseInt(dimensions[1], 10)
+        let device_width = parseInt(dimensions[0], 10)
+
+        // get the selected element coordinates and width/height from the json
         var elementX = json.x;
         var elementY = json.y;
         var elementWidth = json.width;
         var elementHeight = json.height;
 
-        // draw a rectangle on the canvas stream surrounding the element
-        context.strokeRect(
-            elementX,
-            elementY,
-            elementWidth,
-            elementHeight
-        );
+        // If the stream height is different than the device screen height
+        // Recalculate the element coordinates and width/height
+        if (stream_height != device_height) {
+            elementX = (json.x / device_width) * stream_width
+            elementY = (json.y / device_height) * stream_height
+            elementWidth = (json.width / device_width) * stream_width
+            elementHeight = (json.height / device_height) * stream_height
+
+            // draw the rectangle on the canvas using the recalculated element values
+            context.strokeRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        } else {
+            // if the stream height is the same as the device screen height just draw the rectangle with the original values
+            context.strokeRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        }
     }
 
     // search for elements by locator strategy
@@ -823,12 +875,12 @@
 
     // perform tap on canvas
     canvas.onmousedown = function (event) {
-        var pos = getCursorPosition(canvas, event);
+        var pos = getTapCoordinates(canvas, event);
         tapCoordinates(pos)
     }
 
     // get the coordinates of the cursor position of the canvas tap event
-    function getCursorPosition(canvas, event) {
+    function getTapCoordinates(canvas, event) {
         // get the canvas rectangle and then the coordinates of the tap event
         const rect = canvas.getBoundingClientRect()
         const x = event.clientX - rect.left
@@ -840,6 +892,27 @@
     function tapCoordinates(pos) {
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
+
+        // get stream size and ratio
+        let stream_height = $("#actions-canvas").height()
+        let stream_width = $("#actions-canvas").width()
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // set initial x and y tap coordinates
+        let x = pos[0]
+        let y = pos[1]
+
+        // if the stream height 
+        if (stream_height != deviceHeight) {
+            x = (pos[0] / stream_width) * deviceWidth
+            y = (pos[1] / stream_height) * deviceHeight
+        }
 
         // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
         let jsonData = JSON.stringify({
@@ -854,8 +927,8 @@
                         {
                             "type": "pointerMove",
                             "duration": 0,
-                            "x": pos[0],
-                            "y": pos[1]
+                            "x": x,
+                            "y": y
                         },
                         {
                             "type": "pointerDown",
