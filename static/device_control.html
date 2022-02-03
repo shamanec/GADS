@@ -693,25 +693,54 @@
     // get the element coordinates and size from fancytree node value and build a rectangle on the stream canvas
     // showing the selected element
     function drawRectangleForTree(json) {
+        // clear the canvas before drawing a new object
         clearCanvas()
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
         context.strokeStyle = '#fc0303'
         context.lineWidth = 2;
 
-        // get the selected element coordinates and size from the json
+        // get stream size and ratio
+        let stream_height = $("#actions-canvas").height()
+        let stream_width = $("#actions-canvas").width()
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let device_height = parseInt(dimensions[1], 10)
+        let device_width = parseInt(dimensions[0], 10)
+
+        // get the selected element coordinates and width/height from the json
         var elementX = json.x;
         var elementY = json.y;
         var elementWidth = json.width;
         var elementHeight = json.height;
 
-        // draw a rectangle on the canvas stream surrounding the element
-        context.strokeRect(
-            elementX,
-            elementY,
-            elementWidth,
-            elementHeight
-        );
+        // If the stream height is different than the device screen height
+        // Recalculate the element coordinates and width/height
+        if (stream_height != device_height) {
+            elementX = (json.x / device_width) * stream_width
+            elementY = (json.y / device_height) * stream_height
+            elementWidth = (json.width / device_width) * stream_width
+            elementHeight = (json.height / device_height) * stream_height
+
+            // draw the rectangle on the canvas using the recalculated element values
+            context.strokeRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        } else {
+            // if the stream height is the same as the device screen height just draw the rectangle with the original values
+            context.strokeRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        }
     }
 
     // search for elements by locator strategy
@@ -869,16 +898,20 @@
         let stream_width = $("#actions-canvas").width()
         let stream_size_ratio = (stream_height / stream_width).toFixed(2)
 
+        // get device screen size dimensions
         let deviceSize = $("#device-size").text()
         let dimensions = deviceSize.split('x');
         let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
 
+        // set initial x and y tap coordinates
         let x = pos[0]
         let y = pos[1]
 
+        // if the stream height 
         if (stream_height != deviceHeight) {
-            x = pos[0] * stream_size_ratio
-            y = pos[1] * stream_size_ratio
+            x = (pos[0] / stream_width) * deviceWidth
+            y = (pos[1] / stream_height) * deviceHeight
         }
 
         // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
