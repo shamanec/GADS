@@ -32,6 +32,10 @@
         visibility: hidden;
     }
 
+    #actions-canvas {
+        border: 1px solid #000;
+    }
+
     #actions-div {
         width: 25%;
         max-width: 650px;
@@ -697,8 +701,7 @@
         clearCanvas()
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
-        context.strokeStyle = '#fc0303'
-        context.lineWidth = 2;
+        context.fillStyle = "rgba(232, 226, 63, 0.6)";
 
         // get stream size and ratio
         let stream_height = $("#actions-canvas").height()
@@ -726,7 +729,7 @@
             elementHeight = (json.height / device_height) * stream_height
 
             // draw the rectangle on the canvas using the recalculated element values
-            context.strokeRect(
+            context.fillRect(
                 elementX,
                 elementY,
                 elementWidth,
@@ -734,7 +737,7 @@
             );
         } else {
             // if the stream height is the same as the device screen height just draw the rectangle with the original values
-            context.strokeRect(
+            context.fillRect(
                 elementX,
                 elementY,
                 elementWidth,
@@ -873,14 +876,108 @@
         );
     }
 
-    // perform tap on canvas
+    var tapStartAt = 0
+    var coord1;
+    var coord2;
+
     canvas.onmousedown = function (event) {
-        var pos = getTapCoordinates(canvas, event);
-        tapCoordinates(pos)
+        // get the time of clicking the canvas
+        tapStartAt = (new Date()).getTime()
+        // get the initial coordinates of clicking the canvas
+        coord1 = getCursorCoordinates(canvas, event)
+    }
+
+    canvas.onmouseup = function (event) {
+        // get the coordinates on finishing the click on the canvas
+        coord2 = getCursorCoordinates(canvas, event)
+        // get the time of finishing the click on the canvas
+        var tapEndAt = (new Date()).getTime()
+
+        var mouseEventsTimeDiff = tapEndAt - tapStartAt
+
+        // if the difference of time between click down and click up is more than 500ms assume it is a swipe, not a tap
+        // to allow flick swipes we also check the difference between the gesture coordinates
+        // x1, y1 = mousedown coordinates
+        // x2, y2 = mouseup coordinates
+        // if x2 > x1*1.1 - it is probably a swipe left to right
+        // if x2 < x1*0.9 - it is probably a swipe right to left
+        // if y2 < y1*0.9 - it is probably a swipe bottom to top
+        // if y2 > y1*1.1 - it is probably a swipe top to bottom
+        if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0]*1.1 || coord2[0] < coord1[0]*0.9 || coord2[1] < coord1[1]*0.9 || coord2[1] > coord1[1]*1.1) {
+            performSwipe(coord1, coord2)
+        } else {
+            // else perform a simple tap at coordinates
+            tapCoordinates(coord1)
+        }
+    }
+
+    function performSwipe(coord1, coord2) {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+
+        var firstCoordX = coord1[0]
+        var firstCoordY = coord1[1]
+        var secondCoordX = coord2[0]
+        var secondCoordY = coord2[1]
+
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": firstCoordX,
+                            "y": firstCoordY
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pointerMove",
+                            "duration": 750,
+                            "origin": "viewport",
+                            "x": secondCoordX,
+                            "y": secondCoordY
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        // show a loader on the canvas until the tap action response is returned
+        // this is to prevent fast tapping that will not be handled properly
+        showCanvasLoader()
+
+        // call the /actions endpoint sending the tapp coordinates
+        // on response remove the canvas loader
+        $.ajax({
+            async: false,
+            type: "POST",
+            data: jsonData,
+            url: wda_url + "/session/" + wda_session_id + "/actions",
+            success: function () {
+                hideCanvasLoader()
+            },
+            error: function () {
+                hideCanvasLoader()
+                alert("WDA session is invalid, please reload")
+            }
+        });
     }
 
     // get the coordinates of the cursor position of the canvas tap event
-    function getTapCoordinates(canvas, event) {
+    function getCursorCoordinates(canvas, event) {
         // get the canvas rectangle and then the coordinates of the tap event
         const rect = canvas.getBoundingClientRect()
         const x = event.clientX - rect.left
