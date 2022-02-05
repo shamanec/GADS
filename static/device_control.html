@@ -51,7 +51,7 @@
     #element-info-table,
     th,
     td {
-        border: 1px solid black;
+        border-bottom: 1px solid black;
         border-collapse: collapse;
     }
 
@@ -238,7 +238,11 @@
                 <div id="selected-element">Select an element from the app source
                     <table id="element-info-table" style="width:100%; visibility: hidden;">
                         <tr>
-                            <th style="width: 50%;">type</th>
+                            <th style="width: 30%;">Attribute</th>
+                            <td>Value</td>
+                        </tr>
+                        <tr>
+                            <th>type</th>
                             <td id="element-type"></td>
                         </tr>
                         <tr>
@@ -308,7 +312,7 @@
         });
     }
 
-    function updateDeviceInfo(data) {
+    function updateDeviceInfo() {
         $('#loading').css("visibility", "visible");
 
         $.ajax({
@@ -715,10 +719,10 @@
         let device_width = parseInt(dimensions[0], 10)
 
         // get the selected element coordinates and width/height from the json
-        var elementX = json.x;
-        var elementY = json.y;
-        var elementWidth = json.width;
-        var elementHeight = json.height;
+        let elementX = json.x;
+        let elementY = json.y;
+        let elementWidth = json.width;
+        let elementHeight = json.height;
 
         // If the stream height is different than the device screen height
         // Recalculate the element coordinates and width/height
