@@ -134,7 +134,7 @@
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div>Please select a device
-        <select id="device-dropdown" name="devices" onchange="test1()"></select>
+        <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
     </div>
     <div id="container-div">
         <div id="stream-div" style="position: relative;">
@@ -311,15 +311,16 @@
             }
         });
     }
-    //=====================================//
-    ///////////////////////////////////////
-    async function test1() {
+
+    async function updateDeviceInfo() {
         const control_response = await fetch("/devices/device-control").then(response => {
             if (response.ok) {
                 return response.json()
             } else {
                 return null
             }
+        }).catch(function (error) {
+            alert("Could not get device control info" + error)
         })
 
         if (control_response != null) {
@@ -354,34 +355,6 @@
         }
     }
 
-    function updateDeviceInfo() {
-        fetch("/devices/device-control")
-            .then(response => {
-                if (response.ok) {
-                    return response.json()
-                } else {
-                    console.log("Could not get devices info")
-                }
-            })
-            .then(json => {
-                updateIOSDeviceConfigTable(json)
-                createIOSAppsDropdown(json)
-                createInstallableAppsDropdown(json)
-                changeStream(json)
-                checkWDASession()
-                updateIOSStreamSize()
-                $('#actions-div').css("visibility", "visible")
-                $('#stream-div').css("visibility", "visible")
-                $('#source-div').css("visibility", "visible")
-                $('#element-div').css("visibility", "visible")
-                $('#loading').css("visibility", "hidden");
-            })
-            .catch(function (error) {
-                $('#loading').css("visibility", "hidden");
-                alert("Could not load device:" + error)
-            })
-    }
-
     function updateIOSDeviceConfigTable(response) {
         // Get the device UDID from the value of the selected option
         var device_udid = $("#device-dropdown").val();
@@ -402,51 +375,6 @@
             }
         }
         return response
-    }
-
-    /////////////////////////////////////////////
-    //=========================================//
-    function updateDeviceInfo2() {
-        $('#loading').css("visibility", "visible");
-
-        $.ajax({
-            async: false,
-            type: "GET",
-            url: "/devices/device-control",
-            success: function (data) {
-                // Get the device UDID from the value of the selected option
-                var device_udid = $("#device-dropdown").val();
-
-                var response = JSON.parse(data)
-                for (let i = 0; i < response["ios-devices-info"].length; i++) {
-                    if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                        $("#device-name").text(response["ios-devices-info"][i].deviceConfig.device_name)
-                        $("#device-os-version").text(response["ios-devices-info"][i].deviceConfig.device_os_version)
-                        $("#device-udid").text(response["ios-devices-info"][i].deviceConfig.device_udid)
-                        $("#appium-port").text(response["ios-devices-info"][i].deviceConfig.appium_port)
-                        $("#wda-port").text(response["ios-devices-info"][i].deviceConfig.wda_port)
-                        $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
-                        $("#wda-stream-url").text(response["ios-devices-info"][i].deviceConfig.wda_stream_url)
-                        $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
-                        $("#device-size").text(response["ios-devices-info"][i].deviceConfig.viewport_size)
-                        $("#device-model").text(response["ios-devices-info"][i].deviceConfig.device_model)
-                    }
-                }
-                createIOSAppsDropdown(data)
-                createInstallableAppsDropdown(data)
-                checkWDASession()
-                updateIOSStreamSize()
-                changeStream();
-                $('#actions-div').css("visibility", "visible")
-                $('#stream-div').css("visibility", "visible")
-                $('#source-div').css("visibility", "visible")
-                $('#element-div').css("visibility", "visible")
-                $('#loading').css("visibility", "hidden");
-            },
-            error: function (data) {
-                $('#loading').css("visibility", "hidden");
-            }
-        });
     }
 
     function createDeviceDropdown(data) {
@@ -786,58 +714,6 @@
         $("#element-height").text(json.height)
     }
 
-    // get the element coordinates and size from fancytree node value and build a rectangle on the stream canvas
-    // showing the selected element
-    function drawRectangleForTree(json) {
-        // clear the canvas before drawing a new object
-        clearCanvas()
-        const canvas = document.getElementById('actions-canvas')
-        const context = canvas.getContext('2d')
-        context.fillStyle = "rgba(232, 226, 63, 0.5)";
-
-        // get stream size and ratio
-        let stream_height = $("#actions-canvas").height()
-        let stream_width = $("#actions-canvas").width()
-        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
-
-        // get device screen size dimensions
-        let deviceSize = $("#device-size").text()
-        let dimensions = deviceSize.split('x');
-        let device_height = parseInt(dimensions[1], 10)
-        let device_width = parseInt(dimensions[0], 10)
-
-        // get the selected element coordinates and width/height from the json
-        let elementX = json.x;
-        let elementY = json.y;
-        let elementWidth = json.width;
-        let elementHeight = json.height;
-
-        // If the stream height is different than the device screen height
-        // Recalculate the element coordinates and width/height
-        if (stream_height != device_height) {
-            elementX = (json.x / device_width) * stream_width
-            elementY = (json.y / device_height) * stream_height
-            elementWidth = (json.width / device_width) * stream_width
-            elementHeight = (json.height / device_height) * stream_height
-
-            // draw the rectangle on the canvas using the recalculated element values
-            context.fillRect(
-                elementX,
-                elementY,
-                elementWidth,
-                elementHeight
-            );
-        } else {
-            // if the stream height is the same as the device screen height just draw the rectangle with the original values
-            context.fillRect(
-                elementX,
-                elementY,
-                elementWidth,
-                elementHeight
-            );
-        }
-    }
-
     // search for elements by locator strategy
     function createElementsDropdown() {
         let wda_url = $("#wda-url").text()
@@ -963,23 +839,32 @@
 
     // draw rectangle on the canvas for element found by search for element
     function drawRectangle() {
-        // clear the canvas in case something is already drawn on it
-        clearCanvas()
-
         let wda_url = $("#wda-url").text()
         let wda_session_id = $("#wda-session-id").text()
         let element_id = $("#found-elements-dropdown").val();
 
-        // set canvas context, stroke style and stroke width
+        // clear the canvas before drawing a new object
+        clearCanvas()
         const canvas = document.getElementById('actions-canvas')
         const context = canvas.getContext('2d')
-        context.strokeStyle = '#d2eb34'
-        context.lineWidth = 2;
+        context.fillStyle = "rgba(232, 226, 63, 0.5)";
 
-        var elementX = "";
-        var elementY = "";
-        var elementWidth = "";
-        var elementHeight = "";
+        // get stream size and ratio
+        let stream_height = $("#actions-canvas").height()
+        let stream_width = $("#actions-canvas").width()
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let device_height = parseInt(dimensions[1], 10)
+        let device_width = parseInt(dimensions[0], 10)
+
+        // get the selected element coordinates and width/height from the json
+        let elementX;
+        let elementY;
+        let elementWidth;
+        let elementHeight;
 
         // get the coordinates of the selected element by the element ID generated by Appium
         $.ajax({
@@ -994,13 +879,83 @@
             }
         });
 
-        // draw a rectangle on the stream canvas surrounding the selected element
-        context.strokeRect(
-            elementX,
-            elementY,
-            elementWidth,
-            elementHeight
-        );
+        // If the stream height is different than the device screen height
+        // Recalculate the element coordinates and width/height
+        if (stream_height != device_height) {
+            elementX = (elementX / device_width) * stream_width
+            elementY = (elementY / device_height) * stream_height
+            elementWidth = (elementWidth / device_width) * stream_width
+            elementHeight = (elementHeight / device_height) * stream_height
+
+            // draw the rectangle on the canvas using the recalculated element values
+            context.fillRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        } else {
+            // if the stream height is the same as the device screen height just draw the rectangle with the original values
+            context.fillRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        }
+    }
+
+    // draw a rectangle for element selected by the app source tree
+    // get the element coordinates and size from fancytree node value and build a rectangle on the stream canvas
+    // showing the selected element
+    function drawRectangleForTree(json) {
+        // clear the canvas before drawing a new object
+        clearCanvas()
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.fillStyle = "rgba(232, 226, 63, 0.5)";
+
+        // get stream size and ratio
+        let stream_height = $("#actions-canvas").height()
+        let stream_width = $("#actions-canvas").width()
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let device_height = parseInt(dimensions[1], 10)
+        let device_width = parseInt(dimensions[0], 10)
+
+        // get the selected element coordinates and width/height from the json
+        let elementX = json.x;
+        let elementY = json.y;
+        let elementWidth = json.width;
+        let elementHeight = json.height;
+
+        // If the stream height is different than the device screen height
+        // Recalculate the element coordinates and width/height
+        if (stream_height != device_height) {
+            elementX = (json.x / device_width) * stream_width
+            elementY = (json.y / device_height) * stream_height
+            elementWidth = (json.width / device_width) * stream_width
+            elementHeight = (json.height / device_height) * stream_height
+
+            // draw the rectangle on the canvas using the recalculated element values
+            context.fillRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        } else {
+            // if the stream height is the same as the device screen height just draw the rectangle with the original values
+            context.fillRect(
+                elementX,
+                elementY,
+                elementWidth,
+                elementHeight
+            );
+        }
     }
 
     function performSwipe(coord1, coord2) {
