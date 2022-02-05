@@ -134,7 +134,7 @@
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div>Please select a device
-        <select id="device-dropdown" name="devices" onchange="updateDeviceInfo()"></select>
+        <select id="device-dropdown" name="devices" onchange="test1()"></select>
     </div>
     <div id="container-div">
         <div id="stream-div" style="position: relative;">
@@ -311,8 +311,102 @@
             }
         });
     }
+    //=====================================//
+    ///////////////////////////////////////
+    async function test1() {
+        const control_response = await fetch("/devices/device-control").then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        })
+
+        if (control_response != null) {
+            let device_udid = $("#device-dropdown").val();
+            let wda_url;
+            for (let i = 0; i < control_response["ios-devices-info"].length; i++) {
+                if (control_response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                    wda_url = control_response["ios-devices-info"][i].deviceConfig.wda_url
+                }
+            }
+            const wda_status = await fetch(wda_url + "/status").then(response => {
+                if (response.ok) {
+                    updateIOSDeviceConfigTable(control_response)
+                    createIOSAppsDropdown(control_response)
+                    createInstallableAppsDropdown(control_response)
+                    changeStream(control_response)
+                    checkWDASession()
+                    updateIOSStreamSize()
+                    $('#actions-div').css("visibility", "visible")
+                    $('#stream-div').css("visibility", "visible")
+                    $('#source-div').css("visibility", "visible")
+                    $('#element-div').css("visibility", "visible")
+                    $('#loading').css("visibility", "hidden");
+                } else {
+                    alert("WDA not available, can't load device.")
+                }
+            }).catch(function (error) {
+                alert("Could not load device:" + error)
+            })
+        } else {
+            alert("Device control response is not okay")
+        }
+    }
 
     function updateDeviceInfo() {
+        fetch("/devices/device-control")
+            .then(response => {
+                if (response.ok) {
+                    return response.json()
+                } else {
+                    console.log("Could not get devices info")
+                }
+            })
+            .then(json => {
+                updateIOSDeviceConfigTable(json)
+                createIOSAppsDropdown(json)
+                createInstallableAppsDropdown(json)
+                changeStream(json)
+                checkWDASession()
+                updateIOSStreamSize()
+                $('#actions-div').css("visibility", "visible")
+                $('#stream-div').css("visibility", "visible")
+                $('#source-div').css("visibility", "visible")
+                $('#element-div').css("visibility", "visible")
+                $('#loading').css("visibility", "hidden");
+            })
+            .catch(function (error) {
+                $('#loading').css("visibility", "hidden");
+                alert("Could not load device:" + error)
+            })
+    }
+
+    function updateIOSDeviceConfigTable(response) {
+        // Get the device UDID from the value of the selected option
+        var device_udid = $("#device-dropdown").val();
+
+        //var response = JSON.parse(json)
+        for (let i = 0; i < response["ios-devices-info"].length; i++) {
+            if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                $("#device-name").text(response["ios-devices-info"][i].deviceConfig.device_name)
+                $("#device-os-version").text(response["ios-devices-info"][i].deviceConfig.device_os_version)
+                $("#device-udid").text(response["ios-devices-info"][i].deviceConfig.device_udid)
+                $("#appium-port").text(response["ios-devices-info"][i].deviceConfig.appium_port)
+                $("#wda-port").text(response["ios-devices-info"][i].deviceConfig.wda_port)
+                $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
+                $("#wda-stream-url").text(response["ios-devices-info"][i].deviceConfig.wda_stream_url)
+                $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
+                $("#device-size").text(response["ios-devices-info"][i].deviceConfig.viewport_size)
+                $("#device-model").text(response["ios-devices-info"][i].deviceConfig.device_model)
+            }
+        }
+        return response
+    }
+
+    /////////////////////////////////////////////
+    //=========================================//
+    function updateDeviceInfo2() {
         $('#loading').css("visibility", "visible");
 
         $.ajax({
@@ -402,14 +496,14 @@
         $("#actions-canvas").attr('width', stream_width).attr('height', stream_height)
     }
 
-    function createIOSAppsDropdown(data) {
+    function createIOSAppsDropdown(response) {
         var device_udid = $("#device-dropdown").val();
 
         let apps_dropdown = $('#installed-apps-dropdown');
         apps_dropdown.empty();
         apps_dropdown.prop('selectedIndex', 0);
 
-        var response = JSON.parse(data)
+        //var response = JSON.parse(data)
         for (let i = 0; i < response["ios-devices-info"].length; i++) {
             if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
                 for (let x = 0; x < response["ios-devices-info"][i].installedAppsBundleIDs.length; x++) {
@@ -417,9 +511,10 @@
                 }
             }
         }
+        return response
     }
 
-    function createInstallableAppsDropdown(data) {
+    function createInstallableAppsDropdown(response) {
         // Get the device UDID from the value of the selected option
         var device_udid = $("#device-dropdown").val();
 
@@ -430,7 +525,7 @@
         apps_dropdown.empty();
         apps_dropdown.prop('selectedIndex', 0);
 
-        var response = JSON.parse(data)
+        //var response = JSON.parse(data)
         for (let i = 0; i < response["installable-apps"].length; i++) {
             if (container_name.includes("ios_device") && response["installable-apps"][i].includes(".ipa") || response["installable-apps"][i].includes(".app")) {
                 apps_dropdown.append($('<option></option>').attr('value', response["installable-apps"][i]).text(response["installable-apps"][i]));
@@ -438,24 +533,17 @@
                 apps_dropdown.append($('<option></option>').attr('value', response["installable-apps"][i]).text(response["installable-apps"][i]));
             }
         }
+        return response
     }
 
-    function changeStream() {
+    function changeStream(response) {
         var device_udid = $("#device-dropdown").val();
         let image_stream = $('#image-stream')
-        $.ajax({
-            async: false,
-            type: "GET",
-            url: "/devices/device-control",
-            success: function (data) {
-                var response = JSON.parse(data)
-                for (let i = 0; i < response["ios-devices-info"].length; i++) {
-                    if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                        image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
-                    }
-                }
+        for (let i = 0; i < response["ios-devices-info"].length; i++) {
+            if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
             }
-        });
+        }
     }
 
     function uninstallApp() {
