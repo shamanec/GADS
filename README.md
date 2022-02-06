@@ -3,6 +3,7 @@
 * GADS or Go Appium Docker Service is a small webserver that allows you to configure and monitor Appium docker containers and essentially create your own device farm for Appium test execution.   
 * **NB** It is a work in progress and is in no way a full-fledged and finalized solution. This is my first attempt at Go and web dev in general so a lot of the code is probably messy as hell. I will be doing my best to cleanup and improve all the time but for now this is just a working POC.  
 **NB** I've been doing this having only 2 iOS devices available. It looks like everything is pretty much working but I do not know how it would behave on a bigger scale.  
+* Currently being adopted and sponsored by <a href="https://1crew.com"><img src="https://1crew.com/StaticResources/1Crew_3D.png" alt="1crew" width="50"/><a/>  
 
 ## Features
 * Easy setup  
@@ -45,9 +46,6 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
 6. Open **iOS App Signer**  
 7. Select **WebDriverAgentRunner-Runner.app**.  
 8. Generate the WDA *.ipa file.  
-
-**Note** Donate to [iOS App Signer](https://dantheman827.github.io/ios-app-signer/) if you use it and like it.  
-**Note2** You can use some other approach to generate the *.ipa file, this is what easily worked for me.  
 
 ## Supervise the iOS devices  
 1. Install Apple Configurator 2 on your Mac.  
@@ -123,6 +121,6 @@ WORK IN PROGRESS
 
 | |About|
 |---|---|
-|[go-ios](https://github.com/danielpaulus/go-ios)|Many thanks for creating this tool to communicate with iOS devices on Linux, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode|
+|[go-ios](https://github.com/danielpaulus/go-ios)|Many thanks for creating this tool to communicate with iOS devices on Linux, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode. Without it none of this would be possible|
 |[iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)|This is an app for OS X that can (re)sign apps and bundle them into ipa files that are ready to be installed on an iOS device.|
 
