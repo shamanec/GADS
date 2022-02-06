@@ -41,7 +41,6 @@
     #actions-div {
         width: 25%;
         max-width: 650px;
-        margin-left: 10px;
     }
 
     #source-div {
@@ -127,20 +126,46 @@
         padding: 12px 16px;
         font-size: 16px;
         cursor: pointer;
+        width: 45px;
+        height: 45px;
+        display: inline-block;
+        display: grid;
+        margin: 5px;
     }
 
     /* Darker background on mouse-over */
     .ios-btn:hover {
         background-color: RoyalBlue;
     }
+
     #ios-device-buttons {
         padding-top: 20px;
+    }
+
+    .modal {
+        display: none;
+        z-index: 1;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        background-color: rgb(0, 0, 0);
+        background-color: rgba(0, 0, 0, 0.4);
+        overflow: inherit;
+        overflow-y: inherit;
+        text-align: center;
+        word-wrap: break-word;
     }
 </style>
 
 <body>
     <div id="loading">
         <img id="loading-image" src="/static/images/loader.gif">
+    </div>
+    <div class="modal fade" id="type-text-modal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div>
+            <input id="type-text-input" type="text"></input>
+            <button id="submit-type-text" type="button">Type</button>
+        </div>
     </div>
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
@@ -163,8 +188,12 @@
             <canvas id="actions-canvas" style="position: absolute;"></canvas>
             <img id="image-stream"></img>
         </div>
-        <div id="ios-device-buttons" style="margin-left:5px;">
-            <button class="ios-btn" id="ios-home-button"><i class="fa fa-home"></i></button>
+        <div id="ios-device-buttons" style="margin-left:5px;width:55px;text-align: center;">
+            <button class="ios-btn" id="ios-home-button" title="Go to springboard"><i class="fa fa-home"></i></button>
+            <button class="ios-btn" id="ios-unlock-button" title="Unlock device"><i class="fa fa-unlock"></i></button>
+            <button class="ios-btn" id="ios-lock-button" title="Lock device"><i class="fa fa-lock"></i></button>
+            <button class="ios-btn" id="ios-type-button" title="Type text in active element"><i class="fa fa-pencil"></i></button>
+            <button class="ios-btn" id="ios-clear-text-button" title="Clear text in active element"><i class="fa fa-eraser"></i></button>
         </div>
         <div id="actions-div" style="border: 1px solid #000;padding: 10px;">
             <h3>Device Config Info</h3>
@@ -324,14 +353,51 @@
         let wda_url = $("#wda-url").text()
         showCanvasLoader()
         fetch(wda_url + "/wda/homescreen", {
-            method:'POST'
-        }).then(() => {
-            hideCanvasLoader()
+            method: 'POST'
         })
-        .catch(function (error) {
-            hideCanvasLoader()
-            alert("Could not access iOS device homescreen endpoint. Error: " + error)
+            .then(() => {
+                hideCanvasLoader()
+            })
+            .catch(function (error) {
+                hideCanvasLoader()
+                alert("Could not access iOS device homescreen endpoint. Error: " + error)
+            })
+    })
+
+    document.getElementById("ios-unlock-button").addEventListener('click', () => {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        fetch(wda_url + "/session/" + wda_session_id + "/wda/unlock", {
+            method: 'POST'
         })
+    })
+
+    document.getElementById("ios-lock-button").addEventListener('click', () => {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+        fetch(wda_url + "/session/" + wda_session_id + "/wda/lock", {
+            method: 'POST'
+        })
+    })
+
+    document.getElementById("submit-type-text").addEventListener('click', () => {
+        typeText()
+    })
+
+    document.getElementById("ios-type-button").addEventListener('click', () => {
+        var modal = document.getElementById("type-text-modal")
+        modal.style.display = "block"
+
+        /* Close the modal if you click anywhere outside the modal */
+        window.onclick = function (event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    })
+
+    document.getElementById("ios-clear-text-button").addEventListener('click', () => {
+        clearText()
     })
 
     function getDeviceControlInfo() {
@@ -346,6 +412,52 @@
                 alert("Broken data");
             }
         });
+    }
+
+    async function typeText() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+
+        const control_response = await fetch(wda_url + "/session/" + wda_session_id + "/element/active").then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        })
+
+        if (control_response != null) {
+            var element_id = control_response.value.ELEMENT
+            if (element_id != "") {
+                var text_input = $("#type-text-input").val();
+                await fetch(wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value", {
+                    method: 'POST',
+                    body: JSON.stringify({ "text": text_input })
+                })
+            }
+        }
+    }
+
+    async function clearText() {
+        let wda_url = $("#wda-url").text()
+        let wda_session_id = $("#wda-session-id").text()
+
+        const control_response = await fetch(wda_url + "/session/" + wda_session_id + "/element/active").then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        })
+
+        if (control_response != null) {
+            var element_id = control_response.value.ELEMENT
+            if (element_id != "") {
+                await fetch(wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear", {
+                    method: 'POST'
+                })
+            }
+        }
     }
 
     async function updateDeviceInfo() {
@@ -367,7 +479,7 @@
                     wda_url = control_response["ios-devices-info"][i].deviceConfig.wda_url
                 }
             }
-            const wda_status = await fetch(wda_url + "/status").then(response => {
+            await fetch(wda_url + "/status").then(response => {
                 if (response.ok) {
                     updateIOSDeviceConfigTable(control_response)
                     createIOSAppsDropdown(control_response)
