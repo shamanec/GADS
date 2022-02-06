@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/skin-lion/ui.fancytree.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <style>
     #image-stream,
@@ -24,7 +25,8 @@
     #actions-div,
     #source-div,
     #stream-div,
-    #element-div {
+    #element-div,
+    #ios-device-buttons {
         display: inline-block;
         *display: inline;
         zoom: 1;
@@ -117,6 +119,23 @@
     span.fancytree-title {
         font-size: 18px;
     }
+
+    .ios-btn {
+        background-color: DodgerBlue;
+        border: none;
+        color: white;
+        padding: 12px 16px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    /* Darker background on mouse-over */
+    .ios-btn:hover {
+        background-color: RoyalBlue;
+    }
+    #ios-device-buttons {
+        padding-top: 20px;
+    }
 </style>
 
 <body>
@@ -144,7 +163,10 @@
             <canvas id="actions-canvas" style="position: absolute;"></canvas>
             <img id="image-stream"></img>
         </div>
-        <div id="actions-div">
+        <div id="ios-device-buttons" style="margin-left:5px;">
+            <button class="ios-btn" id="ios-home-button"><i class="fa fa-home"></i></button>
+        </div>
+        <div id="actions-div" style="border: 1px solid #000;padding: 10px;">
             <h3>Device Config Info</h3>
             <table id="device-info-table" style="width:100%">
                 <tr>
@@ -298,6 +320,20 @@
         getDeviceControlInfo();
     });
 
+    document.getElementById("ios-home-button").addEventListener('click', () => {
+        let wda_url = $("#wda-url").text()
+        showCanvasLoader()
+        fetch(wda_url + "/wda/homescreen", {
+            method:'POST'
+        }).then(() => {
+            hideCanvasLoader()
+        })
+        .catch(function (error) {
+            hideCanvasLoader()
+            alert("Could not access iOS device homescreen endpoint. Error: " + error)
+        })
+    })
+
     function getDeviceControlInfo() {
         $.ajax({
             async: false,
@@ -343,6 +379,7 @@
                     $('#stream-div').css("visibility", "visible")
                     $('#source-div').css("visibility", "visible")
                     $('#element-div').css("visibility", "visible")
+                    $('.ios-btn').css("visibility", "visible")
                     $('#loading').css("visibility", "hidden");
                 } else {
                     alert("WDA not available, can't load device.")
