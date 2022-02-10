@@ -38,6 +38,16 @@
       "wda_port": 20004
     }
   ],
+  "android-devices-list": [
+    {
+      "appium_port": 4881,
+      "device_udid": "WCR7N18B14002300",
+      "device_name": "Huawei_P20_Pro",
+      "stream_port": 20201,
+      "device_os_version": "10",
+      "screen_size": "360x747"
+    }
+  ],
   "ios_models_sizes": [
     {
       "product_type": "iPhone6,1",

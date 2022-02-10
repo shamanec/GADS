@@ -244,6 +244,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-containers/update", UpdateIOSContainers).Methods("POST")
 
 	// Android containers endpoints
+	myRouter.HandleFunc("/android-containers/{device_udid}/start", StartAndroidContainer).Methods("POST")
+	myRouter.HandleFunc("/android-containers/{device_udid}/remove", RemoveAndroidContainer).Methods("POST")
 
 	// General containers endpoints
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")

@@ -164,8 +164,30 @@ func getAndroidContainers(w http.ResponseWriter, r *http.Request) {
 // @Tags         ios-devices
 // @Param        device_udid path string true "Device UDID"
 // @Success      202
-// @Router       /ios_containers/update [post]
+// @Router       /ios-containers/update [post]
 func UpdateIOSContainers(w http.ResponseWriter, r *http.Request) {
+	go updateIOSContainers()
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// @Summary      Start Android container for device
+// @Description  Creates an Android container for a connected registered device
+// @Tags         android-devices
+// @Param        device_udid path string true "Device UDID"
+// @Success      202
+// @Router       /android-containers/{device_udid}/start [post]
+func StartAndroidContainer(w http.ResponseWriter, r *http.Request) {
+	go updateIOSContainers()
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// @Summary      Remove Android container for device
+// @Description  Removes a running container for a disconnected registered device
+// @Tags         android-devices
+// @Param        device_udid path string true "Device UDID"
+// @Success      202
+// @Router       /android-containers/{device_udid}/remove [post]
+func RemoveAndroidContainer(w http.ResponseWriter, r *http.Request) {
 	go updateIOSContainers()
 	w.WriteHeader(http.StatusAccepted)
 }
