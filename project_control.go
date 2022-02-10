@@ -80,6 +80,16 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = CreateAndroidUdevRules()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "setup_udev_listener",
+		}).Error("Could not create udev rules file. Error:" + err.Error())
+		JSONError(w, "setup_udev_listener", "Could not create android udev rules", 500)
+		DeleteTempUdevFiles()
+		return
+	}
+
 	err = SetUdevRules()
 	if err != nil {
 		JSONError(w, "setup_udev_listener", err.Error(), 500)
@@ -212,6 +222,7 @@ func CheckSudoPasswordSet() bool {
 // Delete the temporary iOS udev rule file
 func DeleteTempUdevFiles() {
 	DeleteFileShell("./39-usbmuxd.rules", sudo_password)
+	DeleteFileShell("./90-android.rules", sudo_password)
 }
 
 // Check if the iOS udev rules and usbmuxd service are set
@@ -255,9 +266,41 @@ func CreateUdevRules() error {
 	return nil
 }
 
+// Generate the temporary Android udev rule file
+func CreateAndroidUdevRules() error {
+	log.WithFields(log.Fields{
+		"event": "create_udev_rules",
+	}).Info("Creating udev rules")
+	// Create the rules file that will start usbmuxd on the first connected device
+	create_container_rules, err := os.Create("./90-android.rules")
+	if err != nil {
+		return errors.New("Could not create 90-android.rules")
+	}
+	defer create_container_rules.Close()
+
+	jsonBytes, _ := ReadJSONFile("./configs/config.json")
+	android_udids := gjson.Get(string(jsonBytes), `android-devices-list.#.device_udid`)
+
+	for _, device_udid := range android_udids.Array() {
+		device_name := gjson.Get(string(jsonBytes), `android-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
+		rule_line1 := `ACTION=="add", SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='' http://localhost:10000/android-containers/` + device_udid.Str + `/start"`
+		rule_line2 := `ACTION=="remove", SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", RUN+="/usr/bin/wget --post-data='' http://localhost:10000/android-containers/` + device_udid.Str + `/remove"`
+
+		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
+			return errors.New("Could not write to 90-usbmuxd.rules")
+		}
+
+		if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
+			return errors.New("Could not write to 90-usbmuxd.rules")
+		}
+	}
+	return nil
+}
+
 // Copy the iOS udev rules to /etc/udev/rules.d and reload udev
 func SetUdevRules() error {
 	err := CopyFileShell("./39-usbmuxd.rules", "/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
+	err = CopyFileShell("./90-android.rules", "/etc/udev/rules.d/90-android.rules", sudo_password)
 	if err != nil {
 		return err
 	}
