@@ -80,22 +80,13 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = CreateAndroidUdevRules()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "setup_udev_listener",
-		}).Error("Could not create udev rules file. Error:" + err.Error())
-		JSONError(w, "setup_udev_listener", "Could not create android udev rules", 500)
-		DeleteTempUdevFiles()
-		return
-	}
-
 	err = SetUdevRules()
 	if err != nil {
 		JSONError(w, "setup_udev_listener", err.Error(), 500)
 		DeleteTempUdevFiles()
 		return
 	}
+
 	err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
 	if err != nil {
 		DeleteTempUdevFiles()
@@ -122,7 +113,7 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorJSON
 // @Router       /configuration/remove-ios-listener [post]
 func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
-	err := DeleteFileShell("/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
+	err := DeleteFileShell("/etc/udev/rules.d/90-device.rules", sudo_password)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "remove_udev_listener",
@@ -221,13 +212,12 @@ func CheckSudoPasswordSet() bool {
 
 // Delete the temporary iOS udev rule file
 func DeleteTempUdevFiles() {
-	DeleteFileShell("./39-usbmuxd.rules", sudo_password)
-	DeleteFileShell("./90-android.rules", sudo_password)
+	DeleteFileShell("./90-device.rules", sudo_password)
 }
 
 // Check if the iOS udev rules and usbmuxd service are set
 func UdevIOSListenerState() (status string) {
-	_, ruleErr := os.Stat("/etc/udev/rules.d/39-usbmuxd.rules")
+	_, ruleErr := os.Stat("/etc/udev/rules.d/90-device.rules")
 	_, usbmuxdErr := os.Stat("/lib/systemd/system/usbmuxd.service")
 	if ruleErr != nil || usbmuxdErr != nil {
 		log.WithFields(log.Fields{
@@ -247,65 +237,63 @@ func CreateUdevRules() error {
 		"event": "create_udev_rules",
 	}).Info("Creating udev rules")
 	// Create the rules file that will start usbmuxd on the first connected device
-	create_container_rules, err := os.Create("./39-usbmuxd.rules")
+	create_container_rules, err := os.Create("./90-device.rules")
 	if err != nil {
-		return errors.New("Could not create 39-usbmuxd.rules")
-	}
-	defer create_container_rules.Close()
-
-	// Create rules for add and remove udev events
-	rule_line1 := "ACTION==\"add\", SUBSYSTEM==\"usb\", ENV{DEVTYPE}==\"usb_device\", ATTR{manufacturer}==\"Apple Inc.\", ENV{PRODUCT}==\"5ac/12[9a][0-9a-f]/*|5ac/190[1-4]/*|5ac/8600/*\", MODE=\"0666\", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/ios-containers/update\""
-	rule_line2 := "SUBSYSTEM==\"usb\", ENV{DEVTYPE}==\"usb_device\", ENV{PRODUCT}==\"5ac/12[9a][0-9a-f]/*|5ac/1901/*|5ac/8600/*\", ACTION==\"remove\", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/ios-containers/update\""
-	if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
-		return errors.New("Could not write to 39-usbmuxd.rules")
-	}
-
-	if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
-		return errors.New("Could not write to 39-usbmuxd.rules")
-	}
-	return nil
-}
-
-// Generate the temporary Android udev rule file
-func CreateAndroidUdevRules() error {
-	log.WithFields(log.Fields{
-		"event": "create_udev_rules",
-	}).Info("Creating udev rules")
-	// Create the rules file that will start usbmuxd on the first connected device
-	create_container_rules, err := os.Create("./90-android.rules")
-	if err != nil {
-		return errors.New("Could not create 90-android.rules")
+		return errors.New("Could not create 90-device.rules")
 	}
 	defer create_container_rules.Close()
 
 	jsonBytes, _ := ReadJSONFile("./configs/config.json")
 	android_udids := gjson.Get(string(jsonBytes), `android-devices-list.#.device_udid`)
+	ios_udids := gjson.Get(string(jsonBytes), `ios-devices-list.#.device_udid`)
 
+	// Add rule lines for each Android device in config.json
 	for _, device_udid := range android_udids.Array() {
 		device_name := gjson.Get(string(jsonBytes), `android-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
 		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `"`
-		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='' http://localhost:10000/android-containers/` + device_udid.Str + `/remove"`
-		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='' http://localhost:10000/android-containers/` + device_udid.Str + `/create"`
+		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='{\"os_type\":\"Android\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/remove"`
+		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='{\"os_type\":\"Android\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/create"`
 
 		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
-			return errors.New("Could not write to 90-usbmuxd.rules")
+			return errors.New("Could not write to 90-device.rules")
 		}
 
 		if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
-			return errors.New("Could not write to 90-usbmuxd.rules")
+			return errors.New("Could not write to 90-device.rules")
 		}
 
 		if _, err := create_container_rules.WriteString(rule_line3 + "\n"); err != nil {
-			return errors.New("Could not write to 90-usbmuxd.rules")
+			return errors.New("Could not write to 90-device.rules")
 		}
 	}
+
+	// Add rule lines for each iOS device in config.json
+	for _, device_udid := range ios_udids.Array() {
+		device_name := gjson.Get(string(jsonBytes), `ios-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
+		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `"`
+		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/remove"`
+		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/create"`
+
+		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
+			return errors.New("Could not write to 90-device.rules")
+		}
+
+		if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
+			return errors.New("Could not write to 90-device.rules")
+		}
+
+		if _, err := create_container_rules.WriteString(rule_line3 + "\n"); err != nil {
+			return errors.New("Could not write to 90-device.rules")
+		}
+	}
+
 	return nil
 }
 
 // Copy the iOS udev rules to /etc/udev/rules.d and reload udev
 func SetUdevRules() error {
-	err := CopyFileShell("./39-usbmuxd.rules", "/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
-	err = CopyFileShell("./90-android.rules", "/etc/udev/rules.d/90-android.rules", sudo_password)
+	//err := CopyFileShell("./39-usbmuxd.rules", "/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
+	err := CopyFileShell("./90-device.rules", "/etc/udev/rules.d/90-device.rules", sudo_password)
 	if err != nil {
 		return err
 	}
@@ -445,17 +433,17 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
 		return nil, errors.New("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
 	}
-	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
+	appium_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").appium_port`)
 	if appium_port.Raw == "" {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",
 		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
 		return nil, errors.New("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
 	}
-	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
-	device_os_version := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_os_version`)
-	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
-	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
+	device_name := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_name`)
+	device_os_version := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
+	wda_mjpeg_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
+	wda_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_port`)
 
 	wda_url, wda_stream_url := getIOSDeviceWdaURLs(device_udid)
 

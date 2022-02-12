@@ -26,7 +26,7 @@ var project_log_file *os.File
 // Devices struct which contains
 // an array of devices from the config.json
 type Devices struct {
-	Devices []Device `json:"devicesList"`
+	Devices []Device `json:"ios-devices-list"`
 }
 
 // Device struct which contains device info
@@ -134,7 +134,7 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updatedJSON string
-	updatedJSON, _ = sjson.Set(string(configJson), "devicesList.-1", devices_host)
+	updatedJSON, _ = sjson.Set(string(configJson), "ios-devices-list.-1", devices_host)
 
 	if devices_host != "" {
 		updatedJSON, _ = sjson.Set(string(configJson), "devices_host", devices_host)
@@ -241,16 +241,15 @@ func handleRequests() {
 	))
 
 	// iOS containers endpoints
-	myRouter.HandleFunc("/ios-containers/update", UpdateIOSContainers).Methods("POST")
 
 	// Android containers endpoints
-	myRouter.HandleFunc("/android-containers/{device_udid}/create", StartAndroidContainer).Methods("POST")
-	myRouter.HandleFunc("/android-containers/{device_udid}/remove", RemoveAndroidContainer).Methods("POST")
 
 	// General containers endpoints
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
+	myRouter.HandleFunc("/device-containers/{device_udid}/remove", RemoveDeviceContainer).Methods("POST")
+	myRouter.HandleFunc("/device-containers/{device_udid}/create", CreateDeviceContainer).Methods("POST")
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage).Methods("POST")
@@ -279,7 +278,7 @@ func handleRequests() {
 
 	// Page loads
 	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
-	myRouter.HandleFunc("/android-containers.html", getAndroidContainers)
+	myRouter.HandleFunc("/android-containers.html", GetAndroidContainers)
 	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)

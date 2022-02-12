@@ -4,7 +4,7 @@
   "selenium_hub_port": "4444",
   "selenium_hub_protocol_type": "http",
   "wda_bundle_id": "com.shamanec.WebDriverAgentRunner.xctrunner",
-  "devicesList": [
+  "ios-devices-list": [
     {
       "appium_port": 4841,
       "device_name": "iPhone_11",

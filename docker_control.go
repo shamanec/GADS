@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -160,36 +160,32 @@ func getAndroidContainers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Summary      Update iOS containers
-// @Description  Creates (or removes respectively) iOS containers based on the connected and registered devices
-// @Tags         ios-devices
+// @Summary      Create container for device
+// @Description  Creates a container for a connected registered device
+// @Tags         device-containers
 // @Param        device_udid path string true "Device UDID"
 // @Success      202
-// @Router       /ios-containers/update [post]
-func UpdateIOSContainers(w http.ResponseWriter, r *http.Request) {
-	go updateIOSContainers()
-	w.WriteHeader(http.StatusAccepted)
-}
-
-// @Summary      Start Android container for device
-// @Description  Creates an Android container for a connected registered device
-// @Tags         android-devices
-// @Param        device_udid path string true "Device UDID"
-// @Success      202
-// @Router       /android-containers/{device_udid}/start [post]
-func StartAndroidContainer(w http.ResponseWriter, r *http.Request) {
+// @Router       /device-containers/{device_udid}/create [post]
+func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	go createAndroidContainer(vars["device_udid"])
+	device_udid := vars["device_udid"]
+	requestBody, _ := ioutil.ReadAll(r.Body)
+	os_type := gjson.Get(string(requestBody), "os_type").Str
+	if os_type == "Android" {
+		go createAndroidContainer(device_udid)
+	} else if os_type == "iOS" {
+		go CreateIOSContainer(device_udid)
+	}
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// @Summary      Remove Android container for device
-// @Description  Removes a running container for a disconnected registered device
-// @Tags         android-devices
+// @Summary      Remove container for device
+// @Description  Removes a running container for a disconnected registered device by device UDID
+// @Tags         device-containers
 // @Param        device_udid path string true "Device UDID"
 // @Success      202
-// @Router       /android-containers/{device_udid}/remove [post]
-func RemoveAndroidContainer(w http.ResponseWriter, r *http.Request) {
+// @Router       /device-containers/{device_udid}/remove [post]
+func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	container_exists, container_id := checkContainerExistsByName(vars["device_udid"])
 	if container_exists {
@@ -291,6 +287,51 @@ func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Android Containers html page
+func GetAndroidContainers(w http.ResponseWriter, r *http.Request) {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		panic(err)
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		panic(err)
+	}
+
+	var rows []ContainerRow
+
+	// Loop through the containers list
+	for _, container := range containers {
+		// Parse plain container name
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+
+		if strings.Contains(containerName, "android_device") {
+			// Get all the container ports from the returned array into string
+			containerPorts := ""
+			for i, s := range container.Ports {
+				if i > 0 {
+					containerPorts += "\n"
+				}
+				containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
+			}
+
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^-]*$")
+			match := re.FindStringSubmatch(containerName)
+
+			var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
+			rows = append(rows, containerRow)
+		}
+	}
+	// Parse the template and return response with the container table rows
+	var index = template.Must(template.ParseFiles("static/android_containers.html"))
+	if err := index.Execute(w, rows); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 //===================//
 //=====FUNCTIONS=====//
 
@@ -386,6 +427,7 @@ func ImageExists() (imageStatus string) {
 
 // Create an iOS container for a specific device(by UDID) using data from config.json so if device is not registered there it will not attempt to create a container for it
 func CreateIOSContainer(device_udid string) {
+	time.Sleep(5 * time.Second)
 	log.WithFields(log.Fields{
 		"event": "ios_container_create",
 	}).Info("Attempting to create a container for iOS device with udid: " + device_udid)
@@ -407,17 +449,17 @@ func CreateIOSContainer(device_udid string) {
 		return
 	}
 
-	appium_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").appium_port`)
+	appium_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").appium_port`)
 	if appium_port.Raw == "" {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",
 		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
 		return
 	}
-	device_name := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_name`)
-	device_os_version := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").device_os_version`)
-	wda_mjpeg_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
-	wda_port := gjson.Get(string(byteValue), `devicesList.#(device_udid="`+device_udid+`").wda_port`)
+	device_name := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_name`)
+	device_os_version := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
+	wda_mjpeg_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
+	wda_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_port`)
 	wda_bundle_id := gjson.Get(string(byteValue), "wda_bundle_id")
 	selenium_hub_port := gjson.Get(string(byteValue), "selenium_hub_port")
 	selenium_hub_host := gjson.Get(string(byteValue), "selenium_hub_host")
@@ -671,107 +713,6 @@ func createAndroidContainer(device_udid string) {
 			"event": "ios_container_create",
 		}).Info("Successfully created a container for iOS device with udid: " + device_udid)
 	}
-}
-
-// Create or respectively destroy iOS containers depending on the currently connected iOS devices
-func updateIOSContainers() {
-	log.WithFields(log.Fields{
-		"event": "pair_device",
-	}).Info("Updating devices")
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "update_containers",
-		}).Error(". Error: " + err.Error())
-		return
-	}
-
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "update_containers",
-		}).Error(". Error: " + err.Error())
-		return
-	}
-
-	devices, err := ios.ListDevices()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "update_containers",
-		}).Error(". Error: " + err.Error())
-		return
-	}
-
-	DestroyIOSContainers(devices, containers)
-	CreateIOSContainers(devices, containers)
-}
-
-// Create container for each iOS device that is connected to the machine, registered in config.json and doesn't have a running container
-func CreateIOSContainers(devices ios.DeviceList, containers []types.Container) {
-	var device_has_container bool
-	for _, device := range devices.DeviceList {
-		device_has_container = false
-		for _, container := range containers {
-			containerName := strings.Replace(container.Names[0], "/", "", -1)
-			if strings.Contains(containerName, device.Properties.SerialNumber) {
-				device_has_container = true
-			}
-		}
-		if !device_has_container {
-			CreateIOSContainer(device.Properties.SerialNumber)
-		}
-	}
-}
-
-// Loop through running containers and if there is no device connected related to a running container - destroy that container
-func DestroyIOSContainers(devices ios.DeviceList, containers []types.Container) {
-	container_has_device := false
-	for _, container := range containers {
-		containerName := strings.Replace(container.Names[0], "/", "", -1)
-		for _, device := range devices.DeviceList {
-			if strings.Contains(containerName, device.Properties.SerialNumber) {
-				container_has_device = true
-			}
-		}
-		if !container_has_device {
-			RemoveIOSContainer(container.ID)
-		}
-	}
-}
-
-// Remove iOS container by provided container_id
-func RemoveIOSContainer(container_id string) {
-
-	log.WithFields(log.Fields{
-		"event": "docker_container_remove",
-	}).Info("Attempting to remove container with ID: " + container_id)
-
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_container_remove",
-		}).Error("Could not create docker client while attempting to remove container with ID: " + container_id + ". Error: " + err.Error())
-		return
-	}
-
-	if err := cli.ContainerStop(ctx, container_id, nil); err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_container_remove",
-		}).Error("Could not remove container with ID: " + container_id + ". Error: " + err.Error())
-		return
-	}
-
-	if err := cli.ContainerRemove(ctx, container_id, types.ContainerRemoveOptions{}); err != nil {
-		log.WithFields(log.Fields{
-			"event": "docker_container_remove",
-		}).Error("Could not remove container with ID: " + container_id + ". Error: " + err.Error())
-		return
-	}
-
-	log.WithFields(log.Fields{
-		"event": "docker_container_remove",
-	}).Info("Successfully removed container with ID: " + container_id)
 }
 
 // Check if container exists by name and also return container_id

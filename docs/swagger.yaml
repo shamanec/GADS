@@ -38,11 +38,15 @@ definitions:
     properties:
       appium_port:
         type: integer
+      device_model:
+        type: string
       device_name:
         type: string
       device_os_version:
         type: string
       device_udid:
+        type: string
+      viewport_size:
         type: string
       wda_mjpeg_port:
         type: integer
@@ -327,6 +331,37 @@ paths:
       summary: Restart container
       tags:
       - containers
+  /device-containers/{device_udid}/create:
+    post:
+      description: Creates a container for a connected registered device
+      parameters:
+      - description: Device UDID
+        in: path
+        name: device_udid
+        required: true
+        type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create container for device
+      tags:
+      - device-containers
+  /device-containers/{device_udid}/remove:
+    post:
+      description: Removes a running container for a disconnected registered device
+        by device UDID
+      parameters:
+      - description: Device UDID
+        in: path
+        name: device_udid
+        required: true
+        type: string
+      responses:
+        "202":
+          description: ""
+      summary: Remove container for device
+      tags:
+      - device-containers
   /device-logs/{log_type}/{device_udid}:
     get:
       description: Get logs by type
@@ -466,22 +501,6 @@ paths:
           schema:
             $ref: '#/definitions/main.ErrorJSON'
       summary: Register a new iOS device
-      tags:
-      - ios-devices
-  /ios_containers/update:
-    post:
-      description: Creates (or removes respectively) iOS containers based on the connected
-        and registered devices
-      parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
-        required: true
-        type: string
-      responses:
-        "202":
-          description: ""
-      summary: Update iOS containers
       tags:
       - ios-devices
   /project-logs:
