@@ -618,6 +618,7 @@ func createAndroidContainer(device_udid string) {
 		}
 		device_name := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_name`)
 		device_os_version := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
+		stream_port := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").stream_port`)
 		selenium_hub_port := gjson.Get(string(byteValue), "selenium_hub_port")
 		selenium_hub_host := gjson.Get(string(byteValue), "selenium_hub_host")
 		devices_host := gjson.Get(string(byteValue), "devices_host")
@@ -645,7 +646,8 @@ func createAndroidContainer(device_udid string) {
 				"SELENIUM_HUB_PORT=" + selenium_hub_port.Str,
 				"SELENIUM_HUB_HOST=" + selenium_hub_host.Str,
 				"DEVICES_HOST=" + devices_host.Str,
-				"HUB_PROTOCOL=" + hub_protocol.Str},
+				"HUB_PROTOCOL=" + hub_protocol.Str,
+				"STREAM_PORT=" + stream_port.Raw},
 		}
 
 		log.WithFields(log.Fields{
@@ -661,6 +663,12 @@ func createAndroidContainer(device_udid string) {
 						HostPort: appium_port.Raw,
 					},
 				},
+				nat.Port(stream_port.Raw): []nat.PortBinding{
+					{
+						HostIP:   "0.0.0.0",
+						HostPort: stream_port.Raw,
+					},
+				},
 			},
 			Mounts: []mount.Mount{
 				{
@@ -672,6 +680,11 @@ func createAndroidContainer(device_udid string) {
 					Type:   mount.TypeBind,
 					Source: project_dir + "/apps",
 					Target: "/opt/ipa",
+				},
+				{
+					Type:   mount.TypeBind,
+					Source: "/home/shamanec/.android",
+					Target: "/root/.android",
 				},
 			},
 			Resources: container.Resources{
