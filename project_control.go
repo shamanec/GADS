@@ -51,6 +51,14 @@ type IOSDevice struct {
 	DeviceViewportSize string `json:"viewport_size"`
 }
 
+type AndroidDevice struct {
+	AppiumPort         int    `json:"appium_port"`
+	DeviceName         string `json:"device_name"`
+	DeviceOSVersion    string `json:"device_os_version"`
+	DeviceUDID         string `json:"device_udid"`
+	DeviceViewportSize string `json:"viewport_size"`
+}
+
 //=======================//
 //=====API FUNCTIONS=====//
 
@@ -187,6 +195,7 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 		RunningContainers: runningContainerNames,
 		IOSInfo:           getIOSDevicesInfo(runningContainerNames),
 		InstallableApps:   getInstallableApps(),
+		AndroidInfo:       getAndroidDevicesInfo(runningContainerNames),
 	}
 	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
 }
@@ -379,6 +388,28 @@ func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 	return combinedInfo
 }
 
+// For each running container extract the info for each respective device from ./configs/config.json to provide to the device-control info endpoint.
+// Provides installed apps, configuration info, wda urls
+func getAndroidDevicesInfo(runningContainers []string) []AndroidDeviceInfo {
+	var combinedInfo []AndroidDeviceInfo
+	for _, containerName := range runningContainers {
+		if strings.Contains(containerName, "android_device") {
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^-]*$")
+			device_udid := re.FindStringSubmatch(containerName)
+
+			var device_config *AndroidDevice
+			device_config, _ = androidDeviceConfig(device_udid[0])
+
+			var deviceInfo = AndroidDeviceInfo{DeviceConfig: device_config}
+			combinedInfo = append(combinedInfo, deviceInfo)
+		} else if strings.Contains(containerName, "android_device") {
+			print("test")
+		}
+	}
+	return combinedInfo
+}
+
 // Get the WDA and WDA stream urls from the container logs folder for a specific device
 func getIOSDeviceWdaURLs(device_udid string) (string, string) {
 	// Get the path of the WDA url file using regex
@@ -460,6 +491,45 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 			WdaURL:             wda_url,
 			DeviceModel:        model,
 			DeviceViewportSize: viewport_size},
+		nil
+}
+
+// Get the configuration info for iOS device from ./configs/config.json
+func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
+	jsonFile, err := os.Open("./configs/config.json")
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_android_device_config",
+		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return nil, errors.New("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	}
+
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_android_device_config",
+		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+		return nil, errors.New("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	}
+	appium_port := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").appium_port`)
+	if appium_port.Raw == "" {
+		log.WithFields(log.Fields{
+			"event": "get_android_device_config",
+		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+		return nil, errors.New("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+	}
+	device_name := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_name`)
+	device_os_version := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
+	viewport_size := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").screen_size`)
+	return &AndroidDevice{
+			AppiumPort:         int(appium_port.Num),
+			DeviceName:         device_name.Str,
+			DeviceOSVersion:    device_os_version.Str,
+			DeviceUDID:         device_udid,
+			DeviceViewportSize: viewport_size.Str},
 		nil
 }
 

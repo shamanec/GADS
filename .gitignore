@@ -5,3 +5,4 @@ apps/*
 ca-cert.pem
 ca-key.pem
 configs/supervision.p12
+minicap/*

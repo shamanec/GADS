@@ -38,8 +38,8 @@ type IOSDeviceInfo struct {
 }
 
 type AndroidDeviceInfo struct {
-	BundleIDs    []string   `json:"installedAppsBundleIDs"`
-	DeviceConfig *IOSDevice `json:"deviceConfig"`
+	BundleIDs    []string       `json:"installedAppsBundleIDs"`
+	DeviceConfig *AndroidDevice `json:"deviceConfig"`
 }
 
 type iOSAppInstall struct {

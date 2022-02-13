@@ -15,12 +15,13 @@ start-appium() {
     appium -p $APPIUM_PORT --udid "$DEVICE_UDID" \
       --log-timestamp \
       --default-capabilities \
-      '{"automationName":"UiAutomator2", "platformName": "Android", "deviceName": "Test"}' 2>&1 &
+      '{"automationName":"UiAutomator2", "platformName": "Android", "deviceName": "Test"}' >> /opt/logs/appium-logs.log 2>&1 &
 }
 
 export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 adb forward tcp:1313 localabstract:minicap
-touch /opt/minicap.log
+touch /opt/logs/minicap.log
+touch /opt/logs/appium-logs.log
 cd /root/minicap/ && ./run.sh autosize >> /opt/minicap.log 2>&1 &
 docker-cli stream-minicap --port=$STREAM_PORT >> /opt/minicap.log 2>&1 &
 while true; do

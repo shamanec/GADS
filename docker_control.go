@@ -634,7 +634,7 @@ func createAndroidContainer(device_udid string) {
 		}
 
 		config := &container.Config{
-			Image: "test-android",
+			Image: "android-appium",
 			ExposedPorts: nat.PortSet{
 				nat.Port(appium_port.Raw): struct{}{},
 				nat.Port(stream_port.Raw): struct{}{},

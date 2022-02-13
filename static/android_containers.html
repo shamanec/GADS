@@ -3,7 +3,7 @@
 
 <head>
 	<meta charset="UTF-8">
-	<title>iOS Containers Info</title>
+	<title>Android Containers Info</title>
 	<link href="/static/css/ios_containers_styles.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 	<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
@@ -62,12 +62,10 @@
 				<div>
 					<button class="clsInfoButtons" id="containerLogsButton" onclick="getContainerLogs(this);"
 						value={{.ContainerID}}>Container Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'appium-logs');"
-						value={{.DeviceUDID}}>Appium Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'wda-logs');"
-						value={{.DeviceUDID}}>WebDriverAgent Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'wda-sync');"
-						value={{.DeviceUDID}}>WDA Sync Logs</button>
+					<button class="clsInfoButtons" id="containerLogsButton"
+						onclick="getDeviceLogs(this, 'appium-logs');" value={{.DeviceUDID}}>Appium Logs</button>
+					<button class="clsInfoButtons" id="containerLogsButton"
+						onclick="getDeviceLogs(this, 'minicap');" value={{.DeviceUDID}}>Minicap Logs</button>
 				</div>
 			</td>
 			<td style="text-align:center; width: 125px;">
