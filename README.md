@@ -113,7 +113,36 @@ This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable t
 3. Select the AUT *.ipa file and submit it.  
 4. It will be uploaded in the *./apps* folder which is mounted to each container and then you can access this app and install it using Appium.  
 
-**NB** For a way to perform most of these actions without the UI you can refer to the Swagger documentation.  
+**NB** For a way to perform most of these actions without the UI you can refer to the Swagger documentation. 
+
+## Android setup  
+### Minicap setup
+1. Setup Android SDK.  
+2. Download and setup Android NDK.  
+3. Clone https://github.com/shamanec/minicap.git in the main project folder in a 'minicap' folder(default).  
+4. Open the 'minicap' folder.  
+5. Execute 'git submodule init' and 'git submodule update'.  
+6. Execute 'ndk-build'.  
+7. Execute 'experimental/gradlew -p experimental assembleDebug'  
+8. Execute 'ndk-build NDK_DEBUG=1 1>&2'
+
+### Register devices in config.json
+1. Add each Android device in the config.json.  
+2. For each device provide unique Appium and stream ports.  
+3. For each device provide device_name - avoid using special characters and spaces except '_'.  
+4. On each device go to 'whatismyviewport.com' and provide the full screen size to 'config.json' in format 'widthxheight'. Example: "360x747"  
+
+### Setup the udev rules
+1. Call the endpoint to update udev rules.  
+2. New rules will include each Android device from config.json.  
+
+### Kill adb-server
+1. You need to make sure that adb-server is not running before you connect devices.  
+2. Run 'adb kill-server'.  
+
+### Connect devices  
+1. If you've setup the udev rules and stopped adb server run start connecting the devices.  
+2. You should see a container created for each devices.  
 
 WORK IN PROGRESS
 

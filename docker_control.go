@@ -637,6 +637,7 @@ func createAndroidContainer(device_udid string) {
 			Image: "test-android",
 			ExposedPorts: nat.PortSet{
 				nat.Port(appium_port.Raw): struct{}{},
+				nat.Port(stream_port.Raw): struct{}{},
 			},
 			Env: []string{"ON_GRID=" + on_grid,
 				"DEVICE_UDID=" + device_udid,
@@ -657,16 +658,16 @@ func createAndroidContainer(device_udid string) {
 		host_config := &container.HostConfig{
 			RestartPolicy: container.RestartPolicy{Name: "always", MaximumRetryCount: 0},
 			PortBindings: nat.PortMap{
-				nat.Port(appium_port.Raw): []nat.PortBinding{
-					{
-						HostIP:   "0.0.0.0",
-						HostPort: appium_port.Raw,
-					},
-				},
 				nat.Port(stream_port.Raw): []nat.PortBinding{
 					{
 						HostIP:   "0.0.0.0",
 						HostPort: stream_port.Raw,
+					},
+				},
+				nat.Port(appium_port.Raw): []nat.PortBinding{
+					{
+						HostIP:   "0.0.0.0",
+						HostPort: appium_port.Raw,
 					},
 				},
 			},
@@ -685,6 +686,11 @@ func createAndroidContainer(device_udid string) {
 					Type:   mount.TypeBind,
 					Source: "/home/shamanec/.android",
 					Target: "/root/.android",
+				},
+				{
+					Type:   mount.TypeBind,
+					Source: project_dir + "/minicap",
+					Target: "/root/minicap",
 				},
 			},
 			Resources: container.Resources{

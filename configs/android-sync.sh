@@ -20,8 +20,9 @@ start-appium() {
 
 export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 adb forward tcp:1313 localabstract:minicap
-./minicap/run.sh autosize > /dev/null
-docker-cli stream-minicap --port=$STREAM_PORT > /dev/null
+touch /opt/minicap.log
+cd /root/minicap/ && ./run.sh autosize >> /opt/minicap.log 2>&1 &
+docker-cli stream-minicap --port=$STREAM_PORT >> /opt/minicap.log 2>&1 &
 while true; do
   check-appium-status
   sleep 10
