@@ -446,7 +446,7 @@
                         createInstallableAppsDropdown(control_response)
                         changeStream(control_response)
                         checkWDASession()
-                        updateIOSStreamSize()
+                        updateStreamSize()
                         $('#actions-div').css("visibility", "visible")
                         $('#stream-div').css("visibility", "visible")
                         $('#source-div').css("visibility", "visible")
@@ -465,6 +465,7 @@
                         updateAndroidDeviceConfigTable(control_response)
                         createInstallableAppsDropdown(control_response)
                         changeStream(control_response)
+                        updateStreamSize()
                         $('#stream-div').css("visibility", "visible")
                         $('#actions-div').css("visibility", "visible")
                     }
@@ -480,11 +481,12 @@
     function updateIOSDeviceConfigTable(response) {
         // Get the device UDID from the value of the selected option
         var device_udid = $("#device-dropdown").val();
+        let table_element = $("#device-info-table")
+        table_element.empty()
 
         //var response = JSON.parse(json)
         for (let i = 0; i < response["ios-devices-info"].length; i++) {
             if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                let table_element = $("#device-info-table")
                 table_element.append('<tr><th>Device Model:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_model + '</td></tr>')
                 table_element.append('<tr><th>Device Name:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_name + '</td></tr>')
                 table_element.append('<tr><th>Device OS version:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_os_version + '</td></tr>')
@@ -504,11 +506,12 @@
     function updateAndroidDeviceConfigTable(response) {
         // Get the device UDID from the value of the selected option
         var device_udid = $("#device-dropdown").val();
+        let table_element = $("#device-info-table")
+        table_element.empty()
 
         //var response = JSON.parse(json)
         for (let i = 0; i < response["android-devices-info"].length; i++) {
             if (response["android-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                let table_element = $("#device-info-table")
                 table_element.append('<tr><th>Device Name:</th><td>' + response["android-devices-info"][i].deviceConfig.device_name + '</td></tr>')
                 table_element.append('<tr><th>Device OS version:</th><td>' + response["android-devices-info"][i].deviceConfig.device_os_version + '</td></tr>')
                 table_element.append('<tr><th>Device UDID:</th><td>' + response["android-devices-info"][i].deviceConfig.device_udid + '</td></tr>')
@@ -536,7 +539,7 @@
         }
     }
 
-    function updateIOSStreamSize() {
+    function updateStreamSize() {
         // Set max height of 850 pixels for the stream element
         let maxHeight = 850
 
