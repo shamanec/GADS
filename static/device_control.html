@@ -199,52 +199,7 @@
         </div>
         <div id="actions-div" style="border: 1px solid #000;padding: 10px;">
             <h3>Device Config Info</h3>
-            <table id="device-info-table" style="width:100%">
-                <tr>
-                    <th>Device model:</th>
-                    <td id="device-model"></td>
-                </tr>
-                <tr>
-                    <th>Device name:</th>
-                    <td id="device-name"></td>
-                </tr>
-                <tr>
-                    <th>Device OS version:</th>
-                    <td id="device-os-version"></td>
-                </tr>
-                <tr>
-                    <th>Device UDID:</th>
-                    <td id="device-udid"></td>
-                </tr>
-                <tr>
-                    <th>Appium Port:</th>
-                    <td id="appium-port"></td>
-                </tr>
-                <tr>
-                    <th>WDA Port:</th>
-                    <td id="wda-port"></td>
-                </tr>
-                <tr>
-                    <th>WDA Mjpeg Port:</th>
-                    <td id="wda-mjpeg-port"></td>
-                </tr>
-                <tr>
-                    <th>WDA URL:</th>
-                    <td id="wda-url"></td>
-                </tr>
-                <tr>
-                    <th>WDA Stream URL:</th>
-                    <td id="wda-stream-url"></td>
-                </tr>
-                <tr>
-                    <th>WDA session ID:</th>
-                    <td id="wda-session-id">No session</td>
-                </tr>
-                <tr>
-                    <th>Device size</th>
-                    <th id="device-size"></th>
-                </tr>
-            </table>
+            <table id="device-info-table" style="width:100%"></table>
             <div>
                 <h4>Installed apps</h4>
                 <select id="installed-apps-dropdown" name="installed-apps"></select>
@@ -505,7 +460,15 @@
                     alert("Could not load device:" + error)
                 })
             } else if (selected_device_text.includes("android")) {
-
+                for (let i = 0; i < control_response["android-devices-info"].length; i++) {
+                    if (control_response["android-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                        updateAndroidDeviceConfigTable(control_response)
+                        createInstallableAppsDropdown(control_response)
+                        changeStream(control_response)
+                        $('#stream-div').css("visibility", "visible")
+                        $('#actions-div').css("visibility", "visible")
+                    }
+                }
             } else {
                 alert("What the hell is that device container?")
             }
@@ -521,16 +484,38 @@
         //var response = JSON.parse(json)
         for (let i = 0; i < response["ios-devices-info"].length; i++) {
             if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                $("#device-name").text(response["ios-devices-info"][i].deviceConfig.device_name)
-                $("#device-os-version").text(response["ios-devices-info"][i].deviceConfig.device_os_version)
-                $("#device-udid").text(response["ios-devices-info"][i].deviceConfig.device_udid)
-                $("#appium-port").text(response["ios-devices-info"][i].deviceConfig.appium_port)
-                $("#wda-port").text(response["ios-devices-info"][i].deviceConfig.wda_port)
-                $("#wda-mjpeg-port").text(response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port)
-                $("#wda-stream-url").text(response["ios-devices-info"][i].deviceConfig.wda_stream_url)
-                $("#wda-url").text(response["ios-devices-info"][i].deviceConfig.wda_url)
-                $("#device-size").text(response["ios-devices-info"][i].deviceConfig.viewport_size)
-                $("#device-model").text(response["ios-devices-info"][i].deviceConfig.device_model)
+                let table_element = $("#device-info-table")
+                table_element.append('<tr><th>Device Model:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_model + '</td></tr>')
+                table_element.append('<tr><th>Device Name:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_name + '</td></tr>')
+                table_element.append('<tr><th>Device OS version:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_os_version + '</td></tr>')
+                table_element.append('<tr><th>Device UDID:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_udid + '</td></tr>')
+                table_element.append('<tr><th>Appium Port:</th><td>' + response["ios-devices-info"][i].deviceConfig.appium_port + '</td></tr>')
+                table_element.append('<tr><th>WDA Port:</th><td>' + response["ios-devices-info"][i].deviceConfig.wda_port + '</td></tr>')
+                table_element.append('<tr><th>WDA Mjpeg Port:</th><td>' + response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port + '</td></tr>')
+                table_element.append('<tr><th>WDA URL:</th><td id="wda-url">' + response["ios-devices-info"][i].deviceConfig.wda_url + '</td></tr>')
+                table_element.append('<tr><th>WDA Stream URL:</th><td>' + response["ios-devices-info"][i].deviceConfig.wda_stream_url + '</td></tr>')
+                table_element.append('<tr><th>Device screen size:</th><td id="device-size">' + response["ios-devices-info"][i].deviceConfig.viewport_size + '</td></tr>')
+                table_element.append('<tr><th>WDA session ID:</th><td id="wda-session-id">No session</td></tr>')
+            }
+        }
+        return response
+    }
+
+    function updateAndroidDeviceConfigTable(response) {
+        // Get the device UDID from the value of the selected option
+        var device_udid = $("#device-dropdown").val();
+
+        //var response = JSON.parse(json)
+        for (let i = 0; i < response["android-devices-info"].length; i++) {
+            if (response["android-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                let table_element = $("#device-info-table")
+                table_element.append('<tr><th>Device Name:</th><td>' + response["android-devices-info"][i].deviceConfig.device_name + '</td></tr>')
+                table_element.append('<tr><th>Device OS version:</th><td>' + response["android-devices-info"][i].deviceConfig.device_os_version + '</td></tr>')
+                table_element.append('<tr><th>Device UDID:</th><td>' + response["android-devices-info"][i].deviceConfig.device_udid + '</td></tr>')
+                table_element.append('<tr><th>Appium Port:</th><td>' + response["android-devices-info"][i].deviceConfig.appium_port + '</td></tr>')
+                table_element.append('<tr><th>Device screen size:</th><td id="device-size">' + response["android-devices-info"][i].deviceConfig.viewport_size + '</td></tr>')
+                table_element.append('<tr><th>Stream Port:</th><td id="stream-port">' + response["android-devices-info"][i].deviceConfig.stream_port + '</td></tr>')
+                table_element.append('<tr><th>Appium session ID:</th><td id="appium-session-id">No session</td></tr>')
             }
         }
         return response
@@ -626,10 +611,16 @@
     function changeStream(response) {
         var device_udid = $("#device-dropdown").val();
         let image_stream = $('#image-stream')
-        for (let i = 0; i < response["ios-devices-info"].length; i++) {
-            if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
-                image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
+        let selected_device_text = $("#device-dropdown option:selected").text()
+
+        if (selected_device_text.includes("ios")) {
+            for (let i = 0; i < response["ios-devices-info"].length; i++) {
+                if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
+                    image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
+                }
             }
+        } else if (selected_device_text.includes("android")) {
+            image_stream.attr('src', "http://127.0.0.1:" + $('#stream-port').text())
         }
     }
 

@@ -57,6 +57,7 @@ type AndroidDevice struct {
 	DeviceOSVersion    string `json:"device_os_version"`
 	DeviceUDID         string `json:"device_udid"`
 	DeviceViewportSize string `json:"viewport_size"`
+	StreamPort         string `json:"stream_port"`
 }
 
 //=======================//
@@ -524,12 +525,14 @@ func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
 	device_name := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_name`)
 	device_os_version := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
 	viewport_size := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").screen_size`)
+	stream_port := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").stream_port`)
 	return &AndroidDevice{
 			AppiumPort:         int(appium_port.Num),
 			DeviceName:         device_name.Str,
 			DeviceOSVersion:    device_os_version.Str,
 			DeviceUDID:         device_udid,
-			DeviceViewportSize: viewport_size.Str},
+			DeviceViewportSize: viewport_size.Str,
+			StreamPort:         stream_port.Raw},
 		nil
 }
 
