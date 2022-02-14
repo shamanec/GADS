@@ -14,6 +14,8 @@ check-appium-status() {
 start-appium() {
     appium -p $APPIUM_PORT --udid "$DEVICE_UDID" \
       --log-timestamp \
+      --allow-cors \
+      --session-override \
       --default-capabilities \
       '{"automationName":"UiAutomator2", "platformName": "Android", "deviceName": "Test"}' >> /opt/logs/appium-logs.log 2>&1 &
 }
