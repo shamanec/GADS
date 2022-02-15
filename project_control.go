@@ -52,12 +52,12 @@ type IOSDevice struct {
 }
 
 type AndroidDevice struct {
-	AppiumPort         int    `json:"appium_port"`
-	DeviceName         string `json:"device_name"`
-	DeviceOSVersion    string `json:"device_os_version"`
-	DeviceUDID         string `json:"device_udid"`
-	DeviceViewportSize string `json:"viewport_size"`
-	StreamPort         string `json:"stream_port"`
+	AppiumPort      int    `json:"appium_port"`
+	DeviceName      string `json:"device_name"`
+	DeviceOSVersion string `json:"device_os_version"`
+	DeviceUDID      string `json:"device_udid"`
+	StreamSize      string `json:"stream_size"`
+	StreamPort      string `json:"stream_port"`
 }
 
 //=======================//
@@ -445,6 +445,34 @@ func getIOSDeviceWdaURLs(device_udid string) (string, string) {
 	return url.Str, stream_url.Str
 }
 
+// Get the WDA and WDA stream urls from the container logs folder for a specific device
+func getAndroidDeviceMinicapStreamSize(device_udid string) (string, error) {
+	// Get the path of the WDA url file using regex
+	pattern := "./logs/*" + device_udid + "/minicap.log"
+	matches, err := filepath.Glob(pattern)
+
+	command_string := "cat " + matches[0] + " | grep \"+ args='-P\""
+	cmd := exec.Command("bash", "-c", command_string)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	err = cmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	if out.String() == "" {
+		log.WithFields(log.Fields{
+			"event": "get_minicap_stream_size",
+		}).Error("Error")
+		return "", nil
+	}
+
+	// Get the stream size that is between the -P and @ in the cmd out string
+	stream_size := GetStringInBetween(out.String(), "-P ", "@")
+	return stream_size, nil
+}
+
 // Get the configuration info for iOS device from ./configs/config.json
 func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	jsonFile, err := os.Open("./configs/config.json")
@@ -524,15 +552,15 @@ func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
 	}
 	device_name := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_name`)
 	device_os_version := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
-	viewport_size := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").screen_size`)
 	stream_port := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").stream_port`)
+	stream_size, err := getAndroidDeviceMinicapStreamSize(device_udid)
 	return &AndroidDevice{
-			AppiumPort:         int(appium_port.Num),
-			DeviceName:         device_name.Str,
-			DeviceOSVersion:    device_os_version.Str,
-			DeviceUDID:         device_udid,
-			DeviceViewportSize: viewport_size.Str,
-			StreamPort:         stream_port.Raw},
+			AppiumPort:      int(appium_port.Num),
+			DeviceName:      device_name.Str,
+			DeviceOSVersion: device_os_version.Str,
+			DeviceUDID:      device_udid,
+			StreamSize:      stream_size,
+			StreamPort:      stream_port.Raw},
 		nil
 }
 

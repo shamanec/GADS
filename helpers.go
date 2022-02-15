@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -330,4 +331,17 @@ func PrettifyJSON(data string) string {
 	var prettyJSON bytes.Buffer
 	json.Indent(&prettyJSON, []byte(data), "", "  ")
 	return prettyJSON.String()
+}
+
+func GetStringInBetween(str string, start string, end string) (result string) {
+	s := strings.Index(str, start)
+	if s == -1 {
+		return
+	}
+	s += len(start)
+	e := strings.Index(str[s:], end)
+	if e == -1 {
+		return
+	}
+	return str[s : s+e]
 }

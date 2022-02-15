@@ -44,16 +44,14 @@
       "device_udid": "WCR7N18B14002300",
       "device_name": "Huawei_P20_Pro",
       "stream_port": 20201,
-      "device_os_version": "10",
-      "screen_size": "1080x2240"
+      "device_os_version": "10"
     },
     {
       "appium_port": 4882,
       "device_udid": "MUN0218928000401",
       "device_name": "Huawei_Bejbe",
       "stream_port": 20202,
-      "device_os_version": "10",
-      "screen_size": "320x665"
+      "device_os_version": "10"
     }
   ],
   "ios_models_sizes": [
