@@ -26,6 +26,7 @@ touch /opt/logs/minicap.log
 touch /opt/logs/appium-logs.log
 cd /root/minicap/ && ./run.sh autosize >> /opt/minicap.log 2>&1 &
 docker-cli stream-minicap --port=$STREAM_PORT >> /opt/minicap.log 2>&1 &
+docker-cli add-minicap-stream-size >> /opt/minicap.log 2>&1 &
 while true; do
   check-appium-status
   sleep 10
