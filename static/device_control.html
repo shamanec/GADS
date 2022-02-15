@@ -492,7 +492,7 @@
                 table_element.append('<tr><th>Device Name:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_name + '</td></tr>')
                 table_element.append('<tr><th>Device OS version:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_os_version + '</td></tr>')
                 table_element.append('<tr><th>Device UDID:</th><td>' + response["ios-devices-info"][i].deviceConfig.device_udid + '</td></tr>')
-                table_element.append('<tr><th>Appium Port:</th><td>' + response["ios-devices-info"][i].deviceConfig.appium_port + '</td></tr>')
+                table_element.append('<tr><th>Appium Port:</th><td id="appium-port">' + response["ios-devices-info"][i].deviceConfig.appium_port + '</td></tr>')
                 table_element.append('<tr><th>WDA Port:</th><td>' + response["ios-devices-info"][i].deviceConfig.wda_port + '</td></tr>')
                 table_element.append('<tr><th>WDA Mjpeg Port:</th><td>' + response["ios-devices-info"][i].deviceConfig.wda_mjpeg_port + '</td></tr>')
                 table_element.append('<tr><th>WDA URL:</th><td id="wda-url">' + response["ios-devices-info"][i].deviceConfig.wda_url + '</td></tr>')
@@ -559,6 +559,8 @@
         } else {
             // else if the height of the device is more than the max height of the stream element
             // get the actual device screen ratio
+            // get android navigation bar size from http://127.0.0.1:4881/wd/hub/session/b06a2da9-e342-4b81-871d-1b00b391ba57/appium/device/system_bars
+            //let device_ratio = dimensions[0] / (parseInt(dimensions[1], 10) + 122)
             let device_ratio = dimensions[0] / dimensions[1]
 
             // Set the stream height to the max height
@@ -701,7 +703,6 @@
 
     function checkAppiumSession() {
         let appium_port = $("#appium-port").text()
-        console.log("APPIUM PORT IS:" + appium_port)
         let appium_session_id = $("#appium-session-id")
         // if there is no session id from the /status endpoint create a new session
         // else just update the session id in the table with the existing session
@@ -946,8 +947,7 @@
 
     // search for elements by locator strategy
     function createElementsDropdown() {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
+        let session_id;
         let query_type = $('#element-query-type option:selected').val();
         let query_string = $("#element-query").val()
         let found_elements = $('#found-elements-dropdown');
@@ -965,12 +965,24 @@
         // show loading while searching
         $('#loading').css("visibility", "visible");
 
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        if (selected_device_text.includes("android")) {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/elements"
+        } else {
+            let wda_url = $("#wda-url").text()
+            session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + session_id + "/elements"
+        }
+
         // call the /elements endpoint with the query
         $.ajax({
             async: true,
             type: "POST",
             data: json,
-            url: wda_url + "/session/" + wda_session_id + "/elements",
+            contentType: 'application/json',
+            url: url,
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
                 if (data.value.length == 0) {
@@ -1034,11 +1046,13 @@
         tapStartAt = (new Date()).getTime()
         // get the initial coordinates of clicking the canvas
         coord1 = getCursorCoordinates(canvas, event)
+        console.log("MOUSE DOWN COORDINATES:" + coord1[0] + "-" + coord1[1])
     })
 
     canvas.addEventListener('mouseup', () => {
         // get the coordinates on finishing the click on the canvas
         coord2 = getCursorCoordinates(canvas, event)
+        console.log("MOUSE DOWN COORDINATES:" + coord2[0] + "-" + coord2[1])
         // get the time of finishing the click on the canvas
         var tapEndAt = (new Date()).getTime()
 
@@ -1069,8 +1083,7 @@
 
     // draw rectangle on the canvas for element found by search for element
     function drawRectangle() {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
+        let session_id;
         let element_id = $("#found-elements-dropdown").val();
 
         // clear the canvas before drawing a new object
@@ -1096,11 +1109,24 @@
         let elementWidth;
         let elementHeight;
 
+        // Get the selected container device name to check if android or iOS
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        var url;
+
+        if (selected_device_text.includes("android")) {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/element/" + element_id + "/rect"
+        } else {
+            let wda_url = $("#wda-url").text()
+            session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + session_id + "/element/" + element_id + "/rect"
+        }
         // get the coordinates of the selected element by the element ID generated by Appium
         $.ajax({
             async: false,
             type: "GET",
-            url: wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/rect",
+            url: url,
             success: function (data) {
                 elementX = data.value.x
                 elementY = data.value.y
@@ -1189,8 +1215,7 @@
     }
 
     function performSwipe(coord1, coord2) {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
+        let selected_device_text = $("#device-dropdown option:selected").text()
 
         var firstCoordX = coord1[0]
         var firstCoordY = coord1[1]
@@ -1236,13 +1261,25 @@
         // this is to prevent fast tapping that will not be handled properly
         showCanvasLoader()
 
+        let session_id;
+        if (selected_device_text.includes("android")) {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+        } else {
+            let wda_url = $("#wda-url").text()
+            session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + session_id + "/actions"
+        }
+
         // call the /actions endpoint sending the tapp coordinates
         // on response remove the canvas loader
         $.ajax({
             async: false,
             type: "POST",
+            contentType: 'application/json',
             data: jsonData,
-            url: wda_url + "/session/" + wda_session_id + "/actions",
+            url: url,
             success: function () {
                 hideCanvasLoader()
             },
@@ -1264,8 +1301,7 @@
 
     // tap with WDA using coordinates
     function tapCoordinates(pos) {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
+        let selected_device_text = $("#device-dropdown option:selected").text()
 
         // get stream size and ratio
         let stream_height = $("#actions-canvas").height()
@@ -1325,13 +1361,25 @@
         // this is to prevent fast tapping that will not be handled properly
         showCanvasLoader()
 
+        let session_id;
+        if (selected_device_text.includes("android")) {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+        } else {
+            let wda_url = $("#wda-url").text()
+            session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + session_id + "/actions"
+        }
+
         // call the /actions endpoint sending the tapp coordinates
         // on response remove the canvas loader
         $.ajax({
             async: false,
             type: "POST",
+            contentType: 'application/json',
             data: jsonData,
-            url: wda_url + "/session/" + wda_session_id + "/actions",
+            url: url,
             success: function () {
                 hideCanvasLoader()
             },
