@@ -1306,6 +1306,25 @@
         var secondCoordX = coord2[0]
         var secondCoordY = coord2[1]
 
+        // get stream size and ratio
+        let stream_height = $("#actions-canvas").height()
+        let stream_width = $("#actions-canvas").width()
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // if the stream height 
+        if (stream_height != deviceHeight) {
+            firstCoordX = (firstCoordX / stream_width) * deviceWidth
+            firstCoordY = (firstCoordY / stream_height) * deviceHeight
+            secondCoordX = (secondCoordX / stream_width) * deviceWidth
+            secondCoordY = (secondCoordY / stream_height) * deviceHeight
+        }
+
         let jsonData = JSON.stringify({
             "actions": [
                 {
