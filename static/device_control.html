@@ -249,46 +249,6 @@
                             <th style="width: 30%;">Attribute</th>
                             <td>Value</td>
                         </tr>
-                        <tr>
-                            <th>type</th>
-                            <td id="element-type"></td>
-                        </tr>
-                        <tr>
-                            <th>name</th>
-                            <td id="element-name"></td>
-                        </tr>
-                        <tr>
-                            <th>label</th>
-                            <td id="element-label"></td>
-                        </tr>
-                        <tr>
-                            <th>visible</th>
-                            <td id="element-visible"></td>
-                        </tr>
-                        <tr>
-                            <th>enabled</th>
-                            <td id="element-enabled"></td>
-                        </tr>
-                        <tr>
-                            <th>value</th>
-                            <td id="element-value"></td>
-                        </tr>
-                        <tr>
-                            <th>x</th>
-                            <td id="element-x"></td>
-                        </tr>
-                        <tr>
-                            <th>y</th>
-                            <td id="element-y"></td>
-                        </tr>
-                        <tr>
-                            <th>width</th>
-                            <td id="element-width"></td>
-                        </tr>
-                        <tr>
-                            <th>height</th>
-                            <td id="element-height"></td>
-                        </tr>
                     </table>
                 </div>
             </div>
@@ -305,6 +265,43 @@
     window.addEventListener("DOMContentLoaded", function () {
         getDeviceControlInfo();
     });
+
+    function createElementInfoTable() {
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        let table_element = $("#element-info-table")
+
+        if (selected_device_text.includes("ios")) {
+            table_element.empty()
+            table_element.append('<tr><th>type</th><td id="element-type"></td></tr>')
+            table_element.append('<tr><th>name</th><td id="element-name"></td></tr>')
+            table_element.append('<tr><th>label</th><td id="element-label"></td></tr>')
+            table_element.append('<tr><th>visible</th><td id="element-visible"></td></tr>')
+            table_element.append('<tr><th>enabled</th><td id="element-enabled"></td></tr>')
+            table_element.append('<tr><th>value</th><td id="element-value"></td></tr>')
+            table_element.append('<tr><th>x</th><td id="element-x"></td></tr>')
+            table_element.append('<tr><th>y</th><td id="element-y"></td></tr>')
+            table_element.append('<tr><th>width</th><td id="element-width"></td></tr>')
+            table_element.append('<tr><th>height</th><td id="element-height"></td></tr>')
+        } else {
+            table_element.empty()
+            table_element.append('<tr><th>index</th><td id="element-index"></td></tr>')
+            table_element.append('<tr><th>package</th><td id="element-package"></td></tr>')
+            table_element.append('<tr><th>class</th><td id="element-class"></td></tr>')
+            table_element.append('<tr><th>text</th><td id="element-text"></td></tr>')
+            table_element.append('<tr><th>checkable</th><td id="element-checkable"></td></tr>')
+            table_element.append('<tr><th>checked</th><td id="element-checked"></td></tr>')
+            table_element.append('<tr><th>clickable</th><td id="element-clickable"></td></tr>')
+            table_element.append('<tr><th>enabled</th><td id="element-enabled"></td></tr>')
+            table_element.append('<tr><th>focusable</th><td id="element-focusable"></td></tr>')
+            table_element.append('<tr><th>focused</th><td id="element-focused"></td></tr>')
+            table_element.append('<tr><th>long-clickable</th><td id="element-long-clickable"></td></tr>')
+            table_element.append('<tr><th>password</th><td id="element-password"></td></tr>')
+            table_element.append('<tr><th>scrollable</th><td id="element-scrollable"></td></tr>')
+            table_element.append('<tr><th>selected</th><td id="element-selected"></td></tr>')
+            table_element.append('<tr><th>bounds</th><td id="element-bounds"></td></tr>')
+            table_element.append('<tr><th>displayed</th><td id="element-displayed"></td></tr>')
+        }
+    }
 
     document.getElementById("home-button").addEventListener('click', () => {
         let selected_device_text = $("#device-dropdown option:selected").text()
@@ -501,6 +498,7 @@
     }
 
     async function updateDeviceInfo() {
+        createElementInfoTable();
         const control_response = await fetch("/devices/device-control").then(response => {
             if (response.ok) {
                 return response.json()
@@ -562,6 +560,110 @@
         } else {
             alert("Device control response is not okay")
         }
+    }
+
+    async function checkAppiumSession() {
+        let appium_port = $("#appium-port").text()
+        let appium_session_id = $("#appium-session-id")
+        let json = ""
+
+        // build the json to create a session
+        json = JSON.stringify({
+            "capabilities": {
+                "alwaysMatch": {
+                    "appium:automationName": "UiAutomator2",
+                    "platformName": "Android",
+                    "appium:ensureWebviewsHavePages": true,
+                    "appium:nativeWebScreenshot": true,
+                    "appium:newCommandTimeout": 0,
+                    "appium:connectHardwareKeyboard": true
+                },
+                "firstMatch": [
+                    {}
+                ]
+            },
+            "desiredCapabilities": {
+                "appium:automationName": "UiAutomator2",
+                "platformName": "Android",
+                "appium:ensureWebviewsHavePages": true,
+                "appium:nativeWebScreenshot": true,
+                "appium:newCommandTimeout": 0,
+                "appium:connectHardwareKeyboard": true
+            }
+        })
+
+        // show a loading while creating session
+        //$('#loading').css("visibility", "visible");
+
+        let sessions_url = "http://127.0.0.1:" + appium_port + "/wd/hub/sessions"
+        let session_url = "http://127.0.0.1:" + appium_port + "/wd/hub/session"
+        const sessions_response = await fetch(sessions_url).then(response => {
+            return response.json()
+        })
+            .catch(function (error) {
+                alert("Could not get Appium sessions" + error)
+            })
+
+        if (sessions_response.value.length === 0) {
+            const session_response = await fetch(session_url, {
+                method: 'POST',
+                body: json,
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            })
+                .catch(function (error) {
+                    alert("Could not create Appium session" + error)
+                })
+            appium_session_id.text(session_response.value.sessionId)
+        } else if (sessions_response.value[0].id === null) {
+            const session_response = await fetch(session_url, {
+                method: 'POST',
+                body: json,
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            })
+                .catch(function (error) {
+                    alert("Could not create Appium session" + error)
+                })
+            appium_session_id.text(session_response.value.sessionId)
+        } else {
+            appium_session_id.text(sessions_response.value[0].id)
+        }
+
+        let window_size_url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + appium_session_id.text() + "/window/current/size"
+        await fetch(window_size_url, {
+            method: 'GET',
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then(response => {
+                return response.json()
+            })
+            .then(json => {
+                let table_element = $("#device-info-table")
+                table_element.append('<tr><th>Appium screen size: </th><td id="appium-screen-size">' + json.value.width + "x" + json.value.height + '</td></tr>')
+            })
+    }
+
+    function setAndroidAppiumWindowSize() {
+        var url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/window/current/size"
+        let table_element = $("#device-info-table")
+        fetch(url, {
+            method: 'POST'
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json()
+                } else {
+                    return null
+                }
+            })
+            .then(json => {
+                table_element.append('<tr><th>Appium screen size: </th><td id="appium-screen-size">' + json.value.width + "x" + json.value.height + '</td></tr>')
+            })
     }
 
     function updateIOSDeviceConfigTable(response) {
@@ -786,29 +888,6 @@
         });
     }
 
-    function checkAppiumSession() {
-        let appium_port = $("#appium-port").text()
-        let appium_session_id = $("#appium-session-id")
-        // if there is no session id from the /status endpoint create a new session
-        // else just update the session id in the table with the existing session
-        $.ajax({
-            type: "GET",
-            url: "http://127.0.0.1:" + appium_port + "/wd/hub/sessions",
-            success: function (data) {
-                if (data.value.length === 0) {
-                    createAppiumSession()
-                } else if (data.value[0].id === null) {
-                    createAppiumSession()
-                } else {
-                    appium_session_id.text(data.value[0].id)
-                }
-            },
-            error: function (data) {
-                console.log("could not get session")
-            }
-        });
-    }
-
     // create a wda session to the iOS device if no session exists
     function createWDASession() {
         let wda_url = $("#wda-url").text()
@@ -853,58 +932,6 @@
             error: function (data) {
                 $('#loading').css("visibility", "hidden");
                 alert("Could not start session for bundleID:" + bundle_id)
-            }
-        });
-    }
-
-    // create a Appium session to the Android device if no session exists
-    function createAppiumSession() {
-        let appium_port = $("#appium-port").text()
-        let appium_session_id = $("#appium-session-id")
-        let json = ""
-
-        // build the json to create a session
-        json = JSON.stringify({
-            "capabilities": {
-                "alwaysMatch": {
-                    "appium:automationName": "UiAutomator2",
-                    "platformName": "Android",
-                    "appium:ensureWebviewsHavePages": true,
-                    "appium:nativeWebScreenshot": true,
-                    "appium:newCommandTimeout": 0,
-                    "appium:connectHardwareKeyboard": true
-                },
-                "firstMatch": [
-                    {}
-                ]
-            },
-            "desiredCapabilities": {
-                "appium:automationName": "UiAutomator2",
-                "platformName": "Android",
-                "appium:ensureWebviewsHavePages": true,
-                "appium:nativeWebScreenshot": true,
-                "appium:newCommandTimeout": 0,
-                "appium:connectHardwareKeyboard": true
-            }
-        })
-
-        // show a loading while creating session
-        $('#loading').css("visibility", "visible");
-
-        // create the new session
-        // on success update the wda session id in the table
-        $.ajax({
-            contentType: 'application/json',
-            type: "POST",
-            url: "http://127.0.0.1:" + appium_port + "/wd/hub/session",
-            data: json,
-            success: function (data) {
-                $('#loading').css("visibility", "hidden");
-                appium_session_id.text(data.value.sessionId)
-            },
-            error: function (data) {
-                $('#loading').css("visibility", "hidden");
-                alert("Could not start session")
             }
         });
     }
@@ -1066,7 +1093,7 @@
             `'enabled':'` + enabled + `',` +
             `'focusable':'` + focusable + `',` +
             `'focused':'` + focused + `',` +
-            `'long-clickable':'` + long_clickable + `',` +
+            `'longclickable':'` + long_clickable + `',` +
             `'password':'` + password + `',` +
             `'scrollable':'` + scrollable + `',` +
             `'selected':'` + selected + `',` +
@@ -1088,7 +1115,7 @@
         }
         for (var i = 0; i < node.childNodes.length; i++) {
             // for each child of the main node generate deeper json objects
-            jsonForChildNodes += iOSGenerateJSONForTreeFromXML(node.childNodes[i]);
+            jsonForChildNodes += androidGenerateJSONForTreeFromXML(node.childNodes[i]);
         }
         if (jsonForChildNodes) {
             // close the children array
@@ -1106,17 +1133,40 @@
 
     // Present the element info table with all the values
     function showElementInfo(json) {
-        $("#element-info-table").css("visibility", "visible")
-        $("#element-type").text(json.type)
-        $("#element-name").text(json.name)
-        $("#element-label").text(json.label)
-        $("#element-value").text(json.value)
-        $("#element-enabled").text(json.enabled)
-        $("#element-visible").text(json.visible)
-        $("#element-x").text(json.x)
-        $("#element-y").text(json.y)
-        $("#element-width").text(json.width)
-        $("#element-height").text(json.height)
+        let selected_device_text = $("#device-dropdown option:selected").text()
+
+        if (selected_device_text.includes("ios")) {
+            $("#element-info-table").css("visibility", "visible")
+            $("#element-type").text(json.type)
+            $("#element-name").text(json.name)
+            $("#element-label").text(json.label)
+            $("#element-value").text(json.value)
+            $("#element-enabled").text(json.enabled)
+            $("#element-visible").text(json.visible)
+            $("#element-x").text(json.x)
+            $("#element-y").text(json.y)
+            $("#element-width").text(json.width)
+            $("#element-height").text(json.height)
+        } else {
+            $("#element-info-table").css("visibility", "visible")
+            $("#element-index").text(json.index)
+            $("#element-package").text(json.package)
+            $("#element-class").text(json.class)
+            $("#element-text").text(json.text)
+            $("#element-checkable").text(json.checkable)
+            $("#element-checked").text(json.checked)
+            $("#element-clickable").text(json.clickable)
+            $("#element-enabled").text(json.enabled)
+            $("#element-focusable").text(json.focusable)
+            $("#element-focused").text(json.focused)
+            $("#element-long-clickable").text(json.longclickable)
+            $("#element-password").text(json.password)
+            $("#element-scrollable").text(json.scrollable)
+            $("#element-selected").text(json.selected)
+            $("#element-bounds").text(json.bounds)
+            $("#element-displayed").text(json.displayed)
+        }
+
     }
 
     // search for elements by locator strategy
@@ -1356,19 +1406,49 @@
         let device_height = parseInt(dimensions[1], 10)
         let device_width = parseInt(dimensions[0], 10)
 
-        // get the selected element coordinates and width/height from the json
-        let elementX = json.x;
-        let elementY = json.y;
-        let elementWidth = json.width;
-        let elementHeight = json.height;
+        let elementX;
+        let elementY;
+        let elementWidth;
+        let elementHeight;
+
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        if (selected_device_text.includes("ios")) {
+            // get the selected element coordinates and width/height from the json
+            elementX = json.x;
+            elementY = json.y;
+            elementWidth = json.width;
+            elementHeight = json.height;
+        } else {
+            // Get the bounds which are two separate arrays next to each other
+            let element_bounds = json.bounds
+            // Change the initial bounds string into two values separated by :
+            let element_bounds_no_brackets = element_bounds.replaceAll("][", ":").replaceAll("[", "").replaceAll("]", "")
+            // Split the separated values into two different arrays
+            let bounds_array = element_bounds_no_brackets.split(":")
+            // Get the start coordinates from the first bounds array index into their own array
+            let start_coordinates = bounds_array[0].split(",")
+            // Get the end coordinates from the second bounds array index into their own array
+            let end_coordinates = bounds_array[1].split(",")
+            // Set the element actual coordinates based on the final arrays
+            elementX = start_coordinates[0]
+            elementY = start_coordinates[1]
+            elementWidth = end_coordinates[0]
+            elementHeight = end_coordinates[1]
+
+            let appium_screen_size = $("#appium-screen-size").text()
+            let appium_screen_size_dimensions = deviceSize.split('x');
+            let appium_height = parseInt(appium_screen_size_dimensions[1], 10)
+
+            device_height = appium_height
+        }
 
         // If the stream height is different than the device screen height
         // Recalculate the element coordinates and width/height
         if (stream_height != device_height) {
-            elementX = (json.x / device_width) * stream_width
-            elementY = (json.y / device_height) * stream_height
-            elementWidth = (json.width / device_width) * stream_width
-            elementHeight = (json.height / device_height) * stream_height
+            elementX = (elementX / device_width) * stream_width
+            elementY = (elementY / device_height) * stream_height
+            elementWidth = (elementWidth / device_width) * stream_width
+            elementHeight = (elementHeight / device_height) * stream_height
 
             // draw the rectangle on the canvas using the recalculated element values
             context.fillRect(
