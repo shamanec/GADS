@@ -552,6 +552,7 @@
                         checkAppiumSession()
                         $('#stream-div').css("visibility", "visible")
                         $('#actions-div').css("visibility", "visible")
+                        $('#source-div').css("visibility", "visible")
                         $('.device-button').css("visibility", "visible")
                     }
                 }
@@ -910,8 +911,21 @@
 
     //
     function getAppSource() {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        var url;
+        var wda_url;
+        var wda_session_id;
+
+        if (selected_device_text.includes("android")) {
+            url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/source"
+        } else if (selected_device_text.includes("ios")) {
+            wda_url = $("#wda-url").text()
+            wda_session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + wda_session_id + "/source"
+        } else {
+            return
+        }
+
         let app_source = $("#app-source")
         parser = new DOMParser();
 
@@ -920,7 +934,7 @@
         $.ajax({
             async: true,
             type: "GET",
-            url: wda_url + "/session/" + wda_session_id + "/source",
+            url: url,
             success: function (data) {
                 $('#loading').css("visibility", "hidden");
 
@@ -928,7 +942,11 @@
                 xmlDoc = parser.parseFromString(data.value, "text/xml");
 
                 // parse the xml response into a json format accepted by jstree
-                var jstree_json = generateJSONForTreeFromXML(xmlDoc.documentElement)
+                if (selected_device_text.includes("android")) {
+                    var jstree_json = androidGenerateJSONForTreeFromXML(xmlDoc.documentElement)
+                } else {
+                    var jstree_json = iOSGenerateJSONForTreeFromXML(xmlDoc.documentElement)
+                }
 
                 // If the tree already exists and has children - reload it with the new data
                 // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
@@ -954,8 +972,8 @@
         });
     }
 
-    // read the Appium xml and transform it into a json accepted by fancytree
-    function generateJSONForTreeFromXML(node) {
+    // read the Appium xml for an iOS device and transform it into a json accepted by fancytree
+    function iOSGenerateJSONForTreeFromXML(node) {
         if (node.nodeType != 1) return "";
 
         // Get all the data from the xml doc returned by Appium
@@ -998,7 +1016,79 @@
         }
         for (var i = 0; i < node.childNodes.length; i++) {
             // for each child of the main node generate deeper json objects
-            jsonForChildNodes += generateJSONForTreeFromXML(node.childNodes[i]);
+            jsonForChildNodes += iOSGenerateJSONForTreeFromXML(node.childNodes[i]);
+        }
+        if (jsonForChildNodes) {
+            // close the children array
+            mainJson += jsonForChildNodes + `]`
+        }
+        // close the json object
+        mainJson += `}`
+
+        // cus I am a bad developer I couldn't think of the proper way to 
+        // build the json with all needed commas so I invented this solution
+        // to add the missing commas to make the json valid xD
+        mainJson = mainJson.replaceAll("}{", "},{")
+        return mainJson;
+    }
+
+    // read the Appium xml for an Android device and transform it into a json accepted by fancytree
+    function androidGenerateJSONForTreeFromXML(node) {
+        if (node.nodeType != 1) return "";
+
+        // Get all the data from the xml doc returned by Appium
+        var index = node.getAttribute('index')
+        var package = node.getAttribute('package')
+        var element_class = node.getAttribute('class')
+        var text = node.getAttribute('text')
+        var checkable = node.getAttribute('checkable')
+        var checked = node.getAttribute('checked')
+        var clickable = node.getAttribute('clickable')
+        var enabled = node.getAttribute('enabled')
+        var focusable = node.getAttribute('focusable')
+        var focused = node.getAttribute('focused')
+        var long_clickable = node.getAttribute('long-clickable')
+        var password = node.getAttribute('password')
+        var scrollable = node.getAttribute('scrollable')
+        var selected = node.getAttribute('false')
+        var bounds = node.getAttribute('bounds')
+        var displayed = node.getAttribute('displayed')
+
+        // this is not a valid json but this is the only way I could find to embed it inside another json (bad developer)
+        // it is reworked later into valid json that can be parsed
+        value_json = `{'index':'` + index + `',` +
+            `'package':'` + package + `',` +
+            `'class':'` + element_class + `',` +
+            `'text':'` + text + `',` +
+            `'checkable':'` + checkable + `',` +
+            `'checked':'` + checked + `',` +
+            `'clickable':'` + clickable + `',` +
+            `'enabled':'` + enabled + `',` +
+            `'focusable':'` + focusable + `',` +
+            `'focused':'` + focused + `',` +
+            `'long-clickable':'` + long_clickable + `',` +
+            `'password':'` + password + `',` +
+            `'scrollable':'` + scrollable + `',` +
+            `'selected':'` + selected + `',` +
+            `'bounds':'` + bounds + `',` +
+            `'displayed':'` + displayed + `'}`
+
+        // for each node open with an object
+        // the key is the "json" (quotes intended) that will we will read later upon clicking a node in the tree
+        // no icons since its not a folder/file structure
+        // no lazy loading - the whole tree is loaded
+        // no default active nodes in the tree
+        // title is the element type
+        var mainJson = `{"key":"` + value_json + `", "icon": false, "lazy": false, "active": false,"title":"` + node.nodeName + `"`
+        var jsonForChildNodes = "";
+
+        // if the node has children open the children array
+        if (node.childNodes.length > 0) {
+            mainJson += `, "children":[`
+        }
+        for (var i = 0; i < node.childNodes.length; i++) {
+            // for each child of the main node generate deeper json objects
+            jsonForChildNodes += iOSGenerateJSONForTreeFromXML(node.childNodes[i]);
         }
         if (jsonForChildNodes) {
             // close the children array
