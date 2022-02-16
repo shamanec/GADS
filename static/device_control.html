@@ -26,7 +26,7 @@
     #source-div,
     #stream-div,
     #element-div,
-    #ios-device-buttons {
+    #device-buttons {
         display: inline-block;
         *display: inline;
         zoom: 1;
@@ -119,7 +119,7 @@
         font-size: 18px;
     }
 
-    .ios-btn {
+    .device-button {
         background-color: DodgerBlue;
         border: none;
         color: white;
@@ -134,11 +134,11 @@
     }
 
     /* Darker background on mouse-over */
-    .ios-btn:hover {
+    .device-button:hover {
         background-color: RoyalBlue;
     }
 
-    #ios-device-buttons {
+    #device-buttons {
         padding-top: 20px;
     }
 
@@ -188,13 +188,13 @@
             <canvas id="actions-canvas" style="position: absolute;"></canvas>
             <img id="image-stream"></img>
         </div>
-        <div id="ios-device-buttons" style="margin-left:5px;width:55px;text-align: center;">
-            <button class="ios-btn" id="ios-home-button" title="Go to springboard"><i class="fa fa-home"></i></button>
-            <button class="ios-btn" id="ios-unlock-button" title="Unlock device"><i class="fa fa-unlock"></i></button>
-            <button class="ios-btn" id="ios-lock-button" title="Lock device"><i class="fa fa-lock"></i></button>
-            <button class="ios-btn" id="ios-type-button" title="Type text in active element"><i
+        <div id="device-buttons" style="margin-left:5px;width:55px;text-align: center;">
+            <button class="device-button" id="home-button" title="Go to home screen"><i class="fa fa-home"></i></button>
+            <button class="device-button" id="unlock-button" title="Unlock device"><i class="fa fa-unlock"></i></button>
+            <button class="device-button" id="lock-button" title="Lock device"><i class="fa fa-lock"></i></button>
+            <button class="device-button" id="type-button" title="Type text in active element"><i
                     class="fa fa-pencil"></i></button>
-            <button class="ios-btn" id="ios-clear-text-button" title="Clear text in active element"><i
+            <button class="device-button" id="clear-text-button" title="Clear text in active element"><i
                     class="fa fa-eraser"></i></button>
         </div>
         <div id="actions-div" style="border: 1px solid #000;padding: 10px;">
@@ -306,11 +306,30 @@
         getDeviceControlInfo();
     });
 
-    document.getElementById("ios-home-button").addEventListener('click', () => {
-        let wda_url = $("#wda-url").text()
+    document.getElementById("home-button").addEventListener('click', () => {
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        var url;
+        var json = "{}"
+
+        // if the device is android use press_keycode endpoint and send keycode 3 which is for the Home button
+        // if device is iOS send empty json
+        if (selected_device_text.includes("android")) {
+            url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/press_keycode"
+            json = JSON.stringify({ "keycode": 3 })
+        } else if (selected_device_text.includes("ios")) {
+            let wda_url = $("#wda-url").text()
+            url = wda_url + "/wda/homescreen"
+        } else {
+            return
+        }
+
         showCanvasLoader()
-        fetch(wda_url + "/wda/homescreen", {
-            method: 'POST'
+        fetch(url, {
+            method: 'POST',
+            body: json,
+            headers: {
+                'Content-type': 'application/json'
+            }
         })
             .then(() => {
                 hideCanvasLoader()
@@ -321,18 +340,40 @@
             })
     })
 
-    document.getElementById("ios-unlock-button").addEventListener('click', () => {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
-        fetch(wda_url + "/session/" + wda_session_id + "/wda/unlock", {
+    document.getElementById("unlock-button").addEventListener('click', () => {
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        var url;
+
+        if (selected_device_text.includes("android")) {
+            url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/unlock"
+        } else if (selected_device_text.includes("ios")) {
+            let wda_url = $("#wda-url").text()
+            let wda_session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
+        } else {
+            return
+        }
+
+        fetch(url, {
             method: 'POST'
         })
     })
 
-    document.getElementById("ios-lock-button").addEventListener('click', () => {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
-        fetch(wda_url + "/session/" + wda_session_id + "/wda/lock", {
+    document.getElementById("lock-button").addEventListener('click', () => {
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        var url;
+
+        if (selected_device_text.includes("android")) {
+            url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/lock"
+        } else if (selected_device_text.includes("ios")) {
+            let wda_url = $("#wda-url").text()
+            let wda_session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + wda_session_id + "/wda/lock"
+        } else {
+            return
+        }
+
+        fetch(url, {
             method: 'POST'
         })
     })
@@ -341,7 +382,7 @@
         typeText()
     })
 
-    document.getElementById("ios-type-button").addEventListener('click', () => {
+    document.getElementById("type-button").addEventListener('click', () => {
         var modal = document.getElementById("type-text-modal")
         modal.style.display = "block"
 
@@ -353,7 +394,7 @@
         }
     })
 
-    document.getElementById("ios-clear-text-button").addEventListener('click', () => {
+    document.getElementById("clear-text-button").addEventListener('click', () => {
         clearText()
     })
 
@@ -372,10 +413,23 @@
     }
 
     async function typeText() {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        var active_element_url;
+        var element_value_url;
+        var wda_url;
+        var wda_session_id;
 
-        const control_response = await fetch(wda_url + "/session/" + wda_session_id + "/element/active").then(response => {
+        if (selected_device_text.includes("android")) {
+            active_element_url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/active"
+        } else if (selected_device_text.includes("ios")) {
+            wda_url = $("#wda-url").text()
+            wda_session_id = $("#wda-session-id").text()
+            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+        } else {
+            return
+        }
+
+        const control_response = await fetch(active_element_url).then(response => {
             if (response.ok) {
                 return response.json()
             } else {
@@ -383,12 +437,21 @@
             }
         })
 
+        var element_id = control_response.value.ELEMENT
+        if (selected_device_text.includes("android")) {
+            element_value_url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/" + element_id + "/value"
+        } else {
+            element_value_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value"
+        }
+
         if (control_response != null) {
-            var element_id = control_response.value.ELEMENT
             if (element_id != "") {
                 var text_input = $("#type-text-input").val();
-                await fetch(wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value", {
+                await fetch(element_value_url, {
                     method: 'POST',
+                    headers: {
+                        'Content-type': 'application/json'
+                    },
                     body: JSON.stringify({ "text": text_input })
                 })
             }
@@ -396,10 +459,23 @@
     }
 
     async function clearText() {
-        let wda_url = $("#wda-url").text()
-        let wda_session_id = $("#wda-session-id").text()
+        let selected_device_text = $("#device-dropdown option:selected").text()
+        var active_element_url;
+        var element_clear_url;
+        var wda_url;
+        var wda_session_id;
 
-        const control_response = await fetch(wda_url + "/session/" + wda_session_id + "/element/active").then(response => {
+        if (selected_device_text.includes("android")) {
+            active_element_url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/active"
+        } else if (selected_device_text.includes("ios")) {
+            wda_url = $("#wda-url").text()
+            wda_session_id = $("#wda-session-id").text()
+            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+        } else {
+            return
+        }
+
+        const control_response = await fetch(active_element_url).then(response => {
             if (response.ok) {
                 return response.json()
             } else {
@@ -407,10 +483,17 @@
             }
         })
 
+        var element_id = control_response.value.ELEMENT
+        if (selected_device_text.includes("android")) {
+            element_clear_url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/" + element_id + "/clear"
+        } else {
+            element_clear_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear"
+        }
+
         if (control_response != null) {
             var element_id = control_response.value.ELEMENT
             if (element_id != "") {
-                await fetch(wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear", {
+                await fetch(element_clear_url, {
                     method: 'POST'
                 })
             }
@@ -451,7 +534,7 @@
                         $('#stream-div').css("visibility", "visible")
                         $('#source-div').css("visibility", "visible")
                         $('#element-div').css("visibility", "visible")
-                        $('.ios-btn').css("visibility", "visible")
+                        $('.device-button').css("visibility", "visible")
                         $('#loading').css("visibility", "hidden");
                     } else {
                         alert("WDA not available, can't load device.")
@@ -469,6 +552,7 @@
                         checkAppiumSession()
                         $('#stream-div').css("visibility", "visible")
                         $('#actions-div').css("visibility", "visible")
+                        $('.device-button').css("visibility", "visible")
                     }
                 }
             } else {
