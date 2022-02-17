@@ -548,8 +548,8 @@
                         changeStream(control_response)
                         updateStreamSize()
                         checkAppiumSession()
-                        $('#stream-div').css("visibility", "visible")
                         $('#actions-div').css("visibility", "visible")
+                        $('#stream-div').css("visibility", "visible")
                         $('#source-div').css("visibility", "visible")
                         $('.device-button').css("visibility", "visible")
                     }
@@ -753,7 +753,7 @@
             // Set the stream height to the max height
             stream_height = maxHeight
             // set the stream width based on the max height and device ratio
-            stream_width = maxHeight * device_ratio
+            stream_width = (maxHeight * device_ratio).toFixed(0)
         }
 
 
@@ -1410,6 +1410,7 @@
         let elementY;
         let elementWidth;
         let elementHeight;
+        let appium_height;
 
         let selected_device_text = $("#device-dropdown option:selected").text()
         if (selected_device_text.includes("ios")) {
@@ -1421,36 +1422,40 @@
         } else {
             // Get the bounds which are two separate arrays next to each other
             let element_bounds = json.bounds
+
             // Change the initial bounds string into two values separated by :
             let element_bounds_no_brackets = element_bounds.replaceAll("][", ":").replaceAll("[", "").replaceAll("]", "")
+
             // Split the separated values into two different arrays
             let bounds_array = element_bounds_no_brackets.split(":")
+
             // Get the start coordinates from the first bounds array index into their own array
             let start_coordinates = bounds_array[0].split(",")
+
             // Get the end coordinates from the second bounds array index into their own array
             let end_coordinates = bounds_array[1].split(",")
+            
             // Set the element actual coordinates based on the final arrays
+            // Element starting X is the first value of the first array
             elementX = start_coordinates[0]
+            // Element starting Y is the second value of the first array
             elementY = start_coordinates[1]
-            elementWidth = end_coordinates[0]
-            elementHeight = end_coordinates[1]
-
-            let appium_screen_size = $("#appium-screen-size").text()
-            let appium_screen_size_dimensions = deviceSize.split('x');
-            let appium_height = parseInt(appium_screen_size_dimensions[1], 10)
-
-            device_height = appium_height
+            // Element width is equal to the ending X coordinate from the second array minus the starting X coordinate from the first array
+            elementWidth = end_coordinates[0] - start_coordinates[0]
+            // Element height is equal to the ending Y coordinate from the second array minus the starting Y coordinate from the first array
+            elementHeight = end_coordinates[1] - start_coordinates[1]
         }
 
         // If the stream height is different than the device screen height
         // Recalculate the element coordinates and width/height
         if (stream_height != device_height) {
+
             elementX = (elementX / device_width) * stream_width
             elementY = (elementY / device_height) * stream_height
             elementWidth = (elementWidth / device_width) * stream_width
             elementHeight = (elementHeight / device_height) * stream_height
 
-            // draw the rectangle on the canvas using the recalculated element values
+            // draw the rectangle on the canvas using the recalculated element coordinate values
             context.fillRect(
                 elementX,
                 elementY,
