@@ -632,39 +632,6 @@
         } else {
             appium_session_id.text(sessions_response.value[0].id)
         }
-
-        let window_size_url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + appium_session_id.text() + "/window/current/size"
-        await fetch(window_size_url, {
-            method: 'GET',
-            headers: {
-                'Content-type': 'application/json'
-            }
-        })
-            .then(response => {
-                return response.json()
-            })
-            .then(json => {
-                let table_element = $("#device-info-table")
-                table_element.append('<tr><th>Appium screen size: </th><td id="appium-screen-size">' + json.value.width + "x" + json.value.height + '</td></tr>')
-            })
-    }
-
-    function setAndroidAppiumWindowSize() {
-        var url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/window/current/size"
-        let table_element = $("#device-info-table")
-        fetch(url, {
-            method: 'POST'
-        })
-            .then(response => {
-                if (response.ok) {
-                    return response.json()
-                } else {
-                    return null
-                }
-            })
-            .then(json => {
-                table_element.append('<tr><th>Appium screen size: </th><td id="appium-screen-size">' + json.value.width + "x" + json.value.height + '</td></tr>')
-            })
     }
 
     function updateIOSDeviceConfigTable(response) {
