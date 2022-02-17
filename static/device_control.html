@@ -285,6 +285,7 @@
         } else {
             table_element.empty()
             table_element.append('<tr><th>index</th><td id="element-index"></td></tr>')
+            table_element.append('<tr><th>resource-id</th><td id="element-resourceid"></td></tr>')
             table_element.append('<tr><th>package</th><td id="element-package"></td></tr>')
             table_element.append('<tr><th>class</th><td id="element-class"></td></tr>')
             table_element.append('<tr><th>text</th><td id="element-text"></td></tr>')
@@ -1080,6 +1081,7 @@
         var selected = node.getAttribute('false')
         var bounds = node.getAttribute('bounds')
         var displayed = node.getAttribute('displayed')
+        var resource_id = node.getAttribute('resource-id')
 
         // this is not a valid json but this is the only way I could find to embed it inside another json (bad developer)
         // it is reworked later into valid json that can be parsed
@@ -1098,6 +1100,7 @@
             `'scrollable':'` + scrollable + `',` +
             `'selected':'` + selected + `',` +
             `'bounds':'` + bounds + `',` +
+            `'resourceid':'` + resource_id + `',` +
             `'displayed':'` + displayed + `'}`
 
         // for each node open with an object
@@ -1150,6 +1153,7 @@
         } else {
             $("#element-info-table").css("visibility", "visible")
             $("#element-index").text(json.index)
+            $("#element-resourceid").text(json.resourceid)
             $("#element-package").text(json.package)
             $("#element-class").text(json.class)
             $("#element-text").text(json.text)
