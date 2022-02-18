@@ -46,4 +46,5 @@ RUN export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \
     npm config set user 0 && npm config set unsafe-perm true && npm install -g appium
 
 COPY configs/android-sync.sh /
+COPY configs/nodeconfiggen-android.sh /opt/nodeconfiggen.sh
 ENTRYPOINT ["/bin/bash","-c","/android-sync.sh"]
