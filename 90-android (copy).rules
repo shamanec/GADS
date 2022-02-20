@@ -1,2 +1,0 @@
-ACTION=="add", SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="WCR7N18B14002300", MODE="0666", SYMLINK+="device-Huawei-WCR7N18B14002300", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/android-containers/WCR7N18B14002300/start\""
-ACTION=="remove", SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="WCR7N18B14002300", MODE="0666", RUN+=\"/usr/bin/wget --post-data='' http://localhost:10000/android-containers/WCR7N18B14002300/remove\""
