@@ -52,6 +52,13 @@
       "device_name": "Huawei_Bejbe",
       "stream_port": 20202,
       "device_os_version": "10"
+    },
+    {
+      "appium_port": 4883,
+      "device_udid": "RQ30041UV0",
+      "device_name": "Sony_Xperia",
+      "stream_port": 20203,
+      "device_os_version": "7"
     }
   ],
   "ios_models_sizes": [
