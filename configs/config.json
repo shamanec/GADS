@@ -1,10 +1,10 @@
 {
-  "devices_host": "172.18.4.28",
-  "selenium_hub_host": "172.18.4.28",
+  "devices_host": "192.168.1.7",
+  "selenium_hub_host": "192.168.1.7",
   "selenium_hub_port": "4444",
   "selenium_hub_protocol_type": "http",
   "wda_bundle_id": "com.shamanec.WebDriverAgentRunner.xctrunner",
-  "devicesList": [
+  "ios-devices-list": [
     {
       "appium_port": 4841,
       "device_name": "iPhone_11",
@@ -36,6 +36,29 @@
       "device_udid": "ccec159ba0219c9fa0d0fc3d85451ab0dcfebd16",
       "wda_mjpeg_port": 20104,
       "wda_port": 20004
+    }
+  ],
+  "android-devices-list": [
+    {
+      "appium_port": 4881,
+      "device_udid": "WCR7N18B14002300",
+      "device_name": "Huawei_P20_Pro",
+      "stream_port": 20201,
+      "device_os_version": "10"
+    },
+    {
+      "appium_port": 4882,
+      "device_udid": "MUN0218928000401",
+      "device_name": "Huawei_Bejbe",
+      "stream_port": 20202,
+      "device_os_version": "10"
+    },
+    {
+      "appium_port": 4883,
+      "device_udid": "RQ30041UV0",
+      "device_name": "Sony_Xperia",
+      "stream_port": 20203,
+      "device_os_version": "7"
     }
   ],
   "ios_models_sizes": [

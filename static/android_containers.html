@@ -6,6 +6,7 @@
 	<title>Android Containers Info</title>
 	<link href="/static/css/ios_containers_styles.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 </head>
 
 <body>
@@ -51,29 +52,28 @@
 		<tr>
 			<td>{{.ContainerID}}</td>
 			<td style="width: 125px;">{{.ImageName}}</td>
-			<td id="container-status-cell" class="container-status-cells" style="width: 120px;">{{.ContainerStatus}}</td>
+			<td id="container-status-cell" class="container-status-cells" style="width: 120px;">{{.ContainerStatus}}
+			</td>
 			<td style="width: 700px;font-size: 15px">
 				<pre>{{.ContainerPorts}}</pre>
 			</td>
 			<td style="width: 350px;">{{.ContainerName}}</td>
 			<td style="width: 125px;">
 				<div>
-					<button class="clsInfoButtons" id="clsInfoButton" onclick="showDeviceInfo(this);"
-						value={{.DeviceUDID}}>Device Info</button>
 					<button class="clsInfoButtons" id="containerLogsButton" onclick="getContainerLogs(this);"
 						value={{.ContainerID}}>Container Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'appium-logs');"
-						value={{.DeviceUDID}}>Appium Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'wda-logs');"
-						value={{.DeviceUDID}}>WebDriverAgent Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'wda-sync');"
-						value={{.DeviceUDID}}>WDA Sync Logs</button>
+					<button class="clsInfoButtons" id="containerLogsButton"
+						onclick="getDeviceLogs(this, 'appium-logs');" value={{.DeviceUDID}}>Appium Logs</button>
+					<button class="clsInfoButtons" id="containerLogsButton"
+						onclick="getDeviceLogs(this, 'minicap');" value={{.DeviceUDID}}>Minicap Logs</button>
 				</div>
 			</td>
 			<td style="text-align:center; width: 125px;">
 				<div>
-					<button class="clsRestartButton" id="restartContainerButton" onclick="restartContainer(this);"
+					<button class="clsActionButtons" id="restartContainerButton" onclick="restartContainer(this);"
 						value={{.ContainerID}}>Restart container</button>
+					<button class="clsActionButtons" id="removeContainerButton" onclick="removeContainer(this);"
+						value={{.ContainerID}}>Remove container</button>
 				</div>
 			</td>
 		</tr>
@@ -81,23 +81,6 @@
 	</table>
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script>
-		/* Presents modal with the devices info parsed from the config.json */
-		function showDeviceInfo(objButton) {
-			/* Get the device UDID that is in the value of the 'Device Info' button */
-			var udidFromButton = objButton.value
-
-			/* Call the endpoint that will get the device info */
-			/* Then present the modal with the returned data */
-			$.ajax({
-				async: false,
-				dataType: "text",
-				type: "GET",
-				url: "/device/" + udidFromButton,
-				success: function (data) {
-					showInfoModal(data);
-				}
-			});
-		}
 
 		/* Restart container when clicking on the 'Restart container' button for the row */
 		function restartContainer(objButton) {
@@ -109,22 +92,58 @@
 
 			/* Call the endpoint that will restart the selected container */
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
-				type: "GET",
-				url: "/restartContainer/" + containerId,
+				type: "POST",
+				url: "/containers/" + containerId + "/restart",
 				success: function (data) {
-					$('.targeted').html(data);
+					$('#loading').css("visibility", "hidden");
+					swal("Restart container", data.message, "info")
+						.then(() => {
+							location.reload();
+						});
+				},
+				error: function (data) {
+					$('#loading').css("visibility", "hidden");
+					swal("Restart container", data.error_message, "error")
+						.then(() => {
+							location.reload();
+						});
 				}
 			});
+		}
 
-			/* Hide the loading after response is returned */
-			$('#loading').css("visibility", "hidden");
+		/* Restart container when clicking on the 'Restart container' button for the row */
+		function removeContainer(objButton) {
+			/* Get the container ID that is in the value of the 'Restart container' button */
+			var containerId = objButton.value
 
-			/* Present an informational alert that the container restart attempt was finished and the ID */
-			alert("Finished restart attempt on container with ID: " + containerId)
+			/* Show loading indicator until response is returned */
+			$('#loading').css("visibility", "visible");
 
-			/* Reload the page to get the latest info */
-			location.reload();
+			/* Call the endpoint that will restart the selected container */
+			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
+				async: false,
+				type: "POST",
+				url: "/containers/" + containerId + "/remove",
+				success: function (data) {
+					$('#loading').css("visibility", "hidden");
+					swal("Remove container", data.message, "info")
+						.then(() => {
+							location.reload();
+						});
+				},
+				error: function (data) {
+					$('#loading').css("visibility", "hidden");
+					swal(data.event, data.error_message, "error")
+						.then(() => {
+							location.reload();
+						});
+				}
+			});
 		}
 
 		/* Show info modal with provided text */
@@ -163,11 +182,13 @@
 			refreshButton.value = url
 			/* Call the endpoint that will get the chosen logs */
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
 				type: "GET",
-				url: "/devic-logs/" + logType + "/" + deviceUDID,
+				url: "/device-logs/" + logType + "/" + deviceUDID,
 				success: function (data) {
-					showInfoModal(data)
+					showInfoModal(data.message)
 				}
 			});
 		}
@@ -175,13 +196,22 @@
 		function getContainerLogs(buttonObj) {
 			/* Get the container ID that is in the value of the button */
 			var containerID = buttonObj.value
+
+			var url = "/containers/" + containerID + "/logs"
+			var refreshButton = document.getElementById("refresh-logs-button")
+			refreshButton.value = url
 			/* Call the endpoint that will get the container logs */
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
 				type: "GET",
 				url: "/containers/" + containerID + "/logs",
 				success: function (data) {
-					showInfoModal(data)
+					showInfoModal(data.message)
+				},
+				error: function (data) {
+					showInfoModal(data.message)
 				}
 			});
 		}
@@ -190,12 +220,14 @@
 			var refreshButton = document.getElementById("refresh-logs-button")
 			var modalBody = document.getElementsByClassName("modal-body")[0]
 			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
 				async: false,
 				type: "GET",
 				url: refreshButton.value,
 				success: function (data) {
 					/* Set the modal text */
-					$('.modal-body').html(data)
+					$('.modal-body').html(data.message)
 
 					/* Scroll to the bottom of the logs on refresh */
 					modalBody.scrollTop = modalBody.scrollHeight;
@@ -208,7 +240,7 @@
 			// Just scan the DOM for the element one time
 			var containerStatusCells = document.getElementsByClassName('container-status-cells');
 
-			$('.container-status-cells').each(function(i) {
+			$('.container-status-cells').each(function (i) {
 				if (this.textContent.indexOf('Up') > -1) {
 					this.style.backgroundColor = "#4CAF50";
 				} else {

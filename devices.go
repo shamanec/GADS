@@ -38,8 +38,8 @@ type IOSDeviceInfo struct {
 }
 
 type AndroidDeviceInfo struct {
-	BundleIDs    []string   `json:"installedAppsBundleIDs"`
-	DeviceConfig *IOSDevice `json:"deviceConfig"`
+	BundleIDs    []string       `json:"installedAppsBundleIDs"`
+	DeviceConfig *AndroidDevice `json:"deviceConfig"`
 }
 
 type iOSAppInstall struct {
@@ -99,7 +99,7 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "register_ios_device", "Could not read the config.json file.", 500)
 	}
 
-	jsonDevicesUDIDs := gjson.Get(string(configJson), "devicesList.#.device_udid")
+	jsonDevicesUDIDs := gjson.Get(string(configJson), "ios-devices-list.#.device_udid")
 
 	//Loop over the devices UDIDs and return message if device is already registered
 	for _, udid := range jsonDevicesUDIDs.Array() {
@@ -120,7 +120,7 @@ func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
 		WdaMjpegPort:    20101 + len(jsonDevicesUDIDs.Array()),
 		WdaPort:         20001 + len(jsonDevicesUDIDs.Array())}
 
-	updatedJSON, _ := sjson.Set(string(configJson), "devicesList.-1", deviceInfo)
+	updatedJSON, _ := sjson.Set(string(configJson), "ios-devices-list.-1", deviceInfo)
 
 	err = ioutil.WriteFile("./configs/config.json", []byte(PrettifyJSON(updatedJSON)), 0644)
 	if err != nil {

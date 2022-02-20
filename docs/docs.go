@@ -326,6 +326,52 @@ var doc = `{
                 }
             }
         },
+        "/device-containers/{device_udid}/create": {
+            "post": {
+                "description": "Creates a container for a connected registered device",
+                "tags": [
+                    "device-containers"
+                ],
+                "summary": "Create container for device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/device-containers/{device_udid}/remove": {
+            "post": {
+                "description": "Removes a running container for a disconnected registered device by device UDID",
+                "tags": [
+                    "device-containers"
+                ],
+                "summary": "Remove container for device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "device_udid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/device-logs/{log_type}/{device_udid}": {
             "get": {
                 "description": "Get logs by type",
@@ -539,29 +585,6 @@ var doc = `{
                 }
             }
         },
-        "/ios_containers/update": {
-            "post": {
-                "description": "Creates (or removes respectively) iOS containers based on the connected and registered devices",
-                "tags": [
-                    "ios-devices"
-                ],
-                "summary": "Update iOS containers",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Device UDID",
-                        "name": "device_udid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": ""
-                    }
-                }
-            }
-        },
         "/project-logs": {
             "get": {
                 "description": "Provides project logs as plain text response",
@@ -638,6 +661,9 @@ var doc = `{
                 "appium_port": {
                     "type": "integer"
                 },
+                "device_model": {
+                    "type": "string"
+                },
                 "device_name": {
                     "type": "string"
                 },
@@ -645,6 +671,9 @@ var doc = `{
                     "type": "string"
                 },
                 "device_udid": {
+                    "type": "string"
+                },
+                "viewport_size": {
                     "type": "string"
                 },
                 "wda_mjpeg_port": {
