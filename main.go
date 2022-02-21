@@ -252,7 +252,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/device-containers/{device_udid}/create", CreateDeviceContainer).Methods("POST")
 
 	// Configuration endpoints
-	myRouter.HandleFunc("/configuration/build-image", BuildDockerImage).Methods("POST")
+	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/setup-ios-listener", SetupUdevListener).Methods("POST")
 	myRouter.HandleFunc("/configuration/remove-ios-listener", RemoveUdevListener).Methods("POST")

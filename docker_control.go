@@ -29,13 +29,15 @@ var on_grid = GetEnvValue("connect_selenium_grid")
 //=======================//
 //=====API FUNCTIONS=====//
 
-// @Summary      Build 'ios-appium' image
-// @Description  Starts building the 'ios-appium' image in a goroutine and just returns Accepted
+// @Summary      Build docker images
+// @Description  Starts building a docker image in a goroutine and just returns Accepted
 // @Tags         configuration
 // @Success      202
-// @Router       /configuration/build-image [post]
+// @Router       /configuration/build-image/{image_type} [post]
 func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
-	go buildDockerImage()
+	vars := mux.Vars(r)
+	image_type := vars["image_type"]
+	go buildDockerImage(image_type)
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -335,16 +337,31 @@ func GetAndroidContainers(w http.ResponseWriter, r *http.Request) {
 //===================//
 //=====FUNCTIONS=====//
 
-func buildDockerImage() {
+func buildDockerImage(image_type string) {
 	log.WithFields(log.Fields{
 		"event": "docker_image_build",
-	}).Info("Started building the 'ios-appium' docker image.")
+	}).Info("Started building the '" + image_type + "' docker image.")
 
-	DeleteFile("./build-context.tar")
+	DeleteFileShell("./build-context.tar", sudo_password)
+
+	var files []string
+	var image_name string
+	var docker_file_name string
 
 	// Create a tar to be used as build-context for the image build
 	// The tar should include all files needed by the Dockerfile to successfully create the image
-	files := []string{"Dockerfile", "configs/nodeconfiggen.sh", "configs/wda-sync.sh", "apps/WebDriverAgent.ipa", "configs/supervision.p12"}
+	if image_type == "ios-appium" {
+		docker_file_name = "Dockerfile-iOS"
+		files = []string{docker_file_name, "configs/nodeconfiggen.sh", "configs/ios-sync.sh", "apps/WebDriverAgent.ipa", "configs/supervision.p12"}
+		image_name = "ios-appium"
+	} else if image_type == "android-appium" {
+		docker_file_name = "Dockerfile-Android"
+		files = []string{docker_file_name, "configs/nodeconfiggen-android.sh", "configs/android-sync.sh"}
+		image_name = "android-appium"
+	} else {
+		return
+	}
+
 	out, err := os.Create("build-context.tar")
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -377,20 +394,23 @@ func buildDockerImage() {
 
 	// Build the Docker image using the tar reader
 	buf := new(bytes.Buffer)
-	imageBuildResponse, err := cli.ImageBuild(ctx, buildContextTarReader, types.ImageBuildOptions{Remove: true, Tags: []string{"ios-appium"}})
+	imageBuildResponse, err := cli.ImageBuild(ctx, buildContextTarReader, types.ImageBuildOptions{Dockerfile: docker_file_name, Remove: true, Tags: []string{image_name}})
 	if err != nil {
 		// Get the image build logs on failure
 		buf.ReadFrom(imageBuildResponse.Body)
+		// log.WithFields(log.Fields{
+		// 	"event": "docker_image_build",
+		// }).Error("Could not build docker image. Error: " + err.Error() + "\n" + buf.String())
 		log.WithFields(log.Fields{
 			"event": "docker_image_build",
-		}).Error("Could not create build docker image. Error: " + err.Error() + "\n" + buf.String())
+		}).Error("Could not build docker image. Error: " + err.Error())
 		return
 	}
 	defer imageBuildResponse.Body.Close()
 	buf.ReadFrom(imageBuildResponse.Body)
 	log.WithFields(log.Fields{
 		"event": "docker_image_build",
-	}).Info("Built 'ios-appium' docker image:\n")
+	}).Info("Built '" + image_name + "' docker image:\n" + buf.String())
 }
 
 // Check if the 'ios-appium' image exists and return info string
