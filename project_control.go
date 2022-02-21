@@ -279,14 +279,8 @@ func CreateUdevRules() error {
 
 	// Add rule lines for each iOS device in config.json
 	for _, device_udid := range ios_udids.Array() {
-		device_name := gjson.Get(string(jsonBytes), `ios-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
-		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `"`
 		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/remove"`
 		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/wget --post-data='{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/create"`
-
-		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
-			return errors.New("Could not write to 90-device.rules")
-		}
 
 		if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
 			return errors.New("Could not write to 90-device.rules")
