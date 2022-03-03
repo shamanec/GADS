@@ -34,6 +34,12 @@ This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable t
 2. Tap on "Change config".  
 3. Update your Selenium Grid values and the bundle ID of the used WebDriverAgent.  
 
+### Update host udev rules service
+1. Open /lib/systemd/system/systemd-udevd.service ('sudo systemctl status udev.service' to find out if its a different file)
+2. Add IPAddressAllow=127.0.0.1 at the bottom
+3. Restart the machine.
+4. This is to allow curl calls from the udev rules to the GADS server
+
 ### Spin up containers  
 If you have followed all the steps, registered the devices, built the images and added the udev rules just connect all your devices. Container should be automatically created for each of them.  
 
