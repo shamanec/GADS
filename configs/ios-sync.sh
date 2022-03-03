@@ -63,7 +63,7 @@ check-wda-status() {
 
 # Hit the Appium status URL to see if it is available and start it if not
 check-appium-status() {
-  if curl -Is "http://127.0.0.1:${APPIUM_PORT}/wd/hub/status" | head -1 | grep -q '200 OK'; then
+  if curl -Is "http://127.0.0.1:4723/wd/hub/status" | head -1 | grep -q '200 OK'; then
     echo "[$(date +'%d/%m/%Y %H:%M:%S')] Appium is already running. Nothing to do"
   else
     start-appium
@@ -74,13 +74,13 @@ check-appium-status() {
 # If the device is on Selenium Grid use created nodeconfig.json, if not - skip applying it in the command
 start-appium() {
   if [ ${ON_GRID} == "true" ]; then
-    appium -p $APPIUM_PORT --udid "$DEVICE_UDID" \
+    appium -p 4723 --udid "$DEVICE_UDID" \
       --log-timestamp \
       --default-capabilities \
       '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'", "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000", "settings[mjpegServerScreenshotQuality]": 25, "settings[mjpegScalingFactor]": 50, "settings[mjpegServerFramerate]": 15}' \
       --nodeconfig /opt/nodeconfig.json >>"/opt/logs/appium-logs.log" 2>&1 &
   else
-    appium -p $APPIUM_PORT --udid "$DEVICE_UDID" \
+    appium -p 4723 --udid "$DEVICE_UDID" \
       --log-timestamp \
       --default-capabilities \
       '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'",  "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000", "settings[mjpegServerScreenshotQuality]": 25, "settings[mjpegScalingFactor]": 50, "settings[mjpegServerFramerate]": 15}' >>"/opt/logs/appium-logs.log" 2>&1 &

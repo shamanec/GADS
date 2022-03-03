@@ -505,7 +505,7 @@ func CreateIOSContainer(device_udid string) {
 	config := &container.Config{
 		Image: "ios-appium",
 		ExposedPorts: nat.PortSet{
-			nat.Port(appium_port.Raw):    struct{}{},
+			nat.Port("4723"):             struct{}{},
 			nat.Port(wda_port.Raw):       struct{}{},
 			nat.Port(wda_mjpeg_port.Raw): struct{}{},
 		},
@@ -513,7 +513,6 @@ func CreateIOSContainer(device_udid string) {
 			"DEVICE_UDID=" + device_udid,
 			"WDA_PORT=" + wda_port.Raw,
 			"MJPEG_PORT=" + wda_mjpeg_port.Raw,
-			"APPIUM_PORT=" + appium_port.Raw,
 			"DEVICE_OS_VERSION=" + device_os_version.Str,
 			"DEVICE_NAME=" + device_name.Str,
 			"WDA_BUNDLEID=" + wda_bundle_id.Str,
@@ -527,7 +526,7 @@ func CreateIOSContainer(device_udid string) {
 	host_config := &container.HostConfig{
 		RestartPolicy: container.RestartPolicy{Name: "on-failure", MaximumRetryCount: 3},
 		PortBindings: nat.PortMap{
-			nat.Port(appium_port.Raw): []nat.PortBinding{
+			nat.Port("4723"): []nat.PortBinding{
 				{
 					HostIP:   "0.0.0.0",
 					HostPort: appium_port.Raw,
