@@ -525,7 +525,7 @@ func CreateIOSContainer(device_udid string) {
 	}
 
 	host_config := &container.HostConfig{
-		RestartPolicy: container.RestartPolicy{Name: "always", MaximumRetryCount: 0},
+		RestartPolicy: container.RestartPolicy{Name: "on-failure", MaximumRetryCount: 3},
 		PortBindings: nat.PortMap{
 			nat.Port(appium_port.Raw): []nat.PortBinding{
 				{
@@ -676,7 +676,7 @@ func createAndroidContainer(device_udid string) {
 		}).Info("Will try to mount:/dev/device-" + device_name.Str + "-" + device_udid)
 
 		host_config := &container.HostConfig{
-			RestartPolicy: container.RestartPolicy{Name: "always", MaximumRetryCount: 0},
+			RestartPolicy: container.RestartPolicy{Name: "on-failure", MaximumRetryCount: 3},
 			PortBindings: nat.PortMap{
 				nat.Port(stream_port.Raw): []nat.PortBinding{
 					{
