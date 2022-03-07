@@ -34,8 +34,7 @@ start-appium() {
 
 export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 if [ ${ON_GRID} == "true" ]; then
-  echo "SETTING NODECONFIG"
-  /opt/nodeconfiggen.sh | tee /opt/nodeconfig.json
+  /opt/nodeconfiggen.sh > /opt/nodeconfig.json
 fi
 adb forward tcp:1313 localabstract:minicap
 touch /opt/logs/minicap.log
