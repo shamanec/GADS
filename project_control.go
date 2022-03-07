@@ -261,11 +261,14 @@ func CreateUdevRules() error {
 	ios_udids := gjson.Get(string(jsonBytes), `ios-devices-list.#.device_udid`)
 
 	// Add rule lines for each Android device in config.json
+	// Keeping rule lines for server container creation just in case
 	for _, device_udid := range android_udids.Array() {
 		device_name := gjson.Get(string(jsonBytes), `android-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
 		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `"`
-		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"Android\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/remove"`
-		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"Android\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/create"`
+		// rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"Android\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/remove"`
+		// rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"Android\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/create"`
+		rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=Android --udid=` + device_udid.Str + `"`
+		rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device_udid.Str + `"`
 
 		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
 			return errors.New("Could not write to 90-device.rules")
@@ -281,11 +284,14 @@ func CreateUdevRules() error {
 	}
 
 	// Add rule lines for each iOS device in config.json
+	// Keeping rule lines for server container creation just in case
 	for _, device_udid := range ios_udids.Array() {
 		device_name := gjson.Get(string(jsonBytes), `ios-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
 		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `"`
-		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/remove"`
-		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/create"`
+		// rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/remove"`
+		// rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"os_type\":\"iOS\"}' http://localhost:10000/device-containers/` + device_udid.Str + `/create"`
+		rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=iOS --udid=` + device_udid.Str + `"`
+		rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device_udid.Str + `"`
 
 		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
 			return errors.New("Could not write to 90-device.rules")

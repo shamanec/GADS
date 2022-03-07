@@ -305,8 +305,8 @@ func ReadJSONFile(jsonFilePath string) ([]byte, error) {
 
 // Check if an iOS device is registered in config.json by provided UDID
 func CheckIOSDeviceInDevicesList(device_udid string) bool {
-	deviceList, _ := ios.ListDevices()
 	for start := time.Now(); time.Since(start) < 5*time.Second; {
+		deviceList, _ := ios.ListDevices()
 		for _, device := range deviceList.DeviceList {
 			if device.Properties.SerialNumber == device_udid {
 				return true

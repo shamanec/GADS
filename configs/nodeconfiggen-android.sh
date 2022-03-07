@@ -18,8 +18,8 @@ cat << EndOfMessage
       ],
   "configuration":
   {
-    "url":"http://${DEVICES_HOST}:4723/wd/hub",
-    "port": 4723,
+    "url":"http://${DEVICES_HOST}:${APPIUM_PORT}/wd/hub",
+    "port": ${APPIUM_PORT},
     "host": "${DEVICES_HOST}",
     "hubPort": ${SELENIUM_HUB_PORT},
     "hubHost": "${SELENIUM_HUB_HOST}",
