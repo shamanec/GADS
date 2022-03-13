@@ -34,6 +34,22 @@ This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable t
 2. Tap on "Change config".  
 3. Update your Selenium Grid values and the bundle ID of the used WebDriverAgent.  
 
+### Update host udev rules service
+1. Open /lib/systemd/system/systemd-udevd.service ('sudo systemctl status udev.service' to find out if its a different file)
+2. Add IPAddressAllow=127.0.0.1 at the bottom
+3. Restart the machine.
+4. This is to allow curl calls from the udev rules to the GADS server
+
+### Setup udev rules using docker-cli instead of the server to start/stop containers
+1. Find the CreateUdevRules() function in project_control.go
+2. Comment the rule lines for Android/iOS for the server.
+3. Uncomment the rule lines for Android/iOS for docker-cli.
+4. Clone https://github.com/shamanec/GADS-docker-cli
+5. Open the start-device-container.go
+6. Change the project path to where your GADS project is located
+7. Run 'go build -o docker-cli .' in the GADS-docker-cli main folder.
+8. Copy the created cli tool 'docker-cli' to /usr/local/bin 
+
 ### Spin up containers  
 If you have followed all the steps, registered the devices, built the images and added the udev rules just connect all your devices. Container should be automatically created for each of them.  
 

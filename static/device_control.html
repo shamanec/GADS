@@ -500,6 +500,7 @@
 
     async function updateDeviceInfo() {
         createElementInfoTable();
+        $('#loading').css("visibility", "visible")
         const control_response = await fetch("/devices/device-control").then(response => {
             if (response.ok) {
                 return response.json()
@@ -534,7 +535,7 @@
                         $('#source-div').css("visibility", "visible")
                         $('#element-div').css("visibility", "visible")
                         $('.device-button').css("visibility", "visible")
-                        $('#loading').css("visibility", "hidden");
+                        $('#loading').css("visibility", "hidden")
                     } else {
                         alert("WDA not available, can't load device.")
                     }
@@ -613,6 +614,9 @@
                     'Content-type': 'application/json'
                 }
             })
+                .then(response => {
+                    return response.json()
+                })
                 .catch(function (error) {
                     alert("Could not create Appium session" + error)
                 })
@@ -625,6 +629,9 @@
                     'Content-type': 'application/json'
                 }
             })
+                .then(response => {
+                    return response.json()
+                })
                 .catch(function (error) {
                     alert("Could not create Appium session" + error)
                 })
@@ -632,6 +639,7 @@
         } else {
             appium_session_id.text(sessions_response.value[0].id)
         }
+        $('#loading').css("visibility", "hidden")
     }
 
     function updateIOSDeviceConfigTable(response) {
@@ -1405,7 +1413,7 @@
 
             // Get the end coordinates from the second bounds array index into their own array
             let end_coordinates = bounds_array[1].split(",")
-            
+
             // Set the element actual coordinates based on the final arrays
             // Element starting X is the first value of the first array
             elementX = start_coordinates[0]
