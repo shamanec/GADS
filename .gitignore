@@ -6,3 +6,7 @@ ca-cert.pem
 ca-key.pem
 configs/supervision.p12
 minicap/*
+
+minicap-commands-ran.zip
+
+.vscode/launch.json
