@@ -29,6 +29,12 @@ You can access Swagger documentation on *http://localhost:10000/swagger/index.ht
 
 This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable the service - this starts usbmuxd automatically after reboot. It will also create and set udev rules in */etc/udev/rules.d* that will trigger the container updates when registered iOS/Android device is connected/disconnected from the machine.  
 
+## Make iOS connection more stable
+usbmuxd is being stopped by its own udev rules when the last iOS device is disconnected. This could potentially lead to problems creating containers when reconnecting devices after disconnecting all of them. To alleviate the issue you can:  
+1. Open /lib/udev/rules.d/39-usbmuxd.rules  
+2. Comment out or remove the last line:  
+*SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="remove", RUN+="/usr/sbin/usbmuxd -x"*  
+
 ### Update the project config  
 1. Open the Project Config page.  
 2. Tap on "Change config".  
