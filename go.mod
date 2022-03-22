@@ -3,7 +3,7 @@ module GADS
 go 1.17
 
 require (
-	github.com/danielpaulus/go-ios v1.0.45
+	github.com/danielpaulus/go-ios v1.0.46
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gorilla/mux v1.8.0
