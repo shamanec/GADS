@@ -31,11 +31,11 @@ func StreamIOS(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err.Error())
 	}
-	//screenshotrService, err := screenshotr.New(device)
+	screenshotrService, err := screenshotr.New(device)
 	if err != nil {
 		panic(err.Error())
 	}
-	go streamScreenshot(device)
+	go streamScreenshot(screenshotrService)
 	w.Header().Add("Content-Type", "multipart/x-mixed-replace; boundary=frame")
 	boundary := "\r\n--frame\r\nContent-Type: image/jpeg\r\n\r\n"
 	stream := iOSStreamHandler{
@@ -68,38 +68,50 @@ func StreamIOS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func streamScreenshot(device ios.DeviceEntry) {
-	frameRate := 20
-	timeInterval := 1.0 / float64(frameRate) * 1000
+func streamScreenshot(screenshotrService *screenshotr.Connection) {
+	frameRate := 30
+	timeInterval := (1.0 / float64(frameRate)) * 1000000000
 
-	timeStarted := time.Now().UnixMilli()
+	timeStarted := time.Now()
 	//scheduleNextScreenshot(device, timeInterval, timeStarted)
 	//for {
 	// go createJPEG(takeScreenshotToBytes(device))
-	createJPEG(takeScreenshotToBytes(device))
-	fmt.Printf("Currently in stream screenshot sending %v as time interval and %v as time started\n", timeInterval, timeStarted)
-	scheduleNextScreenshot(device, timeInterval, timeStarted)
+	go createJPEG(takeScreenshotToBytes(screenshotrService))
+	//fmt.Printf("Current time after goroutine execution be %v\n", time.Now().UnixNano())
+	//s := fmt.Sprintf("%.2f", timeInterval)
+	// fmt.Printf("Currently in stream screenshot sending %v as time interval and %v as time started\n", s, timeStarted)
+	//fmt.Printf("Currently in stream screenshot sending %v as time interval and %v as time started\n", s, timeStarted)
+	//fmt.Printf("Current time just before schedule %v\n", time.Now().UnixNano())
+	scheduleNextScreenshot(screenshotrService, timeInterval, timeStarted)
 	//}
 
 }
 
-func scheduleNextScreenshot(device ios.DeviceEntry, timeInterval float64, timeStarted int64) {
-	fmt.Printf("Current time for time elapsed calculation will be %v\n", time.Now().UnixMilli())
-	timeElapsed := time.Now().UnixMilli() - timeStarted
-	fmt.Printf("This is time elapsed after calculation %v\n", timeElapsed)
-	nextTickDelta := timeInterval - float64(timeElapsed)
-	fmt.Printf("This is the next tick delta %v\n", nextTickDelta)
-	if nextTickDelta > 0 {
-		time.Sleep(100 * time.Nanosecond)
-		//time.AfterFunc(time.Duration(nextTickDelta)*time.Nanosecond, f)
-		go streamScreenshot(device)
-	} else {
-		go streamScreenshot(device)
-	}
+func scheduleNextScreenshot(screenshotrService *screenshotr.Connection, timeInterval float64, timeStarted time.Time) {
+	//fmt.Printf("Current time for time elapsed calculation will be %v\n", time.Now().UnixNano())
+	//timeElapsed := time.Now().Sub(timeStarted)
+	//koleo := timeElapsed.Nanoseconds()
+	//fmt.Printf("This is time elapsed after calculation %v\n", koleo)
+	//nextTickDelta := timeInterval - float64(koleo)
+	//fmt.Printf("This is the next tick delta %v\n", nextTickDelta)
+	//s := fmt.Sprintf("%.2f", nextTickDelta)
+	//fmt.Println(s)
+
+	time.Sleep(30 * time.Millisecond)
+	go streamScreenshot(screenshotrService)
+
+	// if nextTickDelta > 0 {
+	// 	time.Sleep(100 * time.Nanosecond)
+	// 	fmt.Println("inside next tick delta")
+	// 	//time.AfterFunc(time.Duration(nextTickDelta)*time.Nanosecond, f)
+	// 	go streamScreenshot(screenshotrService)
+	// } else {
+	// 	fmt.Println("outside next tick delta")
+	// 	go streamScreenshot(screenshotrService)
+	// }
 }
 
-func takeScreenshotToBytes(device ios.DeviceEntry) []byte {
-	screenshotrService, err := screenshotr.New(device)
+func takeScreenshotToBytes(screenshotrService *screenshotr.Connection) []byte {
 	fmt.Println("Goroutine start time is: " + time.Now().String())
 	imageBytes, err := screenshotrService.TakeScreenshot()
 	if err != nil {
@@ -145,6 +157,7 @@ func jpgDecode(im image.Image) {
 	fmt.Println("New image")
 	lastImage = finalImage
 	//fmt.Println("Returned last frame time: " + strconv.Itoa(int(time.Now().UnixMilli())))
-	fmt.Println("Goroutine last frame time is: " + time.Now().String())
+	//fmt.Println("Goroutine last frame time is: " + time.Now().String())
+	fmt.Println("Sending screenshot at: " + time.Now().String())
 	iOSImageChan <- finalImage
 }
