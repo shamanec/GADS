@@ -31,11 +31,8 @@ func StreamIOS(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err.Error())
 	}
-	screenshotrService, err := screenshotr.New(device)
-	if err != nil {
-		panic(err.Error())
-	}
-	go streamScreenshot(screenshotrService)
+
+	go streamScreenshot(device)
 	w.Header().Add("Content-Type", "multipart/x-mixed-replace; boundary=frame")
 	boundary := "\r\n--frame\r\nContent-Type: image/jpeg\r\n\r\n"
 	stream := iOSStreamHandler{
@@ -68,7 +65,7 @@ func StreamIOS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func streamScreenshot(screenshotrService *screenshotr.Connection) {
+func streamScreenshot(device ios.DeviceEntry) {
 	frameRate := 30
 	timeInterval := (1.0 / float64(frameRate)) * 1000000000
 
@@ -76,18 +73,18 @@ func streamScreenshot(screenshotrService *screenshotr.Connection) {
 	//scheduleNextScreenshot(device, timeInterval, timeStarted)
 	//for {
 	// go createJPEG(takeScreenshotToBytes(device))
-	go createJPEG(takeScreenshotToBytes(screenshotrService))
+	go createJPEG(device)
 	//fmt.Printf("Current time after goroutine execution be %v\n", time.Now().UnixNano())
 	//s := fmt.Sprintf("%.2f", timeInterval)
 	// fmt.Printf("Currently in stream screenshot sending %v as time interval and %v as time started\n", s, timeStarted)
 	//fmt.Printf("Currently in stream screenshot sending %v as time interval and %v as time started\n", s, timeStarted)
 	//fmt.Printf("Current time just before schedule %v\n", time.Now().UnixNano())
-	scheduleNextScreenshot(screenshotrService, timeInterval, timeStarted)
+	scheduleNextScreenshot(timeInterval, timeStarted, device)
 	//}
 
 }
 
-func scheduleNextScreenshot(screenshotrService *screenshotr.Connection, timeInterval float64, timeStarted time.Time) {
+func scheduleNextScreenshot(timeInterval float64, timeStarted time.Time, device ios.DeviceEntry) {
 	//fmt.Printf("Current time for time elapsed calculation will be %v\n", time.Now().UnixNano())
 	//timeElapsed := time.Now().Sub(timeStarted)
 	//koleo := timeElapsed.Nanoseconds()
@@ -97,8 +94,8 @@ func scheduleNextScreenshot(screenshotrService *screenshotr.Connection, timeInte
 	//s := fmt.Sprintf("%.2f", nextTickDelta)
 	//fmt.Println(s)
 
-	time.Sleep(30 * time.Millisecond)
-	go streamScreenshot(screenshotrService)
+	time.Sleep(100 * time.Millisecond)
+	go streamScreenshot(device)
 
 	// if nextTickDelta > 0 {
 	// 	time.Sleep(100 * time.Nanosecond)
@@ -111,31 +108,39 @@ func scheduleNextScreenshot(screenshotrService *screenshotr.Connection, timeInte
 	// }
 }
 
-func takeScreenshotToBytes(screenshotrService *screenshotr.Connection) []byte {
-	fmt.Println("Goroutine start time is: " + time.Now().String())
-	imageBytes, err := screenshotrService.TakeScreenshot()
+func takeScreenshotToBytes(device ios.DeviceEntry) []byte {
+	test, err := screenshotr.New(device)
 	if err != nil {
+		panic(err.Error())
+	}
+	imageBytes, err := test.TakeScreenshot()
+	if err != nil {
+		test.Close()
 		fmt.Println("Error on take screenshot")
 		return []byte{}
 	} else {
-		fmt.Println("actually setting bytes")
+		test.Close()
+		//fmt.Println("actually setting bytes")
 		return imageBytes
 	}
+
 }
 
-func createJPEG(imageBytes []byte) {
+func createJPEG(device ios.DeviceEntry) {
+	//fmt.Println("Goroutine start time is: " + time.Now().String())
+	imageBytes := takeScreenshotToBytes(device)
 	jpgDecode(pngDecode(imageBytes))
 }
 
 func pngDecode(imageBytes []byte) image.Image {
 	res := bytes.Compare(lastImageBytes, imageBytes)
 	if res == 0 {
-		fmt.Println("returning last image")
+		//fmt.Println("returning last image")
 		return lastImage
 	}
 	im, err := png.Decode(bytes.NewReader(imageBytes))
 	if err != nil {
-		fmt.Println("NOT A PNG FILE")
+		//fmt.Println("NOT A PNG FILE")
 		return nil
 	}
 	return im
@@ -146,7 +151,7 @@ func jpgDecode(im image.Image) {
 
 	err := jpeg2.Encode(buf, im, nil)
 	if err != nil {
-		fmt.Println("Couldn't encode jpeg")
+		//fmt.Println("Couldn't encode jpeg")
 		fmt.Println(err.Error())
 	}
 
@@ -154,7 +159,7 @@ func jpgDecode(im image.Image) {
 	if err != nil {
 		fmt.Println("Couldn't decode jpeg")
 	}
-	fmt.Println("New image")
+	//fmt.Println("New image")
 	lastImage = finalImage
 	//fmt.Println("Returned last frame time: " + strconv.Itoa(int(time.Now().UnixMilli())))
 	//fmt.Println("Goroutine last frame time is: " + time.Now().String())
