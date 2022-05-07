@@ -3,7 +3,7 @@ module GADS
 go 1.17
 
 require (
-	github.com/danielpaulus/go-ios v1.0.46
+	github.com/danielpaulus/go-ios v1.0.69
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gorilla/mux v1.8.0
@@ -32,6 +32,7 @@ require (
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.0 // indirect
+	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40 // indirect
