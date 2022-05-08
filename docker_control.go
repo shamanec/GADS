@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"html/template"
 	"io/ioutil"
@@ -162,6 +163,11 @@ func getAndroidContainers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type ControlDeviceContainerData struct {
+	DeviceType string `json:"device_type"`
+	Udid       string `json:"udid"`
+}
+
 // @Summary      Create container for device
 // @Description  Creates a container for a connected registered device
 // @Tags         device-containers
@@ -169,10 +175,26 @@ func getAndroidContainers(w http.ResponseWriter, r *http.Request) {
 // @Success      202
 // @Router       /device-containers/{device_udid}/create [post]
 func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	device_udid := vars["device_udid"]
-	requestBody, _ := ioutil.ReadAll(r.Body)
-	os_type := gjson.Get(string(requestBody), "os_type").Str
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_create",
+		}).Error("Could not read request body when creating container: " + err.Error())
+	}
+
+	var data ControlDeviceContainerData
+	bs := []byte(reqBody)
+
+	err = json.Unmarshal(bs, &data)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_create",
+		}).Error("Could not unmarshal request body when creating container: " + err.Error())
+	}
+
+	os_type := data.DeviceType
+	device_udid := data.Udid
+
 	if os_type == "Android" {
 		go createAndroidContainer(device_udid)
 	} else if os_type == "iOS" {
@@ -188,8 +210,24 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 // @Success      202
 // @Router       /device-containers/{device_udid}/remove [post]
 func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	container_exists, container_id := checkContainerExistsByName(vars["device_udid"])
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not read request body when removing container: " + err.Error())
+	}
+
+	var data ControlDeviceContainerData
+	bs := []byte(reqBody)
+
+	err = json.Unmarshal(bs, &data)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "docker_container_remove",
+		}).Error("Could not unmarshal request body when removing container: " + err.Error())
+	}
+
+	container_exists, container_id := checkContainerExistsByName(data.Udid)
 	if container_exists {
 		go removeContainerByID(container_id)
 	}

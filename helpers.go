@@ -345,3 +345,7 @@ func GetStringInBetween(str string, start string, end string) (result string) {
 	}
 	return str[s : s+e]
 }
+
+func UnmarshalRequestBody(body io.ReadCloser, v interface{}) {
+
+}

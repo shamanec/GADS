@@ -20,24 +20,7 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-var ws_conn *websocket.Conn
 var project_log_file *os.File
-
-// Devices struct which contains
-// an array of devices from the config.json
-type Devices struct {
-	Devices []Device `json:"ios-devices-list"`
-}
-
-// Device struct which contains device info
-type Device struct {
-	AppiumPort      int    `json:"appium_port"`
-	DeviceName      string `json:"device_name"`
-	DeviceOSVersion string `json:"device_os_version"`
-	DeviceUDID      string `json:"device_udid"`
-	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
-	WdaPort         int    `json:"wda_port"`
-}
 
 // ProjectConfig struct which contains the project configuration values
 type ProjectConfig struct {
@@ -248,8 +231,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
-	myRouter.HandleFunc("/device-containers/{device_udid}/remove", RemoveDeviceContainer).Methods("POST")
-	myRouter.HandleFunc("/device-containers/{device_udid}/create", CreateDeviceContainer).Methods("POST")
+	myRouter.HandleFunc("/device-containers/remove", RemoveDeviceContainer).Methods("POST")
+	myRouter.HandleFunc("/device-containers/create", CreateDeviceContainer).Methods("POST")
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
