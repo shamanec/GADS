@@ -60,6 +60,40 @@ type AndroidDevice struct {
 	StreamPort      string `json:"stream_port"`
 }
 
+type IOSDeviceConfig struct {
+	AppiumPort      int    `json:"appium_port"`
+	DeviceName      string `json:"device_name"`
+	DeviceOsVersion string `json:"device_os_version"`
+	DeviceUdid      string `json:"device_udid"`
+	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
+	WdaPort         int    `json:"wda_port"`
+}
+
+type AndroidDeviceConfig struct {
+	AppiumPort      int    `json:"appium_port"`
+	DeviceUdid      string `json:"device_udid"`
+	DeviceName      string `json:"device_name"`
+	StreamPort      int    `json:"stream_port"`
+	DeviceOsVersion string `json:"device_os_version"`
+}
+
+type IOSModelsSizes struct {
+	ProductType string `json:"product_type"`
+	DeviceModel string `json:"device_model"`
+	ScreenSize  string `json:"screen_size"`
+}
+
+type GeneralConfig struct {
+	DevicesHost             string                `json:"devices_host"`
+	SeleniumHubHost         string                `json:"selenium_hub_host"`
+	SeleniumHubPort         string                `json:"selenium_hub_port"`
+	SeleniumHubProtocolType string                `json:"selenium_hub_protocol_type"`
+	WdaBundleID             string                `json:"wda_bundle_id"`
+	IosDevicesList          []IOSDeviceConfig     `json:"ios-devices-list"`
+	AndroidDevicesList      []AndroidDeviceConfig `json:"android-devices-list"`
+	IosModelsSizes          []IOSModelsSizes      `json:"ios_models_sizes"`
+}
+
 //=======================//
 //=====API FUNCTIONS=====//
 

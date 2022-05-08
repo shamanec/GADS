@@ -481,40 +481,48 @@ func CreateIOSContainer(device_udid string) {
 			"event": "android_container_create",
 		}).Info("Container with ID:" + container_id + " already exists for iOS device with udid:" + device_udid)
 	} else {
-		jsonFile, err := os.Open("./configs/config.json")
+
+		// Get the config data
+		var configData GeneralConfig
+		err := UnmarshalJSONFile("./configs/config.json", &configData)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
-			}).Error("Could not open ./configs/config.json when attempting to create a container for device with udid: " + device_udid)
-			return
-		}
-		defer jsonFile.Close()
-
-		byteValue, err := ioutil.ReadAll(jsonFile)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"event": "ios_container_create",
-			}).Error("Could not read ./configs/config.json when attempting to create a container for device with udid: " + device_udid)
+			}).Error("Could not unmarshal config.json file when trying to create a container for device with udid: " + device_udid)
 			return
 		}
 
-		appium_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").appium_port`)
-		if appium_port.Raw == "" {
+		// Check if device is registered in config data
+		var device_in_config bool
+		var deviceConfig IOSDeviceConfig
+		for _, v := range configData.IosDevicesList {
+			if v.DeviceUdid == device_udid {
+				device_in_config = true
+				deviceConfig = v
+			}
+		}
+
+		// Stop execution if device not in config data
+		if !device_in_config {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
 			}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
 			return
 		}
-		device_name := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_name`)
-		device_os_version := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
-		wda_mjpeg_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
-		wda_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_port`)
-		wda_bundle_id := gjson.Get(string(byteValue), "wda_bundle_id")
-		selenium_hub_port := gjson.Get(string(byteValue), "selenium_hub_port")
-		selenium_hub_host := gjson.Get(string(byteValue), "selenium_hub_host")
-		devices_host := gjson.Get(string(byteValue), "devices_host")
-		hub_protocol := gjson.Get(string(byteValue), "selenium_hub_protocol_type")
 
+		// Get the device config data
+		appium_port := strconv.Itoa(deviceConfig.AppiumPort)
+		device_name := deviceConfig.DeviceName
+		device_os_version := deviceConfig.DeviceOsVersion
+		wda_mjpeg_port := strconv.Itoa(deviceConfig.WdaMjpegPort)
+		wda_port := strconv.Itoa(deviceConfig.WdaPort)
+		wda_bundle_id := configData.WdaBundleID
+		selenium_hub_port := configData.SeleniumHubPort
+		selenium_hub_host := configData.SeleniumHubHost
+		devices_host := configData.DevicesHost
+		hub_protocol := configData.SeleniumHubProtocolType
+
+		// Check if device appears in go-ios list meaning it is successfully connected
 		if !CheckIOSDeviceInDevicesList(device_udid) {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
@@ -522,6 +530,7 @@ func CreateIOSContainer(device_udid string) {
 			return
 		}
 
+		// Create docker client
 		ctx := context.Background()
 		cli, err := client.NewClientWithOpts(client.FromEnv)
 		if err != nil {
@@ -531,47 +540,49 @@ func CreateIOSContainer(device_udid string) {
 			return
 		}
 
+		// Create the container config
 		config := &container.Config{
 			Image: "ios-appium",
 			ExposedPorts: nat.PortSet{
-				nat.Port("4723"):             struct{}{},
-				nat.Port(wda_port.Raw):       struct{}{},
-				nat.Port(wda_mjpeg_port.Raw): struct{}{},
+				nat.Port("4723"):         struct{}{},
+				nat.Port(wda_port):       struct{}{},
+				nat.Port(wda_mjpeg_port): struct{}{},
 			},
 			Env: []string{"ON_GRID=" + on_grid,
-				"APPIUM_PORT=" + appium_port.Raw,
+				"APPIUM_PORT=" + appium_port,
 				"DEVICE_UDID=" + device_udid,
-				"WDA_PORT=" + wda_port.Raw,
-				"MJPEG_PORT=" + wda_mjpeg_port.Raw,
-				"DEVICE_OS_VERSION=" + device_os_version.Str,
-				"DEVICE_NAME=" + device_name.Str,
-				"WDA_BUNDLEID=" + wda_bundle_id.Str,
+				"WDA_PORT=" + wda_port,
+				"MJPEG_PORT=" + wda_mjpeg_port,
+				"DEVICE_OS_VERSION=" + device_os_version,
+				"DEVICE_NAME=" + device_name,
+				"WDA_BUNDLEID=" + wda_bundle_id,
 				"SUPERVISION_PASSWORD=" + GetEnvValue("supervision_password"),
-				"SELENIUM_HUB_PORT=" + selenium_hub_port.Str,
-				"SELENIUM_HUB_HOST=" + selenium_hub_host.Str,
-				"DEVICES_HOST=" + devices_host.Str,
-				"HUB_PROTOCOL=" + hub_protocol.Str},
+				"SELENIUM_HUB_PORT=" + selenium_hub_port,
+				"SELENIUM_HUB_HOST=" + selenium_hub_host,
+				"DEVICES_HOST=" + devices_host,
+				"HUB_PROTOCOL=" + hub_protocol},
 		}
 
+		// Create the host config
 		host_config := &container.HostConfig{
 			RestartPolicy: container.RestartPolicy{Name: "on-failure", MaximumRetryCount: 3},
 			PortBindings: nat.PortMap{
 				nat.Port("4723"): []nat.PortBinding{
 					{
 						HostIP:   "0.0.0.0",
-						HostPort: appium_port.Raw,
+						HostPort: appium_port,
 					},
 				},
-				nat.Port(wda_port.Raw): []nat.PortBinding{
+				nat.Port(wda_port): []nat.PortBinding{
 					{
 						HostIP:   "0.0.0.0",
-						HostPort: wda_port.Raw,
+						HostPort: wda_port,
 					},
 				},
-				nat.Port(wda_mjpeg_port.Raw): []nat.PortBinding{
+				nat.Port(wda_mjpeg_port): []nat.PortBinding{
 					{
 						HostIP:   "0.0.0.0",
-						HostPort: wda_mjpeg_port.Raw,
+						HostPort: wda_mjpeg_port,
 					},
 				},
 			},
@@ -588,7 +599,7 @@ func CreateIOSContainer(device_udid string) {
 				},
 				{
 					Type:   mount.TypeBind,
-					Source: project_dir + "/logs/container_" + device_name.Str + "-" + device_udid,
+					Source: project_dir + "/logs/container_" + device_name + "-" + device_udid,
 					Target: "/opt/logs",
 				},
 				{
@@ -599,7 +610,8 @@ func CreateIOSContainer(device_udid string) {
 			},
 		}
 
-		err = os.MkdirAll("./logs/container_"+device_name.Str+"-"+device_udid, os.ModePerm)
+		// Create a folder for logging for the container
+		err = os.MkdirAll("./logs/container_"+device_name+"-"+device_udid, os.ModePerm)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
@@ -607,7 +619,8 @@ func CreateIOSContainer(device_udid string) {
 			return
 		}
 
-		resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "ios_device_"+device_name.Str+"-"+device_udid)
+		// Create the container
+		resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "ios_device_"+device_name+"-"+device_udid)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
@@ -615,6 +628,7 @@ func CreateIOSContainer(device_udid string) {
 			return
 		}
 
+		// Start the container
 		err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
 		if err != nil {
 			log.WithFields(log.Fields{

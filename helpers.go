@@ -351,7 +351,26 @@ func UnmarshalRequestBody(body io.ReadCloser, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	bs := []byte(reqBody)
+
+	err = json.Unmarshal(reqBody, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UnmarshalJSONFile(filePath string, v interface{}) error {
+	jsonFile, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer jsonFile.Close()
+
+	bs, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return err
+	}
 
 	err = json.Unmarshal(bs, v)
 	if err != nil {
