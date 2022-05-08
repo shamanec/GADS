@@ -23,13 +23,13 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/configuration/build-image": {
+        "/configuration/build-image/{image_type}": {
             "post": {
-                "description": "Starts building the 'ios-appium' image in a goroutine and just returns Accepted",
+                "description": "Starts building a docker image in a goroutine and just returns Accepted",
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Build 'ios-appium' image",
+                "summary": "Build docker images",
                 "responses": {
                     "202": {
                         "description": ""
@@ -460,43 +460,6 @@ var doc = `{
                 }
             }
         },
-        "/ios-devices/register": {
-            "post": {
-                "description": "Registers a new iOS device in config.json",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ios-devices"
-                ],
-                "summary": "Register a new iOS device",
-                "parameters": [
-                    {
-                        "description": "Register iOS device",
-                        "name": "config",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.registerIOSDevice"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
-                        }
-                    }
-                }
-            }
-        },
         "/ios-devices/{device_udid}/install-app": {
             "post": {
                 "description": "Installs *.ipa or *.app from the './apps' folder with go-ios",
@@ -601,11 +564,34 @@ var doc = `{
         }
     },
     "definitions": {
+        "main.AndroidDevice": {
+            "type": "object",
+            "properties": {
+                "appium_port": {
+                    "type": "integer"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "device_os_version": {
+                    "type": "string"
+                },
+                "device_udid": {
+                    "type": "string"
+                },
+                "stream_port": {
+                    "type": "string"
+                },
+                "stream_size": {
+                    "type": "string"
+                }
+            }
+        },
         "main.AndroidDeviceInfo": {
             "type": "object",
             "properties": {
                 "deviceConfig": {
-                    "$ref": "#/definitions/main.IOSDevice"
+                    "$ref": "#/definitions/main.AndroidDevice"
                 },
                 "installedAppsBundleIDs": {
                     "type": "array",
@@ -780,20 +766,6 @@ var doc = `{
             "type": "object",
             "properties": {
                 "bundle_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.registerIOSDevice": {
-            "type": "object",
-            "properties": {
-                "device_name": {
-                    "type": "string"
-                },
-                "device_os_version": {
-                    "type": "string"
-                },
-                "device_udid": {
                     "type": "string"
                 }
             }
