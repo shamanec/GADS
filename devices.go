@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -15,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
 //=================//
@@ -67,73 +65,6 @@ type registerIOSDevice struct {
 
 //=======================//
 //=====API FUNCTIONS=====//
-
-// @Summary      Register a new iOS device
-// @Description  Registers a new iOS device in config.json
-// @Tags         ios-devices
-// @Produce      json
-// @Param        config body registerIOSDevice true "Register iOS device"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
-// @Router       /ios-devices/register [post]
-func RegisterIOSDevice(w http.ResponseWriter, r *http.Request) {
-	requestBody, _ := ioutil.ReadAll(r.Body)
-	device_udid := gjson.Get(string(requestBody), "device_udid")
-	device_os_version := gjson.Get(string(requestBody), "device_os_version")
-	device_name := gjson.Get(string(requestBody), "device_name")
-
-	jsonFile, err := os.Open("./configs/config.json")
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "register_ios_device",
-		}).Error("Could not open ./configs/config.json when attempting to register iOS device with UDID: '" + device_udid.Str + "'")
-		JSONError(w, "register_ios_device", "Could not open the config.json file.", 500)
-	}
-	defer jsonFile.Close()
-
-	configJson, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "register_ios_device",
-		}).Error("Could not read ./configs/config.json when attempting to register iOS device with UDID: '" + device_udid.Str + "'")
-		JSONError(w, "register_ios_device", "Could not read the config.json file.", 500)
-	}
-
-	jsonDevicesUDIDs := gjson.Get(string(configJson), "ios-devices-list.#.device_udid")
-
-	//Loop over the devices UDIDs and return message if device is already registered
-	for _, udid := range jsonDevicesUDIDs.Array() {
-		if udid.String() == device_udid.String() {
-			log.WithFields(log.Fields{
-				"event": "register_ios_device",
-			}).Error("Attempted to register an already registered iOS device with UDID: '" + device_udid.Str + "'")
-			JSONError(w, "device_registered", "The device with UDID: "+device_udid.Str+" is already registered.", 400)
-			return
-		}
-	}
-
-	var deviceInfo = iOSDevice{
-		AppiumPort:      4841 + len(jsonDevicesUDIDs.Array()),
-		DeviceName:      device_name.Str,
-		DeviceOSVersion: device_os_version.String(),
-		DeviceUDID:      device_udid.String(),
-		WdaMjpegPort:    20101 + len(jsonDevicesUDIDs.Array()),
-		WdaPort:         20001 + len(jsonDevicesUDIDs.Array())}
-
-	updatedJSON, _ := sjson.Set(string(configJson), "ios-devices-list.-1", deviceInfo)
-
-	err = ioutil.WriteFile("./configs/config.json", []byte(PrettifyJSON(updatedJSON)), 0644)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "register_ios_device",
-		}).Error("Could not write to ./configs/config.json when attempting to register iOS device with UDID: '" + device_udid.Str + "'")
-		JSONError(w, "config_file_error", "Could not write to the config.json file.", 400)
-	}
-	log.WithFields(log.Fields{
-		"event": "register_ios_device",
-	}).Info("Successfully registered iOS device with UDID: '" + device_udid.Str + "' in ./configs/config.json")
-	SimpleJSONResponse(w, "Successfully registered iOS device with UDID: '"+device_udid.Str+"' in ./configs/config.json", 200)
-}
 
 // @Summary      Get logs for iOS device container
 // @Description  Get logs by type
