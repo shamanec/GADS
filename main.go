@@ -16,8 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
 var project_log_file *os.File
@@ -95,51 +93,38 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorJSON
 // @Router       /configuration/update-config [put]
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
-	requestBody, _ := ioutil.ReadAll(r.Body)
-	devices_host := gjson.Get(string(requestBody), "devices_host").Str
-	selenium_hub_host := gjson.Get(string(requestBody), "selenium_hub_host").Str
-	selenium_hub_port := gjson.Get(string(requestBody), "selenium_hub_port").Str
-	selenium_hub_protocol_type := gjson.Get(string(requestBody), "selenium_hub_protocol_type").Str
-	wda_bundle_id := gjson.Get(string(requestBody), "wda_bundle_id").Str
-	// Open the configuration json file
-	jsonFile, err := os.Open("./configs/config.json")
-	if err != nil {
-		JSONError(w, "config_file_interaction", "Could not open the config.json file.", 500)
-		return
-	}
-	defer jsonFile.Close()
+	var requestData ProjectConfig
+	err := UnmarshalRequestBody(r.Body, &requestData)
 
-	// Read the configuration json file into byte array
-	configJson, err := ioutil.ReadAll(jsonFile)
+	// Get the config data
+	var configData GeneralConfig
+	err = UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
-		JSONError(w, "config_file_interaction", "Could not read the config.json file.", 500)
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not unmarshal config.json file when trying to change configuration values.")
 		return
 	}
 
-	var updatedJSON string
-	updatedJSON, _ = sjson.Set(string(configJson), "ios-devices-list.-1", devices_host)
-
-	if devices_host != "" {
-		updatedJSON, _ = sjson.Set(string(configJson), "devices_host", devices_host)
+	if requestData.DevicesHost != "" {
+		configData.DevicesHost = requestData.DevicesHost
 	}
-	if selenium_hub_host != "" {
-		updatedJSON, _ = sjson.Set(string(configJson), "selenium_hub_host", selenium_hub_host)
+	if requestData.SeleniumHubHost != "" {
+		configData.SeleniumHubHost = requestData.SeleniumHubHost
 	}
-	if selenium_hub_port != "" {
-		updatedJSON, _ = sjson.Set(string(configJson), "selenium_hub_port", selenium_hub_port)
+	if requestData.SeleniumHubPort != "" {
+		configData.SeleniumHubPort = requestData.SeleniumHubPort
 	}
-	if selenium_hub_protocol_type != "" {
-		updatedJSON, _ = sjson.Set(string(configJson), "selenium_hub_protocol_type", selenium_hub_protocol_type)
+	if requestData.SeleniumHubProtocolType != "" {
+		configData.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
 	}
-	if wda_bundle_id != "" {
-		updatedJSON, _ = sjson.Set(string(configJson), "wda_bundle_id", wda_bundle_id)
+	if requestData.WdaBundleID != "" {
+		configData.WdaBundleID = requestData.WdaBundleID
 	}
 
-	// Prettify the json so it looks good inside the file
-	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, []byte(updatedJSON), "", "  ")
+	bs, err := json.MarshalIndent(configData, "", "  ")
 
-	err = ioutil.WriteFile("./configs/config.json", []byte(prettyJSON.String()), 0644)
+	err = ioutil.WriteFile("./configs/config.json", bs, 0644)
 	if err != nil {
 		JSONError(w, "config_file_interaction", "Could not write to the config.json file.", 500)
 		return

@@ -13,7 +13,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 )
 
 //=================//
@@ -61,6 +60,18 @@ type registerIOSDevice struct {
 	DeviceUDID      string `json:"device_udid"`
 	DeviceName      string `json:"device_name"`
 	DeviceOSVersion string `json:"device_os_version"`
+}
+
+type installIOSAppRequest struct {
+	IpaName string `json:"ipa_name"`
+}
+
+type uninstallIOSAppRequest struct {
+	BundleID string `json:"bundle_id"`
+}
+
+type goIOSAppList []struct {
+	BundleID string `json:"CFBundleIdentifier"`
 }
 
 //=======================//
@@ -139,18 +150,23 @@ func GetConnectedIOSDevices(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorJSON
 // @Router       /ios-devices/{device_udid}/install-app [post]
 func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
-	requestBody, _ := ioutil.ReadAll(r.Body)
-	ipa_name := gjson.Get(string(requestBody), "ipa_name").Str
-
 	vars := mux.Vars(r)
-	device_udid := vars["device_udid"]
+	var data installIOSAppRequest
 
-	err := InstallIOSAppLocal(device_udid, ipa_name)
+	err := UnmarshalRequestBody(r.Body, &data)
 	if err != nil {
-		JSONError(w, "install_ios_app", "Failed to install app on device with UDID:'"+device_udid+"'", 500)
+		log.WithFields(log.Fields{
+			"event": "device_container_create",
+		}).Error("Could not unmarshal request body when installing iOS app")
 		return
 	}
-	SimpleJSONResponse(w, "Successfully installed '"+ipa_name+"'", 200)
+
+	err = InstallIOSAppLocal(vars["device_udid"], data.IpaName)
+	if err != nil {
+		JSONError(w, "install_ios_app", "Failed to install app on device with UDID:'"+vars["device_udid"]+"'", 500)
+		return
+	}
+	SimpleJSONResponse(w, "Successfully installed '"+data.IpaName+"'", 200)
 }
 
 // @Summary      Uninstall app from iOS device
@@ -163,13 +179,22 @@ func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorJSON
 // @Router       /ios-devices/{device_udid}/uninstall-app [post]
 func UninstallIOSApp(w http.ResponseWriter, r *http.Request) {
-	requestBody, _ := ioutil.ReadAll(r.Body)
-	bundle_id := gjson.Get(string(requestBody), "bundle_id").Str
+	var data uninstallIOSAppRequest
+
+	err := UnmarshalRequestBody(r.Body, &data)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "device_container_create",
+		}).Error("Could not unmarshal request body when uninstalling iOS app")
+		return
+	}
+
+	bundle_id := data.BundleID
 
 	vars := mux.Vars(r)
 	device_udid := vars["device_udid"]
 
-	err := uninstallIOSApp(device_udid, bundle_id)
+	err = uninstallIOSApp(device_udid, bundle_id)
 	if err != nil {
 		JSONError(w, "uninstall_ios_app", "Failed uninstalling app with bundleID:'"+bundle_id+"'", 500)
 		return
@@ -220,10 +245,19 @@ func IOSDeviceApps(device_udid string) ([]string, error) {
 		return nil, errors.New("Could not get user apps for device with UDID: '" + device_udid + "'. Error: " + err.Error())
 	}
 
+	var data goIOSAppList
+
+	err = UnmarshalJSONString(ConvertToJSONString(user_apps), &data)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "device_container_create",
+		}).Error("Could not unmarshal request body when uninstalling iOS app")
+		return nil, errors.New("Could not unmarshal user apps json")
+	}
+
 	var bundleIDs []string
-	parsedBundleIDs := gjson.Get(ConvertToJSONString(user_apps), "#.CFBundleIdentifier")
-	for _, bundleID := range parsedBundleIDs.Array() {
-		bundleIDs = append(bundleIDs, bundleID.Str)
+	for _, dataObject := range data {
+		bundleIDs = append(bundleIDs, dataObject.BundleID)
 	}
 
 	return bundleIDs, nil
