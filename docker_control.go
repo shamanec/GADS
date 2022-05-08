@@ -477,7 +477,7 @@ func CreateIOSContainer(device_udid string) {
 	container_exists, container_id := checkContainerExistsByName(device_udid)
 	if container_exists {
 		log.WithFields(log.Fields{
-			"event": "android_container_create",
+			"event": "ios_container_create",
 		}).Info("Container with ID:" + container_id + " already exists for iOS device with udid:" + device_udid)
 	} else {
 
@@ -660,7 +660,7 @@ func createAndroidContainer(device_udid string) {
 		err := UnmarshalJSONFile("./configs/config.json", &configData)
 		if err != nil {
 			log.WithFields(log.Fields{
-				"event": "ios_container_create",
+				"event": "android_container_create",
 			}).Error("Could not unmarshal config.json file when trying to create a container for device with udid: " + device_udid)
 			return
 		}
@@ -678,7 +678,7 @@ func createAndroidContainer(device_udid string) {
 		// Stop execution if device not in config data
 		if !device_in_config {
 			log.WithFields(log.Fields{
-				"event": "ios_container_create",
+				"event": "android_container_create",
 			}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
 			return
 		}

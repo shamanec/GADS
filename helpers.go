@@ -379,3 +379,14 @@ func UnmarshalJSONFile(filePath string, v interface{}) error {
 
 	return nil
 }
+
+func UnmarshalJSONString(jsonString string, v interface{}) error {
+	bs := []byte(jsonString)
+
+	err := json.Unmarshal(bs, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

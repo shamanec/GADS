@@ -12,14 +12,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
 var sudo_password = GetEnvValue("sudo_password")
@@ -92,6 +91,32 @@ type GeneralConfig struct {
 	IosDevicesList          []IOSDeviceConfig     `json:"ios-devices-list"`
 	AndroidDevicesList      []AndroidDeviceConfig `json:"android-devices-list"`
 	IosModelsSizes          []IOSModelsSizes      `json:"ios_models_sizes"`
+}
+
+type EnvConfig struct {
+	SudoPassword        string `json:"sudo_password"`
+	ConnectSeleniumGrid string `json:"connect_selenium_grid"`
+	SupervisionPassword string `json:"supervision_password"`
+}
+
+type WdaConfig struct {
+	WdaURL       string `json:"wda_url"`
+	WdaStreamURL string `json:"wda_stream_url"`
+}
+
+type GoIOSDevicesList struct {
+	DeviceList []GoIOSDevice `json:"deviceList"`
+}
+
+type GoIOSDevice struct {
+	Udid           string `json:"Udid"`
+	ProductName    string `json:"ProductName"`
+	ProductType    string `json:"ProductType"`
+	ProductVersion string `json:"ProductVersion"`
+}
+
+type SudoPasswordRequest struct {
+	SudoPassword string `json:"sudo_password"`
 }
 
 //=======================//
@@ -189,24 +214,34 @@ func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorJSON
 // @Router       /configuration/set-sudo-password [put]
 func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
-	requestBody, _ := ioutil.ReadAll(r.Body)
-	sudo_password := gjson.Get(string(requestBody), "sudo_password").Str
-	byteValue, err := ReadJSONFile("./env.json")
+	var requestData SudoPasswordRequest
+
+	err := UnmarshalRequestBody(r.Body, &requestData)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"event": "set_sudo_password",
-		}).Error("Could not read ./env.json while attempting to set sudo password. Error: " + err.Error())
-		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
+			"event": "device_container_create",
+		}).Error("Could not unmarshal request body when creating container: " + err.Error())
 		return
 	}
-	updatedJSON, _ := sjson.Set(string(byteValue), "sudo_password", sudo_password)
 
-	// Prettify the json so it looks good inside the file
-	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, []byte(updatedJSON), "", "  ")
+	sudo_password := requestData.SudoPassword
+
+	// Get the config data
+	var env EnvConfig
+	err = UnmarshalJSONFile("./env.json", &env)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not unmarshal env.json file when setting sudo password")
+		return
+	}
+
+	env.SudoPassword = sudo_password
+
+	bs, err := json.MarshalIndent(env, "", "  ")
 
 	// Write the new json to the config.json file
-	err = ioutil.WriteFile("./env.json", []byte(prettyJSON.String()), 0644)
+	err = ioutil.WriteFile("./env.json", bs, 0644)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "set_sudo_password",
@@ -243,14 +278,16 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 
 // Check if the sudo password in env.json is different than "undefined" meaning something is set
 func CheckSudoPasswordSet() bool {
-	byteValue, err := ReadJSONFile("./env.json")
+	// Get the config data
+	var envData EnvConfig
+	err := UnmarshalJSONFile("./env.json", &envData)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "check_sudo_password",
-		}).Error("Could not read ./env.json while checking sudo password status.")
+		}).Error("Could not unmarshal env.json file when checking sudo password")
 		return false
 	}
-	sudo_password := gjson.Get(string(byteValue), "sudo_password").Str
+	sudo_password := envData.SudoPassword
 	if sudo_password == "undefined" || sudo_password == "" {
 		return false
 	}
@@ -290,19 +327,28 @@ func CreateUdevRules() error {
 	}
 	defer create_container_rules.Close()
 
-	jsonBytes, _ := ReadJSONFile("./configs/config.json")
-	android_udids := gjson.Get(string(jsonBytes), `android-devices-list.#.device_udid`)
-	ios_udids := gjson.Get(string(jsonBytes), `ios-devices-list.#.device_udid`)
+	// Get the config data
+	var configData GeneralConfig
+	err = UnmarshalJSONFile("./configs/config.json", &configData)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "create_udev_rules",
+		}).Error("Could not unmarshal config.json file when creating udev rules")
+		return err
+	}
+
+	android_devices := configData.AndroidDevicesList
+	ios_devices := configData.IosDevicesList
 
 	// Add rule lines for each Android device in config.json
 	// Keeping rule lines for server container creation just in case
-	for _, device_udid := range android_udids.Array() {
-		device_name := gjson.Get(string(jsonBytes), `android-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
-		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `"`
-		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device_udid.Str + `\"}' http://localhost:10000/device-containers/remove"`
-		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"Android\", \"udid\":\"` + device_udid.Str + `\"}' http://localhost:10000/device-containers/create"`
-		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=Android --udid=` + device_udid.Str + `"`
-		//rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device_udid.Str + `"`
+	for _, device := range android_devices {
+		device_name := device.DeviceName
+		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device-` + device_name + `-` + device.DeviceUdid + `"`
+		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/remove"`
+		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"Android\", \"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/create"`
+		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=Android --udid=` + device.DeviceUdid + `"`
+		//rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device.DeviceUdid + `"`
 
 		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
 			return errors.New("Could not write to 90-device.rules")
@@ -319,13 +365,13 @@ func CreateUdevRules() error {
 
 	// Add rule lines for each iOS device in config.json
 	// Keeping rule lines for server container creation just in case
-	for _, device_udid := range ios_udids.Array() {
-		device_name := gjson.Get(string(jsonBytes), `ios-devices-list.#(device_udid="`+device_udid.Str+`").device_name`)
-		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", MODE="0666", SYMLINK+="device-` + device_name.Str + `-` + device_udid.Str + `"`
-		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device_udid.Str + `\"}' http://localhost:10000/device-containers/remove"`
-		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"iOS\", \"udid\":\"` + device_udid.Str + `\"}' http://localhost:10000/device-containers/create"`
-		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=iOS --udid=` + device_udid.Str + `"`
-		//rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device_udid.Str + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device_udid.Str + `"`
+	for _, device := range ios_devices {
+		device_name := device.DeviceName
+		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device-` + device_name + `-` + device.DeviceUdid + `"`
+		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/remove"`
+		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"iOS\", \"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/create"`
+		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=iOS --udid=` + device.DeviceUdid + `"`
+		//rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device.DeviceUdid + `"`
 
 		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
 			return errors.New("Could not write to 90-device.rules")
@@ -373,9 +419,21 @@ func CheckWDAProvided() bool {
 
 // Get a value from env.json
 func GetEnvValue(key string) string {
-	byteValue, _ := ReadJSONFile("./env.json")
-	value := gjson.Get(string(byteValue), key).Str
-	return value
+	var envData EnvConfig
+	err := UnmarshalJSONFile("./configs/config.json", &envData)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "check_sudo_password",
+		}).Error("Could not unmarshal env.json file when getting value")
+	}
+	if key == "sudo_password" {
+		return envData.SudoPassword
+	} else if key == "supervision_password" {
+		return envData.SupervisionPassword
+	} else if key == "connect_selenium_grid" {
+		return envData.ConnectSeleniumGrid
+	}
+	return ""
 }
 
 // Get the names of the currently running containers(that are for devices)
@@ -455,37 +513,25 @@ func getAndroidDevicesInfo(runningContainers []string) []AndroidDeviceInfo {
 }
 
 // Get the WDA and WDA stream urls from the container logs folder for a specific device
-func getIOSDeviceWdaURLs(device_udid string) (string, string) {
+func getIOSDeviceWdaURLs(device_udid string) (string, string, error) {
 	// Get the path of the WDA url file using regex
 	pattern := "./logs/*" + device_udid + "/ios-wda-url.json"
 	matches, err := filepath.Glob(pattern)
 
 	if err != nil {
-		fmt.Println(err)
+		return "", "", err
 	}
 
-	// Open the first match, should be only one file
-	jsonFile, err := os.Open(matches[0])
-
+	var wdaConfig WdaConfig
+	err = UnmarshalJSONFile(matches[0], &wdaConfig)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"event": "get_wda_url",
-		}).Error("Could not open WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return "", ""
+			"event": "get_wda_config",
+		}).Error("Could not unmarshal json at path: " + matches[0])
+		return "", "", err
 	}
 
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_wda_url",
-		}).Error("Could not read WDA url file for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return "", ""
-	}
-	url := gjson.Get(string(byteValue), `wda_url`)
-	stream_url := gjson.Get(string(byteValue), `wda_stream_url`)
-	return url.Str, stream_url.Str
+	return wdaConfig.WdaURL, wdaConfig.WdaStreamURL, nil
 }
 
 // Get the WDA and WDA stream urls from the container logs folder for a specific device
@@ -518,46 +564,55 @@ func getAndroidDeviceMinicapStreamSize(device_udid string) (string, error) {
 
 // Get the configuration info for iOS device from ./configs/config.json
 func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
-	jsonFile, err := os.Open("./configs/config.json")
-
+	// Get the config data
+	var configData GeneralConfig
+	err := UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"event": "get_ios_device_config",
-		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return nil, errors.New("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+			"event": "android_container_create",
+		}).Error("Could not unmarshal config.json file when trying to create a container for device with udid: " + device_udid)
+		return nil, err
 	}
 
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_ios_device_config",
-		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return nil, errors.New("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	// Check if device is registered in config data
+	var device_in_config bool
+	var deviceConfig IOSDeviceConfig
+	for _, v := range configData.IosDevicesList {
+		if v.DeviceUdid == device_udid {
+			device_in_config = true
+			deviceConfig = v
+		}
 	}
-	appium_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").appium_port`)
-	if appium_port.Raw == "" {
+
+	// Stop execution if device not in config data
+	if !device_in_config {
 		log.WithFields(log.Fields{
-			"event": "ios_container_create",
+			"event": "android_container_create",
 		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
-		return nil, errors.New("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+		return nil, err
 	}
-	device_name := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_name`)
-	device_os_version := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
-	wda_mjpeg_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_mjpeg_port`)
-	wda_port := gjson.Get(string(byteValue), `ios-devices-list.#(device_udid="`+device_udid+`").wda_port`)
 
-	wda_url, wda_stream_url := getIOSDeviceWdaURLs(device_udid)
+	wda_url, wda_stream_url, err := getIOSDeviceWdaURLs(device_udid)
+	if err != nil {
+		return nil, err
+	}
 
-	model, viewport_size := getIOSModelAndViewport(string(byteValue), getIOSDeviceProductType(device_udid))
+	product_type, err := getIOSDeviceProductType(device_udid)
+	if err != nil {
+		return nil, err
+	}
+
+	model, viewport_size, err := getIOSModelAndViewport(product_type)
+	if err != nil {
+		return nil, err
+	}
 
 	return &IOSDevice{
-			AppiumPort:         int(appium_port.Num),
-			DeviceName:         device_name.Str,
-			DeviceOSVersion:    device_os_version.Str,
-			WdaMjpegPort:       int(wda_mjpeg_port.Num),
-			WdaPort:            int(wda_port.Num),
+			AppiumPort:         deviceConfig.AppiumPort,
+			DeviceName:         deviceConfig.DeviceName,
+			DeviceOSVersion:    deviceConfig.DeviceOsVersion,
+			WdaMjpegPort:       deviceConfig.WdaMjpegPort,
+			WdaPort:            deviceConfig.WdaPort,
 			DeviceUDID:         device_udid,
 			WdaMjpegURL:        wda_stream_url,
 			WdaURL:             wda_url,
@@ -568,70 +623,110 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 
 // Get the configuration info for iOS device from ./configs/config.json
 func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
-	jsonFile, err := os.Open("./configs/config.json")
-
+	// Get the config data
+	var configData GeneralConfig
+	err := UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"event": "get_android_device_config",
-		}).Error("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return nil, errors.New("Could not open ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+			"event": "android_container_create",
+		}).Error("Could not unmarshal config.json file when trying to create a container for device with udid: " + device_udid)
+		return nil, err
 	}
 
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_android_device_config",
-		}).Error("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
-		return nil, errors.New("Could not read ./configs/config.json file when attempting to get info for device with UDID: '" + device_udid + "' . Error: " + err.Error())
+	// Check if device is registered in config data
+	var device_in_config bool
+	var deviceConfig AndroidDeviceConfig
+	for _, v := range configData.AndroidDevicesList {
+		if v.DeviceUdid == device_udid {
+			device_in_config = true
+			deviceConfig = v
+		}
 	}
-	appium_port := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").appium_port`)
-	if appium_port.Raw == "" {
+
+	// Stop execution if device not in config data
+	if !device_in_config {
 		log.WithFields(log.Fields{
-			"event": "get_android_device_config",
+			"event": "android_container_create",
 		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
-		return nil, errors.New("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
+		return nil, err
 	}
-	device_name := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_name`)
-	device_os_version := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").device_os_version`)
-	stream_port := gjson.Get(string(byteValue), `android-devices-list.#(device_udid="`+device_udid+`").stream_port`)
+
 	stream_size, err := getAndroidDeviceMinicapStreamSize(device_udid)
 	return &AndroidDevice{
-			AppiumPort:      int(appium_port.Num),
-			DeviceName:      device_name.Str,
-			DeviceOSVersion: device_os_version.Str,
+			AppiumPort:      deviceConfig.AppiumPort,
+			DeviceName:      deviceConfig.DeviceName,
+			DeviceOSVersion: deviceConfig.DeviceOsVersion,
 			DeviceUDID:      device_udid,
 			StreamSize:      stream_size,
-			StreamPort:      stream_port.Raw},
+			StreamPort:      strconv.Itoa(deviceConfig.StreamPort)},
 		nil
 }
 
-func getIOSDeviceProductType(device_udid string) string {
+func getIOSDeviceProductType(device_udid string) (string, error) {
 	deviceList, err := ios.ListDevices()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "get_connected_ios_devices",
 		}).Error("Could not get connected devices. Error: " + err.Error())
-		return ""
+		return "", nil
 	}
 	deviceValues, err := outputDetailedList(deviceList)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "get_connected_ios_devices",
 		}).Error("Could not get connected devices detailed list. Error: " + err.Error())
-		return ""
+		return "", nil
 	}
 
-	product_type := gjson.Get(deviceValues, `deviceList.#(Udid="`+device_udid+`").ProductType`).Str
-	return product_type
+	// Get the config data
+	var jsonList GoIOSDevicesList
+	err = UnmarshalJSONString(deviceValues, &jsonList)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "android_container_create",
+		}).Error("Could not unmarshal json string when getting product type for device with udid: " + device_udid)
+		return "", err
+	}
+
+	// Check if device is is connected
+	var device_connected bool
+	var device GoIOSDevice
+	for _, v := range jsonList.DeviceList {
+		if v.Udid == device_udid {
+			device_connected = true
+			device = v
+		}
+	}
+
+	// Stop execution if device not connected
+	if !device_connected {
+		log.WithFields(log.Fields{
+			"event": "android_container_create",
+		}).Error("Device with UDID:" + device_udid + " is not connected to the machine.")
+		return "", err
+	}
+
+	return device.ProductType, nil
 }
 
-func getIOSModelAndViewport(config_json string, product_type string) (string, string) {
+func getIOSModelAndViewport(product_type string) (string, string, error) {
+	// Get the config data
+	var configData GeneralConfig
+	err := UnmarshalJSONFile("./configs/config.json", &configData)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "android_container_create",
+		}).Error("Could not unmarshal config.json file when trying to get iOS model and viewport size")
+		return "", "", err
+	}
 
-	model := gjson.Get(config_json, `ios_models_sizes.#(product_type="`+product_type+`").device_model`).Str
-	viewport_size := gjson.Get(config_json, `ios_models_sizes.#(product_type="`+product_type+`").screen_size`).Str
-	return model, viewport_size
+	for _, v := range configData.IosModelsSizes {
+		if v.ProductType == product_type {
+			return v.DeviceModel, v.ScreenSize, nil
+		}
+	}
+
+	return "", "", nil
 }
 
 // Get the installable apps list from the ./apps folder
