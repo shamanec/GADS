@@ -346,6 +346,17 @@ func GetStringInBetween(str string, start string, end string) (result string) {
 	return str[s : s+e]
 }
 
-func UnmarshalRequestBody(body io.ReadCloser, v interface{}) {
+func UnmarshalRequestBody(body io.ReadCloser, v interface{}) error {
+	reqBody, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	bs := []byte(reqBody)
 
+	err = json.Unmarshal(bs, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
