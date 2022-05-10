@@ -326,7 +326,7 @@ var doc = `{
                 }
             }
         },
-        "/device-containers/{device_udid}/create": {
+        "/device-containers/create": {
             "post": {
                 "description": "Creates a container for a connected registered device",
                 "tags": [
@@ -335,11 +335,13 @@ var doc = `{
                 "summary": "Create container for device",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Device UDID",
-                        "name": "device_udid",
-                        "in": "path",
-                        "required": true
+                        "description": "Create container for device",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.CreateDeviceContainerData"
+                        }
                     }
                 ],
                 "responses": {
@@ -349,7 +351,7 @@ var doc = `{
                 }
             }
         },
-        "/device-containers/{device_udid}/remove": {
+        "/device-containers/remove": {
             "post": {
                 "description": "Removes a running container for a disconnected registered device by device UDID",
                 "tags": [
@@ -358,11 +360,13 @@ var doc = `{
                 "summary": "Remove container for device",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Device UDID",
-                        "name": "device_udid",
-                        "in": "path",
-                        "required": true
+                        "description": "Remove container for device",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.RemoveDeviceContainerData"
+                        }
                     }
                 ],
                 "responses": {
@@ -484,7 +488,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.iOSAppInstall"
+                            "$ref": "#/definitions/main.installIOSAppRequest"
                         }
                     }
                 ],
@@ -528,7 +532,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.iOSAppUninstall"
+                            "$ref": "#/definitions/main.uninstallIOSAppRequest"
                         }
                     }
                 ],
@@ -598,6 +602,17 @@ var doc = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "main.CreateDeviceContainerData": {
+            "type": "object",
+            "properties": {
+                "device_type": {
+                    "type": "string"
+                },
+                "udid": {
+                    "type": "string"
                 }
             }
         },
@@ -710,6 +725,14 @@ var doc = `{
                 }
             }
         },
+        "main.RemoveDeviceContainerData": {
+            "type": "object",
+            "properties": {
+                "udid": {
+                    "type": "string"
+                }
+            }
+        },
         "main.SimpleResponseJSON": {
             "type": "object",
             "properties": {
@@ -754,7 +777,7 @@ var doc = `{
                 }
             }
         },
-        "main.iOSAppInstall": {
+        "main.installIOSAppRequest": {
             "type": "object",
             "properties": {
                 "ipa_name": {
@@ -762,7 +785,7 @@ var doc = `{
                 }
             }
         },
-        "main.iOSAppUninstall": {
+        "main.uninstallIOSAppRequest": {
             "type": "object",
             "properties": {
                 "bundle_id": {

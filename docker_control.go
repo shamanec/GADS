@@ -161,19 +161,23 @@ func getAndroidContainers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type ControlDeviceContainerData struct {
+type CreateDeviceContainerData struct {
 	DeviceType string `json:"device_type"`
 	Udid       string `json:"udid"`
+}
+
+type RemoveDeviceContainerData struct {
+	Udid string `json:"udid"`
 }
 
 // @Summary      Create container for device
 // @Description  Creates a container for a connected registered device
 // @Tags         device-containers
-// @Param        device_udid path string true "Device UDID"
+// @Param        config body CreateDeviceContainerData true "Create container for device"
 // @Success      202
-// @Router       /device-containers/{device_udid}/create [post]
+// @Router       /device-containers/create [post]
 func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
-	var data ControlDeviceContainerData
+	var data CreateDeviceContainerData
 
 	err := UnmarshalRequestBody(r.Body, &data)
 	if err != nil {
@@ -197,11 +201,11 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 // @Summary      Remove container for device
 // @Description  Removes a running container for a disconnected registered device by device UDID
 // @Tags         device-containers
-// @Param        device_udid path string true "Device UDID"
+// @Param        config body RemoveDeviceContainerData true "Remove container for device"
 // @Success      202
-// @Router       /device-containers/{device_udid}/remove [post]
+// @Router       /device-containers/remove [post]
 func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
-	var data ControlDeviceContainerData
+	var data RemoveDeviceContainerData
 
 	err := UnmarshalRequestBody(r.Body, &data)
 	if err != nil {

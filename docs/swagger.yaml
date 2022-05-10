@@ -23,6 +23,13 @@ definitions:
           type: string
         type: array
     type: object
+  main.CreateDeviceContainerData:
+    properties:
+      device_type:
+        type: string
+      udid:
+        type: string
+    type: object
   main.DeviceControlInfo:
     properties:
       android-devices-info:
@@ -94,6 +101,11 @@ definitions:
       wda_bundle_id:
         type: string
     type: object
+  main.RemoveDeviceContainerData:
+    properties:
+      udid:
+        type: string
+    type: object
   main.SimpleResponseJSON:
     properties:
       message:
@@ -122,12 +134,12 @@ definitions:
           $ref: '#/definitions/main.detailsEntry'
         type: array
     type: object
-  main.iOSAppInstall:
+  main.installIOSAppRequest:
     properties:
       ipa_name:
         type: string
     type: object
-  main.iOSAppUninstall:
+  main.uninstallIOSAppRequest:
     properties:
       bundle_id:
         type: string
@@ -337,31 +349,33 @@ paths:
       summary: Restart container
       tags:
       - containers
-  /device-containers/{device_udid}/create:
+  /device-containers/create:
     post:
       description: Creates a container for a connected registered device
       parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
+      - description: Create container for device
+        in: body
+        name: config
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/main.CreateDeviceContainerData'
       responses:
         "202":
           description: ""
       summary: Create container for device
       tags:
       - device-containers
-  /device-containers/{device_udid}/remove:
+  /device-containers/remove:
     post:
       description: Removes a running container for a disconnected registered device
         by device UDID
       parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
+      - description: Remove container for device
+        in: body
+        name: config
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/main.RemoveDeviceContainerData'
       responses:
         "202":
           description: ""
@@ -441,7 +455,7 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.iOSAppInstall'
+          $ref: '#/definitions/main.installIOSAppRequest'
       produces:
       - application/json
       responses:
@@ -470,7 +484,7 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.iOSAppUninstall'
+          $ref: '#/definitions/main.uninstallIOSAppRequest'
       produces:
       - application/json
       responses:

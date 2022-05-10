@@ -39,14 +39,6 @@ type AndroidDeviceInfo struct {
 	DeviceConfig *AndroidDevice `json:"deviceConfig"`
 }
 
-type iOSAppInstall struct {
-	IpaName string `json:"ipa_name"`
-}
-
-type iOSAppUninstall struct {
-	BundleID string `json:"bundle_id"`
-}
-
 type iOSDevice struct {
 	AppiumPort      int    `json:"appium_port"`
 	DeviceName      string `json:"device_name"`
@@ -145,7 +137,7 @@ func GetConnectedIOSDevices(w http.ResponseWriter, r *http.Request) {
 // @Tags         ios-devices
 // @Produce      json
 // @Param        device_udid path string true "Device UDID"
-// @Param        config body iOSAppInstall true "Install iOS app"
+// @Param        config body installIOSAppRequest true "Install iOS app"
 // @Success      200 {object} SimpleResponseJSON
 // @Failure      500 {object} ErrorJSON
 // @Router       /ios-devices/{device_udid}/install-app [post]
@@ -174,7 +166,7 @@ func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
 // @Tags         ios-devices
 // @Produce      json
 // @Param        device_udid path string true "Device UDID"
-// @Param        config body iOSAppUninstall true "Uninstall iOS app"
+// @Param        config body uninstallIOSAppRequest true "Uninstall iOS app"
 // @Success      200 {object} SimpleResponseJSON
 // @Failure      500 {object} ErrorJSON
 // @Router       /ios-devices/{device_udid}/uninstall-app [post]
