@@ -23,13 +23,13 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/configuration/build-image": {
+        "/configuration/build-image/{image_type}": {
             "post": {
-                "description": "Starts building the 'ios-appium' image in a goroutine and just returns Accepted",
+                "description": "Starts building a docker image in a goroutine and just returns Accepted",
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Build 'ios-appium' image",
+                "summary": "Build docker images",
                 "responses": {
                     "202": {
                         "description": ""
@@ -326,7 +326,7 @@ var doc = `{
                 }
             }
         },
-        "/device-containers/{device_udid}/create": {
+        "/device-containers/create": {
             "post": {
                 "description": "Creates a container for a connected registered device",
                 "tags": [
@@ -335,11 +335,13 @@ var doc = `{
                 "summary": "Create container for device",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Device UDID",
-                        "name": "device_udid",
-                        "in": "path",
-                        "required": true
+                        "description": "Create container for device",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.CreateDeviceContainerData"
+                        }
                     }
                 ],
                 "responses": {
@@ -349,7 +351,7 @@ var doc = `{
                 }
             }
         },
-        "/device-containers/{device_udid}/remove": {
+        "/device-containers/remove": {
             "post": {
                 "description": "Removes a running container for a disconnected registered device by device UDID",
                 "tags": [
@@ -358,11 +360,13 @@ var doc = `{
                 "summary": "Remove container for device",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Device UDID",
-                        "name": "device_udid",
-                        "in": "path",
-                        "required": true
+                        "description": "Remove container for device",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.RemoveDeviceContainerData"
+                        }
                     }
                 ],
                 "responses": {
@@ -460,43 +464,6 @@ var doc = `{
                 }
             }
         },
-        "/ios-devices/register": {
-            "post": {
-                "description": "Registers a new iOS device in config.json",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ios-devices"
-                ],
-                "summary": "Register a new iOS device",
-                "parameters": [
-                    {
-                        "description": "Register iOS device",
-                        "name": "config",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.registerIOSDevice"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
-                        }
-                    }
-                }
-            }
-        },
         "/ios-devices/{device_udid}/install-app": {
             "post": {
                 "description": "Installs *.ipa or *.app from the './apps' folder with go-ios",
@@ -521,7 +488,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.iOSAppInstall"
+                            "$ref": "#/definitions/main.installIOSAppRequest"
                         }
                     }
                 ],
@@ -565,7 +532,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.iOSAppUninstall"
+                            "$ref": "#/definitions/main.uninstallIOSAppRequest"
                         }
                     }
                 ],
@@ -601,17 +568,51 @@ var doc = `{
         }
     },
     "definitions": {
+        "main.AndroidDevice": {
+            "type": "object",
+            "properties": {
+                "appium_port": {
+                    "type": "integer"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "device_os_version": {
+                    "type": "string"
+                },
+                "device_udid": {
+                    "type": "string"
+                },
+                "stream_port": {
+                    "type": "string"
+                },
+                "stream_size": {
+                    "type": "string"
+                }
+            }
+        },
         "main.AndroidDeviceInfo": {
             "type": "object",
             "properties": {
                 "deviceConfig": {
-                    "$ref": "#/definitions/main.IOSDevice"
+                    "$ref": "#/definitions/main.AndroidDevice"
                 },
                 "installedAppsBundleIDs": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "main.CreateDeviceContainerData": {
+            "type": "object",
+            "properties": {
+                "device_type": {
+                    "type": "string"
+                },
+                "udid": {
+                    "type": "string"
                 }
             }
         },
@@ -724,6 +725,14 @@ var doc = `{
                 }
             }
         },
+        "main.RemoveDeviceContainerData": {
+            "type": "object",
+            "properties": {
+                "udid": {
+                    "type": "string"
+                }
+            }
+        },
         "main.SimpleResponseJSON": {
             "type": "object",
             "properties": {
@@ -768,7 +777,7 @@ var doc = `{
                 }
             }
         },
-        "main.iOSAppInstall": {
+        "main.installIOSAppRequest": {
             "type": "object",
             "properties": {
                 "ipa_name": {
@@ -776,24 +785,10 @@ var doc = `{
                 }
             }
         },
-        "main.iOSAppUninstall": {
+        "main.uninstallIOSAppRequest": {
             "type": "object",
             "properties": {
                 "bundle_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.registerIOSDevice": {
-            "type": "object",
-            "properties": {
-                "device_name": {
-                    "type": "string"
-                },
-                "device_os_version": {
-                    "type": "string"
-                },
-                "device_udid": {
                     "type": "string"
                 }
             }
