@@ -2,7 +2,7 @@
 Description=Socket daemon for the usbmux protocol used by Apple devices
 
 [Service]
-ExecStart=/usr/sbin/usbmuxd
+ExecStart=/usr/sbin/usbmuxd --user usbmux --systemd
 PIDFile=/var/run/usbmuxd.pid
 Restart=always
 
