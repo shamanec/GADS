@@ -155,6 +155,22 @@
         text-align: center;
         word-wrap: break-word;
     }
+
+    .ripple {
+        width: 10px;
+        height: 10px;
+        position: fixed;
+        border-radius: 50%;
+        border: 1px solid #ffffff;
+        pointer-events: none;
+    }
+
+    @keyframes ripple-effect {
+        to {
+            transform: scale(5);
+            opacity: 0;
+        }
+    }
 </style>
 
 <body>
@@ -321,7 +337,6 @@
             return
         }
 
-        showCanvasLoader()
         fetch(url, {
             method: 'POST',
             body: json,
@@ -330,10 +345,8 @@
             }
         })
             .then(() => {
-                hideCanvasLoader()
             })
             .catch(function (error) {
-                hideCanvasLoader()
                 alert("Could not access iOS device homescreen endpoint. Error: " + error)
             })
     })
@@ -1249,6 +1262,7 @@
         tapStartAt = (new Date()).getTime()
         // get the initial coordinates of clicking the canvas
         coord1 = getCursorCoordinates(canvas, event)
+        applyCursorRippleEffect(event);
         console.log("MOUSE DOWN COORDINATES:" + coord1[0] + "-" + coord1[1])
     })
 
@@ -1514,10 +1528,6 @@
             ]
         })
 
-        // show a loader on the canvas until the tap action response is returned
-        // this is to prevent fast tapping that will not be handled properly
-        showCanvasLoader()
-
         let session_id;
         if (selected_device_text.includes("android")) {
             let appium_port = $("#appium-port").text()
@@ -1532,16 +1542,13 @@
         // call the /actions endpoint sending the tapp coordinates
         // on response remove the canvas loader
         $.ajax({
-            async: false,
             type: "POST",
             contentType: 'application/json',
             data: jsonData,
             url: url,
             success: function () {
-                hideCanvasLoader()
             },
             error: function () {
-                hideCanvasLoader()
                 alert("WDA session is invalid, please reload")
             }
         });
@@ -1614,10 +1621,6 @@
             ]
         })
 
-        // show a loader on the canvas until the tap action response is returned
-        // this is to prevent fast tapping that will not be handled properly
-        showCanvasLoader()
-
         let session_id;
         if (selected_device_text.includes("android")) {
             let appium_port = $("#appium-port").text()
@@ -1632,19 +1635,29 @@
         // call the /actions endpoint sending the tapp coordinates
         // on response remove the canvas loader
         $.ajax({
-            async: false,
             type: "POST",
             contentType: 'application/json',
             data: jsonData,
             url: url,
             success: function () {
-                hideCanvasLoader()
             },
             error: function () {
-                hideCanvasLoader()
                 alert("WDA session is invalid, please reload")
             }
         });
+    }
+
+    function applyCursorRippleEffect(e) {
+        const ripple = document.createElement("div");
+
+        ripple.className = "ripple";
+        document.body.appendChild(ripple);
+
+        ripple.style.left = `${e.clientX}px`;
+        ripple.style.top = `${e.clientY}px`;
+
+        ripple.style.animation = "ripple-effect .2s  linear";
+        ripple.onanimationend = () => document.body.removeChild(ripple);
     }
 
     // present a loader and semi-transparent overlay on the canvas while waiting for the tap response
