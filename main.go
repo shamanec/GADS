@@ -166,6 +166,16 @@ func GetDeviceControlPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func GetDeviceControlSelectionPage(w http.ResponseWriter, r *http.Request) {
+	var device_selection_page = template.Must(template.ParseFiles("static/device_selection.html"))
+	if err := device_selection_page.Execute(w, nil); err != nil {
+		log.WithFields(log.Fields{
+			"event": "device_selection_page",
+		}).Error("Couldn't load device_selection.html")
+		return
+	}
+}
+
 // @Summary      Get project logs
 // @Description  Provides project logs as plain text response
 // @Tags         project-logs
@@ -235,6 +245,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
+	myRouter.HandleFunc("/devices/device-containers", GetRunningContainers).Methods("GET")
 
 	// Logs
 	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
@@ -249,6 +260,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
+	myRouter.HandleFunc("/device-selection.html", GetDeviceControlSelectionPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))

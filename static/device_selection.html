@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Device Selection</title>
+</head>
+<style>
+    table,
+    td,
+    th {
+        border: 1px solid #000000;
+        text-align: center;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    td {
+        padding: 15px;
+    }
+
+    thead th {
+        padding: 16px;
+        padding-left: 15px;
+        border-left: 1px solid #000000;
+        border-bottom: 1px solid #000000;
+        background: #ffc491;
+        text-align: center;
+        box-shadow: 0px 0px 0 1px #000000;
+    }
+
+    /* Set header to stick to the top of the container. */
+    thead tr th {
+        position: sticky;
+        top: 50px;
+    }
+
+    .topnav {
+        position: sticky;
+        top: 0;
+    }
+
+    #apple-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    #android-icon {
+        width: 30px;
+        height: 30px;
+    }
+</style>
+
+<body>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="configuration.html">Project configuration</a>
+        <a href="ios-containers.html">iOS containers</a>
+        <a href="android-containers.html">Android containers</a>
+        <a href="project-logs.html">Project logs</a>
+        <a href="device-control.html">Device Control</a>
+        <a href="swagger/index.html" target="_blank">Swagger</a>
+        <a class="active" href="device-selection.html">Device Selection</a>
+    </div>
+    <table id="devices-table">
+        <thead>
+            <tr>
+                <th>Device Type</th>
+                <th>Device Name</th>
+                <th>Device UDID</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="devices-table-body">
+        </tbody>
+    </table>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</body>
+
+<script>
+    window.addEventListener("DOMContentLoaded", function () {
+        getDevices()
+    });
+
+    async function getDevices() {
+        // $.ajax({
+        //     async: false,
+        //     contentType: 'application/json',
+        //     type: "GET",
+        //     url: "/devices/device-containers",
+        //     success: function (response) {
+        //         console.log(response)
+        //         createDevicesTable(response)
+        //     },
+        //     error: function () {
+        //         alert("Broken data");
+        //     }
+        // });
+
+        const response = await fetch("/devices/device-containers").then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        }).catch(function (error) {
+            alert("Something went wrong" + error)
+        })
+
+        if (response != null) {
+            createDevicesTable(response)
+        } else {
+            alert("Something went wrong")
+        }
+
+    }
+
+    function createDevicesTable(response) {
+        var table = document.getElementById("devices-table-body");
+        for (let i = 0; i < response["containers"].length; i++) {
+            var container_name = response["containers"][i]
+            if (container_name.startsWith("ios")) {
+                container_name = container_name.replace("ios_device_", "")
+                //https://bobbyhadz.com/blog/javascript-split-string-only-on-first-instance-of-character
+                const [name, ...udid] = container_name.split("-")
+
+                var tr = document.createElement('tr');
+                tr.id = "table-row"
+
+                var td1 = document.createElement('td');
+                var td2 = document.createElement('td');
+                var td3 = document.createElement('td');
+                var td4 = document.createElement('td');
+
+                var device_name = document.createTextNode(name);
+                var device_udid = document.createTextNode(udid);
+                var button = document.createElement('button')
+                button.setAttribute("id", "use-device-button")
+                button.setAttribute("value", udid)
+                button.innerHTML = "Control device"
+                var icon = document.createElement('img')
+                icon.setAttribute("src", "static/images/apple-logo.png")
+                icon.setAttribute("id", "apple-icon")
+
+                td1.appendChild(icon)
+                td2.appendChild(device_name)
+                td3.appendChild(device_udid)
+                td4.appendChild(button)
+
+                tr.appendChild(td1);
+                tr.appendChild(td2);
+                tr.appendChild(td3);
+                tr.appendChild(td4);
+
+                table.appendChild(tr);
+            } else if (container_name.startsWith("android")) {
+                container_name = container_name.replace("android_device_", "")
+                //https://bobbyhadz.com/blog/javascript-split-string-only-on-first-instance-of-character
+                const [name, ...udid] = container_name.split("-")
+
+                var tr = document.createElement('tr');
+                tr.id = "table-row"
+
+                var td1 = document.createElement('td');
+                var td2 = document.createElement('td');
+                var td3 = document.createElement('td');
+                var td4 = document.createElement('td');
+
+                var device_name = document.createTextNode(name);
+                var device_udid = document.createTextNode(udid);
+                var button = document.createElement('button')
+                button.setAttribute("id", "use-device-button")
+                button.setAttribute("value", udid)
+                button.innerHTML = "Control device"
+                var icon = document.createElement('img')
+                icon.setAttribute("src", "static/images/android-logo.png")
+                icon.setAttribute("id", "android-icon")
+
+                td1.appendChild(icon)
+                td2.appendChild(device_name)
+                td3.appendChild(device_udid)
+                td4.appendChild(button)
+
+                tr.appendChild(td1);
+                tr.appendChild(td2);
+                tr.appendChild(td3);
+                tr.appendChild(td4);
+
+                table.appendChild(tr);
+            }
+        }
+    }
+</script>
+
+</html>

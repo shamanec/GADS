@@ -323,7 +323,7 @@ func ConvertToJSONString(data interface{}) string {
 		fmt.Println(err)
 		return ""
 	}
-	return string(b)
+	return PrettifyJSON(string(b))
 }
 
 // Prettify JSON with indentation and stuff

@@ -273,6 +273,19 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
 }
 
+type RunningDeviceContainers struct {
+	ContainersList []string `json:"containers"`
+}
+
+func GetRunningContainers(w http.ResponseWriter, r *http.Request) {
+	var runningContainerNames = getRunningContainerNames()
+	var info = RunningDeviceContainers{
+		ContainersList: runningContainerNames,
+	}
+
+	fmt.Fprintf(w, ConvertToJSONString(info))
+}
+
 //=======================//
 //=====FUNCTIONS=====//
 
