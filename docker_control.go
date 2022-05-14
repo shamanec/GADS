@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -358,6 +359,48 @@ func GetAndroidContainers(w http.ResponseWriter, r *http.Request) {
 	if err := index.Execute(w, rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// IOS Containers html page
+func GetDeviceContainers(w http.ResponseWriter, r *http.Request) {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		JSONError(w, "device_containers_info", "Could not create docker client when getting device containers info", 500)
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		JSONError(w, "device_containers_info", "Could not get docker containers list when getting device containers info", 500)
+	}
+
+	var containersInfo DeviceContainers
+
+	// Loop through the containers list
+	for _, container := range containers {
+		// Parse plain container name
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+
+		if strings.Contains(containerName, "ios_device") || strings.Contains(containerName, "android_device") {
+			// Get all the container ports from the returned array into string
+			containerPorts := ""
+			for i, s := range container.Ports {
+				if i > 0 {
+					containerPorts += "\n"
+				}
+				containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
+			}
+
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^-]*$")
+			match := re.FindStringSubmatch(containerName)
+
+			var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
+			containersInfo.ContainerRows = append(containersInfo.ContainerRows, containerRow)
+		}
+	}
+
+	fmt.Fprintf(w, ConvertToJSONString(containersInfo))
 }
 
 //===================//

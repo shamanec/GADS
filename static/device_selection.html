@@ -87,20 +87,6 @@
     });
 
     async function getDevices() {
-        // $.ajax({
-        //     async: false,
-        //     contentType: 'application/json',
-        //     type: "GET",
-        //     url: "/devices/device-containers",
-        //     success: function (response) {
-        //         console.log(response)
-        //         createDevicesTable(response)
-        //     },
-        //     error: function () {
-        //         alert("Broken data");
-        //     }
-        // });
-
         const response = await fetch("/devices/device-containers").then(response => {
             if (response.ok) {
                 return response.json()
@@ -116,7 +102,6 @@
         } else {
             alert("Something went wrong")
         }
-
     }
 
     function createDevicesTable(response) {

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Device Containers</title>
+    <link href="/static/css/ios_containers_styles.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+</head>
+
+<body>
+    <div id="loading">
+        <img id="loading-image" src="/static/images/loader.gif">
+    </div>
+    <!-- Modal -->
+    <div class="modal fade" id="deviceLogsModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-body"></div>
+                <div class="modal-footer">
+                    <button id="modal-close-button" class="close btn btn-default" type="button"
+                        data-dismiss="modal">Close</button>
+                    <button id="refresh-logs-button" class="fa fa-refresh" onclick="refreshLogs(this);">Refresh
+                        logs</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="configuration.html">Project configuration</a>
+        <a class="active" href="ios-containers.html">Device Containers</a>
+        <a href="project-logs.html">Project logs</a>
+        <a href="device-control.html">Device Control</a>
+        <a href="swagger/index.html" target="_blank">Swagger</a>
+    </div>
+    <table id="containers-table">
+        <thead>
+            <tr>
+                <th>ContainerID</th>
+                <th>Image Name</th>
+                <th>Container Status</th>
+                <th>Container Ports</th>
+                <th>Container Name</th>
+                <th>Additional info</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="containers-table-body">
+        </tbody>
+    </table>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        window.addEventListener("DOMContentLoaded", function () {
+            getDeviceContainers()
+        });
+
+        async function getDeviceContainers() {
+            const response = await fetch("/device-containers/info").then(response => {
+                if (response.ok) {
+                    return response.json()
+                } else {
+                    return null
+                }
+            }).catch(function (error) {
+                alert("Something went wrong" + error)
+            })
+
+            if (response != null) {
+                createDevicesTable(response)
+            } else {
+                alert("Something went wrong")
+            }
+        }
+
+        function createDevicesTable(response) {
+            var table = document.getElementById("containers-table-body");
+            for (let i = 0; i < response["ContainerRows"].length; i++) {
+                var container_info = response["ContainerRows"][i]
+                if (container_info["ContainerName"].startsWith("ios")) {
+                    var tr = document.createElement('tr');
+                    tr.id = "table-row"
+
+                    var td1 = document.createElement('td');
+                    var td2 = document.createElement('td');
+                    var td3 = document.createElement('td');
+                    var td4 = document.createElement('td');
+                    var td5 = document.createElement('td');
+                    var td6 = document.createElement('td');
+                    var td7 = document.createElement('td');
+
+                    var container_name = document.createTextNode(container_info["ContainerName"])
+                    var container_id = document.createTextNode(container_info["ContainerID"])
+                    var image_name = document.createTextNode(container_info["ImageName"])
+                    var container_status = document.createTextNode(container_info["ContainerStatus"])
+                    var container_ports = document.createTextNode(container_info["ContainerPorts"])
+
+                    var info_div = document.createElement('div')
+                    var container_logs_button = document.createElement("button")
+                    container_logs_button.setAttribute("value", container_info["ContainerID"])
+                    container_logs_button.setAttribute("id", "container-logs-button")
+                    container_logs_button.setAttribute("class", "info-buttons")
+                    container_logs_button.textContent = "Container Logs"
+
+                    var appium_logs_button = document.createElement("button")
+                    appium_logs_button.setAttribute("value", device_udid)
+                    appium_logs_button.setAttribute("id", "appium-logs-button")
+                    appium_logs_button.setAttribute("class", "info-buttons")
+                    appium_logs_button.textContent = "Appium Logs"
+
+                    var wda_logs_button = document.createElement("button")
+                    wda_logs_button.setAttribute("value", device_udid)
+                    wda_logs_button.setAttribute("id", "wda-logs-button")
+                    wda_logs_button.setAttribute("class", "info-buttons")
+                    wda_logs_button.textContent = "WDA Logs"
+
+                    var wda_sync_button = document.createElement("button")
+                    wda_sync_button.setAttribute("value", device_udid)
+                    wda_sync_button.setAttribute("id", "wdasync-logs-button")
+                    wda_sync_button.setAttribute("class", "info-buttons")
+                    wda_sync_button.textContent = "WDA Sync Logs"
+
+                    info_div.appendChild(container_logs_button)
+                    info_div.appendChild(appium_logs_button)
+                    info_div.appendChild(wda_logs_button)
+                    info_div.appendChild(wda_sync_button)
+
+                    var actions_div = document.createElement('div')
+                    var restart_container_button = document.createElement("button")
+                    restart_container_button.setAttribute("value", container_info["ContainerID"])
+                    restart_container_button.setAttribute("id", "restart-container-button")
+                    restart_container_button.setAttribute("class", "action-buttons")
+                    restart_container_button.textContent = "Restart container"
+
+                    var stop_container_button = document.createElement("button")
+                    stop_container_button.setAttribute("value", container_id)
+                    stop_container_button.setAttribute("id", "stop-container-button")
+                    stop_container_button.setAttribute("class", "action-buttons")
+                    stop_container_button.textContent = "Stop container"
+
+                    actions_div.appendChild(restart_container_button)
+                    actions_div.appendChild(stop_container_button)
+
+                    td1.appendChild(container_id)
+                    td2.appendChild(image_name)
+                    td3.appendChild(container_status)
+                    td4.appendChild(container_ports)
+                    td5.appendChild(container_name)
+                    td6.appendChild(info_div)
+                    td7.appendChild(actions_div)
+
+                    tr.appendChild(td1);
+                    tr.appendChild(td2);
+                    tr.appendChild(td3);
+                    tr.appendChild(td4);
+                    tr.appendChild(td5);
+                    tr.appendChild(td6)
+                    tr.appendChild(td7)
+
+                    table.appendChild(tr);
+                } else if (container_info["ContainerName"].startsWith("android")) {
+                    var tr = document.createElement('tr');
+                    tr.id = "table-row"
+
+                    var td1 = document.createElement('td');
+                    var td2 = document.createElement('td');
+                    var td3 = document.createElement('td');
+                    var td4 = document.createElement('td');
+                    var td5 = document.createElement('td');
+                    var td6 = document.createElement('td');
+                    var td7 = document.createElement('td');
+
+                    var container_name = document.createTextNode(container_info["ContainerName"])
+                    var container_id = document.createTextNode(container_info["ContainerID"])
+                    var image_name = document.createTextNode(container_info["ImageName"])
+                    var container_status = document.createTextNode(container_info["ContainerStatus"])
+                    var container_ports = document.createTextNode(container_info["ContainerPorts"])
+                    var device_udid = container_info["DeviceUDID"]
+
+                    var info_div = document.createElement('div')
+                    var container_logs_button = document.createElement("button")
+                    container_logs_button.setAttribute("value", container_info["ContainerID"])
+                    container_logs_button.setAttribute("id", "container-logs-button")
+                    container_logs_button.setAttribute("class", "info-buttons")
+                    container_logs_button.textContent = "Container Logs"
+
+                    var appium_logs_button = document.createElement("button")
+                    appium_logs_button.setAttribute("value", device_udid)
+                    appium_logs_button.setAttribute("id", "appium-logs-button")
+                    appium_logs_button.setAttribute("class", "info-buttons")
+                    appium_logs_button.textContent = "Appium Logs"
+
+                    var minicap_logs_button = document.createElement("button")
+                    minicap_logs_button.setAttribute("value", device_udid)
+                    minicap_logs_button.setAttribute("id", "minicap-logs-button")
+                    minicap_logs_button.setAttribute("class", "info-buttons")
+                    minicap_logs_button.textContent = "Minicap Logs"
+
+                    info_div.appendChild(container_logs_button)
+                    info_div.appendChild(appium_logs_button)
+                    info_div.appendChild(minicap_logs_button)
+
+                    var actions_div = document.createElement('div')
+                    var restart_container_button = document.createElement("button")
+                    restart_container_button.setAttribute("value", container_info["ContainerID"])
+                    restart_container_button.setAttribute("id", "restart-container-button")
+                    restart_container_button.setAttribute("class", "action-buttons")
+                    restart_container_button.textContent = "Restart container"
+
+                    var stop_container_button = document.createElement("button")
+                    stop_container_button.setAttribute("value", container_id)
+                    stop_container_button.setAttribute("id", "stop-container-button")
+                    stop_container_button.setAttribute("class", "action-buttons")
+                    stop_container_button.textContent = "Stop container"
+
+                    actions_div.appendChild(restart_container_button)
+                    actions_div.appendChild(stop_container_button)
+
+                    td1.appendChild(container_id)
+                    td2.appendChild(image_name)
+                    td3.appendChild(container_status)
+                    td4.appendChild(container_ports)
+                    td5.appendChild(container_name)
+                    td6.appendChild(info_div)
+                    td7.appendChild(actions_div)
+
+                    tr.appendChild(td1);
+                    tr.appendChild(td2);
+                    tr.appendChild(td3);
+                    tr.appendChild(td4);
+                    tr.appendChild(td5);
+                    tr.appendChild(td6)
+                    tr.appendChild(td7)
+
+                    table.appendChild(tr);
+                }
+            }
+        }
+
+
+
+        window.onload = function () {
+            var button = document.getElementById("restart-container-button")
+            button.addEventListener('click', () => {
+                restartContainer()
+            })
+        }
+
+        /* Restart container when clicking on the 'Restart container' button for the row */
+        function restartContainer(event) {
+            /* Get the container ID that is in the value of the 'Restart container' button */
+            var containerId = event.target.value
+
+            /* Show loading indicator until response is returned */
+            $('#loading').css("visibility", "visible");
+
+            /* Call the endpoint that will restart the selected container */
+            $.ajax({
+                dataType: 'JSON',
+                contentType: 'application/json',
+                async: false,
+                type: "POST",
+                url: "/containers/" + containerId + "/restart",
+                success: function (data) {
+                    $('#loading').css("visibility", "hidden");
+                    swal("Restart container", data.message, "info")
+                        .then(() => {
+                            location.reload();
+                        });
+                },
+                error: function (data) {
+                    $('#loading').css("visibility", "hidden");
+                    swal("Restart container", data.error_message, "error")
+                        .then(() => {
+                            location.reload();
+                        });
+                }
+            });
+        }
+
+        /* Restart container when clicking on the 'Restart container' button for the row */
+        function removeContainer(objButton) {
+            /* Get the container ID that is in the value of the 'Restart container' button */
+            var containerId = objButton.value
+
+            /* Show loading indicator until response is returned */
+            $('#loading').css("visibility", "visible");
+
+            /* Call the endpoint that will restart the selected container */
+            $.ajax({
+                dataType: 'JSON',
+                contentType: 'application/json',
+                async: false,
+                type: "POST",
+                url: "/containers/" + containerId + "/remove",
+                success: function (data) {
+                    $('#loading').css("visibility", "hidden");
+                    swal("Remove container", data.message, "info")
+                        .then(() => {
+                            location.reload();
+                        });
+                },
+                error: function (data) {
+                    $('#loading').css("visibility", "hidden");
+                    swal(data.event, data.error_message, "error")
+                        .then(() => {
+                            location.reload();
+                        });
+                }
+            });
+        }
+
+        /* Show info modal with provided text */
+        function showInfoModal(modalText) {
+            /* Get the modal element */
+            var modal = document.getElementById("deviceLogsModal")
+
+            /* Get the close button */
+            var span = document.getElementsByClassName("close")[0]
+
+            /* Set the modal text */
+            $('.modal-body').html(modalText)
+
+            /* Display the modal blocking interaction */
+            modal.style.display = "block";
+
+            /* Close the modal if you click on close button */
+            span.onclick = function () {
+                modal.style.display = "none";
+            }
+
+            /* Close the modal if you click anywhere outside the modal */
+            window.onclick = function (event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+        }
+
+        function getDeviceLogs(buttonObj, logType) {
+            /* Get the device UDID that is in the value of the button */
+            var deviceUDID = buttonObj.value
+
+            var url = "/device-logs/" + logType + "/" + deviceUDID
+            var refreshButton = document.getElementById("refresh-logs-button")
+            refreshButton.value = url
+            /* Call the endpoint that will get the chosen logs */
+            $.ajax({
+                dataType: 'JSON',
+                contentType: 'application/json',
+                async: false,
+                type: "GET",
+                url: "/device-logs/" + logType + "/" + deviceUDID,
+                success: function (data) {
+                    showInfoModal(data.message)
+                }
+            });
+        }
+
+        function getContainerLogs(buttonObj) {
+            /* Get the container ID that is in the value of the button */
+            var containerID = buttonObj.value
+
+            var url = "/containers/" + containerID + "/logs"
+            var refreshButton = document.getElementById("refresh-logs-button")
+            refreshButton.value = url
+            /* Call the endpoint that will get the container logs */
+            $.ajax({
+                dataType: 'JSON',
+                contentType: 'application/json',
+                async: false,
+                type: "GET",
+                url: "/containers/" + containerID + "/logs",
+                success: function (data) {
+                    showInfoModal(data.message)
+                },
+                error: function (data) {
+                    showInfoModal(data.message)
+                }
+            });
+        }
+
+        function refreshLogs(buttonObj) {
+            var refreshButton = document.getElementById("refresh-logs-button")
+            var modalBody = document.getElementsByClassName("modal-body")[0]
+            $.ajax({
+                dataType: 'JSON',
+                contentType: 'application/json',
+                async: false,
+                type: "GET",
+                url: refreshButton.value,
+                success: function (data) {
+                    /* Set the modal text */
+                    $('.modal-body').html(data.message)
+
+                    /* Scroll to the bottom of the logs on refresh */
+                    modalBody.scrollTop = modalBody.scrollHeight;
+                }
+            });
+        }
+    </script>
+    <script>
+        window.addEventListener("DOMContentLoaded", function () {
+            // Just scan the DOM for the element one time
+            var containerStatusCells = document.getElementsByClassName('container-status-cells');
+
+            $('.container-status-cells').each(function (i) {
+                if (this.textContent.indexOf('Up') > -1) {
+                    this.style.backgroundColor = "#4CAF50";
+                } else {
+                    this.style.backgroundColor = "#fcba03";
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

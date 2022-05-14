@@ -37,6 +37,10 @@ type ProjectConfigPageData struct {
 	ProjectConfigValues    ProjectConfig
 }
 
+type DeviceContainers struct {
+	ContainerRows []ContainerRow
+}
+
 type ContainerRow struct {
 	ContainerID     string
 	ImageName       string
@@ -176,6 +180,16 @@ func GetDeviceControlSelectionPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func GetDeviceContainersPage(w http.ResponseWriter, r *http.Request) {
+	var device_selection_page = template.Must(template.ParseFiles("static/device_containers.html"))
+	if err := device_selection_page.Execute(w, nil); err != nil {
+		log.WithFields(log.Fields{
+			"event": "device_containers_page",
+		}).Error("Couldn't load device_containers.html")
+		return
+	}
+}
+
 // @Summary      Get project logs
 // @Description  Provides project logs as plain text response
 // @Tags         project-logs
@@ -228,6 +242,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
 	myRouter.HandleFunc("/device-containers/remove", RemoveDeviceContainer).Methods("POST")
 	myRouter.HandleFunc("/device-containers/create", CreateDeviceContainer).Methods("POST")
+	myRouter.HandleFunc("/device-containers/info", GetDeviceContainers).Methods("GET")
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
@@ -261,6 +276,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/device-selection.html", GetDeviceControlSelectionPage)
+	myRouter.HandleFunc("/device-containers.html", GetDeviceContainersPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
