@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -17,6 +18,7 @@ import (
 
 var maxFPS = 60
 var iOSImageChan = make(chan image.Image, 1)
+var initialImageChan = make(chan streamImageData, 1)
 var screenshotsChan = make(chan []byte)
 var lastImageBytes []byte
 var lastImage image.Image
@@ -26,6 +28,17 @@ type iOSStreamHandler struct {
 	Options *jpeg.EncoderOptions
 }
 
+type streamImageData struct {
+	Image     image.Image
+	StartTime int64
+	EndTime   int64
+}
+
+var lastStartTime int64
+var lastEndTime int64
+
+var ch = make(chan int, 5)
+
 func StreamIOS(w http.ResponseWriter, r *http.Request) {
 	device, err := ios.GetDevice("00008030000418C136FB802E")
 	if err != nil {
@@ -33,6 +46,7 @@ func StreamIOS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go streamScreenshot(device)
+	go sendScreenshotCheck()
 	w.Header().Add("Content-Type", "multipart/x-mixed-replace; boundary=frame")
 	boundary := "\r\n--frame\r\nContent-Type: image/jpeg\r\n\r\n"
 	stream := iOSStreamHandler{
@@ -66,22 +80,13 @@ func StreamIOS(w http.ResponseWriter, r *http.Request) {
 }
 
 func streamScreenshot(device ios.DeviceEntry) {
-	frameRate := 30
-	timeInterval := (1.0 / float64(frameRate)) * 1000000000
-
-	timeStarted := time.Now()
-	//scheduleNextScreenshot(device, timeInterval, timeStarted)
-	//for {
-	// go createJPEG(takeScreenshotToBytes(device))
-	go createJPEG(device)
-	//fmt.Printf("Current time after goroutine execution be %v\n", time.Now().UnixNano())
-	//s := fmt.Sprintf("%.2f", timeInterval)
-	// fmt.Printf("Currently in stream screenshot sending %v as time interval and %v as time started\n", s, timeStarted)
-	//fmt.Printf("Currently in stream screenshot sending %v as time interval and %v as time started\n", s, timeStarted)
-	//fmt.Printf("Current time just before schedule %v\n", time.Now().UnixNano())
-	scheduleNextScreenshot(timeInterval, timeStarted, device)
-	//}
-
+	for {
+		ch <- 1
+		go completeFunction(device)
+		time.Sleep(100 * time.Millisecond)
+		fmt.Printf("Number of routines %v\n", runtime.NumGoroutine())
+		fmt.Println(len(ch))
+	}
 }
 
 func scheduleNextScreenshot(timeInterval float64, timeStarted time.Time, device ios.DeviceEntry) {
@@ -111,7 +116,7 @@ func scheduleNextScreenshot(timeInterval float64, timeStarted time.Time, device 
 func takeScreenshotToBytes(device ios.DeviceEntry) []byte {
 	test, err := screenshotr.New(device)
 	if err != nil {
-		panic(err.Error())
+		fmt.Println("could not connect to screenshtor service")
 	}
 	imageBytes, err := test.TakeScreenshot()
 	if err != nil {
@@ -122,6 +127,61 @@ func takeScreenshotToBytes(device ios.DeviceEntry) []byte {
 		test.Close()
 		//fmt.Println("actually setting bytes")
 		return imageBytes
+	}
+
+}
+
+func completeFunction(device ios.DeviceEntry) {
+	startTime := time.Now().UnixMilli()
+	test, err := screenshotr.New(device)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	imageBytes, err := test.TakeScreenshot()
+	if err != nil {
+		test.Close()
+		return
+	}
+	test.Close()
+
+	var im image.Image
+
+	im, err = png.Decode(bytes.NewReader(imageBytes))
+	if err != nil {
+		//fmt.Println("NOT A PNG FILE")
+		fmt.Println("failed on png decode")
+		return
+	}
+
+	buf := new(bytes.Buffer)
+
+	err = jpeg2.Encode(buf, im, nil)
+	if err != nil {
+		//fmt.Println("Couldn't encode jpeg")
+		fmt.Println(err.Error())
+	}
+
+	finalImage, err := jpeg.Decode(buf, &jpeg.DecoderOptions{})
+	if err != nil {
+		fmt.Println("Couldn't decode jpeg")
+	}
+	//fmt.Println("New image")
+	//lastImage = finalImage
+	endTime := time.Now().UnixMilli()
+	imageStuff := streamImageData{Image: finalImage, StartTime: startTime, EndTime: endTime}
+	initialImageChan <- imageStuff
+	<-ch
+}
+
+func sendScreenshotCheck() {
+	for {
+		koleo := <-initialImageChan
+		if koleo.StartTime > lastStartTime && koleo.EndTime > lastEndTime {
+			lastStartTime = koleo.StartTime
+			lastEndTime = koleo.StartTime
+			iOSImageChan <- koleo.Image
+		}
 	}
 
 }
