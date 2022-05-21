@@ -286,7 +286,7 @@
         let selected_device_text = $("#device-dropdown option:selected").text()
         let table_element = $("#element-info-table")
 
-        if (selected_device_text.includes("ios")) {
+        if (selected_device_text.includes("iOS")) {
             table_element.empty()
             table_element.append('<tr><th>type</th><td id="element-type"></td></tr>')
             table_element.append('<tr><th>name</th><td id="element-name"></td></tr>')
@@ -330,7 +330,7 @@
         if (selected_device_text.includes("android")) {
             url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/press_keycode"
             json = JSON.stringify({ "keycode": 3 })
-        } else if (selected_device_text.includes("ios")) {
+        } else if (selected_device_text.includes("iOS")) {
             let wda_url = $("#wda-url").text()
             url = wda_url + "/wda/homescreen"
         } else {
@@ -357,7 +357,7 @@
 
         if (selected_device_text.includes("android")) {
             url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/unlock"
-        } else if (selected_device_text.includes("ios")) {
+        } else if (selected_device_text.includes("iOS")) {
             let wda_url = $("#wda-url").text()
             let wda_session_id = $("#wda-session-id").text()
             url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
@@ -432,7 +432,7 @@
 
         if (selected_device_text.includes("android")) {
             active_element_url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/active"
-        } else if (selected_device_text.includes("ios")) {
+        } else if (selected_device_text.includes("iOS")) {
             wda_url = $("#wda-url").text()
             wda_session_id = $("#wda-session-id").text()
             active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
@@ -478,7 +478,7 @@
 
         if (selected_device_text.includes("android")) {
             active_element_url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/active"
-        } else if (selected_device_text.includes("ios")) {
+        } else if (selected_device_text.includes("iOS")) {
             wda_url = $("#wda-url").text()
             wda_session_id = $("#wda-session-id").text()
             active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
@@ -528,7 +528,7 @@
             let device_udid = $("#device-dropdown").val();
             let selected_device_text = $("#device-dropdown option:selected").text()
 
-            if (selected_device_text.includes("ios")) {
+            if (selected_device_text.includes("iOS")) {
                 let wda_url;
                 for (let i = 0; i < control_response["ios-devices-info"].length; i++) {
                     if (control_response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
@@ -711,7 +711,7 @@
         device_dropdown.prop('selectedIndex', 0);
         var response = JSON.parse(data)
         for (let i = 0; i < response["running-containers"].length; i++) {
-            var match = response["running-containers"][i].match(/[^-]*$/)
+            var match = response["running-containers"][i].match(/[^_]*$/)
             device_dropdown.append($('<option></option>').attr('value', match[0]).text(response["running-containers"][i]));
         }
     }
@@ -781,9 +781,9 @@
 
         //var response = JSON.parse(data)
         for (let i = 0; i < response["installable-apps"].length; i++) {
-            if (container_name.includes("ios_device") && response["installable-apps"][i].includes(".ipa") || response["installable-apps"][i].includes(".app")) {
+            if (container_name.includes("iOSDevice") && response["installable-apps"][i].includes(".ipa") || response["installable-apps"][i].includes(".app")) {
                 apps_dropdown.append($('<option></option>').attr('value', response["installable-apps"][i]).text(response["installable-apps"][i]));
-            } else if (container_name.includes("android_device") && response["installable-apps"][i].includes(".apk")) {
+            } else if (container_name.includes("androidDevice") && response["installable-apps"][i].includes(".apk")) {
                 apps_dropdown.append($('<option></option>').attr('value', response["installable-apps"][i]).text(response["installable-apps"][i]));
             }
         }
@@ -795,7 +795,7 @@
         let image_stream = $('#image-stream')
         let selected_device_text = $("#device-dropdown option:selected").text()
 
-        if (selected_device_text.includes("ios")) {
+        if (selected_device_text.includes("iOS")) {
             for (let i = 0; i < response["ios-devices-info"].length; i++) {
                 if (response["ios-devices-info"][i].deviceConfig.device_udid === device_udid) {
                     image_stream.attr('src', response["ios-devices-info"][i].deviceConfig.wda_stream_url)
@@ -934,7 +934,7 @@
 
         if (selected_device_text.includes("android")) {
             url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/source"
-        } else if (selected_device_text.includes("ios")) {
+        } else if (selected_device_text.includes("iOS")) {
             wda_url = $("#wda-url").text()
             wda_session_id = $("#wda-session-id").text()
             url = wda_url + "/session/" + wda_session_id + "/source"
@@ -1126,7 +1126,7 @@
     function showElementInfo(json) {
         let selected_device_text = $("#device-dropdown option:selected").text()
 
-        if (selected_device_text.includes("ios")) {
+        if (selected_device_text.includes("iOS")) {
             $("#element-info-table").css("visibility", "visible")
             $("#element-type").text(json.type)
             $("#element-name").text(json.name)
@@ -1406,7 +1406,7 @@
         let appium_height;
 
         let selected_device_text = $("#device-dropdown option:selected").text()
-        if (selected_device_text.includes("ios")) {
+        if (selected_device_text.includes("iOS")) {
             // get the selected element coordinates and width/height from the json
             elementX = json.x;
             elementY = json.y;
