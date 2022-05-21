@@ -60,21 +60,21 @@
 			<td style="width: 350px;">{{.ContainerName}}</td>
 			<td style="width: 125px;">
 				<div>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getContainerLogs(this);"
+					<button class="clsInfoButtons" id="container-logs-button"
 						value={{.ContainerID}}>Container Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'appium-logs');"
+					<button class="clsInfoButtons" id="appium-logs-button"
 						value={{.DeviceUDID}}>Appium Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'wda-logs');"
+					<button class="clsInfoButtons" id="wda-logs-button"
 						value={{.DeviceUDID}}>WebDriverAgent Logs</button>
-					<button class="clsInfoButtons" id="containerLogsButton" onclick="getDeviceLogs(this, 'wda-sync');"
+					<button class="clsInfoButtons" id="wda-sync-logs-button"
 						value={{.DeviceUDID}}>WDA Sync Logs</button>
 				</div>
 			</td>
 			<td style="text-align:center; width: 125px;">
 				<div>
-					<button class="clsActionButtons" id="restartContainerButton" onclick="restartContainer(this);"
+					<button class="clsActionButtons" id="restart-container-button"
 						value={{.ContainerID}}>Restart container</button>
-					<button class="clsActionButtons" id="removeContainerButton" onclick="removeContainer(this);"
+					<button class="clsActionButtons" id="remove-container-button"
 						value={{.ContainerID}}>Remove container</button>
 				</div>
 			</td>
@@ -83,11 +83,50 @@
 	</table>
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script>
+		document.getElementById("container-logs-button").addEventListener('click', () => {
+			var button = event.target
+			var container_id = button.value
 
-		/* Restart container when clicking on the 'Restart container' button for the row */
-		function restartContainer(objButton) {
-			/* Get the container ID that is in the value of the 'Restart container' button */
-			var containerId = objButton.value
+			getContainerLogs(container_id)
+		})
+
+		document.getElementById("appium-logs-button").addEventListener('click', () => {
+			var button = event.target
+			var udid = button.value
+
+			getDeviceLogs(udid, "appium-logs")
+		})
+
+		document.getElementById("wda-logs-button").addEventListener('click', () => {
+			var button = event.target
+			var udid = button.value
+			
+			getDeviceLogs(udid, "wda-logs")
+		})
+
+		document.getElementById("wda-sync-logs-button").addEventListener('click', () => {
+			var button = event.target
+			var udid = button.value
+
+			getDeviceLogs(udid, "wda-sync")
+		})
+
+		document.getElementById("restart-container-button").addEventListener('click', () => {
+			var button = event.target
+			var container_id = button.value
+
+			containerAction(container_id, "restart")
+		})
+
+		document.getElementById("remove-container-button").addEventListener('click', () => {
+			var button = event.target
+			var container_id = button.value
+
+			containerAction(container_id, "remove")
+		})
+
+		/* Restart or remove a device container */
+		function containerAction(container_id, action) {
 
 			/* Show loading indicator until response is returned */
 			$('#loading').css("visibility", "visible");
@@ -98,7 +137,7 @@
 				contentType: 'application/json',
 				async: false,
 				type: "POST",
-				url: "/containers/" + containerId + "/restart",
+				url: "/containers/" + container_id + "/" + action,
 				success: function (data) {
 					$('#loading').css("visibility", "hidden");
 					swal("Restart container", data.message, "info")
@@ -116,34 +155,39 @@
 			});
 		}
 
-		/* Restart container when clicking on the 'Restart container' button for the row */
-		function removeContainer(objButton) {
-			/* Get the container ID that is in the value of the 'Restart container' button */
-			var containerId = objButton.value
-
-			/* Show loading indicator until response is returned */
-			$('#loading').css("visibility", "visible");
-
-			/* Call the endpoint that will restart the selected container */
+		function getDeviceLogs(udid, log_type) {
+			var url = "/device-logs/" + log_type + "/" + udid
+			var refreshButton = document.getElementById("refresh-logs-button")
+			refreshButton.value = url
+			/* Call the endpoint that will get the chosen logs */
 			$.ajax({
 				dataType: 'JSON',
 				contentType: 'application/json',
 				async: false,
-				type: "POST",
-				url: "/containers/" + containerId + "/remove",
+				type: "GET",
+				url: "/device-logs/" + log_type + "/" + udid,
 				success: function (data) {
-					$('#loading').css("visibility", "hidden");
-					swal("Remove container", data.message, "info")
-						.then(() => {
-							location.reload();
-						});
+					showInfoModal(data.message)
+				}
+			});
+		}
+
+		function getContainerLogs(container_id) {
+			var url = "/containers/" + container_id + "/logs"
+			var refreshButton = document.getElementById("refresh-logs-button")
+			refreshButton.value = url
+			/* Call the endpoint that will get the container logs */
+			$.ajax({
+				dataType: 'JSON',
+				contentType: 'application/json',
+				async: false,
+				type: "GET",
+				url: "/containers/" + container_id + "/logs",
+				success: function (data) {
+					showInfoModal(data.message)
 				},
 				error: function (data) {
-					$('#loading').css("visibility", "hidden");
-					swal(data.event, data.error_message, "error")
-						.then(() => {
-							location.reload();
-						});
+					showInfoModal(data.message)
 				}
 			});
 		}
@@ -173,49 +217,6 @@
 					modal.style.display = "none";
 				}
 			}
-		}
-
-		function getDeviceLogs(buttonObj, logType) {
-			/* Get the device UDID that is in the value of the button */
-			var deviceUDID = buttonObj.value
-
-			var url = "/device-logs/" + logType + "/" + deviceUDID
-			var refreshButton = document.getElementById("refresh-logs-button")
-			refreshButton.value = url
-			/* Call the endpoint that will get the chosen logs */
-			$.ajax({
-				dataType: 'JSON',
-				contentType: 'application/json',
-				async: false,
-				type: "GET",
-				url: "/device-logs/" + logType + "/" + deviceUDID,
-				success: function (data) {
-					showInfoModal(data.message)
-				}
-			});
-		}
-
-		function getContainerLogs(buttonObj) {
-			/* Get the container ID that is in the value of the button */
-			var containerID = buttonObj.value
-
-			var url = "/containers/" + containerID + "/logs"
-			var refreshButton = document.getElementById("refresh-logs-button")
-			refreshButton.value = url
-			/* Call the endpoint that will get the container logs */
-			$.ajax({
-				dataType: 'JSON',
-				contentType: 'application/json',
-				async: false,
-				type: "GET",
-				url: "/containers/" + containerID + "/logs",
-				success: function (data) {
-					showInfoModal(data.message)
-				},
-				error: function (data) {
-					showInfoModal(data.message)
-				}
-			});
 		}
 
 		function refreshLogs(buttonObj) {
