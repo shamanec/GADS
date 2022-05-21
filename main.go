@@ -250,6 +250,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
+	myRouter.HandleFunc("/stream", StreamIOS)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
