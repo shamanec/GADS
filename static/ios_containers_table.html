@@ -1,0 +1,41 @@
+{{define "ios_containers_table"}}
+<tr>
+    <th>
+        <p id="countdown-timer" style="float: left;">Refreshing in 5...</p>
+        <p>ContainerID</p>
+    </th>
+    <th>Image Name</th>
+    <th>Container Status</th>
+    <th>Container Ports</th>
+    <th>Container Name</th>
+    <th>Additional info</th>
+    <th>Actions</th>
+</tr>
+{{range .}}
+<tr>
+    <td>{{.ContainerID}}</td>
+    <td style="width: 125px;">{{.ImageName}}</td>
+    <td id="container-status-cell" class="container-status-cells" style="width: 120px;">{{.ContainerStatus}}
+    </td>
+    <td style="width: 700px;font-size: 15px">
+        <pre>{{.ContainerPorts}}</pre>
+    </td>
+    <td style="width: 350px;">{{.ContainerName}}</td>
+    <td style="width: 125px;">
+        <div>
+            <button class="info-buttons" id="container-logs-button" value={{.ContainerID}}>Container Logs</button>
+            <button class="info-buttons" id="appium-logs-button" value={{.DeviceUDID}}>Appium Logs</button>
+            <button class="info-buttons" id="wda-logs-button" value={{.DeviceUDID}}>WebDriverAgent Logs</button>
+            <button class="info-buttons" id="wda-sync-logs-button" value={{.DeviceUDID}}>WDA Sync Logs</button>
+        </div>
+    </td>
+    <td style="text-align:center; width: 125px;">
+        <div>
+            <button class="action-buttons" id="restart-container-button" value={{.ContainerID}}>Restart
+                container</button>
+            <button class="action-buttons" id="remove-container-button" value={{.ContainerID}}>Remove container</button>
+        </div>
+    </td>
+</tr>
+{{end}}
+{{end}}

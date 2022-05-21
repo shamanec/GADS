@@ -271,16 +271,42 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 }
 
 // IOS Containers html page
-func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
+func LoadIOSContainers(w http.ResponseWriter, r *http.Request) {
+
+	rows, err := iOSContainerRows()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	// Parse the template and return response with the container table rows
+	var tmpl = template.Must(template.ParseFiles("static/ios_containers.html", "static/ios_containers_table.html"))
+	if err := tmpl.Execute(w, rows); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func RefreshIOSContainers(w http.ResponseWriter, r *http.Request) {
+	rows, err := iOSContainerRows()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	// Parse the template and return response with the container table rows
+	var tmpl = template.Must(template.ParseFiles("static/ios_containers_table.html"))
+
+	if err := tmpl.ExecuteTemplate(w, "ios_containers_table", rows); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func iOSContainerRows() ([]ContainerRow, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// Get the current containers list
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	var rows []ContainerRow
@@ -308,11 +334,7 @@ func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
 			rows = append(rows, containerRow)
 		}
 	}
-	// Parse the template and return response with the container table rows
-	var index = template.Must(template.ParseFiles("static/ios_containers.html"))
-	if err := index.Execute(w, rows); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	return rows, nil
 }
 
 // Android Containers html page

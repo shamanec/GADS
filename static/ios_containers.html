@@ -7,6 +7,7 @@
 	<link href="/static/css/ios_containers_styles.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 	<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 
 <body>
@@ -37,50 +38,10 @@
 		<a href="device-control.html">Device Control</a>
 		<a href="swagger/index.html" target="_blank">Swagger</a>
 	</div>
-	<table>
-		<tr>
-			<th>ContainerID</th>
-			<th>Image Name</th>
-			<th>Container Status</th>
-			<th>Container Ports</th>
-			<th>Container Name</th>
-			<th>Additional info</th>
-			<th>Actions</th>
-		</tr>
-		{{range .}}
-		<tr>
-			<td>{{.ContainerID}}</td>
-			<td style="width: 125px;">{{.ImageName}}</td>
-			<td id="container-status-cell" class="container-status-cells" style="width: 120px;">{{.ContainerStatus}}
-			</td>
-			<td style="width: 700px;font-size: 15px">
-				<pre>{{.ContainerPorts}}</pre>
-			</td>
-			<td style="width: 350px;">{{.ContainerName}}</td>
-			<td style="width: 125px;">
-				<div>
-					<button class="info-buttons" id="container-logs-button"
-						value={{.ContainerID}}>Container Logs</button>
-					<button class="info-buttons" id="appium-logs-button"
-						value={{.DeviceUDID}}>Appium Logs</button>
-					<button class="info-buttons" id="wda-logs-button"
-						value={{.DeviceUDID}}>WebDriverAgent Logs</button>
-					<button class="info-buttons" id="wda-sync-logs-button"
-						value={{.DeviceUDID}}>WDA Sync Logs</button>
-				</div>
-			</td>
-			<td style="text-align:center; width: 125px;">
-				<div>
-					<button class="action-buttons" id="restart-container-button"
-						value={{.ContainerID}}>Restart container</button>
-					<button class="action-buttons" id="remove-container-button"
-						value={{.ContainerID}}>Remove container</button>
-				</div>
-			</td>
-		</tr>
-		{{end}}
+	<table id="containers-table">
+		{{template "ios_containers_table" .}}
 	</table>
-	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script type="text/javascript" src="/static/js/ios_containers.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </body>
 </html>

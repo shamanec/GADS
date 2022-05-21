@@ -246,7 +246,8 @@ func handleRequests() {
 	// Page loads
 	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
 	myRouter.HandleFunc("/android-containers.html", GetAndroidContainers)
-	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
+	myRouter.HandleFunc("/ios-containers.html", LoadIOSContainers)
+	myRouter.HandleFunc("/refresh-ios-containers", RefreshIOSContainers)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)

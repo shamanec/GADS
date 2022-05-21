@@ -1,51 +1,99 @@
-document.getElementById("container-logs-button").addEventListener('click', () => {
-    var button = event.target
-    var container_id = button.value
+// Add listeners to each container info button
+// We have it as a function so we can re-add the listeners each time the table updates
+function addListeners() {
+    document.querySelectorAll("#container-logs-button").forEach((e) => {
+        e.addEventListener("click", (button) => {
+            var container_id = button.target.value
+            getContainerLogs(container_id)
+        })
+    })
 
-    getContainerLogs(container_id)
-})
+    document.querySelectorAll("#appium-logs-button").forEach((e) => {
+        e.addEventListener("click", (button) => {
+            var udid = button.target.value
+            getDeviceLogs(udid, "appium-logs")
+        })
+    })
 
-document.getElementById("appium-logs-button").addEventListener('click', () => {
-    var button = event.target
-    var udid = button.value
+    document.querySelectorAll("#wda-logs-button").forEach((e) => {
+        e.addEventListener("click", (button) => {
+            var udid = button.target.value
+            getDeviceLogs(udid, "wda-logs")
+        })
+    })
 
-    getDeviceLogs(udid, "appium-logs")
-})
+    document.querySelectorAll("#wda-sync-logs-button").forEach((e) => {
+        e.addEventListener("click", (button) => {
+            var udid = button.target.value
+            getDeviceLogs(udid, "wda-sync")
+        })
+    })
 
-document.getElementById("wda-logs-button").addEventListener('click', () => {
-    var button = event.target
-    var udid = button.value
-    
-    getDeviceLogs(udid, "wda-logs")
-})
+    document.querySelectorAll("#restart-container-button").forEach((e) => {
+        e.addEventListener("click", (button) => {
+            var container_id = button.target.value
+            containerAction(container_id, "restart")
+        })
+    })
 
-document.getElementById("wda-sync-logs-button").addEventListener('click', () => {
-    var button = event.target
-    var udid = button.value
+    document.querySelectorAll("#remove-container-button").forEach((e) => {
+        e.addEventListener("click", (button) => {
+            var container_id = button.target.value
+            containerAction(container_id, "remove")
+        })
+    })
+}
 
-    getDeviceLogs(udid, "wda-sync")
-})
-
-document.getElementById("restart-container-button").addEventListener('click', () => {
-    var button = event.target
-    var container_id = button.value
-
-    containerAction(container_id, "restart")
-})
-
-document.getElementById("remove-container-button").addEventListener('click', () => {
-    var button = event.target
-    var container_id = button.value
-
-    containerAction(container_id, "remove")
-})
-
-document.getElementById("refresh-logs-button").addEventListener('click', () => {
-    var button = event.target
-    var url = button.value
-
+// Add an event listener for the refresh button of the logs
+// It is not part of the table, but of the logs modal
+// So we don't need to have it in the addListeners() function
+document.getElementById("refresh-logs-button").addEventListener('click', (button) => {
+    var url = button.target.value
     refreshLogs(url)
 })
+
+// Refresh the containers table on the page each 5 seconds
+function refreshContainers() {
+    updateTimer()
+    // Set the background colour of the container status cells
+    setStatusColour()
+
+    // Call the refresh-ios-containers endpoint
+    // And get updated html table for the containers
+    $.ajax({
+        contentType: 'text/html',
+        type: "GET",
+        async: false,
+        url: "/refresh-ios-containers",
+        success: function (data) {
+            // Update the containers table with the new table data
+            document.getElementById('containers-table').innerHTML = data
+
+            // Set the background colour of the container status cells again
+            setStatusColour()
+        },
+        error: function (data) {
+        }
+    });
+
+    // Re-add the listeners for the info buttons after updating the table
+    addListeners()
+
+    // Schedule the next refresh
+    setTimeout(refreshContainers, 5000);
+}
+
+// Set the background colour of the container status cells
+// Green for Up and yellow for all others
+function setStatusColour() {
+    $('.container-status-cells').each(function (i) {
+        if (this.textContent.indexOf('Up') > -1) {
+            this.style.backgroundColor = "#4CAF50";
+        } else {
+            this.style.backgroundColor = "#fcba03";
+        }
+    });
+}
 
 /* Restart or remove a device container */
 function containerAction(container_id, action) {
@@ -53,13 +101,16 @@ function containerAction(container_id, action) {
     /* Show loading indicator until response is returned */
     $('#loading').css("visibility", "visible");
 
-    /* Call the endpoint that will restart the selected container */
+    // Build the url for the respective action
+    var url = "/containers/" + container_id + "/" + action
+
+    /* Call the endpoint that will restart/remove the selected container */
     $.ajax({
         dataType: 'JSON',
         contentType: 'application/json',
         async: false,
         type: "POST",
-        url: "/containers/" + container_id + "/" + action,
+        url: url,
         success: function (data) {
             $('#loading').css("visibility", "hidden");
             swal("Restart container", data.message, "info")
@@ -77,10 +128,25 @@ function containerAction(container_id, action) {
     });
 }
 
+function updateTimer() {
+    var timeleft = 5;
+    var downloadTimer = setInterval(function(){
+    timeleft--;
+    document.getElementById("countdown-timer").textContent = "Refreshing in " + timeleft + "...";
+    if(timeleft <= 0)
+        clearInterval(downloadTimer);
+    },1000);
+}
+
+// Get the logs for a device
 function getDeviceLogs(udid, log_type) {
+    // Build the url for the respective log type
     var url = "/device-logs/" + log_type + "/" + udid
+
+    // Update the logs modal refresh button value to the same url
     var refreshButton = document.getElementById("refresh-logs-button")
     refreshButton.value = url
+
     /* Call the endpoint that will get the chosen logs */
     $.ajax({
         dataType: 'JSON',
@@ -94,10 +160,15 @@ function getDeviceLogs(udid, log_type) {
     });
 }
 
+// Get the logs for a device contaienr
 function getContainerLogs(container_id) {
+    // Build the url for the respective container logs
     var url = "/containers/" + container_id + "/logs"
+
+    // Update the logs modal refresh button value to the same url
     var refreshButton = document.getElementById("refresh-logs-button")
     refreshButton.value = url
+
     /* Call the endpoint that will get the container logs */
     $.ajax({
         dataType: 'JSON',
@@ -160,12 +231,8 @@ function refreshLogs(url) {
     });
 }
 
+// On page load add the listeners and start the refresh containers job
 window.addEventListener("DOMContentLoaded", function () {
-    $('.container-status-cells').each(function (i) {
-        if (this.textContent.indexOf('Up') > -1) {
-            this.style.backgroundColor = "#4CAF50";
-        } else {
-            this.style.backgroundColor = "#fcba03";
-        }
-    });
+    addListeners()
+    refreshContainers()
 });
