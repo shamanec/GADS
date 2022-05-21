@@ -16,14 +16,6 @@
         aria-hidden="true">
         <div id="modal-body" class="modal-body" style="margin-top:200px;"></div>
     </div>
-    <div class="modal fade" id="device-selection-modal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div>
-            <select id="device-dropdown" name="devices" onchange="enableDisableSubmit(this)">
-            </select>
-            <input id="register-device-name" type="text"></input>
-            <button id="add-device-button" type="button" onclick="registerIOSDevice()">Add device</button>
-        </div>
-    </div>
     <div class="modal fade" id="sudo-password-input-modal" tabindex="-1" role="dialog" aria-hidden="true">
         <div>
             <input id="sudo-password-input" type="text"></input>
@@ -135,8 +127,6 @@
     <div class="config-buttons">
         <button class="config-button" id="config-button" type="button" onclick="showConfigModal()">Change project
             config</button>
-        <button class="config-button" id="config-button" type="button" onclick="showIOSDeviceSelection()">Add a
-            device</button>
         <button class="config-button" id="config-button" type="button" onclick="buildImage()">Build Docker
             image</button>
         <button class="config-button" id="config-button" type="button" onclick="removeImage()">Remove Docker

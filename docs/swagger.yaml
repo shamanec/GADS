@@ -1,12 +1,34 @@
 definitions:
+  main.AndroidDevice:
+    properties:
+      appium_port:
+        type: integer
+      device_name:
+        type: string
+      device_os_version:
+        type: string
+      device_udid:
+        type: string
+      stream_port:
+        type: string
+      stream_size:
+        type: string
+    type: object
   main.AndroidDeviceInfo:
     properties:
       deviceConfig:
-        $ref: '#/definitions/main.IOSDevice'
+        $ref: '#/definitions/main.AndroidDevice'
       installedAppsBundleIDs:
         items:
           type: string
         type: array
+    type: object
+  main.CreateDeviceContainerData:
+    properties:
+      device_type:
+        type: string
+      udid:
+        type: string
     type: object
   main.DeviceControlInfo:
     properties:
@@ -79,6 +101,11 @@ definitions:
       wda_bundle_id:
         type: string
     type: object
+  main.RemoveDeviceContainerData:
+    properties:
+      udid:
+        type: string
+    type: object
   main.SimpleResponseJSON:
     properties:
       message:
@@ -107,36 +134,27 @@ definitions:
           $ref: '#/definitions/main.detailsEntry'
         type: array
     type: object
-  main.iOSAppInstall:
+  main.installIOSAppRequest:
     properties:
       ipa_name:
         type: string
     type: object
-  main.iOSAppUninstall:
+  main.uninstallIOSAppRequest:
     properties:
       bundle_id:
-        type: string
-    type: object
-  main.registerIOSDevice:
-    properties:
-      device_name:
-        type: string
-      device_os_version:
-        type: string
-      device_udid:
         type: string
     type: object
 info:
   contact: {}
 paths:
-  /configuration/build-image:
+  /configuration/build-image/{image_type}:
     post:
-      description: Starts building the 'ios-appium' image in a goroutine and just
-        returns Accepted
+      description: Starts building a docker image in a goroutine and just returns
+        Accepted
       responses:
         "202":
           description: ""
-      summary: Build 'ios-appium' image
+      summary: Build docker images
       tags:
       - configuration
   /configuration/remove-image:
@@ -331,31 +349,33 @@ paths:
       summary: Restart container
       tags:
       - containers
-  /device-containers/{device_udid}/create:
+  /device-containers/create:
     post:
       description: Creates a container for a connected registered device
       parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
+      - description: Create container for device
+        in: body
+        name: config
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/main.CreateDeviceContainerData'
       responses:
         "202":
           description: ""
       summary: Create container for device
       tags:
       - device-containers
-  /device-containers/{device_udid}/remove:
+  /device-containers/remove:
     post:
       description: Removes a running container for a disconnected registered device
         by device UDID
       parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
+      - description: Remove container for device
+        in: body
+        name: config
         required: true
-        type: string
+        schema:
+          $ref: '#/definitions/main.RemoveDeviceContainerData'
       responses:
         "202":
           description: ""
@@ -435,7 +455,7 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.iOSAppInstall'
+          $ref: '#/definitions/main.installIOSAppRequest'
       produces:
       - application/json
       responses:
@@ -464,7 +484,7 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.iOSAppUninstall'
+          $ref: '#/definitions/main.uninstallIOSAppRequest'
       produces:
       - application/json
       responses:
@@ -477,30 +497,6 @@ paths:
           schema:
             $ref: '#/definitions/main.ErrorJSON'
       summary: Uninstall app from iOS device
-      tags:
-      - ios-devices
-  /ios-devices/register:
-    post:
-      description: Registers a new iOS device in config.json
-      parameters:
-      - description: Register iOS device
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.registerIOSDevice'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.ErrorJSON'
-      summary: Register a new iOS device
       tags:
       - ios-devices
   /project-logs:

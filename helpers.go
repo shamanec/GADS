@@ -345,3 +345,48 @@ func GetStringInBetween(str string, start string, end string) (result string) {
 	}
 	return str[s : s+e]
 }
+
+func UnmarshalRequestBody(body io.ReadCloser, v interface{}) error {
+	reqBody, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(reqBody, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UnmarshalJSONFile(filePath string, v interface{}) error {
+	jsonFile, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer jsonFile.Close()
+
+	bs, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(bs, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UnmarshalJSONString(jsonString string, v interface{}) error {
+	bs := []byte(jsonString)
+
+	err := json.Unmarshal(bs, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

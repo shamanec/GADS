@@ -156,7 +156,6 @@
         word-wrap: break-word;
     }
 
-
     .ripple {
         width: 10px;
         height: 10px;
@@ -1543,7 +1542,6 @@
         // call the /actions endpoint sending the tapp coordinates
         // on response remove the canvas loader
         $.ajax({
-            async: false,
             type: "POST",
             contentType: 'application/json',
             data: jsonData,
@@ -1637,7 +1635,6 @@
         // call the /actions endpoint sending the tapp coordinates
         // on response remove the canvas loader
         $.ajax({
-            async: false,
             type: "POST",
             contentType: 'application/json',
             data: jsonData,
@@ -1659,7 +1656,7 @@
         ripple.style.left = `${e.clientX}px`;
         ripple.style.top = `${e.clientY}px`;
 
-        ripple.style.animation = "ripple-effect .5s  linear";
+        ripple.style.animation = "ripple-effect .2s  linear";
         ripple.onanimationend = () => document.body.removeChild(ripple);
     }
 
