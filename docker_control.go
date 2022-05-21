@@ -290,7 +290,7 @@ func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
 		// Parse plain container name
 		containerName := strings.Replace(container.Names[0], "/", "", -1)
 
-		if strings.Contains(containerName, "ios_device") {
+		if strings.Contains(containerName, "iOSDevice") {
 			// Get all the container ports from the returned array into string
 			containerPorts := ""
 			for i, s := range container.Ports {
@@ -301,7 +301,7 @@ func GetIOSContainers(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^-]*$")
+			re := regexp.MustCompile("[^_]*$")
 			match := re.FindStringSubmatch(containerName)
 
 			var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
@@ -335,7 +335,7 @@ func GetAndroidContainers(w http.ResponseWriter, r *http.Request) {
 		// Parse plain container name
 		containerName := strings.Replace(container.Names[0], "/", "", -1)
 
-		if strings.Contains(containerName, "android_device") {
+		if strings.Contains(containerName, "androidDevice") {
 			// Get all the container ports from the returned array into string
 			containerPorts := ""
 			for i, s := range container.Ports {
@@ -346,7 +346,7 @@ func GetAndroidContainers(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^-]*$")
+			re := regexp.MustCompile("[^_]*$")
 			match := re.FindStringSubmatch(containerName)
 
 			var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
@@ -623,7 +623,7 @@ func CreateIOSContainer(device_udid string) {
 		}
 
 		// Create the container
-		resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "ios_device_"+device_name+"-"+device_udid)
+		resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "iOSDevice_"+device_udid)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
@@ -785,7 +785,7 @@ func createAndroidContainer(device_udid string) {
 		}
 
 		// Create the container
-		resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "android_device_"+device_name+"-"+device_udid)
+		resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "androidDevice_"+device_udid)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "android_container_create",

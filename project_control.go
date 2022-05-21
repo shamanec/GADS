@@ -455,7 +455,7 @@ func getRunningContainerNames() []string {
 	for _, container := range containers {
 		// Parse plain container name
 		containerName := strings.Replace(container.Names[0], "/", "", -1)
-		if strings.Contains(containerName, "ios_device") || strings.Contains(containerName, "android_device") {
+		if strings.Contains(containerName, "iOSDevice") || strings.Contains(containerName, "androidDevice") {
 			containerNames = append(containerNames, containerName)
 		}
 	}
@@ -467,9 +467,9 @@ func getRunningContainerNames() []string {
 func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 	var combinedInfo []IOSDeviceInfo
 	for _, containerName := range runningContainers {
-		if strings.Contains(containerName, "ios_device") {
+		if strings.Contains(containerName, "iOSDevice") {
 			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^-]*$")
+			re := regexp.MustCompile("[^_]*$")
 			device_udid := re.FindStringSubmatch(containerName)
 
 			var installed_apps []string
@@ -483,7 +483,7 @@ func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 
 			var deviceInfo = IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
 			combinedInfo = append(combinedInfo, deviceInfo)
-		} else if strings.Contains(containerName, "android_device") {
+		} else if strings.Contains(containerName, "androidDevice") {
 			print("test")
 		}
 	}
@@ -495,9 +495,9 @@ func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 func getAndroidDevicesInfo(runningContainers []string) []AndroidDeviceInfo {
 	var combinedInfo []AndroidDeviceInfo
 	for _, containerName := range runningContainers {
-		if strings.Contains(containerName, "android_device") {
+		if strings.Contains(containerName, "androidDevice") {
 			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^-]*$")
+			re := regexp.MustCompile("[^_]*$")
 			device_udid := re.FindStringSubmatch(containerName)
 
 			var device_config *AndroidDevice
@@ -505,7 +505,7 @@ func getAndroidDevicesInfo(runningContainers []string) []AndroidDeviceInfo {
 
 			var deviceInfo = AndroidDeviceInfo{DeviceConfig: device_config}
 			combinedInfo = append(combinedInfo, deviceInfo)
-		} else if strings.Contains(containerName, "android_device") {
+		} else if strings.Contains(containerName, "androidDevice") {
 			print("test")
 		}
 	}
