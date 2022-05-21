@@ -117,7 +117,7 @@ function getContainerLogs(container_id) {
 /* Show info modal with provided text */
 function showInfoModal(modalText) {
     /* Get the modal element */
-    var modal = document.getElementById("deviceLogsModal")
+    var modal = document.getElementById("device-logs-modal")
 
     /* Get the close button */
     var span = document.getElementsByClassName("close")[0]

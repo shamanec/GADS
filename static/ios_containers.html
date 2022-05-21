@@ -13,7 +13,7 @@
 	<div id="loading">
 		<img id="loading-image" src="/static/images/loader.gif">
 	</div>
-	<div class="modal fade" id="deviceLogsModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+	<div class="modal fade" id="device-logs-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
 		<div class="modal-dialog" role="document">
 			<div class="modal-content">
 				<div class="modal-body"></div>
@@ -59,21 +59,21 @@
 			<td style="width: 350px;">{{.ContainerName}}</td>
 			<td style="width: 125px;">
 				<div>
-					<button class="clsInfoButtons" id="container-logs-button"
+					<button class="info-buttons" id="container-logs-button"
 						value={{.ContainerID}}>Container Logs</button>
-					<button class="clsInfoButtons" id="appium-logs-button"
+					<button class="info-buttons" id="appium-logs-button"
 						value={{.DeviceUDID}}>Appium Logs</button>
-					<button class="clsInfoButtons" id="wda-logs-button"
+					<button class="info-buttons" id="wda-logs-button"
 						value={{.DeviceUDID}}>WebDriverAgent Logs</button>
-					<button class="clsInfoButtons" id="wda-sync-logs-button"
+					<button class="info-buttons" id="wda-sync-logs-button"
 						value={{.DeviceUDID}}>WDA Sync Logs</button>
 				</div>
 			</td>
 			<td style="text-align:center; width: 125px;">
 				<div>
-					<button class="clsActionButtons" id="restart-container-button"
+					<button class="action-buttons" id="restart-container-button"
 						value={{.ContainerID}}>Restart container</button>
-					<button class="clsActionButtons" id="remove-container-button"
+					<button class="action-buttons" id="remove-container-button"
 						value={{.ContainerID}}>Remove container</button>
 				</div>
 			</td>

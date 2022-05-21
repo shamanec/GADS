@@ -18,7 +18,7 @@ td {
 	padding: 15px;
 }
 
-.clsInfoButtons {
+.info-buttons {
 	display: inline-block;
 	display: grid;
 	gap: 10px;
@@ -35,17 +35,17 @@ td {
 	padding: 2px 5px 2px 5px;
 }
 
-.clsInfoButtons:hover {
+.info-buttons:hover {
 	background-color: #3e8e41
 }
 
-.clsInfoButtons:active {
+.info-buttons:active {
 	background-color: #3e8e41;
 	box-shadow: 0 5px #666;
 	transform: translateY(4px);
 }
 
-.clsActionButtons {
+.action-buttons {
 	font-size: 14px;
 	cursor: pointer;
 	text-align: center;
@@ -60,11 +60,11 @@ td {
 	width: 80px;
 }
 
-.clsActionButtons:hover {
+.action-buttons:hover {
 	background-color: #da322a
 }
 
-.clsActionButtons:active {
+.action-buttons:active {
 	background-color: #da492a;
 	box-shadow: 0 5px #666;
 	transform: translateY(4px);
