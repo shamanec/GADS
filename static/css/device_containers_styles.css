@@ -3,7 +3,7 @@
 table,
 td,
 th {
-	border: 1px solid #ddd;
+	border: 1px solid #000;
 	text-align: center;
 }
 
@@ -158,4 +158,8 @@ td {
 	font-size: 20px;
 	height: 26px;
 	margin-top: 7px;
+}
+
+.container-generic-cells {
+	background-color: #e0e0e0;
 }

@@ -483,8 +483,6 @@ func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 
 			var deviceInfo = IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
 			combinedInfo = append(combinedInfo, deviceInfo)
-		} else if strings.Contains(containerName, "androidDevice") {
-			print("test")
 		}
 	}
 	return combinedInfo
@@ -505,8 +503,6 @@ func getAndroidDevicesInfo(runningContainers []string) []AndroidDeviceInfo {
 
 			var deviceInfo = AndroidDeviceInfo{DeviceConfig: device_config}
 			combinedInfo = append(combinedInfo, deviceInfo)
-		} else if strings.Contains(containerName, "androidDevice") {
-			print("test")
 		}
 	}
 	return combinedInfo

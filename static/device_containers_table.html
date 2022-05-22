@@ -16,15 +16,15 @@
 </tr>
 {{range .}}
 <tr>
-    <td>{{.ContainerID}}</td>
-    <td style="width: 125px;">{{.ImageName}}</td>
+    <td class="container-generic-cells">{{.ContainerID}}</td>
+    <td class="container-generic-cells" style="width: 125px;">{{.ImageName}}</td>
     <td class="container-status-cells" style="width: 120px;">{{.ContainerStatus}}
     </td>
-    <td style="width: 700px;font-size: 15px">
+    <td class="container-generic-cells" style="width: 700px;font-size: 15px">
         <pre>{{.ContainerPorts}}</pre>
     </td>
-    <td style="width: 350px;">{{.ContainerName}}</td>
-    <td style="text-align:center;width: 125px;">
+    <td class="container-generic-cells" style="width: 350px;">{{.ContainerName}}</td>
+    <td class="container-generic-cells" style="text-align:center;width: 125px;">
         <div>
             <button class="info-buttons" id="container-logs-button" value={{.ContainerID}}>Container</button>
             <button class="info-buttons" id="appium-logs-button" value={{.DeviceUDID}}>Appium</button>
@@ -36,7 +36,7 @@
             {{end}}
         </div>
     </td>
-    <td style="text-align:center; width: 125px;">
+    <td class="container-generic-cells" style="text-align:center; width: 125px;">
         <div>
             <button class="action-buttons" id="restart-container-button" value={{.ContainerID}}>Restart</button>
             <button class="action-buttons" id="remove-container-button" value={{.ContainerID}}>Remove</button>
