@@ -271,33 +271,44 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 }
 
 // IOS Containers html page
-func LoadIOSContainers(w http.ResponseWriter, r *http.Request) {
+func LoadDeviceContainers(w http.ResponseWriter, r *http.Request) {
 
-	rows, err := iOSContainerRows()
+	rows, err := deviceContainerRows()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+	funcMap := template.FuncMap{
+		"contains": strings.Contains,
+	}
+
 	// Parse the template and return response with the container table rows
-	var tmpl = template.Must(template.ParseFiles("static/ios_containers.html", "static/ios_containers_table.html"))
-	if err := tmpl.Execute(w, rows); err != nil {
+	var tmpl = template.Must(template.New("ios_containers.html").Funcs(funcMap).ParseFiles("static/ios_containers.html", "static/ios_containers_table.html"))
+	if err := tmpl.ExecuteTemplate(w, "ios_containers.html", rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func RefreshIOSContainers(w http.ResponseWriter, r *http.Request) {
-	rows, err := iOSContainerRows()
+func RefreshDeviceContainers(w http.ResponseWriter, r *http.Request) {
+	rows, err := deviceContainerRows()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+	funcMap := template.FuncMap{
+		// The name "title" is what the function will be called in the template text.
+		"contains": strings.Contains,
+	}
+
 	// Parse the template and return response with the container table rows
-	var tmpl = template.Must(template.ParseFiles("static/ios_containers_table.html"))
+	var tmpl = template.Must(template.New("test").Funcs(funcMap).ParseFiles("static/ios_containers_table.html"))
 
 	if err := tmpl.ExecuteTemplate(w, "ios_containers_table", rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func iOSContainerRows() ([]ContainerRow, error) {
+func deviceContainerRows() ([]ContainerRow, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
@@ -316,23 +327,21 @@ func iOSContainerRows() ([]ContainerRow, error) {
 		// Parse plain container name
 		containerName := strings.Replace(container.Names[0], "/", "", -1)
 
-		if strings.Contains(containerName, "iOSDevice") {
-			// Get all the container ports from the returned array into string
-			containerPorts := ""
-			for i, s := range container.Ports {
-				if i > 0 {
-					containerPorts += "\n"
-				}
-				containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
+		// Get all the container ports from the returned array into string
+		containerPorts := ""
+		for i, s := range container.Ports {
+			if i > 0 {
+				containerPorts += "\n"
 			}
-
-			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^_]*$")
-			match := re.FindStringSubmatch(containerName)
-
-			var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
-			rows = append(rows, containerRow)
+			containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
 		}
+
+		// Extract the device UDID from the container name
+		re := regexp.MustCompile("[^_]*$")
+		match := re.FindStringSubmatch(containerName)
+
+		var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
+		rows = append(rows, containerRow)
 	}
 	return rows, nil
 }

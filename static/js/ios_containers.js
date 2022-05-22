@@ -29,6 +29,13 @@ function addListeners() {
         })
     })
 
+    document.querySelectorAll("#minicap-logs-button").forEach((e) => {
+        e.addEventListener("click", (button) => {
+            var udid = button.target.value
+            getDeviceLogs(udid, "minicap")
+        })
+    })
+
     document.querySelectorAll("#restart-container-button").forEach((e) => {
         e.addEventListener("click", (button) => {
             var container_id = button.target.value

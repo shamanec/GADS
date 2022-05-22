@@ -24,6 +24,7 @@
         <pre>{{.ContainerPorts}}</pre>
     </td>
     <td style="width: 350px;">{{.ContainerName}}</td>
+    {{ if contains .ContainerName "iOS" }}
     <td style="text-align:center;width: 125px;">
         <div>
             <button class="info-buttons" id="container-logs-button" value={{.ContainerID}}>Container</button>
@@ -32,6 +33,15 @@
             <button class="info-buttons" id="wda-sync-logs-button" value={{.DeviceUDID}}>WDA Sync</button>
         </div>
     </td>
+    {{else}}
+    <td style="text-align:center;width: 125px;">
+        <div>
+            <button class="info-buttons" id="container-logs-button" value={{.ContainerID}}>Container</button>
+            <button class="info-buttons" id="appium-logs-button" value={{.DeviceUDID}}>Appium</button>
+            <button class="info-buttons" id="minicap-logs-button" value={{.DeviceUDID}}>Minicap</button>
+        </div>
+    </td>
+    {{end}}
     <td style="text-align:center; width: 125px;">
         <div>
             <button class="action-buttons" id="restart-container-button" value={{.ContainerID}}>Restart</button>
