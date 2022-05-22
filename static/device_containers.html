@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<title>iOS Containers Info</title>
+	<link href="/static/css/device_containers_styles.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+
+<body>
+	<div id="loading">
+		<img id="loading-image" src="/static/images/loader.gif">
+	</div>
+	<div class="modal fade" id="device-logs-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-body"></div>
+				<div class="modal-footer">
+					<button id="modal-close-button" class="close btn btn-default" type="button"
+						data-dismiss="modal">Close</button>
+					<button id="refresh-logs-button" class="fa fa-refresh">Refresh
+						logs</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	</div>
+	<div class="topnav">
+		<link href="/static/css/top_navigation_style.css" rel="stylesheet">
+		<a href="/">Home</a>
+		<a href="configuration.html">Project configuration</a>
+		<a class="active" href="device-containers.html">Device containers</a>
+		<a href="project-logs.html">Project logs</a>
+		<a href="device-control.html">Device Control</a>
+		<a href="swagger/index.html" target="_blank">Swagger</a>
+	</div>
+	<table id="containers-table">
+		{{template "device_containers_table" .}}
+	</table>
+	<script type="text/javascript" src="/static/js/device_containers.js"></script>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</body>
+</html>

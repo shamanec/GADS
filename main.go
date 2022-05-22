@@ -245,12 +245,11 @@ func handleRequests() {
 
 	// Page loads
 	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
-	myRouter.HandleFunc("/android-containers.html", GetAndroidContainers)
-	myRouter.HandleFunc("/ios-containers.html", GetIOSContainers)
+	myRouter.HandleFunc("/device-containers.html", LoadDeviceContainers)
+	myRouter.HandleFunc("/refresh-device-containers", RefreshDeviceContainers)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
 	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
-	myRouter.HandleFunc("/stream", StreamIOS)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
