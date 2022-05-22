@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
@@ -330,17 +331,29 @@ func uninstallIOSApp(device_udid string, bundle_id string) error {
 }
 
 func GetAvailableDevices(w http.ResponseWriter, r *http.Request) {
+	available_devices, err := GetAvailableDevicesInternal()
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
+	}
+
+	bs, err := json.MarshalIndent(available_devices, "", "  ")
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
+	}
+
+	fmt.Fprintf(w, string(bs))
+}
+
+func GetAvailableDevicesInternal() ([]AvailableDevice, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		fmt.Fprintf(w, "error")
-		return
+		return nil, err
 	}
 
 	// Get the current containers list
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
-		fmt.Fprintf(w, "error")
-		return
+		return nil, err
 	}
 
 	var available_devices []AvailableDevice
@@ -364,13 +377,12 @@ func GetAvailableDevices(w http.ResponseWriter, r *http.Request) {
 				available_devices = append(available_devices, AvailableDevice{DeviceType: "android", DeviceName: device_name, Udid: udid})
 			}
 			if err != nil {
-				fmt.Fprintf(w, "error")
+				return nil, err
 			}
 		}
 	}
 
-	bs, err := json.MarshalIndent(available_devices, "", "  ")
-	fmt.Fprintf(w, string(bs))
+	return available_devices, nil
 }
 
 func getDeviceNameFromConfig(udid string, device_type string) (string, error) {
@@ -396,4 +408,23 @@ func getDeviceNameFromConfig(udid string, device_type string) (string, error) {
 	}
 
 	return "", errors.New("Could not find device by this UDID in config.json")
+}
+
+// IOS Containers html page
+func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
+
+	devices, err := GetAvailableDevicesInternal()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	funcMap := template.FuncMap{
+		"contains": strings.Contains,
+	}
+
+	// Parse the template and return response with the container table rows
+	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/devices_grid.html"))
+	if err := tmpl.ExecuteTemplate(w, "device_selection.html", devices); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
