@@ -19,9 +19,6 @@ td {
 }
 
 .info-buttons {
-	display: inline-block;
-	display: grid;
-	gap: 10px;
 	font-size: 14px;
 	cursor: pointer;
 	text-align: center;
@@ -31,7 +28,7 @@ td {
 	border: none;
 	border-radius: 3px;
 	box-shadow: 0 3px #999;
-	margin: 8px;
+	margin: 4px;
 	padding: 2px 5px 2px 5px;
 	width: 80px;
 }
@@ -56,7 +53,7 @@ td {
 	border: none;
 	border-radius: 3px;
 	box-shadow: 0 3px #999;
-	margin: 8px;
+	margin: 4px;
 	padding: 2px 5px 2px 5px;
 	width: 80px;
 }
