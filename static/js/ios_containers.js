@@ -128,14 +128,20 @@ function containerAction(container_id, action) {
     });
 }
 
+// Update the timer displayed until the next refresh of the containers data
 function updateTimer() {
     var timeleft = 5;
-    var downloadTimer = setInterval(function(){
-    timeleft--;
-    document.getElementById("countdown-timer").textContent = "Refreshing in " + timeleft + "...";
-    if(timeleft <= 0)
-        clearInterval(downloadTimer);
-    },1000);
+
+    var downloadTimer = setInterval(function () {
+        timeleft--;
+        
+        if (timeleft <= 0) {
+            clearInterval(downloadTimer);
+        } else {
+            document.getElementById("countdown-timer").textContent = "Refreshing in " + timeleft + "...";
+        }
+            
+    }, 1000);
 }
 
 // Get the logs for a device

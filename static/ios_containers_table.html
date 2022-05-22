@@ -1,14 +1,17 @@
 {{define "ios_containers_table"}}
 <tr>
     <th>
-        <p id="countdown-timer" style="float: left;">Refreshing in 5...</p>
-        <p>ContainerID</p>
+        <div style="display: flex;">
+            <div id="countdown-timer" style="flex: 1;">Refreshing in 5...</div>
+            <div>ContainerID</div>
+            <div style="flex: 1;"></div>
+        </div>
     </th>
     <th>Image Name</th>
     <th>Container Status</th>
     <th>Container Ports</th>
     <th>Container Name</th>
-    <th>Additional info</th>
+    <th>Logs</th>
     <th>Actions</th>
 </tr>
 {{range .}}
@@ -23,17 +26,16 @@
     <td style="width: 350px;">{{.ContainerName}}</td>
     <td style="width: 125px;">
         <div>
-            <button class="info-buttons" id="container-logs-button" value={{.ContainerID}}>Container Logs</button>
-            <button class="info-buttons" id="appium-logs-button" value={{.DeviceUDID}}>Appium Logs</button>
-            <button class="info-buttons" id="wda-logs-button" value={{.DeviceUDID}}>WebDriverAgent Logs</button>
-            <button class="info-buttons" id="wda-sync-logs-button" value={{.DeviceUDID}}>WDA Sync Logs</button>
+            <button class="info-buttons" id="container-logs-button" value={{.ContainerID}}>Container</button>
+            <button class="info-buttons" id="appium-logs-button" value={{.DeviceUDID}}>Appium</button>
+            <button class="info-buttons" id="wda-logs-button" value={{.DeviceUDID}}>WDA</button>
+            <button class="info-buttons" id="wda-sync-logs-button" value={{.DeviceUDID}}>WDA Sync</button>
         </div>
     </td>
     <td style="text-align:center; width: 125px;">
         <div>
-            <button class="action-buttons" id="restart-container-button" value={{.ContainerID}}>Restart
-                container</button>
-            <button class="action-buttons" id="remove-container-button" value={{.ContainerID}}>Remove container</button>
+            <button class="action-buttons" id="restart-container-button" value={{.ContainerID}}>Restart</button>
+            <button class="action-buttons" id="remove-container-button" value={{.ContainerID}}>Remove</button>
         </div>
     </td>
 </tr>

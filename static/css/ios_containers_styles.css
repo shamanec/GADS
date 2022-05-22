@@ -29,10 +29,11 @@ td {
 	color: #fff;
 	background-color: #4CAF50;
 	border: none;
-	border-radius: 6px;
+	border-radius: 3px;
 	box-shadow: 0 3px #999;
 	margin: 8px;
 	padding: 2px 5px 2px 5px;
+	width: 80px;
 }
 
 .info-buttons:hover {
@@ -53,7 +54,7 @@ td {
 	color: #fff;
 	background-color: #da492a;
 	border: none;
-	border-radius: 6px;
+	border-radius: 3px;
 	box-shadow: 0 3px #999;
 	margin: 8px;
 	padding: 2px 5px 2px 5px;
