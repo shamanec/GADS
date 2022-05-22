@@ -87,7 +87,7 @@ function refreshContainers() {
     addListeners()
 
     // Schedule the next refresh
-    setTimeout(refreshContainers, 5000);
+    setTimeout(refreshContainers, 10000);
 }
 
 // Set the background colour of the container status cells
@@ -137,7 +137,7 @@ function containerAction(container_id, action) {
 
 // Update the timer displayed until the next refresh of the containers data
 function updateTimer() {
-    var timeleft = 5;
+    var timeleft = 10;
 
     var downloadTimer = setInterval(function () {
         timeleft--;
