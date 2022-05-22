@@ -2,15 +2,22 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
+	"regexp"
+	"strings"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
@@ -64,6 +71,12 @@ type uninstallIOSAppRequest struct {
 
 type goIOSAppList []struct {
 	BundleID string `json:"CFBundleIdentifier"`
+}
+
+type AvailableDevice struct {
+	DeviceType string `json:"type"`
+	Udid       string `json:"udid"`
+	DeviceName string `json:"device-name"`
 }
 
 //=======================//
@@ -315,4 +328,103 @@ func uninstallIOSApp(device_udid string, bundle_id string) error {
 		return errors.New("Error")
 	}
 	return nil
+}
+
+func GetAvailableDevices(w http.ResponseWriter, r *http.Request) {
+	available_devices, err := GetAvailableDevicesInternal()
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
+	}
+
+	bs, err := json.MarshalIndent(available_devices, "", "  ")
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
+	}
+
+	fmt.Fprintf(w, string(bs))
+}
+
+func GetAvailableDevicesInternal() ([]AvailableDevice, error) {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		return nil, err
+	}
+
+	var available_devices []AvailableDevice
+
+	// Loop through the containers list
+	for _, container := range containers {
+		if strings.Contains(container.Status, "Up") {
+			// Parse plain container name
+			containerName := strings.Replace(container.Names[0], "/", "", -1)
+
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^_]*$")
+			udid := re.FindStringSubmatch(containerName)[0]
+
+			var device_name string
+			if strings.Contains(containerName, "iOS") {
+				device_name, err = getDeviceNameFromConfig(udid, "ios")
+				available_devices = append(available_devices, AvailableDevice{DeviceType: "ios", DeviceName: device_name, Udid: udid})
+			} else if strings.Contains(containerName, "android") {
+				device_name, err = getDeviceNameFromConfig(udid, "android")
+				available_devices = append(available_devices, AvailableDevice{DeviceType: "android", DeviceName: device_name, Udid: udid})
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return available_devices, nil
+}
+
+func getDeviceNameFromConfig(udid string, device_type string) (string, error) {
+	// Get the config data
+	var configData GeneralConfig
+	err := UnmarshalJSONFile("./configs/config.json", &configData)
+	if err != nil {
+		return "", err
+	}
+
+	if device_type == "ios" {
+		for _, v := range configData.IosDevicesList {
+			if v.DeviceUdid == udid {
+				return v.DeviceName, nil
+			}
+		}
+	} else {
+		for _, v := range configData.AndroidDevicesList {
+			if v.DeviceUdid == udid {
+				return v.DeviceName, nil
+			}
+		}
+	}
+
+	return "", errors.New("Could not find device by this UDID in config.json")
+}
+
+// IOS Containers html page
+func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
+
+	devices, err := GetAvailableDevicesInternal()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	funcMap := template.FuncMap{
+		"contains": strings.Contains,
+	}
+
+	// Parse the template and return response with the container table rows
+	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/devices_grid.html"))
+	if err := tmpl.ExecuteTemplate(w, "device_selection.html", devices); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

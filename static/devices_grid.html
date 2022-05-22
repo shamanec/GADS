@@ -1,0 +1,23 @@
+{{define "devices_grid"}}
+<div class="grid-container" id="devices-grid-div">
+    {{range .}}
+    <div class="grid-item">
+        {{ if eq .DeviceType "ios" }}
+        <div class="phone-image-container">
+            <img class="phone-images" src="static/images/apple-logo.png"></img>
+        </div>
+        <p>{{.DeviceName}}</p>
+        <button class="ios-device-use" value="{{.Udid}}">Use</button>
+        <button class="ios-device-info" value="{{.Udid}}">Info</button>
+        {{else}}
+        <div class="phone-image-container">
+            <img class="phone-images" src="static/images/android-logo.png"></img>
+        </div>
+        <p>{{.DeviceName}}</p>
+        <button class="android-device-use" value="{{.Udid}}">Use</button>
+        <button class="android-device-info" value="{{.Udid}}">Info</button>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}
