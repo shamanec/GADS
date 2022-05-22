@@ -2,15 +2,21 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
+	"regexp"
+	"strings"
 
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
@@ -64,6 +70,12 @@ type uninstallIOSAppRequest struct {
 
 type goIOSAppList []struct {
 	BundleID string `json:"CFBundleIdentifier"`
+}
+
+type AvailableDevice struct {
+	DeviceType string `json:"type"`
+	Udid       string `json:"udid"`
+	DeviceName string `json:"device-name"`
 }
 
 //=======================//
@@ -315,4 +327,73 @@ func uninstallIOSApp(device_udid string, bundle_id string) error {
 		return errors.New("Error")
 	}
 	return nil
+}
+
+func GetAvailableDevices(w http.ResponseWriter, r *http.Request) {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		fmt.Fprintf(w, "error")
+		return
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		fmt.Fprintf(w, "error")
+		return
+	}
+
+	var available_devices []AvailableDevice
+
+	// Loop through the containers list
+	for _, container := range containers {
+		if strings.Contains(container.Status, "Up") {
+			// Parse plain container name
+			containerName := strings.Replace(container.Names[0], "/", "", -1)
+
+			// Extract the device UDID from the container name
+			re := regexp.MustCompile("[^_]*$")
+			udid := re.FindStringSubmatch(containerName)[0]
+
+			var device_name string
+			if strings.Contains(containerName, "iOS") {
+				device_name, err = getDeviceNameFromConfig(udid, "ios")
+				available_devices = append(available_devices, AvailableDevice{DeviceType: "ios", DeviceName: device_name, Udid: udid})
+			} else if strings.Contains(containerName, "android") {
+				device_name, err = getDeviceNameFromConfig(udid, "android")
+				available_devices = append(available_devices, AvailableDevice{DeviceType: "android", DeviceName: device_name, Udid: udid})
+			}
+			if err != nil {
+				fmt.Fprintf(w, "error")
+			}
+		}
+	}
+
+	bs, err := json.MarshalIndent(available_devices, "", "  ")
+	fmt.Fprintf(w, string(bs))
+}
+
+func getDeviceNameFromConfig(udid string, device_type string) (string, error) {
+	// Get the config data
+	var configData GeneralConfig
+	err := UnmarshalJSONFile("./configs/config.json", &configData)
+	if err != nil {
+		return "", err
+	}
+
+	if device_type == "ios" {
+		for _, v := range configData.IosDevicesList {
+			if v.DeviceUdid == udid {
+				return v.DeviceName, nil
+			}
+		}
+	} else {
+		for _, v := range configData.AndroidDevicesList {
+			if v.DeviceUdid == udid {
+				return v.DeviceName, nil
+			}
+		}
+	}
+
+	return "", errors.New("Could not find device by this UDID in config.json")
 }
