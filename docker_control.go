@@ -153,14 +153,6 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Load the initial page with the project configuration info
-func getAndroidContainers(w http.ResponseWriter, r *http.Request) {
-	var index = template.Must(template.ParseFiles("static/android_containers.html"))
-	if err := index.Execute(w, nil); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 type CreateDeviceContainerData struct {
 	DeviceType string `json:"device_type"`
 	Udid       string `json:"udid"`
@@ -283,8 +275,8 @@ func LoadDeviceContainers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the template and return response with the container table rows
-	var tmpl = template.Must(template.New("ios_containers.html").Funcs(funcMap).ParseFiles("static/ios_containers.html", "static/ios_containers_table.html"))
-	if err := tmpl.ExecuteTemplate(w, "ios_containers.html", rows); err != nil {
+	var tmpl = template.Must(template.New("device_containers.html").Funcs(funcMap).ParseFiles("static/device_containers.html", "static/device_containers_table.html"))
+	if err := tmpl.ExecuteTemplate(w, "device_containers.html", rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -301,9 +293,9 @@ func RefreshDeviceContainers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the template and return response with the container table rows
-	var tmpl = template.Must(template.New("test").Funcs(funcMap).ParseFiles("static/ios_containers_table.html"))
+	var tmpl = template.Must(template.New("device_containers_table").Funcs(funcMap).ParseFiles("static/device_containers_table.html"))
 
-	if err := tmpl.ExecuteTemplate(w, "ios_containers_table", rows); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "device_containers_table", rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -344,51 +336,6 @@ func deviceContainerRows() ([]ContainerRow, error) {
 		rows = append(rows, containerRow)
 	}
 	return rows, nil
-}
-
-// Android Containers html page
-func GetAndroidContainers(w http.ResponseWriter, r *http.Request) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		panic(err)
-	}
-
-	// Get the current containers list
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	if err != nil {
-		panic(err)
-	}
-
-	var rows []ContainerRow
-
-	// Loop through the containers list
-	for _, container := range containers {
-		// Parse plain container name
-		containerName := strings.Replace(container.Names[0], "/", "", -1)
-
-		if strings.Contains(containerName, "androidDevice") {
-			// Get all the container ports from the returned array into string
-			containerPorts := ""
-			for i, s := range container.Ports {
-				if i > 0 {
-					containerPorts += "\n"
-				}
-				containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
-			}
-
-			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^_]*$")
-			match := re.FindStringSubmatch(containerName)
-
-			var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
-			rows = append(rows, containerRow)
-		}
-	}
-	// Parse the template and return response with the container table rows
-	var index = template.Must(template.ParseFiles("static/android_containers.html"))
-	if err := index.Execute(w, rows); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 }
 
 //===================//

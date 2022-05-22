@@ -71,7 +71,7 @@ function refreshContainers() {
         contentType: 'text/html',
         type: "GET",
         async: false,
-        url: "/refresh-ios-containers",
+        url: "/refresh-device-containers",
         success: function (data) {
             // Update the containers table with the new table data
             document.getElementById('containers-table').innerHTML = data
