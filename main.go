@@ -248,9 +248,9 @@ func handleRequests() {
 	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
 	myRouter.HandleFunc("/device-containers.html", LoadDeviceContainers)
 	myRouter.HandleFunc("/refresh-device-containers", RefreshDeviceContainers)
-	myRouter.HandleFunc("/device-control.html", LoadAvailableDevices)
+	//myRouter.HandleFunc("/device-control.html", LoadAvailableDevices)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
-	//myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
+	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
