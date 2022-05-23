@@ -244,11 +244,11 @@ func handleRequests() {
 	myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
 	// Page loads
-	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
-	myRouter.HandleFunc("/device-containers.html", LoadDeviceContainers)
+	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
+	myRouter.HandleFunc("/device-containers", LoadDeviceContainers)
 	myRouter.HandleFunc("/refresh-device-containers", RefreshDeviceContainers)
-	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
-	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
+	myRouter.HandleFunc("/logs", GetLogsPage)
+	myRouter.HandleFunc("/device-control", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
