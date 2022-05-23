@@ -46,6 +46,18 @@ type ContainerRow struct {
 	DeviceUDID      string
 }
 
+type AppiumConfig struct {
+	DevicesHost             string `json:"devices_host"`
+	SeleniumHubHost         string `json:"selenium_hub_host"`
+	SeleniumHubPort         string `json:"selenium_hub_port"`
+	SeleniumHubProtocolType string `json:"selenium_hub_protocol_type"`
+	WDABundleID             string `json:"wda_bundle_id"`
+}
+
+type NewProjectConfigPageData struct {
+	AppiumConfiguration AppiumConfig
+}
+
 // Load the initial page
 func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 	var index = template.Must(template.ParseFiles("static/index.html"))
@@ -80,6 +92,34 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), ProjectConfigValues: configRow}
 	if err := index.Execute(w, pageData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+// Load the initial page with the project configuration info
+func GetProjectConfigurationPage2(w http.ResponseWriter, r *http.Request) {
+	var projectConfig ProjectConfig
+	err := UnmarshalJSONFile("./configs/config.json", &projectConfig)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	appiumConfig := AppiumConfig{
+		DevicesHost:             projectConfig.DevicesHost,
+		SeleniumHubHost:         projectConfig.SeleniumHubHost,
+		SeleniumHubPort:         projectConfig.SeleniumHubPort,
+		SeleniumHubProtocolType: projectConfig.SeleniumHubProtocolType,
+		WDABundleID:             projectConfig.WdaBundleID,
+	}
+
+	pageData := NewProjectConfigPageData{
+		AppiumConfiguration: appiumConfig,
+	}
+
+	var tmpl = template.Must(template.New("project_config_main.html").ParseFiles("static/project_config_main.html", "static/project_config_data.html"))
+	if err := tmpl.ExecuteTemplate(w, "project_config_main.html", pageData); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -244,7 +284,7 @@ func handleRequests() {
 	myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
 	// Page loads
-	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
+	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage2)
 	myRouter.HandleFunc("/device-containers", LoadDeviceContainers)
 	myRouter.HandleFunc("/refresh-device-containers", RefreshDeviceContainers)
 	myRouter.HandleFunc("/logs", GetLogsPage)
