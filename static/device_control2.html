@@ -1,0 +1,12 @@
+{{define "device_control"}}
+    <button onclick="reloadDevices()">Go back to devices</button>
+    <div id="container-div">
+        <div id="stream-div" style="position: relative;">
+            <div id="small-loader" style="visibility: hidden;position: absolute;">
+                <img id="small-loader-image" src="/static/images/small-loader.gif">
+            </div>
+            <canvas id="actions-canvas" style="position: absolute;width: 375px;height: 667px;"></canvas>
+            <img id="image-stream" style="width: 375px;height: 667px;" src="{{.DeviceConfig.WdaMjpegURL}}"></img>
+        </div>
+    </div>
+{{end}}

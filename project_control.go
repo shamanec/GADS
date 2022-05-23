@@ -119,6 +119,11 @@ type SudoPasswordRequest struct {
 	SudoPassword string `json:"sudo_password"`
 }
 
+type DeviceControlInfoDataRequest struct {
+	DeviceType string `json:"type"`
+	DeviceUdid string `json:"udid"`
+}
+
 //=======================//
 //=====API FUNCTIONS=====//
 
@@ -486,6 +491,28 @@ func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 		}
 	}
 	return combinedInfo
+}
+
+func getIOSDeviceInfo(udid string) IOSDeviceInfo {
+	var installed_apps []string
+	installed_apps, err := IOSDeviceApps(udid)
+	if err != nil {
+		installed_apps = append(installed_apps, "")
+	}
+
+	var device_config *IOSDevice
+	device_config, err = iOSDeviceConfig(udid)
+	return IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
+}
+
+// For each running container extract the info for each respective device from ./configs/config.json to provide to the device-control info endpoint.
+// Provides installed apps, configuration info, wda urls
+func getAndroidDeviceInfo(udid string) AndroidDeviceInfo {
+
+	var device_config *AndroidDevice
+	device_config, _ = androidDeviceConfig(udid)
+
+	return AndroidDeviceInfo{DeviceConfig: device_config}
 }
 
 // For each running container extract the info for each respective device from ./configs/config.json to provide to the device-control info endpoint.

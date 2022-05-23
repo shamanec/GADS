@@ -236,6 +236,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
 	myRouter.HandleFunc("/devices/available-devices", GetAvailableDevices).Methods("GET")
+	myRouter.HandleFunc("/devices/device-control-info", GetDeviceControlInfo2).Methods("POST")
+	myRouter.HandleFunc("/devices/reload-available-devices", ReloadAvailableDevices).Methods("GET")
 
 	// Logs
 	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
@@ -248,9 +250,9 @@ func handleRequests() {
 	myRouter.HandleFunc("/configuration.html", GetProjectConfigurationPage)
 	myRouter.HandleFunc("/device-containers.html", LoadDeviceContainers)
 	myRouter.HandleFunc("/refresh-device-containers", RefreshDeviceContainers)
-	//myRouter.HandleFunc("/device-control.html", LoadAvailableDevices)
+	myRouter.HandleFunc("/device-control.html", LoadAvailableDevices)
 	myRouter.HandleFunc("/project-logs.html", GetLogsPage)
-	myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
+	//myRouter.HandleFunc("/device-control.html", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))

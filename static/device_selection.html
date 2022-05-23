@@ -41,7 +41,7 @@
         width: 240px;
         height: 400px;
         margin: 10px;
-        background-color:rgb(59, 112, 161);
+        background-color: rgb(59, 112, 161);
         border-radius: 8px;
         border-collapse: collapse;
     }
@@ -51,6 +51,169 @@
     .android-device-use,
     .android-device-info {
         background-color: rgb(51, 211, 51);
+    }
+
+    /* test */
+    #image-stream,
+    #actions-canvas {
+        margin-top: 20px;
+        margin-left: 10px;
+    }
+
+    #container-div {
+        height: 100%;
+        width: 100%;
+        display: flex;
+    }
+
+    #actions-div,
+    #source-div,
+    #stream-div,
+    #element-div,
+    #device-buttons {
+        display: inline-block;
+        *display: inline;
+        zoom: 1;
+        vertical-align: top;
+        visibility: hidden;
+    }
+
+    #actions-canvas {
+        border: 1px solid #000;
+    }
+
+    #actions-div {
+        width: 25%;
+        max-width: 650px;
+    }
+
+    #source-div {
+        margin-left: 20px;
+        /* border: 1px solid #000; */
+    }
+
+    #device-info-table,
+    #element-info-table,
+    th,
+    td {
+        border-bottom: 1px solid black;
+        border-collapse: collapse;
+    }
+
+    td {
+        text-align: center;
+    }
+
+    #loading {
+        visibility: hidden;
+        position: fixed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        text-align: center;
+        opacity: 0.7;
+        background-color: #fff;
+        z-index: 99;
+    }
+
+    #loading-image {
+        position: relative;
+    }
+
+    #small-loader {
+        visibility: hidden;
+        position: fixed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        text-align: center;
+        opacity: 0.7;
+        background-color: #fff;
+        z-index: 99;
+    }
+
+    #small-loader-image {
+        position: relative;
+    }
+
+    #app-source {
+        width: 100%;
+        margin-left: 10px;
+    }
+
+    #app-source {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    ul.fancytree-container {
+        border: none;
+    }
+
+    span.fancytree-title {
+        font-size: 18px;
+    }
+
+    .device-button {
+        background-color: DodgerBlue;
+        border: none;
+        color: white;
+        padding: 12px 16px;
+        font-size: 16px;
+        cursor: pointer;
+        width: 45px;
+        height: 45px;
+        display: inline-block;
+        display: grid;
+        margin: 5px;
+    }
+
+    /* Darker background on mouse-over */
+    .device-button:hover {
+        background-color: RoyalBlue;
+    }
+
+    #device-buttons {
+        padding-top: 20px;
+    }
+
+    .modal {
+        display: none;
+        z-index: 1;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        background-color: rgb(0, 0, 0);
+        background-color: rgba(0, 0, 0, 0.4);
+        overflow: inherit;
+        overflow-y: inherit;
+        text-align: center;
+        word-wrap: break-word;
+    }
+
+    .ripple {
+        width: 10px;
+        height: 10px;
+        position: fixed;
+        border-radius: 50%;
+        border: 1px solid #ffffff;
+        pointer-events: none;
+    }
+
+    @keyframes ripple-effect {
+        to {
+            transform: scale(5);
+            opacity: 0;
+        }
     }
 </style>
 
@@ -64,37 +227,11 @@
         <a href="device-control.html">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
-    <div>
+    <div id="mega-div">
         {{template "devices_grid" .}}
     </div>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </body>
-<script>
-    function addListeners() {
-    document.querySelectorAll(".ios-device-use").forEach((e) => {
-        e.addEventListener("click", (button) => {
-            var udid = button.target.value
-        })
-    })
-
-    document.querySelectorAll(".ios-device-info").forEach((e) => {
-        e.addEventListener("click", (button) => {
-            var udid = button.target.value
-        })
-    })
-
-    document.querySelectorAll(".android-device-use").forEach((e) => {
-        e.addEventListener("click", (button) => {
-            var udid = button.target.value
-        })
-    })
-
-    document.querySelectorAll(".android-device-info").forEach((e) => {
-        e.addEventListener("click", (button) => {
-            var udid = button.target.value
-        })
-    })
-}
-</script>
+<script type="text/javascript" src="/static/js/device_control.js"></script>
 
 </html>

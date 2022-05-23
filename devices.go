@@ -428,3 +428,20 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+func ReloadAvailableDevices(w http.ResponseWriter, r *http.Request) {
+	devices, err := GetAvailableDevicesInternal()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	funcMap := template.FuncMap{
+		"contains": strings.Contains,
+	}
+
+	// Parse the template and return response with the container table rows
+	var tmpl = template.Must(template.New("devices_grid").Funcs(funcMap).ParseFiles("static/devices_grid.html"))
+	if err := tmpl.ExecuteTemplate(w, "devices_grid", devices); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
