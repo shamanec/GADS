@@ -73,16 +73,11 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 
 // Load the initial page with the project configuration info
 func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
-	jsonFile, err := os.Open("./configs/config.json")
+	projectConfig, err := GetConfigJsonData()
 	if err != nil {
-		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	var projectConfig ConfigJsonData
-	json.Unmarshal(byteValue, &projectConfig)
 	var configRow = AppiumConfig{
 		DevicesHost:             projectConfig.AppiumConfig.DevicesHost,
 		SeleniumHubHost:         projectConfig.AppiumConfig.SeleniumHubHost,
@@ -111,8 +106,7 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	err := UnmarshalRequestBody(r.Body, &requestData)
 
 	// Get the config data
-	var configData ConfigJsonData
-	err = UnmarshalJSONFile("./configs/config.json", &configData)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",

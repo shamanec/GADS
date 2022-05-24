@@ -203,8 +203,7 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	sudo_password := requestData.SudoPassword
 
 	// Get the config data
-	var env ConfigJsonData
-	err = UnmarshalJSONFile("./configs/config.json", &env)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",
@@ -212,9 +211,9 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	env.EnvConfig.SudoPassword = sudo_password
+	configData.EnvConfig.SudoPassword = sudo_password
 
-	bs, err := json.MarshalIndent(env, "", "  ")
+	bs, err := json.MarshalIndent(configData, "", "  ")
 
 	// Write the new json to the config.json file
 	err = ioutil.WriteFile("./configs/config.json", bs, 0644)
@@ -255,8 +254,7 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 // Check if the sudo password in ./configs/config.json is different than "undefined" meaning something is set
 func CheckSudoPasswordSet() bool {
 	// Get the config data
-	var configData ConfigJsonData
-	err := UnmarshalJSONFile("./configs/config.json", &configData)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "check_sudo_password",
@@ -304,8 +302,7 @@ func CreateUdevRules() error {
 	defer create_container_rules.Close()
 
 	// Get the config data
-	var configData ConfigJsonData
-	err = UnmarshalJSONFile("./configs/config.json", &configData)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "create_udev_rules",
@@ -368,13 +365,13 @@ func CheckWDAProvided() bool {
 
 // Get a value from ./configs/config.json
 func GetEnvValue(key string) string {
-	var configData ConfigJsonData
-	err := UnmarshalJSONFile("./configs/config.json", &configData)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "check_sudo_password",
 		}).Error("Could not unmarshal ./configs/config.json file when getting value")
 	}
+
 	if key == "sudo_password" {
 		return configData.EnvConfig.SudoPassword
 	} else if key == "supervision_password" {
@@ -510,8 +507,7 @@ func getAndroidDeviceMinicapStreamSize(device_udid string) (string, error) {
 // Get the configuration info for iOS device from ./configs/config.json
 func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	// Get the config data
-	var configData ConfigJsonData
-	err := UnmarshalJSONFile("./configs/config.json", &configData)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",
@@ -559,8 +555,7 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 // Get the configuration info for iOS device from ./configs/config.json
 func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
 	// Get the config data
-	var configData ConfigJsonData
-	err := UnmarshalJSONFile("./configs/config.json", &configData)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "android_container_create",

@@ -473,8 +473,7 @@ func CreateIOSContainer(device_udid string) {
 	} else {
 
 		// Get the config data
-		var configData ConfigJsonData
-		err := UnmarshalJSONFile("./configs/config.json", &configData)
+		configData, err := GetConfigJsonData()
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
@@ -647,8 +646,7 @@ func createAndroidContainer(device_udid string) {
 		}).Info("Container with ID:" + container_id + " already exists for Android device with udid:" + device_udid)
 	} else {
 		// Get the config data
-		var configData ConfigJsonData
-		err := UnmarshalJSONFile("./configs/config.json", &configData)
+		configData, err := GetConfigJsonData()
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "android_container_create",

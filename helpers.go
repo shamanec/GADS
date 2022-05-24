@@ -390,3 +390,24 @@ func UnmarshalJSONString(jsonString string, v interface{}) error {
 
 	return nil
 }
+
+func GetConfigJsonData() (*ConfigJsonData, error) {
+	var data ConfigJsonData
+	jsonFile, err := os.Open("./configs/config.json")
+	if err != nil {
+		return nil, err
+	}
+	defer jsonFile.Close()
+
+	bs, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(bs, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
