@@ -8,6 +8,7 @@
   },
   "devices-config": [
     {
+      "os": "ios",
       "appium_port": 4841,
       "device_name": "iPhone_11",
       "device_os_version": "13.5.1",
@@ -17,6 +18,7 @@
       "viewport_size": "375x667"
     },
     {
+      "os": "ios",
       "appium_port": 4842,
       "device_name": "iPhone_SE",
       "device_os_version": "15.0",
@@ -26,6 +28,7 @@
       "viewport_size": "375x667"
     },
     {
+      "os": "ios",
       "appium_port": 4843,
       "device_name": "iPad_bejbe",
       "device_os_version": "15.1",
@@ -35,6 +38,7 @@
       "viewport_size": "834x1194"
     },
     {
+      "os": "ios",
       "appium_port": 4844,
       "device_name": "iPhone_7",
       "device_os_version": "14.6",
@@ -44,6 +48,7 @@
       "viewport_size": "375x667"
     },
     {
+      "os": "android",
       "appium_port": 4881,
       "device_udid": "WCR7N18B14002300",
       "device_name": "Huawei_P20_Pro",
@@ -51,6 +56,7 @@
       "device_os_version": "10"
     },
     {
+      "os": "android",
       "appium_port": 4882,
       "device_udid": "MUN0218928000401",
       "device_name": "Huawei_Bejbe",
@@ -58,6 +64,7 @@
       "device_os_version": "10"
     },
     {
+      "os": "android",
       "appium_port": 4883,
       "device_udid": "RQ30041UV0",
       "device_name": "Sony_Xperia",

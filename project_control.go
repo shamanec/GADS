@@ -335,8 +335,7 @@ func CreateUdevRules() error {
 	// Add rule lines for each Android device in config.json
 	// Keeping rule lines for server container creation just in case
 	for _, device := range android_devices {
-		device_name := device.DeviceName
-		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device-` + device_name + `-` + device.DeviceUdid + `"`
+		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device_` + device.DeviceUdid + `"`
 		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/remove"`
 		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"Android\", \"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/create"`
 		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=Android --udid=` + device.DeviceUdid + `"`
@@ -358,8 +357,7 @@ func CreateUdevRules() error {
 	// Add rule lines for each iOS device in config.json
 	// Keeping rule lines for server container creation just in case
 	for _, device := range ios_devices {
-		device_name := device.DeviceName
-		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device-` + device_name + `-` + device.DeviceUdid + `"`
+		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device_` + device.DeviceUdid + `"`
 		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/remove"`
 		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"iOS\", \"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/create"`
 		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=iOS --udid=` + device.DeviceUdid + `"`

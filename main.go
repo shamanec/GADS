@@ -37,6 +37,7 @@ type AppiumConfig struct {
 }
 
 type DeviceConfig struct {
+	OS              string `json:"os"`
 	AppiumPort      int    `json:"appium_port"`
 	DeviceName      string `json:"device_name"`
 	DeviceOSVersion string `json:"device_os_version"`
