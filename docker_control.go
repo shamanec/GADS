@@ -25,6 +25,15 @@ import (
 var project_dir, _ = os.Getwd()
 var on_grid = GetEnvValue("connect_selenium_grid")
 
+type ContainerRow struct {
+	ContainerID     string
+	ImageName       string
+	ContainerStatus string
+	ContainerPorts  string
+	ContainerName   string
+	DeviceUDID      string
+}
+
 //=======================//
 //=====API FUNCTIONS=====//
 

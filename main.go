@@ -28,15 +28,6 @@ type ProjectConfigPageData struct {
 	ProjectConfigValues    AppiumConfig
 }
 
-type ContainerRow struct {
-	ContainerID     string
-	ImageName       string
-	ContainerStatus string
-	ContainerPorts  string
-	ContainerName   string
-	DeviceUDID      string
-}
-
 type AppiumConfig struct {
 	DevicesHost             string `json:"devices_host"`
 	SeleniumHubHost         string `json:"selenium_hub_host"`
