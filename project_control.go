@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/danielpaulus/go-ios/ios"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
@@ -76,12 +75,6 @@ type AndroidDeviceConfig struct {
 	DeviceOsVersion string `json:"device_os_version"`
 }
 
-type IOSModelsSizes struct {
-	ProductType string `json:"product_type"`
-	DeviceModel string `json:"device_model"`
-	ScreenSize  string `json:"screen_size"`
-}
-
 type GeneralConfig struct {
 	DevicesHost             string                `json:"devices_host"`
 	SeleniumHubHost         string                `json:"selenium_hub_host"`
@@ -90,7 +83,6 @@ type GeneralConfig struct {
 	WdaBundleID             string                `json:"wda_bundle_id"`
 	IosDevicesList          []IOSDeviceConfig     `json:"ios-devices-list"`
 	AndroidDevicesList      []AndroidDeviceConfig `json:"android-devices-list"`
-	IosModelsSizes          []IOSModelsSizes      `json:"ios_models_sizes"`
 }
 
 type EnvConfig struct {
@@ -561,20 +553,20 @@ func getAndroidDeviceMinicapStreamSize(device_udid string) (string, error) {
 // Get the configuration info for iOS device from ./configs/config.json
 func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	// Get the config data
-	var configData GeneralConfig
+	var configData ConfigJsonData
 	err := UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"event": "android_container_create",
+			"event": "ios_container_create",
 		}).Error("Could not unmarshal config.json file when trying to create a container for device with udid: " + device_udid)
 		return nil, err
 	}
 
 	// Check if device is registered in config data
 	var device_in_config bool
-	var deviceConfig IOSDeviceConfig
-	for _, v := range configData.IosDevicesList {
-		if v.DeviceUdid == device_udid {
+	var deviceConfig DeviceConfig
+	for _, v := range configData.DeviceConfig {
+		if v.DeviceUDID == device_udid {
 			device_in_config = true
 			deviceConfig = v
 		}
@@ -593,34 +585,24 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 		return nil, err
 	}
 
-	product_type, err := getIOSDeviceProductType(device_udid)
-	if err != nil {
-		return nil, err
-	}
-
-	model, viewport_size, err := getIOSModelAndViewport(product_type)
-	if err != nil {
-		return nil, err
-	}
-
 	return &IOSDevice{
 			AppiumPort:         deviceConfig.AppiumPort,
 			DeviceName:         deviceConfig.DeviceName,
-			DeviceOSVersion:    deviceConfig.DeviceOsVersion,
-			WdaMjpegPort:       deviceConfig.WdaMjpegPort,
-			WdaPort:            deviceConfig.WdaPort,
+			DeviceOSVersion:    deviceConfig.DeviceOSVersion,
+			WdaMjpegPort:       deviceConfig.WDAMjpegPort,
+			WdaPort:            deviceConfig.WDAPort,
 			DeviceUDID:         device_udid,
 			WdaMjpegURL:        wda_stream_url,
 			WdaURL:             wda_url,
-			DeviceModel:        model,
-			DeviceViewportSize: viewport_size},
+			DeviceModel:        "Remove please",
+			DeviceViewportSize: deviceConfig.ViewportSize},
 		nil
 }
 
 // Get the configuration info for iOS device from ./configs/config.json
 func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
 	// Get the config data
-	var configData GeneralConfig
+	var configData ConfigJsonData
 	err := UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -631,9 +613,9 @@ func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
 
 	// Check if device is registered in config data
 	var device_in_config bool
-	var deviceConfig AndroidDeviceConfig
-	for _, v := range configData.AndroidDevicesList {
-		if v.DeviceUdid == device_udid {
+	var deviceConfig DeviceConfig
+	for _, v := range configData.DeviceConfig {
+		if v.DeviceUDID == device_udid {
 			device_in_config = true
 			deviceConfig = v
 		}
@@ -651,78 +633,11 @@ func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
 	return &AndroidDevice{
 			AppiumPort:      deviceConfig.AppiumPort,
 			DeviceName:      deviceConfig.DeviceName,
-			DeviceOSVersion: deviceConfig.DeviceOsVersion,
+			DeviceOSVersion: deviceConfig.DeviceOSVersion,
 			DeviceUDID:      device_udid,
 			StreamSize:      stream_size,
 			StreamPort:      strconv.Itoa(deviceConfig.StreamPort)},
 		nil
-}
-
-func getIOSDeviceProductType(device_udid string) (string, error) {
-	deviceList, err := ios.ListDevices()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_connected_ios_devices",
-		}).Error("Could not get connected devices. Error: " + err.Error())
-		return "", nil
-	}
-	deviceValues, err := outputDetailedList(deviceList)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_connected_ios_devices",
-		}).Error("Could not get connected devices detailed list. Error: " + err.Error())
-		return "", nil
-	}
-
-	// Get the config data
-	var jsonList GoIOSDevicesList
-	err = UnmarshalJSONString(deviceValues, &jsonList)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "android_container_create",
-		}).Error("Could not unmarshal json string when getting product type for device with udid: " + device_udid)
-		return "", err
-	}
-
-	// Check if device is is connected
-	var device_connected bool
-	var device GoIOSDevice
-	for _, v := range jsonList.DeviceList {
-		if v.Udid == device_udid {
-			device_connected = true
-			device = v
-		}
-	}
-
-	// Stop execution if device not connected
-	if !device_connected {
-		log.WithFields(log.Fields{
-			"event": "android_container_create",
-		}).Error("Device with UDID:" + device_udid + " is not connected to the machine.")
-		return "", err
-	}
-
-	return device.ProductType, nil
-}
-
-func getIOSModelAndViewport(product_type string) (string, string, error) {
-	// Get the config data
-	var configData GeneralConfig
-	err := UnmarshalJSONFile("./configs/config.json", &configData)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "android_container_create",
-		}).Error("Could not unmarshal config.json file when trying to get iOS model and viewport size")
-		return "", "", err
-	}
-
-	for _, v := range configData.IosModelsSizes {
-		if v.ProductType == product_type {
-			return v.DeviceModel, v.ScreenSize, nil
-		}
-	}
-
-	return "", "", nil
 }
 
 // Get the installable apps list from the ./apps folder
