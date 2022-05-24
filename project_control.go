@@ -75,22 +75,6 @@ type AndroidDeviceConfig struct {
 	DeviceOsVersion string `json:"device_os_version"`
 }
 
-type GeneralConfig struct {
-	DevicesHost             string                `json:"devices_host"`
-	SeleniumHubHost         string                `json:"selenium_hub_host"`
-	SeleniumHubPort         string                `json:"selenium_hub_port"`
-	SeleniumHubProtocolType string                `json:"selenium_hub_protocol_type"`
-	WdaBundleID             string                `json:"wda_bundle_id"`
-	IosDevicesList          []IOSDeviceConfig     `json:"ios-devices-list"`
-	AndroidDevicesList      []AndroidDeviceConfig `json:"android-devices-list"`
-}
-
-type EnvConfig struct {
-	SudoPassword        string `json:"sudo_password"`
-	ConnectSeleniumGrid string `json:"connect_selenium_grid"`
-	SupervisionPassword string `json:"supervision_password"`
-}
-
 type WdaConfig struct {
 	WdaURL       string `json:"wda_url"`
 	WdaStreamURL string `json:"wda_stream_url"`
@@ -128,7 +112,7 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	if sudo_password == "undefined" {
 		log.WithFields(log.Fields{
 			"event": "setup_udev_listener",
-		}).Error("Elevated permissions are required to perform this action. Please set your sudo password in './env.json' or via the '/configuration/set-sudo-password' endpoint.")
+		}).Error("Elevated permissions are required to perform this action. Please set your sudo password in './configs/config.json' or via the '/configuration/set-sudo-password' endpoint.")
 		JSONError(w, "setup_udev_listener", "Elevated permissions are required to perform this action.", 500)
 		return
 	}
@@ -197,7 +181,7 @@ func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Set sudo password
-// @Description  Sets your sudo password in ./env.json. The password is needed for operations requiring elevated permissions like setting up udev.
+// @Description  Sets your sudo password in ./configs/config.json. The password is needed for operations requiring elevated permissions like setting up udev.
 // @Tags         configuration
 // @Accept		 json
 // @Produce      json
@@ -219,32 +203,32 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	sudo_password := requestData.SudoPassword
 
 	// Get the config data
-	var env EnvConfig
-	err = UnmarshalJSONFile("./env.json", &env)
+	var env ConfigJsonData
+	err = UnmarshalJSONFile("./configs/config.json", &env)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",
-		}).Error("Could not unmarshal env.json file when setting sudo password")
+		}).Error("Could not unmarshal ./configs/config.json file when setting sudo password")
 		return
 	}
 
-	env.SudoPassword = sudo_password
+	env.EnvConfig.SudoPassword = sudo_password
 
 	bs, err := json.MarshalIndent(env, "", "  ")
 
 	// Write the new json to the config.json file
-	err = ioutil.WriteFile("./env.json", bs, 0644)
+	err = ioutil.WriteFile("./configs/config.json", bs, 0644)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "set_sudo_password",
-		}).Error("Could not write ./env.json while attempting to set sudo password. Error: " + err.Error())
+		}).Error("Could not write ./configs/config.json while attempting to set sudo password. Error: " + err.Error())
 		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
 		return
 	}
 	log.WithFields(log.Fields{
 		"event": "set_sudo_password",
 	}).Info("Successfully set sudo password.")
-	SimpleJSONResponse(w, "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./env.json file. Make sure you don't commit this file to public repos :D", 200)
+	SimpleJSONResponse(w, "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./configs/config.json file. Make sure you don't commit this file to public repos :D", 200)
 }
 
 // @Summary      Get device control info
@@ -268,18 +252,18 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 //=======================//
 //=====FUNCTIONS=====//
 
-// Check if the sudo password in env.json is different than "undefined" meaning something is set
+// Check if the sudo password in ./configs/config.json is different than "undefined" meaning something is set
 func CheckSudoPasswordSet() bool {
 	// Get the config data
-	var envData EnvConfig
-	err := UnmarshalJSONFile("./env.json", &envData)
+	var configData ConfigJsonData
+	err := UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "check_sudo_password",
-		}).Error("Could not unmarshal env.json file when checking sudo password")
+		}).Error("Could not unmarshal ./configs/config.json file when checking sudo password")
 		return false
 	}
-	sudo_password := envData.SudoPassword
+	sudo_password := configData.EnvConfig.SudoPassword
 	if sudo_password == "undefined" || sudo_password == "" {
 		return false
 	}
@@ -320,7 +304,7 @@ func CreateUdevRules() error {
 	defer create_container_rules.Close()
 
 	// Get the config data
-	var configData GeneralConfig
+	var configData ConfigJsonData
 	err = UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -329,38 +313,13 @@ func CreateUdevRules() error {
 		return err
 	}
 
-	android_devices := configData.AndroidDevicesList
-	ios_devices := configData.IosDevicesList
+	devices_list := configData.DeviceConfig
 
-	// Add rule lines for each Android device in config.json
-	// Keeping rule lines for server container creation just in case
-	for _, device := range android_devices {
-		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device_` + device.DeviceUdid + `"`
-		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/remove"`
-		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"Android\", \"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/create"`
-		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=Android --udid=` + device.DeviceUdid + `"`
-		//rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device.DeviceUdid + `"`
-
-		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
-			return errors.New("Could not write to 90-device.rules")
-		}
-
-		if _, err := create_container_rules.WriteString(rule_line2 + "\n"); err != nil {
-			return errors.New("Could not write to 90-device.rules")
-		}
-
-		if _, err := create_container_rules.WriteString(rule_line3 + "\n"); err != nil {
-			return errors.New("Could not write to 90-device.rules")
-		}
-	}
-
-	// Add rule lines for each iOS device in config.json
-	// Keeping rule lines for server container creation just in case
-	for _, device := range ios_devices {
-		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", MODE="0666", SYMLINK+="device_` + device.DeviceUdid + `"`
-		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/remove"`
-		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"iOS\", \"udid\":\"` + device.DeviceUdid + `\"}' http://localhost:10000/device-containers/create"`
-		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=iOS --udid=` + device.DeviceUdid + `"`
+	for _, device := range devices_list {
+		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUDID + `", MODE="0666", SYMLINK+="device_` + device.DeviceUDID + `"`
+		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUDID + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUDID + `\"}' http://localhost:10000/device-containers/remove"`
+		rule_line3 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUDID + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"device_type\":\"` + device.OS + `\", \"udid\":\"` + device.DeviceUDID + `\"}' http://localhost:10000/device-containers/create"`
+		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=` + device.OS + ` --udid=` + device.DeviceUdid + `"`
 		//rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device.DeviceUdid + `"`
 
 		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
@@ -407,21 +366,21 @@ func CheckWDAProvided() bool {
 	return true
 }
 
-// Get a value from env.json
+// Get a value from ./configs/config.json
 func GetEnvValue(key string) string {
-	var envData EnvConfig
-	err := UnmarshalJSONFile("./configs/config.json", &envData)
+	var configData ConfigJsonData
+	err := UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "check_sudo_password",
-		}).Error("Could not unmarshal env.json file when getting value")
+		}).Error("Could not unmarshal ./configs/config.json file when getting value")
 	}
 	if key == "sudo_password" {
-		return envData.SudoPassword
+		return configData.EnvConfig.SudoPassword
 	} else if key == "supervision_password" {
-		return envData.SupervisionPassword
+		return configData.EnvConfig.SupervisionPassword
 	} else if key == "connect_selenium_grid" {
-		return envData.ConnectSeleniumGrid
+		return strconv.FormatBool(configData.EnvConfig.ConnectSeleniumGrid)
 	}
 	return ""
 }

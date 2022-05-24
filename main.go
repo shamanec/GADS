@@ -48,8 +48,15 @@ type DeviceConfig struct {
 	StreamPort      int    `json:"stream_port,omitempty"`
 }
 
+type EnvConfig struct {
+	SudoPassword        string `json:"sudo_password"`
+	ConnectSeleniumGrid bool   `json:"connect_selenium_grid"`
+	SupervisionPassword string `json:"supervision_password"`
+}
+
 type ConfigJsonData struct {
 	AppiumConfig AppiumConfig   `json:"appium-config"`
+	EnvConfig    EnvConfig      `json:"env-config"`
 	DeviceConfig []DeviceConfig `json:"devices-config"`
 }
 

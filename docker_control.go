@@ -191,9 +191,9 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	os_type := data.DeviceType
 	device_udid := data.Udid
 
-	if os_type == "Android" {
+	if os_type == "android" {
 		go createAndroidContainer(device_udid)
-	} else if os_type == "iOS" {
+	} else if os_type == "ios" {
 		go CreateIOSContainer(device_udid)
 	}
 	w.WriteHeader(http.StatusAccepted)

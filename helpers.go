@@ -224,7 +224,7 @@ func DeleteFile(filePath string) {
 	}
 }
 
-// Copy file using shell, needed when copying to a protected folder. Needs `sudo_password` set in env.json
+// Copy file using shell, needed when copying to a protected folder. Needs `sudo_password` set in configs/config.json
 func CopyFileShell(currentFilePath string, newFilePath string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S cp " + currentFilePath + " " + newFilePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -238,7 +238,7 @@ func CopyFileShell(currentFilePath string, newFilePath string, sudoPassword stri
 	return nil
 }
 
-// Delete file using shell, needed when deleting from a protected folder. Needs `sudo_password` set in env.json
+// Delete file using shell, needed when deleting from a protected folder. Needs `sudo_password` set in configs/config.json
 func DeleteFileShell(filePath string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S rm " + filePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -252,7 +252,7 @@ func DeleteFileShell(filePath string, sudoPassword string) error {
 	return nil
 }
 
-// Set file permissions using shell. Needs `sudo_password` set in env.json
+// Set file permissions using shell. Needs `sudo_password` set in configs/config.json
 func SetFilePermissionsShell(filePath string, permissionsCode string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S chmod " + permissionsCode + " " + filePath
 	cmd := exec.Command("bash", "-c", commandString)
