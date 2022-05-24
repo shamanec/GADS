@@ -46,6 +46,30 @@ type ContainerRow struct {
 	DeviceUDID      string
 }
 
+type AppiumConfig struct {
+	DevicesHost             string `json:"devices_host"`
+	SeleniumHubHost         string `json:"selenium_hub_host"`
+	SeleniumHubPort         string `json:"selenium_hub_port"`
+	SeleniumHubProtocolType string `json:"selenium_hub_protocol_type"`
+	WDABundleID             string `json:"wda_bundle_id"`
+}
+
+type DeviceConfig struct {
+	AppiumPort      int    `json:"appium_port"`
+	DeviceName      string `json:"device_name"`
+	DeviceOSVersion string `json:"device_os_version"`
+	DeviceUDID      string `json:"device_udid"`
+	WDAMjpegPort    int    `json:"wda_mjpeg_port,omitempty"`
+	WDAPort         int    `json:"wda_port,omitempty"`
+	ViewportSize    string `json:"viewport_size,omitempty"`
+	StreamPort      int    `json:"stream_port,omitempty"`
+}
+
+type ConfigJsonData struct {
+	AppiumConfig AppiumConfig   `json:"appium-config"`
+	DeviceConfig []DeviceConfig `json:"devices-config"`
+}
+
 // Load the initial page
 func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 	var index = template.Must(template.ParseFiles("static/index.html"))
@@ -97,7 +121,7 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	err := UnmarshalRequestBody(r.Body, &requestData)
 
 	// Get the config data
-	var configData GeneralConfig
+	var configData ConfigJsonData
 	err = UnmarshalJSONFile("./configs/config.json", &configData)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -107,19 +131,19 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestData.DevicesHost != "" {
-		configData.DevicesHost = requestData.DevicesHost
+		configData.AppiumConfig.DevicesHost = requestData.DevicesHost
 	}
 	if requestData.SeleniumHubHost != "" {
-		configData.SeleniumHubHost = requestData.SeleniumHubHost
+		configData.AppiumConfig.SeleniumHubHost = requestData.SeleniumHubHost
 	}
 	if requestData.SeleniumHubPort != "" {
-		configData.SeleniumHubPort = requestData.SeleniumHubPort
+		configData.AppiumConfig.SeleniumHubPort = requestData.SeleniumHubPort
 	}
 	if requestData.SeleniumHubProtocolType != "" {
-		configData.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
+		configData.AppiumConfig.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
 	}
 	if requestData.WdaBundleID != "" {
-		configData.WdaBundleID = requestData.WdaBundleID
+		configData.AppiumConfig.WDABundleID = requestData.WdaBundleID
 	}
 
 	bs, err := json.MarshalIndent(configData, "", "  ")
