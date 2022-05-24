@@ -447,7 +447,7 @@ func getRunningContainerNames() []string {
 	for _, container := range containers {
 		// Parse plain container name
 		containerName := strings.Replace(container.Names[0], "/", "", -1)
-		if strings.Contains(containerName, "iOSDevice") || strings.Contains(containerName, "androidDevice") {
+		if (strings.Contains(containerName, "iOSDevice") || strings.Contains(containerName, "androidDevice")) && strings.Contains(container.Status, "Up") {
 			containerNames = append(containerNames, containerName)
 		}
 	}
