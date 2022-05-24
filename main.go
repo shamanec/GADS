@@ -20,21 +20,12 @@ import (
 
 var project_log_file *os.File
 
-// ProjectConfig struct which contains the project configuration values
-type ProjectConfig struct {
-	DevicesHost             string `json:"devices_host"`
-	SeleniumHubHost         string `json:"selenium_hub_host"`
-	SeleniumHubPort         string `json:"selenium_hub_port"`
-	SeleniumHubProtocolType string `json:"selenium_hub_protocol_type"`
-	WdaBundleID             string `json:"wda_bundle_id"`
-}
-
 type ProjectConfigPageData struct {
 	WebDriverAgentProvided bool
 	SudoPasswordSet        bool
 	UdevIOSListenerStatus  string
 	ImageStatus            string
-	ProjectConfigValues    ProjectConfig
+	ProjectConfigValues    AppiumConfig
 }
 
 type ContainerRow struct {
@@ -91,14 +82,14 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 	defer jsonFile.Close()
 
 	byteValue, _ := ioutil.ReadAll(jsonFile)
-	var projectConfig ProjectConfig
+	var projectConfig ConfigJsonData
 	json.Unmarshal(byteValue, &projectConfig)
-	var configRow = ProjectConfig{
-		DevicesHost:             projectConfig.DevicesHost,
-		SeleniumHubHost:         projectConfig.SeleniumHubHost,
-		SeleniumHubPort:         projectConfig.SeleniumHubPort,
-		SeleniumHubProtocolType: projectConfig.SeleniumHubProtocolType,
-		WdaBundleID:             projectConfig.WdaBundleID}
+	var configRow = AppiumConfig{
+		DevicesHost:             projectConfig.AppiumConfig.DevicesHost,
+		SeleniumHubHost:         projectConfig.AppiumConfig.SeleniumHubHost,
+		SeleniumHubPort:         projectConfig.AppiumConfig.SeleniumHubPort,
+		SeleniumHubProtocolType: projectConfig.AppiumConfig.SeleniumHubProtocolType,
+		WDABundleID:             projectConfig.AppiumConfig.WDABundleID}
 
 	var index = template.Must(template.ParseFiles("static/project_config.html"))
 	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), ProjectConfigValues: configRow}
@@ -117,7 +108,7 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorJSON
 // @Router       /configuration/update-config [put]
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
-	var requestData ProjectConfig
+	var requestData AppiumConfig
 	err := UnmarshalRequestBody(r.Body, &requestData)
 
 	// Get the config data
@@ -142,8 +133,8 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	if requestData.SeleniumHubProtocolType != "" {
 		configData.AppiumConfig.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
 	}
-	if requestData.WdaBundleID != "" {
-		configData.AppiumConfig.WDABundleID = requestData.WdaBundleID
+	if requestData.WDABundleID != "" {
+		configData.AppiumConfig.WDABundleID = requestData.WDABundleID
 	}
 
 	bs, err := json.MarshalIndent(configData, "", "  ")
