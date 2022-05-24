@@ -280,29 +280,6 @@ func EnableUsbmuxdService() error {
 	return nil
 }
 
-// Read a json file from a provided path into a byte slice
-func ReadJSONFile(jsonFilePath string) ([]byte, error) {
-	jsonFile, err := os.Open(jsonFilePath)
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "read_json_file",
-		}).Error("Could not open json file at path: " + jsonFilePath + ", error: " + err.Error())
-		fmt.Println(err)
-	}
-	defer jsonFile.Close()
-
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "read_json_file",
-		}).Error("Could not read json file at path: " + jsonFilePath + ", error: " + err.Error())
-		return nil, err
-	} else {
-		return byteValue, nil
-	}
-}
-
 // Check if an iOS device is registered in config.json by provided UDID
 func CheckIOSDeviceInDevicesList(device_udid string) bool {
 	for start := time.Now(); time.Since(start) < 5*time.Second; {
