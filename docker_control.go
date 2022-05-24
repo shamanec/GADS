@@ -754,7 +754,7 @@ func createAndroidContainer(device_udid string) {
 			Resources: container.Resources{
 				Devices: []container.DeviceMapping{
 					{
-						PathOnHost:        "/dev/device-" + device_name + "-" + device_udid,
+						PathOnHost:        "/dev/device_" + device_udid,
 						PathInContainer:   "/dev/bus/usb/003/011",
 						CgroupPermissions: "rwm",
 					},
