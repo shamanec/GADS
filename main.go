@@ -20,30 +20,44 @@ import (
 
 var project_log_file *os.File
 
-// ProjectConfig struct which contains the project configuration values
-type ProjectConfig struct {
-	DevicesHost             string `json:"devices_host"`
-	SeleniumHubHost         string `json:"selenium_hub_host"`
-	SeleniumHubPort         string `json:"selenium_hub_port"`
-	SeleniumHubProtocolType string `json:"selenium_hub_protocol_type"`
-	WdaBundleID             string `json:"wda_bundle_id"`
-}
-
 type ProjectConfigPageData struct {
 	WebDriverAgentProvided bool
 	SudoPasswordSet        bool
 	UdevIOSListenerStatus  string
 	ImageStatus            string
-	ProjectConfigValues    ProjectConfig
+	ProjectConfigValues    AppiumConfig
 }
 
-type ContainerRow struct {
-	ContainerID     string
-	ImageName       string
-	ContainerStatus string
-	ContainerPorts  string
-	ContainerName   string
-	DeviceUDID      string
+type AppiumConfig struct {
+	DevicesHost             string `json:"devices_host"`
+	SeleniumHubHost         string `json:"selenium_hub_host"`
+	SeleniumHubPort         string `json:"selenium_hub_port"`
+	SeleniumHubProtocolType string `json:"selenium_hub_protocol_type"`
+	WDABundleID             string `json:"wda_bundle_id"`
+}
+
+type DeviceConfig struct {
+	OS              string `json:"os"`
+	AppiumPort      int    `json:"appium_port"`
+	DeviceName      string `json:"device_name"`
+	DeviceOSVersion string `json:"device_os_version"`
+	DeviceUDID      string `json:"device_udid"`
+	WDAMjpegPort    int    `json:"wda_mjpeg_port,omitempty"`
+	WDAPort         int    `json:"wda_port,omitempty"`
+	ViewportSize    string `json:"viewport_size,omitempty"`
+	StreamPort      int    `json:"stream_port,omitempty"`
+}
+
+type EnvConfig struct {
+	SudoPassword        string `json:"sudo_password"`
+	ConnectSeleniumGrid bool   `json:"connect_selenium_grid"`
+	SupervisionPassword string `json:"supervision_password"`
+}
+
+type ConfigJsonData struct {
+	AppiumConfig AppiumConfig   `json:"appium-config"`
+	EnvConfig    EnvConfig      `json:"env-config"`
+	DeviceConfig []DeviceConfig `json:"devices-config"`
 }
 
 // Load the initial page
@@ -59,22 +73,17 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 
 // Load the initial page with the project configuration info
 func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
-	jsonFile, err := os.Open("./configs/config.json")
+	projectConfig, err := GetConfigJsonData()
 	if err != nil {
-		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer jsonFile.Close()
-
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	var projectConfig ProjectConfig
-	json.Unmarshal(byteValue, &projectConfig)
-	var configRow = ProjectConfig{
-		DevicesHost:             projectConfig.DevicesHost,
-		SeleniumHubHost:         projectConfig.SeleniumHubHost,
-		SeleniumHubPort:         projectConfig.SeleniumHubPort,
-		SeleniumHubProtocolType: projectConfig.SeleniumHubProtocolType,
-		WdaBundleID:             projectConfig.WdaBundleID}
+	var configRow = AppiumConfig{
+		DevicesHost:             projectConfig.AppiumConfig.DevicesHost,
+		SeleniumHubHost:         projectConfig.AppiumConfig.SeleniumHubHost,
+		SeleniumHubPort:         projectConfig.AppiumConfig.SeleniumHubPort,
+		SeleniumHubProtocolType: projectConfig.AppiumConfig.SeleniumHubProtocolType,
+		WDABundleID:             projectConfig.AppiumConfig.WDABundleID}
 
 	var index = template.Must(template.ParseFiles("static/project_config.html"))
 	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), ProjectConfigValues: configRow}
@@ -93,12 +102,11 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorJSON
 // @Router       /configuration/update-config [put]
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
-	var requestData ProjectConfig
+	var requestData AppiumConfig
 	err := UnmarshalRequestBody(r.Body, &requestData)
 
 	// Get the config data
-	var configData GeneralConfig
-	err = UnmarshalJSONFile("./configs/config.json", &configData)
+	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",
@@ -107,19 +115,19 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if requestData.DevicesHost != "" {
-		configData.DevicesHost = requestData.DevicesHost
+		configData.AppiumConfig.DevicesHost = requestData.DevicesHost
 	}
 	if requestData.SeleniumHubHost != "" {
-		configData.SeleniumHubHost = requestData.SeleniumHubHost
+		configData.AppiumConfig.SeleniumHubHost = requestData.SeleniumHubHost
 	}
 	if requestData.SeleniumHubPort != "" {
-		configData.SeleniumHubPort = requestData.SeleniumHubPort
+		configData.AppiumConfig.SeleniumHubPort = requestData.SeleniumHubPort
 	}
 	if requestData.SeleniumHubProtocolType != "" {
-		configData.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
+		configData.AppiumConfig.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
 	}
-	if requestData.WdaBundleID != "" {
-		configData.WdaBundleID = requestData.WdaBundleID
+	if requestData.WDABundleID != "" {
+		configData.AppiumConfig.WDABundleID = requestData.WDABundleID
 	}
 
 	bs, err := json.MarshalIndent(configData, "", "  ")

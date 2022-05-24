@@ -25,7 +25,7 @@ You can access Swagger documentation on *http://localhost:10000/swagger/index.ht
 
 ### Setup the usbmuxd.service and udev listener
 1. Open the Project Config page.  
-2. Tap on "Setup listener" - you need to have your sudo password set up in the *./env.json* file.  
+2. Tap on "Setup listener" - you need to have your sudo password set up in the *./configs/config.json* file.  
 
 This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable the service - this starts usbmuxd automatically after reboot. It will also create and set udev rules in */etc/udev/rules.d* that will trigger the container updates when registered iOS/Android device is connected/disconnected from the machine.  
 

@@ -1,45 +1,59 @@
 {
-  "devices_host": "192.168.1.7",
-  "selenium_hub_host": "192.168.1.7",
-  "selenium_hub_port": "4444",
-  "selenium_hub_protocol_type": "http",
-  "wda_bundle_id": "com.shamanec.WebDriverAgentRunner.xctrunner",
-  "ios-devices-list": [
+  "appium-config": {
+    "devices_host": "192.168.1.7",
+    "selenium_hub_host": "192.168.1.7",
+    "selenium_hub_port": "4444",
+    "selenium_hub_protocol_type": "http",
+    "wda_bundle_id": "com.shamanec.WebDriverAgentRunner.xctrunner"
+  },
+  "env-config": {
+    "sudo_password": "undefined",
+    "connect_selenium_grid": false,
+    "supervision_password": "undefined"
+  },
+  "devices-config": [
     {
+      "os": "ios",
       "appium_port": 4841,
       "device_name": "iPhone_11",
       "device_os_version": "13.5.1",
       "device_udid": "00008030000418C136FB8022",
       "wda_mjpeg_port": 20101,
-      "wda_port": 20001
+      "wda_port": 20001,
+      "viewport_size": "375x667"
     },
     {
+      "os": "ios",
       "appium_port": 4842,
       "device_name": "iPhone_SE",
       "device_os_version": "15.0",
       "device_udid": "00008030000418C136FB802E",
       "wda_mjpeg_port": 20102,
-      "wda_port": 20002
+      "wda_port": 20002,
+      "viewport_size": "375x667"
     },
     {
+      "os": "ios",
       "appium_port": 4843,
       "device_name": "iPad_bejbe",
       "device_os_version": "15.1",
       "device_udid": "00008103000A69E23CBB001E",
       "wda_mjpeg_port": 20103,
-      "wda_port": 20003
+      "wda_port": 20003,
+      "viewport_size": "834x1194"
     },
     {
+      "os": "ios",
       "appium_port": 4844,
       "device_name": "iPhone_7",
       "device_os_version": "14.6",
       "device_udid": "ccec159ba0219c9fa0d0fc3d85451ab0dcfebd16",
       "wda_mjpeg_port": 20104,
-      "wda_port": 20004
-    }
-  ],
-  "android-devices-list": [
+      "wda_port": 20004,
+      "viewport_size": "375x667"
+    },
     {
+      "os": "android",
       "appium_port": 4881,
       "device_udid": "WCR7N18B14002300",
       "device_name": "Huawei_P20_Pro",
@@ -47,6 +61,7 @@
       "device_os_version": "10"
     },
     {
+      "os": "android",
       "appium_port": 4882,
       "device_udid": "MUN0218928000401",
       "device_name": "Huawei_Bejbe",
@@ -54,193 +69,12 @@
       "device_os_version": "10"
     },
     {
+      "os": "android",
       "appium_port": 4883,
       "device_udid": "RQ30041UV0",
       "device_name": "Sony_Xperia",
       "stream_port": 20203,
       "device_os_version": "7"
-    }
-  ],
-  "ios_models_sizes": [
-    {
-      "product_type": "iPhone6,1",
-      "device_model": "iPhone 5S",
-      "screen_size": "320x568"
-    },
-    {
-      "product_type": "iPhone6,2",
-      "device_model": "iPhone 5S",
-      "screen_size": "320x568"
-    },
-    {
-      "product_type": "iPhone7,1",
-      "device_model": "iPhone 6 Plus",
-      "screen_size": "414x736"
-    },
-    {
-      "product_type": "iPhone7,2",
-      "device_model": "iPhone 6",
-      "screen_size": "375x667"
-    },
-    {
-      "product_type": "iPhone8,1",
-      "device_model": "iPhone 6s",
-      "screen_size": "375x667"
-    },
-    {
-      "product_type": "iPhone8,2",
-      "device_model": "iPhone 6s Plus",
-      "screen_size": "414x736"
-    },
-    {
-      "product_type": "iPhone8,4",
-      "device_model": "iPhone SE",
-      "screen_size": "320x568"
-    },
-    {
-      "product_type": "iPhone9,1",
-      "device_model": "iPhone 7",
-      "screen_size": "375x667"
-    },
-    {
-      "product_type": "iPhone9,2",
-      "device_model": "iPhone 7 Plus",
-      "screen_size": "414x736"
-    },
-    {
-      "product_type": "iPhone9,3",
-      "device_model": "iPhone 7",
-      "screen_size": "375x667"
-    },
-    {
-      "product_type": "iPhone9,4",
-      "device_model": "iPhone 7 Plus",
-      "screen_size": "414x736"
-    },
-    {
-      "product_type": "iPhone10,1",
-      "device_model": "iPhone 8",
-      "screen_size": "375x667"
-    },
-    {
-      "product_type": "iPhone10,2",
-      "device_model": "iPhone 8 Plus",
-      "screen_size": "414x736"
-    },
-    {
-      "product_type": "iPhone10,3",
-      "device_model": "iPhone X",
-      "screen_size": "375x812"
-    },
-    {
-      "product_type": "iPhone10,4",
-      "device_model": "iPhone 8",
-      "screen_size": "375x667"
-    },
-    {
-      "product_type": "iPhone10,5",
-      "device_model": "iPhone 8 Plus",
-      "screen_size": "414x736"
-    },
-    {
-      "product_type": "iPhone10,6",
-      "device_model": "iPhone X",
-      "screen_size": "375x812"
-    },
-    {
-      "product_type": "iPhone11,2",
-      "device_model": "iPhone XS",
-      "screen_size": "375x812"
-    },
-    {
-      "product_type": "iPhone11,4",
-      "device_model": "iPhone XS Max",
-      "screen_size": "414x896"
-    },
-    {
-      "product_type": "iPhone11,8",
-      "device_model": "iPhone XR",
-      "screen_size": "414x896"
-    },
-    {
-      "product_type": "iPhone12,1",
-      "device_model": "iPhone 11",
-      "screen_size": "414x896"
-    },
-    {
-      "product_type": "iPhone12,3",
-      "device_model": "iPhone 11 Pro",
-      "screen_size": "375x812"
-    },
-    {
-      "product_type": "iPhone12,5",
-      "device_model": "iPhone 11 Pro Max",
-      "screen_size": "414x896"
-    },
-    {
-      "product_type": "iPhone12,8",
-      "device_model": "iPhone SE 2nd Gen",
-      "screen_size": "375x667"
-    },
-    {
-      "product_type": "iPhone13,1",
-      "device_model": "iPhone 12 Mini",
-      "screen_size": "360x780"
-    },
-    {
-      "product_type": "iPhone13,2",
-      "device_model": "iPhone 12",
-      "screen_size": "390x844"
-    },
-    {
-      "product_type": "iPhone13,3",
-      "device_model": "iPhone 12 Pro",
-      "screen_size": "390x844"
-    },
-    {
-      "product_type": "iPhone13,4",
-      "device_model": "iPhone 12 Pro Max",
-      "screen_size": "428x926"
-    },
-    {
-      "product_type": "iPhone14,2",
-      "device_model": "iPhone 13 Pro",
-      "screen_size": "390x844"
-    },
-    {
-      "product_type": "iPhone14,3",
-      "device_model": "iPhone 13 Pro Max",
-      "screen_size": "428x926"
-    },
-    {
-      "product_type": "iPhone14,4",
-      "device_model": "iPhone 13 Mini",
-      "screen_size": "375x812"
-    },
-    {
-      "product_type": "iPhone14,5",
-      "device_model": "iPhone 13",
-      "screen_size": "390x844"
-    },
-    {
-      "product_type": "iPad13,4",
-      "device_model": "iPad Pro 11 inch 3rd Gen (WiFi)",
-      "screen_size": "834x1194"
-    },
-    {
-      "product_type": "iPad13,5",
-      "device_model": "iPad Pro 11 inch 3rd Gen (1TB, WiFi)",
-      "screen_size": "834x1194"
-    },
-    {
-      "product_type": "iPad13,6",
-      "device_model": "iPad Pro 11 inch 3rd Gen (WiFi+Cellular)",
-      "screen_size": "834x1194"
-    },
-    {
-      "product_type": "iPad13,7",
-      "device_model": "iPad Pro 11 inch 3rd Gen (1TB, WiFi+Cellular)",
-      "screen_size": "834x1194"
     }
   ]
 }

@@ -224,7 +224,7 @@ func DeleteFile(filePath string) {
 	}
 }
 
-// Copy file using shell, needed when copying to a protected folder. Needs `sudo_password` set in env.json
+// Copy file using shell, needed when copying to a protected folder. Needs `sudo_password` set in configs/config.json
 func CopyFileShell(currentFilePath string, newFilePath string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S cp " + currentFilePath + " " + newFilePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -238,7 +238,7 @@ func CopyFileShell(currentFilePath string, newFilePath string, sudoPassword stri
 	return nil
 }
 
-// Delete file using shell, needed when deleting from a protected folder. Needs `sudo_password` set in env.json
+// Delete file using shell, needed when deleting from a protected folder. Needs `sudo_password` set in configs/config.json
 func DeleteFileShell(filePath string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S rm " + filePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -252,7 +252,7 @@ func DeleteFileShell(filePath string, sudoPassword string) error {
 	return nil
 }
 
-// Set file permissions using shell. Needs `sudo_password` set in env.json
+// Set file permissions using shell. Needs `sudo_password` set in configs/config.json
 func SetFilePermissionsShell(filePath string, permissionsCode string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S chmod " + permissionsCode + " " + filePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -278,29 +278,6 @@ func EnableUsbmuxdService() error {
 		return errors.New("Could not enable usbmuxd service.")
 	}
 	return nil
-}
-
-// Read a json file from a provided path into a byte slice
-func ReadJSONFile(jsonFilePath string) ([]byte, error) {
-	jsonFile, err := os.Open(jsonFilePath)
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "read_json_file",
-		}).Error("Could not open json file at path: " + jsonFilePath + ", error: " + err.Error())
-		fmt.Println(err)
-	}
-	defer jsonFile.Close()
-
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "read_json_file",
-		}).Error("Could not read json file at path: " + jsonFilePath + ", error: " + err.Error())
-		return nil, err
-	} else {
-		return byteValue, nil
-	}
 }
 
 // Check if an iOS device is registered in config.json by provided UDID
@@ -389,4 +366,25 @@ func UnmarshalJSONString(jsonString string, v interface{}) error {
 	}
 
 	return nil
+}
+
+func GetConfigJsonData() (*ConfigJsonData, error) {
+	var data ConfigJsonData
+	jsonFile, err := os.Open("./configs/config.json")
+	if err != nil {
+		return nil, err
+	}
+	defer jsonFile.Close()
+
+	bs, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(bs, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
 }

@@ -25,6 +25,15 @@ import (
 var project_dir, _ = os.Getwd()
 var on_grid = GetEnvValue("connect_selenium_grid")
 
+type ContainerRow struct {
+	ContainerID     string
+	ImageName       string
+	ContainerStatus string
+	ContainerPorts  string
+	ContainerName   string
+	DeviceUDID      string
+}
+
 //=======================//
 //=====API FUNCTIONS=====//
 
@@ -182,9 +191,9 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	os_type := data.DeviceType
 	device_udid := data.Udid
 
-	if os_type == "Android" {
+	if os_type == "android" {
 		go createAndroidContainer(device_udid)
-	} else if os_type == "iOS" {
+	} else if os_type == "ios" {
 		go CreateIOSContainer(device_udid)
 	}
 	w.WriteHeader(http.StatusAccepted)
@@ -464,8 +473,7 @@ func CreateIOSContainer(device_udid string) {
 	} else {
 
 		// Get the config data
-		var configData GeneralConfig
-		err := UnmarshalJSONFile("./configs/config.json", &configData)
+		configData, err := GetConfigJsonData()
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "ios_container_create",
@@ -475,9 +483,9 @@ func CreateIOSContainer(device_udid string) {
 
 		// Check if device is registered in config data
 		var device_in_config bool
-		var deviceConfig IOSDeviceConfig
-		for _, v := range configData.IosDevicesList {
-			if v.DeviceUdid == device_udid {
+		var deviceConfig DeviceConfig
+		for _, v := range configData.DeviceConfig {
+			if v.DeviceUDID == device_udid {
 				device_in_config = true
 				deviceConfig = v
 			}
@@ -494,14 +502,14 @@ func CreateIOSContainer(device_udid string) {
 		// Get the device config data
 		appium_port := strconv.Itoa(deviceConfig.AppiumPort)
 		device_name := deviceConfig.DeviceName
-		device_os_version := deviceConfig.DeviceOsVersion
-		wda_mjpeg_port := strconv.Itoa(deviceConfig.WdaMjpegPort)
-		wda_port := strconv.Itoa(deviceConfig.WdaPort)
-		wda_bundle_id := configData.WdaBundleID
-		selenium_hub_port := configData.SeleniumHubPort
-		selenium_hub_host := configData.SeleniumHubHost
-		devices_host := configData.DevicesHost
-		hub_protocol := configData.SeleniumHubProtocolType
+		device_os_version := deviceConfig.DeviceOSVersion
+		wda_mjpeg_port := strconv.Itoa(deviceConfig.WDAMjpegPort)
+		wda_port := strconv.Itoa(deviceConfig.WDAPort)
+		wda_bundle_id := configData.AppiumConfig.WDABundleID
+		selenium_hub_port := configData.AppiumConfig.SeleniumHubPort
+		selenium_hub_host := configData.AppiumConfig.SeleniumHubHost
+		devices_host := configData.AppiumConfig.DevicesHost
+		hub_protocol := configData.AppiumConfig.SeleniumHubProtocolType
 
 		// Check if device appears in go-ios list meaning it is successfully connected
 		if !CheckIOSDeviceInDevicesList(device_udid) {
@@ -638,8 +646,7 @@ func createAndroidContainer(device_udid string) {
 		}).Info("Container with ID:" + container_id + " already exists for Android device with udid:" + device_udid)
 	} else {
 		// Get the config data
-		var configData GeneralConfig
-		err := UnmarshalJSONFile("./configs/config.json", &configData)
+		configData, err := GetConfigJsonData()
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "android_container_create",
@@ -649,9 +656,9 @@ func createAndroidContainer(device_udid string) {
 
 		// Check if device is registered in config data
 		var device_in_config bool
-		var deviceConfig AndroidDeviceConfig
-		for _, v := range configData.AndroidDevicesList {
-			if v.DeviceUdid == device_udid {
+		var deviceConfig DeviceConfig
+		for _, v := range configData.DeviceConfig {
+			if v.DeviceUDID == device_udid {
 				device_in_config = true
 				deviceConfig = v
 			}
@@ -668,12 +675,12 @@ func createAndroidContainer(device_udid string) {
 		// Get the device config data
 		appium_port := strconv.Itoa(deviceConfig.AppiumPort)
 		device_name := deviceConfig.DeviceName
-		device_os_version := deviceConfig.DeviceOsVersion
+		device_os_version := deviceConfig.DeviceOSVersion
 		stream_port := strconv.Itoa(deviceConfig.StreamPort)
-		selenium_hub_port := configData.SeleniumHubPort
-		selenium_hub_host := configData.SeleniumHubHost
-		devices_host := configData.DevicesHost
-		hub_protocol := configData.SeleniumHubProtocolType
+		selenium_hub_port := configData.AppiumConfig.SeleniumHubPort
+		selenium_hub_host := configData.AppiumConfig.SeleniumHubHost
+		devices_host := configData.AppiumConfig.DevicesHost
+		hub_protocol := configData.AppiumConfig.SeleniumHubProtocolType
 
 		// Create the docker client
 		ctx := context.Background()
@@ -745,7 +752,7 @@ func createAndroidContainer(device_udid string) {
 			Resources: container.Resources{
 				Devices: []container.DeviceMapping{
 					{
-						PathOnHost:        "/dev/device-" + device_name + "-" + device_udid,
+						PathOnHost:        "/dev/device_" + device_udid,
 						PathInContainer:   "/dev/bus/usb/003/011",
 						CgroupPermissions: "rwm",
 					},
