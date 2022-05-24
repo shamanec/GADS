@@ -6,6 +6,11 @@
     "selenium_hub_protocol_type": "http",
     "wda_bundle_id": "com.shamanec.WebDriverAgentRunner.xctrunner"
   },
+  "env-config": {
+    "sudo_password": "undefined",
+    "connect_selenium_grid": false,
+    "supervision_password": "undefined"
+  },
   "devices-config": [
     {
       "os": "ios",
