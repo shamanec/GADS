@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -177,22 +176,26 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	os_type := data.DeviceType
 	device_udid := data.Udid
 
+	time.Sleep(5 * time.Second)
+
 	container_exists, container_id, status := checkContainerExistsByName(device_udid)
-	fmt.Println("The status is " + status)
-	if container_exists && strings.Contains(status, "Up") {
+
+	if !container_exists {
+		if os_type == "android" {
+			go createAndroidContainer(device_udid)
+		} else if os_type == "ios" {
+			go CreateIOSContainer(device_udid)
+		}
 		w.WriteHeader(http.StatusAccepted)
 		return
 	} else {
-		go RestartContainerInternal(container_id)
-		w.WriteHeader(http.StatusAccepted)
-		return
+		if !strings.Contains(status, "Up") {
+			go RestartContainerInternal(container_id)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
 	}
 
-	if os_type == "android" {
-		go createAndroidContainer(device_udid)
-	} else if os_type == "ios" {
-		go CreateIOSContainer(device_udid)
-	}
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -413,14 +416,14 @@ func buildDockerImage(image_type string) {
 		// }).Error("Could not build docker image. Error: " + err.Error() + "\n" + buf.String())
 		log.WithFields(log.Fields{
 			"event": "docker_image_build",
-		}).Error("Could not build docker image. Error: " + err.Error())
+		}).Error("Could not build docker image.")
 		return
 	}
 	defer imageBuildResponse.Body.Close()
 	buf.ReadFrom(imageBuildResponse.Body)
 	log.WithFields(log.Fields{
 		"event": "docker_image_build",
-	}).Info("Built '" + image_name + "' docker image:\n" + buf.String())
+	}).Info("Built '" + image_name + "' docker image:\n")
 }
 
 // Check if the 'ios-appium' image exists and return info string
@@ -457,7 +460,6 @@ func ImageExists() (imageStatus string) {
 
 // Create an iOS container for a specific device(by UDID) using data from config.json so if device is not registered there it will not attempt to create a container for it
 func CreateIOSContainer(device_udid string) {
-	time.Sleep(5 * time.Second)
 	log.WithFields(log.Fields{
 		"event": "ios_container_create",
 	}).Info("Attempting to create a container for iOS device with udid: " + device_udid)

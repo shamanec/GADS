@@ -58,7 +58,15 @@ check-wda-status() {
   else
     kill-wda
     start-wda
+    update-wda-stream-settings
   fi
+}
+
+update-wda-stream-settings() {
+  # Create a dummy session and get the ID
+  sessionID=$(curl --silent --location --request POST "http:$deviceIP:${WDA_PORT}/session" --header 'Content-Type: application/json' --data-raw '{"capabilities": {"waitForQuiescence": false}}' | jq -r '.sessionId')
+  # Update the stream settings of the session
+  curl --silent --location --request POST "http:$deviceIP:${WDA_PORT}/session/$sessionID/appium/settings" --header 'Content-Type: application/json' --data-raw '{"settings": {"mjpegServerFramerate": 30, "mjpegServerScreenshotQuality": 50, "mjpegScalingFactor": 100}}' > /dev/null
 }
 
 # Hit the Appium status URL to see if it is available and start it if not
