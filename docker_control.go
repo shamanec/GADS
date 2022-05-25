@@ -176,25 +176,25 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	os_type := data.DeviceType
 	device_udid := data.Udid
 
-	time.Sleep(5 * time.Second)
+	go func() {
+		time.Sleep(5 * time.Second)
 
-	container_exists, container_id, status := checkContainerExistsByName(device_udid)
+		container_exists, container_id, status := checkContainerExistsByName(device_udid)
 
-	if !container_exists {
-		if os_type == "android" {
-			go createAndroidContainer(device_udid)
-		} else if os_type == "ios" {
-			go CreateIOSContainer(device_udid)
-		}
-		w.WriteHeader(http.StatusAccepted)
-		return
-	} else {
-		if !strings.Contains(status, "Up") {
-			go RestartContainerInternal(container_id)
-			w.WriteHeader(http.StatusAccepted)
+		if !container_exists {
+			if os_type == "android" {
+				go createAndroidContainer(device_udid)
+			} else if os_type == "ios" {
+				go CreateIOSContainer(device_udid)
+			}
 			return
+		} else {
+			if !strings.Contains(status, "Up") {
+				go RestartContainerInternal(container_id)
+				return
+			}
 		}
-	}
+	}()
 
 	w.WriteHeader(http.StatusAccepted)
 }
