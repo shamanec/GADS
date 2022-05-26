@@ -66,8 +66,8 @@ type SudoPasswordRequest struct {
 //=======================//
 //=====API FUNCTIONS=====//
 
-// @Summary      Update project configuration
-// @Description  Updates one  or multiple configuration values
+// @Summary      Update project Appium configuration
+// @Description  Updates one or multiple configuration values
 // @Tags         configuration
 // @Param        config body AppiumConfig true "Update config"
 // @Accept		 json
@@ -79,15 +79,18 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	var requestData AppiumConfig
 	err := UnmarshalRequestBody(r.Body, &requestData)
 
-	// Get the config data
+	// Get the config data from configs/config.json
 	configData, err := GetConfigJsonData()
 	if err != nil {
 		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Error("Could not unmarshal config.json file when trying to change configuration values.")
+			"event": "update_appium_config",
+		}).Error("Could not get config data: " + err.Error())
+		JSONError(w, "update_appium_config", "An error occurred", 500)
 		return
 	}
 
+	// Check each field from the request
+	// If non-empty value is received update the respective value in the configData
 	if requestData.DevicesHost != "" {
 		configData.AppiumConfig.DevicesHost = requestData.DevicesHost
 	}
@@ -104,23 +107,35 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 		configData.AppiumConfig.WDABundleID = requestData.WDABundleID
 	}
 
+	// Marshal back the configData into a byte slice
 	bs, err := json.MarshalIndent(configData, "", "  ")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "update_appium_config",
+		}).Error("Could not marshal back config data: " + err.Error())
+		JSONError(w, "update_appium_config", "An error occurred", 500)
+		return
+	}
 
+	// Write the updated configData json into the file
 	err = ioutil.WriteFile("./configs/config.json", bs, 0644)
 	if err != nil {
-		JSONError(w, "config_file_interaction", "Could not write to the config.json file.", 500)
+		log.WithFields(log.Fields{
+			"event": "update_appium_config",
+		}).Error("Could not write back config data: " + err.Error())
+		JSONError(w, "update_appium_config", "An error occurred", 500)
 		return
 	}
 	SimpleJSONResponse(w, "Successfully updated project config in ./configs/config.json", 200)
 }
 
-// @Summary      Sets up iOS device listener
+// @Summary      Sets up udev devices listener
 // @Description  Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it
 // @Tags         configuration
 // @Produce      json
 // @Success      200 {object} JsonResponse
 // @Failure      500 {object} JsonErrorResponse
-// @Router       /configuration/setup-ios-listener [post]
+// @Router       /configuration/setup-udev-listener [post]
 func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	// Open /lib/systemd/system/systemd-udevd.service
 	// Add IPAddressAllow=127.0.0.1 at the bottom
@@ -132,39 +147,11 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "setup_udev_listener", "Elevated permissions are required to perform this action.", 500)
 		return
 	}
-	DeleteTempUdevFiles()
-	err := CreateUdevRules()
+	err := SetupUdevListenerInternal()
 	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "setup_udev_listener",
-		}).Error("Could not create udev rules file. Error:" + err.Error())
-		JSONError(w, "setup_udev_listener", "Could not create udev rules", 500)
-		DeleteTempUdevFiles()
-		return
+		JSONError(w, "setup_udev_listener", "Could not setup udev rules", 500)
 	}
 
-	err = SetUdevRules()
-	if err != nil {
-		JSONError(w, "setup_udev_listener", err.Error(), 500)
-		DeleteTempUdevFiles()
-		return
-	}
-
-	// err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
-	// if err != nil {
-	// 	DeleteTempUdevFiles()
-	// 	JSONError(w, "setup_udev_listener", "Could not copy usbmuxd.service. Error: "+err.Error(), 500)
-	// 	return
-	// }
-
-	// err = EnableUsbmuxdService()
-	// if err != nil {
-	// 	DeleteTempUdevFiles()
-	// 	JSONError(w, "setup_udev_listener", "Could not enable usbmuxd.service. Error: "+err.Error(), 500)
-	// 	return
-	// }
-
-	DeleteTempUdevFiles()
 	SimpleJSONResponse(w, "Successfully set udev rules.", 200)
 }
 
@@ -176,23 +163,9 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/remove-ios-listener [post]
 func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
-	err := DeleteFileShell("/etc/udev/rules.d/90-device.rules", sudo_password)
+	err := RemoveUdevListenerInternal()
 	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "remove_udev_listener",
-		}).Error("Could not delete udev rules file. Error: " + err.Error())
-		JSONError(w, "remove_udev_listener", "Could not delete usbmuxd rules file.", 500)
-		return
-	}
-	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
-	cmd := exec.Command("bash", "-c", commandString)
-	err = cmd.Run()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "remove_udev_listener",
-		}).Error("Could not reload udev rules file. Error: " + err.Error())
-		JSONError(w, "remove_udev_listener", "Could not reload udev rules", 500)
-		return
+		JSONError(w, "remove_udev_listener", err.Error(), 500)
 	}
 }
 
@@ -266,6 +239,59 @@ func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 
 //=======================//
 //=====FUNCTIONS=====//
+
+func SetupUdevListenerInternal() error {
+	DeleteTempUdevFiles()
+
+	err := CreateUdevRules()
+	if err != nil {
+		DeleteTempUdevFiles()
+		return err
+	}
+
+	err = SetUdevRules()
+	if err != nil {
+		DeleteTempUdevFiles()
+		return err
+	}
+
+	err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
+	if err != nil {
+		DeleteTempUdevFiles()
+		return err
+	}
+
+	err = EnableUsbmuxdService()
+	if err != nil {
+		DeleteTempUdevFiles()
+		return err
+	}
+
+	DeleteTempUdevFiles()
+	return nil
+}
+
+func RemoveUdevListenerInternal() error {
+	err := DeleteFileShell("/etc/udev/rules.d/90-device.rules", sudo_password)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "remove_udev_listener",
+		}).Error("Could not delete udev rules file. Error: " + err.Error())
+		return err
+	}
+
+	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
+	cmd := exec.Command("bash", "-c", commandString)
+	err = cmd.Run()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "remove_udev_listener",
+		}).Error("Could not reload udev rules file. Error: " + err.Error())
+		return err
+	}
+
+	return nil
+}
 
 // Check if the sudo password in ./configs/config.json is different than "undefined" meaning something is set
 func CheckSudoPasswordSet() bool {

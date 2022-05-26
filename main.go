@@ -171,8 +171,8 @@ func handleRequests() {
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage).Methods("POST")
-	myRouter.HandleFunc("/configuration/setup-ios-listener", SetupUdevListener).Methods("POST")
-	myRouter.HandleFunc("/configuration/remove-ios-listener", RemoveUdevListener).Methods("POST")
+	myRouter.HandleFunc("/configuration/setup-udev-listener", SetupUdevListener).Methods("POST")
+	myRouter.HandleFunc("/configuration/remove-udev-listener", RemoveUdevListener).Methods("POST")
 	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler).Methods("PUT")
 	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword).Methods("PUT")
 	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA).Methods("POST")
