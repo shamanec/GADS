@@ -53,8 +53,8 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 // @Description  Removes the 'ios-appium' Docker image
 // @Tags         configuration
 // @Produce      json
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/remove-image [post]
 func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 	error_message := "Could not remove ios-appium image."
@@ -85,8 +85,8 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 // @Tags         containers
 // @Produce      json
 // @Param        container_id path string true "Container ID"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /containers/{container_id}/restart [post]
 func RestartContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -109,8 +109,8 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 // @Tags         containers
 // @Produce      json
 // @Param        container_id path string true "Container ID"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /containers/{container_id}/logs [get]
 func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -228,8 +228,8 @@ func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
 // @Tags         containers
 // @Produce      json
 // @Param        container_id path string true "Container ID"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /containers/{container_id}/remove [post]
 func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

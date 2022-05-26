@@ -22,12 +22,12 @@ import (
 //=================//
 //=====STRUCTS=====//
 
-type ErrorJSON struct {
+type JsonErrorResponse struct {
 	EventName    string `json:"event"`
 	ErrorMessage string `json:"error_message"`
 }
 
-type SimpleResponseJSON struct {
+type JsonResponse struct {
 	Message string `json:"message"`
 }
 
@@ -36,7 +36,7 @@ type SimpleResponseJSON struct {
 
 // Write to a ResponseWriter an event and message with a response code
 func JSONError(w http.ResponseWriter, event string, error_string string, code int) {
-	var errorMessage = ErrorJSON{
+	var errorMessage = JsonErrorResponse{
 		EventName:    event,
 		ErrorMessage: error_string}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -47,7 +47,7 @@ func JSONError(w http.ResponseWriter, event string, error_string string, code in
 
 // Write to a ResponseWriter an event and message with a response code
 func SimpleJSONResponse(w http.ResponseWriter, response_message string, code int) {
-	var message = SimpleResponseJSON{
+	var message = JsonResponse{
 		Message: response_message,
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -60,8 +60,8 @@ func SimpleJSONResponse(w http.ResponseWriter, response_message string, code int
 // @Description  Uploads the provided *.ipa into the ./apps folder with the expected "WebDriverAgent.ipa" name
 // @Tags         configuration
 // @Produce      json
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/upload-wda [post]
 func UploadWDA(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")

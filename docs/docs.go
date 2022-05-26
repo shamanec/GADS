@@ -51,13 +51,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -77,13 +77,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -91,7 +91,7 @@ var doc = `{
         },
         "/configuration/set-sudo-password": {
             "put": {
-                "description": "Sets your sudo password in ./env.json. The password is needed for operations requiring elevated permissions like setting up udev.",
+                "description": "Sets your sudo password in ./configs/config.json. The password is needed for operations requiring elevated permissions like setting up udev.",
                 "consumes": [
                     "application/json"
                 ],
@@ -109,7 +109,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.SudoPassword"
+                            "$ref": "#/definitions/main.SudoPasswordRequest"
                         }
                     }
                 ],
@@ -117,13 +117,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -143,13 +143,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -175,7 +175,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.ProjectConfig"
+                            "$ref": "#/definitions/main.AppiumConfig"
                         }
                     }
                 ],
@@ -183,13 +183,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -209,13 +209,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -244,13 +244,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -279,13 +279,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -314,13 +314,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -406,7 +406,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     }
                 }
@@ -432,7 +432,7 @@ var doc = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -458,7 +458,7 @@ var doc = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -496,13 +496,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -540,13 +540,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -605,6 +605,26 @@ var doc = `{
                 }
             }
         },
+        "main.AppiumConfig": {
+            "type": "object",
+            "properties": {
+                "devices_host": {
+                    "type": "string"
+                },
+                "selenium_hub_host": {
+                    "type": "string"
+                },
+                "selenium_hub_port": {
+                    "type": "string"
+                },
+                "selenium_hub_protocol_type": {
+                    "type": "string"
+                },
+                "wda_bundle_id": {
+                    "type": "string"
+                }
+            }
+        },
         "main.CreateDeviceContainerData": {
             "type": "object",
             "properties": {
@@ -642,17 +662,6 @@ var doc = `{
                     "items": {
                         "type": "string"
                     }
-                }
-            }
-        },
-        "main.ErrorJSON": {
-            "type": "object",
-            "properties": {
-                "error_message": {
-                    "type": "string"
-                },
-                "event": {
-                    "type": "string"
                 }
             }
         },
@@ -705,22 +714,21 @@ var doc = `{
                 }
             }
         },
-        "main.ProjectConfig": {
+        "main.JsonErrorResponse": {
             "type": "object",
             "properties": {
-                "devices_host": {
+                "error_message": {
                     "type": "string"
                 },
-                "selenium_hub_host": {
+                "event": {
                     "type": "string"
-                },
-                "selenium_hub_port": {
-                    "type": "string"
-                },
-                "selenium_hub_protocol_type": {
-                    "type": "string"
-                },
-                "wda_bundle_id": {
+                }
+            }
+        },
+        "main.JsonResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }
@@ -733,15 +741,7 @@ var doc = `{
                 }
             }
         },
-        "main.SimpleResponseJSON": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.SudoPassword": {
+        "main.SudoPasswordRequest": {
             "type": "object",
             "properties": {
                 "sudo_password": {

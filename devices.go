@@ -75,8 +75,8 @@ type goIOSAppList []struct {
 // @Produce      json
 // @Param        log_type path string true "Log Type"
 // @Param        device_udid path string true "Device UDID"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      200 {object} SimpleResponseJSON
+// @Success      200 {object} JsonResponse
+// @Failure      200 {object} JsonResponse
 // @Router       /device-logs/{log_type}/{device_udid} [get]
 func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -106,7 +106,7 @@ func GetDeviceLogs(w http.ResponseWriter, r *http.Request) {
 // @Tags         ios-devices
 // @Produce      json
 // @Success      200 {object} detailsList
-// @Failure      500 {object} ErrorJSON
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /ios-devices [get]
 func GetConnectedIOSDevices(w http.ResponseWriter, r *http.Request) {
 	deviceList, err := ios.ListDevices()
@@ -138,8 +138,8 @@ func GetConnectedIOSDevices(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        device_udid path string true "Device UDID"
 // @Param        config body installIOSAppRequest true "Install iOS app"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /ios-devices/{device_udid}/install-app [post]
 func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -167,8 +167,8 @@ func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        device_udid path string true "Device UDID"
 // @Param        config body uninstallIOSAppRequest true "Uninstall iOS app"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /ios-devices/{device_udid}/uninstall-app [post]
 func UninstallIOSApp(w http.ResponseWriter, r *http.Request) {
 	var data uninstallIOSAppRequest

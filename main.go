@@ -22,7 +22,7 @@ type ProjectConfigPageData struct {
 	SudoPasswordSet        bool
 	UdevIOSListenerStatus  string
 	ImageStatus            string
-	ProjectConfigValues    AppiumConfig
+	AppiumConfigValues     AppiumConfig
 }
 
 type AppiumConfig struct {
@@ -83,7 +83,7 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 		WDABundleID:             projectConfig.AppiumConfig.WDABundleID}
 
 	var index = template.Must(template.ParseFiles("static/project_config.html"))
-	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), ProjectConfigValues: configRow}
+	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), AppiumConfigValues: configRow}
 	if err := index.Execute(w, pageData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

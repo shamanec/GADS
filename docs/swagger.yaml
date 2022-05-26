@@ -23,6 +23,19 @@ definitions:
           type: string
         type: array
     type: object
+  main.AppiumConfig:
+    properties:
+      devices_host:
+        type: string
+      selenium_hub_host:
+        type: string
+      selenium_hub_port:
+        type: string
+      selenium_hub_protocol_type:
+        type: string
+      wda_bundle_id:
+        type: string
+    type: object
   main.CreateDeviceContainerData:
     properties:
       device_type:
@@ -48,13 +61,6 @@ definitions:
         items:
           type: string
         type: array
-    type: object
-  main.ErrorJSON:
-    properties:
-      error_message:
-        type: string
-      event:
-        type: string
     type: object
   main.IOSDevice:
     properties:
@@ -88,17 +94,16 @@ definitions:
           type: string
         type: array
     type: object
-  main.ProjectConfig:
+  main.JsonErrorResponse:
     properties:
-      devices_host:
+      error_message:
         type: string
-      selenium_hub_host:
+      event:
         type: string
-      selenium_hub_port:
-        type: string
-      selenium_hub_protocol_type:
-        type: string
-      wda_bundle_id:
+    type: object
+  main.JsonResponse:
+    properties:
+      message:
         type: string
     type: object
   main.RemoveDeviceContainerData:
@@ -106,12 +111,7 @@ definitions:
       udid:
         type: string
     type: object
-  main.SimpleResponseJSON:
-    properties:
-      message:
-        type: string
-    type: object
-  main.SudoPassword:
+  main.SudoPasswordRequest:
     properties:
       sudo_password:
         type: string
@@ -166,11 +166,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Remove 'ios-appium' image
       tags:
       - configuration
@@ -183,11 +183,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Removes iOS device listener
       tags:
       - configuration
@@ -195,26 +195,26 @@ paths:
     put:
       consumes:
       - application/json
-      description: Sets your sudo password in ./env.json. The password is needed for
-        operations requiring elevated permissions like setting up udev.
+      description: Sets your sudo password in ./configs/config.json. The password
+        is needed for operations requiring elevated permissions like setting up udev.
       parameters:
       - description: Sudo password value
         in: body
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.SudoPassword'
+          $ref: '#/definitions/main.SudoPasswordRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Set sudo password
       tags:
       - configuration
@@ -228,11 +228,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Sets up iOS device listener
       tags:
       - configuration
@@ -247,18 +247,18 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.ProjectConfig'
+          $ref: '#/definitions/main.AppiumConfig'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Update project configuration
       tags:
       - configuration
@@ -272,11 +272,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Upload WDA
       tags:
       - configuration
@@ -295,11 +295,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Get container logs
       tags:
       - containers
@@ -318,11 +318,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Remove container
       tags:
       - containers
@@ -341,11 +341,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Restart container
       tags:
       - containers
@@ -402,7 +402,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
       summary: Get logs for iOS device container
       tags:
       - device-logs
@@ -420,7 +420,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Get device control info
       tags:
       - devices
@@ -437,7 +437,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Get connected iOS devices
       tags:
       - ios-devices
@@ -462,11 +462,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Install app on iOS device
       tags:
       - ios-devices
@@ -491,11 +491,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.SimpleResponseJSON'
+            $ref: '#/definitions/main.JsonResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorJSON'
+            $ref: '#/definitions/main.JsonErrorResponse'
       summary: Uninstall app from iOS device
       tags:
       - ios-devices

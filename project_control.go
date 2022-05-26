@@ -69,11 +69,11 @@ type SudoPasswordRequest struct {
 // @Summary      Update project configuration
 // @Description  Updates one  or multiple configuration values
 // @Tags         configuration
-// @Param        config body ProjectConfig true "Update config"
+// @Param        config body AppiumConfig true "Update config"
 // @Accept		 json
 // @Produce      json
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/update-config [put]
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	var requestData AppiumConfig
@@ -118,8 +118,8 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 // @Description  Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it
 // @Tags         configuration
 // @Produce      json
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/setup-ios-listener [post]
 func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	// Open /lib/systemd/system/systemd-udevd.service
@@ -172,8 +172,8 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 // @Description  Deletes udev rules from /etc/udev/rules.d and reloads udev
 // @Tags         configuration
 // @Produce      json
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/remove-ios-listener [post]
 func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 	err := DeleteFileShell("/etc/udev/rules.d/90-device.rules", sudo_password)
@@ -201,9 +201,9 @@ func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 // @Tags         configuration
 // @Accept		 json
 // @Produce      json
-// @Param        config body SudoPassword true "Sudo password value"
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Param        config body SudoPasswordRequest true "Sudo password value"
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/set-sudo-password [put]
 func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	var requestData SudoPasswordRequest
@@ -251,7 +251,7 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 // @Tags         devices
 // @Produce      json
 // @Success      200 {object} DeviceControlInfo
-// @Failure      500 {object} ErrorJSON
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /devices/device-control [post]
 func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
 	var runningContainerNames = getRunningContainerNames()
