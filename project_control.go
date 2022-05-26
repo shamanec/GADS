@@ -25,10 +25,6 @@ var sudo_password = GetEnvValue("sudo_password")
 //=================//
 //=====STRUCTS=====//
 
-type SudoPassword struct {
-	SudoPassword string `json:"sudo_password"`
-}
-
 type DeviceControlInfo struct {
 	RunningContainers []string            `json:"running-containers"`
 	IOSInfo           []IOSDeviceInfo     `json:"ios-devices-info"`
@@ -58,37 +54,9 @@ type AndroidDevice struct {
 	StreamPort      string `json:"stream_port"`
 }
 
-type IOSDeviceConfig struct {
-	AppiumPort      int    `json:"appium_port"`
-	DeviceName      string `json:"device_name"`
-	DeviceOsVersion string `json:"device_os_version"`
-	DeviceUdid      string `json:"device_udid"`
-	WdaMjpegPort    int    `json:"wda_mjpeg_port"`
-	WdaPort         int    `json:"wda_port"`
-}
-
-type AndroidDeviceConfig struct {
-	AppiumPort      int    `json:"appium_port"`
-	DeviceUdid      string `json:"device_udid"`
-	DeviceName      string `json:"device_name"`
-	StreamPort      int    `json:"stream_port"`
-	DeviceOsVersion string `json:"device_os_version"`
-}
-
 type WdaConfig struct {
 	WdaURL       string `json:"wda_url"`
 	WdaStreamURL string `json:"wda_stream_url"`
-}
-
-type GoIOSDevicesList struct {
-	DeviceList []GoIOSDevice `json:"deviceList"`
-}
-
-type GoIOSDevice struct {
-	Udid           string `json:"Udid"`
-	ProductName    string `json:"ProductName"`
-	ProductType    string `json:"ProductType"`
-	ProductVersion string `json:"ProductVersion"`
 }
 
 type SudoPasswordRequest struct {
@@ -97,6 +65,54 @@ type SudoPasswordRequest struct {
 
 //=======================//
 //=====API FUNCTIONS=====//
+
+// @Summary      Update project configuration
+// @Description  Updates one  or multiple configuration values
+// @Tags         configuration
+// @Param        config body ProjectConfig true "Update config"
+// @Accept		 json
+// @Produce      json
+// @Success      200 {object} SimpleResponseJSON
+// @Failure      500 {object} ErrorJSON
+// @Router       /configuration/update-config [put]
+func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
+	var requestData AppiumConfig
+	err := UnmarshalRequestBody(r.Body, &requestData)
+
+	// Get the config data
+	configData, err := GetConfigJsonData()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "ios_container_create",
+		}).Error("Could not unmarshal config.json file when trying to change configuration values.")
+		return
+	}
+
+	if requestData.DevicesHost != "" {
+		configData.AppiumConfig.DevicesHost = requestData.DevicesHost
+	}
+	if requestData.SeleniumHubHost != "" {
+		configData.AppiumConfig.SeleniumHubHost = requestData.SeleniumHubHost
+	}
+	if requestData.SeleniumHubPort != "" {
+		configData.AppiumConfig.SeleniumHubPort = requestData.SeleniumHubPort
+	}
+	if requestData.SeleniumHubProtocolType != "" {
+		configData.AppiumConfig.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
+	}
+	if requestData.WDABundleID != "" {
+		configData.AppiumConfig.WDABundleID = requestData.WDABundleID
+	}
+
+	bs, err := json.MarshalIndent(configData, "", "  ")
+
+	err = ioutil.WriteFile("./configs/config.json", bs, 0644)
+	if err != nil {
+		JSONError(w, "config_file_interaction", "Could not write to the config.json file.", 500)
+		return
+	}
+	SimpleJSONResponse(w, "Successfully updated project config in ./configs/config.json", 200)
+}
 
 // @Summary      Sets up iOS device listener
 // @Description  Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it
@@ -401,7 +417,7 @@ func getRunningContainerNames() []string {
 	for _, container := range containers {
 		// Parse plain container name
 		containerName := strings.Replace(container.Names[0], "/", "", -1)
-		if (strings.Contains(containerName, "iOSDevice") || strings.Contains(containerName, "androidDevice")) && strings.Contains(container.Status, "Up") {
+		if (strings.Contains(containerName, "iosDevice") || strings.Contains(containerName, "androidDevice")) && strings.Contains(container.Status, "Up") {
 			containerNames = append(containerNames, containerName)
 		}
 	}
@@ -413,7 +429,7 @@ func getRunningContainerNames() []string {
 func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
 	var combinedInfo []IOSDeviceInfo
 	for _, containerName := range runningContainers {
-		if strings.Contains(containerName, "iOSDevice") {
+		if strings.Contains(containerName, "iosDevice") {
 			// Extract the device UDID from the container name
 			re := regexp.MustCompile("[^_]*$")
 			device_udid := re.FindStringSubmatch(containerName)

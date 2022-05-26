@@ -601,7 +601,7 @@ func CreateIOSContainer(device_udid string) {
 	}
 
 	// Create the container
-	resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "iOSDevice_"+device_udid)
+	resp, err := cli.ContainerCreate(ctx, config, host_config, nil, nil, "iosDevice_"+device_udid)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "ios_container_create",

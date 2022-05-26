@@ -2,10 +2,8 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,7 +11,6 @@ import (
 	_ "GADS/docs"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -71,7 +68,7 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Load the initial page with the project configuration info
+// Load the page with the project configuration info
 func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 	projectConfig, err := GetConfigJsonData()
 	if err != nil {
@@ -92,68 +89,7 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Summary      Update project configuration
-// @Description  Updates one  or multiple configuration values
-// @Tags         configuration
-// @Param        config body ProjectConfig true "Update config"
-// @Accept		 json
-// @Produce      json
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
-// @Router       /configuration/update-config [put]
-func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
-	var requestData AppiumConfig
-	err := UnmarshalRequestBody(r.Body, &requestData)
-
-	// Get the config data
-	configData, err := GetConfigJsonData()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Error("Could not unmarshal config.json file when trying to change configuration values.")
-		return
-	}
-
-	if requestData.DevicesHost != "" {
-		configData.AppiumConfig.DevicesHost = requestData.DevicesHost
-	}
-	if requestData.SeleniumHubHost != "" {
-		configData.AppiumConfig.SeleniumHubHost = requestData.SeleniumHubHost
-	}
-	if requestData.SeleniumHubPort != "" {
-		configData.AppiumConfig.SeleniumHubPort = requestData.SeleniumHubPort
-	}
-	if requestData.SeleniumHubProtocolType != "" {
-		configData.AppiumConfig.SeleniumHubProtocolType = requestData.SeleniumHubProtocolType
-	}
-	if requestData.WDABundleID != "" {
-		configData.AppiumConfig.WDABundleID = requestData.WDABundleID
-	}
-
-	bs, err := json.MarshalIndent(configData, "", "  ")
-
-	err = ioutil.WriteFile("./configs/config.json", bs, 0644)
-	if err != nil {
-		JSONError(w, "config_file_interaction", "Could not write to the config.json file.", 500)
-		return
-	}
-	SimpleJSONResponse(w, "Successfully updated project config in ./configs/config.json", 200)
-}
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
-func setLogging() {
-	log.SetFormatter(&log.JSONFormatter{})
-	project_log_file, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
-	if err != nil {
-		panic(err)
-	}
-	log.SetOutput(project_log_file)
-}
-
+// Load the general logs page
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
 	if err := logs_page.Execute(w, nil); err != nil {
@@ -164,6 +100,7 @@ func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Load the device control page
 func GetDeviceControlPage(w http.ResponseWriter, r *http.Request) {
 	var device_control_page = template.Must(template.ParseFiles("static/device_control.html"))
 	if err := device_control_page.Execute(w, nil); err != nil {
@@ -198,9 +135,13 @@ func GetLogs(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, out.String())
 }
 
-type Order struct {
-	Username string `json:"username"`
-	Fullname string `json:"fullname"`
+func setLogging() {
+	log.SetFormatter(&log.JSONFormatter{})
+	project_log_file, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+	if err != nil {
+		panic(err)
+	}
+	log.SetOutput(project_log_file)
 }
 
 func handleRequests() {
