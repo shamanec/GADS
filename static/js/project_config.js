@@ -126,7 +126,7 @@ function removeUdevListener() {
         dataType: false,
         async: true,
         type: "POST",
-        url: "/configuration/remove-ios-listener",
+        url: "/configuration/remove-udev-listener",
         success: function (data) {
             swal("Remove listener", "Succesfully removed iOS udev listener", "success")
             .then(() => {
@@ -162,7 +162,7 @@ function setupUdevListener() {
         dataType: false,
         async: true,
         type: "POST",
-        url: "/configuration/setup-ios-listener",
+        url: "/configuration/setup-udev-listener",
         success: function (data) {
             swal("Setup ios listener", data, "success")
             .then(() => {
@@ -391,7 +391,7 @@ function setImageStatusCellBackground() {
 }
 
 function setUdevIOSListenerCellBackground() {
-    let statusCell = document.getElementById("udev-ios-listener-status-cell");
+    let statusCell = document.getElementById("udev-udev-listener-status-cell");
     if (statusCell.textContent === "Udev rules set.") {
         statusCell.style.backgroundColor = "#4CAF50"
         statusCell.setAttribute("value", "is-running")
