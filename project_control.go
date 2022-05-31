@@ -2,21 +2,16 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"regexp"
 	"strconv"
-	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,13 +19,6 @@ var sudo_password = GetEnvValue("sudo_password")
 
 //=================//
 //=====STRUCTS=====//
-
-type DeviceControlInfo struct {
-	RunningContainers []string            `json:"running-containers"`
-	IOSInfo           []IOSDeviceInfo     `json:"ios-devices-info"`
-	AndroidInfo       []AndroidDeviceInfo `json:"android-devices-info"`
-	InstallableApps   []string            `json:"installable-apps"`
-}
 
 type IOSDevice struct {
 	AppiumPort         int    `json:"appium_port"`
@@ -65,6 +53,62 @@ type SudoPasswordRequest struct {
 
 //=======================//
 //=====API FUNCTIONS=====//
+
+// @Summary      Get project logs
+// @Description  Provides project logs as plain text response
+// @Tags         project-logs
+// @Success      200
+// @Failure      200
+// @Router       /project-logs [get]
+func GetLogs(w http.ResponseWriter, r *http.Request) {
+	// Execute the command to restart the container by container ID
+	commandString := "tail -n 1000 ./logs/project.log"
+	cmd := exec.Command("bash", "-c", commandString)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_project_logs",
+		}).Error("Attempted to get project logs but no logs available.")
+		fmt.Fprintf(w, "No logs available")
+		return
+	}
+	//SimpleJSONResponse(w, "get_project_logs", out.String(), 200)
+	fmt.Fprintf(w, out.String())
+}
+
+// Load the general logs page
+func GetLogsPage(w http.ResponseWriter, r *http.Request) {
+	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
+	if err := logs_page.Execute(w, nil); err != nil {
+		log.WithFields(log.Fields{
+			"event": "project_logs_page",
+		}).Error("Couldn't load project_logs.html")
+		return
+	}
+}
+
+// Load the page with the project configuration info
+func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
+	projectConfig, err := GetConfigJsonData()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var configRow = AppiumConfig{
+		DevicesHost:             projectConfig.AppiumConfig.DevicesHost,
+		SeleniumHubHost:         projectConfig.AppiumConfig.SeleniumHubHost,
+		SeleniumHubPort:         projectConfig.AppiumConfig.SeleniumHubPort,
+		SeleniumHubProtocolType: projectConfig.AppiumConfig.SeleniumHubProtocolType,
+		WDABundleID:             projectConfig.AppiumConfig.WDABundleID}
+
+	var index = template.Must(template.ParseFiles("static/project_config.html"))
+	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), AppiumConfigValues: configRow}
+	if err := index.Execute(w, pageData); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
 
 // @Summary      Update project Appium configuration
 // @Description  Updates one or multiple configuration values
@@ -217,24 +261,6 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 		"event": "set_sudo_password",
 	}).Info("Successfully set sudo password.")
 	SimpleJSONResponse(w, "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./configs/config.json file. Make sure you don't commit this file to public repos :D", 200)
-}
-
-// @Summary      Get device control info
-// @Description  Provides the running containers, IOS devices info and apps available for installing
-// @Tags         devices
-// @Produce      json
-// @Success      200 {object} DeviceControlInfo
-// @Failure      500 {object} JsonErrorResponse
-// @Router       /devices/device-control [post]
-func GetDeviceControlInfo(w http.ResponseWriter, r *http.Request) {
-	var runningContainerNames = getRunningContainerNames()
-	var info = DeviceControlInfo{
-		RunningContainers: runningContainerNames,
-		IOSInfo:           getIOSDevicesInfo(runningContainerNames),
-		InstallableApps:   getInstallableApps(),
-		AndroidInfo:       getAndroidDevicesInfo(runningContainerNames),
-	}
-	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
 }
 
 //=======================//
@@ -422,231 +448,4 @@ func GetEnvValue(key string) string {
 		return strconv.FormatBool(configData.EnvConfig.ConnectSeleniumGrid)
 	}
 	return ""
-}
-
-// Get the names of the currently running containers(that are for devices)
-func getRunningContainerNames() []string {
-	var containerNames []string
-
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return containerNames
-	}
-
-	// Get the current containers list
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	if err != nil {
-		return containerNames
-	}
-
-	// Loop through the containers list
-	for _, container := range containers {
-		// Parse plain container name
-		containerName := strings.Replace(container.Names[0], "/", "", -1)
-		if (strings.Contains(containerName, "iosDevice") || strings.Contains(containerName, "androidDevice")) && strings.Contains(container.Status, "Up") {
-			containerNames = append(containerNames, containerName)
-		}
-	}
-	return containerNames
-}
-
-// For each running container extract the info for each respective device from ./configs/config.json to provide to the device-control info endpoint.
-// Provides installed apps, configuration info, wda urls
-func getIOSDevicesInfo(runningContainers []string) []IOSDeviceInfo {
-	var combinedInfo []IOSDeviceInfo
-	for _, containerName := range runningContainers {
-		if strings.Contains(containerName, "iosDevice") {
-			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^_]*$")
-			device_udid := re.FindStringSubmatch(containerName)
-
-			var installed_apps []string
-			installed_apps, err := IOSDeviceApps(device_udid[0])
-			if err != nil {
-				installed_apps = append(installed_apps, "")
-			}
-
-			var device_config *IOSDevice
-			device_config, err = iOSDeviceConfig(device_udid[0])
-
-			var deviceInfo = IOSDeviceInfo{BundleIDs: installed_apps, DeviceConfig: device_config}
-			combinedInfo = append(combinedInfo, deviceInfo)
-		}
-	}
-	return combinedInfo
-}
-
-// For each running container extract the info for each respective device from ./configs/config.json to provide to the device-control info endpoint.
-// Provides installed apps, configuration info, wda urls
-func getAndroidDevicesInfo(runningContainers []string) []AndroidDeviceInfo {
-	var combinedInfo []AndroidDeviceInfo
-	for _, containerName := range runningContainers {
-		if strings.Contains(containerName, "androidDevice") {
-			// Extract the device UDID from the container name
-			re := regexp.MustCompile("[^_]*$")
-			device_udid := re.FindStringSubmatch(containerName)
-
-			var device_config *AndroidDevice
-			device_config, _ = androidDeviceConfig(device_udid[0])
-
-			var deviceInfo = AndroidDeviceInfo{DeviceConfig: device_config}
-			combinedInfo = append(combinedInfo, deviceInfo)
-		}
-	}
-	return combinedInfo
-}
-
-// Get the WDA and WDA stream urls from the container logs folder for a specific device
-func getIOSDeviceWdaURLs(device_udid string) (string, string, error) {
-	// Get the path of the WDA url file using regex
-	pattern := "./logs/*" + device_udid + "/ios-wda-url.json"
-	matches, err := filepath.Glob(pattern)
-
-	if err != nil {
-		return "", "", err
-	}
-
-	var wdaConfig WdaConfig
-	err = UnmarshalJSONFile(matches[0], &wdaConfig)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_wda_config",
-		}).Error("Could not unmarshal json at path: " + matches[0])
-		return "", "", err
-	}
-
-	return wdaConfig.WdaURL, wdaConfig.WdaStreamURL, nil
-}
-
-// Get the WDA and WDA stream urls from the container logs folder for a specific device
-func getAndroidDeviceMinicapStreamSize(device_udid string) (string, error) {
-	// Get the path of the WDA url file using regex
-	pattern := "./logs/*" + device_udid + "/minicap.log"
-	matches, err := filepath.Glob(pattern)
-
-	command_string := "cat " + matches[0] + " | grep \"+ args='-P\""
-	cmd := exec.Command("bash", "-c", command_string)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	err = cmd.Run()
-	if err != nil {
-		return "", err
-	}
-
-	if out.String() == "" {
-		log.WithFields(log.Fields{
-			"event": "get_minicap_stream_size",
-		}).Error("Error")
-		return "", nil
-	}
-
-	// Get the stream size that is between the -P and @ in the cmd out string
-	stream_size := GetStringInBetween(out.String(), "-P ", "@")
-	return stream_size, nil
-}
-
-// Get the configuration info for iOS device from ./configs/config.json
-func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
-	// Get the config data
-	configData, err := GetConfigJsonData()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Error("Could not unmarshal config.json file when trying to create a container for device with udid: " + device_udid)
-		return nil, err
-	}
-
-	// Check if device is registered in config data
-	var device_in_config bool
-	var deviceConfig DeviceConfig
-	for _, v := range configData.DeviceConfig {
-		if v.DeviceUDID == device_udid {
-			device_in_config = true
-			deviceConfig = v
-		}
-	}
-
-	// Stop execution if device not in config data
-	if !device_in_config {
-		log.WithFields(log.Fields{
-			"event": "android_container_create",
-		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
-		return nil, err
-	}
-
-	wda_url, wda_stream_url, err := getIOSDeviceWdaURLs(device_udid)
-	if err != nil {
-		return nil, err
-	}
-
-	return &IOSDevice{
-			AppiumPort:         deviceConfig.AppiumPort,
-			DeviceName:         deviceConfig.DeviceName,
-			DeviceOSVersion:    deviceConfig.DeviceOSVersion,
-			WdaMjpegPort:       deviceConfig.WDAMjpegPort,
-			WdaPort:            deviceConfig.WDAPort,
-			DeviceUDID:         device_udid,
-			WdaMjpegURL:        wda_stream_url,
-			WdaURL:             wda_url,
-			DeviceModel:        "Remove please",
-			DeviceViewportSize: deviceConfig.ViewportSize},
-		nil
-}
-
-// Get the configuration info for iOS device from ./configs/config.json
-func androidDeviceConfig(device_udid string) (*AndroidDevice, error) {
-	// Get the config data
-	configData, err := GetConfigJsonData()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "android_container_create",
-		}).Error("Could not unmarshal config.json file when trying to create a container for device with udid: " + device_udid)
-		return nil, err
-	}
-
-	// Check if device is registered in config data
-	var device_in_config bool
-	var deviceConfig DeviceConfig
-	for _, v := range configData.DeviceConfig {
-		if v.DeviceUDID == device_udid {
-			device_in_config = true
-			deviceConfig = v
-		}
-	}
-
-	// Stop execution if device not in config data
-	if !device_in_config {
-		log.WithFields(log.Fields{
-			"event": "android_container_create",
-		}).Error("Device with UDID:" + device_udid + " is not registered in the './configs/config.json' file. No container will be created.")
-		return nil, err
-	}
-
-	stream_size, err := getAndroidDeviceMinicapStreamSize(device_udid)
-	return &AndroidDevice{
-			AppiumPort:      deviceConfig.AppiumPort,
-			DeviceName:      deviceConfig.DeviceName,
-			DeviceOSVersion: deviceConfig.DeviceOSVersion,
-			DeviceUDID:      device_udid,
-			StreamSize:      stream_size,
-			StreamPort:      strconv.Itoa(deviceConfig.StreamPort)},
-		nil
-}
-
-// Get the installable apps list from the ./apps folder
-func getInstallableApps() []string {
-	var appNames []string
-
-	files, err := ioutil.ReadDir("./apps/")
-	if err != nil {
-		return appNames
-	}
-
-	for _, file := range files {
-		if strings.Contains(file.Name(), ".ipa") || strings.Contains(file.Name(), ".app") || strings.Contains(file.Name(), ".apk") {
-			appNames = append(appNames, file.Name())
-		}
-	}
-	return appNames
 }

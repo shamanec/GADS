@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"html/template"
 	"net/http"
 	"os"
-	"os/exec"
 
 	_ "GADS/docs"
 
@@ -68,38 +65,6 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Load the page with the project configuration info
-func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
-	projectConfig, err := GetConfigJsonData()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	var configRow = AppiumConfig{
-		DevicesHost:             projectConfig.AppiumConfig.DevicesHost,
-		SeleniumHubHost:         projectConfig.AppiumConfig.SeleniumHubHost,
-		SeleniumHubPort:         projectConfig.AppiumConfig.SeleniumHubPort,
-		SeleniumHubProtocolType: projectConfig.AppiumConfig.SeleniumHubProtocolType,
-		WDABundleID:             projectConfig.AppiumConfig.WDABundleID}
-
-	var index = template.Must(template.ParseFiles("static/project_config.html"))
-	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), AppiumConfigValues: configRow}
-	if err := index.Execute(w, pageData); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// Load the general logs page
-func GetLogsPage(w http.ResponseWriter, r *http.Request) {
-	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
-	if err := logs_page.Execute(w, nil); err != nil {
-		log.WithFields(log.Fields{
-			"event": "project_logs_page",
-		}).Error("Couldn't load project_logs.html")
-		return
-	}
-}
-
 // Load the device control page
 func GetDeviceControlPage(w http.ResponseWriter, r *http.Request) {
 	var device_control_page = template.Must(template.ParseFiles("static/device_control.html"))
@@ -109,30 +74,6 @@ func GetDeviceControlPage(w http.ResponseWriter, r *http.Request) {
 		}).Error("Couldn't load device_control.html")
 		return
 	}
-}
-
-// @Summary      Get project logs
-// @Description  Provides project logs as plain text response
-// @Tags         project-logs
-// @Success      200
-// @Failure      200
-// @Router       /project-logs [get]
-func GetLogs(w http.ResponseWriter, r *http.Request) {
-	// Execute the command to restart the container by container ID
-	commandString := "tail -n 1000 ./logs/project.log"
-	cmd := exec.Command("bash", "-c", commandString)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_project_logs",
-		}).Error("Attempted to get project logs but no logs available.")
-		fmt.Fprintf(w, "No logs available")
-		return
-	}
-	//SimpleJSONResponse(w, "get_project_logs", out.String(), 200)
-	fmt.Fprintf(w, out.String())
 }
 
 func setLogging() {
@@ -180,7 +121,6 @@ func handleRequests() {
 
 	// Devices endpoints
 	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs).Methods("GET")
-	myRouter.HandleFunc("/ios-devices", GetConnectedIOSDevices).Methods("GET")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
