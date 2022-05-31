@@ -155,13 +155,13 @@ func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
 	SimpleJSONResponse(w, "Successfully set udev rules.", 200)
 }
 
-// @Summary      Removes iOS device listener
+// @Summary      Removes udev device listener
 // @Description  Deletes udev rules from /etc/udev/rules.d and reloads udev
 // @Tags         configuration
 // @Produce      json
 // @Success      200 {object} JsonResponse
 // @Failure      500 {object} JsonErrorResponse
-// @Router       /configuration/remove-ios-listener [post]
+// @Router       /configuration/remove-device-listener [post]
 func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 	err := RemoveUdevListenerInternal()
 	if err != nil {

@@ -157,6 +157,23 @@ paths:
       summary: Build docker images
       tags:
       - configuration
+  /configuration/remove-device-listener:
+    post:
+      description: Deletes udev rules from /etc/udev/rules.d and reloads udev
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.JsonErrorResponse'
+      summary: Removes udev device listener
+      tags:
+      - configuration
   /configuration/remove-image:
     post:
       description: Removes the 'ios-appium' Docker image
@@ -172,23 +189,6 @@ paths:
           schema:
             $ref: '#/definitions/main.JsonErrorResponse'
       summary: Remove 'ios-appium' image
-      tags:
-      - configuration
-  /configuration/remove-ios-listener:
-    post:
-      description: Deletes udev rules from /etc/udev/rules.d and reloads udev
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Removes iOS device listener
       tags:
       - configuration
   /configuration/set-sudo-password:
@@ -218,7 +218,7 @@ paths:
       summary: Set sudo password
       tags:
       - configuration
-  /configuration/setup-ios-listener:
+  /configuration/setup-udev-listener:
     post:
       description: Creates udev rules, moves them to /etc/udev/rules.d and reloads
         udev. Copies usbmuxd.service to /lib/systemd/system and enables it
@@ -233,14 +233,14 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Sets up iOS device listener
+      summary: Sets up udev devices listener
       tags:
       - configuration
   /configuration/update-config:
     put:
       consumes:
       - application/json
-      description: Updates one  or multiple configuration values
+      description: Updates one or multiple configuration values
       parameters:
       - description: Update config
         in: body
@@ -259,7 +259,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Update project configuration
+      summary: Update project Appium configuration
       tags:
       - configuration
   /configuration/upload-wda:

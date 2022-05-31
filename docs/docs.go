@@ -37,16 +37,16 @@ var doc = `{
                 }
             }
         },
-        "/configuration/remove-image": {
+        "/configuration/remove-device-listener": {
             "post": {
-                "description": "Removes the 'ios-appium' Docker image",
+                "description": "Deletes udev rules from /etc/udev/rules.d and reloads udev",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Remove 'ios-appium' image",
+                "summary": "Removes udev device listener",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -63,16 +63,16 @@ var doc = `{
                 }
             }
         },
-        "/configuration/remove-ios-listener": {
+        "/configuration/remove-image": {
             "post": {
-                "description": "Deletes udev rules from /etc/udev/rules.d and reloads udev",
+                "description": "Removes the 'ios-appium' Docker image",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Removes iOS device listener",
+                "summary": "Remove 'ios-appium' image",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -129,7 +129,7 @@ var doc = `{
                 }
             }
         },
-        "/configuration/setup-ios-listener": {
+        "/configuration/setup-udev-listener": {
             "post": {
                 "description": "Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it",
                 "produces": [
@@ -138,7 +138,7 @@ var doc = `{
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Sets up iOS device listener",
+                "summary": "Sets up udev devices listener",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -157,7 +157,7 @@ var doc = `{
         },
         "/configuration/update-config": {
             "put": {
-                "description": "Updates one  or multiple configuration values",
+                "description": "Updates one or multiple configuration values",
                 "consumes": [
                     "application/json"
                 ],
@@ -167,7 +167,7 @@ var doc = `{
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Update project configuration",
+                "summary": "Update project Appium configuration",
                 "parameters": [
                     {
                         "description": "Update config",
