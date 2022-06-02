@@ -34,12 +34,41 @@ type ContainerRow struct {
 	DeviceUDID      string
 }
 
+type CreateDeviceContainerRequest struct {
+	DeviceType string `json:"device_type"`
+	Udid       string `json:"udid"`
+}
+
+type RemoveDeviceContainerData struct {
+	Udid string `json:"udid"`
+}
+
 //=======================//
 //=====API FUNCTIONS=====//
 
+// IOS Containers html page
+func LoadDeviceContainers(w http.ResponseWriter, r *http.Request) {
+
+	rows, err := deviceContainerRows()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	funcMap := template.FuncMap{
+		"contains": strings.Contains,
+	}
+
+	// Parse the template and return response with the container table rows
+	var tmpl = template.Must(template.New("device_containers.html").Funcs(funcMap).ParseFiles("static/device_containers.html", "static/device_containers_table.html"))
+	if err := tmpl.ExecuteTemplate(w, "device_containers.html", rows); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // @Summary      Build docker images
-// @Description  Starts building a docker image in a goroutine and just returns Accepted
+// @Description  Starts building a docker image in a goroutine and just returns Accepted.
 // @Tags         configuration
+// @Param        image_type path string true "Image type: ios-appium, android-appium"
 // @Success      202
 // @Router       /configuration/build-image/{image_type} [post]
 func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
@@ -49,15 +78,19 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// @Summary      Remove 'ios-appium' image
-// @Description  Removes the 'ios-appium' Docker image
+// @Summary      Remove 'ios-appium' or 'android-appium' image
+// @Description  Removes the 'ios-appium' or 'android-appium' Docker image
 // @Tags         configuration
 // @Produce      json
+// @Param        image_type path string true "Image type: ios-appium, android-appium"
 // @Success      200 {object} JsonResponse
 // @Failure      500 {object} JsonErrorResponse
-// @Router       /configuration/remove-image [post]
+// @Router       /configuration/remove-image/{image_type} [post]
 func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
-	error_message := "Could not remove ios-appium image."
+	vars := mux.Vars(r)
+	image_type := vars["image_type"]
+
+	error_message := "Could not remove " + image_type + " image."
 	// Create the context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -69,11 +102,11 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	imageRemoveResponse, err := cli.ImageRemove(ctx, "ios-appium", types.ImageRemoveOptions{PruneChildren: true})
+	imageRemoveResponse, err := cli.ImageRemove(ctx, image_type, types.ImageRemoveOptions{PruneChildren: true})
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_image_remove",
-		}).Error("Could not remove ios-appium image. Error: " + err.Error())
+		}).Error(error_message + " Error: " + err.Error())
 		JSONError(w, "docker_image_remove", error_message, 500)
 		return
 	}
@@ -105,7 +138,7 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Get container logs
-// @Description  Get logs of container by providing container ID
+// @Description  Get logs of container by provided container ID
 // @Tags         containers
 // @Produce      json
 // @Param        container_id path string true "Container ID"
@@ -147,23 +180,14 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type CreateDeviceContainerData struct {
-	DeviceType string `json:"device_type"`
-	Udid       string `json:"udid"`
-}
-
-type RemoveDeviceContainerData struct {
-	Udid string `json:"udid"`
-}
-
 // @Summary      Create container for device
 // @Description  Creates a container for a connected registered device
 // @Tags         device-containers
-// @Param        config body CreateDeviceContainerData true "Create container for device"
+// @Param        config body CreateDeviceContainerRequest true "Create container for device"
 // @Success      202
 // @Router       /device-containers/create [post]
 func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
-	var data CreateDeviceContainerData
+	var data CreateDeviceContainerRequest
 
 	err := UnmarshalRequestBody(r.Body, &data)
 	if err != nil {
@@ -183,7 +207,7 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 
 		if !container_exists {
 			if os_type == "android" {
-				go createAndroidContainer(device_udid)
+				go CreateAndroidContainer(device_udid)
 			} else if os_type == "ios" {
 				go CreateIOSContainer(device_udid)
 			}
@@ -271,25 +295,12 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 	SimpleJSONResponse(w, "Successfully removed container with ID: "+key, 200)
 }
 
-// IOS Containers html page
-func LoadDeviceContainers(w http.ResponseWriter, r *http.Request) {
-
-	rows, err := deviceContainerRows()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	funcMap := template.FuncMap{
-		"contains": strings.Contains,
-	}
-
-	// Parse the template and return response with the container table rows
-	var tmpl = template.Must(template.New("device_containers.html").Funcs(funcMap).ParseFiles("static/device_containers.html", "static/device_containers_table.html"))
-	if err := tmpl.ExecuteTemplate(w, "device_containers.html", rows); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
+// @Summary      Refresh the device-containers data
+// @Description  Refreshes the device-containers data by returning an updated HTML table
+// @Produce      html
+// @Success      200
+// @Failure      500
+// @Router       /refresh-device-containers [post]
 func RefreshDeviceContainers(w http.ResponseWriter, r *http.Request) {
 	rows, err := deviceContainerRows()
 	if err != nil {
@@ -307,44 +318,6 @@ func RefreshDeviceContainers(w http.ResponseWriter, r *http.Request) {
 	if err := tmpl.ExecuteTemplate(w, "device_containers_table", rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-func deviceContainerRows() ([]ContainerRow, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the current containers list
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
-	if err != nil {
-		return nil, err
-	}
-
-	var rows []ContainerRow
-
-	// Loop through the containers list
-	for _, container := range containers {
-		// Parse plain container name
-		containerName := strings.Replace(container.Names[0], "/", "", -1)
-
-		// Get all the container ports from the returned array into string
-		containerPorts := ""
-		for i, s := range container.Ports {
-			if i > 0 {
-				containerPorts += "\n"
-			}
-			containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
-		}
-
-		// Extract the device UDID from the container name
-		re := regexp.MustCompile("[^_]*$")
-		match := re.FindStringSubmatch(containerName)
-
-		var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
-		rows = append(rows, containerRow)
-	}
-	return rows, nil
 }
 
 //===================//
@@ -625,7 +598,7 @@ func CreateIOSContainer(device_udid string) {
 
 // Create an Android container for a specific device(by UDID) using data from config.json so if device is not registered there it will not attempt to create a container for it
 // If container already exists for this device it will do nothing
-func createAndroidContainer(device_udid string) {
+func CreateAndroidContainer(device_udid string) {
 	log.WithFields(log.Fields{
 		"event": "android_container_create",
 	}).Info("Attempting to create a container for Android device with udid: " + device_udid)
@@ -869,4 +842,44 @@ func RestartContainerInternal(container_id string) error {
 	}).Info("Successfully attempted to restart container with ID: " + container_id)
 
 	return nil
+}
+
+// Generate the data for device containers table in the UI
+func deviceContainerRows() ([]ContainerRow, error) {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the current containers list
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []ContainerRow
+
+	// Loop through the containers list
+	for _, container := range containers {
+		// Parse plain container name
+		containerName := strings.Replace(container.Names[0], "/", "", -1)
+
+		// Get all the container ports from the returned array into string
+		containerPorts := ""
+		for i, s := range container.Ports {
+			if i > 0 {
+				containerPorts += "\n"
+			}
+			containerPorts += "{" + s.IP + ", " + strconv.Itoa(int(s.PrivatePort)) + ", " + strconv.Itoa(int(s.PublicPort)) + ", " + s.Type + "}"
+		}
+
+		// Extract the device UDID from the container name
+		re := regexp.MustCompile("[^_]*$")
+		match := re.FindStringSubmatch(containerName)
+
+		// Create a table row data and append it to the slice
+		var containerRow = ContainerRow{ContainerID: container.ID, ImageName: container.Image, ContainerStatus: container.Status, ContainerPorts: containerPorts, ContainerName: containerName, DeviceUDID: match[0]}
+		rows = append(rows, containerRow)
+	}
+	return rows, nil
 }

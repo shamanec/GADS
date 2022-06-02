@@ -51,6 +51,14 @@ type SudoPasswordRequest struct {
 	SudoPassword string `json:"sudo_password"`
 }
 
+type ProjectConfigPageData struct {
+	WebDriverAgentProvided bool
+	SudoPasswordSet        bool
+	UdevIOSListenerStatus  string
+	ImageStatus            string
+	AppiumConfigValues     AppiumConfig
+}
+
 //=======================//
 //=====API FUNCTIONS=====//
 

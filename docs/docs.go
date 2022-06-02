@@ -25,11 +25,20 @@ var doc = `{
     "paths": {
         "/configuration/build-image/{image_type}": {
             "post": {
-                "description": "Starts building a docker image in a goroutine and just returns Accepted",
+                "description": "Starts building a docker image in a goroutine and just returns Accepted.",
                 "tags": [
                     "configuration"
                 ],
                 "summary": "Build docker images",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image type: ios-appium, android-appium",
+                        "name": "image_type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "202": {
                         "description": ""
@@ -63,16 +72,25 @@ var doc = `{
                 }
             }
         },
-        "/configuration/remove-image": {
+        "/configuration/remove-image/{image_type}": {
             "post": {
-                "description": "Removes the 'ios-appium' Docker image",
+                "description": "Removes the 'ios-appium' or 'android-appium' Docker image",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Remove 'ios-appium' image",
+                "summary": "Remove 'ios-appium' or 'android-appium' image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image type: ios-appium, android-appium",
+                        "name": "image_type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -223,7 +241,7 @@ var doc = `{
         },
         "/containers/{container_id}/logs": {
             "get": {
-                "description": "Get logs of container by providing container ID",
+                "description": "Get logs of container by provided container ID",
                 "produces": [
                     "application/json"
                 ],
@@ -340,7 +358,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.CreateDeviceContainerData"
+                            "$ref": "#/definitions/main.CreateDeviceContainerRequest"
                         }
                     }
                 ],
@@ -427,32 +445,6 @@ var doc = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/main.DeviceControlInfo"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/main.JsonErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/ios-devices": {
-            "get": {
-                "description": "Returns the connected iOS devices with go-ios",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ios-devices"
-                ],
-                "summary": "Get connected iOS devices",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.detailsList"
                         }
                     },
                     "500": {
@@ -565,6 +557,23 @@ var doc = `{
                     }
                 }
             }
+        },
+        "/refresh-device-containers": {
+            "post": {
+                "description": "Refreshes the device-containers data by returning an updated HTML table",
+                "produces": [
+                    "text/html"
+                ],
+                "summary": "Refresh the device-containers data",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    },
+                    "500": {
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -625,7 +634,7 @@ var doc = `{
                 }
             }
         },
-        "main.CreateDeviceContainerData": {
+        "main.CreateDeviceContainerRequest": {
             "type": "object",
             "properties": {
                 "device_type": {
@@ -746,34 +755,6 @@ var doc = `{
             "properties": {
                 "sudo_password": {
                     "type": "string"
-                }
-            }
-        },
-        "main.detailsEntry": {
-            "type": "object",
-            "properties": {
-                "productName": {
-                    "type": "string"
-                },
-                "productType": {
-                    "type": "string"
-                },
-                "productVersion": {
-                    "type": "string"
-                },
-                "udid": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.detailsList": {
-            "type": "object",
-            "properties": {
-                "deviceList": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/main.detailsEntry"
-                    }
                 }
             }
         },

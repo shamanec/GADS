@@ -14,14 +14,6 @@ import (
 
 var project_log_file *os.File
 
-type ProjectConfigPageData struct {
-	WebDriverAgentProvided bool
-	SudoPasswordSet        bool
-	UdevIOSListenerStatus  string
-	ImageStatus            string
-	AppiumConfigValues     AppiumConfig
-}
-
 type AppiumConfig struct {
 	DevicesHost             string `json:"devices_host"`
 	SeleniumHubHost         string `json:"selenium_hub_host"`
@@ -65,17 +57,6 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Load the device control page
-func GetDeviceControlPage(w http.ResponseWriter, r *http.Request) {
-	var device_control_page = template.Must(template.ParseFiles("static/device_control.html"))
-	if err := device_control_page.Execute(w, nil); err != nil {
-		log.WithFields(log.Fields{
-			"event": "device_control_page",
-		}).Error("Couldn't load device_control.html")
-		return
-	}
-}
-
 func setLogging() {
 	log.SetFormatter(&log.JSONFormatter{})
 	project_log_file, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
@@ -98,10 +79,6 @@ func handleRequests() {
 		httpSwagger.DomID("#swagger-ui"),
 	))
 
-	// iOS containers endpoints
-
-	// Android containers endpoints
-
 	// General containers endpoints
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
@@ -111,7 +88,7 @@ func handleRequests() {
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
-	myRouter.HandleFunc("/configuration/remove-image", RemoveDockerImage).Methods("POST")
+	myRouter.HandleFunc("/configuration/remove-image/{image_type}", RemoveDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/setup-udev-listener", SetupUdevListener).Methods("POST")
 	myRouter.HandleFunc("/configuration/remove-udev-listener", RemoveUdevListener).Methods("POST")
 	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler).Methods("PUT")

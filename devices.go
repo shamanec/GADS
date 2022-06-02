@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os/exec"
@@ -56,6 +57,17 @@ type goIOSAppList []struct {
 
 //=======================//
 //=====API FUNCTIONS=====//
+
+// Load the device control page
+func GetDeviceControlPage(w http.ResponseWriter, r *http.Request) {
+	var device_control_page = template.Must(template.ParseFiles("static/device_control.html"))
+	if err := device_control_page.Execute(w, nil); err != nil {
+		log.WithFields(log.Fields{
+			"event": "device_control_page",
+		}).Error("Couldn't load device_control.html")
+		return
+	}
+}
 
 // @Summary      Get device control info
 // @Description  Provides the running containers, IOS devices info and apps available for installing

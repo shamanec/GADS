@@ -36,7 +36,7 @@ definitions:
       wda_bundle_id:
         type: string
     type: object
-  main.CreateDeviceContainerData:
+  main.CreateDeviceContainerRequest:
     properties:
       device_type:
         type: string
@@ -116,24 +116,6 @@ definitions:
       sudo_password:
         type: string
     type: object
-  main.detailsEntry:
-    properties:
-      productName:
-        type: string
-      productType:
-        type: string
-      productVersion:
-        type: string
-      udid:
-        type: string
-    type: object
-  main.detailsList:
-    properties:
-      deviceList:
-        items:
-          $ref: '#/definitions/main.detailsEntry'
-        type: array
-    type: object
   main.installIOSAppRequest:
     properties:
       ipa_name:
@@ -150,7 +132,13 @@ paths:
   /configuration/build-image/{image_type}:
     post:
       description: Starts building a docker image in a goroutine and just returns
-        Accepted
+        Accepted.
+      parameters:
+      - description: 'Image type: ios-appium, android-appium'
+        in: path
+        name: image_type
+        required: true
+        type: string
       responses:
         "202":
           description: ""
@@ -174,9 +162,15 @@ paths:
       summary: Removes udev device listener
       tags:
       - configuration
-  /configuration/remove-image:
+  /configuration/remove-image/{image_type}:
     post:
-      description: Removes the 'ios-appium' Docker image
+      description: Removes the 'ios-appium' or 'android-appium' Docker image
+      parameters:
+      - description: 'Image type: ios-appium, android-appium'
+        in: path
+        name: image_type
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -188,7 +182,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Remove 'ios-appium' image
+      summary: Remove 'ios-appium' or 'android-appium' image
       tags:
       - configuration
   /configuration/set-sudo-password:
@@ -282,7 +276,7 @@ paths:
       - configuration
   /containers/{container_id}/logs:
     get:
-      description: Get logs of container by providing container ID
+      description: Get logs of container by provided container ID
       parameters:
       - description: Container ID
         in: path
@@ -358,7 +352,7 @@ paths:
         name: config
         required: true
         schema:
-          $ref: '#/definitions/main.CreateDeviceContainerData'
+          $ref: '#/definitions/main.CreateDeviceContainerRequest'
       responses:
         "202":
           description: ""
@@ -424,23 +418,6 @@ paths:
       summary: Get device control info
       tags:
       - devices
-  /ios-devices:
-    get:
-      description: Returns the connected iOS devices with go-ios
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.detailsList'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Get connected iOS devices
-      tags:
-      - ios-devices
   /ios-devices/{device_udid}/install-app:
     post:
       description: Installs *.ipa or *.app from the './apps' folder with go-ios
@@ -508,4 +485,16 @@ paths:
       summary: Get project logs
       tags:
       - project-logs
+  /refresh-device-containers:
+    post:
+      description: Refreshes the device-containers data by returning an updated HTML
+        table
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: ""
+        "500":
+          description: ""
+      summary: Refresh the device-containers data
 swagger: "2.0"
