@@ -62,30 +62,6 @@ type ProjectConfigPageData struct {
 //=======================//
 //=====API FUNCTIONS=====//
 
-// @Summary      Get project logs
-// @Description  Provides project logs as plain text response
-// @Tags         project-logs
-// @Success      200
-// @Failure      200
-// @Router       /project-logs [get]
-func GetLogs(w http.ResponseWriter, r *http.Request) {
-	// Execute the command to restart the container by container ID
-	commandString := "tail -n 1000 ./logs/project.log"
-	cmd := exec.Command("bash", "-c", commandString)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_project_logs",
-		}).Error("Attempted to get project logs but no logs available.")
-		fmt.Fprintf(w, "No logs available")
-		return
-	}
-	//SimpleJSONResponse(w, "get_project_logs", out.String(), 200)
-	fmt.Fprintf(w, out.String())
-}
-
 // Load the general logs page
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
@@ -99,11 +75,14 @@ func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 
 // Load the page with the project configuration info
 func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
+	// Get the config data
 	projectConfig, err := GetConfigJsonData()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Create the AppiumConfig
 	var configRow = AppiumConfig{
 		DevicesHost:             projectConfig.AppiumConfig.DevicesHost,
 		SeleniumHubHost:         projectConfig.AppiumConfig.SeleniumHubHost,
@@ -112,10 +91,48 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 		WDABundleID:             projectConfig.AppiumConfig.WDABundleID}
 
 	var index = template.Must(template.ParseFiles("static/project_config.html"))
+
+	// Create the final data for the config page
 	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), AppiumConfigValues: configRow}
 	if err := index.Execute(w, pageData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// @Summary      Get project logs
+// @Description  Provides project logs as plain text response
+// @Tags         project-logs
+// @Produces	 text
+// @Success      200
+// @Failure      200
+// @Router       /project-logs [get]
+func GetLogs(w http.ResponseWriter, r *http.Request) {
+	// Create the command string to read the last 1000 lines of project.log
+	commandString := "tail -n 1000 ./logs/project.log"
+
+	// Create the command
+	cmd := exec.Command("bash", "-c", commandString)
+
+	// Create a buffer for the output
+	var out bytes.Buffer
+
+	// Pipe the Stdout of the command to the buffer pointer
+	cmd.Stdout = &out
+
+	// Execute the command
+	err := cmd.Run()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_project_logs",
+		}).Error("Attempted to get project logs but no logs available.")
+
+		// Reply with generic message on error
+		fmt.Fprintf(w, "No logs available")
+		return
+	}
+
+	// Reply with the read logs lines
+	fmt.Fprintf(w, out.String())
 }
 
 // @Summary      Update project Appium configuration
@@ -129,6 +146,7 @@ func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
 // @Router       /configuration/update-config [put]
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	var requestData AppiumConfig
+	// Get the request data
 	err := UnmarshalRequestBody(r.Body, &requestData)
 
 	// Get the config data from configs/config.json
@@ -178,6 +196,7 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "update_appium_config", "An error occurred", 500)
 		return
 	}
+
 	SimpleJSONResponse(w, "Successfully updated project config in ./configs/config.json", 200)
 }
 
@@ -233,6 +252,7 @@ func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
 func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	var requestData SudoPasswordRequest
 
+	// Get the request data
 	err := UnmarshalRequestBody(r.Body, &requestData)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -252,8 +272,10 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update the password in configData
 	configData.EnvConfig.SudoPassword = sudo_password
 
+	// Create a byte slice with the updated data
 	bs, err := json.MarshalIndent(configData, "", "  ")
 
 	// Write the new json to the config.json file
@@ -265,15 +287,18 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
 		return
 	}
+
 	log.WithFields(log.Fields{
 		"event": "set_sudo_password",
 	}).Info("Successfully set sudo password.")
+
 	SimpleJSONResponse(w, "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./configs/config.json file. Make sure you don't commit this file to public repos :D", 200)
 }
 
 //=======================//
 //=====FUNCTIONS=====//
 
+// Completely setup udev and usbmuxd
 func SetupUdevListenerInternal() error {
 	DeleteTempUdevFiles()
 
