@@ -49,11 +49,13 @@ type RemoveDeviceContainerData struct {
 // IOS Containers html page
 func LoadDeviceContainers(w http.ResponseWriter, r *http.Request) {
 
+	// Generate all available device container rows
 	rows, err := deviceContainerRows()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	// Make functions available in the html template
 	funcMap := template.FuncMap{
 		"contains": strings.Contains,
 	}
@@ -72,8 +74,11 @@ func LoadDeviceContainers(w http.ResponseWriter, r *http.Request) {
 // @Success      202
 // @Router       /configuration/build-image/{image_type} [post]
 func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
+	// Get the request path vars
 	vars := mux.Vars(r)
 	image_type := vars["image_type"]
+
+	// Start building the image in a goroutine and immediately return Accepted
 	go buildDockerImage(image_type)
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -87,10 +92,13 @@ func BuildDockerImage(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/remove-image/{image_type} [post]
 func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
+	// Get the request path vars
 	vars := mux.Vars(r)
 	image_type := vars["image_type"]
 
+	// Set a generic error message to reuse
 	error_message := "Could not remove " + image_type + " image."
+
 	// Create the context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -102,6 +110,7 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Try to remove the image by its name
 	imageRemoveResponse, err := cli.ImageRemove(ctx, image_type, types.ImageRemoveOptions{PruneChildren: true})
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -122,6 +131,7 @@ func RemoveDockerImage(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} JsonErrorResponse
 // @Router       /containers/{container_id}/restart [post]
 func RestartContainer(w http.ResponseWriter, r *http.Request) {
+	// Get the request path vars
 	vars := mux.Vars(r)
 	container_id := vars["container_id"]
 
@@ -129,6 +139,7 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 		"event": "docker_container_restart",
 	}).Info("Attempting to restart container with ID: " + container_id)
 
+	// Call the internal function to restart the container
 	err := RestartContainerInternal(container_id)
 	if err != nil {
 		JSONError(w, "docker_container_restart", "Could not restart container with ID: "+container_id, 500)
@@ -146,9 +157,11 @@ func RestartContainer(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} JsonErrorResponse
 // @Router       /containers/{container_id}/logs [get]
 func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
+	// Get the request path vars
 	vars := mux.Vars(r)
 	key := vars["container_id"]
 
+	// Create the context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -159,7 +172,10 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create the options for the container logs function
 	options := types.ContainerLogsOptions{ShowStdout: true}
+
+	// Get the container logs
 	out, err := cli.ContainerLogs(ctx, key, options)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -169,10 +185,14 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get the ReadCloser of the logs into a buffer
+	// And convert it to string
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(out)
 	newStr := buf.String()
 
+	// If there are any logs - reply with them
+	// Or reply with a generic string
 	if newStr != "" {
 		SimpleJSONResponse(w, newStr, 200)
 	} else {
@@ -189,6 +209,7 @@ func GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	var data CreateDeviceContainerRequest
 
+	// Read the request data
 	err := UnmarshalRequestBody(r.Body, &data)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -200,11 +221,18 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	os_type := data.DeviceType
 	device_udid := data.Udid
 
+	// Start creating a device container in a goroutine and immediately reply with Accepted
 	go func() {
+		// Wait a few seconds, mostly for iOS devices
+		// We don't really need an immediate attempt
 		time.Sleep(5 * time.Second)
 
+		// Check if container exists and get the container ID and current status
 		container_exists, container_id, status := checkContainerExistsByName(device_udid)
 
+		// Create a container if no container exists for this device
+		// or restart a non-running container that already exists for this device
+		// this is useful after restart and reconnecting devices
 		if !container_exists {
 			if os_type == "android" {
 				go CreateAndroidContainer(device_udid)
@@ -232,6 +260,7 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	var data RemoveDeviceContainerData
 
+	// Read the request data
 	err := UnmarshalRequestBody(r.Body, &data)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -240,8 +269,11 @@ func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if container exists and get the container ID
 	container_exists, container_id, _ := checkContainerExistsByName(data.Udid)
+
 	if container_exists {
+		// Start removing the container in a goroutine and immediately reply with Accepted
 		go removeContainerByID(container_id)
 	}
 	w.WriteHeader(http.StatusAccepted)
@@ -256,6 +288,7 @@ func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} JsonErrorResponse
 // @Router       /containers/{container_id}/remove [post]
 func RemoveContainer(w http.ResponseWriter, r *http.Request) {
+	// Get the request path vars
 	vars := mux.Vars(r)
 	key := vars["container_id"]
 
@@ -263,6 +296,7 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 		"event": "docker_container_remove",
 	}).Info("Attempting to remove container with ID: " + key)
 
+	// Create a new context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -273,6 +307,7 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Try to stop the container
 	if err := cli.ContainerStop(ctx, key, nil); err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_container_remove",
@@ -281,6 +316,7 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Try to remove the stopped container
 	if err := cli.ContainerRemove(ctx, key, types.ContainerRemoveOptions{}); err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_container_remove",
@@ -302,19 +338,23 @@ func RemoveContainer(w http.ResponseWriter, r *http.Request) {
 // @Failure      500
 // @Router       /refresh-device-containers [post]
 func RefreshDeviceContainers(w http.ResponseWriter, r *http.Request) {
+	// Generate the data for each device container row in a slice of ContainerRow
 	rows, err := deviceContainerRows()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	// Make functions available in html template
 	funcMap := template.FuncMap{
 		// The name "title" is what the function will be called in the template text.
 		"contains": strings.Contains,
 	}
 
 	// Parse the template and return response with the container table rows
+	// This will generate only the device table, not the whole page
 	var tmpl = template.Must(template.New("device_containers_table").Funcs(funcMap).ParseFiles("static/device_containers_table.html"))
 
+	// Reply with the new table
 	if err := tmpl.ExecuteTemplate(w, "device_containers_table", rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -323,19 +363,20 @@ func RefreshDeviceContainers(w http.ResponseWriter, r *http.Request) {
 //===================//
 //=====FUNCTIONS=====//
 
+// Build a Docker image by device type
 func buildDockerImage(image_type string) {
 	log.WithFields(log.Fields{
 		"event": "docker_image_build",
 	}).Info("Started building the '" + image_type + "' docker image.")
 
+	// Delete the build-context.tar file if it exists already
 	DeleteFileShell("./build-context.tar", sudo_password)
 
 	var files []string
 	var image_name string
 	var docker_file_name string
 
-	// Create a tar to be used as build-context for the image build
-	// The tar should include all files needed by the Dockerfile to successfully create the image
+	// Set up the needed files and image name based on the image type requested
 	if image_type == "ios-appium" {
 		docker_file_name = "Dockerfile-iOS"
 		files = []string{docker_file_name, "configs/nodeconfiggen.sh", "configs/ios-sync.sh", "apps/WebDriverAgent.ipa", "configs/supervision.p12"}
@@ -348,15 +389,19 @@ func buildDockerImage(image_type string) {
 		return
 	}
 
-	out, err := os.Create("build-context.tar")
+	// Create a tar to be used as build-context for the image build
+	// The tar should include all files needed by the Dockerfile to successfully create the image
+	tarFile, err := os.Create("build-context.tar")
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_image_build",
 		}).Error("Could not create build-context.tar archive file. Error: " + err.Error())
 		return
 	}
-	defer out.Close()
-	err = CreateArchive(files, out)
+	defer tarFile.Close()
+
+	// Add all the data to the build-context.tar
+	err = CreateArchive(files, tarFile)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_image_build",
@@ -364,6 +409,7 @@ func buildDockerImage(image_type string) {
 		return
 	}
 
+	// Create a new context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -378,29 +424,25 @@ func buildDockerImage(image_type string) {
 	readBuildContextFile, err := ioutil.ReadAll(buildContextFileReader)
 	buildContextTarReader := bytes.NewReader(readBuildContextFile)
 
-	// Build the Docker image using the tar reader
-	buf := new(bytes.Buffer)
-	imageBuildResponse, err := cli.ImageBuild(ctx, buildContextTarReader, types.ImageBuildOptions{Dockerfile: docker_file_name, Remove: true, Tags: []string{image_name}})
+	// Build the Docker image using the tar reader and the provided options
+	_, err = cli.ImageBuild(ctx, buildContextTarReader, types.ImageBuildOptions{Dockerfile: docker_file_name, Remove: true, Tags: []string{image_name}})
 	if err != nil {
 		// Get the image build logs on failure
-		buf.ReadFrom(imageBuildResponse.Body)
-		// log.WithFields(log.Fields{
-		// 	"event": "docker_image_build",
-		// }).Error("Could not build docker image. Error: " + err.Error() + "\n" + buf.String())
 		log.WithFields(log.Fields{
 			"event": "docker_image_build",
-		}).Error("Could not build docker image.")
+		}).Error("Could not build docker image. Please build it from terminal using: docker build -t " + image_type + " -f Dockerifle-iOS; docker build -t " + image_type + " -f Dockerifle-Android to observe the output.")
 		return
 	}
-	defer imageBuildResponse.Body.Close()
-	buf.ReadFrom(imageBuildResponse.Body)
+
 	log.WithFields(log.Fields{
 		"event": "docker_image_build",
 	}).Info("Built '" + image_name + "' docker image:\n")
 }
 
+// TODO - Revise this
 // Check if the 'ios-appium' image exists and return info string
 func ImageExists() (imageStatus string) {
+	// Create a new context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -464,7 +506,7 @@ func CreateIOSContainer(device_udid string) {
 		return
 	}
 
-	// Get the device config data
+	// Get the device specific config data
 	appium_port := strconv.Itoa(deviceConfig.AppiumPort)
 	device_name := deviceConfig.DeviceName
 	device_os_version := deviceConfig.DeviceOSVersion
@@ -476,6 +518,7 @@ func CreateIOSContainer(device_udid string) {
 	devices_host := configData.AppiumConfig.DevicesHost
 	hub_protocol := configData.AppiumConfig.SeleniumHubProtocolType
 
+	// TODO - Revise if this is needed
 	// Check if device appears in go-ios list meaning it is successfully connected
 	if !CheckIOSDeviceInDevicesList(device_udid) {
 		log.WithFields(log.Fields{
@@ -752,10 +795,15 @@ func CreateAndroidContainer(device_udid string) {
 
 // Check if container exists by name and also return container_id
 func checkContainerExistsByName(container_name string) (bool, string, string) {
+	// Get all the containers
 	containers, _ := getContainersList()
 	container_exists := false
 	container_id := ""
 	container_status := ""
+
+	// Loop through the available containers
+	// If a container with the provided name exists
+	// return true and also return the container ID and status
 	for _, container := range containers {
 		containerName := strings.Replace(container.Names[0], "/", "", -1)
 		if strings.Contains(containerName, container_name) {
@@ -769,6 +817,7 @@ func checkContainerExistsByName(container_name string) (bool, string, string) {
 
 // Get list of containers on host
 func getContainersList() ([]types.Container, error) {
+	// Create a new Docker client
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -777,6 +826,7 @@ func getContainersList() ([]types.Container, error) {
 		return nil, errors.New("Could not create docker client")
 	}
 
+	// Get the list of containers
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -793,6 +843,7 @@ func removeContainerByID(container_id string) {
 		"event": "docker_container_remove",
 	}).Info("Attempting to remove container with ID: " + container_id)
 
+	// Create a new context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -802,6 +853,7 @@ func removeContainerByID(container_id string) {
 		return
 	}
 
+	// Stop the container by the provided container ID
 	if err := cli.ContainerStop(ctx, container_id, nil); err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_container_remove",
@@ -809,6 +861,7 @@ func removeContainerByID(container_id string) {
 		return
 	}
 
+	// Remove the stopped container
 	if err := cli.ContainerRemove(ctx, container_id, types.ContainerRemoveOptions{}); err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_container_remove",
@@ -821,7 +874,9 @@ func removeContainerByID(container_id string) {
 	}).Info("Successfully removed container with ID: " + container_id)
 }
 
+// Restart a docker container by provided container ID
 func RestartContainerInternal(container_id string) error {
+	// Create a new context and Docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -831,12 +886,14 @@ func RestartContainerInternal(container_id string) error {
 		return err
 	}
 
+	// Try to restart the container
 	if err := cli.ContainerRestart(ctx, container_id, nil); err != nil {
 		log.WithFields(log.Fields{
 			"event": "docker_container_restart",
 		}).Error("Could not restart container with ID: " + container_id + ". Error: " + err.Error())
 		return err
 	}
+
 	log.WithFields(log.Fields{
 		"event": "docker_container_restart",
 	}).Info("Successfully attempted to restart container with ID: " + container_id)
