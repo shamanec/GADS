@@ -72,4 +72,4 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
   * *device_udid* - UDID of the iOS device, can get it with *go-ios* for example  
   * *device_os_version* - "15.2" for example  
   * *device_name* - avoid using special characters and spaces except '_'. Example: "Huawei_P20_Pro"  
-  * *viewport_size* - this is needed to easily work with the stream and remote control. Example: "375x667". You can get it on https://whatismyviewport.com (ScreenSize: at the bottom)  
+  * *screen_size* - this is needed to easily work with the stream and remote control. Example: "375x667". You can get it on https://whatismyviewport.com (ScreenSize: at the bottom)  

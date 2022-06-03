@@ -692,7 +692,7 @@ var doc = `{
                 "device_udid": {
                     "type": "string"
                 },
-                "viewport_size": {
+                "screen_size": {
                     "type": "string"
                 },
                 "wda_mjpeg_port": {

@@ -30,7 +30,7 @@ type DeviceConfig struct {
 	DeviceUDID      string `json:"device_udid"`
 	WDAMjpegPort    int    `json:"wda_mjpeg_port,omitempty"`
 	WDAPort         int    `json:"wda_port,omitempty"`
-	ViewportSize    string `json:"viewport_size,omitempty"`
+	ScreenSize      string `json:"screen_size,omitempty"`
 	StreamPort      int    `json:"stream_port,omitempty"`
 }
 
