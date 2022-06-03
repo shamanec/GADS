@@ -330,7 +330,9 @@ func SetupUdevListenerInternal() error {
 	return nil
 }
 
+// Remove udev rules for the devices
 func RemoveUdevListenerInternal() error {
+	// Delete the rules file
 	err := DeleteFileShell("/etc/udev/rules.d/90-device.rules", sudo_password)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -339,6 +341,7 @@ func RemoveUdevListenerInternal() error {
 		return err
 	}
 
+	// Reload udev after removing the rules
 	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
 	cmd := exec.Command("bash", "-c", commandString)
 	err = cmd.Run()
@@ -362,6 +365,8 @@ func CheckSudoPasswordSet() bool {
 		}).Error("Could not unmarshal ./configs/config.json file when checking sudo password")
 		return false
 	}
+
+	// Check the sudo password in the config
 	sudo_password := configData.EnvConfig.SudoPassword
 	if sudo_password == "undefined" || sudo_password == "" {
 		return false
@@ -395,7 +400,8 @@ func CreateUdevRules() error {
 	log.WithFields(log.Fields{
 		"event": "create_udev_rules",
 	}).Info("Creating udev rules")
-	// Create the rules file that will start usbmuxd on the first connected device
+
+	// Create the common devices udev rules file
 	create_container_rules, err := os.Create("./90-device.rules")
 	if err != nil {
 		return errors.New("Could not create 90-device.rules")
@@ -413,6 +419,7 @@ func CreateUdevRules() error {
 
 	devices_list := configData.DeviceConfig
 
+	// For each device generate the respective rule lines
 	for _, device := range devices_list {
 		rule_line1 := `SUBSYSTEM=="usb", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUDID + `", MODE="0666", SYMLINK+="device_` + device.DeviceUDID + `"`
 		rule_line2 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUDID + `", RUN+="/usr/bin/curl -X POST -H \"Content-Type: application/json\" -d '{\"udid\":\"` + device.DeviceUDID + `\"}' http://localhost:10000/device-containers/remove"`
@@ -420,6 +427,7 @@ func CreateUdevRules() error {
 		//rule_line2 := `ACTION=="add", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli start-device-container --device_type=` + device.OS + ` --udid=` + device.DeviceUdid + `"`
 		//rule_line3 := `ACTION=="remove", ENV{ID_SERIAL_SHORT}=="` + device.DeviceUdid + `", RUN+="/usr/local/bin/docker-cli remove-device-container --udid=` + device.DeviceUdid + `"`
 
+		// Write the new lines for each device in the udev rules file
 		if _, err := create_container_rules.WriteString(rule_line1 + "\n"); err != nil {
 			return errors.New("Could not write to 90-device.rules")
 		}
@@ -438,11 +446,13 @@ func CreateUdevRules() error {
 
 // Copy the iOS udev rules to /etc/udev/rules.d and reload udev
 func SetUdevRules() error {
-	//err := CopyFileShell("./39-usbmuxd.rules", "/etc/udev/rules.d/39-usbmuxd.rules", sudo_password)
+	// Copy the udev rules to /etc/udev/rules.d
 	err := CopyFileShell("./90-device.rules", "/etc/udev/rules.d/90-device.rules", sudo_password)
 	if err != nil {
 		return err
 	}
+
+	// Reload the udev rules after updating them
 	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
 	cmd := exec.Command("bash", "-c", commandString)
 	err = cmd.Run()
@@ -464,7 +474,7 @@ func CheckWDAProvided() bool {
 	return true
 }
 
-// Get a value from ./configs/config.json
+// Get an env value from ./configs/config.json
 func GetEnvValue(key string) string {
 	configData, err := GetConfigJsonData()
 	if err != nil {
