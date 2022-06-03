@@ -36,9 +36,8 @@
 
 Developed and tested on Ubuntu 18.04 LTS  
 
-## Setup and docs
-[iOS devices setup](./docs/ios-setup.md)  
-[Android devices setup](./docs/android-setup.md)  
+## Setup and docs  
+[Devices setup](./docs/devices-setup.md)  
 [General project setup](./docs/project-setup.md)  
 
 ## Thanks

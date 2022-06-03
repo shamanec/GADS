@@ -28,7 +28,7 @@
         <div>
             <button class="info-buttons" id="container-logs-button" value={{.ContainerID}}>Container</button>
             <button class="info-buttons" id="appium-logs-button" value={{.DeviceUDID}}>Appium</button>
-            {{ if contains .ContainerName "iOS" }}
+            {{ if contains .ContainerName "ios" }}
             <button class="info-buttons" id="wda-logs-button" value={{.DeviceUDID}}>WDA</button>
             <button class="info-buttons" id="wda-sync-logs-button" value={{.DeviceUDID}}>WDA Sync</button>
             {{else}}
