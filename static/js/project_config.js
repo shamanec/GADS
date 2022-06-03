@@ -126,7 +126,7 @@ function removeUdevListener() {
         dataType: false,
         async: true,
         type: "POST",
-        url: "/configuration/remove-ios-listener",
+        url: "/configuration/remove-udev-listener",
         success: function (data) {
             swal("Remove listener", "Succesfully removed iOS udev listener", "success")
             .then(() => {
@@ -162,7 +162,7 @@ function setupUdevListener() {
         dataType: false,
         async: true,
         type: "POST",
-        url: "/configuration/setup-ios-listener",
+        url: "/configuration/setup-udev-listener",
         success: function (data) {
             swal("Setup ios listener", data, "success")
             .then(() => {
@@ -178,78 +178,6 @@ function setupUdevListener() {
     });
 
     $('#loading').css("visibility", "hidden");
-}
-
-function showIOSDeviceSelection() {
-    $.ajax({
-        contentType: 'application/json',
-        async: true,
-        type: "GET",
-        url: "/ios-devices",
-        success: function (data) {
-            $('#add-device-button').prop('disabled', true);
-            /* Get the modal element */
-            var modal = document.getElementById("device-selection-modal")
-
-            /* Get the close button */
-            var span = document.getElementsByClassName("close")[0]
-
-            let dropdown = $('#device-dropdown');
-
-            dropdown.empty();
-
-            dropdown.append('<option>Choose device</option>');
-            dropdown.prop('selectedIndex', 0);
-            var response = JSON.parse(data)
-            for (let i = 0; i < response.deviceList.length; i++) {
-                dropdown.append($('<option></option>').attr('value', response.deviceList[i].Udid + ":" + response.deviceList[i].ProductVersion).text("Device UDID: " + response.deviceList[i].Udid + ", Product Type: " + response.deviceList[i].ProductType + ", Device OS: " + response.deviceList[i].ProductVersion));
-            }
-            // Clear the previous value in the device name input if any
-            $("#register-device-name").val("");
-
-            /* Display the modal blocking interaction */
-            modal.style.display = "block";
-
-            /* Close the modal if you click anywhere outside the modal */
-            window.onclick = function (event) {
-                if (event.target == modal) {
-                    modal.style.display = "none";
-                }
-            }
-        },
-        error: function (data) {
-            swal($.parseJSON(data.responseText).event, $.parseJSON(data.responseText).error_message, "error")
-        }
-    });
-}
-
-function registerIOSDevice() {
-    var modal = document.getElementById("device-selection-modal")
-    // Get the device UDID from the value of the selected option
-    var device_info = $("#device-dropdown").val();
-    var device_name = $("#register-device-name").val();
-    if (device_name === "") {
-        swal("Register device", "Please provide a device name. Avoid using special characters and spaces except for '_'. Example: iPhone_11", "info")
-        return
-    }
-    deviceInfoArray = device_info.split(new RegExp(":"));
-
-    // Send a request to register the device with the respective selected device UDID
-    $.ajax({
-        contentType: 'application/json',
-        async: true,
-        type: "POST",
-        data: JSON.stringify({ "device_udid": deviceInfoArray[0], "device_os_version": deviceInfoArray[1], "device_name": device_name }),
-        url: "/ios-devices/register",
-        success: function (data) {
-            swal("Info message", "Successfully added device with UDID: " + deviceInfoArray[0] + " to the config.json file.", "success")
-            modal.style.display = "none";
-        },
-        error: function (data) {
-            swal($.parseJSON(data.responseText).event, $.parseJSON(data.responseText).error_message, "error")
-            modal.style.display = "none";
-        }
-    });
 }
 
 function showSudoPasswordInput() {
@@ -391,7 +319,7 @@ function setImageStatusCellBackground() {
 }
 
 function setUdevIOSListenerCellBackground() {
-    let statusCell = document.getElementById("udev-ios-listener-status-cell");
+    let statusCell = document.getElementById("udev-udev-listener-status-cell");
     if (statusCell.textContent === "Udev rules set.") {
         statusCell.style.backgroundColor = "#4CAF50"
         statusCell.setAttribute("value", "is-running")

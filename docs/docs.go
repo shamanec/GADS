@@ -25,11 +25,20 @@ var doc = `{
     "paths": {
         "/configuration/build-image/{image_type}": {
             "post": {
-                "description": "Starts building a docker image in a goroutine and just returns Accepted",
+                "description": "Starts building a docker image in a goroutine and just returns Accepted.",
                 "tags": [
                     "configuration"
                 ],
                 "summary": "Build docker images",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image type: ios-appium, android-appium",
+                        "name": "image_type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "202": {
                         "description": ""
@@ -37,33 +46,7 @@ var doc = `{
                 }
             }
         },
-        "/configuration/remove-image": {
-            "post": {
-                "description": "Removes the 'ios-appium' Docker image",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "configuration"
-                ],
-                "summary": "Remove 'ios-appium' image",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
-                        }
-                    }
-                }
-            }
-        },
-        "/configuration/remove-ios-listener": {
+        "/configuration/remove-device-listener": {
             "post": {
                 "description": "Deletes udev rules from /etc/udev/rules.d and reloads udev",
                 "produces": [
@@ -72,18 +55,53 @@ var doc = `{
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Removes iOS device listener",
+                "summary": "Removes udev device listener",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/configuration/remove-image/{image_type}": {
+            "post": {
+                "description": "Removes the 'ios-appium' or 'android-appium' Docker image",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "configuration"
+                ],
+                "summary": "Remove 'ios-appium' or 'android-appium' image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image type: ios-appium, android-appium",
+                        "name": "image_type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.JsonResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -91,7 +109,7 @@ var doc = `{
         },
         "/configuration/set-sudo-password": {
             "put": {
-                "description": "Sets your sudo password in ./env.json. The password is needed for operations requiring elevated permissions like setting up udev.",
+                "description": "Sets your sudo password in ./configs/config.json. The password is needed for operations requiring elevated permissions like setting up udev.",
                 "consumes": [
                     "application/json"
                 ],
@@ -109,7 +127,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.SudoPassword"
+                            "$ref": "#/definitions/main.SudoPasswordRequest"
                         }
                     }
                 ],
@@ -117,19 +135,19 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
             }
         },
-        "/configuration/setup-ios-listener": {
+        "/configuration/setup-udev-listener": {
             "post": {
                 "description": "Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it",
                 "produces": [
@@ -138,18 +156,18 @@ var doc = `{
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Sets up iOS device listener",
+                "summary": "Sets up udev devices listener",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -157,7 +175,7 @@ var doc = `{
         },
         "/configuration/update-config": {
             "put": {
-                "description": "Updates one  or multiple configuration values",
+                "description": "Updates one or multiple configuration values",
                 "consumes": [
                     "application/json"
                 ],
@@ -167,7 +185,7 @@ var doc = `{
                 "tags": [
                     "configuration"
                 ],
-                "summary": "Update project configuration",
+                "summary": "Update project Appium configuration",
                 "parameters": [
                     {
                         "description": "Update config",
@@ -175,7 +193,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.ProjectConfig"
+                            "$ref": "#/definitions/main.AppiumConfig"
                         }
                     }
                 ],
@@ -183,13 +201,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -209,13 +227,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -223,7 +241,7 @@ var doc = `{
         },
         "/containers/{container_id}/logs": {
             "get": {
-                "description": "Get logs of container by providing container ID",
+                "description": "Get logs of container by provided container ID",
                 "produces": [
                     "application/json"
                 ],
@@ -244,13 +262,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -279,13 +297,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -314,13 +332,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -340,7 +358,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.CreateDeviceContainerData"
+                            "$ref": "#/definitions/main.CreateDeviceContainerRequest"
                         }
                     }
                 ],
@@ -406,7 +424,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     }
                 }
@@ -432,33 +450,7 @@ var doc = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
-                        }
-                    }
-                }
-            }
-        },
-        "/ios-devices": {
-            "get": {
-                "description": "Returns the connected iOS devices with go-ios",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ios-devices"
-                ],
-                "summary": "Get connected iOS devices",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.detailsList"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -496,13 +488,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -540,13 +532,13 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.SimpleResponseJSON"
+                            "$ref": "#/definitions/main.JsonResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorJSON"
+                            "$ref": "#/definitions/main.JsonErrorResponse"
                         }
                     }
                 }
@@ -561,6 +553,23 @@ var doc = `{
                 "summary": "Get project logs",
                 "responses": {
                     "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/refresh-device-containers": {
+            "post": {
+                "description": "Refreshes the device-containers data by returning an updated HTML table",
+                "produces": [
+                    "text/html"
+                ],
+                "summary": "Refresh the device-containers data",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    },
+                    "500": {
                         "description": ""
                     }
                 }
@@ -605,7 +614,27 @@ var doc = `{
                 }
             }
         },
-        "main.CreateDeviceContainerData": {
+        "main.AppiumConfig": {
+            "type": "object",
+            "properties": {
+                "devices_host": {
+                    "type": "string"
+                },
+                "selenium_hub_host": {
+                    "type": "string"
+                },
+                "selenium_hub_port": {
+                    "type": "string"
+                },
+                "selenium_hub_protocol_type": {
+                    "type": "string"
+                },
+                "wda_bundle_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.CreateDeviceContainerRequest": {
             "type": "object",
             "properties": {
                 "device_type": {
@@ -645,17 +674,6 @@ var doc = `{
                 }
             }
         },
-        "main.ErrorJSON": {
-            "type": "object",
-            "properties": {
-                "error_message": {
-                    "type": "string"
-                },
-                "event": {
-                    "type": "string"
-                }
-            }
-        },
         "main.IOSDevice": {
             "type": "object",
             "properties": {
@@ -674,7 +692,7 @@ var doc = `{
                 "device_udid": {
                     "type": "string"
                 },
-                "viewport_size": {
+                "screen_size": {
                     "type": "string"
                 },
                 "wda_mjpeg_port": {
@@ -705,22 +723,21 @@ var doc = `{
                 }
             }
         },
-        "main.ProjectConfig": {
+        "main.JsonErrorResponse": {
             "type": "object",
             "properties": {
-                "devices_host": {
+                "error_message": {
                     "type": "string"
                 },
-                "selenium_hub_host": {
+                "event": {
                     "type": "string"
-                },
-                "selenium_hub_port": {
-                    "type": "string"
-                },
-                "selenium_hub_protocol_type": {
-                    "type": "string"
-                },
-                "wda_bundle_id": {
+                }
+            }
+        },
+        "main.JsonResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }
@@ -733,47 +750,11 @@ var doc = `{
                 }
             }
         },
-        "main.SimpleResponseJSON": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.SudoPassword": {
+        "main.SudoPasswordRequest": {
             "type": "object",
             "properties": {
                 "sudo_password": {
                     "type": "string"
-                }
-            }
-        },
-        "main.detailsEntry": {
-            "type": "object",
-            "properties": {
-                "productName": {
-                    "type": "string"
-                },
-                "productType": {
-                    "type": "string"
-                },
-                "productVersion": {
-                    "type": "string"
-                },
-                "udid": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.detailsList": {
-            "type": "object",
-            "properties": {
-                "deviceList": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/main.detailsEntry"
-                    }
                 }
             }
         },

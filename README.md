@@ -6,27 +6,31 @@
 * Currently being adopted and sponsored by <a href="https://1crew.com"><img src="https://1crew.com/StaticResources/1Crew_3D.png" alt="1crew" width="50"/><a/>  
 
 ## Features
-* Easy setup  
-* Simple and intuitive UI so you can easily control most of the project config via the browser  
+* Mostly straighforward setup  
+* Web UI to:  
+  * See Appium config and other info  
+  * Observe device containers data in real time, also see related logs  
+  * Observe project logs with messages and timestamps  
 * Endpoints to control the project without the UI  
 * iOS Appium servers in Docker containers  
   - Most of the available functionality of the iOS devices is essentially a wrapper of the amazing [go-ios](https://github.com/danielpaulus/go-ios) project without which none of this would be possible  
   - Automatically spin up when registered device is connected/disconnected  
   - Self-healing checks to reinstall/restart WebDriverAgent if it fails  
   - Selenium Grid 3 connection  
-  - Run iOS Appium tests on cheap hardware on much bigger scale with only one host machine  
+  - Run iOS Appium tests on cheap hardware on much bigger scale with only one host machine and in isolation  
+  - There are some limitations, you can check [Devices setup](./docs/devices-setup.md)  
 * Android Appium servers in Docker containers  
   - Automatically spin up when registered device is connected/disconnected  
   - Selenium Grid 3 connection  
-* Simple device control page:  
+* Remote device control page:  
   1. Device video stream:  
     - for iOS the WDA mjpeg stream is used to stream video off the devices  
     - for Android minicap is used to stream video off the devices  
-  2. Basic remote control:  
+  2. Remote control:  
     - tap  
     - swipe  
     - type  
-    - Appium itself is used to perform all of these, nothing special  
+    - Appium itself is used to perform all of these actions  
   3. Information about the device(configuration, installed apps, available apps to install - WIP)  
   4. Simple web based 'Appium inspector':  
     - Create a new Appium session if none exists - not so useful when you have the actual and much better inspector from Appium  
@@ -36,9 +40,8 @@
 
 Developed and tested on Ubuntu 18.04 LTS  
 
-## Setup and docs
-[iOS devices setup](./docs/ios-setup.md)  
-[Android devices setup](./docs/android-setup.md)  
+## Setup and docs  
+[Devices setup](./docs/devices-setup.md)  
 [General project setup](./docs/project-setup.md)  
 
 ## Thanks

@@ -22,12 +22,12 @@ import (
 //=================//
 //=====STRUCTS=====//
 
-type ErrorJSON struct {
+type JsonErrorResponse struct {
 	EventName    string `json:"event"`
 	ErrorMessage string `json:"error_message"`
 }
 
-type SimpleResponseJSON struct {
+type JsonResponse struct {
 	Message string `json:"message"`
 }
 
@@ -36,7 +36,7 @@ type SimpleResponseJSON struct {
 
 // Write to a ResponseWriter an event and message with a response code
 func JSONError(w http.ResponseWriter, event string, error_string string, code int) {
-	var errorMessage = ErrorJSON{
+	var errorMessage = JsonErrorResponse{
 		EventName:    event,
 		ErrorMessage: error_string}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -47,7 +47,7 @@ func JSONError(w http.ResponseWriter, event string, error_string string, code in
 
 // Write to a ResponseWriter an event and message with a response code
 func SimpleJSONResponse(w http.ResponseWriter, response_message string, code int) {
-	var message = SimpleResponseJSON{
+	var message = JsonResponse{
 		Message: response_message,
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -60,8 +60,8 @@ func SimpleJSONResponse(w http.ResponseWriter, response_message string, code int
 // @Description  Uploads the provided *.ipa into the ./apps folder with the expected "WebDriverAgent.ipa" name
 // @Tags         configuration
 // @Produce      json
-// @Success      200 {object} SimpleResponseJSON
-// @Failure      500 {object} ErrorJSON
+// @Success      200 {object} JsonResponse
+// @Failure      500 {object} JsonErrorResponse
 // @Router       /configuration/upload-wda [post]
 func UploadWDA(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")
@@ -100,6 +100,7 @@ func UploadWDA(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Uploaded and saved as WebDriverAgent.ipa in the './apps' folder.")
 }
 
+// Upload application to the /apps folder to make available for Appium
 func UploadApp(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile("file")
 	if err != nil {
@@ -109,7 +110,7 @@ func UploadApp(w http.ResponseWriter, r *http.Request) {
 
 	defer file.Close()
 
-	// Create the ipa folder if it doesn't
+	// Create the apps folder if it doesn't
 	// already exist
 	err = os.MkdirAll("./apps", os.ModePerm)
 	if err != nil {
@@ -206,6 +207,8 @@ func addToArchive(tw *tar.Writer, filename string) error {
 
 // Delete file by path
 func DeleteFile(filePath string) {
+	// Check if file exists
+	// and remove if it does
 	_, err := os.Stat(filePath)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -224,7 +227,7 @@ func DeleteFile(filePath string) {
 	}
 }
 
-// Copy file using shell, needed when copying to a protected folder. Needs `sudo_password` set in env.json
+// Copy file using shell, needed when copying to a protected folder. Needs `sudo_password` set in configs/config.json
 func CopyFileShell(currentFilePath string, newFilePath string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S cp " + currentFilePath + " " + newFilePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -238,7 +241,7 @@ func CopyFileShell(currentFilePath string, newFilePath string, sudoPassword stri
 	return nil
 }
 
-// Delete file using shell, needed when deleting from a protected folder. Needs `sudo_password` set in env.json
+// Delete file using shell, needed when deleting from a protected folder. Needs `sudo_password` set in configs/config.json
 func DeleteFileShell(filePath string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S rm " + filePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -252,7 +255,7 @@ func DeleteFileShell(filePath string, sudoPassword string) error {
 	return nil
 }
 
-// Set file permissions using shell. Needs `sudo_password` set in env.json
+// Set file permissions using shell. Needs `sudo_password` set in configs/config.json
 func SetFilePermissionsShell(filePath string, permissionsCode string, sudoPassword string) error {
 	commandString := "echo '" + sudoPassword + "' | sudo -S chmod " + permissionsCode + " " + filePath
 	cmd := exec.Command("bash", "-c", commandString)
@@ -278,29 +281,6 @@ func EnableUsbmuxdService() error {
 		return errors.New("Could not enable usbmuxd service.")
 	}
 	return nil
-}
-
-// Read a json file from a provided path into a byte slice
-func ReadJSONFile(jsonFilePath string) ([]byte, error) {
-	jsonFile, err := os.Open(jsonFilePath)
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "read_json_file",
-		}).Error("Could not open json file at path: " + jsonFilePath + ", error: " + err.Error())
-		fmt.Println(err)
-	}
-	defer jsonFile.Close()
-
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "read_json_file",
-		}).Error("Could not read json file at path: " + jsonFilePath + ", error: " + err.Error())
-		return nil, err
-	} else {
-		return byteValue, nil
-	}
 }
 
 // Check if an iOS device is registered in config.json by provided UDID
@@ -333,6 +313,7 @@ func PrettifyJSON(data string) string {
 	return prettyJSON.String()
 }
 
+// Function to get part of a string between chars or other parts of string
 func GetStringInBetween(str string, start string, end string) (result string) {
 	s := strings.Index(str, start)
 	if s == -1 {
@@ -346,6 +327,7 @@ func GetStringInBetween(str string, start string, end string) (result string) {
 	return str[s : s+e]
 }
 
+// Unmarshal request body into a struct
 func UnmarshalRequestBody(body io.ReadCloser, v interface{}) error {
 	reqBody, err := ioutil.ReadAll(body)
 	if err != nil {
@@ -360,6 +342,7 @@ func UnmarshalRequestBody(body io.ReadCloser, v interface{}) error {
 	return nil
 }
 
+// Unmarshal JSON file by path into a struct
 func UnmarshalJSONFile(filePath string, v interface{}) error {
 	jsonFile, err := os.Open(filePath)
 	if err != nil {
@@ -380,6 +363,7 @@ func UnmarshalJSONFile(filePath string, v interface{}) error {
 	return nil
 }
 
+// Unmarshal provided JSON string into a struct
 func UnmarshalJSONString(jsonString string, v interface{}) error {
 	bs := []byte(jsonString)
 
@@ -389,4 +373,26 @@ func UnmarshalJSONString(jsonString string, v interface{}) error {
 	}
 
 	return nil
+}
+
+// Get a ConfigJsonData pointer with the current configuration from config.json
+func GetConfigJsonData() (*ConfigJsonData, error) {
+	var data ConfigJsonData
+	jsonFile, err := os.Open("./configs/config.json")
+	if err != nil {
+		return nil, err
+	}
+	defer jsonFile.Close()
+
+	bs, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(bs, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &data, nil
 }

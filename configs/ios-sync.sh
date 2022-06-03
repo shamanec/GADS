@@ -58,7 +58,15 @@ check-wda-status() {
   else
     kill-wda
     start-wda
+    update-wda-stream-settings
   fi
+}
+
+update-wda-stream-settings() {
+  # Create a dummy session and get the ID
+  sessionID=$(curl --silent --location --request POST "http:$deviceIP:${WDA_PORT}/session" --header 'Content-Type: application/json' --data-raw '{"capabilities": {"waitForQuiescence": false}}' | jq -r '.sessionId')
+  # Update the stream settings of the session
+  curl --silent --location --request POST "http:$deviceIP:${WDA_PORT}/session/$sessionID/appium/settings" --header 'Content-Type: application/json' --data-raw '{"settings": {"mjpegServerFramerate": 30, "mjpegServerScreenshotQuality": 50, "mjpegScalingFactor": 100}}' > /dev/null
 }
 
 # Hit the Appium status URL to see if it is available and start it if not
@@ -77,13 +85,13 @@ start-appium() {
     appium -p 4723 --udid "$DEVICE_UDID" \
       --log-timestamp \
       --default-capabilities \
-      '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'", "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000", "settings[mjpegServerScreenshotQuality]": 25, "settings[mjpegScalingFactor]": 100, "settings[mjpegServerFramerate]": 30}' \
+      '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'", "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000"}' \
       --nodeconfig /opt/nodeconfig.json >>"/opt/logs/appium-logs.log" 2>&1 &
   else
     appium -p 4723 --udid "$DEVICE_UDID" \
       --log-timestamp \
       --default-capabilities \
-      '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'",  "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000", "settings[mjpegServerScreenshotQuality]": 25, "settings[mjpegScalingFactor]": 100, "settings[mjpegServerFramerate]": 30}' >>"/opt/logs/appium-logs.log" 2>&1 &
+      '{"mjpegServerPort": '${MJPEG_PORT}', "clearSystemFiles": "false", "webDriverAgentUrl":"'http:$deviceIP:${WDA_PORT}'",  "preventWDAAttachments": "true", "simpleIsVisibleCheck": "false", "wdaLocalPort": "'${WDA_PORT}'", "platformVersion": "'${DEVICE_OS_VERSION}'", "automationName":"XCUITest", "platformName": "iOS", "deviceName": "'${DEVICE_NAME}'", "wdaLaunchTimeout": "120000", "wdaConnectionTimeout": "240000"}' >>"/opt/logs/appium-logs.log" 2>&1 &
   fi
 }
 

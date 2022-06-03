@@ -1,6 +1,6 @@
 FROM ubuntu:18.04
 #Setup libimobile device, usbmuxd and some tools 
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y install unzip  wget curl libimobiledevice-utils libimobiledevice6 usbmuxd cmake git build-essential python
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y install unzip  wget curl libimobiledevice-utils libimobiledevice6 usbmuxd cmake git build-essential python jq
 
 RUN apt update && apt install -y ffmpeg
 

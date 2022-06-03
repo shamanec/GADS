@@ -47,10 +47,10 @@
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
-        <a class="active" href="configuration.html">Project configuration</a>
-        <a href="device-containers.html">Device containers</a>
-        <a href="project-logs.html">Project logs</a>
-        <a href="device-control.html">Device Control</a>
+        <a class="active" href="configuration">Project configuration</a>
+        <a href="device-containers">Device containers</a>
+        <a href="logs">Project logs</a>
+        <a href="device-control">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div>
@@ -111,14 +111,14 @@
                 </th>
             </tr>
             <tr>
-                <td>{{.ProjectConfigValues.DevicesHost}}</td>
-                <td>{{.ProjectConfigValues.SeleniumHubHost}}</td>
-                <td>{{.ProjectConfigValues.SeleniumHubPort}}</td>
-                <td>{{.ProjectConfigValues.SeleniumHubProtocolType}}</td>
-                <td>{{.ProjectConfigValues.WdaBundleID}}</td>
+                <td>{{.AppiumConfigValues.DevicesHost}}</td>
+                <td>{{.AppiumConfigValues.SeleniumHubHost}}</td>
+                <td>{{.AppiumConfigValues.SeleniumHubPort}}</td>
+                <td>{{.AppiumConfigValues.SeleniumHubProtocolType}}</td>
+                <td>{{.AppiumConfigValues.WDABundleID}}</td>
                 <td id="wda-status-cell">{{.WebDriverAgentProvided}}</td>
                 <td id="image-status-cell">{{.ImageStatus}}</td>
-                <td id="udev-ios-listener-status-cell">{{.UdevIOSListenerStatus}}</td>
+                <td id="udev-udev-listener-status-cell">{{.UdevIOSListenerStatus}}</td>
                 <td id="sudo-password-cell">{{.SudoPasswordSet}}</td>
             </tr>
         </table>
