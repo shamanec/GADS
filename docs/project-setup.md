@@ -3,9 +3,9 @@ The project itself has minimum dependencies:
 1. Install Docker.  
 2. Install Go 1.17 (that is what I'm using, lower might also work)  
 
-## Update the environment file  
+## Update the environment in config.json  
 1. Set your sudo password - it is used by the commands that apply the systemd usbmuxd.service and the udev rules. It is used only locally so there should be no security risk unless you publicly commit it.   
-2. Set Selenium Grid connection - true or false. True attempts to connect each Appium server to the Selenium Grid instance defined in *./configs/config.json*  
+2. Set Selenium Grid connection - true or false. True attempts to connect each Appium server to the Selenium Grid instance defined in the same file  
 4. Set your supervision identity password(same applies as step 1). The project assumes you are supervising your devices so that everything could happen automatically.  
 
 ## Run the project   
@@ -33,7 +33,9 @@ This will move *./configs/usbmuxd.service* to */lib/systemd/system* and enable t
 usbmuxd is being stopped by its own udev rules when the last iOS device is disconnected. This could potentially lead to problems creating containers when reconnecting devices after disconnecting all of them. To alleviate the issue you can:  
 1. Open /lib/udev/rules.d/39-usbmuxd.rules  
 2. Comment out or remove the last line:  
-*SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="remove", RUN+="/usr/sbin/usbmuxd -x"*  
+*SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="5ac/12[9a][0-9a-f]/*", ACTION=="remove", RUN+="/usr/sbin/usbmuxd -x"*   
+
+**Not really sure if this is actually helpful, need more research to stabilise it properly**  
 
 ### Update the project config  
 1. Open the Project Config page.  
