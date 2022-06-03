@@ -20,7 +20,7 @@
       "device_udid": "00008030000418C136FB8022",
       "wda_mjpeg_port": 20101,
       "wda_port": 20001,
-      "viewport_size": "375x667"
+      "screen_size": "375x667"
     },
     {
       "os": "ios",
@@ -30,7 +30,7 @@
       "device_udid": "00008030000418C136FB802E",
       "wda_mjpeg_port": 20102,
       "wda_port": 20002,
-      "viewport_size": "375x667"
+      "screen_size": "375x667"
     },
     {
       "os": "ios",
@@ -40,7 +40,7 @@
       "device_udid": "00008103000A69E23CBB001E",
       "wda_mjpeg_port": 20103,
       "wda_port": 20003,
-      "viewport_size": "834x1194"
+      "screen_size": "834x1194"
     },
     {
       "os": "ios",
@@ -50,7 +50,7 @@
       "device_udid": "ccec159ba0219c9fa0d0fc3d85451ab0dcfebd16",
       "wda_mjpeg_port": 20104,
       "wda_port": 20004,
-      "viewport_size": "375x667"
+      "screen_size": "375x667"
     },
     {
       "os": "android",
