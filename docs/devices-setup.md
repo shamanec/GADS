@@ -30,7 +30,7 @@
 
 ### Known limitations
 1. It is not possible to execute **driver.executeScript("mobile: startPerfRecord")** with Appium to record application performance since Xcode tools are not available.  
-2. Anything else that might need Instruments and any other Xcode exclusive tools  
+2. Anything else that might need Instruments and any other Xcode/OSX exclusive tools  
 
 ### Prepare WebDriverAgent file
 
