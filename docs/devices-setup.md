@@ -73,3 +73,11 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
   * *device_os_version* - "15.2" for example  
   * *device_name* - avoid using special characters and spaces except '_'. Example: "Huawei_P20_Pro"  
   * *screen_size* - this is needed to easily work with the stream and remote control. Example: "375x667". You can get it on https://whatismyviewport.com (ScreenSize: at the bottom)  
+
+### Access iOS devices from a Mac for remote development  
+1. Execute `sudo socat TCP-LISTEN:10015,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd` on the Linux host with the devices.  
+2. Execute `sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,reuseaddr,mode=777 TCP:192.168.1.8:10015` on a Mac machine on the same network as the Linux devices host.  
+3. Restart Xcode and you should see the devices available.  
+**NB** Don't forget to replace listen port and TCP IP address with yours.  
+
+This can be used for remote development of iOS apps or execution of native XCUITests. It is not thoroughly tested, just tried it out.  
