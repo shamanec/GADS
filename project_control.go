@@ -314,17 +314,17 @@ func SetupUdevListenerInternal() error {
 		return err
 	}
 
-	err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
-	if err != nil {
-		DeleteTempUdevFiles()
-		return err
-	}
+	// err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
+	// if err != nil {
+	// 	DeleteTempUdevFiles()
+	// 	return err
+	// }
 
-	err = EnableUsbmuxdService()
-	if err != nil {
-		DeleteTempUdevFiles()
-		return err
-	}
+	// err = EnableUsbmuxdService()
+	// if err != nil {
+	// 	DeleteTempUdevFiles()
+	// 	return err
+	// }
 
 	DeleteTempUdevFiles()
 	return nil

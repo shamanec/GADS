@@ -81,3 +81,10 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
 **NB** Don't forget to replace listen port and TCP IP address with yours.  
 
 This can be used for remote development of iOS apps or execution of native XCUITests. It is not thoroughly tested, just tried it out.  
+
+### Isolating usbmuxd inside container
+1. usbmuxd needs to be installed in both container and on host
+2. usbmuxd needs to be completed disabled on host with `sudo systemctl mask usbmuxd` to prevent it from locking access to the devices from the container `usbmuxd`
+3. It is preferable to have supervised the devices in advance and provided supervision file and password to make setup even more autonomous
+
+**NB** Please note that this way the devices will not be available to the host, but you shouldn't really need that unless you are setting up new devices and need to find out the UDIDs, in this case just revert the usbmuxd change with `sudo systemctl unmask usbmuxd`, do what you need to do and mask it again, restart all containers or your system and you should be good to go.

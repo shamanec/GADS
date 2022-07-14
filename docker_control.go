@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -223,12 +222,8 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 
 	// Start creating a device container in a goroutine and immediately reply with Accepted
 	go func() {
-		// Wait a few seconds, mostly for iOS devices
-		// We don't really need an immediate attempt
-		time.Sleep(5 * time.Second)
-
 		// Check if container exists and get the container ID and current status
-		container_exists, container_id, status := checkContainerExistsByName(device_udid)
+		container_exists, container_id, _ := checkContainerExistsByName(device_udid)
 
 		// Create a container if no container exists for this device
 		// or restart a non-running container that already exists for this device
@@ -241,10 +236,8 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		} else {
-			if !strings.Contains(status, "Up") {
-				go RestartContainerInternal(container_id)
-				return
-			}
+			go RestartContainerInternal(container_id)
+			return
 		}
 	}()
 
@@ -518,15 +511,6 @@ func CreateIOSContainer(device_udid string) {
 	devices_host := configData.AppiumConfig.DevicesHost
 	hub_protocol := configData.AppiumConfig.SeleniumHubProtocolType
 
-	// TODO - Revise if this is needed
-	// Check if device appears in go-ios list meaning it is successfully connected
-	if !CheckIOSDeviceInDevicesList(device_udid) {
-		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Warn("Device with udid: " + device_udid + " is not available in the attached devices list from go-ios.")
-		return
-	}
-
 	// Create docker client
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -560,8 +544,11 @@ func CreateIOSContainer(device_udid string) {
 			"HUB_PROTOCOL=" + hub_protocol},
 	}
 
+	bindOptions := &mount.BindOptions{Propagation: "shared"}
+
 	// Create the host config
 	host_config := &container.HostConfig{
+		Privileged:    true,
 		RestartPolicy: container.RestartPolicy{Name: "on-failure", MaximumRetryCount: 3},
 		PortBindings: nat.PortMap{
 			nat.Port("4723"): []nat.PortBinding{
@@ -585,14 +572,10 @@ func CreateIOSContainer(device_udid string) {
 		},
 		Mounts: []mount.Mount{
 			{
-				Type:   mount.TypeBind,
-				Source: "/var/run/usbmuxd",
-				Target: "/var/run/usbmuxd",
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: "/var/lib/lockdown",
-				Target: "/var/lib/lockdown",
+				Type:        mount.TypeBind,
+				Source:      "/dev/device_" + device_udid,
+				Target:      "/dev/device_" + device_udid,
+				BindOptions: bindOptions,
 			},
 			{
 				Type:   mount.TypeBind,
