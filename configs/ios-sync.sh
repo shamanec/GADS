@@ -128,6 +128,7 @@ echo "[$(date +'%d/%m/%Y %H:%M:%S')] Waiting 3 seconds after starting usbmuxd be
 sleep 3
 pair-device >> "/opt/logs/wda-sync.log"
 mount-disk-images >> "/opt/logs/wda-sync.log"
+sleep 2
 while true; do
   check-wda-status >> "/opt/logs/wda-sync.log"
   check-appium-status >> "/opt/logs/wda-sync.log"
