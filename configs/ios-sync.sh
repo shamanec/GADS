@@ -114,18 +114,24 @@ pair-device() {
   ./go-ios/ios pair --p12file="/opt/supervision.p12" --password="${SUPERVISION_PASSWORD}" --udid="${DEVICE_UDID}" >> "/opt/logs/wda-sync.log"
 }
 
+# Activate nvm
+# TODO: Revise if needed
 export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
 # Only generate nodeconfig.json if the device will be registered on Selenium Grid
 if [ ${ON_GRID} == "true" ]; then
   ./opt/nodeconfiggen.sh > /opt/nodeconfig.json
 fi
 
-touch /opt/logs/usbmuxd.log
 touch /opt/logs/wda-sync.log
 
-usbmuxd -f >> "/opt/logs/usbmuxd.log" 2>&1 &
-echo "[$(date +'%d/%m/%Y %H:%M:%S')] Waiting 3 seconds after starting usbmuxd before attempting to pair device..." >> "/opt/logs/wda-sync.log"
-sleep 3
+if [ ${CONTAINERIZED_USBMUXD} == "true" ]; then
+  touch /opt/logs/usbmuxd.log
+  usbmuxd -f >> "/opt/logs/usbmuxd.log" 2>&1 &
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] Waiting 5 seconds after starting usbmuxd before attempting to pair device..." >> "/opt/logs/wda-sync.log"
+  sleep 5
+fi
+
 pair-device >> "/opt/logs/wda-sync.log"
 mount-disk-images >> "/opt/logs/wda-sync.log"
 sleep 2

@@ -510,6 +510,7 @@ func CreateIOSContainer(device_udid string) {
 	selenium_hub_host := configData.AppiumConfig.SeleniumHubHost
 	devices_host := configData.AppiumConfig.DevicesHost
 	hub_protocol := configData.AppiumConfig.SeleniumHubProtocolType
+	containerized_usbmuxd := configData.EnvConfig.ContainerizedUsbmuxd
 
 	// Create docker client
 	ctx := context.Background()
@@ -541,7 +542,8 @@ func CreateIOSContainer(device_udid string) {
 			"SELENIUM_HUB_PORT=" + selenium_hub_port,
 			"SELENIUM_HUB_HOST=" + selenium_hub_host,
 			"DEVICES_HOST=" + devices_host,
-			"HUB_PROTOCOL=" + hub_protocol},
+			"HUB_PROTOCOL=" + hub_protocol,
+			"CONTAINERIZED_USBMUXD=" + containerized_usbmuxd},
 	}
 
 	bindOptions := &mount.BindOptions{Propagation: "shared"}

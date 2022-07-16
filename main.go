@@ -35,9 +35,10 @@ type DeviceConfig struct {
 }
 
 type EnvConfig struct {
-	SudoPassword        string `json:"sudo_password"`
-	ConnectSeleniumGrid bool   `json:"connect_selenium_grid"`
-	SupervisionPassword string `json:"supervision_password"`
+	SudoPassword         string `json:"sudo_password"`
+	ConnectSeleniumGrid  bool   `json:"connect_selenium_grid"`
+	SupervisionPassword  string `json:"supervision_password"`
+	ContainerizedUsbmuxd string `json:"containerized_usbmuxd"`
 }
 
 type ConfigJsonData struct {
