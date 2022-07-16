@@ -2,7 +2,7 @@
 
 # Start the WebDriverAgent on specific WDA and MJPEG ports
 start-wda-go-ios() {
-  echo "[$(date +'%d/%m/%Y %H:%M:%S')] Starting WebDriverAgent application on port $WDA_PORT"
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] Starting WDA application on port $WDA_PORT"
   ./go-ios/ios runwda --bundleid=$WDA_BUNDLEID --testrunnerbundleid=$WDA_BUNDLEID --xctestconfig=WebDriverAgentRunner.xctest --env USE_PORT=$WDA_PORT --env MJPEG_SERVER_PORT=$MJPEG_PORT --udid $DEVICE_UDID >"/opt/logs/wda-logs.log" 2>&1 &
   sleep 2
 }
@@ -14,7 +14,7 @@ kill-wda() {
     ./go-ios/ios kill $WDA_BUNDLEID --udid=$DEVICE_UDID
     sleep 2
   else
-    echo "WebDriverAgent is not currently running on the device, nothing to kill."
+    echo "[$(date +'%d/%m/%Y %H:%M:%S')] WDA is not currently running on the device, nothing to kill."
   fi
 }
 
@@ -41,7 +41,7 @@ start-wda() {
     fi
   done
   if [[ -z $deviceIP ]]; then
-    echo "ERROR! Unable to parse WDA host device ip from log file!"
+    echo "[$(date +'%d/%m/%Y %H:%M:%S')] ERROR! Unable to parse WDA host device ip from log file!"
     docker-cli add-wda-url --wda_url="" --wda_stream_url=""
     # Below exit completely destroys container as there is no sense to continue with undefined WDA_HOST ip!
     exit -1
@@ -63,6 +63,7 @@ check-wda-status() {
 }
 
 update-wda-stream-settings() {
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] Updating WDA stream settings"
   # Create a dummy session and get the ID
   sessionID=$(curl --silent --location --request POST "http:$deviceIP:${WDA_PORT}/session" --header 'Content-Type: application/json' --data-raw '{"capabilities": {"waitForQuiescence": false}}' | jq -r '.sessionId')
   # Update the stream settings of the session
@@ -98,26 +99,42 @@ start-appium() {
 # Mount the respective Apple Developer Disk Image for the current device OS version
 # Skip mounting images if they are already mounted
 mount-disk-images() {
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] Mounting Developer disk images to device with udid: ${DEVICE_UDID}"
   if ./go-ios/ios image list --udid=$DEVICE_UDID 2>&1 | grep "none"; then
-    echo "Could not find Developer disk images on the device, mounting.."
+    echo "[$(date +'%d/%m/%Y %H:%M:%S')] Could not find Developer disk images on the device, mounting.."
     ./go-ios/ios image auto --basedir=/opt/DeveloperDiskImages --udid=$DEVICE_UDID
   else
-    echo "Developer disk images are already mounted on the device, nothing to do."
+    echo "[$(date +'%d/%m/%Y %H:%M:%S')] Developer disk images are already mounted on the device, nothing to do."
   fi
 }
 
 # Pair device using the supervision identity
 pair-device() {
-  ./go-ios/ios pair --p12file="/opt/supervision.p12" --password="${SUPERVISION_PASSWORD}" --udid=$DEVICE_UDID
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] Pairing device with udid ${DEVICE_UDID}"
+  ./go-ios/ios pair --p12file="/opt/supervision.p12" --password="${SUPERVISION_PASSWORD}" --udid="${DEVICE_UDID}" >> "/opt/logs/wda-sync.log"
 }
 
+# Activate nvm
+# TODO: Revise if needed
 export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
 # Only generate nodeconfig.json if the device will be registered on Selenium Grid
 if [ ${ON_GRID} == "true" ]; then
   ./opt/nodeconfiggen.sh > /opt/nodeconfig.json
 fi
+
 touch /opt/logs/wda-sync.log
+
+if [ ${CONTAINERIZED_USBMUXD} == "true" ]; then
+  touch /opt/logs/usbmuxd.log
+  usbmuxd -f >> "/opt/logs/usbmuxd.log" 2>&1 &
+  echo "[$(date +'%d/%m/%Y %H:%M:%S')] Waiting 5 seconds after starting usbmuxd before attempting to pair device..." >> "/opt/logs/wda-sync.log"
+  sleep 5
+fi
+
+pair-device >> "/opt/logs/wda-sync.log"
 mount-disk-images >> "/opt/logs/wda-sync.log"
+sleep 2
 while true; do
   check-wda-status >> "/opt/logs/wda-sync.log"
   check-appium-status >> "/opt/logs/wda-sync.log"
