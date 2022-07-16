@@ -87,11 +87,13 @@ Using the usual approach we are mounting `/var/run/usbmuxd` to each container. T
 **NB** It is preferable to have supervised the devices in advance and provided supervision file and password to make setup even more autonomous.  
 **NB** Please note that this way the devices will not be available to the host, but you shouldn't really need that unless you are setting up new devices and need to find out the UDIDs, in this case just revert the usbmuxd change with `sudo systemctl unmask usbmuxd`, do what you need to do and mask it again, restart all containers or your system and you should be good to go.  
 
+With this approach we mount the symlink of each device created by the udev rules to each separate container. This in turn makes only a specific device available to its respective container which gives us more separation and flexibility of sharing devices. One small downside is that if device is disconnected and connected again its respective container will always perform a restart. The reason for this is that upon disconnection the symlink mounted to the container is lost (even if its name is persistent) which forces us to restart the container to remount the newly created symlink when device is reconnected - which is a small price to pay for better stability.  
+
 ### Access iOS devices from a Mac for remote development  
 1. Execute `sudo socat TCP-LISTEN:10015,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd` on the Linux host with the devices.  
 2. Execute `sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,reuseaddr,mode=777 TCP:192.168.1.8:10015` on a Mac machine on the same network as the Linux devices host.  
 3. Restart Xcode and you should see the devices available.  
 **NB** Don't forget to replace listen port and TCP IP address with yours.   
-**NB** This is in the context when using host `usbmuxd` socket. It is not yet tested with containerized usbmuxd although it should not have issues in theory.  
+**NB** This is in the context when using host `usbmuxd` socket. It is not yet tested with containerized usbmuxd although in theory it should not have issues.  
 
 This can be used for remote development of iOS apps or execution of native XCUITests. It is not thoroughly tested, just tried it out. 
