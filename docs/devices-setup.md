@@ -72,15 +72,7 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
   * *device_udid* - UDID of the iOS device, can get it with *go-ios* for example  
   * *device_os_version* - "15.2" for example  
   * *device_name* - avoid using special characters and spaces except '_'. Example: "Huawei_P20_Pro"  
-  * *screen_size* - this is needed to easily work with the stream and remote control. Example: "375x667". You can get it on https://whatismyviewport.com (ScreenSize: at the bottom)  
-
-### Access iOS devices from a Mac for remote development  
-1. Execute `sudo socat TCP-LISTEN:10015,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd` on the Linux host with the devices.  
-2. Execute `sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,reuseaddr,mode=777 TCP:192.168.1.8:10015` on a Mac machine on the same network as the Linux devices host.  
-3. Restart Xcode and you should see the devices available.  
-**NB** Don't forget to replace listen port and TCP IP address with yours.  
-
-This can be used for remote development of iOS apps or execution of native XCUITests. It is not thoroughly tested, just tried it out.  
+  * *screen_size* - this is needed to easily work with the stream and remote control. Example: "375x667". You can get it on https://whatismyviewport.com (ScreenSize: at the bottom)   
 
 ### Containerized usbmuxd connections
 Using the usual approach we are mounting `/var/run/usbmuxd` to each container. This in practice shares the socket for all iOS devices connected to the host with all the containers. This way we cannot share a specific device over the network and also a single `usbmuxd` host failure will reflect on all containers. There is a way that we can have `usbmuxd` running inside each container without running on the host at all.  
@@ -94,3 +86,12 @@ Using the usual approach we are mounting `/var/run/usbmuxd` to each container. T
 
 **NB** It is preferable to have supervised the devices in advance and provided supervision file and password to make setup even more autonomous.  
 **NB** Please note that this way the devices will not be available to the host, but you shouldn't really need that unless you are setting up new devices and need to find out the UDIDs, in this case just revert the usbmuxd change with `sudo systemctl unmask usbmuxd`, do what you need to do and mask it again, restart all containers or your system and you should be good to go.  
+
+### Access iOS devices from a Mac for remote development  
+1. Execute `sudo socat TCP-LISTEN:10015,reuseaddr,fork UNIX-CONNECT:/var/run/usbmuxd` on the Linux host with the devices.  
+2. Execute `sudo socat UNIX-LISTEN:/var/run/usbmuxd,fork,reuseaddr,mode=777 TCP:192.168.1.8:10015` on a Mac machine on the same network as the Linux devices host.  
+3. Restart Xcode and you should see the devices available.  
+**NB** Don't forget to replace listen port and TCP IP address with yours.   
+**NB** This is in the context when using host `usbmuxd` socket. It is not yet tested with containerized usbmuxd although it should not have issues in theory.  
+
+This can be used for remote development of iOS apps or execution of native XCUITests. It is not thoroughly tested, just tried it out. 
