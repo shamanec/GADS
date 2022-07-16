@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -551,6 +550,8 @@ func CreateIOSContainer(device_udid string) {
 	var mounts []mount.Mount
 
 	if containerized_usbmuxd == "false" {
+		// Mount all iOS devices on the host to the container with /var/run/usbmuxd
+		// Mount /var/lib/lockdown so you don't have to trust device on each new container
 		mounts = []mount.Mount{
 			{
 				Type:   mount.TypeBind,
@@ -562,19 +563,9 @@ func CreateIOSContainer(device_udid string) {
 				Source: "/var/run/usbmuxd",
 				Target: "/var/run/usbmuxd",
 			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/logs/container_" + device_name + "-" + device_udid,
-				Target: "/opt/logs",
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/apps",
-				Target: "/opt/ipa",
-			},
 		}
-		fmt.Println("Is false")
 	} else {
+		// Mount the symlink for a specific device created by udev rule - usbmuxd will be started in the container itself
 		mounts = []mount.Mount{
 			{
 				Type:        mount.TypeBind,
@@ -582,19 +573,20 @@ func CreateIOSContainer(device_udid string) {
 				Target:      "/dev/device_" + device_udid,
 				BindOptions: bindOptions,
 			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/logs/container_" + device_name + "-" + device_udid,
-				Target: "/opt/logs",
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/apps",
-				Target: "/opt/ipa",
-			},
 		}
-		fmt.Println("Is not false")
 	}
+
+	mounts = append(mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: project_dir + "/logs/container_" + device_name + "-" + device_udid,
+		Target: "/opt/logs",
+	})
+
+	mounts = append(mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: project_dir + "/apps",
+		Target: "/opt/ipa",
+	})
 
 	// Create the host config
 	host_config := &container.HostConfig{
