@@ -1,3 +1,5 @@
+## TODO: CREATE NEW VERSION OF THIS README
+
 ## config.json
 
 Initially there were two separate *.txt files for devices info and environment variables where the data was provided line by line. Switching to json data made the scripts a bit more complex but it allowed me to combine the devices info and environment variables into a single file and in my opinion it looks cooler and neater this way. The **config.json** consists of a single object that contains the key-value pairs for the environment variables and a single array named 'devicesList' which contains the vars for each device. Everything in the file is pretty much self-explanatory but I'll add provide some info regardless:

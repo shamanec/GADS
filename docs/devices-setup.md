@@ -82,9 +82,15 @@ You need an Apple Developer account to sign and build **WebDriverAgent**
 
 This can be used for remote development of iOS apps or execution of native XCUITests. It is not thoroughly tested, just tried it out.  
 
-### Isolating usbmuxd inside container
-1. usbmuxd needs to be installed in both container and on host
-2. usbmuxd needs to be completed disabled on host with `sudo systemctl mask usbmuxd` to prevent it from locking access to the devices from the container `usbmuxd`
-3. It is preferable to have supervised the devices in advance and provided supervision file and password to make setup even more autonomous
+### Containerized usbmuxd connections
+Using the usual approach we are mounting `/var/run/usbmuxd` to each container. This in practice shares the socket for all iOS devices connected to the host with all the containers. This way we cannot share a specific device over the network and also a single `usbmuxd` host failure will reflect on all containers. There is a way that we can have `usbmuxd` running inside each container without running on the host at all.  
 
-**NB** Please note that this way the devices will not be available to the host, but you shouldn't really need that unless you are setting up new devices and need to find out the UDIDs, in this case just revert the usbmuxd change with `sudo systemctl unmask usbmuxd`, do what you need to do and mask it again, restart all containers or your system and you should be good to go.
+**Note1** `usbmuxd` HAS to be installed on the host even if we don't really use it. I could not make it work without it.  
+**Note2** `usbmuxd` has to be completely disabled on the host so it doesn't automatically start/stop when you connect/disconnect devices.  
+
+1. Open `config.json` and set `containerized_usbmuxd` to `true`.  
+2. Open terminal and execute `sudo systemctl mask usbmuxd`. This will stop the `usbmuxd` service from automatically starting and in turn will not lock devices from `usbmuxd` running inside the containers - this is the fast approach. You could also spend the time to completely remove this service from the system (without uninstalling `usbmuxd`)  
+3. Validate the service is not running with `sudo systemctl status usbmuxd`  
+
+**NB** It is preferable to have supervised the devices in advance and provided supervision file and password to make setup even more autonomous.  
+**NB** Please note that this way the devices will not be available to the host, but you shouldn't really need that unless you are setting up new devices and need to find out the UDIDs, in this case just revert the usbmuxd change with `sudo systemctl unmask usbmuxd`, do what you need to do and mask it again, restart all containers or your system and you should be good to go.  
