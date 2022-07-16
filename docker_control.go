@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -547,6 +548,53 @@ func CreateIOSContainer(device_udid string) {
 	}
 
 	bindOptions := &mount.BindOptions{Propagation: "shared"}
+	var mounts []mount.Mount
+
+	if containerized_usbmuxd == "false" {
+		mounts = []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: "/var/lib/lockdown",
+				Target: "/var/lib/lockdown",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: "/var/run/usbmuxd",
+				Target: "/var/run/usbmuxd",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/logs/container_" + device_name + "-" + device_udid,
+				Target: "/opt/logs",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/apps",
+				Target: "/opt/ipa",
+			},
+		}
+		fmt.Println("Is false")
+	} else {
+		mounts = []mount.Mount{
+			{
+				Type:        mount.TypeBind,
+				Source:      "/dev/device_" + device_udid,
+				Target:      "/dev/device_" + device_udid,
+				BindOptions: bindOptions,
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/logs/container_" + device_name + "-" + device_udid,
+				Target: "/opt/logs",
+			},
+			{
+				Type:   mount.TypeBind,
+				Source: project_dir + "/apps",
+				Target: "/opt/ipa",
+			},
+		}
+		fmt.Println("Is not false")
+	}
 
 	// Create the host config
 	host_config := &container.HostConfig{
@@ -572,24 +620,7 @@ func CreateIOSContainer(device_udid string) {
 				},
 			},
 		},
-		Mounts: []mount.Mount{
-			{
-				Type:        mount.TypeBind,
-				Source:      "/dev/device_" + device_udid,
-				Target:      "/dev/device_" + device_udid,
-				BindOptions: bindOptions,
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/logs/container_" + device_name + "-" + device_udid,
-				Target: "/opt/logs",
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: project_dir + "/apps",
-				Target: "/opt/ipa",
-			},
-		},
+		Mounts: mounts,
 	}
 
 	// Create a folder for logging for the container
