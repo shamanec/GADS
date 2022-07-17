@@ -543,7 +543,8 @@ func CreateIOSContainer(device_udid string) {
 			"SELENIUM_HUB_HOST=" + selenium_hub_host,
 			"DEVICES_HOST=" + devices_host,
 			"HUB_PROTOCOL=" + hub_protocol,
-			"CONTAINERIZED_USBMUXD=" + containerized_usbmuxd},
+			"CONTAINERIZED_USBMUXD=" + containerized_usbmuxd,
+			"DEVICE_OS=ios"},
 	}
 
 	bindOptions := &mount.BindOptions{Propagation: "shared"}
@@ -716,7 +717,8 @@ func CreateAndroidContainer(device_udid string) {
 			"SELENIUM_HUB_PORT=" + selenium_hub_port,
 			"SELENIUM_HUB_HOST=" + selenium_hub_host,
 			"DEVICES_HOST=" + devices_host,
-			"HUB_PROTOCOL=" + hub_protocol},
+			"HUB_PROTOCOL=" + hub_protocol,
+			"DEVICE_OS=android"},
 	}
 
 	// Create the host config
