@@ -33,6 +33,7 @@ type DeviceConfig struct {
 	ScreenSize          string `json:"screen_size,omitempty"`
 	StreamPort          int    `json:"stream_port,omitempty"`
 	ContainerServerPort int    `json:"container_server_port"`
+	DeviceModel         string `json:"device_model"`
 }
 
 type EnvConfig struct {
@@ -103,6 +104,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
+	myRouter.HandleFunc("/devices/available-devices", GetAvailableDevicesInfo).Methods("GET")
 
 	// Logs
 	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
@@ -118,6 +120,8 @@ func handleRequests() {
 	myRouter.HandleFunc("/logs", GetLogsPage)
 	myRouter.HandleFunc("/device-control", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
+	myRouter.HandleFunc("/available-devices", LoadAvailableDevices)
+	myRouter.HandleFunc("/refresh-available-device", RefreshAvailableDevices)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }

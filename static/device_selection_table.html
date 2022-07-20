@@ -1,0 +1,10 @@
+{{define "device_selection_table"}}
+{{range .}}
+<li style="width: 400px;border: 1px solid #eaeaf1;text-align: center;display: block;margin-right: 10px;margin-bottom: 10px;">
+    <div class="device-image">test</div>
+    <div class="device-title">{{.DeviceModel}}</div>
+    <div class="device-version">{{.DeviceOS}}</div>
+    <div class="device-udid">{{.DeviceUDID}}</div>
+</li>
+{{end}}
+{{end}}
