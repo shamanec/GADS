@@ -21,16 +21,17 @@ var sudo_password = GetEnvValue("sudo_password")
 //=====STRUCTS=====//
 
 type IOSDevice struct {
-	AppiumPort       int    `json:"appium_port"`
-	DeviceName       string `json:"device_name"`
-	DeviceOSVersion  string `json:"device_os_version"`
-	DeviceUDID       string `json:"device_udid"`
-	WdaMjpegPort     int    `json:"wda_mjpeg_port"`
-	WdaPort          int    `json:"wda_port"`
-	WdaURL           string `json:"wda_url"`
-	WdaMjpegURL      string `json:"wda_stream_url"`
-	DeviceModel      string `json:"device_model"`
-	DeviceScreenSize string `json:"screen_size"`
+	AppiumPort          int    `json:"appium_port"`
+	DeviceName          string `json:"device_name"`
+	DeviceOSVersion     string `json:"device_os_version"`
+	DeviceUDID          string `json:"device_udid"`
+	WdaMjpegPort        int    `json:"wda_mjpeg_port"`
+	WdaPort             int    `json:"wda_port"`
+	WdaURL              string `json:"wda_url"`
+	WdaMjpegURL         string `json:"wda_stream_url"`
+	DeviceModel         string `json:"device_model"`
+	DeviceScreenSize    string `json:"screen_size"`
+	ContainerServerPort int    `json:"container_server_port"`
 }
 
 type AndroidDevice struct {

@@ -25,4 +25,5 @@ COPY configs/nodeconfiggen.sh /opt/nodeconfiggen.sh
 COPY configs/ios-sync.sh /
 COPY apps/WebDriverAgent.ipa /opt
 COPY configs/supervision.p12 /opt
+COPY configs/container-server /opt
 ENTRYPOINT ["/bin/bash","-c","/ios-sync.sh"]

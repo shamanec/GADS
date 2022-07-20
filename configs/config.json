@@ -9,7 +9,7 @@
   "env-config": {
     "sudo_password": "undefined",
     "connect_selenium_grid": false,
-    "supervision_password": "undefined",
+    "supervision_password": "patladjan1",
     "containerized_usbmuxd": "true"
   },
   "devices-config": [
@@ -21,7 +21,8 @@
       "device_udid": "00008030000418C136FB8022",
       "wda_mjpeg_port": 20101,
       "wda_port": 20001,
-      "screen_size": "375x667"
+      "screen_size": "375x667",
+      "container_server_port": 20201
     },
     {
       "os": "ios",
@@ -31,7 +32,8 @@
       "device_udid": "00008030000418C136FB802E",
       "wda_mjpeg_port": 20102,
       "wda_port": 20002,
-      "screen_size": "375x667"
+      "screen_size": "375x667",
+      "container_server_port": 20202
     },
     {
       "os": "ios",
@@ -41,7 +43,8 @@
       "device_udid": "00008103000A69E23CBB001E",
       "wda_mjpeg_port": 20103,
       "wda_port": 20003,
-      "screen_size": "834x1194"
+      "screen_size": "834x1194",
+      "container_server_port": 20203
     },
     {
       "os": "ios",
@@ -51,7 +54,8 @@
       "device_udid": "ccec159ba0219c9fa0d0fc3d85451ab0dcfebd16",
       "wda_mjpeg_port": 20104,
       "wda_port": 20004,
-      "screen_size": "375x667"
+      "screen_size": "375x667",
+      "container_server_port": 20204
     },
     {
       "os": "android",
@@ -59,7 +63,8 @@
       "device_udid": "WCR7N18B14002300",
       "device_name": "Huawei_P20_Pro",
       "stream_port": 20201,
-      "device_os_version": "10"
+      "device_os_version": "10",
+      "container_server_port": 20205
     },
     {
       "os": "android",
@@ -67,7 +72,8 @@
       "device_udid": "MUN0218928000401",
       "device_name": "Huawei_Bejbe",
       "stream_port": 20202,
-      "device_os_version": "10"
+      "device_os_version": "10",
+      "container_server_port": 20206
     },
     {
       "os": "android",
@@ -75,7 +81,8 @@
       "device_udid": "RQ30041UV0",
       "device_name": "Sony_Xperia",
       "stream_port": 20203,
-      "device_os_version": "7"
+      "device_os_version": "7",
+      "container_server_port": 20207
     }
   ]
 }

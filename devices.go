@@ -370,16 +370,17 @@ func iOSDeviceConfig(device_udid string) (*IOSDevice, error) {
 	}
 
 	return &IOSDevice{
-			AppiumPort:       deviceConfig.AppiumPort,
-			DeviceName:       deviceConfig.DeviceName,
-			DeviceOSVersion:  deviceConfig.DeviceOSVersion,
-			WdaMjpegPort:     deviceConfig.WDAMjpegPort,
-			WdaPort:          deviceConfig.WDAPort,
-			DeviceUDID:       device_udid,
-			WdaMjpegURL:      wda_stream_url,
-			WdaURL:           wda_url,
-			DeviceModel:      "Remove please",
-			DeviceScreenSize: deviceConfig.ScreenSize},
+			AppiumPort:          deviceConfig.AppiumPort,
+			DeviceName:          deviceConfig.DeviceName,
+			DeviceOSVersion:     deviceConfig.DeviceOSVersion,
+			WdaMjpegPort:        deviceConfig.WDAMjpegPort,
+			WdaPort:             deviceConfig.WDAPort,
+			DeviceUDID:          device_udid,
+			WdaMjpegURL:         wda_stream_url,
+			WdaURL:              wda_url,
+			DeviceModel:         "Remove please",
+			DeviceScreenSize:    deviceConfig.ScreenSize,
+			ContainerServerPort: deviceConfig.ContainerServerPort},
 		nil
 }
 

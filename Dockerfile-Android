@@ -47,4 +47,5 @@ RUN export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \
 
 COPY configs/android-sync.sh /
 COPY configs/nodeconfiggen-android.sh /opt/nodeconfiggen.sh
+COPY configs/container-server /opt
 ENTRYPOINT ["/bin/bash","-c","/android-sync.sh"]

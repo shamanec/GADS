@@ -135,6 +135,7 @@ fi
 pair-device >> "/opt/logs/wda-sync.log"
 mount-disk-images >> "/opt/logs/wda-sync.log"
 sleep 2
+/opt/container-server 2>&1 &
 while true; do
   check-wda-status >> "/opt/logs/wda-sync.log"
   check-appium-status >> "/opt/logs/wda-sync.log"
