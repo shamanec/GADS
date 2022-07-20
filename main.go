@@ -23,15 +23,16 @@ type AppiumConfig struct {
 }
 
 type DeviceConfig struct {
-	OS              string `json:"os"`
-	AppiumPort      int    `json:"appium_port"`
-	DeviceName      string `json:"device_name"`
-	DeviceOSVersion string `json:"device_os_version"`
-	DeviceUDID      string `json:"device_udid"`
-	WDAMjpegPort    int    `json:"wda_mjpeg_port,omitempty"`
-	WDAPort         int    `json:"wda_port,omitempty"`
-	ScreenSize      string `json:"screen_size,omitempty"`
-	StreamPort      int    `json:"stream_port,omitempty"`
+	OS                  string `json:"os"`
+	AppiumPort          int    `json:"appium_port"`
+	DeviceName          string `json:"device_name"`
+	DeviceOSVersion     string `json:"device_os_version"`
+	DeviceUDID          string `json:"device_udid"`
+	WDAMjpegPort        int    `json:"wda_mjpeg_port,omitempty"`
+	WDAPort             int    `json:"wda_port,omitempty"`
+	ScreenSize          string `json:"screen_size,omitempty"`
+	StreamPort          int    `json:"stream_port,omitempty"`
+	ContainerServerPort int    `json:"container_server_port"`
 }
 
 type EnvConfig struct {

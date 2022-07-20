@@ -372,11 +372,11 @@ func buildDockerImage(image_type string) {
 	// Set up the needed files and image name based on the image type requested
 	if image_type == "ios-appium" {
 		docker_file_name = "Dockerfile-iOS"
-		files = []string{docker_file_name, "configs/nodeconfiggen.sh", "configs/ios-sync.sh", "apps/WebDriverAgent.ipa", "configs/supervision.p12"}
+		files = []string{docker_file_name, "configs/nodeconfiggen.sh", "configs/ios-sync.sh", "apps/WebDriverAgent.ipa", "configs/supervision.p12", "configs/container-server"}
 		image_name = "ios-appium"
 	} else if image_type == "android-appium" {
 		docker_file_name = "Dockerfile-Android"
-		files = []string{docker_file_name, "configs/nodeconfiggen-android.sh", "configs/android-sync.sh"}
+		files = []string{docker_file_name, "configs/nodeconfiggen-android.sh", "configs/android-sync.sh", "configs/container-server"}
 		image_name = "android-appium"
 	} else {
 		return
@@ -511,6 +511,8 @@ func CreateIOSContainer(device_udid string) {
 	devices_host := configData.AppiumConfig.DevicesHost
 	hub_protocol := configData.AppiumConfig.SeleniumHubProtocolType
 	containerized_usbmuxd := configData.EnvConfig.ContainerizedUsbmuxd
+	screen_size := deviceConfig.ScreenSize
+	container_server_port := strconv.Itoa(deviceConfig.ContainerServerPort)
 
 	// Create docker client
 	ctx := context.Background()
@@ -526,9 +528,10 @@ func CreateIOSContainer(device_udid string) {
 	config := &container.Config{
 		Image: "ios-appium",
 		ExposedPorts: nat.PortSet{
-			nat.Port("4723"):         struct{}{},
-			nat.Port(wda_port):       struct{}{},
-			nat.Port(wda_mjpeg_port): struct{}{},
+			nat.Port("4723"):                struct{}{},
+			nat.Port(wda_port):              struct{}{},
+			nat.Port(wda_mjpeg_port):        struct{}{},
+			nat.Port(container_server_port): struct{}{},
 		},
 		Env: []string{"ON_GRID=" + on_grid,
 			"APPIUM_PORT=" + appium_port,
@@ -544,6 +547,8 @@ func CreateIOSContainer(device_udid string) {
 			"DEVICES_HOST=" + devices_host,
 			"HUB_PROTOCOL=" + hub_protocol,
 			"CONTAINERIZED_USBMUXD=" + containerized_usbmuxd,
+			"SCREEN_SIZE=" + screen_size,
+			"CONTAINER_SERVER_PORT=" + container_server_port,
 			"DEVICE_OS=ios"},
 	}
 
@@ -610,6 +615,12 @@ func CreateIOSContainer(device_udid string) {
 				{
 					HostIP:   "0.0.0.0",
 					HostPort: wda_mjpeg_port,
+				},
+			},
+			nat.Port(container_server_port): []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: container_server_port,
 				},
 			},
 		},
@@ -691,6 +702,7 @@ func CreateAndroidContainer(device_udid string) {
 	selenium_hub_host := configData.AppiumConfig.SeleniumHubHost
 	devices_host := configData.AppiumConfig.DevicesHost
 	hub_protocol := configData.AppiumConfig.SeleniumHubProtocolType
+	container_server_port := strconv.Itoa(deviceConfig.ContainerServerPort)
 
 	// Create the docker client
 	ctx := context.Background()
@@ -706,8 +718,9 @@ func CreateAndroidContainer(device_udid string) {
 	config := &container.Config{
 		Image: "android-appium",
 		ExposedPorts: nat.PortSet{
-			nat.Port("4723"): struct{}{},
-			nat.Port("4724"): struct{}{},
+			nat.Port("4723"):                struct{}{},
+			nat.Port("4724"):                struct{}{},
+			nat.Port(container_server_port): struct{}{},
 		},
 		Env: []string{"ON_GRID=" + on_grid,
 			"APPIUM_PORT=" + appium_port,
@@ -718,6 +731,7 @@ func CreateAndroidContainer(device_udid string) {
 			"SELENIUM_HUB_HOST=" + selenium_hub_host,
 			"DEVICES_HOST=" + devices_host,
 			"HUB_PROTOCOL=" + hub_protocol,
+			"CONTAINER_SERVER_PORT" + container_server_port,
 			"DEVICE_OS=android"},
 	}
 
@@ -735,6 +749,12 @@ func CreateAndroidContainer(device_udid string) {
 				{
 					HostIP:   "0.0.0.0",
 					HostPort: appium_port,
+				},
+			},
+			nat.Port(container_server_port): []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: container_server_port,
 				},
 			},
 		},
