@@ -1,10 +1,16 @@
 {{define "device_selection_table"}}
 {{range .}}
-<li style="width: 400px;border: 1px solid #eaeaf1;text-align: center;display: block;margin-right: 10px;margin-bottom: 10px;">
-    <div class="device-image">test</div>
-    <div class="device-title">{{.DeviceModel}}</div>
-    <div class="device-version">{{.DeviceOS}}</div>
-    <div class="device-udid">{{.DeviceUDID}}</div>
+<li
+    style="width: 200px;border: 1px solid #eaeaf1;display: inline-block;margin-right: 10px;margin-bottom: 10px;text-align: center;">
+    <div class="device-image" style="margin-top: 30px;margin-bottom: 10px;">
+        {{ if contains .DeviceOS "ios" }}
+        <img src="/static/images/apple-logo.png" style="width: 35%;max-height: 250px;">
+        {{else}}
+        <img src="/static/images/android-logo.png" style="width: 35%;max-height: 250px;">
+        {{end}}
+    </div>
+    <div class="device-title" style="margin-bottom: 10px;">{{.DeviceModel}}</div>
+    <div class="device-version" style="margin-bottom: 10px;">Version: {{.DeviceOSVersion}}</div>
 </li>
 {{end}}
 {{end}}
