@@ -20,6 +20,7 @@ type DeviceInfo struct {
 	DeviceOS                  string `json:"device_os"`
 	DeviceContainerServerPort int    `json:"container_server_port"`
 	DeviceUDID                string `json:"device_udid"`
+	DeviceImage               string `json:"device_image"`
 }
 
 // Available devices html page
@@ -64,6 +65,7 @@ func RefreshAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	// Reply with the new table
 	if err := tmpl.ExecuteTemplate(w, "device_selection_table", rows); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -122,5 +124,6 @@ func getDeviceInfo(device_udid string) *DeviceInfo {
 		DeviceOS:                  deviceConfig.OS,
 		DeviceContainerServerPort: deviceConfig.ContainerServerPort,
 		DeviceUDID:                deviceConfig.DeviceUDID,
+		DeviceImage:               deviceConfig.DeviceImage,
 	}
 }

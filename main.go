@@ -34,6 +34,7 @@ type DeviceConfig struct {
 	StreamPort          int    `json:"stream_port,omitempty"`
 	ContainerServerPort int    `json:"container_server_port"`
 	DeviceModel         string `json:"device_model"`
+	DeviceImage         string `json:"device_image"`
 }
 
 type EnvConfig struct {

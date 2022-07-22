@@ -35,7 +35,8 @@
       "wda_port": 20002,
       "screen_size": "375x667",
       "container_server_port": 20202,
-      "device_model": "iPhone SE"
+      "device_model": "iPhone SE",
+      "device_image": "iphone-se-2020.png"
     },
     {
       "os": "ios",
@@ -46,8 +47,7 @@
       "wda_mjpeg_port": 20103,
       "wda_port": 20003,
       "screen_size": "834x1194",
-      "container_server_port": 20203
-      ,
+      "container_server_port": 20203,
       "device_model": "iPad Pro 11"
     },
     {
@@ -60,7 +60,8 @@
       "wda_port": 20004,
       "screen_size": "375x667",
       "container_server_port": 20204,
-      "device_model": "iPhone 7"
+      "device_model": "iPhone 7",
+      "device_image": "iphone-7.png"
     },
     {
       "os": "android",
@@ -70,7 +71,8 @@
       "stream_port": 20201,
       "device_os_version": "10",
       "container_server_port": 20205,
-      "device_model": "Huawei P20 Pro"
+      "device_model": "Huawei P20 Pro",
+      "device_image": "huawei-p20-pro.png"
     },
     {
       "os": "android",

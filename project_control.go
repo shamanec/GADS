@@ -32,6 +32,7 @@ type IOSDevice struct {
 	DeviceModel         string `json:"device_model"`
 	DeviceScreenSize    string `json:"screen_size"`
 	ContainerServerPort int    `json:"container_server_port"`
+	DeviceImage         string `json:"device_image"`
 }
 
 type AndroidDevice struct {
@@ -41,6 +42,7 @@ type AndroidDevice struct {
 	DeviceUDID      string `json:"device_udid"`
 	StreamSize      string `json:"stream_size"`
 	StreamPort      string `json:"stream_port"`
+	DeviceImage     string `json:"device_image"`
 }
 
 type WdaConfig struct {
