@@ -28,15 +28,14 @@ type ContainerDeviceConfig struct {
 	DeviceModel               string `json:"device_model"`
 	DeviceOSVersion           string `json:"device_os_version"`
 	DeviceOS                  string `json:"device_os"`
-	DeviceContainerServerPort int    `json:"container_server_port"`
+	DeviceContainerServerPort string `json:"container_server_port"`
 	DeviceUDID                string `json:"device_udid"`
-	DeviceImage               string `json:"device_image"`
 	DeviceHost                string `json:"device_host"`
-	DeviceAppiumPort          int    `json:"appium_port"`
-	IOSWDAPort                int    `json:"ios_wda_port"`
-	IOSMjpegPort              int    `json:"ios_mjpeg_port"`
+	DeviceAppiumPort          string `json:"appium_port"`
+	IOSWDAPort                string `json:"wda_port"`
+	IOSMjpegPort              string `json:"wda_mjpeg_port"`
 	IOSScreenSize             string `json:"screen_size"`
-	AndroidStreamPort         int    `json:"android_stream_port"`
+	AndroidStreamPort         string `json:"android_stream_port"`
 }
 
 type ContainerDeviceInfo struct {
