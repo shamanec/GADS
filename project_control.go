@@ -203,46 +203,6 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	SimpleJSONResponse(w, "Successfully updated project config in ./configs/config.json", 200)
 }
 
-// @Summary      Sets up udev devices listener
-// @Description  Creates udev rules, moves them to /etc/udev/rules.d and reloads udev. Copies usbmuxd.service to /lib/systemd/system and enables it
-// @Tags         configuration
-// @Produce      json
-// @Success      200 {object} JsonResponse
-// @Failure      500 {object} JsonErrorResponse
-// @Router       /configuration/setup-udev-listener [post]
-func SetupUdevListener(w http.ResponseWriter, r *http.Request) {
-	// Open /lib/systemd/system/systemd-udevd.service
-	// Add IPAddressAllow=127.0.0.1 at the bottom
-	// This is to allow curl calls from the udev rules to the GADS server
-	if sudo_password == "undefined" {
-		log.WithFields(log.Fields{
-			"event": "setup_udev_listener",
-		}).Error("Elevated permissions are required to perform this action. Please set your sudo password in './configs/config.json' or via the '/configuration/set-sudo-password' endpoint.")
-		JSONError(w, "setup_udev_listener", "Elevated permissions are required to perform this action.", 500)
-		return
-	}
-	err := SetupUdevListenerInternal()
-	if err != nil {
-		JSONError(w, "setup_udev_listener", "Could not setup udev rules", 500)
-	}
-
-	SimpleJSONResponse(w, "Successfully set udev rules.", 200)
-}
-
-// @Summary      Removes udev device listener
-// @Description  Deletes udev rules from /etc/udev/rules.d and reloads udev
-// @Tags         configuration
-// @Produce      json
-// @Success      200 {object} JsonResponse
-// @Failure      500 {object} JsonErrorResponse
-// @Router       /configuration/remove-device-listener [post]
-func RemoveUdevListener(w http.ResponseWriter, r *http.Request) {
-	err := RemoveUdevListenerInternal()
-	if err != nil {
-		JSONError(w, "remove_udev_listener", err.Error(), 500)
-	}
-}
-
 // @Summary      Set sudo password
 // @Description  Sets your sudo password in ./configs/config.json. The password is needed for operations requiring elevated permissions like setting up udev.
 // @Tags         configuration
@@ -300,63 +260,6 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 
 //=======================//
 //=====FUNCTIONS=====//
-
-// Completely setup udev and usbmuxd
-func SetupUdevListenerInternal() error {
-	DeleteTempUdevFiles()
-
-	err := CreateUdevRules()
-	if err != nil {
-		DeleteTempUdevFiles()
-		return err
-	}
-
-	err = SetUdevRules()
-	if err != nil {
-		DeleteTempUdevFiles()
-		return err
-	}
-
-	// err = CopyFileShell("./configs/usbmuxd.service", "/lib/systemd/system/", sudo_password)
-	// if err != nil {
-	// 	DeleteTempUdevFiles()
-	// 	return err
-	// }
-
-	// err = EnableUsbmuxdService()
-	// if err != nil {
-	// 	DeleteTempUdevFiles()
-	// 	return err
-	// }
-
-	DeleteTempUdevFiles()
-	return nil
-}
-
-// Remove udev rules for the devices
-func RemoveUdevListenerInternal() error {
-	// Delete the rules file
-	err := DeleteFileShell("/etc/udev/rules.d/90-device.rules", sudo_password)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "remove_udev_listener",
-		}).Error("Could not delete udev rules file. Error: " + err.Error())
-		return err
-	}
-
-	// Reload udev after removing the rules
-	commandString := "echo '" + sudo_password + "' | sudo -S udevadm control --reload-rules"
-	cmd := exec.Command("bash", "-c", commandString)
-	err = cmd.Run()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "remove_udev_listener",
-		}).Error("Could not reload udev rules file. Error: " + err.Error())
-		return err
-	}
-
-	return nil
-}
 
 // Check if the sudo password in ./configs/config.json is different than "undefined" meaning something is set
 func CheckSudoPasswordSet() bool {

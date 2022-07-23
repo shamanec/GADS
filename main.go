@@ -89,14 +89,10 @@ func handleRequests() {
 	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
 	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
-	myRouter.HandleFunc("/device-containers/remove", RemoveDeviceContainer).Methods("POST")
-	myRouter.HandleFunc("/device-containers/create", CreateDeviceContainer).Methods("POST")
 
 	// Configuration endpoints
 	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/remove-image/{image_type}", RemoveDockerImage).Methods("POST")
-	myRouter.HandleFunc("/configuration/setup-udev-listener", SetupUdevListener).Methods("POST")
-	myRouter.HandleFunc("/configuration/remove-udev-listener", RemoveUdevListener).Methods("POST")
 	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler).Methods("PUT")
 	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword).Methods("PUT")
 	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA).Methods("POST")
