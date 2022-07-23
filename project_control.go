@@ -150,7 +150,7 @@ func GetLogs(w http.ResponseWriter, r *http.Request) {
 func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	var requestData AppiumConfig
 	// Get the request data
-	err := UnmarshalRequestBody(r.Body, &requestData)
+	err := UnmarshalReader(r.Body, &requestData)
 
 	// Get the config data from configs/config.json
 	configData, err := GetConfigJsonData()
@@ -256,7 +256,7 @@ func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
 	var requestData SudoPasswordRequest
 
 	// Get the request data
-	err := UnmarshalRequestBody(r.Body, &requestData)
+	err := UnmarshalReader(r.Body, &requestData)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "device_container_create",

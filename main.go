@@ -28,20 +28,22 @@ type DeviceConfig struct {
 	DeviceName          string `json:"device_name"`
 	DeviceOSVersion     string `json:"device_os_version"`
 	DeviceUDID          string `json:"device_udid"`
-	WDAMjpegPort        int    `json:"wda_mjpeg_port,omitempty"`
-	WDAPort             int    `json:"wda_port,omitempty"`
-	ScreenSize          string `json:"screen_size,omitempty"`
-	StreamPort          int    `json:"stream_port,omitempty"`
+	WDAMjpegPort        int    `json:"wda_mjpeg_port"`
+	WDAPort             int    `json:"wda_port"`
+	ScreenSize          string `json:"screen_size"`
+	StreamPort          int    `json:"stream_port"`
 	ContainerServerPort int    `json:"container_server_port"`
 	DeviceModel         string `json:"device_model"`
 	DeviceImage         string `json:"device_image"`
+	DeviceHost          string `json:"device_host"`
 }
 
 type EnvConfig struct {
-	SudoPassword         string `json:"sudo_password"`
-	ConnectSeleniumGrid  bool   `json:"connect_selenium_grid"`
-	SupervisionPassword  string `json:"supervision_password"`
-	ContainerizedUsbmuxd string `json:"containerized_usbmuxd"`
+	SudoPassword         string   `json:"sudo_password"`
+	ConnectSeleniumGrid  bool     `json:"connect_selenium_grid"`
+	SupervisionPassword  string   `json:"supervision_password"`
+	ContainerizedUsbmuxd string   `json:"containerized_usbmuxd"`
+	DeviceProviders      []string `json:"device_providers"`
 }
 
 type ConfigJsonData struct {
@@ -123,6 +125,7 @@ func handleRequests() {
 	myRouter.HandleFunc("/", GetInitialPage)
 	myRouter.HandleFunc("/available-devices", LoadAvailableDevices)
 	myRouter.HandleFunc("/refresh-available-devices", RefreshAvailableDevices)
+	myRouter.HandleFunc("/devices/control/{device_udid}", GetDevicePage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }

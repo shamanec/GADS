@@ -21,15 +21,48 @@
         <a href="device-control">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
-    <div id="device-selection-div">
-        <ul class="device-results" id="device-results" style="display: flex;flex-direction: row;flex-wrap: wrap;">
-        {{template "device_selection_table" .}}
-        </ul>
+    <div id="top-container">
+        <div id="device-selection-div">
+            <ul class="device-results" id="device-results" style="display: flex;flex-direction: row;flex-wrap: wrap;">
+                {{template "device_selection_table" .}}
+            </ul>
+        </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
+        // Add listeners to each container info button
+        // We have it as a function so we can re-add the listeners each time the table updates
+        function addListeners() {
+            document.querySelectorAll("#use-device-button").forEach((e) => {
+                e.addEventListener("click", (button) => {
+                    var container_server_port = button.target.value
+                    getDeviceInfo(container_server_port)
+                })
+            })
+        }
+
+        // Get the logs for a device contaienr
+        function getDeviceInfo(container_server_port) {
+            // Build the url for the respective container logs
+            var url = ":" + container_server_port + "/device-info"
+
+            /* Call the endpoint that will get the container logs */
+            $.ajax({
+                dataType: 'JSON',
+                contentType: 'application/json',
+                async: false,
+                type: "GET",
+                url: "http://192.168.1.8" + url,
+                success: function (data) {
+                },
+                error: function (data) {
+                }
+            });
+        }
+
         // On page load add the listeners and start the refresh containers job
         window.addEventListener("DOMContentLoaded", function () {
+            addListeners()
             refreshDevices()
         });
 
@@ -49,6 +82,8 @@
                 error: function (data) {
                 }
             });
+
+            addListeners()
 
             // Schedule the next refresh
             setTimeout(refreshDevices, 10000);

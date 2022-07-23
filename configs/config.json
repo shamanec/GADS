@@ -10,7 +10,10 @@
     "sudo_password": "undefined",
     "connect_selenium_grid": false,
     "supervision_password": "patladjan1",
-    "containerized_usbmuxd": "true"
+    "containerized_usbmuxd": "true",
+    "device_providers": [
+      "192.168.1.8:10001"
+    ]
   },
   "devices-config": [
     {

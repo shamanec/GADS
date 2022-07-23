@@ -209,7 +209,7 @@ func CreateDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	var data CreateDeviceContainerRequest
 
 	// Read the request data
-	err := UnmarshalRequestBody(r.Body, &data)
+	err := UnmarshalReader(r.Body, &data)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "device_container_create",
@@ -254,7 +254,7 @@ func RemoveDeviceContainer(w http.ResponseWriter, r *http.Request) {
 	var data RemoveDeviceContainerData
 
 	// Read the request data
-	err := UnmarshalRequestBody(r.Body, &data)
+	err := UnmarshalReader(r.Body, &data)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "device_container_remove",

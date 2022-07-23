@@ -132,7 +132,7 @@ func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	var data installIOSAppRequest
 
-	err := UnmarshalRequestBody(r.Body, &data)
+	err := UnmarshalReader(r.Body, &data)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "device_container_create",
@@ -160,7 +160,7 @@ func InstallIOSApp(w http.ResponseWriter, r *http.Request) {
 func UninstallIOSApp(w http.ResponseWriter, r *http.Request) {
 	var data uninstallIOSAppRequest
 
-	err := UnmarshalRequestBody(r.Body, &data)
+	err := UnmarshalReader(r.Body, &data)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "device_container_create",
