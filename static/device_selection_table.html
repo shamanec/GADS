@@ -19,6 +19,7 @@
     </div>
     <div class="device-title" style="margin-bottom: 10px;">{{.DeviceModel}}</div>
     <div class="device-version" style="margin-bottom: 10px;">Version: {{.DeviceOSVersion}}</div>
+    <div id="device-container-server">http://{{.DeviceHost}}:{{.DeviceContainerServerPort}}</div>
     <button id="use-device-button" value="{{.DeviceHost}}:{{.DeviceContainerServerPort}}">Use device</button>
 </li>
 {{end}}
