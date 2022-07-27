@@ -119,9 +119,9 @@ func handleRequests() {
 	myRouter.HandleFunc("/logs", GetLogsPage)
 	myRouter.HandleFunc("/device-control", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
-	myRouter.HandleFunc("/available-devices", LoadAvailableDevices)
+	myRouter.HandleFunc("/devices", LoadAvailableDevices)
 	myRouter.HandleFunc("/refresh-available-devices", RefreshAvailableDevices)
-	myRouter.HandleFunc("/devices/control/{device_udid}", GetDevicePage)
+	myRouter.HandleFunc("/devices/control/{device_host}/{device_udid}", GetDevicePage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }

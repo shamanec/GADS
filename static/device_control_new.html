@@ -1,11 +1,210 @@
-{{define "device_control_view"}}
-<div id="container-div">
-    <div id="stream-div" style="position: relative;">
-        <div id="small-loader" style="visibility: hidden;position: absolute;">
-            <img id="small-loader-image" src="/static/images/small-loader.gif">
-        </div>
-        <canvas id="actions-canvas" style="position: absolute;"></canvas>
-        <img id="image-stream"></img>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Device Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/skin-lion/ui.fancytree.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="configuration">Project configuration</a>
+        <a href="device-containers">Device containers</a>
+        <a href="logs">Project logs</a>
+        <a class="active" href="/devices/control/{{.ContainerDeviceConfig.DeviceUDID}}">Device Control</a>
+        <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
-</div>
-{{end}}
+    <button style="margin-bottom: 10px;" onclick="location.href = '/devices';">Back to devices</button>
+    <div id="container-div" style="display: flex;justify-content: center;">
+        <div id="device-tools" style="border: 1px solid #000000;margin-right: 10px;">
+            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
+                <img src="/static/images/control/home-button.png">
+                <div style="align-items: center;display:flex;">
+                    <label>Homescreen</label>
+                </div>
+            </div>
+            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
+                <img src="/static/images/control/home-button.png">
+                <div style="align-items: center;display:flex;">
+                    <label>Lock device</label>
+                </div>
+            </div>
+            <div id="unlock-device" style="display: flex;height: 50px;text-align: center;">
+                <img src="/static/images/control/home-button.png">
+                <div style="align-items: center;display:flex;">
+                    <label>Unlock device</label>
+                </div>
+            </div>
+            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
+                <img src="/static/images/control/home-button.png">
+                <div style="align-items: center;display:flex;">
+                    <label>Type text</label>
+                </div>
+            </div>
+            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
+                <img src="/static/images/control/home-button.png">
+                <div style="align-items: center;display:flex;">
+                    <label>Delete text</label>
+                </div>
+            </div>
+        </div>
+        <div id="stream-div" style="position: relative;">
+            <canvas id="actions-canvas"
+                style="position: absolute;width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></canvas>
+            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaMjpegPort}}"
+                id="image-stream" style="width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></img>
+        </div>
+        <div>
+        </div>
+</body>
+<script>
+    let device_host = "{{.ContainerDeviceConfig.DeviceHost}}"
+    let wda_port = "{{.ContainerDeviceConfig.WdaPort}}"
+    let wda_url = "http://" + device_host + ":" + wda_port
+    let device_os = "{{.ContainerDeviceConfig.DeviceOS}}"
+    var wda_session_id
+
+    // On page load add the listeners and start the refresh containers job
+    window.addEventListener("DOMContentLoaded", function () {
+        if (device_os == "ios") {
+           checkWDASession()
+        }
+    });
+
+    document.getElementById("home-screen").addEventListener('click', () => {
+        var url;
+        var json = "{}"
+
+        // if the device is android use press_keycode endpoint and send keycode 3 which is for the Home button
+        // if device is iOS send empty json
+        if (device_os.includes("android")) {
+            url = "http://{{.ContainerDeviceConfig.DeviceHost}}:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/press_keycode"
+            json = JSON.stringify({ "keycode": 3 })
+        } else if (device_os.includes("ios")) {
+            url = wda_url + "/wda/homescreen"
+        } else {
+            return
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: json,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access iOS device homescreen endpoint. Error: " + error)
+            })
+    })
+
+    document.getElementById("unlock-device").addEventListener('click', () => {
+
+        if (device_os == "android") {
+            url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/unlock"
+        } else if (device_os == "ios") {
+            url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
+        } else {
+            return
+        }
+
+        fetch(url, {
+            method: 'POST'
+        })
+    })
+
+    // check if a wda session exists and connect to it or create a new one
+    function checkWDASession() {
+
+        // if there is no session id from the /status endpoint create a new session
+        // else just update the session id in the table with the existing session
+        // $.ajax({
+        //     type: "GET",
+        //     url: wda_url + "/status",
+        //     success: function (data) {
+        //         if (data.sessionId === null) {
+        //             createWDASession()
+        //         } else {
+        //             wda_session_id = data.sessionId
+        //         }
+        //     },
+        //     error: function (data) {
+        //         wda_session_id = null
+        //         console.log("could not get session")
+        //     }
+        // });
+        fetch(wda_url + "/status", {
+            method: 'GET',
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+        .then((response) => {
+            return response.json()
+        })
+            .then((json) => {
+                console.log(json)
+                if (json.sessionId === null) {
+                    createWDASession()
+                } else {
+                    wda_session_id = json.sessionId
+                    console.log(wda_session_id)
+                }
+
+            })
+            .catch(function (error) {
+                wda_session_id = null
+                console.log("could not get session")
+            })
+    }
+
+    // create a wda session to the iOS device if no session exists
+    function createWDASession() {
+        let json = ""
+
+        // build the json to create a session
+        json = JSON.stringify({
+            "capabilities": {
+                "firstMatch": [
+                    {
+                        "arguments": [],
+                        "environment": {},
+                        "eventloopIdleDelaySec": 0,
+                        "shouldWaitForQuiescence": true,
+                        "shouldUseTestManagerForVisibilityDetection": false,
+                        "maxTypingFrequency": 60,
+                        "shouldUseSingletonTestManager": true,
+                        "shouldTerminateApp": true,
+                        "forceAppLaunch": true,
+                        "useNativeCachingStrategy": true,
+                        "forceSimulatorSoftwareKeyboardPresence": false
+                    }
+                ],
+                "alwaysMatch": {}
+            }
+        })
+
+        // create the new session
+        // on success update the wda session id in the table
+        $.ajax({
+            type: "POST",
+            url: wda_url + "/session",
+            data: json,
+            success: function (data) {
+                wda_session_id = data.sessionId
+            },
+            error: function (data) {
+                wda_session_id = null
+            }
+        });
+    }
+</script>
+
+</html>

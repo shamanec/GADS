@@ -5,13 +5,15 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
 
 type AvailableDevicesInfo struct {
-	DevicesInfo []DeviceInfo `json:"devices-info"`
+	DevicesInfo []ContainerDeviceConfig `json:"devices-info"`
 }
 
 type DeviceInfo struct {
@@ -32,10 +34,11 @@ type ContainerDeviceConfig struct {
 	DeviceUDID                string `json:"device_udid"`
 	DeviceHost                string `json:"device_host"`
 	DeviceAppiumPort          string `json:"appium_port"`
-	IOSWDAPort                string `json:"wda_port"`
-	IOSMjpegPort              string `json:"wda_mjpeg_port"`
-	IOSScreenSize             string `json:"screen_size"`
+	WdaPort                   string `json:"wda_port"`
+	WdaMjpegPort              string `json:"wda_mjpeg_port"`
+	ScreenSize                string `json:"screen_size"`
 	AndroidStreamPort         string `json:"android_stream_port"`
+	DeviceImage               string `json:"device_image"`
 }
 
 type ContainerDeviceInfo struct {
@@ -97,6 +100,7 @@ func GetAvailableDevicesInfo(w http.ResponseWriter, r *http.Request) {
 	var info = AvailableDevicesInfo{
 		DevicesInfo: getAvailableDevicesInfoAllProviders(),
 	}
+
 	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
 }
 
@@ -105,47 +109,127 @@ type DeviceControlRequest struct {
 }
 
 func GetDevicePage(w http.ResponseWriter, r *http.Request) {
-	var deviceRequestData DeviceControlRequest
-	err := UnmarshalReader(r.Body, &deviceRequestData)
-	if err != nil {
+	vars := mux.Vars(r)
+	device_udid := vars["device_udid"]
+	//device_host := vars["device_host"]
+
+	var all_devices []ContainerDeviceConfig
+	var selected_device ContainerDeviceConfig
+	all_devices = getAvailableDevicesInfoAllProviders()
+
+	//r.ParseForm()
+
+	for _, v := range all_devices {
+		if v.DeviceUDID == device_udid {
+			selected_device = v
+		}
+	}
+
+	if selected_device == (ContainerDeviceConfig{}) {
+		fmt.Println("error")
 		return
 	}
 
-	response, err := http.Get("http://" + deviceRequestData.DeviceServer + "/device-info")
-	if err != nil {
-		fmt.Print(err.Error())
+	// //selected_device, err := getDeviceConfigFromProvider(device_host, device_udid)
+
+	// if err != nil {
+	// 	fmt.Fprintf(w, "Could not get device info from provider")
+	// 	return
+	// }
+
+	canvasWidth, canvasHeight := calculateCanvasDimensions(selected_device.ScreenSize)
+
+	pageData := struct {
+		ContainerDeviceConfig ContainerDeviceConfig
+		CanvasWidth           string
+		CanvasHeight          string
+	}{
+		ContainerDeviceConfig: selected_device,
+		CanvasWidth:           canvasWidth,
+		CanvasHeight:          canvasHeight,
+	}
+
+	// Parse the template and return response with the container table rows
+	// This will generate only the device table, not the whole page
+	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
+
+	// Reply with the new table
+	if err := tmpl.Execute(w, pageData); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(string(responseData))
-
-	var containerDeviceInfo ContainerDeviceInfo
-
-	UnmarshalJSONString(string(responseData), &containerDeviceInfo)
-	fmt.Fprintf(w, "%v", ConvertToJSONString(containerDeviceInfo))
 
 }
 
-func getAvailableDevicesInfoAllProviders() []DeviceInfo {
+func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight string) {
+	dimensions := strings.Split(size, "x")
+	widthString := dimensions[0]
+	heightString := dimensions[1]
+
+	width, _ := strconv.Atoi(widthString)
+	height, _ := strconv.Atoi(heightString)
+
+	if height < 850 {
+		canvasWidth = widthString + "px"
+		canvasHeight = heightString + "px"
+	} else {
+		deviceRatio := width / height
+
+		canvasHeight = "850px"
+		canvasWidth = strconv.Itoa(850 * deviceRatio)
+	}
+
+	return
+}
+
+// func getAvailableDevicesInfoAllProviders() []ContainerDeviceConfig {
+// 	// Get the config data
+// 	configData, err := GetConfigJsonData()
+// 	if err != nil {
+// 		return nil
+// 	}
+
+// 	var allProviderDevicesInfo []ContainerDeviceConfig
+
+// 	for _, v := range configData.EnvConfig.DeviceProviders {
+// 		var providerDevicesInfo AvailableDevicesInfo
+// 		response, err := http.Get("http://" + v + "/available-devices")
+// 		if err != nil {
+// 			fmt.Print(err.Error())
+
+// 			return nil
+// 		}
+
+// 		responseData, err := ioutil.ReadAll(response.Body)
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
+
+// 		UnmarshalJSONString(string(responseData), &providerDevicesInfo)
+
+// 		for _, v := range providerDevicesInfo.DevicesInfo {
+// 			allProviderDevicesInfo = append(allProviderDevicesInfo, v)
+// 		}
+// 	}
+
+// 	return allProviderDevicesInfo
+// }
+
+func getAvailableDevicesInfoAllProviders() []ContainerDeviceConfig {
 	// Get the config data
 	configData, err := GetConfigJsonData()
 	if err != nil {
 		return nil
 	}
 
-	var allProviderDevicesInfo []DeviceInfo
+	var allProviderDevicesInfo []ContainerDeviceConfig
 
 	for _, v := range configData.EnvConfig.DeviceProviders {
 		var providerDevicesInfo AvailableDevicesInfo
 		response, err := http.Get("http://" + v + "/available-devices")
 		if err != nil {
-			fmt.Print(err.Error())
-
-			return nil
+			fmt.Println("Provider " + v + " not available")
+			continue
 		}
 
 		responseData, err := ioutil.ReadAll(response.Body)
@@ -161,4 +245,32 @@ func getAvailableDevicesInfoAllProviders() []DeviceInfo {
 	}
 
 	return allProviderDevicesInfo
+}
+
+func getDeviceConfigFromProvider(provider string, udid string) (ContainerDeviceConfig, error) {
+	var providerDevicesInfo AvailableDevicesInfo
+
+	response, err := http.Get("http://" + provider + "/available-devices")
+	if err != nil {
+		return ContainerDeviceConfig{}, err
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return ContainerDeviceConfig{}, err
+	}
+
+	UnmarshalJSONString(string(responseData), &providerDevicesInfo)
+
+	for _, v := range providerDevicesInfo.DevicesInfo {
+		if v.DeviceUDID == udid {
+			return v, nil
+		}
+	}
+
+	return ContainerDeviceConfig{}, err
+}
+
+func iOSGenerateJSONForTreeFromXML() {
+
 }
