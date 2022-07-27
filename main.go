@@ -94,14 +94,11 @@ func handleRequests() {
 	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/remove-image/{image_type}", RemoveDockerImage).Methods("POST")
 	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler).Methods("PUT")
-	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword).Methods("PUT")
 	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA).Methods("POST")
 	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
 
 	// Devices endpoints
 	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs).Methods("GET")
-	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
-	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
 	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
 	myRouter.HandleFunc("/devices/available-devices", GetAvailableDevicesInfo).Methods("GET")
 
@@ -110,10 +107,9 @@ func handleRequests() {
 
 	// Asset endpoints
 	myRouter.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
+	//myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
 	// Page loads
-	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
 	myRouter.HandleFunc("/device-containers", LoadDeviceContainers)
 	myRouter.HandleFunc("/refresh-device-containers", RefreshDeviceContainers)
 	myRouter.HandleFunc("/logs", GetLogsPage)

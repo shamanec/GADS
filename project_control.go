@@ -76,32 +76,6 @@ func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Load the page with the project configuration info
-func GetProjectConfigurationPage(w http.ResponseWriter, r *http.Request) {
-	// Get the config data
-	projectConfig, err := GetConfigJsonData()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Create the AppiumConfig
-	var configRow = AppiumConfig{
-		DevicesHost:             projectConfig.AppiumConfig.DevicesHost,
-		SeleniumHubHost:         projectConfig.AppiumConfig.SeleniumHubHost,
-		SeleniumHubPort:         projectConfig.AppiumConfig.SeleniumHubPort,
-		SeleniumHubProtocolType: projectConfig.AppiumConfig.SeleniumHubProtocolType,
-		WDABundleID:             projectConfig.AppiumConfig.WDABundleID}
-
-	var index = template.Must(template.ParseFiles("static/project_config.html"))
-
-	// Create the final data for the config page
-	pageData := ProjectConfigPageData{WebDriverAgentProvided: CheckWDAProvided(), SudoPasswordSet: CheckSudoPasswordSet(), UdevIOSListenerStatus: UdevIOSListenerState(), ImageStatus: ImageExists(), AppiumConfigValues: configRow}
-	if err := index.Execute(w, pageData); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 // @Summary      Get project logs
 // @Description  Provides project logs as plain text response
 // @Tags         project-logs
@@ -201,61 +175,6 @@ func UpdateProjectConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	SimpleJSONResponse(w, "Successfully updated project config in ./configs/config.json", 200)
-}
-
-// @Summary      Set sudo password
-// @Description  Sets your sudo password in ./configs/config.json. The password is needed for operations requiring elevated permissions like setting up udev.
-// @Tags         configuration
-// @Accept		 json
-// @Produce      json
-// @Param        config body SudoPasswordRequest true "Sudo password value"
-// @Success      200 {object} JsonResponse
-// @Failure      500 {object} JsonErrorResponse
-// @Router       /configuration/set-sudo-password [put]
-func SetSudoPassword(w http.ResponseWriter, r *http.Request) {
-	var requestData SudoPasswordRequest
-
-	// Get the request data
-	err := UnmarshalReader(r.Body, &requestData)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "device_container_create",
-		}).Error("Could not unmarshal request body when creating container: " + err.Error())
-		return
-	}
-
-	sudo_password := requestData.SudoPassword
-
-	// Get the config data
-	configData, err := GetConfigJsonData()
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "ios_container_create",
-		}).Error("Could not unmarshal ./configs/config.json file when setting sudo password")
-		return
-	}
-
-	// Update the password in configData
-	configData.EnvConfig.SudoPassword = sudo_password
-
-	// Create a byte slice with the updated data
-	bs, err := json.MarshalIndent(configData, "", "  ")
-
-	// Write the new json to the config.json file
-	err = ioutil.WriteFile("./configs/config.json", bs, 0644)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "set_sudo_password",
-		}).Error("Could not write ./configs/config.json while attempting to set sudo password. Error: " + err.Error())
-		JSONError(w, "set_sudo_password", "Could not set sudo password", 500)
-		return
-	}
-
-	log.WithFields(log.Fields{
-		"event": "set_sudo_password",
-	}).Info("Successfully set sudo password.")
-
-	SimpleJSONResponse(w, "Successfully set '"+sudo_password+"' as sudo password. This password will not be exposed anywhere except inside the ./configs/config.json file. Make sure you don't commit this file to public repos :D", 200)
 }
 
 //=======================//
