@@ -30,30 +30,26 @@
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
-        // Add listeners to each container info button
-        // We have it as a function so we can re-add the listeners each time the table updates
-        function addListeners() {
-        }
-
-        // On page load add the listeners and start the refresh containers job
+        
         window.addEventListener("DOMContentLoaded", function () {
             refreshDevices()
         });
 
-        // Refresh the containers table on the page each 5 seconds
+        // Refresh the devices on the page each 10 seconds
         function refreshDevices() {
-            // Call the refresh-ios-containers endpoint
-            // And get updated html table for the containers
+            // Call the refresh-available-devices endpoint
+            // And get updated html devices list
             $.ajax({
                 contentType: 'text/html',
                 type: "GET",
                 async: false,
                 url: "/refresh-available-devices",
                 success: function (data) {
-                    // Update the containers table with the new table data
+                    // Update the devices list with the new table data
                     document.getElementById('device-results').innerHTML = data
                 },
                 error: function (data) {
+                    document.getElementById('device-results').innerHTML = ""
                 }
             });
 

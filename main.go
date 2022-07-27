@@ -121,12 +121,13 @@ func handleRequests() {
 	myRouter.HandleFunc("/", GetInitialPage)
 	myRouter.HandleFunc("/devices", LoadAvailableDevices)
 	myRouter.HandleFunc("/refresh-available-devices", RefreshAvailableDevices)
-	myRouter.HandleFunc("/devices/control/{device_host}/{device_udid}", GetDevicePage)
+	myRouter.HandleFunc("/devices/control/{device_udid}", GetDevicePage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
 func main() {
+	go getAvailableDevicesInfoAllProviders()
 	setLogging()
 	handleRequests()
 }

@@ -7,23 +7,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 )
 
 type AvailableDevicesInfo struct {
 	DevicesInfo []ContainerDeviceConfig `json:"devices-info"`
-}
-
-type DeviceInfo struct {
-	DeviceModel               string `json:"device_model"`
-	DeviceOSVersion           string `json:"device_os_version"`
-	DeviceOS                  string `json:"device_os"`
-	DeviceContainerServerPort int    `json:"container_server_port"`
-	DeviceUDID                string `json:"device_udid"`
-	DeviceImage               string `json:"device_image"`
-	DeviceHost                string `json:"device_host"`
 }
 
 type ContainerDeviceConfig struct {
@@ -41,10 +31,8 @@ type ContainerDeviceConfig struct {
 	DeviceImage               string `json:"device_image"`
 }
 
-type ContainerDeviceInfo struct {
-	InstalledApps []string              `json:"installed_apps"`
-	DeviceConfig  ContainerDeviceConfig `json:"device_config"`
-}
+// This var is used to store last devices update from all providers
+var cachedDevicesConfig []ContainerDeviceConfig
 
 // Available devices html page
 func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
@@ -61,16 +49,13 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Refresh the available devices
-// @Description  Refreshes the currently available devices by returning an updated HTML table
+// @Description  Refreshes the currently available devices by returning updated HTML
 // @Produce      html
 // @Success      200
 // @Failure      500
-// @Router       /refresh-device-containers [post]
+// @Router       /refresh-available=devices [post]
 func RefreshAvailableDevices(w http.ResponseWriter, r *http.Request) {
-	//var runningContainerNames = getRunningDeviceContainerNames()
-	// Generate the data for each device container row in a slice of ContainerRow
-	//rows := getAvailableDevicesInfo(runningContainerNames)
-	rows := getAvailableDevicesInfoAllProviders()
+	devices := cachedDevicesConfig
 
 	// Make functions available in html template
 	funcMap := template.FuncMap{
@@ -78,12 +63,12 @@ func RefreshAvailableDevices(w http.ResponseWriter, r *http.Request) {
 		"contains": strings.Contains,
 	}
 
-	// Parse the template and return response with the container table rows
-	// This will generate only the device table, not the whole page
+	// Parse the template and return response with the updated devices list
+	// This will generate only the devices list, not the whole page
 	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
 
-	// Reply with the new table
-	if err := tmpl.ExecuteTemplate(w, "device_selection_table", rows); err != nil {
+	// Reply with the new devices list
+	if err := tmpl.ExecuteTemplate(w, "device_selection_table", devices); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -98,45 +83,38 @@ func RefreshAvailableDevices(w http.ResponseWriter, r *http.Request) {
 // @Router       /devices/available-devices [post]
 func GetAvailableDevicesInfo(w http.ResponseWriter, r *http.Request) {
 	var info = AvailableDevicesInfo{
-		DevicesInfo: getAvailableDevicesInfoAllProviders(),
+		DevicesInfo: cachedDevicesConfig,
 	}
 
 	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
 }
 
-type DeviceControlRequest struct {
-	DeviceServer string `json:"device_server"`
-}
-
+// @Summary      Load the page for a selected device
+// @Description  Loads the page for a selected device from the device selection page
+// @Produce      html
+// @Success      200
+// @Failure      500
+// @Router       /devices/control/{device_host}/{device_udid} [post]
 func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	device_udid := vars["device_udid"]
-	//device_host := vars["device_host"]
 
-	var all_devices []ContainerDeviceConfig
 	var selected_device ContainerDeviceConfig
-	all_devices = getAvailableDevicesInfoAllProviders()
 
-	//r.ParseForm()
-
-	for _, v := range all_devices {
+	// Loop through the cached devices and search for the selected device
+	for _, v := range cachedDevicesConfig {
 		if v.DeviceUDID == device_udid {
 			selected_device = v
 		}
 	}
 
+	// If the device does not exist in the cached devices
 	if selected_device == (ContainerDeviceConfig{}) {
 		fmt.Println("error")
 		return
 	}
 
-	// //selected_device, err := getDeviceConfigFromProvider(device_host, device_udid)
-
-	// if err != nil {
-	// 	fmt.Fprintf(w, "Could not get device info from provider")
-	// 	return
-	// }
-
+	// Calculate the width and height for the canvas
 	canvasWidth, canvasHeight := calculateCanvasDimensions(selected_device.ScreenSize)
 
 	pageData := struct {
@@ -161,114 +139,76 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Calculate the device stream canvas dimensions
 func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight string) {
+	// Get the width and height provided
 	dimensions := strings.Split(size, "x")
 	widthString := dimensions[0]
 	heightString := dimensions[1]
 
+	// Convert them to ints
 	width, _ := strconv.Atoi(widthString)
 	height, _ := strconv.Atoi(heightString)
 
+	// If height is less than 850px use the original height and width
 	if height < 850 {
 		canvasWidth = widthString + "px"
 		canvasHeight = heightString + "px"
 	} else {
-		deviceRatio := width / height
-
+		// If height is more than 850px scale it down keeping the ratio
+		screenRatio := width / height
 		canvasHeight = "850px"
-		canvasWidth = strconv.Itoa(850 * deviceRatio)
+		canvasWidth = strconv.Itoa(850 * screenRatio)
 	}
 
 	return
 }
 
-// func getAvailableDevicesInfoAllProviders() []ContainerDeviceConfig {
-// 	// Get the config data
-// 	configData, err := GetConfigJsonData()
-// 	if err != nil {
-// 		return nil
-// 	}
-
-// 	var allProviderDevicesInfo []ContainerDeviceConfig
-
-// 	for _, v := range configData.EnvConfig.DeviceProviders {
-// 		var providerDevicesInfo AvailableDevicesInfo
-// 		response, err := http.Get("http://" + v + "/available-devices")
-// 		if err != nil {
-// 			fmt.Print(err.Error())
-
-// 			return nil
-// 		}
-
-// 		responseData, err := ioutil.ReadAll(response.Body)
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-
-// 		UnmarshalJSONString(string(responseData), &providerDevicesInfo)
-
-// 		for _, v := range providerDevicesInfo.DevicesInfo {
-// 			allProviderDevicesInfo = append(allProviderDevicesInfo, v)
-// 		}
-// 	}
-
-// 	return allProviderDevicesInfo
-// }
-
-func getAvailableDevicesInfoAllProviders() []ContainerDeviceConfig {
+func getAvailableDevicesInfoAllProviders() {
 	// Get the config data
 	configData, err := GetConfigJsonData()
 	if err != nil {
-		return nil
+		fmt.Println("error 1")
+		return
 	}
 
-	var allProviderDevicesInfo []ContainerDeviceConfig
+	// Forever loop and get data from all providers every 2 seconds
+	for {
+		// Create an intermediate value to hold the currently built device config before updating the cached config
+		intermediateConfig := []ContainerDeviceConfig{}
 
-	for _, v := range configData.EnvConfig.DeviceProviders {
-		var providerDevicesInfo AvailableDevicesInfo
-		response, err := http.Get("http://" + v + "/available-devices")
-		if err != nil {
-			fmt.Println("Provider " + v + " not available")
-			continue
+		// Loop through the registered providers
+		for _, v := range configData.EnvConfig.DeviceProviders {
+			var providerDevicesInfo AvailableDevicesInfo
+
+			// Get the available devices from the current provider
+			response, err := http.Get("http://" + v + "/available-devices")
+			if err != nil {
+				// If the current provider is not available start next loop iteration
+				fmt.Println("Provider " + v + " not available")
+				continue
+			}
+
+			// Read the response into a byte slice
+			responseData, err := ioutil.ReadAll(response.Body)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+
+			// Read the response byte slice into the providerDevicesInfo struct
+			UnmarshalJSONString(string(responseData), &providerDevicesInfo)
+
+			// Append the current devices info to the intermediate config
+			for _, v := range providerDevicesInfo.DevicesInfo {
+				intermediateConfig = append(intermediateConfig, v)
+			}
 		}
 
-		responseData, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
+		// After all providers are polled update the cachedDevicesConfig
+		cachedDevicesConfig = intermediateConfig
 
-		UnmarshalJSONString(string(responseData), &providerDevicesInfo)
-
-		for _, v := range providerDevicesInfo.DevicesInfo {
-			allProviderDevicesInfo = append(allProviderDevicesInfo, v)
-		}
+		time.Sleep(2 * time.Second)
 	}
-
-	return allProviderDevicesInfo
-}
-
-func getDeviceConfigFromProvider(provider string, udid string) (ContainerDeviceConfig, error) {
-	var providerDevicesInfo AvailableDevicesInfo
-
-	response, err := http.Get("http://" + provider + "/available-devices")
-	if err != nil {
-		return ContainerDeviceConfig{}, err
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return ContainerDeviceConfig{}, err
-	}
-
-	UnmarshalJSONString(string(responseData), &providerDevicesInfo)
-
-	for _, v := range providerDevicesInfo.DevicesInfo {
-		if v.DeviceUDID == udid {
-			return v, nil
-		}
-	}
-
-	return ContainerDeviceConfig{}, err
 }
 
 func iOSGenerateJSONForTreeFromXML() {
