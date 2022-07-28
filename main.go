@@ -107,7 +107,6 @@ func handleRequests() {
 
 	// Asset endpoints
 	myRouter.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	//myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
 	// Page loads
 	myRouter.HandleFunc("/device-containers", LoadDeviceContainers)

@@ -185,7 +185,6 @@ func getAvailableDevicesInfoAllProviders() {
 			response, err := http.Get("http://" + v + "/available-devices")
 			if err != nil {
 				// If the current provider is not available start next loop iteration
-				fmt.Println("Provider " + v + " not available")
 				continue
 			}
 
