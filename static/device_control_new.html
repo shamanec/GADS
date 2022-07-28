@@ -8,6 +8,29 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/skin-lion/ui.fancytree.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
+<style>
+    .device-info-row {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 5px;
+        text-align: center;
+        border-bottom: 1px solid #000000;
+        padding-bottom: 5px;
+    }
+
+    .device-info-value {
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .device-tools-buttons {
+        border-bottom: 1px solid #000000;
+    }
+
+    .fa {
+        size: 30px;
+    }
+</style>
 
 <body>
     <div class="topnav">
@@ -20,36 +43,53 @@
     </div>
     <button style="margin-bottom: 10px;" onclick="location.href = '/devices';">Back to devices</button>
     <div id="container-div" style="display: flex;justify-content: center;">
-        <div id="device-tools" style="border: 1px solid #000000;margin-right: 10px;">
-            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
-                <img src="/static/images/control/home-button.png">
-                <div style="align-items: center;display:flex;">
-                    <label>Homescreen</label>
+        <div id="device-info" style="margin-right: 10px;border: 1px solid #000000;padding: 5px;">
+            <div class="device-info-row">
+                <div>OS:</div>
+                <div class="device-info-value">{{.ContainerDeviceConfig.DeviceOSVersion}}</div>
+            </div>
+            <div class="device-info-row">
+                <div>UDID:</div>
+                <div class="device-info-value">{{.ContainerDeviceConfig.DeviceUDID}}</div>
+            </div>
+            <div class="device-info-row">
+                <div>Device server:</div>
+                <div class="device-info-value">
+                    {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}</div>
+            </div>
+            <div class="device-info-row">
+                <div>Appium URL:</div>
+                <div class="device-info-value">
+                    {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceAppiumPort}}</div>
+            </div>
+            {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+            <div class="device-info-row">
+                <div>WebDriverAgent URL:</div>
+                <div class="device-info-value">{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaPort}}
                 </div>
             </div>
-            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
-                <img src="/static/images/control/home-button.png">
-                <div style="align-items: center;display:flex;">
-                    <label>Lock device</label>
-                </div>
+            {{end}}
+        </div>
+        <div id="device-tools" style="border: 1px solid #000000;margin-right: 10px;width: 200px;">
+            <div class="device-tools-buttons" id="home-screen" style="text-align: center;padding: 5px;">
+                <div class="fa fa-home"></div>
+                <div>Homescreen</div>
             </div>
-            <div id="unlock-device" style="display: flex;height: 50px;text-align: center;">
-                <img src="/static/images/control/home-button.png">
-                <div style="align-items: center;display:flex;">
-                    <label>Unlock device</label>
-                </div>
+            <div class="device-tools-buttons" id="lock-device" style="text-align: center;padding: 5px;">
+                <div class="fa fa-lock"></div>
+                <div>Lock device</div>
             </div>
-            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
-                <img src="/static/images/control/home-button.png">
-                <div style="align-items: center;display:flex;">
-                    <label>Type text</label>
-                </div>
+            <div class="device-tools-buttons" id="unlock-device" style="text-align: center;padding: 5px;">
+                <div class="fa fa-unlock"></div>
+                <div>Unlock device</div>
             </div>
-            <div id="home-screen" style="display: flex;height: 50px;text-align: center;">
-                <img src="/static/images/control/home-button.png">
-                <div style="align-items: center;display:flex;">
-                    <label>Delete text</label>
-                </div>
+            <div class="device-tools-buttons" id="type-text" style="text-align: center;padding: 5px;">
+                <div class="fa fa-pencil"></div>
+                <div>Type text</div>
+            </div>
+            <div class="device-tools-buttons" id="delete-text" style="text-align: center;padding: 5px;">
+                <div class="fa fa-eraser"></div>
+                <div>Delete text</div>
             </div>
         </div>
         <div id="stream-div" style="position: relative;">
@@ -71,7 +111,7 @@
     // On page load add the listeners and start the refresh containers job
     window.addEventListener("DOMContentLoaded", function () {
         if (device_os == "ios") {
-           checkWDASession()
+            checkWDASession()
         }
     });
 
@@ -87,6 +127,7 @@
         } else if (device_os.includes("ios")) {
             url = wda_url + "/wda/homescreen"
         } else {
+            console.log("Device OS does not match 'ios' or 'android'")
             return
         }
 
@@ -100,7 +141,7 @@
             .then(() => {
             })
             .catch(function (error) {
-                alert("Could not access iOS device homescreen endpoint. Error: " + error)
+                alert("Could not access device homescreen endpoint. Error: " + error)
             })
     })
 
@@ -111,11 +152,14 @@
         } else if (device_os == "ios") {
             url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
         } else {
+            console.log("Device OS does not match 'ios' or 'android'")
             return
         }
 
         fetch(url, {
             method: 'POST'
+        }).catch(function (error) {
+            alert("Could not access device unlock endpoint. Error: " + error)
         })
     })
 
@@ -145,16 +189,14 @@
                 'Content-type': 'application/json'
             }
         })
-        .then((response) => {
-            return response.json()
-        })
+            .then((response) => {
+                return response.json()
+            })
             .then((json) => {
-                console.log(json)
                 if (json.sessionId === null) {
                     createWDASession()
                 } else {
                     wda_session_id = json.sessionId
-                    console.log(wda_session_id)
                 }
 
             })
