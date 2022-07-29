@@ -28,7 +28,7 @@
         background-color: #04AA6D;
     }
 
-    .device-tools-buttons:hover{
+    .device-tools-buttons:hover {
         background-color: #dfe21d;
         cursor: pointer;
     }
@@ -104,7 +104,8 @@
                 {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
                 <div class="device-info-row">
                     <div>WebDriverAgent URL:</div>
-                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaPort}}
+                    <div class="device-info-value">
+                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaPort}}
                     </div>
                 </div>
                 {{end}}
@@ -148,7 +149,7 @@
         if (device_os.includes("android")) {
             url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/press_keycode"
             json = JSON.stringify({ "keycode": 3 })
-            
+
         } else if (device_os.includes("ios")) {
             url = wda_url + "/wda/homescreen"
         } else {
