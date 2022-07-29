@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/skin-lion/ui.fancytree.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css">
 </head>
 <style>
     .device-info-row {
@@ -25,10 +25,24 @@
 
     .device-tools-buttons {
         border-bottom: 1px solid #000000;
+        background-color: #04AA6D;
+    }
+
+    .device-tools-buttons:hover{
+        background-color: #dfe21d;
+        cursor: pointer;
     }
 
     .fa {
         size: 30px;
+    }
+
+    .device-tools-buttons-text {
+        user-select: none;
+    }
+
+    #device-tools {
+        border-radius: 3px;
     }
 </style>
 
@@ -43,53 +57,57 @@
     </div>
     <button style="margin-bottom: 10px;" onclick="location.href = '/devices';">Back to devices</button>
     <div id="container-div" style="display: flex;justify-content: center;">
-        <div id="device-info" style="margin-right: 10px;border: 1px solid #000000;padding: 5px;">
-            <div class="device-info-row">
-                <div>OS:</div>
-                <div class="device-info-value">{{.ContainerDeviceConfig.DeviceOSVersion}}</div>
-            </div>
-            <div class="device-info-row">
-                <div>UDID:</div>
-                <div class="device-info-value">{{.ContainerDeviceConfig.DeviceUDID}}</div>
-            </div>
-            <div class="device-info-row">
-                <div>Device server:</div>
-                <div class="device-info-value">
-                    {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}</div>
-            </div>
-            <div class="device-info-row">
-                <div>Appium URL:</div>
-                <div class="device-info-value">
-                    {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceAppiumPort}}</div>
-            </div>
-            {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
-            <div class="device-info-row">
-                <div>WebDriverAgent URL:</div>
-                <div class="device-info-value">{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaPort}}
-                </div>
-            </div>
-            {{end}}
-        </div>
-        <div id="device-tools" style="border: 1px solid #000000;margin-right: 10px;width: 200px;">
+        <div id="device-tools" style="border: 1px solid #000000;margin-right: 10px;">
             <div class="device-tools-buttons" id="home-screen" style="text-align: center;padding: 5px;">
                 <div class="fa fa-home"></div>
-                <div>Homescreen</div>
+                <div class="device-tools-buttons-text">Homescreen</div>
             </div>
             <div class="device-tools-buttons" id="lock-device" style="text-align: center;padding: 5px;">
                 <div class="fa fa-lock"></div>
-                <div>Lock device</div>
+                <div class="device-tools-buttons-text">Lock device</div>
             </div>
             <div class="device-tools-buttons" id="unlock-device" style="text-align: center;padding: 5px;">
                 <div class="fa fa-unlock"></div>
-                <div>Unlock device</div>
+                <div class="device-tools-buttons-text">Unlock device</div>
             </div>
             <div class="device-tools-buttons" id="type-text" style="text-align: center;padding: 5px;">
                 <div class="fa fa-pencil"></div>
-                <div>Type text</div>
+                <div class="device-tools-buttons-text">Type text</div>
             </div>
-            <div class="device-tools-buttons" id="delete-text" style="text-align: center;padding: 5px;">
+            <div class="device-tools-buttons" id="clear-text" style="text-align: center;padding: 5px;">
                 <div class="fa fa-eraser"></div>
-                <div>Delete text</div>
+                <div class="device-tools-buttons-text">Clear text</div>
+            </div>
+            <div class="device-tools-buttons" id="wipe-canvas" style="text-align: center;padding: 5px;">
+                <i class="fa fa-broom"></i>
+                <div class="device-tools-buttons-text">Wipe canvas</div>
+            </div>
+            <div id="device-info" style="padding: 5px;margin-top: 2px;">
+                <div class="device-info-row">
+                    <div>OS:</div>
+                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceOSVersion}}</div>
+                </div>
+                <div class="device-info-row">
+                    <div>UDID:</div>
+                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceUDID}}</div>
+                </div>
+                <div class="device-info-row">
+                    <div>Device server:</div>
+                    <div class="device-info-value">
+                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}</div>
+                </div>
+                <div class="device-info-row">
+                    <div>Appium URL:</div>
+                    <div class="device-info-value">
+                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceAppiumPort}}</div>
+                </div>
+                {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+                <div class="device-info-row">
+                    <div>WebDriverAgent URL:</div>
+                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaPort}}
+                    </div>
+                </div>
+                {{end}}
             </div>
         </div>
         <div id="stream-div" style="position: relative;">
@@ -106,12 +124,18 @@
     let wda_port = "{{.ContainerDeviceConfig.WdaPort}}"
     let wda_url = "http://" + device_host + ":" + wda_port
     let device_os = "{{.ContainerDeviceConfig.DeviceOS}}"
+    let appium_port = "{{.ContainerDeviceConfig.DeviceAppiumPort}}"
+    let appium_url = "http://" + device_host + ":" + appium_port
     var wda_session_id
 
     // On page load add the listeners and start the refresh containers job
     window.addEventListener("DOMContentLoaded", function () {
         if (device_os == "ios") {
             checkWDASession()
+        }
+
+        if (device_os == "android") {
+            console.log("android")
         }
     });
 
@@ -122,8 +146,9 @@
         // if the device is android use press_keycode endpoint and send keycode 3 which is for the Home button
         // if device is iOS send empty json
         if (device_os.includes("android")) {
-            url = "http://{{.ContainerDeviceConfig.DeviceHost}}:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/press_keycode"
+            url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/press_keycode"
             json = JSON.stringify({ "keycode": 3 })
+            
         } else if (device_os.includes("ios")) {
             url = wda_url + "/wda/homescreen"
         } else {
@@ -148,7 +173,7 @@
     document.getElementById("unlock-device").addEventListener('click', () => {
 
         if (device_os == "android") {
-            url = "http://127.0.0.1:" + $('#appium-port').text() + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/unlock"
+            url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/unlock"
         } else if (device_os == "ios") {
             url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
         } else {
@@ -161,6 +186,29 @@
         }).catch(function (error) {
             alert("Could not access device unlock endpoint. Error: " + error)
         })
+    })
+
+    document.getElementById("lock-device").addEventListener('click', () => {
+
+        if (device_os == "android") {
+            url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/lock"
+        } else if (device_os == "ios") {
+            url = wda_url + "/session/" + wda_session_id + "/wda/lock"
+        } else {
+            return
+        }
+
+        fetch(url, {
+            method: 'POST'
+        })
+    })
+
+    document.getElementById("clear-text").addEventListener('click', () => {
+        clearActiveElementText()
+    })
+
+    document.getElementById("wipe-canvas").addEventListener('click', () => {
+        wipeCanvas()
     })
 
     // check if a wda session exists and connect to it or create a new one
@@ -204,6 +252,7 @@
                 wda_session_id = null
                 console.log("could not get session")
             })
+        console.log(wda_session_id)
     }
 
     // create a wda session to the iOS device if no session exists
@@ -245,6 +294,49 @@
                 wda_session_id = null
             }
         });
+    }
+
+    async function clearActiveElementText() {
+        var active_element_url;
+        var element_clear_url;
+
+        if (device_os == "android") {
+            active_element_url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/active"
+        } else if (device_os == "ios") {
+            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+        } else {
+            return
+        }
+
+        const control_response = await fetch(active_element_url).then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        })
+
+        var element_id = control_response.value.ELEMENT
+        if (device_os == "android") {
+            element_clear_url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/" + element_id + "/clear"
+        } else {
+            element_clear_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear"
+        }
+
+        if (control_response != null) {
+            var element_id = control_response.value.ELEMENT
+            if (element_id != "") {
+                await fetch(element_clear_url, {
+                    method: 'POST'
+                })
+            }
+        }
+    }
+
+    function wipeCanvas() {
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.clearRect(0, 0, canvas.width, canvas.height);
     }
 </script>
 
