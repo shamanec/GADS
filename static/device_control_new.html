@@ -113,9 +113,9 @@
         </div>
         <div id="stream-div" style="position: relative;">
             <canvas id="actions-canvas"
-                style="position: absolute;width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></canvas>
+                style="position: absolute;width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></canvas>
             <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaMjpegPort}}"
-                id="image-stream" style="width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></img>
+                id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
         </div>
         <div>
         </div>
@@ -127,6 +127,9 @@
     let device_os = "{{.ContainerDeviceConfig.DeviceOS}}"
     let appium_port = "{{.ContainerDeviceConfig.DeviceAppiumPort}}"
     let appium_url = "http://" + device_host + ":" + appium_port
+    let canvas_width = "{{.CanvasWidth}}"
+    let canvas_height = "{{.CanvasHeight}}"
+    let screen_size = "{{.ContainerDeviceConfig.ScreenSize}}"
     var wda_session_id
 
     // On page load add the listeners and start the refresh containers job
@@ -332,6 +335,310 @@
                 })
             }
         }
+    }
+
+    //=============CANVAS INTERACTIONS===================//
+    // canvas over the WDA image stream that allows us to tap
+    // and also draw element rectangles
+    var canvas = document.getElementById("actions-canvas")
+
+    var tapStartAt = 0
+    var coord1;
+    var coord2;
+
+    canvas.addEventListener('mousedown', () => {
+        // get the time of clicking the canvas
+        tapStartAt = (new Date()).getTime()
+        // get the initial coordinates of clicking the canvas
+        coord1 = getCursorCoordinates(canvas, event)
+        applyCursorRippleEffect(event);
+    })
+
+    canvas.addEventListener('mouseup', () => {
+        // get the coordinates on finishing the click on the canvas
+        coord2 = getCursorCoordinates(canvas, event)
+        // get the time of finishing the click on the canvas
+        var tapEndAt = (new Date()).getTime()
+
+        var mouseEventsTimeDiff = tapEndAt - tapStartAt
+
+        // if the difference of time between click down and click up is more than 500ms assume it is a swipe, not a tap
+        // to allow flick swipes we also check the difference between the gesture coordinates
+        // x1, y1 = mousedown coordinates
+        // x2, y2 = mouseup coordinates
+        // if x2 > x1*1.1 - it is probably a swipe left to right
+        // if x2 < x1*0.9 - it is probably a swipe right to left
+        // if y2 < y1*0.9 - it is probably a swipe bottom to top
+        // if y2 > y1*1.1 - it is probably a swipe top to bottom
+        if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
+            performSwipe(coord1, coord2)
+        } else {
+            // else perform a simple tap at coordinates
+            tapCoordinates(coord1)
+        }
+    })
+
+    function performSwipe(coord1, coord2) {
+
+        var firstCoordX = coord1[0]
+        var firstCoordY = coord1[1]
+        var secondCoordX = coord2[0]
+        var secondCoordY = coord2[1]
+
+        // get stream size and ratio
+        let stream_height = canvas_width
+        let stream_width = canvas_height
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // if the stream height 
+        if (stream_height != deviceHeight) {
+            firstCoordX = (firstCoordX / stream_width) * deviceWidth
+            firstCoordY = (firstCoordY / stream_height) * deviceHeight
+            secondCoordX = (secondCoordX / stream_width) * deviceWidth
+            secondCoordY = (secondCoordY / stream_height) * deviceHeight
+        }
+
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": firstCoordX,
+                            "y": firstCoordY
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pointerMove",
+                            "duration": 750,
+                            "origin": "viewport",
+                            "x": secondCoordX,
+                            "y": secondCoordY
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        let session_id;
+        if (selected_device_text.includes("android")) {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+        } else {
+            let wda_url = $("#wda-url").text()
+            session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + session_id + "/actions"
+        }
+
+        // call the /actions endpoint sending the tapp coordinates
+        // on response remove the canvas loader
+        $.ajax({
+            type: "POST",
+            contentType: 'application/json',
+            data: jsonData,
+            url: url,
+            success: function () {
+            },
+            error: function () {
+                alert("WDA session is invalid, please reload")
+            }
+        });
+    }
+
+    // get the coordinates of the cursor position of the canvas tap event
+    function getCursorCoordinates(canvas, event) {
+        // get the canvas rectangle and then the coordinates of the tap event
+        const rect = canvas.getBoundingClientRect()
+        const x = event.clientX - rect.left
+        const y = event.clientY - rect.top
+        return [x, y];
+    }
+
+    // tap with WDA using coordinates
+    function tapCoordinates(pos) {
+        // get stream size and ratio
+        let stream_size_ratio = (canvas_height / canvas_width).toFixed(2)
+
+        // get device screen size dimensions
+        let dimensions = screen_size.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // set initial x and y tap coordinates
+        let x = pos[0]
+        let y = pos[1]
+
+        // if the stream height 
+        if (canvas_height != deviceHeight) {
+            x = (pos[0] / canvas_width) * deviceWidth
+            y = (pos[1] / canvas_height) * deviceHeight
+        }
+
+        // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": x,
+                            "y": y
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pause",
+                            "duration": 200
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        if (device_os == "android") {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+        } else {
+            url = wda_url + "/session/" + wda_session_id + "/actions"
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: jsonData,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access device homescreen endpoint. Error: " + error)
+            })
+    }
+
+    function performSwipe(coord1, coord2) {
+
+        var firstCoordX = coord1[0]
+        var firstCoordY = coord1[1]
+        var secondCoordX = coord2[0]
+        var secondCoordY = coord2[1]
+
+        let stream_size_ratio = (canvas_height / canvas_width).toFixed(2)
+
+        // get device screen size dimensions
+        let dimensions = screen_size.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // if the stream height 
+        if (canvas_height != deviceHeight) {
+            firstCoordX = (firstCoordX / canvas_width) * deviceWidth
+            firstCoordY = (firstCoordY / canvas_height) * deviceHeight
+            secondCoordX = (secondCoordX / canvas_width) * deviceWidth
+            secondCoordY = (secondCoordY / canvas_height) * deviceHeight
+        }
+
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": firstCoordX,
+                            "y": firstCoordY
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pointerMove",
+                            "duration": 750,
+                            "origin": "viewport",
+                            "x": secondCoordX,
+                            "y": secondCoordY
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        if (device_os == "android") {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+        } else {
+            url = wda_url + "/session/" + wda_session_id + "/actions"
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: jsonData,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access device homescreen endpoint. Error: " + error)
+            })
+    }
+
+    function applyCursorRippleEffect(e) {
+        const ripple = document.createElement("div");
+
+        ripple.className = "ripple";
+        document.body.appendChild(ripple);
+
+        ripple.style.left = `${e.clientX}px`;
+        ripple.style.top = `${e.clientY}px`;
+
+        ripple.style.animation = "ripple-effect .2s  linear";
+        ripple.onanimationend = () => document.body.removeChild(ripple);
     }
 
     function wipeCanvas() {
