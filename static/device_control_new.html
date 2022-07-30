@@ -121,7 +121,7 @@
             <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.AndroidStreamPort}}"
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
-            
+
         </div>
         <div>
         </div>
@@ -137,6 +137,7 @@
     let canvas_height = "{{.CanvasHeight}}"
     let screen_size = "{{.ContainerDeviceConfig.ScreenSize}}"
     var wda_session_id
+    var appium_session_id
 
     // On page load add the listeners and start the refresh containers job
     window.addEventListener("DOMContentLoaded", function () {
@@ -145,18 +146,18 @@
         }
 
         if (device_os == "android") {
-            console.log("android")
+            checkAppiumSession()
         }
     });
 
     document.getElementById("home-screen").addEventListener('click', () => {
-        var url;
+        var url
         var json = "{}"
 
         // if the device is android use press_keycode endpoint and send keycode 3 which is for the Home button
         // if device is iOS send empty json
         if (device_os.includes("android")) {
-            url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/press_keycode"
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/press_keycode"
             json = JSON.stringify({ "keycode": 3 })
 
         } else if (device_os.includes("ios")) {
@@ -183,7 +184,7 @@
     document.getElementById("unlock-device").addEventListener('click', () => {
 
         if (device_os == "android") {
-            url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/unlock"
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/unlock"
         } else if (device_os == "ios") {
             url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
         } else {
@@ -201,7 +202,7 @@
     document.getElementById("lock-device").addEventListener('click', () => {
 
         if (device_os == "android") {
-            url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/appium/device/lock"
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/lock"
         } else if (device_os == "ios") {
             url = wda_url + "/session/" + wda_session_id + "/wda/lock"
         } else {
@@ -211,6 +212,11 @@
         fetch(url, {
             method: 'POST'
         })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access device lock endpoint. Error: " + error)
+            })
     })
 
     document.getElementById("clear-text").addEventListener('click', () => {
@@ -225,22 +231,7 @@
     function checkWDASession() {
 
         // if there is no session id from the /status endpoint create a new session
-        // else just update the session id in the table with the existing session
-        // $.ajax({
-        //     type: "GET",
-        //     url: wda_url + "/status",
-        //     success: function (data) {
-        //         if (data.sessionId === null) {
-        //             createWDASession()
-        //         } else {
-        //             wda_session_id = data.sessionId
-        //         }
-        //     },
-        //     error: function (data) {
-        //         wda_session_id = null
-        //         console.log("could not get session")
-        //     }
-        // });
+        // else just update the session id with the existing session
         fetch(wda_url + "/status", {
             method: 'GET',
             headers: {
@@ -260,9 +251,9 @@
             })
             .catch(function (error) {
                 wda_session_id = null
-                console.log("could not get session")
+                alert("Could not get WDA session. Error: " + error)
+                window.location.href = "/devices"
             })
-        console.log(wda_session_id)
     }
 
     // create a wda session to the iOS device if no session exists
@@ -304,6 +295,98 @@
                 wda_session_id = null
             }
         });
+
+        fetch(wda_url + "/session", {
+            method: 'POST',
+            body: json,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then((response) => {
+                return response.json()
+            })
+            .then((json) => {
+                wda_session_id = data.sessionId
+            })
+            .catch(function (error) {
+                alert("Could not create WDA session. Error: " + error)
+                window.location.href = "/devices"
+            })
+    }
+
+    async function checkAppiumSession() {
+
+        // build the json to create a session
+        json = JSON.stringify({
+            "capabilities": {
+                "alwaysMatch": {
+                    "appium:automationName": "UiAutomator2",
+                    "platformName": "Android",
+                    "appium:ensureWebviewsHavePages": true,
+                    "appium:nativeWebScreenshot": true,
+                    "appium:newCommandTimeout": 0,
+                    "appium:connectHardwareKeyboard": true
+                },
+                "firstMatch": [
+                    {}
+                ]
+            },
+            "desiredCapabilities": {
+                "appium:automationName": "UiAutomator2",
+                "platformName": "Android",
+                "appium:ensureWebviewsHavePages": true,
+                "appium:nativeWebScreenshot": true,
+                "appium:newCommandTimeout": 0,
+                "appium:connectHardwareKeyboard": true
+            }
+        })
+
+        let sessions_url = appium_url + "/wd/hub/sessions"
+        let session_url = appium_url + "/wd/hub/session"
+        const sessions_response = await fetch(sessions_url).then(response => {
+            return response.json()
+        })
+            .catch(function (error) {
+                alert("Could not get Appium sessions" + error)
+                window.location.href = "/devices"
+            })
+
+        if (sessions_response.value.length === 0) {
+            const session_response = await fetch(session_url, {
+                method: 'POST',
+                body: json,
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            })
+                .then(response => {
+                    return response.json()
+                })
+                .catch(function (error) {
+                    alert("Could not create Appium session" + error)
+                    window.location.href = "/devices"
+                })
+            appium_session_id = session_response.value.sessionId
+        } else if (sessions_response.value[0].id === null) {
+            const session_response = await fetch(session_url, {
+                method: 'POST',
+                body: json,
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            })
+                .then(response => {
+                    return response.json()
+                })
+                .catch(function (error) {
+                    alert("Could not create Appium session" + error)
+                    window.location.href = "/devices"
+                })
+            appium_session_id = session_response.value.sessionId
+        } else {
+            appium_session_id = sessions_response.value[0].id
+        }
     }
 
     async function clearActiveElementText() {
@@ -311,7 +394,7 @@
         var element_clear_url;
 
         if (device_os == "android") {
-            active_element_url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/active"
+            active_element_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/active"
         } else if (device_os == "ios") {
             active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
         } else {
@@ -328,19 +411,14 @@
 
         var element_id = control_response.value.ELEMENT
         if (device_os == "android") {
-            element_clear_url = appium_url + "/wd/hub/session/" + $("#appium-session-id").text() + "/element/" + element_id + "/clear"
+            element_clear_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/" + element_id + "/clear"
         } else {
             element_clear_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear"
         }
-
-        if (control_response != null) {
-            var element_id = control_response.value.ELEMENT
-            if (element_id != "") {
-                await fetch(element_clear_url, {
-                    method: 'POST'
-                })
-            }
-        }
+        
+        await fetch(element_clear_url, {
+            method: 'POST'
+        })
     }
 
     //=============CANVAS INTERACTIONS===================//
@@ -534,9 +612,7 @@
         })
 
         if (device_os == "android") {
-            let appium_port = $("#appium-port").text()
-            session_id = $("#appium-session-id").text()
-            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/actions"
         } else {
             url = wda_url + "/session/" + wda_session_id + "/actions"
         }
@@ -613,9 +689,7 @@
         })
 
         if (device_os == "android") {
-            let appium_port = $("#appium-port").text()
-            session_id = $("#appium-session-id").text()
-            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/actions"
         } else {
             url = wda_url + "/session/" + wda_session_id + "/actions"
         }
