@@ -150,16 +150,10 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 	width, _ := strconv.Atoi(widthString)
 	height, _ := strconv.Atoi(heightString)
 
-	// If height is less than 850px use the original height and width
-	if height < 850 {
-		canvasWidth = widthString
-		canvasHeight = heightString
-	} else {
-		// If height is more than 850px scale it down keeping the ratio
-		screenRatio := width / height
-		canvasHeight = "850"
-		canvasWidth = strconv.Itoa(850 * screenRatio)
-	}
+	screen_ratio := float64(width) / float64(height)
+
+	canvasHeight = "1000"
+	canvasWidth = fmt.Sprintf("%f", 1000*screen_ratio)
 
 	return
 }

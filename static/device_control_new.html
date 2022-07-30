@@ -114,8 +114,14 @@
         <div id="stream-div" style="position: relative;">
             <canvas id="actions-canvas"
                 style="position: absolute;width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></canvas>
+            {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
             <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaMjpegPort}}"
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            {{else}}
+            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.AndroidStreamPort}}"
+                id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            {{end}}
+            
         </div>
         <div>
         </div>
