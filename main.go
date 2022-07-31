@@ -14,38 +14,8 @@ import (
 
 var project_log_file *os.File
 
-type AppiumConfig struct {
-	DevicesHost             string `json:"devices_host"`
-	SeleniumHubHost         string `json:"selenium_hub_host"`
-	SeleniumHubPort         string `json:"selenium_hub_port"`
-	SeleniumHubProtocolType string `json:"selenium_hub_protocol_type"`
-	WDABundleID             string `json:"wda_bundle_id"`
-}
-
-type DeviceConfig struct {
-	OS                  string `json:"os"`
-	AppiumPort          int    `json:"appium_port"`
-	DeviceName          string `json:"device_name"`
-	DeviceOSVersion     string `json:"device_os_version"`
-	DeviceUDID          string `json:"device_udid"`
-	WDAMjpegPort        int    `json:"wda_mjpeg_port,omitempty"`
-	WDAPort             int    `json:"wda_port,omitempty"`
-	ScreenSize          string `json:"screen_size,omitempty"`
-	StreamPort          int    `json:"stream_port,omitempty"`
-	ContainerServerPort int    `json:"container_server_port"`
-}
-
-type EnvConfig struct {
-	SudoPassword         string `json:"sudo_password"`
-	ConnectSeleniumGrid  bool   `json:"connect_selenium_grid"`
-	SupervisionPassword  string `json:"supervision_password"`
-	ContainerizedUsbmuxd string `json:"containerized_usbmuxd"`
-}
-
 type ConfigJsonData struct {
-	AppiumConfig AppiumConfig   `json:"appium-config"`
-	EnvConfig    EnvConfig      `json:"env-config"`
-	DeviceConfig []DeviceConfig `json:"devices-config"`
+	DeviceProviders []string `json:"device_providers"`
 }
 
 // Load the initial page
@@ -81,48 +51,27 @@ func handleRequests() {
 		httpSwagger.DomID("#swagger-ui"),
 	))
 
-	// General containers endpoints
-	myRouter.HandleFunc("/containers/{container_id}/restart", RestartContainer).Methods("POST")
-	myRouter.HandleFunc("/containers/{container_id}/remove", RemoveContainer).Methods("POST")
-	myRouter.HandleFunc("/containers/{container_id}/logs", GetContainerLogs).Methods("GET")
-	myRouter.HandleFunc("/device-containers/remove", RemoveDeviceContainer).Methods("POST")
-	myRouter.HandleFunc("/device-containers/create", CreateDeviceContainer).Methods("POST")
-
-	// Configuration endpoints
-	myRouter.HandleFunc("/configuration/build-image/{image_type}", BuildDockerImage).Methods("POST")
-	myRouter.HandleFunc("/configuration/remove-image/{image_type}", RemoveDockerImage).Methods("POST")
-	myRouter.HandleFunc("/configuration/setup-udev-listener", SetupUdevListener).Methods("POST")
-	myRouter.HandleFunc("/configuration/remove-udev-listener", RemoveUdevListener).Methods("POST")
-	myRouter.HandleFunc("/configuration/update-config", UpdateProjectConfigHandler).Methods("PUT")
-	myRouter.HandleFunc("/configuration/set-sudo-password", SetSudoPassword).Methods("PUT")
 	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA).Methods("POST")
 	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
-
-	// Devices endpoints
-	myRouter.HandleFunc("/device-logs/{log_type}/{device_udid}", GetDeviceLogs).Methods("GET")
-	myRouter.HandleFunc("/ios-devices/{device_udid}/install-app", InstallIOSApp).Methods("POST")
-	myRouter.HandleFunc("/ios-devices/{device_udid}/uninstall-app", UninstallIOSApp).Methods("POST")
-	myRouter.HandleFunc("/devices/device-control", GetDeviceControlInfo).Methods("GET")
+	myRouter.HandleFunc("/devices/available-devices", GetAvailableDevicesInfo).Methods("GET")
 
 	// Logs
 	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
 
 	// Asset endpoints
 	myRouter.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	myRouter.PathPrefix("/main/").Handler(http.StripPrefix("/main/", http.FileServer(http.Dir("./"))))
 
-	// Page loads
-	myRouter.HandleFunc("/configuration", GetProjectConfigurationPage)
-	myRouter.HandleFunc("/device-containers", LoadDeviceContainers)
-	myRouter.HandleFunc("/refresh-device-containers", RefreshDeviceContainers)
 	myRouter.HandleFunc("/logs", GetLogsPage)
-	myRouter.HandleFunc("/device-control", GetDeviceControlPage)
 	myRouter.HandleFunc("/", GetInitialPage)
+	myRouter.HandleFunc("/devices", LoadAvailableDevices)
+	myRouter.HandleFunc("/refresh-available-devices", RefreshAvailableDevices)
+	myRouter.HandleFunc("/devices/control/{device_udid}", GetDevicePage)
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
 func main() {
+	go getAvailableDevicesInfoAllProviders()
 	setLogging()
 	handleRequests()
 }

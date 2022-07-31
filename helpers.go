@@ -328,7 +328,7 @@ func GetStringInBetween(str string, start string, end string) (result string) {
 }
 
 // Unmarshal request body into a struct
-func UnmarshalRequestBody(body io.ReadCloser, v interface{}) error {
+func UnmarshalReader(body io.ReadCloser, v interface{}) error {
 	reqBody, err := ioutil.ReadAll(body)
 	if err != nil {
 		return err
@@ -378,7 +378,7 @@ func UnmarshalJSONString(jsonString string, v interface{}) error {
 // Get a ConfigJsonData pointer with the current configuration from config.json
 func GetConfigJsonData() (*ConfigJsonData, error) {
 	var data ConfigJsonData
-	jsonFile, err := os.Open("./configs/config.json")
+	jsonFile, err := os.Open("./config.json")
 	if err != nil {
 		return nil, err
 	}

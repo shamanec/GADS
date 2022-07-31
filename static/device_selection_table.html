@@ -1,0 +1,26 @@
+{{define "device_selection_table"}}
+{{range .}}
+<li style="width: 200px; height: 450px;border: 1px solid #eaeaf1;display: inline-block;margin-right: 10px;margin-bottom: 10px;text-align: center;">
+  <div class="device-image" style="margin-top: 30px;margin-bottom: 10px;">
+    {{ if contains .DeviceOS "ios" }}
+    {{ if eq .DeviceImage ""}}
+    <img src="/static/images/devices/default-apple.png" style="height: 300px;">
+    {{else}}
+    <img src="/static/images/devices/{{.DeviceImage}}" style="height: 300px;">
+    {{end}}
+    {{else}}
+    {{ if eq .DeviceImage ""}}
+    <img src="/static/images/devices/default-android.png" style="height: 300px;">
+    {{else}}
+    <img src="/static/images/devices/{{.DeviceImage}}" style="height: 300px;">
+    {{end}}
+    {{end}}
+  </div>
+  <div class="device-title" style="margin-bottom: 10px;">{{.DeviceModel}}</div>
+  <div class="device-version" style="margin-bottom: 10px;">Version: {{.DeviceOSVersion}}</div>
+  <form method="post" action="/devices/control/{{.DeviceUDID}}" class="inline">
+    <button class="use-device" type="submit">Use device</button>
+  </form>
+</li>
+{{end}}
+{{end}}

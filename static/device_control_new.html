@@ -1,0 +1,791 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Device Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/skin-lion/ui.fancytree.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css">
+</head>
+<style>
+    .device-info-row {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 5px;
+        text-align: center;
+        border-bottom: 1px solid #000000;
+        padding-bottom: 5px;
+    }
+
+    .device-info-value {
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .device-tools-buttons {
+        border-bottom: 1px solid #000000;
+        background-color: #04AA6D;
+    }
+
+    .device-tools-buttons:hover {
+        background-color: #dfe21d;
+        cursor: pointer;
+    }
+
+    .fa {
+        size: 30px;
+    }
+
+    .device-tools-buttons-text {
+        user-select: none;
+    }
+
+    #device-tools {
+        border-radius: 3px;
+    }
+
+    #back-to-devices {
+        background-color: #04AA6D;
+        border: none;
+        padding: 12px 16px;
+        font-size: 16px;
+        cursor: pointer;
+        margin: 5px;
+    }
+</style>
+
+<body>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="/logs">Project logs</a>
+        <a class="active" href="/devices/control/{{.ContainerDeviceConfig.DeviceUDID}}">Device Control</a>
+        <a href="swagger/index.html" target="_blank">Swagger</a>
+    </div>
+    <div>
+        <button id="back-to-devices" style="margin-bottom: 10px;" onclick="location.href = '/devices';"><i class="fa-solid fa-left-long"></i>
+            Back to devices</button>
+    </div>
+    <div id="container-div" style="display: flex;justify-content: center;">
+        <div id="device-tools" style="border: 1px solid #000000;margin-right: 10px;">
+            <div class="device-tools-buttons" id="home-screen" style="text-align: center;padding: 5px;">
+                <div class="fa fa-home"></div>
+                <div class="device-tools-buttons-text">Homescreen</div>
+            </div>
+            <div class="device-tools-buttons" id="lock-device" style="text-align: center;padding: 5px;">
+                <div class="fa fa-lock"></div>
+                <div class="device-tools-buttons-text">Lock device</div>
+            </div>
+            <div class="device-tools-buttons" id="unlock-device" style="text-align: center;padding: 5px;">
+                <div class="fa fa-unlock"></div>
+                <div class="device-tools-buttons-text">Unlock device</div>
+            </div>
+            <div class="device-tools-buttons" id="type-text" style="text-align: center;padding: 5px;">
+                <div class="fa fa-pencil"></div>
+                <div class="device-tools-buttons-text">Type text</div>
+            </div>
+            <div>
+                <input type="text" id="type-text-input" style="width: 100%;" placeholder="Type text here">
+            </div>
+            <div class="device-tools-buttons" id="clear-text" style="text-align: center;padding: 5px;">
+                <div class="fa fa-eraser"></div>
+                <div class="device-tools-buttons-text">Clear text</div>
+            </div>
+            <div class="device-tools-buttons" id="wipe-canvas" style="text-align: center;padding: 5px;">
+                <i class="fa fa-broom"></i>
+                <div class="device-tools-buttons-text">Wipe canvas</div>
+            </div>
+            <div id="device-info" style="padding: 5px;margin-top: 2px;">
+                <div class="device-info-row">
+                    <div>OS:</div>
+                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceOSVersion}}</div>
+                </div>
+                <div class="device-info-row">
+                    <div>UDID:</div>
+                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceUDID}}</div>
+                </div>
+                <div class="device-info-row">
+                    <div>Device server:</div>
+                    <div class="device-info-value">
+                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}</div>
+                </div>
+                <div class="device-info-row">
+                    <div>Appium URL:</div>
+                    <div class="device-info-value">
+                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceAppiumPort}}</div>
+                </div>
+                {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+                <div class="device-info-row">
+                    <div>WebDriverAgent URL:</div>
+                    <div class="device-info-value">
+                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaPort}}
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </div>
+        <div id="stream-div" style="position: relative;">
+            <canvas id="actions-canvas"
+                style="position: absolute;width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></canvas>
+            {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.StreamPort}}"
+                id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            {{else}}
+            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}/stream"
+                id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            {{end}}
+        </div>
+        <div>
+        </div>
+</body>
+<script>
+    let device_host = "{{.ContainerDeviceConfig.DeviceHost}}"
+    let wda_port = "{{.ContainerDeviceConfig.WdaPort}}"
+    let wda_url = "http://" + device_host + ":" + wda_port
+    let device_os = "{{.ContainerDeviceConfig.DeviceOS}}"
+    let appium_port = "{{.ContainerDeviceConfig.DeviceAppiumPort}}"
+    let appium_url = "http://" + device_host + ":" + appium_port
+    let canvas_width = "{{.CanvasWidth}}"
+    let canvas_height = "{{.CanvasHeight}}"
+    let screen_size = "{{.ContainerDeviceConfig.ScreenSize}}"
+    var wda_session_id
+    var appium_session_id
+
+    // On page load add the listeners and start the refresh containers job
+    window.addEventListener("DOMContentLoaded", function () {
+        if (device_os == "ios") {
+            checkWDASession()
+        }
+
+        if (device_os == "android") {
+            checkAppiumSession()
+        }
+    });
+
+    document.getElementById("home-screen").addEventListener('click', () => {
+        var url
+        var json = "{}"
+
+        // if the device is android use press_keycode endpoint and send keycode 3 which is for the Home button
+        // if device is iOS send empty json
+        if (device_os.includes("android")) {
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/press_keycode"
+            json = JSON.stringify({ "keycode": 3 })
+
+        } else if (device_os.includes("ios")) {
+            url = wda_url + "/wda/homescreen"
+        } else {
+            console.log("Device OS does not match 'ios' or 'android'")
+            return
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: json,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access device homescreen endpoint. Error: " + error)
+            })
+    })
+
+    document.getElementById("unlock-device").addEventListener('click', () => {
+
+        if (device_os == "android") {
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/unlock"
+        } else if (device_os == "ios") {
+            url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
+        } else {
+            console.log("Device OS does not match 'ios' or 'android'")
+            return
+        }
+
+        fetch(url, {
+            method: 'POST'
+        }).catch(function (error) {
+            alert("Could not access device unlock endpoint. Error: " + error)
+        })
+    })
+
+    document.getElementById("lock-device").addEventListener('click', () => {
+
+        if (device_os == "android") {
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/lock"
+        } else if (device_os == "ios") {
+            url = wda_url + "/session/" + wda_session_id + "/wda/lock"
+        } else {
+            return
+        }
+
+        fetch(url, {
+            method: 'POST'
+        })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access device lock endpoint. Error: " + error)
+            })
+    })
+
+    document.getElementById("type-text").addEventListener('click', () => {
+        typeText()
+    })
+
+    document.getElementById("clear-text").addEventListener('click', () => {
+        clearActiveElementText()
+    })
+
+    document.getElementById("wipe-canvas").addEventListener('click', () => {
+        wipeCanvas()
+    })
+
+    // check if a wda session exists and connect to it or create a new one
+    function checkWDASession() {
+
+        // if there is no session id from the /status endpoint create a new session
+        // else just update the session id with the existing session
+        fetch(wda_url + "/status", {
+            method: 'GET',
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then((response) => {
+                return response.json()
+            })
+            .then((json) => {
+                if (json.sessionId === null) {
+                    createWDASession()
+                } else {
+                    wda_session_id = json.sessionId
+                }
+
+            })
+            .catch(function (error) {
+                wda_session_id = null
+                alert("Could not get WDA session. Error: " + error)
+                window.location.href = "/devices"
+            })
+    }
+
+    // create a wda session to the iOS device if no session exists
+    function createWDASession() {
+        let json = ""
+
+        // build the json to create a session
+        json = JSON.stringify({
+            "capabilities": {
+                "firstMatch": [
+                    {
+                        "arguments": [],
+                        "environment": {},
+                        "eventloopIdleDelaySec": 0,
+                        "shouldWaitForQuiescence": true,
+                        "shouldUseTestManagerForVisibilityDetection": false,
+                        "maxTypingFrequency": 60,
+                        "shouldUseSingletonTestManager": true,
+                        "shouldTerminateApp": true,
+                        "forceAppLaunch": true,
+                        "useNativeCachingStrategy": true,
+                        "forceSimulatorSoftwareKeyboardPresence": false
+                    }
+                ],
+                "alwaysMatch": {}
+            }
+        })
+
+        // create the new session
+        // on success update the wda session id in the table
+        $.ajax({
+            type: "POST",
+            url: wda_url + "/session",
+            data: json,
+            success: function (data) {
+                wda_session_id = data.sessionId
+            },
+            error: function (data) {
+                wda_session_id = null
+            }
+        });
+
+        fetch(wda_url + "/session", {
+            method: 'POST',
+            body: json,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then((response) => {
+                return response.json()
+            })
+            .then((json) => {
+                wda_session_id = data.sessionId
+            })
+            .catch(function (error) {
+                alert("Could not create WDA session. Error: " + error)
+                window.location.href = "/devices"
+            })
+    }
+
+    async function checkAppiumSession() {
+
+        // build the json to create a session
+        json = JSON.stringify({
+            "capabilities": {
+                "alwaysMatch": {
+                    "appium:automationName": "UiAutomator2",
+                    "platformName": "Android",
+                    "appium:ensureWebviewsHavePages": true,
+                    "appium:nativeWebScreenshot": true,
+                    "appium:newCommandTimeout": 0,
+                    "appium:connectHardwareKeyboard": true
+                },
+                "firstMatch": [
+                    {}
+                ]
+            },
+            "desiredCapabilities": {
+                "appium:automationName": "UiAutomator2",
+                "platformName": "Android",
+                "appium:ensureWebviewsHavePages": true,
+                "appium:nativeWebScreenshot": true,
+                "appium:newCommandTimeout": 0,
+                "appium:connectHardwareKeyboard": true
+            }
+        })
+
+        let sessions_url = appium_url + "/wd/hub/sessions"
+        let session_url = appium_url + "/wd/hub/session"
+        const sessions_response = await fetch(sessions_url).then(response => {
+            return response.json()
+        })
+            .catch(function (error) {
+                alert("Could not get Appium sessions" + error)
+                window.location.href = "/devices"
+            })
+
+        if (sessions_response.value.length === 0) {
+            const session_response = await fetch(session_url, {
+                method: 'POST',
+                body: json,
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            })
+                .then(response => {
+                    return response.json()
+                })
+                .catch(function (error) {
+                    alert("Could not create Appium session" + error)
+                    window.location.href = "/devices"
+                })
+            appium_session_id = session_response.value.sessionId
+        } else if (sessions_response.value[0].id === null) {
+            const session_response = await fetch(session_url, {
+                method: 'POST',
+                body: json,
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            })
+                .then(response => {
+                    return response.json()
+                })
+                .catch(function (error) {
+                    alert("Could not create Appium session" + error)
+                    window.location.href = "/devices"
+                })
+            appium_session_id = session_response.value.sessionId
+        } else {
+            appium_session_id = sessions_response.value[0].id
+        }
+    }
+
+    async function typeText() {
+        var active_element_url;
+        var element_value_url;
+
+        if (device_os == "android") {
+            active_element_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/active"
+        } else if (device_os == "ios") {
+            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+        } else {
+            return
+        }
+
+        const control_response = await fetch(active_element_url).then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        })
+
+        var element_id = control_response.value.ELEMENT
+        if (device_os == "android") {
+            element_value_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/" + element_id + "/value"
+        } else {
+            element_value_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value"
+        }
+
+        if (control_response != null) {
+            if (element_id != "") {
+                var text_input = document.getElementById("type-text-input").value
+                await fetch(element_value_url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-type': 'application/json'
+                    },
+                    body: JSON.stringify({ "text": text_input })
+                }).then(() => {
+                    document.getElementById("type-text-input").value = ""
+                })
+            }
+        }
+    }
+
+    async function clearActiveElementText() {
+        var active_element_url;
+        var element_clear_url;
+
+        if (device_os == "android") {
+            active_element_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/active"
+        } else if (device_os == "ios") {
+            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+        } else {
+            return
+        }
+
+        const control_response = await fetch(active_element_url).then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        })
+
+        var element_id = control_response.value.ELEMENT
+        if (device_os == "android") {
+            element_clear_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/" + element_id + "/clear"
+        } else {
+            element_clear_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear"
+        }
+
+        await fetch(element_clear_url, {
+            method: 'POST'
+        })
+    }
+
+    //=============CANVAS INTERACTIONS===================//
+    // canvas over the WDA image stream that allows us to tap
+    // and also draw element rectangles
+    var canvas = document.getElementById("actions-canvas")
+
+    var tapStartAt = 0
+    var coord1;
+    var coord2;
+
+    canvas.addEventListener('mousedown', () => {
+        // get the time of clicking the canvas
+        tapStartAt = (new Date()).getTime()
+        // get the initial coordinates of clicking the canvas
+        coord1 = getCursorCoordinates(canvas, event)
+        applyCursorRippleEffect(event);
+    })
+
+    canvas.addEventListener('mouseup', () => {
+        // get the coordinates on finishing the click on the canvas
+        coord2 = getCursorCoordinates(canvas, event)
+        // get the time of finishing the click on the canvas
+        var tapEndAt = (new Date()).getTime()
+
+        var mouseEventsTimeDiff = tapEndAt - tapStartAt
+
+        // if the difference of time between click down and click up is more than 500ms assume it is a swipe, not a tap
+        // to allow flick swipes we also check the difference between the gesture coordinates
+        // x1, y1 = mousedown coordinates
+        // x2, y2 = mouseup coordinates
+        // if x2 > x1*1.1 - it is probably a swipe left to right
+        // if x2 < x1*0.9 - it is probably a swipe right to left
+        // if y2 < y1*0.9 - it is probably a swipe bottom to top
+        // if y2 > y1*1.1 - it is probably a swipe top to bottom
+        if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
+            performSwipe(coord1, coord2)
+        } else {
+            // else perform a simple tap at coordinates
+            tapCoordinates(coord1)
+        }
+    })
+
+    function performSwipe(coord1, coord2) {
+
+        var firstCoordX = coord1[0]
+        var firstCoordY = coord1[1]
+        var secondCoordX = coord2[0]
+        var secondCoordY = coord2[1]
+
+        // get stream size and ratio
+        let stream_height = canvas_width
+        let stream_width = canvas_height
+        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+
+        // get device screen size dimensions
+        let deviceSize = $("#device-size").text()
+        let dimensions = deviceSize.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // if the stream height 
+        if (stream_height != deviceHeight) {
+            firstCoordX = (firstCoordX / stream_width) * deviceWidth
+            firstCoordY = (firstCoordY / stream_height) * deviceHeight
+            secondCoordX = (secondCoordX / stream_width) * deviceWidth
+            secondCoordY = (secondCoordY / stream_height) * deviceHeight
+        }
+
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": firstCoordX,
+                            "y": firstCoordY
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pointerMove",
+                            "duration": 750,
+                            "origin": "viewport",
+                            "x": secondCoordX,
+                            "y": secondCoordY
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        let session_id;
+        if (selected_device_text.includes("android")) {
+            let appium_port = $("#appium-port").text()
+            session_id = $("#appium-session-id").text()
+            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+        } else {
+            let wda_url = $("#wda-url").text()
+            session_id = $("#wda-session-id").text()
+            url = wda_url + "/session/" + session_id + "/actions"
+        }
+
+        // call the /actions endpoint sending the tapp coordinates
+        // on response remove the canvas loader
+        $.ajax({
+            type: "POST",
+            contentType: 'application/json',
+            data: jsonData,
+            url: url,
+            success: function () {
+            },
+            error: function () {
+                alert("WDA session is invalid, please reload")
+            }
+        });
+    }
+
+    // get the coordinates of the cursor position of the canvas tap event
+    function getCursorCoordinates(canvas, event) {
+        // get the canvas rectangle and then the coordinates of the tap event
+        const rect = canvas.getBoundingClientRect()
+        const x = event.clientX - rect.left
+        const y = event.clientY - rect.top
+        return [x, y];
+    }
+
+    // tap with WDA using coordinates
+    function tapCoordinates(pos) {
+        // get stream size and ratio
+        let stream_size_ratio = (canvas_height / canvas_width).toFixed(2)
+
+        // get device screen size dimensions
+        let dimensions = screen_size.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // set initial x and y tap coordinates
+        let x = pos[0]
+        let y = pos[1]
+
+        // if the stream height 
+        if (canvas_height != deviceHeight) {
+            x = (pos[0] / canvas_width) * deviceWidth
+            y = (pos[1] / canvas_height) * deviceHeight
+        }
+
+        // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": x,
+                            "y": y
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pause",
+                            "duration": 200
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        if (device_os == "android") {
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/actions"
+        } else {
+            url = wda_url + "/session/" + wda_session_id + "/actions"
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: jsonData,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access device homescreen endpoint. Error: " + error)
+            })
+    }
+
+    function performSwipe(coord1, coord2) {
+
+        var firstCoordX = coord1[0]
+        var firstCoordY = coord1[1]
+        var secondCoordX = coord2[0]
+        var secondCoordY = coord2[1]
+
+        let stream_size_ratio = (canvas_height / canvas_width).toFixed(2)
+
+        // get device screen size dimensions
+        let dimensions = screen_size.split('x');
+        let deviceHeight = parseInt(dimensions[1], 10)
+        let deviceWidth = parseInt(dimensions[0], 10)
+
+        // if the stream height 
+        if (canvas_height != deviceHeight) {
+            firstCoordX = (firstCoordX / canvas_width) * deviceWidth
+            firstCoordY = (firstCoordY / canvas_height) * deviceHeight
+            secondCoordX = (secondCoordX / canvas_width) * deviceWidth
+            secondCoordY = (secondCoordY / canvas_height) * deviceHeight
+        }
+
+        let jsonData = JSON.stringify({
+            "actions": [
+                {
+                    "type": "pointer",
+                    "id": "finger1",
+                    "parameters": {
+                        "pointerType": "touch"
+                    },
+                    "actions": [
+                        {
+                            "type": "pointerMove",
+                            "duration": 0,
+                            "x": firstCoordX,
+                            "y": firstCoordY
+                        },
+                        {
+                            "type": "pointerDown",
+                            "button": 0
+                        },
+                        {
+                            "type": "pointerMove",
+                            "duration": 750,
+                            "origin": "viewport",
+                            "x": secondCoordX,
+                            "y": secondCoordY
+                        },
+                        {
+                            "type": "pointerUp",
+                            "button": 0
+                        }
+                    ]
+                }
+            ]
+        })
+
+        if (device_os == "android") {
+            url = appium_url + "/wd/hub/session/" + appium_session_id + "/actions"
+        } else {
+            url = wda_url + "/session/" + wda_session_id + "/actions"
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: jsonData,
+            headers: {
+                'Content-type': 'application/json'
+            }
+        })
+            .then(() => {
+            })
+            .catch(function (error) {
+                alert("Could not access device homescreen endpoint. Error: " + error)
+            })
+    }
+
+    function applyCursorRippleEffect(e) {
+        const ripple = document.createElement("div");
+
+        ripple.className = "ripple";
+        document.body.appendChild(ripple);
+
+        ripple.style.left = `${e.clientX}px`;
+        ripple.style.top = `${e.clientY}px`;
+
+        ripple.style.animation = "ripple-effect .2s  linear";
+        ripple.onanimationend = () => document.body.removeChild(ripple);
+    }
+
+    function wipeCanvas() {
+        const canvas = document.getElementById('actions-canvas')
+        const context = canvas.getContext('2d')
+        context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+</script>
+
+</html>
