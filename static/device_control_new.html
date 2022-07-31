@@ -73,6 +73,9 @@
                 <div class="fa fa-pencil"></div>
                 <div class="device-tools-buttons-text">Type text</div>
             </div>
+            <div>
+                <input type="text" id="type-text-input" style="width: 100%;">
+            </div>
             <div class="device-tools-buttons" id="clear-text" style="text-align: center;padding: 5px;">
                 <div class="fa fa-eraser"></div>
                 <div class="device-tools-buttons-text">Clear text</div>
@@ -215,6 +218,10 @@
             .catch(function (error) {
                 alert("Could not access device lock endpoint. Error: " + error)
             })
+    })
+
+    document.getElementById("type-text").addEventListener('click', () => {
+        typeText()
     })
 
     document.getElementById("clear-text").addEventListener('click', () => {
@@ -384,6 +391,49 @@
             appium_session_id = session_response.value.sessionId
         } else {
             appium_session_id = sessions_response.value[0].id
+        }
+    }
+
+    async function typeText() {
+        var active_element_url;
+        var element_value_url;
+
+        if (device_os == "android") {
+            active_element_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/active"
+        } else if (device_os == "ios") {
+            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+        } else {
+            return
+        }
+
+        const control_response = await fetch(active_element_url).then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return null
+            }
+        })
+
+        var element_id = control_response.value.ELEMENT
+        if (device_os == "android") {
+            element_value_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/" + element_id + "/value"
+        } else {
+            element_value_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value"
+        }
+
+        if (control_response != null) {
+            if (element_id != "") {
+                var text_input = document.getElementById("type-text-input").value
+                await fetch(element_value_url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-type': 'application/json'
+                    },
+                    body: JSON.stringify({ "text": text_input })
+                }).then(() => {
+                    document.getElementById("type-text-input").value = ""
+                })
+            }
         }
     }
 
