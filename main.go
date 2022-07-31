@@ -14,28 +14,8 @@ import (
 
 var project_log_file *os.File
 
-type DeviceConfig struct {
-	OS                  string `json:"os"`
-	AppiumPort          int    `json:"appium_port"`
-	DeviceName          string `json:"device_name"`
-	DeviceOSVersion     string `json:"device_os_version"`
-	DeviceUDID          string `json:"device_udid"`
-	WDAMjpegPort        int    `json:"wda_mjpeg_port"`
-	WDAPort             int    `json:"wda_port"`
-	ScreenSize          string `json:"screen_size"`
-	StreamPort          int    `json:"stream_port"`
-	ContainerServerPort int    `json:"container_server_port"`
-	DeviceModel         string `json:"device_model"`
-	DeviceImage         string `json:"device_image"`
-	DeviceHost          string `json:"device_host"`
-}
-
-type EnvConfig struct {
-	DeviceProviders []string `json:"device_providers"`
-}
-
 type ConfigJsonData struct {
-	EnvConfig EnvConfig `json:"env-config"`
+	DeviceProviders []string `json:"device_providers"`
 }
 
 // Load the initial page

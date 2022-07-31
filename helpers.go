@@ -378,7 +378,7 @@ func UnmarshalJSONString(jsonString string, v interface{}) error {
 // Get a ConfigJsonData pointer with the current configuration from config.json
 func GetConfigJsonData() (*ConfigJsonData, error) {
 	var data ConfigJsonData
-	jsonFile, err := os.Open("./configs/config.json")
+	jsonFile, err := os.Open("./config.json")
 	if err != nil {
 		return nil, err
 	}

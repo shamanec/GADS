@@ -165,7 +165,7 @@ func getAvailableDevicesInfoAllProviders() {
 		intermediateConfig := []ContainerDeviceConfig{}
 
 		// Loop through the registered providers
-		for _, v := range configData.EnvConfig.DeviceProviders {
+		for _, v := range configData.DeviceProviders {
 			var providerDevicesInfo AvailableDevicesInfo
 
 			// Get the available devices from the current provider
