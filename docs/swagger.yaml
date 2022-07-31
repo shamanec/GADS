@@ -1,43 +1,4 @@
 definitions:
-  main.AndroidDevice:
-    properties:
-      appium_port:
-        type: integer
-      device_image:
-        type: string
-      device_name:
-        type: string
-      device_os_version:
-        type: string
-      device_udid:
-        type: string
-      stream_port:
-        type: string
-      stream_size:
-        type: string
-    type: object
-  main.AndroidDeviceInfo:
-    properties:
-      deviceConfig:
-        $ref: '#/definitions/main.AndroidDevice'
-      installedAppsBundleIDs:
-        items:
-          type: string
-        type: array
-    type: object
-  main.AppiumConfig:
-    properties:
-      devices_host:
-        type: string
-      selenium_hub_host:
-        type: string
-      selenium_hub_port:
-        type: string
-      selenium_hub_protocol_type:
-        type: string
-      wda_bundle_id:
-        type: string
-    type: object
   main.AvailableDevicesInfo:
     properties:
       devices-info:
@@ -70,61 +31,6 @@ definitions:
       wda_port:
         type: string
     type: object
-  main.DeviceControlInfo:
-    properties:
-      android-devices-info:
-        items:
-          $ref: '#/definitions/main.AndroidDeviceInfo'
-        type: array
-      installable-apps:
-        items:
-          type: string
-        type: array
-      ios-devices-info:
-        items:
-          $ref: '#/definitions/main.IOSDeviceInfo'
-        type: array
-      running-containers:
-        items:
-          type: string
-        type: array
-    type: object
-  main.IOSDevice:
-    properties:
-      appium_port:
-        type: integer
-      container_server_port:
-        type: integer
-      device_image:
-        type: string
-      device_model:
-        type: string
-      device_name:
-        type: string
-      device_os_version:
-        type: string
-      device_udid:
-        type: string
-      screen_size:
-        type: string
-      wda_mjpeg_port:
-        type: integer
-      wda_port:
-        type: integer
-      wda_stream_url:
-        type: string
-      wda_url:
-        type: string
-    type: object
-  main.IOSDeviceInfo:
-    properties:
-      deviceConfig:
-        $ref: '#/definitions/main.IOSDevice'
-      installedAppsBundleIDs:
-        items:
-          type: string
-        type: array
-    type: object
   main.JsonErrorResponse:
     properties:
       error_message:
@@ -140,71 +46,6 @@ definitions:
 info:
   contact: {}
 paths:
-  /configuration/build-image/{image_type}:
-    post:
-      description: Starts building a docker image in a goroutine and just returns
-        Accepted.
-      parameters:
-      - description: 'Image type: ios-appium, android-appium'
-        in: path
-        name: image_type
-        required: true
-        type: string
-      responses:
-        "202":
-          description: ""
-      summary: Build docker images
-      tags:
-      - configuration
-  /configuration/remove-image/{image_type}:
-    post:
-      description: Removes the 'ios-appium' or 'android-appium' Docker image
-      parameters:
-      - description: 'Image type: ios-appium, android-appium'
-        in: path
-        name: image_type
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Remove 'ios-appium' or 'android-appium' image
-      tags:
-      - configuration
-  /configuration/update-config:
-    put:
-      consumes:
-      - application/json
-      description: Updates one or multiple configuration values
-      parameters:
-      - description: Update config
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.AppiumConfig'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Update project Appium configuration
-      tags:
-      - configuration
   /configuration/upload-wda:
     post:
       description: Uploads the provided *.ipa into the ./apps folder with the expected
@@ -223,99 +64,6 @@ paths:
       summary: Upload WDA
       tags:
       - configuration
-  /containers/{container_id}/logs:
-    get:
-      description: Get logs of container by provided container ID
-      parameters:
-      - description: Container ID
-        in: path
-        name: container_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Get container logs
-      tags:
-      - containers
-  /containers/{container_id}/remove:
-    post:
-      description: Removes container by provided container ID
-      parameters:
-      - description: Container ID
-        in: path
-        name: container_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Remove container
-      tags:
-      - containers
-  /containers/{container_id}/restart:
-    post:
-      description: Restarts container by provided container ID
-      parameters:
-      - description: Container ID
-        in: path
-        name: container_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Restart container
-      tags:
-      - containers
-  /device-logs/{log_type}/{device_udid}:
-    get:
-      description: Get logs by type
-      parameters:
-      - description: Log Type
-        in: path
-        name: log_type
-        required: true
-        type: string
-      - description: Device UDID
-        in: path
-        name: device_udid
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-      summary: Get logs for iOS device container
-      tags:
-      - device-logs
   /devices/available-devices:
     post:
       description: Provides info of the currently available devices
@@ -345,24 +93,6 @@ paths:
         "500":
           description: ""
       summary: Load the page for a selected device
-  /devices/device-control:
-    post:
-      description: Provides the running containers, IOS devices info and apps available
-        for installing
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.DeviceControlInfo'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Get device control info
-      tags:
-      - devices
   /project-logs:
     get:
       description: Provides project logs as plain text response
@@ -372,16 +102,4 @@ paths:
       summary: Get project logs
       tags:
       - project-logs
-  /refresh-device-containers:
-    post:
-      description: Refreshes the device-containers data by returning an updated HTML
-        table
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: ""
-        "500":
-          description: ""
-      summary: Refresh the device-containers data
 swagger: "2.0"
