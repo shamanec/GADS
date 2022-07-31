@@ -19,7 +19,7 @@
   <div class="device-title" style="margin-bottom: 10px;">{{.DeviceModel}}</div>
   <div class="device-version" style="margin-bottom: 10px;">Version: {{.DeviceOSVersion}}</div>
   <form method="post" action="/devices/control/{{.DeviceUDID}}" class="inline">
-    <button type="submit">Use device</button>
+    <button class="use-device" type="submit">Use device</button>
   </form>
 </li>
 {{end}}
