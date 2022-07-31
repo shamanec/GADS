@@ -12,7 +12,7 @@
     "supervision_password": "patladjan1",
     "containerized_usbmuxd": "true",
     "device_providers": [
-      "192.168.1.8:10001",
+      "192.168.1.5:10001",
       "192.168.1.17:10001"
     ]
   },

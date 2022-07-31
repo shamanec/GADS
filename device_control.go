@@ -25,9 +25,8 @@ type ContainerDeviceConfig struct {
 	DeviceHost                string `json:"device_host"`
 	DeviceAppiumPort          string `json:"appium_port"`
 	WdaPort                   string `json:"wda_port"`
-	WdaMjpegPort              string `json:"wda_mjpeg_port"`
+	StreamPort                string `json:"stream_port"`
 	ScreenSize                string `json:"screen_size"`
-	AndroidStreamPort         string `json:"android_stream_port"`
 	DeviceImage               string `json:"device_image"`
 }
 
@@ -48,12 +47,6 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Summary      Refresh the available devices
-// @Description  Refreshes the currently available devices by returning updated HTML
-// @Produce      html
-// @Success      200
-// @Failure      500
-// @Router       /refresh-available=devices [post]
 func RefreshAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	devices := cachedDevicesConfig
 

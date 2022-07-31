@@ -115,13 +115,12 @@
             <canvas id="actions-canvas"
                 style="position: absolute;width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></canvas>
             {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
-            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaMjpegPort}}"
+            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.StreamPort}}"
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{else}}
-            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.AndroidStreamPort}}"
+            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}/stream"
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
-
         </div>
         <div>
         </div>
