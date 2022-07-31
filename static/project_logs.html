@@ -42,6 +42,15 @@
         position: sticky;
         top: 0;
     }
+
+    .log-selection {
+        background-color: #04AA6D;
+        border: none;
+        padding: 12px 16px;
+        font-size: 16px;
+        cursor: pointer;
+        margin: 5px;
+    }
 </style>
 
 <body>
@@ -52,6 +61,11 @@
         <a href="devices">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
+    <button class="log-selection" value="/project-logs" id="gads-logs" style="margin-bottom: 10px;">GADS Logs</button>
+    {{range .DeviceProviders}}
+    <button class="log-selection provider-buttons" value="http://{{.}}/provider-logs"
+        style="margin-bottom: 10px;">{{.}}</button>
+    {{end}}
     <table id="logs-table">
         <thead>
             <tr>
@@ -69,31 +83,64 @@
 
 <script>
     window.addEventListener("DOMContentLoaded", function () {
-        getLogs();
+        getInitialLogs();
+        addEventListeners()
     });
 
-    function getLogs() {
-        $.ajax({
-            async: false,
-            type: "GET",
-            url: "/project-logs",
-            success: function (data) {
-                //$('#test').html(data);
-                createLogsTable(data)
-            },
-            error: function (data) {
-                alert("No logs");
-            }
-        });
+    function addEventListeners() {
+        var provider_buttons = document.getElementsByClassName("provider-buttons")
+
+        for (var i = 0; i < provider_buttons.length; i++) {
+            provider_buttons[i].addEventListener('click', (event) => {
+                var button = event.target
+                getLogs(button.value)
+            }, false);
+        }
+    }
+
+    document.getElementById("gads-logs").addEventListener('click', (event) => {
+        var button = event.target
+        getLogs(button.value)
+    })
+
+    function getInitialLogs() {
+        fetch("/project-logs", {
+            method: 'GET',
+        })
+            .then((data) => {
+                return data.text()
+            })
+            .then((response) => {
+                createLogsTable(response)
+            })
+            .catch(function (error) {
+                alert("Could not get logs")
+            })
+    }
+
+    function getLogs(url) {
+        fetch(url, {
+            method: 'GET',
+        })
+            .then((data) => {
+                return data.text()
+            })
+            .then((response) => {
+                createLogsTable(response)
+            })
+            .catch(function (error) {
+                alert("Could not get logs")
+            })
     }
 
     function createLogsTable(data) {
         var table = document.getElementById("logs-table-body");
+        table.innerHTML = ""
         var lines = data.trim().split(/\r\n|\r|\n/)
 
         //Display the latest logs at the top of the page
         lines.reverse()
-        
+
         for (var i = 0; i < lines.length - 1; i++) {
 
             var tr = document.createElement('tr');

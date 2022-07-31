@@ -15,11 +15,17 @@ import (
 
 // Load the general logs page
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
+	configData, err := GetConfigJsonData()
+	if err != nil {
+		fmt.Println("error 1")
+		return
+	}
+
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
-	if err := logs_page.Execute(w, nil); err != nil {
+	if err := logs_page.Execute(w, configData); err != nil {
 		log.WithFields(log.Fields{
 			"event": "project_logs_page",
-		}).Error("Couldn't load project_logs.html")
+		}).Error("Couldn't load project_logs.html: " + err.Error())
 		return
 	}
 }
@@ -33,7 +39,7 @@ func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 // @Router       /project-logs [get]
 func GetLogs(w http.ResponseWriter, r *http.Request) {
 	// Create the command string to read the last 1000 lines of project.log
-	commandString := "tail -n 1000 ./logs/project.log"
+	commandString := "tail -n 1000 ./gads-project.log"
 
 	// Create the command
 	cmd := exec.Command("bash", "-c", commandString)
@@ -56,6 +62,10 @@ func GetLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reply with the read logs lines
-	fmt.Fprintf(w, out.String())
+	if out.String() == "" {
+		fmt.Fprintf(w, "No logs available")
+	} else {
+		// Reply with the read logs lines
+		fmt.Fprintf(w, out.String())
+	}
 }

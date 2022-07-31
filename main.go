@@ -31,7 +31,7 @@ func GetInitialPage(w http.ResponseWriter, r *http.Request) {
 
 func setLogging() {
 	log.SetFormatter(&log.JSONFormatter{})
-	project_log_file, err := os.OpenFile("./logs/project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+	project_log_file, err := os.OpenFile("./gads-project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
 	if err != nil {
 		panic(err)
 	}
