@@ -202,6 +202,9 @@
             <div style="border-bottom: 1px solid #000;top: 0;text-align: center;font-weight: 600;font-size: 20px;background-color: #04AA6D;border-top: 1px solid #000;">App
                 source</div>
             <div style="height: 60%;position: relative;">
+                <div id="source-loading" style="display: none; width: 100%; height: 100%;justify-content: center;">
+                    <img  src="/static/images/loader.gif">
+                </div>
                 <div style="overflow: auto;max-height: 100%;" id="app-source"></div>
             </div>
             <div style="border-bottom: 1px solid #000;border-top:1px solid #000;top: 0;text-align: center;font-weight: 600;font-size: 20px; background-color: #04AA6D;">
@@ -1069,6 +1072,7 @@
         let app_source = $('#app-source')
         parser = new DOMParser();
 
+        showSourceLoading()
         fetch(url, {
             method: 'GET',
         })
@@ -1090,6 +1094,7 @@
                 // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
                 if (app_source.children().length > 0) {
                     $.ui.fancytree.getTree().reload(JSON.parse(jstree_json));
+                    hideSourceLoading()
                 } else {
                     app_source.fancytree({
                         'source': [
@@ -1102,10 +1107,12 @@
                             drawRectangleForTree(element_values)
                         }
                     });
+                    hideSourceLoading()
                 }
             })
             .catch(function (error) {
                 alert("Could not get app source. Error: " + error)
+                hideSourceLoading()
             })
     }
 
@@ -1277,6 +1284,23 @@
         }
 
     }
+
+    function showSourceLoading() {
+        let tree = document.getElementById("app-source")
+        tree.style.display = "none"
+
+        let loading = document.getElementById("source-loading")
+        loading.style.display = "flex"
+    }
+
+    function hideSourceLoading() {
+        let tree = document.getElementById("app-source")
+        tree.style.display = "block"
+
+        let loading = document.getElementById("source-loading")
+        loading.style.display = "none"
+    }
+
 
 </script>
 
