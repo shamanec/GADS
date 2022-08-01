@@ -51,13 +51,24 @@
         cursor: pointer;
         margin: 5px;
     }
+
+    .loading {
+        position: absolute;
+        display: block;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background-color: rgba(70, 70, 70, .5);
+        color: red;
+    }
 </style>
 
 <body>
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
-        <a class="active" href="logs">Project logs</a>
+        <a class="active" href="logs">Logs</a>
         <a href="devices">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
@@ -69,16 +80,17 @@
     <table id="logs-table">
         <thead>
             <tr>
-                <th>Time</th>
-                <th>Level</th>
-                <th>Event</th>
-                <th>Message</th>
+                <th style="width: 10%;">Time</th>
+                <th style="width: 5%;">Level</th>
+                <th style="width: 10%;">Event</th>
+                <th style="width: 75%;">Message</th>
             </tr>
         </thead>
         <tbody id="logs-table-body">
         </tbody>
     </table>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 </body>
 
 <script>
@@ -86,6 +98,10 @@
         getInitialLogs();
         addEventListeners()
     });
+
+    function hideMe(el) {
+        el.style.display = 'none';
+    }
 
     function addEventListeners() {
         var provider_buttons = document.getElementsByClassName("provider-buttons")
@@ -114,7 +130,7 @@
                 createLogsTable(response)
             })
             .catch(function (error) {
-                alert("Could not get logs")
+                swal("Provider not available", "Could not get logs: " + error, "error")
             })
     }
 
@@ -129,7 +145,7 @@
                 createLogsTable(response)
             })
             .catch(function (error) {
-                alert("Could not get logs")
+                swal("Provider not available", "Could not get logs: " + error, "error")
             })
     }
 

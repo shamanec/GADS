@@ -145,8 +145,8 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 
 	screen_ratio := float64(width) / float64(height)
 
-	canvasHeight = "1000"
-	canvasWidth = fmt.Sprintf("%f", 1000*screen_ratio)
+	canvasHeight = "850"
+	canvasWidth = fmt.Sprintf("%f", 850*screen_ratio)
 
 	return
 }
