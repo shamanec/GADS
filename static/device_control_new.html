@@ -188,8 +188,8 @@
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
-        <div id="inspector-source" style="height: 850px; width: 500px;background-color: #b9b9b9;">
-            <div style="display: flex;flex-direction: row;justify-content: center;padding: 5px;">
+        <div id="inspector-source" style="height: 850px; width: 500px;">
+            <div style="display: flex;flex-direction: row;justify-content: center;padding: 5px;background-color: #b9b9b9;">
                 <div class="device-tools-buttons" id="refresh-source" style="margin-right: 10px;">
                     <div class="fa fa-arrows-rotate"></div>
                     <div class="device-tools-buttons-text">Get source</div>
@@ -206,7 +206,7 @@
             </div>
             <div style="border-bottom: 1px solid #000;border-top:1px solid #000;top: 0;text-align: center;font-weight: 600;font-size: 20px; background-color: #04AA6D;">
                 Element info</div>
-            <div style="overflow: auto;overflow-y:scroll;height: 25%;padding-top: 10px;background-color: #b9b9b9;">
+            <div style="overflow: auto;overflow-y:scroll;height: 25%;background-color: #b9b9b9;">
                 {{if eq .ContainerDeviceConfig.DeviceOS "ios"}}
                 <div class="element-info">
                     <div class="element-info-keys">type</div>
