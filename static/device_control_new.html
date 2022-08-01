@@ -28,6 +28,7 @@
         background-color: #04AA6D;
         text-align: center;
         padding: 5px;
+        border-radius: 4px;
     }
 
     .device-tools-buttons:hover {
@@ -47,7 +48,6 @@
         border-radius: 3px;
         min-height: 100px;
         overflow: hidden;
-        border: 1px solid #000000;
         margin-right: 10px;
     }
 
@@ -79,9 +79,6 @@
     #app-source {
         width: 100%;
         margin-left: 10px;
-    }
-
-    #app-source {
         list-style: none;
         padding: 0;
         margin: 0;
@@ -94,6 +91,24 @@
     span.fancytree-title {
         font-size: 18px;
     }
+
+    .element-info-values {
+        font-weight: 600;
+        text-align: left;
+        width: 70%;
+    }
+
+    .element-info-keys {
+        text-align: center;
+        width: 30%;
+    }
+
+    .element-info {
+        padding: 3px;
+        display: flex;
+        flex-direction: row;
+    }
+    
 </style>
 
 <body>
@@ -173,24 +188,137 @@
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
-        <div id="inspector-source" style="height: 850px; width: 500px;">
-                <div style="display: flex;flex-direction: row;justify-content: center;margin-top:10px">
-                    <div class="device-tools-buttons" id="refresh-source" style="margin-right: 10px;">
-                        <div class="fa fa-arrows-rotate"></div>
-                        <div class="device-tools-buttons-text">Get source</div>
-                    </div>
-                    <div class="device-tools-buttons" id="wipe-canvas">
-                        <i class="fa fa-broom"></i>
-                        <div class="device-tools-buttons-text">Wipe canvas</div>
-                    </div>
+        <div id="inspector-source" style="height: 850px; width: 500px;background-color: #b9b9b9;">
+            <div style="display: flex;flex-direction: row;justify-content: center;padding: 5px;">
+                <div class="device-tools-buttons" id="refresh-source" style="margin-right: 10px;">
+                    <div class="fa fa-arrows-rotate"></div>
+                    <div class="device-tools-buttons-text">Get source</div>
                 </div>
-                <div style="overflow: auto;border-bottom: 1px solid #000;height: 60%;">
-                    <h3>App source</h3>
-                    <div id="app-source"></div>
+                <div class="device-tools-buttons" id="wipe-canvas">
+                    <i class="fa fa-broom"></i>
+                    <div class="device-tools-buttons-text">Wipe canvas</div>
                 </div>
-                <div style="height: 30%;bottom: 0;">
-                    <h3>Element info</h3>
+            </div>
+            <div style="border-bottom: 1px solid #000;top: 0;text-align: center;font-weight: 600;font-size: 20px;background-color: #04AA6D;border-top: 1px solid #000;">App
+                source</div>
+            <div style="height: 60%;position: relative;">
+                <div style="overflow: auto;max-height: 100%;" id="app-source"></div>
+            </div>
+            <div style="border-bottom: 1px solid #000;border-top:1px solid #000;top: 0;text-align: center;font-weight: 600;font-size: 20px; background-color: #04AA6D;">
+                Element info</div>
+            <div style="overflow: auto;overflow-y:scroll;height: 25%;padding-top: 10px;background-color: #b9b9b9;">
+                {{if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+                <div class="element-info">
+                    <div class="element-info-keys">type</div>
+                    <div class="element-info-values" id="element-type">none</div>
                 </div>
+                <div class="element-info">
+                    <div class="element-info-keys">name</div>
+                    <div class="element-info-values" id="element-name">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">label</div>
+                    <div class="element-info-values" id="element-label">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">visible</div>
+                    <div class="element-info-values" id="element-visible">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">enabled</div>
+                    <div class="element-info-values" id="element-enabled">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">value</div>
+                    <div class="element-info-values" id="element-value">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">x</div>
+                    <div class="element-info-values" id="element-x">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">y</div>
+                    <div class="element-info-values" id="element-y">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">width</div>
+                    <div class="element-info-values" id="element-width">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">height</div>
+                    <div class="element-info-values" id="element-height">none</div>
+                </div>
+                {{else}}
+                <div class="element-info">
+                    <div class="element-info-keys">index</div>
+                    <div class="element-info-values" id="element-index">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">resource-id</div>
+                    <div class="element-info-values" id="element-resourceid">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">package</div>
+                    <div class="element-info-values" id="element-package">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">class</div>
+                    <div class="element-info-values" id="element-class">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">text</div>
+                    <div class="element-info-values" id="element-text">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">checkable</div>
+                    <div class="element-info-values" id="element-checkable">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">checked</div>
+                    <div class="element-info-values" id="element-checked">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">clickable</div>
+                    <div class="element-info-values" id="element-clickable">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">enabled</div>
+                    <div class="element-info-values" id="element-enabled">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">focusable</div>
+                    <div class="element-info-values" id="element-focusable">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">focused</div>
+                    <div class="element-info-values" id="element-focused">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">long-clickable</div>
+                    <div class="element-info-values" id="element-long-clickable">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">password</div>
+                    <div class="element-info-values" id="element-password">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">scrollable</div>
+                    <div class="element-info-values" id="element-scrollable">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">selected</div>
+                    <div class="element-info-values" id="element-selected">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">bounds</div>
+                    <div class="element-info-values" id="element-bounds">none</div>
+                </div>
+                <div class="element-info">
+                    <div class="element-info-keys">displayed</div>
+                    <div class="element-info-values" id="element-displayed">none</div>
+                </div>
+                {{end}}
+            </div>
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
@@ -970,6 +1098,7 @@
                         activate: function (event, data) {
                             console.log(data.node.key)
                             var element_values = JSON.parse(data.node.key.replaceAll("'", "\""))
+                            showElementInfo(element_values)
                             drawRectangleForTree(element_values)
                         }
                     });
@@ -1112,6 +1241,41 @@
         // to add the missing commas to make the json valid xD
         mainJson = mainJson.replaceAll("}{", "},{")
         return mainJson;
+    }
+
+    function showElementInfo(json) {
+
+        if (device_os == "ios") {
+            $("#element-type").text(json.type)
+            $("#element-name").text(json.name)
+            $("#element-label").text(json.label)
+            $("#element-value").text(json.value)
+            $("#element-enabled").text(json.enabled)
+            $("#element-visible").text(json.visible)
+            $("#element-x").text(json.x)
+            $("#element-y").text(json.y)
+            $("#element-width").text(json.width)
+            $("#element-height").text(json.height)
+        } else {
+            $("#element-index").text(json.index)
+            $("#element-resourceid").text(json.resourceid)
+            $("#element-package").text(json.package)
+            $("#element-class").text(json.class)
+            $("#element-text").text(json.text)
+            $("#element-checkable").text(json.checkable)
+            $("#element-checked").text(json.checked)
+            $("#element-clickable").text(json.clickable)
+            $("#element-enabled").text(json.enabled)
+            $("#element-focusable").text(json.focusable)
+            $("#element-focused").text(json.focused)
+            $("#element-long-clickable").text(json.longclickable)
+            $("#element-password").text(json.password)
+            $("#element-scrollable").text(json.scrollable)
+            $("#element-selected").text(json.selected)
+            $("#element-bounds").text(json.bounds)
+            $("#element-displayed").text(json.displayed)
+        }
+
     }
 
 </script>
