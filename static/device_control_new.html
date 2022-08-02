@@ -23,15 +23,20 @@
         margin-top: 2px;
     }
 
-    .device-tools-buttons {
-        border-bottom: 1px solid #000000;
-        background-color: #2FAD93;
-        text-align: center;
+    #device-info {
         padding: 5px;
+        margin-top: 2px;
+    }
+
+    .action-buttons {
+        border-bottom: 1px solid #000000;
+        background-color: #32dbb8;
+        text-align: center;
+        padding: 10px;
         border-radius: 4px;
     }
 
-    .device-tools-buttons:hover {
+    .action-buttons:hover {
         background-color: #dfe21d;
         cursor: pointer;
     }
@@ -40,7 +45,7 @@
         size: 30px;
     }
 
-    .device-tools-buttons-text {
+    .action-buttons-text {
         user-select: none;
     }
 
@@ -49,16 +54,8 @@
         min-height: 100px;
         overflow: hidden;
         margin-right: 10px;
-    }
-
-    #back-to-devices {
-        background-color: #2FAD93;
-        border: 1px solid #000000;
-        padding: 12px 16px;
-        font-size: 16px;
-        cursor: pointer;
-        margin-right: 10px;
-        border-radius: 3px;
+        margin-left: 10px;
+        width: 250px;
     }
 
     #container-div {
@@ -70,9 +67,15 @@
 
     #stream-div {
         margin-right: 10px;
+        position: relative;
+        border: 1px solid #000;
     }
 
     #inspector-source {
+        height: 850px;
+        width: 500px;
+        display: flex;
+        flex-direction: column;
         border: 1px solid #000;
     }
 
@@ -82,6 +85,7 @@
         list-style: none;
         padding: 0;
         margin: 0;
+        background-color: #ffffff;
     }
 
     ul.fancytree-container {
@@ -95,12 +99,12 @@
     .element-info-values {
         font-weight: 600;
         text-align: left;
-        width: 70%;
+        max-width: 75%;
     }
 
     .element-info-keys {
         text-align: center;
-        width: 30%;
+        width: 25%;
     }
 
     .element-info {
@@ -108,7 +112,55 @@
         display: flex;
         flex-direction: row;
     }
+
+    #source-container {
+        height: 550px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-source-titles {
+        top: 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 20px;
+        background-color: #32dbb8;
+        border-bottom: 1px solid #000;
+        border-top: 1px solid #000;
+        padding: 5px;
+    }
+
+    #app-source-buttons {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        padding: 5px;
+        height: 50px;
+        background-color: #bdc7c3;
+    }
+
+    #element-info-container {
+        display: flex;
+        flex-direction: column;
+        height: 250px;
+    }
+
+    #element-info-holder {
+        overflow-y: scroll;
+        background-color: #bdc7c3;
+    }
+
+    #source-loading {
+        display: none;
+        height: 100%;
+        width: 100%;
+    }
     
+    .device-buttons {
+        height: 60px;
+        width: 100%;
+        font-size: 15px;
+    }
 </style>
 
 <body>
@@ -121,34 +173,27 @@
     </div>
     <div id="container-div">
         <div>
-            <button id="back-to-devices" onclick="location.href = '/devices';"><i class="fa-solid fa-left-long"></i>
+            <button class="action-buttons" id="back-to-devices" onclick="location.href = '/devices';"><i class="fa-solid fa-left-long"></i>
                 Back to devices</button>
         </div>
         <div id="device-tools">
-            <div class="device-tools-buttons" id="home-screen">
-                <div class="fa fa-home"></div>
-                <div class="device-tools-buttons-text">Homescreen</div>
-            </div>
-            <div class="device-tools-buttons" id="lock-device">
-                <div class="fa fa-lock"></div>
-                <div class="device-tools-buttons-text">Lock device</div>
-            </div>
-            <div class="device-tools-buttons" id="unlock-device">
-                <div class="fa fa-unlock"></div>
-                <div class="device-tools-buttons-text">Unlock device</div>
-            </div>
-            <div class="device-tools-buttons" id="type-text">
-                <div class="fa fa-pencil"></div>
-                <div class="device-tools-buttons-text">Type text</div>
+            <div>
+                <button class="device-buttons action-buttons" id="home-screen"><i class="fa-solid fa-home"></i> Homescreen</button>
             </div>
             <div>
+                <button class="device-buttons action-buttons" id="lock-device"><i class="fa-solid fa-lock"></i> Lock device</button>
+            </div>
+            <div>
+                <button class="device-buttons action-buttons" id="unlock-device"><i class="fa-solid fa-unlock"></i> Unlock device</button>
+            </div>
+            <div>
+                <button class="device-buttons action-buttons" id="type-text"><i class="fa-solid fa-pencil"></i> Type text</button>
                 <input type="text" id="type-text-input" style="width: 100%;" placeholder="Type text here">
             </div>
-            <div class="device-tools-buttons" id="clear-text">
-                <div class="fa fa-eraser"></div>
-                <div class="device-tools-buttons-text">Clear text</div>
+            <div>
+                <button class="device-buttons action-buttons" id="clear-text"><i class="fa-solid fa-eraser"></i> Clear text</button>
             </div>
-            <div id="device-info" style="padding: 5px;margin-top: 2px;">
+            <div id="device-info">
                 <div class="device-info-row">
                     <div>OS:</div>
                     <div class="device-info-value">{{.ContainerDeviceConfig.DeviceOSVersion}}</div>
@@ -177,7 +222,7 @@
                 {{end}}
             </div>
         </div>
-        <div id="stream-div" style="position: relative;">
+        <div id="stream-div">
             <canvas id="actions-canvas"
                 style="position: absolute;width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></canvas>
             {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
@@ -188,139 +233,140 @@
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
-        <div id="inspector-source" style="height: 850px; width: 500px;">
-            <div style="display: flex;flex-direction: row;justify-content: center;padding: 5px;background-color: #b9b9b9;">
-                <div class="device-tools-buttons" id="refresh-source" style="margin-right: 10px;">
-                    <div class="fa fa-arrows-rotate"></div>
-                    <div class="device-tools-buttons-text">Get source</div>
+        <div id="inspector-source">
+            <div id="app-source-buttons">
+                <div style="margin-right: 10px;">
+                    <button class="action-buttons" id="refresh-source"><i class="fa-solid fa-rotate"></i> Get source</button>
                 </div>
-                <div class="device-tools-buttons" id="wipe-canvas">
-                    <i class="fa fa-broom"></i>
-                    <div class="device-tools-buttons-text">Wipe canvas</div>
+                <div>
+                    <button class="action-buttons" id="wipe-canvas"><i class="fa-solid fa-broom"></i> Wipe canvas</button>
                 </div>
             </div>
-            <div style="border-bottom: 1px solid #000;top: 0;text-align: center;font-weight: 600;font-size: 20px;background-color: #2FAD93;border-top: 1px solid #000;">App
-                source</div>
-            <div style="height: 60%;position: relative;">
-                <div id="source-loading" style="display: none; width: 100%; height: 100%;justify-content: center;">
-                    <img src="/static/images/gears.gif">
+
+            <div id="source-container">
+                <div class="app-source-titles">App source</div>
+                <div id="source-loading">
+                    <img style="object-fit: contain; height: 100%;" src="/static/images/gears.gif">
                 </div>
-                <div style="overflow: auto;max-height: 100%;" id="app-source"></div>
+                <div style="overflow: auto;">
+                    <div id="app-source"></div>
+                </div>
             </div>
-            <div style="border-bottom: 1px solid #000;border-top:1px solid #000;top: 0;text-align: center;font-weight: 600;font-size: 20px; background-color: #2FAD93;">
-                Element info</div>
-            <div style="overflow: auto;overflow-y:scroll;height: 25%;background-color: #b9b9b9;">
-                {{if eq .ContainerDeviceConfig.DeviceOS "ios"}}
-                <div class="element-info">
-                    <div class="element-info-keys">type</div>
-                    <div class="element-info-values" id="element-type">none</div>
+            <div id="element-info-container">
+                <div class="app-source-titles">Element info</div>
+                <div id="element-info-holder">
+                    {{if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+                    <div class="element-info">
+                        <div class="element-info-keys">type</div>
+                        <div class="element-info-values" id="element-type">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">name</div>
+                        <div class="element-info-values" id="element-name">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">label</div>
+                        <div class="element-info-values" id="element-label">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">visible</div>
+                        <div class="element-info-values" id="element-visible">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">enabled</div>
+                        <div class="element-info-values" id="element-enabled">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">value</div>
+                        <div class="element-info-values" id="element-value">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">x</div>
+                        <div class="element-info-values" id="element-x">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">y</div>
+                        <div class="element-info-values" id="element-y">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">width</div>
+                        <div class="element-info-values" id="element-width">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">height</div>
+                        <div class="element-info-values" id="element-height">none</div>
+                    </div>
+                    {{else}}
+                    <div class="element-info">
+                        <div class="element-info-keys">index</div>
+                        <div class="element-info-values" id="element-index">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">resource-id</div>
+                        <div class="element-info-values" id="element-resourceid">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">package</div>
+                        <div class="element-info-values" id="element-package">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">class</div>
+                        <div class="element-info-values" id="element-class">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">text</div>
+                        <div class="element-info-values" id="element-text">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">checkable</div>
+                        <div class="element-info-values" id="element-checkable">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">checked</div>
+                        <div class="element-info-values" id="element-checked">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">clickable</div>
+                        <div class="element-info-values" id="element-clickable">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">enabled</div>
+                        <div class="element-info-values" id="element-enabled">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">focusable</div>
+                        <div class="element-info-values" id="element-focusable">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">focused</div>
+                        <div class="element-info-values" id="element-focused">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">long-clickable</div>
+                        <div class="element-info-values" id="element-long-clickable">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">password</div>
+                        <div class="element-info-values" id="element-password">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">scrollable</div>
+                        <div class="element-info-values" id="element-scrollable">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">selected</div>
+                        <div class="element-info-values" id="element-selected">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">bounds</div>
+                        <div class="element-info-values" id="element-bounds">none</div>
+                    </div>
+                    <div class="element-info">
+                        <div class="element-info-keys">displayed</div>
+                        <div class="element-info-values" id="element-displayed">none</div>
+                    </div>
+                    {{end}}
                 </div>
-                <div class="element-info">
-                    <div class="element-info-keys">name</div>
-                    <div class="element-info-values" id="element-name">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">label</div>
-                    <div class="element-info-values" id="element-label">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">visible</div>
-                    <div class="element-info-values" id="element-visible">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">enabled</div>
-                    <div class="element-info-values" id="element-enabled">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">value</div>
-                    <div class="element-info-values" id="element-value">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">x</div>
-                    <div class="element-info-values" id="element-x">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">y</div>
-                    <div class="element-info-values" id="element-y">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">width</div>
-                    <div class="element-info-values" id="element-width">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">height</div>
-                    <div class="element-info-values" id="element-height">none</div>
-                </div>
-                {{else}}
-                <div class="element-info">
-                    <div class="element-info-keys">index</div>
-                    <div class="element-info-values" id="element-index">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">resource-id</div>
-                    <div class="element-info-values" id="element-resourceid">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">package</div>
-                    <div class="element-info-values" id="element-package">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">class</div>
-                    <div class="element-info-values" id="element-class">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">text</div>
-                    <div class="element-info-values" id="element-text">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">checkable</div>
-                    <div class="element-info-values" id="element-checkable">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">checked</div>
-                    <div class="element-info-values" id="element-checked">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">clickable</div>
-                    <div class="element-info-values" id="element-clickable">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">enabled</div>
-                    <div class="element-info-values" id="element-enabled">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">focusable</div>
-                    <div class="element-info-values" id="element-focusable">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">focused</div>
-                    <div class="element-info-values" id="element-focused">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">long-clickable</div>
-                    <div class="element-info-values" id="element-long-clickable">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">password</div>
-                    <div class="element-info-values" id="element-password">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">scrollable</div>
-                    <div class="element-info-values" id="element-scrollable">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">selected</div>
-                    <div class="element-info-values" id="element-selected">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">bounds</div>
-                    <div class="element-info-values" id="element-bounds">none</div>
-                </div>
-                <div class="element-info">
-                    <div class="element-info-keys">displayed</div>
-                    <div class="element-info-values" id="element-displayed">none</div>
-                </div>
-                {{end}}
             </div>
         </div>
     </div>

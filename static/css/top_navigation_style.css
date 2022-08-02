@@ -5,13 +5,14 @@ body {
   
   .topnav {
 	overflow: hidden;
-	background-color: #333;
+	background-color: #bdc7c3;
 	height: 50px;
+	border-bottom: 1px solid #000;
   }
   
   .topnav a {
 	float: left;
-	color: #f2f2f2;
+	color: black;
 	text-align: center;
 	padding: 14px 16px;
 	text-decoration: none;
@@ -24,6 +25,6 @@ body {
   }
   
   .topnav a.active {
-	background-color: #04AA6D;
-	color: white;
+	background-color: #32dbb8;
+	color: black;
   }
