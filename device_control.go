@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type AvailableDevicesInfo struct {
@@ -28,6 +31,46 @@ type ContainerDeviceConfig struct {
 	StreamPort                string `json:"stream_port"`
 	ScreenSize                string `json:"screen_size"`
 	DeviceImage               string `json:"device_image"`
+}
+
+func AvailableDevicesWSLocal(conn *websocket.Conn) {
+	for {
+		devices := cachedDevicesConfig
+		var html_message []byte
+
+		// Make functions available in html template
+		funcMap := template.FuncMap{
+			"contains": strings.Contains,
+		}
+
+		var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
+
+		var buf bytes.Buffer
+		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"event": "send_devices_over_ws",
+			}).Error("Could not execute template when sending devices over ws: " + err.Error())
+			return
+		}
+
+		if devices == nil {
+			html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
+		} else {
+			html_message = []byte(buf.String())
+		}
+
+		if err := conn.WriteMessage(1, html_message); err != nil {
+			log.WithFields(log.Fields{
+				"event": "send_devices_over_ws",
+			}).Error("Could not send devices template over ws: " + err.Error())
+			return
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
 }
 
 // This var is used to store last devices update from all providers
