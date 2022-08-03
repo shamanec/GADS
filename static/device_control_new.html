@@ -1140,7 +1140,7 @@
                 // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
                 if (app_source.children().length > 0) {
                     $.ui.fancytree.getTree().reload(JSON.parse(jstree_json));
-                    hideSourceLoading()
+                    setTimeout(hideSourceLoading(), 1000)
                 } else {
                     app_source.fancytree({
                         'source': [
@@ -1153,7 +1153,7 @@
                             drawRectangleForTree(element_values)
                         }
                     });
-                    hideSourceLoading()
+                    setTimeout(hideSourceLoading(), 1000)
                 }
             })
             .catch(function (error) {
