@@ -6,6 +6,8 @@ ca-cert.pem
 ca-key.pem
 configs/supervision.p12
 minicap/*
+gads-project.log
+GADS
 
 minicap-commands-ran.zip
 

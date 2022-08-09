@@ -42,60 +42,121 @@
         position: sticky;
         top: 0;
     }
+
+    .log-selection {
+        background-color: #32dbb8;
+        border: none;
+        padding: 12px 16px;
+        font-size: 16px;
+        cursor: pointer;
+        margin: 5px;
+    }
+
+    .loading {
+        position: absolute;
+        display: block;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background-color: rgba(70, 70, 70, .5);
+        color: red;
+    }
 </style>
 
 <body>
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
-        <a href="configuration">Project configuration</a>
-        <a href="device-containers">Device containers</a>
-        <a class="active" href="logs">Project logs</a>
-        <a href="device-control">Device Control</a>
+        <a class="active" href="logs">Logs</a>
+        <a href="devices">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
+    <button class="log-selection" value="/project-logs" id="gads-logs" style="margin-bottom: 10px;">GADS Logs</button>
+    {{range .DeviceProviders}}
+    <button class="log-selection provider-buttons" value="http://{{.}}/provider-logs"
+        style="margin-bottom: 10px;">{{.}}</button>
+    {{end}}
     <table id="logs-table">
         <thead>
             <tr>
-                <th>Time</th>
-                <th>Level</th>
-                <th>Event</th>
-                <th>Message</th>
+                <th style="width: 10%;">Time</th>
+                <th style="width: 5%;">Level</th>
+                <th style="width: 10%;">Event</th>
+                <th style="width: 75%;">Message</th>
             </tr>
         </thead>
         <tbody id="logs-table-body">
         </tbody>
     </table>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
 </body>
 
 <script>
     window.addEventListener("DOMContentLoaded", function () {
-        getLogs();
+        getInitialLogs();
+        addEventListeners()
     });
 
-    function getLogs() {
-        $.ajax({
-            async: false,
-            type: "GET",
-            url: "/project-logs",
-            success: function (data) {
-                //$('#test').html(data);
-                createLogsTable(data)
-            },
-            error: function (data) {
-                alert("No logs");
-            }
-        });
+    function hideMe(el) {
+        el.style.display = 'none';
+    }
+
+    function addEventListeners() {
+        var provider_buttons = document.getElementsByClassName("provider-buttons")
+
+        for (var i = 0; i < provider_buttons.length; i++) {
+            provider_buttons[i].addEventListener('click', (event) => {
+                var button = event.target
+                getLogs(button.value)
+            }, false);
+        }
+    }
+
+    document.getElementById("gads-logs").addEventListener('click', (event) => {
+        var button = event.target
+        getLogs(button.value)
+    })
+
+    function getInitialLogs() {
+        fetch("/project-logs", {
+            method: 'GET',
+        })
+            .then((data) => {
+                return data.text()
+            })
+            .then((response) => {
+                createLogsTable(response)
+            })
+            .catch(function (error) {
+                swal("Provider not available", "Could not get logs: " + error, "error")
+            })
+    }
+
+    function getLogs(url) {
+        fetch(url, {
+            method: 'GET',
+        })
+            .then((data) => {
+                return data.text()
+            })
+            .then((response) => {
+                createLogsTable(response)
+            })
+            .catch(function (error) {
+                swal("Provider not available", "Could not get logs: " + error, "error")
+            })
     }
 
     function createLogsTable(data) {
         var table = document.getElementById("logs-table-body");
+        table.innerHTML = ""
         var lines = data.trim().split(/\r\n|\r|\n/)
 
         //Display the latest logs at the top of the page
         lines.reverse()
-        
+
         for (var i = 0; i < lines.length - 1; i++) {
 
             var tr = document.createElement('tr');

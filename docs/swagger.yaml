@@ -1,74 +1,24 @@
 definitions:
-  main.AndroidDevice:
+  main.AvailableDevicesInfo:
+    properties:
+      devices-info:
+        items:
+          $ref: '#/definitions/main.ContainerDeviceConfig'
+        type: array
+    type: object
+  main.ContainerDeviceConfig:
     properties:
       appium_port:
-        type: integer
-      device_name:
         type: string
-      device_os_version:
+      container_server_port:
         type: string
-      device_udid:
+      device_host:
         type: string
-      stream_port:
+      device_image:
         type: string
-      stream_size:
-        type: string
-    type: object
-  main.AndroidDeviceInfo:
-    properties:
-      deviceConfig:
-        $ref: '#/definitions/main.AndroidDevice'
-      installedAppsBundleIDs:
-        items:
-          type: string
-        type: array
-    type: object
-  main.AppiumConfig:
-    properties:
-      devices_host:
-        type: string
-      selenium_hub_host:
-        type: string
-      selenium_hub_port:
-        type: string
-      selenium_hub_protocol_type:
-        type: string
-      wda_bundle_id:
-        type: string
-    type: object
-  main.CreateDeviceContainerRequest:
-    properties:
-      device_type:
-        type: string
-      udid:
-        type: string
-    type: object
-  main.DeviceControlInfo:
-    properties:
-      android-devices-info:
-        items:
-          $ref: '#/definitions/main.AndroidDeviceInfo'
-        type: array
-      installable-apps:
-        items:
-          type: string
-        type: array
-      ios-devices-info:
-        items:
-          $ref: '#/definitions/main.IOSDeviceInfo'
-        type: array
-      running-containers:
-        items:
-          type: string
-        type: array
-    type: object
-  main.IOSDevice:
-    properties:
-      appium_port:
-        type: integer
       device_model:
         type: string
-      device_name:
+      device_os:
         type: string
       device_os_version:
         type: string
@@ -76,23 +26,10 @@ definitions:
         type: string
       screen_size:
         type: string
-      wda_mjpeg_port:
-        type: integer
+      stream_port:
+        type: string
       wda_port:
-        type: integer
-      wda_stream_url:
         type: string
-      wda_url:
-        type: string
-    type: object
-  main.IOSDeviceInfo:
-    properties:
-      deviceConfig:
-        $ref: '#/definitions/main.IOSDevice'
-      installedAppsBundleIDs:
-        items:
-          type: string
-        type: array
     type: object
   main.JsonErrorResponse:
     properties:
@@ -101,381 +38,26 @@ definitions:
       event:
         type: string
     type: object
-  main.JsonResponse:
-    properties:
-      message:
-        type: string
-    type: object
-  main.RemoveDeviceContainerData:
-    properties:
-      udid:
-        type: string
-    type: object
-  main.SudoPasswordRequest:
-    properties:
-      sudo_password:
-        type: string
-    type: object
-  main.installIOSAppRequest:
-    properties:
-      ipa_name:
-        type: string
-    type: object
-  main.uninstallIOSAppRequest:
-    properties:
-      bundle_id:
-        type: string
-    type: object
 info:
   contact: {}
 paths:
-  /configuration/build-image/{image_type}:
-    post:
-      description: Starts building a docker image in a goroutine and just returns
-        Accepted.
-      parameters:
-      - description: 'Image type: ios-appium, android-appium'
-        in: path
-        name: image_type
-        required: true
-        type: string
-      responses:
-        "202":
-          description: ""
-      summary: Build docker images
-      tags:
-      - configuration
-  /configuration/remove-device-listener:
-    post:
-      description: Deletes udev rules from /etc/udev/rules.d and reloads udev
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Removes udev device listener
-      tags:
-      - configuration
-  /configuration/remove-image/{image_type}:
-    post:
-      description: Removes the 'ios-appium' or 'android-appium' Docker image
-      parameters:
-      - description: 'Image type: ios-appium, android-appium'
-        in: path
-        name: image_type
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Remove 'ios-appium' or 'android-appium' image
-      tags:
-      - configuration
-  /configuration/set-sudo-password:
-    put:
-      consumes:
-      - application/json
-      description: Sets your sudo password in ./configs/config.json. The password
-        is needed for operations requiring elevated permissions like setting up udev.
-      parameters:
-      - description: Sudo password value
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.SudoPasswordRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Set sudo password
-      tags:
-      - configuration
-  /configuration/setup-udev-listener:
-    post:
-      description: Creates udev rules, moves them to /etc/udev/rules.d and reloads
-        udev. Copies usbmuxd.service to /lib/systemd/system and enables it
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Sets up udev devices listener
-      tags:
-      - configuration
-  /configuration/update-config:
-    put:
-      consumes:
-      - application/json
-      description: Updates one or multiple configuration values
-      parameters:
-      - description: Update config
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.AppiumConfig'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Update project Appium configuration
-      tags:
-      - configuration
-  /configuration/upload-wda:
-    post:
-      description: Uploads the provided *.ipa into the ./apps folder with the expected
-        "WebDriverAgent.ipa" name
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Upload WDA
-      tags:
-      - configuration
-  /containers/{container_id}/logs:
+  /devices/available-devices:
     get:
-      description: Get logs of container by provided container ID
-      parameters:
-      - description: Container ID
-        in: path
-        name: container_id
-        required: true
-        type: string
+      description: Provides info of the currently available devices
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.JsonResponse'
+            $ref: '#/definitions/main.AvailableDevicesInfo'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Get container logs
-      tags:
-      - containers
-  /containers/{container_id}/remove:
-    post:
-      description: Removes container by provided container ID
-      parameters:
-      - description: Container ID
-        in: path
-        name: container_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Remove container
-      tags:
-      - containers
-  /containers/{container_id}/restart:
-    post:
-      description: Restarts container by provided container ID
-      parameters:
-      - description: Container ID
-        in: path
-        name: container_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Restart container
-      tags:
-      - containers
-  /device-containers/create:
-    post:
-      description: Creates a container for a connected registered device
-      parameters:
-      - description: Create container for device
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.CreateDeviceContainerRequest'
-      responses:
-        "202":
-          description: ""
-      summary: Create container for device
-      tags:
-      - device-containers
-  /device-containers/remove:
-    post:
-      description: Removes a running container for a disconnected registered device
-        by device UDID
-      parameters:
-      - description: Remove container for device
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.RemoveDeviceContainerData'
-      responses:
-        "202":
-          description: ""
-      summary: Remove container for device
-      tags:
-      - device-containers
-  /device-logs/{log_type}/{device_udid}:
-    get:
-      description: Get logs by type
-      parameters:
-      - description: Log Type
-        in: path
-        name: log_type
-        required: true
-        type: string
-      - description: Device UDID
-        in: path
-        name: device_udid
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-      summary: Get logs for iOS device container
-      tags:
-      - device-logs
-  /devices/device-control:
-    post:
-      description: Provides the running containers, IOS devices info and apps available
-        for installing
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.DeviceControlInfo'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Get device control info
+      summary: Get available devices info
       tags:
       - devices
-  /ios-devices/{device_udid}/install-app:
-    post:
-      description: Installs *.ipa or *.app from the './apps' folder with go-ios
-      parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
-        required: true
-        type: string
-      - description: Install iOS app
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.installIOSAppRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Install app on iOS device
-      tags:
-      - ios-devices
-  /ios-devices/{device_udid}/uninstall-app:
-    post:
-      description: Uninstalls app from iOS device by provided bundleID with go-ios
-      parameters:
-      - description: Device UDID
-        in: path
-        name: device_udid
-        required: true
-        type: string
-      - description: Uninstall iOS app
-        in: body
-        name: config
-        required: true
-        schema:
-          $ref: '#/definitions/main.uninstallIOSAppRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Uninstall app from iOS device
-      tags:
-      - ios-devices
   /project-logs:
     get:
       description: Provides project logs as plain text response
@@ -485,16 +67,4 @@ paths:
       summary: Get project logs
       tags:
       - project-logs
-  /refresh-device-containers:
-    post:
-      description: Refreshes the device-containers data by returning an updated HTML
-        table
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: ""
-        "500":
-          description: ""
-      summary: Refresh the device-containers data
 swagger: "2.0"
