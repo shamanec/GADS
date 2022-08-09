@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
@@ -12,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -298,69 +296,12 @@ func CheckIOSDeviceInDevicesList(device_udid string) bool {
 
 // Convert interface into JSON string
 func ConvertToJSONString(data interface{}) string {
-	b, err := json.Marshal(data)
+	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		fmt.Println(err)
 		return ""
 	}
 	return string(b)
-}
-
-// Prettify JSON with indentation and stuff
-func PrettifyJSON(data string) string {
-	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, []byte(data), "", "  ")
-	return prettyJSON.String()
-}
-
-// Function to get part of a string between chars or other parts of string
-func GetStringInBetween(str string, start string, end string) (result string) {
-	s := strings.Index(str, start)
-	if s == -1 {
-		return
-	}
-	s += len(start)
-	e := strings.Index(str[s:], end)
-	if e == -1 {
-		return
-	}
-	return str[s : s+e]
-}
-
-// Unmarshal request body into a struct
-func UnmarshalReader(body io.ReadCloser, v interface{}) error {
-	reqBody, err := ioutil.ReadAll(body)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(reqBody, v)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Unmarshal JSON file by path into a struct
-func UnmarshalJSONFile(filePath string, v interface{}) error {
-	jsonFile, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer jsonFile.Close()
-
-	bs, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(bs, v)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Unmarshal provided JSON string into a struct
@@ -376,23 +317,23 @@ func UnmarshalJSONString(jsonString string, v interface{}) error {
 }
 
 // Get a ConfigJsonData pointer with the current configuration from config.json
-func GetConfigJsonData() (*ConfigJsonData, error) {
+func GetConfigJsonData() *ConfigJsonData {
 	var data ConfigJsonData
 	jsonFile, err := os.Open("./config.json")
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	defer jsonFile.Close()
 
 	bs, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	err = json.Unmarshal(bs, &data)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	return &data, nil
+	return &data
 }

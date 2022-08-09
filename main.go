@@ -14,8 +14,10 @@ import (
 )
 
 var project_log_file *os.File
+var ConfigData *ConfigJsonData
 
 type ConfigJsonData struct {
+	GadsHostAddress string   `json:"gads_host_address"`
 	DeviceProviders []string `json:"device_providers"`
 }
 
@@ -93,6 +95,8 @@ func handleRequests() {
 }
 
 func main() {
+	ConfigData = GetConfigJsonData()
+
 	go getAvailableDevicesInfoAllProviders()
 	setLogging()
 	handleRequests()

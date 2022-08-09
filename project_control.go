@@ -15,14 +15,8 @@ import (
 
 // Load the general logs page
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
-	configData, err := GetConfigJsonData()
-	if err != nil {
-		fmt.Println("error 1")
-		return
-	}
-
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
-	if err := logs_page.Execute(w, configData); err != nil {
+	if err := logs_page.Execute(w, ConfigData); err != nil {
 		log.WithFields(log.Fields{
 			"event": "project_logs_page",
 		}).Error("Couldn't load project_logs.html: " + err.Error())

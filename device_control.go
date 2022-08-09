@@ -16,6 +16,7 @@ import (
 )
 
 type AvailableDevicesInfo struct {
+	GadsHost    string                  `json:"gads_host_address"`
 	DevicesInfo []ContainerDeviceConfig `json:"devices-info"`
 }
 
@@ -84,7 +85,7 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 
 	// Parse the template and return response with the created template
 	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/device_selection_table.html"))
-	if err := tmpl.ExecuteTemplate(w, "device_selection.html", nil); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "device_selection.html", ConfigData.GadsHostAddress); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -121,7 +122,7 @@ func GetAvailableDevicesInfo(w http.ResponseWriter, r *http.Request) {
 		DevicesInfo: cachedDevicesConfig,
 	}
 
-	fmt.Fprintf(w, PrettifyJSON(ConvertToJSONString(info)))
+	fmt.Fprintf(w, ConvertToJSONString(info))
 }
 
 // @Summary      Load the page for a selected device
@@ -194,20 +195,13 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 }
 
 func getAvailableDevicesInfoAllProviders() {
-	// Get the config data
-	configData, err := GetConfigJsonData()
-	if err != nil {
-		fmt.Println("error 1")
-		return
-	}
-
 	// Forever loop and get data from all providers every 2 seconds
 	for {
 		// Create an intermediate value to hold the currently built device config before updating the cached config
 		intermediateConfig := []ContainerDeviceConfig{}
 
 		// Loop through the registered providers
-		for _, v := range configData.DeviceProviders {
+		for _, v := range ConfigData.DeviceProviders {
 			var providerDevicesInfo AvailableDevicesInfo
 
 			// Get the available devices from the current provider
