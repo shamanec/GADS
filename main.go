@@ -54,7 +54,7 @@ func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 	}
 
-	AvailableDevicesWSLocal(ws)
+	go AvailableDevicesWSLocal(ws)
 }
 
 func handleRequests() {

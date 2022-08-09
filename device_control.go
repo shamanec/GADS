@@ -52,6 +52,7 @@ func AvailableDevicesWSLocal(conn *websocket.Conn) {
 			log.WithFields(log.Fields{
 				"event": "send_devices_over_ws",
 			}).Error("Could not execute template when sending devices over ws: " + err.Error())
+			time.Sleep(2 * time.Second)
 			return
 		}
 
@@ -62,9 +63,7 @@ func AvailableDevicesWSLocal(conn *websocket.Conn) {
 		}
 
 		if err := conn.WriteMessage(1, html_message); err != nil {
-			log.WithFields(log.Fields{
-				"event": "send_devices_over_ws",
-			}).Error("Could not send devices template over ws: " + err.Error())
+			time.Sleep(2 * time.Second)
 			return
 		}
 
