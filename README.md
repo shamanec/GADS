@@ -1,7 +1,6 @@
 ## Introduction
 
 * GADS or Go Appium Docker Service is a web UI for [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) orchestration and remote control of devices.  
-
 * Currently being adopted and sponsored by <a href="https://1crew.com"><img src="https://1crew.com/StaticResources/1Crew_3D.png" alt="1crew" width="50"/><a/>  
 
 ## Features
@@ -14,12 +13,12 @@
     - basic Appium inspector
   * iOS
     - `WDA mjpeg` video stream  
-    - basice device interaciton - Home, Lock, Unlock, Type text, Clear text  
+    - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
     - basic remote control - tap, swipe  
     - basic Appium inspector  
 
-3. WIP - simple provider container info and orchestration page  
-4. WIP - more functionality for remote control  
+3. TODO - simple provider container info and orchestration page  
+4. TODO - more functionality for remote control  
 
 Developed and tested on Ubuntu 18.04 LTS  
 
