@@ -18,6 +18,9 @@
     - basic remote control - tap, swipe  
     - basic Appium inspector  
 
+3. WIP - simple provider container info and orchestration page  
+4. WIP - more functionality for remote control  
+
 Developed and tested on Ubuntu 18.04 LTS  
 
 ## Setup

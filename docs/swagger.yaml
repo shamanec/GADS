@@ -38,34 +38,11 @@ definitions:
       event:
         type: string
     type: object
-  main.JsonResponse:
-    properties:
-      message:
-        type: string
-    type: object
 info:
   contact: {}
 paths:
-  /configuration/upload-wda:
-    post:
-      description: Uploads the provided *.ipa into the ./apps folder with the expected
-        "WebDriverAgent.ipa" name
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.JsonResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.JsonErrorResponse'
-      summary: Upload WDA
-      tags:
-      - configuration
   /devices/available-devices:
-    post:
+    get:
       description: Provides info of the currently available devices
       produces:
       - application/json
@@ -81,18 +58,6 @@ paths:
       summary: Get available devices info
       tags:
       - devices
-  /devices/control/{device_host}/{device_udid}:
-    post:
-      description: Loads the page for a selected device from the device selection
-        page
-      produces:
-      - text/html
-      responses:
-        "200":
-          description: ""
-        "500":
-          description: ""
-      summary: Load the page for a selected device
   /project-logs:
     get:
       description: Provides project logs as plain text response

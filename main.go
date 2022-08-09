@@ -72,12 +72,10 @@ func handleRequests() {
 		httpSwagger.DomID("#swagger-ui"),
 	))
 
-	myRouter.HandleFunc("/configuration/upload-wda", UploadWDA).Methods("POST")
 	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
 
 	myRouter.HandleFunc("/devices/available-devices", GetAvailableDevicesInfo).Methods("GET")
 	myRouter.HandleFunc("/devices", LoadAvailableDevices)
-	myRouter.HandleFunc("/refresh-available-devices", RefreshAvailableDevices)
 	myRouter.HandleFunc("/devices/control/{device_udid}", GetDevicePage)
 
 	// Logs

@@ -23,34 +23,8 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/configuration/upload-wda": {
-            "post": {
-                "description": "Uploads the provided *.ipa into the ./apps folder with the expected \"WebDriverAgent.ipa\" name",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "configuration"
-                ],
-                "summary": "Upload WDA",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.JsonResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/main.JsonErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/devices/available-devices": {
-            "post": {
+            "get": {
                 "description": "Provides info of the currently available devices",
                 "produces": [
                     "application/json"
@@ -71,23 +45,6 @@ var doc = `{
                         "schema": {
                             "$ref": "#/definitions/main.JsonErrorResponse"
                         }
-                    }
-                }
-            }
-        },
-        "/devices/control/{device_host}/{device_udid}": {
-            "post": {
-                "description": "Loads the page for a selected device from the device selection page",
-                "produces": [
-                    "text/html"
-                ],
-                "summary": "Load the page for a selected device",
-                "responses": {
-                    "200": {
-                        "description": ""
-                    },
-                    "500": {
-                        "description": ""
                     }
                 }
             }
@@ -164,14 +121,6 @@ var doc = `{
                     "type": "string"
                 },
                 "event": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.JsonResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
                     "type": "string"
                 }
             }

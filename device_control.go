@@ -16,7 +16,6 @@ import (
 )
 
 type AvailableDevicesInfo struct {
-	GadsHost    string                  `json:"gads_host_address"`
 	DevicesInfo []ContainerDeviceConfig `json:"devices-info"`
 }
 
@@ -90,33 +89,13 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func RefreshAvailableDevices(w http.ResponseWriter, r *http.Request) {
-	devices := cachedDevicesConfig
-
-	// Make functions available in html template
-	funcMap := template.FuncMap{
-		// The name "title" is what the function will be called in the template text.
-		"contains": strings.Contains,
-	}
-
-	// Parse the template and return response with the updated devices list
-	// This will generate only the devices list, not the whole page
-	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
-
-	// Reply with the new devices list
-	if err := tmpl.ExecuteTemplate(w, "device_selection_table", devices); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
 // @Summary      Get available devices info
 // @Description  Provides info of the currently available devices
 // @Tags         devices
 // @Produce      json
 // @Success      200 {object} AvailableDevicesInfo
 // @Failure      500 {object} JsonErrorResponse
-// @Router       /devices/available-devices [post]
+// @Router       /devices/available-devices [get]
 func GetAvailableDevicesInfo(w http.ResponseWriter, r *http.Request) {
 	var info = AvailableDevicesInfo{
 		DevicesInfo: cachedDevicesConfig,
@@ -125,12 +104,6 @@ func GetAvailableDevicesInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, ConvertToJSONString(info))
 }
 
-// @Summary      Load the page for a selected device
-// @Description  Loads the page for a selected device from the device selection page
-// @Produce      html
-// @Success      200
-// @Failure      500
-// @Router       /devices/control/{device_host}/{device_udid} [post]
 func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	device_udid := vars["device_udid"]
