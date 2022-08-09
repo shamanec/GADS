@@ -36,4 +36,6 @@ Developed and tested on Ubuntu 18.04 LTS
 
 ## WIP demo video  
 
-https://user-images.githubusercontent.com/60219580/171872161-a70c66ad-1b0f-4dee-a479-14be61799257.mp4  
+https://user-images.githubusercontent.com/60219580/183676255-bc80f913-7bf7-4e98-9868-27e7bf5396fd.mp4
+
+
