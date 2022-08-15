@@ -22,7 +22,7 @@ type AvailableDevicesInfo struct {
 type ContainerDeviceConfig struct {
 	DeviceModel               string `json:"device_model"`
 	DeviceOSVersion           string `json:"device_os_version"`
-	DeviceOS                  string `json:"device_os"`
+	DeviceOS                  string `json:"os"`
 	DeviceContainerServerPort string `json:"container_server_port"`
 	DeviceUDID                string `json:"device_udid"`
 	DeviceHost                string `json:"device_host"`
@@ -204,8 +204,4 @@ func getAvailableDevicesInfoAllProviders() {
 
 		time.Sleep(2 * time.Second)
 	}
-}
-
-func iOSGenerateJSONForTreeFromXML() {
-
 }
