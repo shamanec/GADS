@@ -409,7 +409,7 @@
         // if the device is android use press_keycode endpoint and send keycode 3 which is for the Home button
         // if device is iOS send empty json
         if (device_os.includes("android")) {
-            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/press_keycode"
+            url = appium_url + "/session/" + appium_session_id + "/appium/device/press_keycode"
             json = JSON.stringify({ "keycode": 3 })
 
         } else if (device_os.includes("ios")) {
@@ -436,7 +436,7 @@
     document.getElementById("unlock-device").addEventListener('click', () => {
 
         if (device_os == "android") {
-            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/unlock"
+            url = appium_url + "/session/" + appium_session_id + "/appium/device/unlock"
         } else if (device_os == "ios") {
             url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
         } else {
@@ -454,7 +454,7 @@
     document.getElementById("lock-device").addEventListener('click', () => {
 
         if (device_os == "android") {
-            url = appium_url + "/wd/hub/session/" + appium_session_id + "/appium/device/lock"
+            url = appium_url + "/session/" + appium_session_id + "/appium/device/lock"
         } else if (device_os == "ios") {
             url = wda_url + "/session/" + wda_session_id + "/wda/lock"
         } else {
@@ -584,8 +584,8 @@
             }
         })
 
-        let sessions_url = appium_url + "/wd/hub/sessions"
-        let session_url = appium_url + "/wd/hub/session"
+        let sessions_url = appium_url + "/sessions"
+        let session_url = appium_url + "/session"
         const sessions_response = await fetch(sessions_url).then(response => {
             return response.json()
         })
@@ -636,7 +636,7 @@
         var element_value_url;
 
         if (device_os == "android") {
-            active_element_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/active"
+            active_element_url = appium_url + "/session/" + appium_session_id + "/element/active"
         } else if (device_os == "ios") {
             active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
         } else {
@@ -653,7 +653,7 @@
 
         var element_id = control_response.value.ELEMENT
         if (device_os == "android") {
-            element_value_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/" + element_id + "/value"
+            element_value_url = appium_url + "/session/" + appium_session_id + "/element/" + element_id + "/value"
         } else {
             element_value_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value"
         }
@@ -679,7 +679,7 @@
         var element_clear_url;
 
         if (device_os == "android") {
-            active_element_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/active"
+            active_element_url = appium_url + "/session/" + appium_session_id + "/element/active"
         } else if (device_os == "ios") {
             active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
         } else {
@@ -696,7 +696,7 @@
 
         var element_id = control_response.value.ELEMENT
         if (device_os == "android") {
-            element_clear_url = appium_url + "/wd/hub/session/" + appium_session_id + "/element/" + element_id + "/clear"
+            element_clear_url = appium_url + "/session/" + appium_session_id + "/element/" + element_id + "/clear"
         } else {
             element_clear_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear"
         }
@@ -812,7 +812,7 @@
         if (selected_device_text.includes("android")) {
             let appium_port = $("#appium-port").text()
             session_id = $("#appium-session-id").text()
-            url = "http://127.0.0.1:" + appium_port + "/wd/hub/session/" + session_id + "/actions"
+            url = "http://127.0.0.1:" + appium_port + "/session/" + session_id + "/actions"
         } else {
             let wda_url = $("#wda-url").text()
             session_id = $("#wda-session-id").text()
@@ -897,7 +897,7 @@
         })
 
         if (device_os == "android") {
-            url = appium_url + "/wd/hub/session/" + appium_session_id + "/actions"
+            url = appium_url + "/session/" + appium_session_id + "/actions"
         } else {
             url = wda_url + "/session/" + wda_session_id + "/actions"
         }
@@ -974,7 +974,7 @@
         })
 
         if (device_os == "android") {
-            url = appium_url + "/wd/hub/session/" + appium_session_id + "/actions"
+            url = appium_url + "/session/" + appium_session_id + "/actions"
         } else {
             url = wda_url + "/session/" + wda_session_id + "/actions"
         }
@@ -1106,7 +1106,7 @@
         var url;
 
         if (device_os == "android") {
-            url = appium_url + "/wd/hub/session/" + appium_session_id + "/source"
+            url = appium_url + "/session/" + appium_session_id + "/source"
         } else if (device_os == "ios") {
             url = wda_url + "/session/" + wda_session_id + "/source"
         } else {
