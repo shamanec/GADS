@@ -385,14 +385,7 @@
     let canvas_height = "{{.CanvasHeight}}"
     let screen_size = "{{.ContainerDeviceConfig.ScreenSize}}"
     let wda_session_id = "{{.WebDriverAgentSessionID}}"
-    var appium_session_id
-
-    // On page load add the listeners and start the refresh containers job
-    window.addEventListener("DOMContentLoaded", function () {
-        if (device_os == "android") {
-            checkAppiumSession()
-        }
-    });
+    let appium_session_id = "{{.AppiumSessionID}}"
 
     document.getElementById("refresh-source").addEventListener('click', () => {
         getAppSource()
@@ -478,123 +471,6 @@
     document.getElementById("wipe-canvas").addEventListener('click', () => {
         wipeCanvas()
     })
-
-    async function checkAppiumSession() {
-
-        // build the json to create a session
-        json = JSON.stringify({
-            "capabilities": {
-                "alwaysMatch": {
-                    "appium:automationName": "UiAutomator2",
-                    "platformName": "Android",
-                    "appium:ensureWebviewsHavePages": true,
-                    "appium:nativeWebScreenshot": true,
-                    "appium:newCommandTimeout": 0,
-                    "appium:connectHardwareKeyboard": true
-                },
-                "firstMatch": [
-                    {}
-                ]
-            },
-            "desiredCapabilities": {
-                "appium:automationName": "UiAutomator2",
-                "platformName": "Android",
-                "appium:ensureWebviewsHavePages": true,
-                "appium:nativeWebScreenshot": true,
-                "appium:newCommandTimeout": 0,
-                "appium:connectHardwareKeyboard": true
-            }
-        })
-
-        let sessions_url = appium_url + "/sessions"
-        let session_url = appium_url + "/session"
-        const sessions_response = await fetch(sessions_url).then(response => {
-            return response.json()
-        })
-            .catch(function (error) {
-                alert("Could not get Appium sessions" + error)
-                window.location.href = "/devices"
-            })
-
-        if (sessions_response.value.length === 0) {
-            const session_response = await fetch(session_url, {
-                method: 'POST',
-                body: json,
-                headers: {
-                    'Content-type': 'application/json'
-                }
-            })
-                .then(response => {
-                    return response.json()
-                })
-                .catch(function (error) {
-                    alert("Could not create Appium session" + error)
-                    window.location.href = "/devices"
-                })
-            appium_session_id = session_response.value.sessionId
-        } else if (sessions_response.value[0].id === null) {
-            const session_response = await fetch(session_url, {
-                method: 'POST',
-                body: json,
-                headers: {
-                    'Content-type': 'application/json'
-                }
-            })
-                .then(response => {
-                    return response.json()
-                })
-                .catch(function (error) {
-                    alert("Could not create Appium session" + error)
-                    window.location.href = "/devices"
-                })
-            appium_session_id = session_response.value.sessionId
-        } else {
-            appium_session_id = sessions_response.value[0].id
-        }
-    }
-
-    async function typeText() {
-        var active_element_url;
-        var element_value_url;
-
-        if (device_os == "android") {
-            active_element_url = appium_url + "/session/" + appium_session_id + "/element/active"
-        } else if (device_os == "ios") {
-            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
-        } else {
-            return
-        }
-
-        const control_response = await fetch(active_element_url).then(response => {
-            if (response.ok) {
-                return response.json()
-            } else {
-                return null
-            }
-        })
-
-        var element_id = control_response.value.ELEMENT
-        if (device_os == "android") {
-            element_value_url = appium_url + "/session/" + appium_session_id + "/element/" + element_id + "/value"
-        } else {
-            element_value_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value"
-        }
-
-        if (control_response != null) {
-            if (element_id != "") {
-                var text_input = document.getElementById("type-text-input").value
-                await fetch(element_value_url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-type': 'application/json'
-                    },
-                    body: JSON.stringify({ "text": text_input })
-                }).then(() => {
-                    document.getElementById("type-text-input").value = ""
-                })
-            }
-        }
-    }
 
     async function clearActiveElementText() {
         var active_element_url;

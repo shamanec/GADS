@@ -156,11 +156,9 @@ func CheckWDASession(wdaURL string) (string, error) {
 		if sessionId == "" {
 			return "", err
 		}
-	} else {
-		return fmt.Sprintf("%v", responseJson["sessionId"]), nil
 	}
 
-	return "", nil
+	return fmt.Sprintf("%v", responseJson["sessionId"]), nil
 }
 
 func createWDASession(wdaURL string) (string, error) {
@@ -202,9 +200,83 @@ func createWDASession(wdaURL string) (string, error) {
 		if err != nil {
 			return "", errors.New("Could not get `sessionId` while creating a new WebDriverAgent session")
 		}
-	} else {
-		return fmt.Sprintf("%v", responseJson["sessionId"]), nil
 	}
 
-	return "", nil
+	return fmt.Sprintf("%v", responseJson["sessionId"]), nil
+}
+
+type AppiumGetSessionsResponse struct {
+	Value []struct {
+		ID string `json:"id"`
+	} `json:"value"`
+}
+
+type AppiumCreateSessionResponse struct {
+	Value struct {
+		SessionID string `json:"sessionId"`
+	} `json:"value"`
+}
+
+func checkAppiumSession(appiumURL string) (string, error) {
+	response, err := http.Get("http://" + appiumURL + "/sessions")
+	if err != nil {
+		return "", err
+	}
+	responseBody, _ := io.ReadAll(response.Body)
+
+	var responseJson AppiumGetSessionsResponse
+	err = UnmarshalJSONString(string(responseBody), &responseJson)
+	if err != nil {
+		return "", err
+	}
+
+	if len(responseJson.Value) == 0 {
+		sessionID, err := createAppiumSession(appiumURL)
+		if err != nil {
+			return "", err
+		}
+		return sessionID, nil
+	}
+
+	return responseJson.Value[0].ID, nil
+}
+
+func createAppiumSession(appiumURL string) (string, error) {
+	requestString := `{
+		"capabilities": {
+			"alwaysMatch": {
+				"appium:automationName": "UiAutomator2",
+				"platformName": "Android",
+				"appium:ensureWebviewsHavePages": true,
+				"appium:nativeWebScreenshot": true,
+				"appium:newCommandTimeout": 0,
+				"appium:connectHardwareKeyboard": true
+			},
+			"firstMatch": [
+				{}
+			]
+		},
+		"desiredCapabilities": {
+			"appium:automationName": "UiAutomator2",
+			"platformName": "Android",
+			"appium:ensureWebviewsHavePages": true,
+			"appium:nativeWebScreenshot": true,
+			"appium:newCommandTimeout": 0,
+			"appium:connectHardwareKeyboard": true
+		}
+	}`
+
+	response, err := http.Post("http://"+appiumURL+"/session", "application/json", strings.NewReader(requestString))
+	if err != nil {
+		return "", err
+	}
+
+	responseBody, _ := io.ReadAll(response.Body)
+	var responseJson AppiumCreateSessionResponse
+	err = UnmarshalJSONString(string(responseBody), &responseJson)
+	if err != nil {
+		return "", err
+	}
+
+	return responseJson.Value.SessionID, nil
 }

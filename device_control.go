@@ -129,7 +129,15 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	if selected_device.DeviceOS == "ios" {
 		webDriverAgentSessionID, err = CheckWDASession(selected_device.DeviceHost + ":" + selected_device.WdaPort)
 		if err != nil {
-			fmt.Println(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+
+	var appiumSessionID = ""
+	if selected_device.DeviceOS == "android" {
+		appiumSessionID, err = checkAppiumSession(selected_device.DeviceHost + ":" + selected_device.DeviceAppiumPort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 
@@ -141,11 +149,13 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 		CanvasWidth             string
 		CanvasHeight            string
 		WebDriverAgentSessionID string
+		AppiumSessionID         string
 	}{
 		ContainerDeviceConfig:   selected_device,
 		CanvasWidth:             canvasWidth,
 		CanvasHeight:            canvasHeight,
 		WebDriverAgentSessionID: webDriverAgentSessionID,
+		AppiumSessionID:         appiumSessionID,
 	}
 
 	// Parse the template and return response with the container table rows
