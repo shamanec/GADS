@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 )
 
 //=================//
@@ -129,4 +131,80 @@ func GetConfigJsonData() *ConfigJsonData {
 	}
 
 	return &data
+}
+
+func CheckWDASession(wdaURL string) (string, error) {
+	response, err := http.Get("http://" + wdaURL + "/status")
+	if err != nil {
+		return "", err
+	}
+
+	responseBody, _ := io.ReadAll(response.Body)
+
+	var responseJson map[string]interface{}
+	err = json.Unmarshal(responseBody, &responseJson)
+	if err != nil {
+		return "", err
+	}
+
+	if responseJson["sessionId"] == "" {
+		sessionId, err := createWDASession(wdaURL)
+		if err != nil {
+			return "", err
+		}
+
+		if sessionId == "" {
+			return "", err
+		}
+	} else {
+		return fmt.Sprintf("%v", responseJson["sessionId"]), nil
+	}
+
+	return "", nil
+}
+
+func createWDASession(wdaURL string) (string, error) {
+	requestString := `{
+		"capabilities": {
+			"firstMatch": [
+				{
+					"arguments": [],
+					"environment": {},
+					"eventloopIdleDelaySec": 0,
+					"shouldWaitForQuiescence": true,
+					"shouldUseTestManagerForVisibilityDetection": false,
+					"maxTypingFrequency": 60,
+					"shouldUseSingletonTestManager": true,
+					"shouldTerminateApp": true,
+					"forceAppLaunch": true,
+					"useNativeCachingStrategy": true,
+					"forceSimulatorSoftwareKeyboardPresence": false
+				}
+			],
+			"alwaysMatch": {}
+		}
+	}`
+
+	response, err := http.Post("http://"+wdaURL+"/session", "application/json", strings.NewReader(requestString))
+	if err != nil {
+		return "", err
+	}
+
+	responseBody, _ := io.ReadAll(response.Body)
+
+	var responseJson map[string]interface{}
+	err = json.Unmarshal(responseBody, &responseJson)
+	if err != nil {
+		return "", err
+	}
+
+	if responseJson["sessionId"] == "" {
+		if err != nil {
+			return "", errors.New("Could not get `sessionId` while creating a new WebDriverAgent session")
+		}
+	} else {
+		return fmt.Sprintf("%v", responseJson["sessionId"]), nil
+	}
+
+	return "", nil
 }

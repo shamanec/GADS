@@ -4,7 +4,7 @@
 
 ## Features
 1. Provider logs for debugging  
-2. Devices remote control
+2. Devices remote control(most of which is wrapper around Appium)
   * Android
     - `minicap` video stream  
     - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
@@ -31,6 +31,7 @@ Developed and tested on Ubuntu 18.04 LTS
 |[go-ios](https://github.com/danielpaulus/go-ios)|Many thanks for creating this tool to communicate with iOS devices on Linux, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode. Without it none of this would be possible|
 |[iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)|This is an app for OS X that can (re)sign apps and bundle them into ipa files that are ready to be installed on an iOS device.|
 |[minicap](https://github.com/DeviceFarmer/minicap)|Stream screen capture data out of Android devices|  
+|[Appium](https://github.com/appium)|It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!|  
 
 ## WIP demo video  
 
