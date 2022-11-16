@@ -105,6 +105,8 @@ func GetAvailableDevicesInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetDevicePage(w http.ResponseWriter, r *http.Request) {
+	var err error
+
 	vars := mux.Vars(r)
 	device_udid := vars["device_udid"]
 
@@ -123,17 +125,37 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var webDriverAgentSessionID = ""
+	if selected_device.DeviceOS == "ios" {
+		webDriverAgentSessionID, err = CheckWDASession(selected_device.DeviceHost + ":" + selected_device.WdaPort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+
+	var appiumSessionID = ""
+	if selected_device.DeviceOS == "android" {
+		appiumSessionID, err = checkAppiumSession(selected_device.DeviceHost + ":" + selected_device.DeviceAppiumPort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+
 	// Calculate the width and height for the canvas
 	canvasWidth, canvasHeight := calculateCanvasDimensions(selected_device.ScreenSize)
 
 	pageData := struct {
-		ContainerDeviceConfig ContainerDeviceConfig
-		CanvasWidth           string
-		CanvasHeight          string
+		ContainerDeviceConfig   ContainerDeviceConfig
+		CanvasWidth             string
+		CanvasHeight            string
+		WebDriverAgentSessionID string
+		AppiumSessionID         string
 	}{
-		ContainerDeviceConfig: selected_device,
-		CanvasWidth:           canvasWidth,
-		CanvasHeight:          canvasHeight,
+		ContainerDeviceConfig:   selected_device,
+		CanvasWidth:             canvasWidth,
+		CanvasHeight:            canvasHeight,
+		WebDriverAgentSessionID: webDriverAgentSessionID,
+		AppiumSessionID:         appiumSessionID,
 	}
 
 	// Parse the template and return response with the container table rows
@@ -141,7 +163,7 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
 
 	// Reply with the new table
-	if err := tmpl.Execute(w, pageData); err != nil {
+	if err = tmpl.Execute(w, pageData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
