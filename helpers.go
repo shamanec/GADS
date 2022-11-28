@@ -147,7 +147,7 @@ func CheckWDASession(wdaURL string) (string, error) {
 		return "", err
 	}
 
-	if responseJson["sessionId"] == "" {
+	if responseJson["sessionId"] == "" || responseJson["sessionId"] == nil {
 		sessionId, err := createWDASession(wdaURL)
 		if err != nil {
 			return "", err
@@ -196,7 +196,7 @@ func createWDASession(wdaURL string) (string, error) {
 		return "", err
 	}
 
-	if responseJson["sessionId"] == "" {
+	if responseJson["sessionId"] == "" || responseJson["sessionId"] == nil {
 		if err != nil {
 			return "", errors.New("Could not get `sessionId` while creating a new WebDriverAgent session")
 		}
