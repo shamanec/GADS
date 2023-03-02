@@ -6,7 +6,8 @@
 1. Provider logs for debugging  
 2. Devices remote control(most of which is wrapper around Appium)
   * Android
-    - `minicap` video stream  
+    - ~`minicap` video stream~ - currently unavailable  
+    - `GADS-Android-stream` video stream - not as good as `minicap` but it is inhouse    
     - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
     - basic remote control - tap, swipe  
     - basic Appium inspector
