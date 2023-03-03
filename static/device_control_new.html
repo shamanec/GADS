@@ -87,6 +87,18 @@
         background-color: #ffffff;
     }
 
+    #screenshot-div {
+        width: 800;
+        height: 900;
+        overflow: scroll;
+        border: 1px solid #000;
+        margin-left: 10px;
+        text-align: center;
+    }
+
+    #screenshot {
+    }
+
     ul.fancytree-container {
         border: none;
     }
@@ -153,7 +165,7 @@
         height: 100%;
         width: 100%;
     }
-    
+
     .device-buttons {
         height: 60px;
         width: 100%;
@@ -171,25 +183,31 @@
     </div>
     <div id="container-div">
         <div>
-            <button class="action-buttons" id="back-to-devices" onclick="location.href = '/devices';"><i class="fa-solid fa-left-long"></i>
+            <button class="action-buttons" id="back-to-devices" onclick="location.href = '/devices';"><i
+                    class="fa-solid fa-left-long"></i>
                 Back to devices</button>
         </div>
         <div id="device-tools">
             <div>
-                <button class="device-buttons action-buttons" id="home-screen"><i class="fa-solid fa-home"></i> Homescreen</button>
+                <button class="device-buttons action-buttons" id="home-screen"><i class="fa-solid fa-home"></i>
+                    Homescreen</button>
             </div>
             <div>
-                <button class="device-buttons action-buttons" id="lock-device"><i class="fa-solid fa-lock"></i> Lock device</button>
+                <button class="device-buttons action-buttons" id="lock-device"><i class="fa-solid fa-lock"></i> Lock
+                    device</button>
             </div>
             <div>
-                <button class="device-buttons action-buttons" id="unlock-device"><i class="fa-solid fa-unlock"></i> Unlock device</button>
+                <button class="device-buttons action-buttons" id="unlock-device"><i class="fa-solid fa-unlock"></i>
+                    Unlock device</button>
             </div>
             <div>
-                <button class="device-buttons action-buttons" id="type-text"><i class="fa-solid fa-pencil"></i> Type text</button>
+                <button class="device-buttons action-buttons" id="type-text"><i class="fa-solid fa-pencil"></i> Type
+                    text</button>
                 <input type="text" id="type-text-input" style="width: 100%;" placeholder="Type text here">
             </div>
             <div>
-                <button class="device-buttons action-buttons" id="clear-text"><i class="fa-solid fa-eraser"></i> Clear text</button>
+                <button class="device-buttons action-buttons" id="clear-text"><i class="fa-solid fa-eraser"></i> Clear
+                    text</button>
             </div>
             <div id="device-info">
                 <div class="device-info-row">
@@ -234,10 +252,12 @@
         <div id="inspector-source">
             <div id="app-source-buttons">
                 <div style="margin-right: 10px;">
-                    <button class="action-buttons" id="refresh-source"><i class="fa-solid fa-rotate"></i> Get source</button>
+                    <button class="action-buttons" id="refresh-source"><i class="fa-solid fa-rotate"></i> Get
+                        source</button>
                 </div>
                 <div>
-                    <button class="action-buttons" id="wipe-canvas"><i class="fa-solid fa-broom"></i> Wipe canvas</button>
+                    <button class="action-buttons" id="wipe-canvas"><i class="fa-solid fa-broom"></i> Wipe
+                        canvas</button>
                 </div>
             </div>
 
@@ -367,6 +387,11 @@
                 </div>
             </div>
         </div>
+        <div id="screenshot-div">
+            <button class="device-buttons action-buttons" id="screenshot"><i class="fa-solid fa-camera"></i>
+                Screenshot</button>
+                <img id="screenshot-image">
+        </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
@@ -457,6 +482,32 @@
             })
             .catch(function (error) {
                 alert("Could not access device lock endpoint. Error: " + error)
+            })
+    })
+
+    document.getElementById("screenshot").addEventListener('click', () => {
+
+        if (device_os == "android") {
+            url = appium_url + "/session/" + appium_session_id + "/screenshot"
+        } else if (device_os == "ios") {
+            url = wda_url + "/session/" + wda_session_id + "/screenshot"
+        } else {
+            return
+        }
+
+        fetch(url, {
+            method: 'GET'
+        })
+            .then(response => response.json())
+            .then(screenshotJson => {
+                // Then create a local URL for that image and print it 
+
+                var imageBase64String = screenshotJson.value
+                const image = document.getElementById('screenshot-image')
+                image.src = "data:image/png;base64," + imageBase64String
+            })
+            .catch(function (error) {
+                alert("Could not take screenshot. Error: " + error)
             })
     })
 
