@@ -15,22 +15,31 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type AvailableDevicesInfo struct {
-	DevicesInfo []ContainerDeviceConfig `json:"devices-info"`
+type Device struct {
+	Container             *DeviceContainer `json:"container,omitempty"`
+	State                 string           `json:"state"`
+	UDID                  string           `json:"udid"`
+	OS                    string           `json:"os"`
+	AppiumPort            string           `json:"appium_port"`
+	StreamPort            string           `json:"stream_port"`
+	ContainerServerPort   string           `json:"container_server_port"`
+	WDAPort               string           `json:"wda_port,omitempty"`
+	Name                  string           `json:"name"`
+	OSVersion             string           `json:"os_version"`
+	ScreenSize            string           `json:"screen_size"`
+	Model                 string           `json:"model"`
+	Image                 string           `json:"image,omitempty"`
+	Host                  string           `json:"host"`
+	MinicapFPS            string           `json:"minicap_fps,omitempty"`
+	MinicapHalfResolution string           `json:"minicap_half_resolution,omitempty"`
+	UseMinicap            string           `json:"use_minicap,omitempty"`
 }
 
-type ContainerDeviceConfig struct {
-	DeviceModel               string `json:"device_model"`
-	DeviceOSVersion           string `json:"device_os_version"`
-	DeviceOS                  string `json:"os"`
-	DeviceContainerServerPort string `json:"container_server_port"`
-	DeviceUDID                string `json:"device_udid"`
-	DeviceHost                string `json:"device_host"`
-	DeviceAppiumPort          string `json:"appium_port"`
-	WdaPort                   string `json:"wda_port"`
-	StreamPort                string `json:"stream_port"`
-	ScreenSize                string `json:"screen_size"`
-	DeviceImage               string `json:"device_image"`
+type DeviceContainer struct {
+	ContainerID     string `json:"id"`
+	ContainerStatus string `json:"status"`
+	ImageName       string `json:"image_name"`
+	ContainerName   string `json:"container_name"`
 }
 
 func AvailableDevicesWSLocal(conn *websocket.Conn) {
@@ -73,7 +82,7 @@ func AvailableDevicesWSLocal(conn *websocket.Conn) {
 }
 
 // This var is used to store last devices update from all providers
-var cachedDevicesConfig []ContainerDeviceConfig
+var cachedDevicesConfig []Device
 
 // Available devices html page
 func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
@@ -89,53 +98,38 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Summary      Get available devices info
-// @Description  Provides info of the currently available devices
-// @Tags         devices
-// @Produce      json
-// @Success      200 {object} AvailableDevicesInfo
-// @Failure      500 {object} JsonErrorResponse
-// @Router       /devices/available-devices [get]
-func GetAvailableDevicesInfo(w http.ResponseWriter, r *http.Request) {
-	var info = AvailableDevicesInfo{
-		DevicesInfo: cachedDevicesConfig,
-	}
-
-	fmt.Fprintf(w, ConvertToJSONString(info))
-}
-
 func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	vars := mux.Vars(r)
 	device_udid := vars["device_udid"]
 
-	var selected_device ContainerDeviceConfig
+	var selected_device Device
 
 	// Loop through the cached devices and search for the selected device
 	for _, v := range cachedDevicesConfig {
-		if v.DeviceUDID == device_udid {
+		if v.UDID == device_udid {
 			selected_device = v
 		}
 	}
 
 	// If the device does not exist in the cached devices
-	if selected_device == (ContainerDeviceConfig{}) {
+	if selected_device == (Device{}) {
 		fmt.Println("error")
 		return
 	}
 
 	var webDriverAgentSessionID = ""
-	if selected_device.DeviceOS == "ios" {
-		webDriverAgentSessionID, err = CheckWDASession(selected_device.DeviceHost + ":" + selected_device.WdaPort)
+	if selected_device.OS == "ios" {
+		webDriverAgentSessionID, err = CheckWDASession(selected_device.Host + ":" + selected_device.WDAPort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 
 	var appiumSessionID = ""
-	if selected_device.DeviceOS == "android" {
-		appiumSessionID, err = checkAppiumSession(selected_device.DeviceHost + ":" + selected_device.DeviceAppiumPort)
+	if selected_device.OS == "android" {
+		appiumSessionID, err = checkAppiumSession(selected_device.Host + ":" + selected_device.AppiumPort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -145,13 +139,13 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	canvasWidth, canvasHeight := calculateCanvasDimensions(selected_device.ScreenSize)
 
 	pageData := struct {
-		ContainerDeviceConfig   ContainerDeviceConfig
+		Device                  Device
 		CanvasWidth             string
 		CanvasHeight            string
 		WebDriverAgentSessionID string
 		AppiumSessionID         string
 	}{
-		ContainerDeviceConfig:   selected_device,
+		Device:                  selected_device,
 		CanvasWidth:             canvasWidth,
 		CanvasHeight:            canvasHeight,
 		WebDriverAgentSessionID: webDriverAgentSessionID,
@@ -193,14 +187,14 @@ func getAvailableDevicesInfoAllProviders() {
 	// Forever loop and get data from all providers every 2 seconds
 	for {
 		// Create an intermediate value to hold the currently built device config before updating the cached config
-		intermediateConfig := []ContainerDeviceConfig{}
+		intermediateConfig := []Device{}
 
 		// Loop through the registered providers
 		for _, v := range ConfigData.DeviceProviders {
-			var providerDevicesInfo AvailableDevicesInfo
+			var providerDevices []Device
 
 			// Get the available devices from the current provider
-			response, err := http.Get("http://" + v + "/available-devices")
+			response, err := http.Get("http://" + v + "/device/list")
 			if err != nil {
 				// If the current provider is not available start next loop iteration
 				continue
@@ -213,10 +207,13 @@ func getAvailableDevicesInfoAllProviders() {
 			}
 
 			// Read the response byte slice into the providerDevicesInfo struct
-			UnmarshalJSONString(string(responseData), &providerDevicesInfo)
+			err = UnmarshalJSONString(string(responseData), &providerDevices)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
 
 			// Append the current devices info to the intermediate config
-			for _, v := range providerDevicesInfo.DevicesInfo {
+			for _, v := range providerDevices {
 				intermediateConfig = append(intermediateConfig, v)
 			}
 		}

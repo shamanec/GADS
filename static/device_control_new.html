@@ -178,7 +178,7 @@
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
         <a href="/logs">Logs</a>
-        <a class="active" href="/devices/control/{{.ContainerDeviceConfig.DeviceUDID}}">Device Control</a>
+        <a class="active" href="/devices/control/{{.Device.UDID}}">Device Control</a>
         <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div id="container-div">
@@ -212,27 +212,27 @@
             <div id="device-info">
                 <div class="device-info-row">
                     <div>OS:</div>
-                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceOSVersion}}</div>
+                    <div class="device-info-value">{{.Device.OSVersion}}</div>
                 </div>
                 <div class="device-info-row">
                     <div>UDID:</div>
-                    <div class="device-info-value">{{.ContainerDeviceConfig.DeviceUDID}}</div>
+                    <div class="device-info-value">{{.Device.UDID}}</div>
                 </div>
                 <div class="device-info-row">
                     <div>Device server:</div>
                     <div class="device-info-value">
-                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}</div>
+                        {{.Device.Host}}:{{.Device.ContainerServerPort}}</div>
                 </div>
                 <div class="device-info-row">
                     <div>Appium URL:</div>
                     <div class="device-info-value">
-                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceAppiumPort}}</div>
+                        {{.Device.Host}}:{{.Device.AppiumPort}}</div>
                 </div>
-                {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+                {{ if eq .Device.OS "ios"}}
                 <div class="device-info-row">
                     <div>WebDriverAgent URL:</div>
                     <div class="device-info-value">
-                        {{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.WdaPort}}
+                        {{.Device.Host}}:{{.Device.WDAPort}}
                     </div>
                 </div>
                 {{end}}
@@ -241,11 +241,11 @@
         <div id="stream-div">
             <canvas id="actions-canvas"
                 style="position: absolute;width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></canvas>
-            {{ if eq .ContainerDeviceConfig.DeviceOS "ios"}}
-            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.StreamPort}}"
+            {{ if eq .Device.OS "ios"}}
+            <img src="http://{{.Device.Host}}:{{.Device.StreamPort}}"
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{else}}
-            <img src="http://{{.ContainerDeviceConfig.DeviceHost}}:{{.ContainerDeviceConfig.DeviceContainerServerPort}}/stream"
+            <img src="http://{{.Device.Host}}:{{.Device.ContainerServerPort}}/stream"
                 id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
@@ -273,7 +273,7 @@
             <div id="element-info-container">
                 <div class="app-source-titles">Element info</div>
                 <div id="element-info-holder">
-                    {{if eq .ContainerDeviceConfig.DeviceOS "ios"}}
+                    {{if eq .Device.OS "ios"}}
                     <div class="element-info">
                         <div class="element-info-keys">type</div>
                         <div class="element-info-values" id="element-type">none</div>
@@ -400,15 +400,15 @@
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all-deps.min.js"></script>
 </body>
 <script>
-    let device_host = "{{.ContainerDeviceConfig.DeviceHost}}"
-    let wda_port = "{{.ContainerDeviceConfig.WdaPort}}"
+    let device_host = "{{.Device.Host}}"
+    let wda_port = "{{.Device.WDAPort}}"
     let wda_url = "http://" + device_host + ":" + wda_port
-    let device_os = "{{.ContainerDeviceConfig.DeviceOS}}"
-    let appium_port = "{{.ContainerDeviceConfig.DeviceAppiumPort}}"
+    let device_os = "{{.Device.OS}}"
+    let appium_port = "{{.Device.AppiumPort}}"
     let appium_url = "http://" + device_host + ":" + appium_port
     let canvas_width = "{{.CanvasWidth}}"
     let canvas_height = "{{.CanvasHeight}}"
-    let screen_size = "{{.ContainerDeviceConfig.ScreenSize}}"
+    let screen_size = "{{.Device.ScreenSize}}"
     let wda_session_id = "{{.WebDriverAgentSessionID}}"
     let appium_session_id = "{{.AppiumSessionID}}"
 
