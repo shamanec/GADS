@@ -94,6 +94,10 @@ func handleRequests() {
 func main() {
 	ConfigData = GetConfigJsonData()
 
+	New("localhost:32769")
+	ReadDevices()
+	go ReadChanges()
+
 	go getAvailableDevicesInfoAllProviders()
 	setLogging()
 	handleRequests()
