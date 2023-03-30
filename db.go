@@ -35,11 +35,31 @@ func ReadDevices() {
 		panic(err)
 	}
 
-	fmt.Println(devices)
+	test := ConvertToJSONString(&devices)
+
+	fmt.Println(test)
 }
 
 func ReadChanges() {
 	res, err := r.Table("devices").Changes().Run(session)
+	if err != nil {
+		panic(err)
+	}
+
+	//var value interface{}
+	var value *Device
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for res.Next(&value) {
+		fmt.Println(value)
+	}
+}
+
+func ReadChanges2() {
+	res, err := r.Table("devices").Field("State").Changes().Run(session)
 	if err != nil {
 		panic(err)
 	}

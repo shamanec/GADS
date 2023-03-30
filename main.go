@@ -96,7 +96,8 @@ func main() {
 
 	New("localhost:32769")
 	ReadDevices()
-	go ReadChanges()
+	//go ReadChanges()
+	//go ReadChanges2()
 
 	go getAvailableDevicesInfoAllProviders()
 	setLogging()
