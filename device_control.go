@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 type Device struct {
@@ -19,7 +20,7 @@ type Device struct {
 	State                 string           `json:"state"`
 	Connected             bool             `json:"connected,omitempty"`
 	Healthy               bool             `json:"healthy,omitempty"`
-	LastUpdateTimestamp   int64            `json:"last_update_timestamp,omitempty"`
+	LastHealthyTimestamp  int64            `json:"last_healthy_timestamp,omitempty"`
 	UDID                  string           `json:"udid"`
 	OS                    string           `json:"os"`
 	AppiumPort            string           `json:"appium_port"`
@@ -44,49 +45,108 @@ type DeviceContainer struct {
 	ContainerName   string `json:"container_name"`
 }
 
-func AvailableDevicesWSLocal(conn *websocket.Conn) {
-	for {
-		var html_message []byte
+// Get all the devices from the DB
+func GetDBDevices() []Device {
+	var devicesDB []Device
 
-		// Make functions available in html template
-		funcMap := template.FuncMap{
-			"contains": strings.Contains,
-		}
-
-		var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
-
-		var buf bytes.Buffer
-		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", currentDevicesInfo)
-
-		if err != nil {
-			log.WithFields(log.Fields{
-				"event": "send_devices_over_ws",
-			}).Error("Could not execute template when sending devices over ws: " + err.Error())
-			time.Sleep(2 * time.Second)
-			return
-		}
-
-		if currentDevicesInfo == nil {
-			html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
-		} else {
-			html_message = []byte(buf.String())
-		}
-
-		if err := conn.WriteMessage(1, html_message); err != nil {
-			time.Sleep(2 * time.Second)
-			return
-		}
-
-		time.Sleep(2 * time.Second)
+	cursor, err := r.Table("devices").Run(session)
+	if err != nil {
+		panic(err)
 	}
 
+	defer cursor.Close()
+
+	err = cursor.All(&devicesDB)
+	if err != nil {
+		panic(err)
+	}
+
+	return devicesDB
+}
+
+// Get specific device info from DB
+func GetDBDevice(udid string) Device {
+	var device Device
+	res, err := r.Table("devices").Get(udid).Run(session)
+	if err != nil {
+		return Device{}
+	}
+
+	err = res.One(&device)
+	if err != nil {
+		return Device{}
+	}
+
+	return device
+}
+
+func AvailableDevicesWSLocal(conn *websocket.Conn) {
+	devices := GetDBDevices()
+	writeDevicesWS(conn, devices)
+
+	for {
+		devices = GetDBDevices()
+		writeDevicesWS(conn, devices)
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+// This is an additional check on top of the "Healthy" field in the DB
+// The reason is that the device might have old data in the DB where it is still "Connected" and "Healthy"
+// So we also check the timestamp of the last time the device was "Healthy"
+func isHealthy(timestamp int64) bool {
+	currentTime := time.Now().UnixMilli()
+	diff := currentTime - timestamp
+	fmt.Printf("Diff is: %v \n", diff)
+	if diff > 2000 {
+		return false
+	}
+
+	return true
+}
+
+// Write the html device selection table to the websocket
+// As a live feed update of the list with the latest information
+func writeDevicesWS(conn *websocket.Conn, devices []Device) {
+	var html_message []byte
+
+	// Make functions available in html template
+	funcMap := template.FuncMap{
+		"contains":    strings.Contains,
+		"healthCheck": isHealthy,
+	}
+
+	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
+
+	var buf bytes.Buffer
+	err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "send_devices_over_ws",
+		}).Error("Could not execute template when sending devices over ws: " + err.Error())
+		time.Sleep(2 * time.Second)
+		return
+	}
+
+	if devices == nil {
+		html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
+	} else {
+		html_message = []byte(buf.String())
+	}
+
+	if err := conn.WriteMessage(1, html_message); err != nil {
+		return
+	}
 }
 
 // Available devices html page
 func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	// Make functions available in the html template
 	funcMap := template.FuncMap{
-		"contains": strings.Contains,
+		"contains":    strings.Contains,
+		"healthCheck": isHealthy,
 	}
 
 	// Parse the template and return response with the created template
@@ -100,41 +160,34 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	vars := mux.Vars(r)
-	device_udid := vars["device_udid"]
+	udid := vars["device_udid"]
 
-	var selected_device Device
-
-	// Loop through the cached devices and search for the selected device
-	for _, v := range currentDevicesInfo {
-		if v.UDID == device_udid {
-			selected_device = v
-		}
-	}
+	device := GetDBDevice(udid)
 
 	// If the device does not exist in the cached devices
-	if selected_device == (Device{}) {
+	if device == (Device{}) {
 		fmt.Println("error")
 		return
 	}
 
 	var webDriverAgentSessionID = ""
-	if selected_device.OS == "ios" {
-		webDriverAgentSessionID, err = CheckWDASession(selected_device.Host + ":" + selected_device.WDAPort)
+	if device.OS == "ios" {
+		webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 
 	var appiumSessionID = ""
-	if selected_device.OS == "android" {
-		appiumSessionID, err = checkAppiumSession(selected_device.Host + ":" + selected_device.AppiumPort)
+	if device.OS == "android" {
+		appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 
 	// Calculate the width and height for the canvas
-	canvasWidth, canvasHeight := calculateCanvasDimensions(selected_device.ScreenSize)
+	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
 
 	pageData := struct {
 		Device                  Device
@@ -143,7 +196,7 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 		WebDriverAgentSessionID string
 		AppiumSessionID         string
 	}{
-		Device:                  selected_device,
+		Device:                  device,
 		CanvasWidth:             canvasWidth,
 		CanvasHeight:            canvasHeight,
 		WebDriverAgentSessionID: webDriverAgentSessionID,
@@ -180,45 +233,3 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 
 	return
 }
-
-// func getAvailableDevicesInfoAllProviders() {
-// 	// Forever loop and get data from all providers every 2 seconds
-// 	for {
-// 		// Create an intermediate value to hold the currently built device config before updating the cached config
-// 		intermediateConfig := []Device{}
-
-// 		// Loop through the registered providers
-// 		for _, v := range ConfigData.DeviceProviders {
-// 			var providerDevices []Device
-
-// 			// Get the available devices from the current provider
-// 			response, err := http.Get("http://" + v + "/device/list")
-// 			if err != nil {
-// 				// If the current provider is not available start next loop iteration
-// 				continue
-// 			}
-
-// 			// Read the response into a byte slice
-// 			responseData, err := ioutil.ReadAll(response.Body)
-// 			if err != nil {
-// 				fmt.Println(err.Error())
-// 			}
-
-// 			// Read the response byte slice into the providerDevicesInfo struct
-// 			err = UnmarshalJSONString(string(responseData), &providerDevices)
-// 			if err != nil {
-// 				fmt.Println(err.Error())
-// 			}
-
-// 			// Append the current devices info to the intermediate config
-// 			for _, v := range providerDevices {
-// 				intermediateConfig = append(intermediateConfig, v)
-// 			}
-// 		}
-
-// 		// After all providers are polled update the cachedDevicesConfig
-// 		cachedDevicesConfig = intermediateConfig
-
-// 		time.Sleep(2 * time.Second)
-// 	}
-// }

@@ -94,12 +94,9 @@ func handleRequests() {
 func main() {
 	ConfigData = GetConfigJsonData()
 
-	New("localhost:32769")
-	GetDBDevicesOnStart()
-	//ReadDevices()
-	go ReadChanges()
-
-	//go getAvailableDevicesInfoAllProviders()
+	InitDB("localhost:32769")
+	// go ListenForDeviceConnectedChanges()
+	// go ListenForDeviceHealthChanges()
 	setLogging()
 	handleRequests()
 }
