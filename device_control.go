@@ -98,7 +98,6 @@ func AvailableDevicesWSLocal(conn *websocket.Conn) {
 func isHealthy(timestamp int64) bool {
 	currentTime := time.Now().UnixMilli()
 	diff := currentTime - timestamp
-	fmt.Printf("Diff is: %v \n", diff)
 	if diff > 2000 {
 		return false
 	}
