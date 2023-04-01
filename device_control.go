@@ -45,20 +45,27 @@ type DeviceContainer struct {
 	ContainerName   string `json:"container_name"`
 }
 
-// Get all the devices from the DB
+// Get all the devices registered in the DB
 func GetDBDevices() []Device {
 	var devicesDB []Device
 
+	// Get a cursor of the whole "devices" table
 	cursor, err := r.Table("devices").Run(session)
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get devices from DB, err: " + err.Error())
+		return []Device{}
 	}
-
 	defer cursor.Close()
 
+	// Retrieve all documents from the DB into the Device slice
 	err = cursor.All(&devicesDB)
 	if err != nil {
-		panic(err)
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get devices from DB, err: " + err.Error())
+		return []Device{}
 	}
 
 	return devicesDB
@@ -66,14 +73,22 @@ func GetDBDevices() []Device {
 
 // Get specific device info from DB
 func GetDBDevice(udid string) Device {
-	var device Device
-	res, err := r.Table("devices").Get(udid).Run(session)
+	// Get a cursor of the specific device document from the "devices" table
+	cursor, err := r.Table("devices").Get(udid).Run(session)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get device from DB, err: " + err.Error())
 		return Device{}
 	}
 
-	err = res.One(&device)
+	// Retrieve a single document from the cursor
+	var device Device
+	err = cursor.One(&device)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get device from DB, err: " + err.Error())
 		return Device{}
 	}
 
@@ -92,9 +107,10 @@ func AvailableDevicesWSLocal(conn *websocket.Conn) {
 	}
 }
 
-// This is an additional check on top of the "Healthy" field in the DB
-// The reason is that the device might have old data in the DB where it is still "Connected" and "Healthy"
-// So we also check the timestamp of the last time the device was "Healthy"
+// This is an additional check on top of the "Healthy" field in the DB.
+// The reason is that the device might have old data in the DB where it is still "Connected" and "Healthy".
+// So we also check the timestamp of the last time the device was "Healthy".
+// It is used inside the html template.
 func isHealthy(timestamp int64) bool {
 	currentTime := time.Now().UnixMilli()
 	diff := currentTime - timestamp
@@ -155,6 +171,7 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Load a specific device page
 func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	var err error
 
