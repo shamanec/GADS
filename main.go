@@ -95,11 +95,11 @@ func main() {
 	ConfigData = GetConfigJsonData()
 
 	New("localhost:32769")
-	ReadDevices()
-	//go ReadChanges()
-	//go ReadChanges2()
+	GetDBDevicesOnStart()
+	//ReadDevices()
+	go ReadChanges()
 
-	go getAvailableDevicesInfoAllProviders()
+	//go getAvailableDevicesInfoAllProviders()
 	setLogging()
 	handleRequests()
 }
