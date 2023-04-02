@@ -17,8 +17,8 @@ var project_log_file *os.File
 var ConfigData *ConfigJsonData
 
 type ConfigJsonData struct {
-	GadsHostAddress string   `json:"gads_host_address"`
-	DeviceProviders []string `json:"device_providers"`
+	GadsHostAddress string `json:"gads_host_address"`
+	RethinkDB       string `json:"rethink_db"`
 }
 
 // Load the initial page
@@ -94,9 +94,7 @@ func handleRequests() {
 func main() {
 	ConfigData = GetConfigJsonData()
 
-	InitDB("localhost:32769")
-	// go ListenForDeviceConnectedChanges()
-	// go ListenForDeviceHealthChanges()
+	InitDB()
 	setLogging()
 	handleRequests()
 }

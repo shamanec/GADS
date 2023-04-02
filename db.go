@@ -8,14 +8,14 @@ var session *r.Session
 
 var currentDevicesInfo []Device
 
-func InitDB(address string) {
+func InitDB() {
 	var err error = nil
 	session, err = r.Connect(r.ConnectOpts{
-		Address:  address,
+		Address:  ConfigData.RethinkDB,
 		Database: "gads",
 	})
 
 	if err != nil {
-		panic("Could not connect to db on " + address + ", err: " + err.Error())
+		panic("Could not connect to db on " + ConfigData.RethinkDB + ", err: " + err.Error())
 	}
 }
