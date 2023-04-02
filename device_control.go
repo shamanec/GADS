@@ -112,8 +112,17 @@ func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 	}
 
+	// Generate devices list on websocket open
+	// and send it over the websocket connection
+	// If it fails just return and don't add the connection to the clients list
+	html_message := generateDeviceSelectionHTML()
+	err = conn.WriteMessage(1, html_message)
+	if err != nil {
+		conn.Close()
+		return
+	}
+
 	// Add the new conn to clients map
-	fmt.Println("Got new websocket client")
 	clients[conn] = true
 }
 
@@ -152,12 +161,41 @@ func getDevices() {
 			if err != nil {
 				client.Close()
 				delete(clients, client)
-				fmt.Println("Removed websocket client")
 			}
 		}
 
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func generateDeviceSelectionHTML() []byte {
+	devices := GetDBDevices()
+	var html_message []byte
+
+	// Make functions available in html template
+	funcMap := template.FuncMap{
+		"contains":    strings.Contains,
+		"healthCheck": isHealthy,
+	}
+
+	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
+
+	var buf bytes.Buffer
+	err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "send_devices_over_ws",
+		}).Error("Could not execute template when sending devices over ws: " + err.Error())
+	}
+
+	if devices == nil {
+		html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
+	} else {
+		html_message = []byte(buf.String())
+	}
+
+	return html_message
 }
 
 // This is an additional check on top of the "Healthy" field in the DB.
