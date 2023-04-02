@@ -95,13 +95,66 @@ func GetDBDevice(udid string) Device {
 	return device
 }
 
-func AvailableDevicesWSLocal(conn *websocket.Conn) {
-	devices := GetDBDevices()
-	writeDevicesWS(conn, devices)
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+var clients = make(map[*websocket.Conn]bool)
+var broadcast = make(chan []byte)
 
+func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+
+	// upgrade this connection to a WebSocket
+	// connection
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+	}
+
+	// Add the new conn to clients map
+	fmt.Println("Got new websocket client")
+	clients[conn] = true
+}
+
+func getDevices() {
 	for {
-		devices = GetDBDevices()
-		writeDevicesWS(conn, devices)
+		devices := GetDBDevices()
+		var html_message []byte
+
+		// Make functions available in html template
+		funcMap := template.FuncMap{
+			"contains":    strings.Contains,
+			"healthCheck": isHealthy,
+		}
+
+		var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
+
+		var buf bytes.Buffer
+		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"event": "send_devices_over_ws",
+			}).Error("Could not execute template when sending devices over ws: " + err.Error())
+			time.Sleep(2 * time.Second)
+			return
+		}
+
+		if devices == nil {
+			html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
+		} else {
+			html_message = []byte(buf.String())
+		}
+
+		for client := range clients {
+			err := client.WriteMessage(1, html_message)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
+				fmt.Println("Removed websocket client")
+			}
+		}
 
 		time.Sleep(1 * time.Second)
 	}
@@ -121,43 +174,8 @@ func isHealthy(timestamp int64) bool {
 	return true
 }
 
-// Write the html device selection table to the websocket
-// As a live feed update of the list with the latest information
-func writeDevicesWS(conn *websocket.Conn, devices []Device) {
-	var html_message []byte
-
-	// Make functions available in html template
-	funcMap := template.FuncMap{
-		"contains":    strings.Contains,
-		"healthCheck": isHealthy,
-	}
-
-	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
-
-	var buf bytes.Buffer
-	err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "send_devices_over_ws",
-		}).Error("Could not execute template when sending devices over ws: " + err.Error())
-		time.Sleep(2 * time.Second)
-		return
-	}
-
-	if devices == nil {
-		html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
-	} else {
-		html_message = []byte(buf.String())
-	}
-
-	if err := conn.WriteMessage(1, html_message); err != nil {
-		return
-	}
-}
-
 // Available devices html page
-func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
+func LoadDevices(w http.ResponseWriter, r *http.Request) {
 	// Make functions available in the html template
 	funcMap := template.FuncMap{
 		"contains":    strings.Contains,
