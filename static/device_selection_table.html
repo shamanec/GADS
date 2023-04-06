@@ -22,8 +22,10 @@
   <form method="post" action="/devices/control/{{.UDID}}" class="inline">
     {{ if and (eq .Connected true) (eq .Healthy true) (healthCheck .LastHealthyTimestamp) }}
     <button class="use-device" type="submit">Use device</button>
+    {{else if and (eq .Connected true) (eq .Healthy false) (eq (healthCheck .LastHealthyTimestamp) false)}}
+    <button class="use-device" type="submit" disabled>Preparing</button>
     {{else}}
-    <button class="use-device" type="submit" disabled>{{.State}}</button>
+    <button class="use-device" type="submit" disabled>N/A</button>
     {{end}}
   </form>
 </li>

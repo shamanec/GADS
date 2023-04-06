@@ -17,7 +17,6 @@ import (
 
 type Device struct {
 	Container             *DeviceContainer `json:"container,omitempty"`
-	State                 string           `json:"state"`
 	Connected             bool             `json:"connected,omitempty"`
 	Healthy               bool             `json:"healthy,omitempty"`
 	LastHealthyTimestamp  int64            `json:"last_healthy_timestamp,omitempty"`
@@ -151,7 +150,7 @@ func getDevices() {
 		}
 
 		if devices == nil {
-			html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
+			html_message = []byte(`<h1 style="align-items: center;">No devices registered from providers</h1>`)
 		} else {
 			html_message = []byte(buf.String())
 		}
@@ -190,7 +189,7 @@ func generateDeviceSelectionHTML() []byte {
 	}
 
 	if devices == nil {
-		html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
+		html_message = []byte(`<h1 style="align-items: center;">No devices registered from provider</h1>`)
 	} else {
 		html_message = []byte(buf.String())
 	}
