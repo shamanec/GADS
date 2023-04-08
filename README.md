@@ -32,6 +32,12 @@ The project uses RethinkDB for syncing devices availability between providers an
 3. Go to `Tables` and create a new database named `gads`  
 4. Add a new table to `gads` database named `devices` with primary key `UDID` (you need to click `Show optional settings` for the primary key)  
 
+### Setup config.json
+1. Open the `config.json` file.  
+2. Change the `gads_host_address` value to the IP of the host machine.  
+3. Add the IP addresses of the device providers in the `device_providers` array.  
+4. Change the `rethink_db` value to the IP address and port of the RethinkDB instance. Example: `192.168.1.2:32771`  
+
 ### Start the GADS UI
 1. Execute `go build .`  in the main project folder  
 2. Execute `./GADS`  
