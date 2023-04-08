@@ -26,7 +26,7 @@ Developed and tested on Ubuntu 18.04 LTS
 Currently the project assumes that GADS UI, RethinkDB and device providers are on the same network. They can all be on the same machine as well.  
 
 ### Start RethinkDB instance
-The project uses RethinkDB for syncing devices availability between providers and GADS UI.  
+The project uses RethinkDB for syncing devices info between providers and GADS UI.  
 1. Execute `docker run -d --restart always --name gads-rethink -p 32770:8080 -p 32771:28015 rethinkdb:2.4.2`. This will pull the official RethinkDB 2.4.2 image from Docker Hub and start a container binding ports `32770` for the RethinkDB dashboard and `32771` for db connection.  
 2. Open the RethinkDB dashboard on `http://localhost:32770/`  
 3. Go to `Tables` and create a new database named `gads`  
