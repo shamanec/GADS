@@ -23,6 +23,7 @@
 Developed and tested on Ubuntu 18.04 LTS  
 
 ## Setup
+Currently the project assumes that GADS UI, RethinkDB and device providers are on the same network. They can all be on the same machine as well.  
 
 ### Start RethinkDB instance
 The project uses RethinkDB for syncing devices availability between providers and GADS UI.  
