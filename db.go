@@ -16,6 +16,6 @@ func InitDB() {
 	})
 
 	if err != nil {
-		panic("Could not connect to db on " + ConfigData.RethinkDB + ", err: " + err.Error())
+		panic("Could not connect to RethinkDB on " + ConfigData.RethinkDB + ", make sure it is set up and running, err: " + err.Error())
 	}
 }

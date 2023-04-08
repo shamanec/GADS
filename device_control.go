@@ -80,6 +80,7 @@ func GetDBDevice(udid string) Device {
 		}).Error("Could not get device from DB, err: " + err.Error())
 		return Device{}
 	}
+	defer cursor.Close()
 
 	// Retrieve a single document from the cursor
 	var device Device
