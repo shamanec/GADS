@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,11 +12,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 type Device struct {
 	Container             *DeviceContainer `json:"container,omitempty"`
-	State                 string           `json:"state"`
+	Connected             bool             `json:"connected,omitempty"`
+	Healthy               bool             `json:"healthy,omitempty"`
+	LastHealthyTimestamp  int64            `json:"last_healthy_timestamp,omitempty"`
 	UDID                  string           `json:"udid"`
 	OS                    string           `json:"os"`
 	AppiumPort            string           `json:"appium_port"`
@@ -42,21 +44,132 @@ type DeviceContainer struct {
 	ContainerName   string `json:"container_name"`
 }
 
-func AvailableDevicesWSLocal(conn *websocket.Conn) {
+// Get all the devices registered in the DB
+func GetDBDevices() []Device {
+	var devicesDB []Device
+
+	// Get a cursor of the whole "devices" table
+	cursor, err := r.Table("devices").Run(session)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get devices from DB, err: " + err.Error())
+		return []Device{}
+	}
+	defer cursor.Close()
+
+	// Retrieve all documents from the DB into the Device slice
+	err = cursor.All(&devicesDB)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get devices from DB, err: " + err.Error())
+		return []Device{}
+	}
+
+	return devicesDB
+}
+
+// Get specific device info from DB
+func GetDBDevice(udid string) Device {
+	// Get a cursor of the specific device document from the "devices" table
+	cursor, err := r.Table("devices").Get(udid).Run(session)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get device from DB, err: " + err.Error())
+		return Device{}
+	}
+	defer cursor.Close()
+
+	// Retrieve a single document from the cursor
+	var device Device
+	err = cursor.One(&device)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_devices_db",
+		}).Error("Could not get device from DB, err: " + err.Error())
+		return Device{}
+	}
+
+	return device
+}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+var clients = make(map[*websocket.Conn]bool)
+var broadcast = make(chan []byte)
+
+func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+
+	// upgrade this connection to a WebSocket
+	// connection
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "devices_ws",
+		}).Error("Could not upgrade ws connection: " + err.Error())
+		return
+	}
+
+	// Generate devices list on websocket open
+	// and send it over the websocket connection
+	// If it fails just return and don't add the connection to the clients map
+	html_message := generateDeviceSelectionHTML()
+	err = conn.WriteMessage(1, html_message)
+	if err != nil {
+		conn.Close()
+		return
+	}
+
+	// Add the new conn to clients map
+	clients[conn] = true
+}
+
+func keepAlive() {
 	for {
-		devices := cachedDevicesConfig
-		var html_message []byte
+		// Send a ping message every 10 seconds
+		time.Sleep(10 * time.Second)
+
+		// Loop through the clients and send the message to each of them
+		for client := range clients {
+			err := client.WriteMessage(websocket.PingMessage, nil)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
+			}
+		}
+	}
+}
+
+func getDevices() {
+	// Start a goroutine that will ping each websocket client
+	// To keep the connection alive
+	go keepAlive()
+
+	// Define a slice of bytes to contain the last sent html over the websocket
+	var lastHtmlMessage []byte
+
+	// Start an endless loop polling the DB each second and sending an updated device selection html
+	// To each websocket client
+	for {
+		// Get the devices from the DB
+		devices := GetDBDevices()
+		var htmlMessage []byte
 
 		// Make functions available in html template
 		funcMap := template.FuncMap{
-			"contains": strings.Contains,
+			"contains":    strings.Contains,
+			"healthCheck": isHealthy,
 		}
 
+		// Generate the html for the device selection with the latest data
 		var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
-
 		var buf bytes.Buffer
 		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
-
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "send_devices_over_ws",
@@ -65,30 +178,84 @@ func AvailableDevicesWSLocal(conn *websocket.Conn) {
 			return
 		}
 
+		// If no devices are in the DB show a generic message html
+		// Or convert the generate html buffer to a slice of bytes
 		if devices == nil {
-			html_message = []byte(`<h1 style="align-items: center;">No devices available</h1>`)
+			htmlMessage = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
 		} else {
-			html_message = []byte(buf.String())
+			htmlMessage = []byte(buf.String())
 		}
 
-		if err := conn.WriteMessage(1, html_message); err != nil {
-			time.Sleep(2 * time.Second)
-			return
+		// Check the generated html message to the last sent html message
+		// If they are not the same - send the message to each websocket client
+		// If they are the same just continue the loop
+		// This is to avoid spamming identical html messages over the websocket each second
+		// If there is no actual change
+		if !bytes.Equal(htmlMessage, lastHtmlMessage) {
+			for client := range clients {
+				err := client.WriteMessage(1, htmlMessage)
+				if err != nil {
+					client.Close()
+					delete(clients, client)
+				}
+			}
+			lastHtmlMessage = htmlMessage
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
-
 }
 
-// This var is used to store last devices update from all providers
-var cachedDevicesConfig []Device
+func generateDeviceSelectionHTML() []byte {
+	devices := GetDBDevices()
+	var html_message []byte
+
+	// Make functions available in html template
+	funcMap := template.FuncMap{
+		"contains":    strings.Contains,
+		"healthCheck": isHealthy,
+	}
+
+	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
+
+	var buf bytes.Buffer
+	err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "send_devices_over_ws",
+		}).Error("Could not execute template when sending devices over ws: " + err.Error())
+	}
+
+	if devices == nil {
+		html_message = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
+	} else {
+		html_message = []byte(buf.String())
+	}
+
+	return html_message
+}
+
+// This is an additional check on top of the "Healthy" field in the DB.
+// The reason is that the device might have old data in the DB where it is still "Connected" and "Healthy".
+// So we also check the timestamp of the last time the device was "Healthy".
+// It is used inside the html template.
+func isHealthy(timestamp int64) bool {
+	currentTime := time.Now().UnixMilli()
+	diff := currentTime - timestamp
+	if diff > 2000 {
+		return false
+	}
+
+	return true
+}
 
 // Available devices html page
-func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
+func LoadDevices(w http.ResponseWriter, r *http.Request) {
 	// Make functions available in the html template
 	funcMap := template.FuncMap{
-		"contains": strings.Contains,
+		"contains":    strings.Contains,
+		"healthCheck": isHealthy,
 	}
 
 	// Parse the template and return response with the created template
@@ -98,45 +265,39 @@ func LoadAvailableDevices(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Load a specific device page
 func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	vars := mux.Vars(r)
-	device_udid := vars["device_udid"]
+	udid := vars["device_udid"]
 
-	var selected_device Device
-
-	// Loop through the cached devices and search for the selected device
-	for _, v := range cachedDevicesConfig {
-		if v.UDID == device_udid {
-			selected_device = v
-		}
-	}
+	device := GetDBDevice(udid)
 
 	// If the device does not exist in the cached devices
-	if selected_device == (Device{}) {
+	if device == (Device{}) {
 		fmt.Println("error")
 		return
 	}
 
 	var webDriverAgentSessionID = ""
-	if selected_device.OS == "ios" {
-		webDriverAgentSessionID, err = CheckWDASession(selected_device.Host + ":" + selected_device.WDAPort)
+	if device.OS == "ios" {
+		webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 
 	var appiumSessionID = ""
-	if selected_device.OS == "android" {
-		appiumSessionID, err = checkAppiumSession(selected_device.Host + ":" + selected_device.AppiumPort)
+	if device.OS == "android" {
+		appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 
 	// Calculate the width and height for the canvas
-	canvasWidth, canvasHeight := calculateCanvasDimensions(selected_device.ScreenSize)
+	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
 
 	pageData := struct {
 		Device                  Device
@@ -145,7 +306,7 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 		WebDriverAgentSessionID string
 		AppiumSessionID         string
 	}{
-		Device:                  selected_device,
+		Device:                  device,
 		CanvasWidth:             canvasWidth,
 		CanvasHeight:            canvasHeight,
 		WebDriverAgentSessionID: webDriverAgentSessionID,
@@ -181,46 +342,4 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 	canvasWidth = fmt.Sprintf("%f", 850*screen_ratio)
 
 	return
-}
-
-func getAvailableDevicesInfoAllProviders() {
-	// Forever loop and get data from all providers every 2 seconds
-	for {
-		// Create an intermediate value to hold the currently built device config before updating the cached config
-		intermediateConfig := []Device{}
-
-		// Loop through the registered providers
-		for _, v := range ConfigData.DeviceProviders {
-			var providerDevices []Device
-
-			// Get the available devices from the current provider
-			response, err := http.Get("http://" + v + "/device/list")
-			if err != nil {
-				// If the current provider is not available start next loop iteration
-				continue
-			}
-
-			// Read the response into a byte slice
-			responseData, err := ioutil.ReadAll(response.Body)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-
-			// Read the response byte slice into the providerDevicesInfo struct
-			err = UnmarshalJSONString(string(responseData), &providerDevices)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-
-			// Append the current devices info to the intermediate config
-			for _, v := range providerDevices {
-				intermediateConfig = append(intermediateConfig, v)
-			}
-		}
-
-		// After all providers are polled update the cachedDevicesConfig
-		cachedDevicesConfig = intermediateConfig
-
-		time.Sleep(2 * time.Second)
-	}
 }

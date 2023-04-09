@@ -8,7 +8,6 @@ import (
 	_ "GADS/docs"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -19,6 +18,7 @@ var ConfigData *ConfigJsonData
 type ConfigJsonData struct {
 	GadsHostAddress string   `json:"gads_host_address"`
 	DeviceProviders []string `json:"device_providers"`
+	RethinkDB       string   `json:"rethink_db"`
 }
 
 // Load the initial page
@@ -41,24 +41,6 @@ func setLogging() {
 	log.SetOutput(project_log_file)
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
-func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-
-	// upgrade this connection to a WebSocket
-	// connection
-	ws, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-	}
-
-	go AvailableDevicesWSLocal(ws)
-}
-
 func handleRequests() {
 	// Create a new instance of the mux router
 	myRouter := mux.NewRouter().StrictSlash(true)
@@ -74,7 +56,8 @@ func handleRequests() {
 
 	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
 
-	myRouter.HandleFunc("/devices", LoadAvailableDevices)
+	myRouter.HandleFunc("/devices", LoadDevices)
+	myRouter.HandleFunc("/available-devices", AvailableDevicesWS)
 	myRouter.HandleFunc("/devices/control/{device_udid}", GetDevicePage)
 
 	// Logs
@@ -86,15 +69,14 @@ func handleRequests() {
 	myRouter.HandleFunc("/logs", GetLogsPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
-	myRouter.HandleFunc("/available-devices", AvailableDevicesWS)
-
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
 func main() {
 	ConfigData = GetConfigJsonData()
 
-	go getAvailableDevicesInfoAllProviders()
+	InitDB()
+	go getDevices()
 	setLogging()
 	handleRequests()
 }
