@@ -109,12 +109,15 @@ func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
 	// connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		log.WithFields(log.Fields{
+			"event": "devices_ws",
+		}).Error("Could not upgrade ws connection: " + err.Error())
+		return
 	}
 
 	// Generate devices list on websocket open
 	// and send it over the websocket connection
-	// If it fails just return and don't add the connection to the clients list
+	// If it fails just return and don't add the connection to the clients map
 	html_message := generateDeviceSelectionHTML()
 	err = conn.WriteMessage(1, html_message)
 	if err != nil {
@@ -126,10 +129,36 @@ func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
 	clients[conn] = true
 }
 
-func getDevices() {
+func keepAlive() {
 	for {
+		// Send a ping message every 10 seconds
+		time.Sleep(10 * time.Second)
+
+		// Loop through the clients and send the message to each of them
+		for client := range clients {
+			err := client.WriteMessage(websocket.PingMessage, nil)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
+			}
+		}
+	}
+}
+
+func getDevices() {
+	// Start a goroutine that will ping each websocket client
+	// To keep the connection alive
+	go keepAlive()
+
+	// Define a slice of bytes to contain the last sent html over the websocket
+	var lastHtmlMessage []byte
+
+	// Start an endless loop polling the DB each second and sending an updated device selection html
+	// To each websocket client
+	for {
+		// Get the devices from the DB
 		devices := GetDBDevices()
-		var html_message []byte
+		var htmlMessage []byte
 
 		// Make functions available in html template
 		funcMap := template.FuncMap{
@@ -137,11 +166,10 @@ func getDevices() {
 			"healthCheck": isHealthy,
 		}
 
+		// Generate the html for the device selection with the latest data
 		var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
-
 		var buf bytes.Buffer
 		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
-
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "send_devices_over_ws",
@@ -150,18 +178,28 @@ func getDevices() {
 			return
 		}
 
+		// If no devices are in the DB show a generic message html
+		// Or convert the generate html buffer to a slice of bytes
 		if devices == nil {
-			html_message = []byte(`<h1 style="align-items: center;">No devices registered from providers</h1>`)
+			htmlMessage = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
 		} else {
-			html_message = []byte(buf.String())
+			htmlMessage = []byte(buf.String())
 		}
 
-		for client := range clients {
-			err := client.WriteMessage(1, html_message)
-			if err != nil {
-				client.Close()
-				delete(clients, client)
+		// Check the generated html message to the last sent html message
+		// If they are not the same - send the message to each websocket client
+		// If they are the same just continue the loop
+		// This is to avoid spamming identical html messages over the websocket each second
+		// If there is no actual change
+		if !bytes.Equal(htmlMessage, lastHtmlMessage) {
+			for client := range clients {
+				err := client.WriteMessage(1, htmlMessage)
+				if err != nil {
+					client.Close()
+					delete(clients, client)
+				}
 			}
+			lastHtmlMessage = htmlMessage
 		}
 
 		time.Sleep(1 * time.Second)
@@ -190,7 +228,7 @@ func generateDeviceSelectionHTML() []byte {
 	}
 
 	if devices == nil {
-		html_message = []byte(`<h1 style="align-items: center;">No devices registered from provider</h1>`)
+		html_message = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
 	} else {
 		html_message = []byte(buf.String())
 	}
