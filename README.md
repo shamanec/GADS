@@ -35,7 +35,7 @@ The project uses RethinkDB for syncing devices info between providers and GADS U
 ### Setup config.json
 1. Open the `config.json` file.  
 2. Change the `gads_host_address` value to the IP of the host machine.  
-3. Add the IP addresses of the device providers in the `device_providers` array.  
+3. Add the IP addresses and ports of the device providers in the `device_providers` array.  
 4. Change the `rethink_db` value to the IP address and port of the RethinkDB instance. Example: `192.168.1.2:32771`  
 
 ### Start the GADS UI
