@@ -75,6 +75,7 @@ func main() {
 	util.GetConfigJsonData()
 
 	db.InitDB()
+	go device.GetLatestDBDevices()
 	go device.GetDevices()
 	setLogging()
 	handleRequests()

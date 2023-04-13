@@ -46,34 +46,35 @@ type DeviceContainer struct {
 	ContainerName   string `json:"container_name"`
 }
 
+var LatestDevices []Device
+
 // Get all the devices registered in the DB
-func GetDBDevices() []Device {
-	var devicesDB []Device
+func GetLatestDBDevices() {
+	for {
+		// Get a cursor of the whole "devices" table
+		cursor, err := r.Table("devices").Run(db.DBSession)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"event": "get_devices_db",
+			}).Error("Could not get devices from DB, err: " + err.Error())
+			LatestDevices = []Device{}
+		}
+		defer cursor.Close()
 
-	// Get a cursor of the whole "devices" table
-	cursor, err := r.Table("devices").Run(db.DBSession)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_devices_db",
-		}).Error("Could not get devices from DB, err: " + err.Error())
-		return []Device{}
+		// Retrieve all documents from the DB into the Device slice
+		err = cursor.All(&LatestDevices)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"event": "get_devices_db",
+			}).Error("Could not get devices from DB, err: " + err.Error())
+			LatestDevices = []Device{}
+		}
+		time.Sleep(1 * time.Second)
 	}
-	defer cursor.Close()
-
-	// Retrieve all documents from the DB into the Device slice
-	err = cursor.All(&devicesDB)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_devices_db",
-		}).Error("Could not get devices from DB, err: " + err.Error())
-		return []Device{}
-	}
-
-	return devicesDB
 }
 
 // Get specific device info from DB
-func GetDBDevice(udid string) Device {
+func getDBDevice(udid string) Device {
 	// Get a cursor of the specific device document from the "devices" table
 	cursor, err := r.Table("devices").Get(udid).Run(db.DBSession)
 	if err != nil {
@@ -159,7 +160,6 @@ func GetDevices() {
 	// To each websocket client
 	for {
 		// Get the devices from the DB
-		devices := GetDBDevices()
 		var htmlMessage []byte
 
 		// Make functions available in html template
@@ -171,7 +171,7 @@ func GetDevices() {
 		// Generate the html for the device selection with the latest data
 		var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
 		var buf bytes.Buffer
-		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
+		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", LatestDevices)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"event": "send_devices_over_ws",
@@ -182,7 +182,7 @@ func GetDevices() {
 
 		// If no devices are in the DB show a generic message html
 		// Or convert the generate html buffer to a slice of bytes
-		if devices == nil {
+		if LatestDevices == nil {
 			htmlMessage = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
 		} else {
 			htmlMessage = []byte(buf.String())
@@ -209,7 +209,6 @@ func GetDevices() {
 }
 
 func generateDeviceSelectionHTML() []byte {
-	devices := GetDBDevices()
 	var html_message []byte
 
 	// Make functions available in html template
@@ -221,7 +220,7 @@ func generateDeviceSelectionHTML() []byte {
 	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
 
 	var buf bytes.Buffer
-	err := tmpl.ExecuteTemplate(&buf, "device_selection_table", devices)
+	err := tmpl.ExecuteTemplate(&buf, "device_selection_table", LatestDevices)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -229,7 +228,7 @@ func generateDeviceSelectionHTML() []byte {
 		}).Error("Could not execute template when sending devices over ws: " + err.Error())
 	}
 
-	if devices == nil {
+	if LatestDevices == nil {
 		html_message = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
 	} else {
 		html_message = []byte(buf.String())
@@ -274,7 +273,7 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	udid := vars["device_udid"]
 
-	device := GetDBDevice(udid)
+	device := getDBDevice(udid)
 
 	// If the device does not exist in the cached devices
 	if device == (Device{}) {

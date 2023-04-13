@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"GADS/device"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,13 +14,15 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	path := vars["path"]
-	//udid := vars["udid"]
+	udid := vars["udid"]
+
+	device := device.GetDeviceByUDID(udid)
 
 	// Replace this URL with your provider server's base URL
-	providerBaseURL := "http://provider.example.com"
+	providerBaseURL := "http://" + device.Host + ":10001"
 
-	providerURL, err := url.Parse(providerBaseURL + "/" + path)
-
+	providerURL, err := url.Parse(providerBaseURL + "/" + udid + "/" + path)
+	fmt.Printf("We are calling: %v", providerURL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

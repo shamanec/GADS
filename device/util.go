@@ -158,12 +158,12 @@ func createAppiumSession(appiumURL string) (string, error) {
 	return responseJson.Value.SessionID, nil
 }
 
-// func getDeviceByUDID(udid string) *Device {
-// 	for _, device := range util.ConfigData.Devices {
-// 		if device.UDID == udid {
-// 			return device
-// 		}
-// 	}
+func GetDeviceByUDID(udid string) *Device {
+	for _, device := range LatestDevices {
+		if device.UDID == udid {
+			return &device
+		}
+	}
 
-// 	return nil
-// }
+	return nil
+}
