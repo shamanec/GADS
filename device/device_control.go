@@ -1,6 +1,8 @@
-package main
+package device
 
 import (
+	"GADS/db"
+	"GADS/util"
 	"bytes"
 	"fmt"
 	"html/template"
@@ -49,7 +51,7 @@ func GetDBDevices() []Device {
 	var devicesDB []Device
 
 	// Get a cursor of the whole "devices" table
-	cursor, err := r.Table("devices").Run(session)
+	cursor, err := r.Table("devices").Run(db.DBSession)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "get_devices_db",
@@ -73,7 +75,7 @@ func GetDBDevices() []Device {
 // Get specific device info from DB
 func GetDBDevice(udid string) Device {
 	// Get a cursor of the specific device document from the "devices" table
-	cursor, err := r.Table("devices").Get(udid).Run(session)
+	cursor, err := r.Table("devices").Get(udid).Run(db.DBSession)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "get_devices_db",
@@ -145,7 +147,7 @@ func keepAlive() {
 	}
 }
 
-func getDevices() {
+func GetDevices() {
 	// Start a goroutine that will ping each websocket client
 	// To keep the connection alive
 	go keepAlive()
@@ -260,7 +262,7 @@ func LoadDevices(w http.ResponseWriter, r *http.Request) {
 
 	// Parse the template and return response with the created template
 	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/device_selection_table.html"))
-	if err := tmpl.ExecuteTemplate(w, "device_selection.html", ConfigData.GadsHostAddress); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "device_selection.html", util.ConfigData.GadsHostAddress); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
