@@ -21,7 +21,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Replace this URL with your provider server's base URL
 	providerBaseURL := "http://" + device.Host + ":10001"
 
-	providerURL, err := url.Parse(providerBaseURL + "/" + udid + "/" + path)
+	providerURL, err := url.Parse(providerBaseURL + "/device/" + udid + "/" + path)
 	fmt.Printf("We are calling: %v", providerURL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
