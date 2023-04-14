@@ -38,7 +38,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
 
-        let socket = new WebSocket("ws://localhost:10000/available-devices");
+        let socket = new WebSocket("ws://192.168.1.2:10000/available-devices");
 
         socket.onmessage = function (event) {
             document.getElementById('device-results').innerHTML = event.data

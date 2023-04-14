@@ -443,35 +443,44 @@
     })
 
     document.getElementById("unlock-device").addEventListener('click', () => {
+        let sessionID = ""
 
         if (device_os == "android") {
-            url = appium_url + "/session/" + appium_session_id + "/appium/device/unlock"
-        } else if (device_os == "ios") {
-            url = wda_url + "/session/" + wda_session_id + "/wda/unlock"
+            sessionID = appium_session_id
         } else {
-            console.log("Device OS does not match 'ios' or 'android'")
-            return
+            sessionID = wda_session_id
         }
 
+        let jsonData = JSON.stringify({
+            "sessionID": sessionID
+        })
+
+        let url = "http://localhost:10000/device/{{.Device.UDID}}/unlock"
         fetch(url, {
-            method: 'POST'
+            method: 'POST',
+            body: jsonData
         }).catch(function (error) {
             alert("Could not access device unlock endpoint. Error: " + error)
         })
     })
 
     document.getElementById("lock-device").addEventListener('click', () => {
+        let sessionID = ""
 
         if (device_os == "android") {
-            url = appium_url + "/session/" + appium_session_id + "/appium/device/lock"
-        } else if (device_os == "ios") {
-            url = wda_url + "/session/" + wda_session_id + "/wda/lock"
+            sessionID = appium_session_id
         } else {
-            return
+            sessionID = wda_session_id
         }
 
+        let jsonData = JSON.stringify({
+            "sessionID": sessionID
+        })
+
+        let url = "http://localhost:10000/device/{{.Device.UDID}}/lock"
         fetch(url, {
-            method: 'POST'
+            method: 'POST',
+            body: jsonData
         })
             .then(() => {
             })
@@ -481,17 +490,22 @@
     })
 
     document.getElementById("screenshot").addEventListener('click', () => {
+        let sessionID = ""
 
         if (device_os == "android") {
-            url = appium_url + "/session/" + appium_session_id + "/screenshot"
-        } else if (device_os == "ios") {
-            url = wda_url + "/session/" + wda_session_id + "/screenshot"
+            sessionID = appium_session_id
         } else {
-            return
+            sessionID = wda_session_id
         }
 
+        let jsonData = JSON.stringify({
+            "sessionID": sessionID
+        })
+
+        let url = "http://localhost:10000/device/{{.Device.UDID}}/screenshot"
         fetch(url, {
-            method: 'GET'
+            method: 'POST',
+            body: jsonData
         })
             .then(response => response.json())
             .then(screenshotJson => {
