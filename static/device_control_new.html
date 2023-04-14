@@ -96,8 +96,7 @@
         text-align: center;
     }
 
-    #screenshot {
-    }
+    #screenshot {}
 
     ul.fancytree-container {
         border: none;
@@ -179,7 +178,6 @@
         <a href="/">Home</a>
         <a href="/logs">Logs</a>
         <a class="active" href="/devices/control/{{.Device.UDID}}">Device Control</a>
-        <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div id="container-div">
         <div>
@@ -242,11 +240,11 @@
             <canvas id="actions-canvas"
                 style="position: absolute;width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></canvas>
             {{ if eq .Device.OS "ios"}}
-            <img src="http://{{.Device.Host}}:{{.Device.StreamPort}}"
-                id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            <img src="http://{{.Device.Host}}:{{.Device.StreamPort}}" id="image-stream"
+                style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{else}}
-            <img src="http://{{.Device.Host}}:{{.Device.ContainerServerPort}}/stream"
-                id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            <img src="http://{{.Device.Host}}:{{.Device.ContainerServerPort}}/stream" id="image-stream"
+                style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
         <div id="inspector-source">
@@ -390,7 +388,7 @@
         <div id="screenshot-div">
             <button class="device-buttons action-buttons" id="screenshot"><i class="fa-solid fa-camera"></i>
                 Screenshot</button>
-                <img id="screenshot-image">
+            <img id="screenshot-image">
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>

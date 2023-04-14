@@ -27,7 +27,6 @@
         <a href="/">Home</a>
         <a href="logs">Logs</a>
         <a class="active" href="devices">Device Control</a>
-        <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <div id="top-container">
         <div id="device-selection-div">
@@ -39,7 +38,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
 
-        let socket = new WebSocket("ws://{{.}}:10000/available-devices");
+        let socket = new WebSocket("ws://localhost:10000/available-devices");
 
         socket.onmessage = function (event) {
             document.getElementById('device-results').innerHTML = event.data

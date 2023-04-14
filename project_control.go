@@ -3,37 +3,29 @@ package main
 import (
 	"GADS/util"
 	"bytes"
-	"fmt"
 	"html/template"
 	"net/http"
 	"os/exec"
 
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
 
 //=======================//
 //=====API FUNCTIONS=====//
 
-// Load the general logs page
-func GetLogsPage(w http.ResponseWriter, r *http.Request) {
+func GetLogsPage(c *gin.Context) {
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
-	if err := logs_page.Execute(w, util.ConfigData); err != nil {
+	err := logs_page.Execute(c.Writer, util.ConfigData)
+	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "project_logs_page",
 		}).Error("Couldn't load project_logs.html: " + err.Error())
-		return
+		c.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-// @Summary      Get project logs
-// @Description  Provides project logs as plain text response
-// @Tags         project-logs
-// @Produces	 text
-// @Success      200
-// @Failure      200
-// @Router       /project-logs [get]
-func GetLogs(w http.ResponseWriter, r *http.Request) {
-	// Create the command string to read the last 1000 lines of project.log
+func GetLogs(c *gin.Context) {
 	commandString := "tail -n 1000 ./gads-project.log"
 
 	// Create the command
@@ -53,14 +45,13 @@ func GetLogs(w http.ResponseWriter, r *http.Request) {
 		}).Error("Attempted to get project logs but no logs available.")
 
 		// Reply with generic message on error
-		fmt.Fprintf(w, "No logs available")
+		c.String(http.StatusOK, "No logs available")
 		return
 	}
 
 	if out.String() == "" {
-		fmt.Fprintf(w, "No logs available")
+		c.String(http.StatusOK, "No logs available")
 	} else {
-		// Reply with the read logs lines
-		fmt.Fprintf(w, out.String())
+		c.String(http.StatusOK, out.String())
 	}
 }
