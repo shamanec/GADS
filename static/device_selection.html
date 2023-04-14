@@ -37,8 +37,16 @@
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        let domain = ""
+        if (hostname.includes('ngrok')) {
+            domain = hostname + (port ? ':' + port : '');
+        } else {
+            domain = hostname + (port ? ':' + port : '');
+        }
 
-        let socket = new WebSocket("ws://192.168.1.2:10000/available-devices");
+        let socket = new WebSocket("ws://" + domain + "/available-devices");
 
         socket.onmessage = function (event) {
             document.getElementById('device-results').innerHTML = event.data

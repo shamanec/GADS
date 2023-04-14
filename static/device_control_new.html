@@ -240,11 +240,9 @@
             <canvas id="actions-canvas"
                 style="position: absolute;width: {{.CanvasWidth}};height: {{.CanvasHeight}};"></canvas>
             {{ if eq .Device.OS "ios"}}
-            <img src="http://{{.Device.Host}}:{{.Device.StreamPort}}" id="image-stream"
-                style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            <img id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{else}}
-            <img src="http://{{.Device.Host}}:{{.Device.ContainerServerPort}}/stream" id="image-stream"
-                style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
+            <img id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
         <div id="inspector-source">
@@ -422,6 +420,13 @@
     document.getElementById("refresh-source").addEventListener('click', () => {
         getAppSource()
     })
+
+    setStream()
+
+    function setStream() {
+        let element = document.getElementById('image-stream')
+        element.src = domain + "/device/{{.Device.UDID}}/stream"
+    }
 
     document.getElementById("home-screen").addEventListener('click', () => {
         let sessionID = ""

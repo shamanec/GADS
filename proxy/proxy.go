@@ -41,6 +41,18 @@ func ProxyHandler(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	c.Writer.WriteHeader(resp.StatusCode)
-	io.Copy(c.Writer, resp.Body)
+	c.Status(resp.StatusCode)
+	copyHeaders(c.Writer.Header(), resp.Header)
+	_, err = io.Copy(c.Writer, resp.Body)
+	if err != nil {
+		return
+	}
+}
+
+func copyHeaders(dst, src http.Header) {
+	for k, vv := range src {
+		for _, v := range vv {
+			dst.Add(k, v)
+		}
+	}
 }
