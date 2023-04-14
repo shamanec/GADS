@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"GADS/device"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -10,6 +9,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// This handler accepts device related commands and proxies them to the respective device provider
+// So we don't call the provider directly
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
@@ -22,7 +23,6 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	providerBaseURL := "http://" + device.Host + ":10001"
 
 	providerURL, err := url.Parse(providerBaseURL + "/device/" + udid + "/" + path)
-	fmt.Printf("We are calling: %v", providerURL)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -1,6 +1,7 @@
 package device
 
 import (
+	"GADS/db"
 	"GADS/util"
 	"encoding/json"
 	"errors"
@@ -8,7 +9,38 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
+
+var latestDevices []Device
+
+// Get the latest devices information from RethinkDB each second
+func GetLatestDBDevices() {
+	for {
+		// Get a cursor of the whole "devices" table
+		cursor, err := r.Table("devices").Run(db.DBSession)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"event": "get_devices_db",
+			}).Error("Could not get devices from DB, err: " + err.Error())
+			latestDevices = []Device{}
+		}
+		defer cursor.Close()
+
+		// Retrieve all documents from the DB into the Device slice
+		err = cursor.All(&latestDevices)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"event": "get_devices_db",
+			}).Error("Could not get devices from DB, err: " + err.Error())
+			latestDevices = []Device{}
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
 
 func CheckWDASession(wdaURL string) (string, error) {
 	response, err := http.Get("http://" + wdaURL + "/status")
@@ -159,7 +191,7 @@ func createAppiumSession(appiumURL string) (string, error) {
 }
 
 func GetDeviceByUDID(udid string) *Device {
-	for _, device := range LatestDevices {
+	for _, device := range latestDevices {
 		if device.UDID == udid {
 			return &device
 		}

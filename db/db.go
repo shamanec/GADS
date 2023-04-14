@@ -8,7 +8,8 @@ import (
 
 var DBSession *r.Session
 
-func InitDB() {
+// Create a new connection to RethinkDB
+func NewConnection() {
 	var err error = nil
 	DBSession, err = r.Connect(r.ConnectOpts{
 		Address:  util.ConfigData.RethinkDB,

@@ -74,7 +74,7 @@ func handleRequests() {
 func main() {
 	util.GetConfigJsonData()
 
-	db.InitDB()
+	db.NewConnection()
 	go device.GetLatestDBDevices()
 	go device.GetDevices()
 	setLogging()
