@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/mux"
 )
 
 type Device struct {
@@ -48,66 +47,6 @@ func getDBDevice(udid string) Device {
 		}
 	}
 	return Device{}
-}
-
-// Load a specific device page
-func GetDevicePage2(w http.ResponseWriter, r *http.Request) {
-	var err error
-
-	vars := mux.Vars(r)
-	udid := vars["device_udid"]
-
-	device := getDBDevice(udid)
-
-	// If the device does not exist in the cached devices
-	if device == (Device{}) {
-		fmt.Println("error")
-		return
-	}
-
-	var webDriverAgentSessionID = ""
-	if device.OS == "ios" {
-		webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-
-	var appiumSessionID = ""
-	if device.OS == "android" {
-		appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-
-	// Calculate the width and height for the canvas
-	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
-
-	pageData := struct {
-		Device                  Device
-		CanvasWidth             string
-		CanvasHeight            string
-		WebDriverAgentSessionID string
-		AppiumSessionID         string
-	}{
-		Device:                  device,
-		CanvasWidth:             canvasWidth,
-		CanvasHeight:            canvasHeight,
-		WebDriverAgentSessionID: webDriverAgentSessionID,
-		AppiumSessionID:         appiumSessionID,
-	}
-
-	// Parse the template and return response with the container table rows
-	// This will generate only the device table, not the whole page
-	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
-
-	// Reply with the new table
-	if err = tmpl.Execute(w, pageData); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 }
 
 // Load a specific device page

@@ -7,6 +7,7 @@ import (
 
 	"GADS/db"
 	"GADS/device"
+	"GADS/proxy"
 	"GADS/util"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,8 @@ func handleRequests() {
 	ginRouter.GET("/devices", device.LoadDevices)
 	ginRouter.GET("/available-devices", device.AvailableDeviceWS)
 	ginRouter.POST("/devices/control/:udid", device.GetDevicePage)
+
+	ginRouter.Any("/proxy/:udid/*path", proxy.ProxyHandler)
 
 	ginRouter.Static("/static", "./static")
 
