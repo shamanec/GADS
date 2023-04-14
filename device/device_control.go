@@ -1,16 +1,14 @@
 package device
 
 import (
-	"GADS/db"
 	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
-	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 type Device struct {
@@ -44,31 +42,16 @@ type DeviceContainer struct {
 
 // Get specific device info from DB
 func getDBDevice(udid string) Device {
-	// Get a cursor of the specific device document from the "devices" table
-	cursor, err := r.Table("devices").Get(udid).Run(db.DBSession)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_devices_db",
-		}).Error("Could not get device from DB, err: " + err.Error())
-		return Device{}
+	for _, dbDevice := range latestDevices {
+		if dbDevice.UDID == udid {
+			return dbDevice
+		}
 	}
-	defer cursor.Close()
-
-	// Retrieve a single document from the cursor
-	var device Device
-	err = cursor.One(&device)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_devices_db",
-		}).Error("Could not get device from DB, err: " + err.Error())
-		return Device{}
-	}
-
-	return device
+	return Device{}
 }
 
 // Load a specific device page
-func GetDevicePage(w http.ResponseWriter, r *http.Request) {
+func GetDevicePage2(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	vars := mux.Vars(r)
@@ -123,6 +106,63 @@ func GetDevicePage(w http.ResponseWriter, r *http.Request) {
 	if err = tmpl.Execute(w, pageData); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+}
+
+// Load a specific device page
+func GetDevicePage(c *gin.Context) {
+	var err error
+	udid := c.Param("udid")
+
+	device := getDBDevice(udid)
+
+	// If the device does not exist in the cached devices
+	if device == (Device{}) {
+		fmt.Println("error")
+		return
+	}
+
+	var webDriverAgentSessionID = ""
+	if device.OS == "ios" {
+		webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	var appiumSessionID = ""
+	if device.OS == "android" {
+		appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	// Calculate the width and height for the canvas
+	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
+
+	pageData := struct {
+		Device                  Device
+		CanvasWidth             string
+		CanvasHeight            string
+		WebDriverAgentSessionID string
+		AppiumSessionID         string
+	}{
+		Device:                  device,
+		CanvasWidth:             canvasWidth,
+		CanvasHeight:            canvasHeight,
+		WebDriverAgentSessionID: webDriverAgentSessionID,
+		AppiumSessionID:         appiumSessionID,
+	}
+
+	// This will generate only the device table, not the whole page
+	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
+	err = tmpl.Execute(c.Writer, pageData)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
 	}
 
 }

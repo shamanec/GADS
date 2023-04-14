@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,16 +16,15 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins
+	},
 }
 var clients = make(map[*websocket.Conn]bool)
 var broadcast = make(chan []byte)
 
-func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-
-	// upgrade this connection to a WebSocket
-	// connection
-	conn, err := upgrader.Upgrade(w, r, nil)
+func AvailableDeviceWS(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "devices_ws",
@@ -32,9 +32,6 @@ func AvailableDevicesWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate devices list on websocket open
-	// and send it over the websocket connection
-	// If it fails just return and don't add the connection to the clients map
 	html_message := generateDeviceSelectionHTML()
 	err = conn.WriteMessage(1, html_message)
 	if err != nil {
@@ -166,8 +163,21 @@ func isHealthy(timestamp int64) bool {
 }
 
 // Available devices html page
-func LoadDevices(w http.ResponseWriter, r *http.Request) {
-	// Make functions available in the html template
+// func LoadDevices(w http.ResponseWriter, r *http.Request) {
+// 	// Make functions available in the html template
+// 	funcMap := template.FuncMap{
+// 		"contains":    strings.Contains,
+// 		"healthCheck": isHealthy,
+// 	}
+
+// 	// Parse the template and return response with the created template
+// 	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/device_selection_table.html"))
+// 	if err := tmpl.ExecuteTemplate(w, "device_selection.html", util.ConfigData.GadsHostAddress); err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+// }
+
+func LoadDevices(c *gin.Context) {
 	funcMap := template.FuncMap{
 		"contains":    strings.Contains,
 		"healthCheck": isHealthy,
@@ -175,7 +185,8 @@ func LoadDevices(w http.ResponseWriter, r *http.Request) {
 
 	// Parse the template and return response with the created template
 	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/device_selection_table.html"))
-	if err := tmpl.ExecuteTemplate(w, "device_selection.html", util.ConfigData.GadsHostAddress); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	err := tmpl.ExecuteTemplate(c.Writer, "device_selection.html", util.ConfigData.GadsHostAddress)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
 	}
 }

@@ -8,24 +8,19 @@ import (
 	"GADS/db"
 	"GADS/device"
 	_ "GADS/docs"
-	"GADS/proxy"
 	"GADS/util"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 var project_log_file *os.File
 
-// Load the initial page
-func GetInitialPage(w http.ResponseWriter, r *http.Request) {
+func GetInitialPage(c *gin.Context) {
 	var index = template.Must(template.ParseFiles("static/index.html"))
-	if err := index.Execute(w, nil); err != nil {
-		log.WithFields(log.Fields{
-			"event": "index_page_load",
-		}).Error("Couldn't load index.html")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	err := index.Execute(c.Writer, nil)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
@@ -39,36 +34,24 @@ func setLogging() {
 }
 
 func handleRequests() {
-	// Create a new instance of the mux router
-	myRouter := mux.NewRouter().StrictSlash(true)
+	// myRouter.HandleFunc("/configuration/upload-app", util.UploadApp).Methods("POST")
 
-	myRouter.PathPrefix("/swagger").Handler(httpSwagger.WrapHandler)
+	// myRouter.HandleFunc("/devices/control/{device_udid}", device.GetDevicePage)
 
-	myRouter.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
-		httpSwagger.URL("http://localhost:10000/swagger/doc.json"), //The url pointing to API definition
-		httpSwagger.DeepLinking(true),
-		httpSwagger.DocExpansion("none"),
-		httpSwagger.DomID("#swagger-ui"),
-	))
+	// myRouter.HandleFunc("/proxy/{udid}/{path:.*}", proxy.ProxyHandler)
 
-	myRouter.HandleFunc("/configuration/upload-app", util.UploadApp).Methods("POST")
+	ginRouter := gin.Default()
+	ginRouter.GET("/", GetInitialPage)
+	ginRouter.GET("/logs", GetLogsPage)
+	ginRouter.GET("/project-logs", GetLogs)
 
-	myRouter.HandleFunc("/devices", device.LoadDevices)
-	myRouter.HandleFunc("/available-devices", device.AvailableDevicesWS)
-	myRouter.HandleFunc("/devices/control/{device_udid}", device.GetDevicePage)
+	ginRouter.GET("/devices", device.LoadDevices)
+	ginRouter.GET("/available-devices", device.AvailableDeviceWS)
+	ginRouter.POST("/devices/control/:udid", device.GetDevicePage)
 
-	// Logs
-	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
+	ginRouter.Static("/static", "./static")
 
-	// Asset endpoints
-	myRouter.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-
-	myRouter.HandleFunc("/logs", GetLogsPage)
-	myRouter.HandleFunc("/", GetInitialPage)
-
-	myRouter.HandleFunc("/proxy/{udid}/{path:.*}", proxy.ProxyHandler)
-
-	log.Fatal(http.ListenAndServe(":10000", myRouter))
+	ginRouter.Run(":10000")
 }
 
 func main() {
