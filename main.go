@@ -35,12 +35,6 @@ func setLogging() {
 }
 
 func handleRequests() {
-	// myRouter.HandleFunc("/configuration/upload-app", util.UploadApp).Methods("POST")
-
-	// myRouter.HandleFunc("/devices/control/{device_udid}", device.GetDevicePage)
-
-	// myRouter.HandleFunc("/proxy/{udid}/{path:.*}", proxy.ProxyHandler)
-
 	ginRouter := gin.Default()
 	ginRouter.Use(cors.Default())
 	ginRouter.GET("/", GetInitialPage)
@@ -55,7 +49,7 @@ func handleRequests() {
 
 	ginRouter.Static("/static", "./static")
 
-	ginRouter.Run(":10000")
+	ginRouter.Run(util.ConfigData.GadsHostAddress + ":10000")
 }
 
 func main() {

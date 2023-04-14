@@ -398,6 +398,15 @@
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all-deps.min.js"></script>
 </body>
 <script>
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    let domain = ""
+    if (hostname.includes('ngrok')) {
+        domain = 'https://' + hostname + (port ? ':' + port : '');
+    } else {
+        domain = 'http://' + hostname + (port ? ':' + port : '');
+    }
+
     let device_host = "{{.Device.Host}}"
     let wda_port = "{{.Device.WDAPort}}"
     let wda_url = "http://" + device_host + ":" + wda_port
@@ -427,7 +436,7 @@
             "sessionID": sessionID
         })
 
-        let url = "http://localhost:10000/device/{{.Device.UDID}}/home"
+        let url = domain + "/device/{{.Device.UDID}}/home"
         fetch(url, {
             method: 'POST',
             body: jsonData,
@@ -455,7 +464,7 @@
             "sessionID": sessionID
         })
 
-        let url = "http://localhost:10000/device/{{.Device.UDID}}/unlock"
+        let url = domain + "/device/{{.Device.UDID}}/unlock"
         fetch(url, {
             method: 'POST',
             body: jsonData
@@ -477,7 +486,7 @@
             "sessionID": sessionID
         })
 
-        let url = "http://localhost:10000/device/{{.Device.UDID}}/lock"
+        let url = domain + "/device/{{.Device.UDID}}/lock"
         fetch(url, {
             method: 'POST',
             body: jsonData
@@ -502,7 +511,7 @@
             "sessionID": sessionID
         })
 
-        let url = "http://localhost:10000/device/{{.Device.UDID}}/screenshot"
+        let url = domain + "/device/{{.Device.UDID}}/screenshot"
         fetch(url, {
             method: 'POST',
             body: jsonData
@@ -781,7 +790,7 @@
             "sessionID": sessionID
         })
 
-        let url = "http://localhost:10000/device/{{.Device.UDID}}/tap"
+        let url = domain + "/device/{{.Device.UDID}}/tap"
 
         fetch(url, {
             method: 'POST',
