@@ -1,6 +1,7 @@
 package main
 
 import (
+	"GADS/util"
 	"bytes"
 	"fmt"
 	"html/template"
@@ -16,7 +17,7 @@ import (
 // Load the general logs page
 func GetLogsPage(w http.ResponseWriter, r *http.Request) {
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
-	if err := logs_page.Execute(w, ConfigData); err != nil {
+	if err := logs_page.Execute(w, util.ConfigData); err != nil {
 		log.WithFields(log.Fields{
 			"event": "project_logs_page",
 		}).Error("Couldn't load project_logs.html: " + err.Error())

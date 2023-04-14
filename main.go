@@ -5,7 +5,11 @@ import (
 	"net/http"
 	"os"
 
+	"GADS/db"
+	"GADS/device"
 	_ "GADS/docs"
+	"GADS/proxy"
+	"GADS/util"
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
@@ -13,13 +17,6 @@ import (
 )
 
 var project_log_file *os.File
-var ConfigData *ConfigJsonData
-
-type ConfigJsonData struct {
-	GadsHostAddress string   `json:"gads_host_address"`
-	DeviceProviders []string `json:"device_providers"`
-	RethinkDB       string   `json:"rethink_db"`
-}
 
 // Load the initial page
 func GetInitialPage(w http.ResponseWriter, r *http.Request) {
@@ -54,11 +51,11 @@ func handleRequests() {
 		httpSwagger.DomID("#swagger-ui"),
 	))
 
-	myRouter.HandleFunc("/configuration/upload-app", UploadApp).Methods("POST")
+	myRouter.HandleFunc("/configuration/upload-app", util.UploadApp).Methods("POST")
 
-	myRouter.HandleFunc("/devices", LoadDevices)
-	myRouter.HandleFunc("/available-devices", AvailableDevicesWS)
-	myRouter.HandleFunc("/devices/control/{device_udid}", GetDevicePage)
+	myRouter.HandleFunc("/devices", device.LoadDevices)
+	myRouter.HandleFunc("/available-devices", device.AvailableDevicesWS)
+	myRouter.HandleFunc("/devices/control/{device_udid}", device.GetDevicePage)
 
 	// Logs
 	myRouter.HandleFunc("/project-logs", GetLogs).Methods("GET")
@@ -69,14 +66,17 @@ func handleRequests() {
 	myRouter.HandleFunc("/logs", GetLogsPage)
 	myRouter.HandleFunc("/", GetInitialPage)
 
+	myRouter.HandleFunc("/proxy/{udid}/{path:.*}", proxy.ProxyHandler)
+
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
 func main() {
-	ConfigData = GetConfigJsonData()
+	util.GetConfigJsonData()
 
-	InitDB()
-	go getDevices()
+	db.NewConnection()
+	go device.GetLatestDBDevices()
+	go device.GetDevices()
 	setLogging()
 	handleRequests()
 }
