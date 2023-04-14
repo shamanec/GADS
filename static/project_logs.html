@@ -70,12 +70,10 @@
         <a href="/">Home</a>
         <a class="active" href="logs">Logs</a>
         <a href="devices">Device Control</a>
-        <a href="swagger/index.html" target="_blank">Swagger</a>
     </div>
     <button class="log-selection" value="/project-logs" id="gads-logs" style="margin-bottom: 10px;">GADS Logs</button>
     {{range .DeviceProviders}}
-    <button class="log-selection provider-buttons" value="http://{{.}}/logs"
-        style="margin-bottom: 10px;">{{.}}</button>
+    <button class="log-selection provider-buttons" value="http://{{.}}/logs" style="margin-bottom: 10px;">{{.}}</button>
     {{end}}
     <table id="logs-table">
         <thead>

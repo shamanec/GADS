@@ -7,7 +7,6 @@ import (
 
 	"GADS/db"
 	"GADS/device"
-	_ "GADS/docs"
 	"GADS/util"
 
 	"github.com/gin-gonic/gin"
