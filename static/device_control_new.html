@@ -415,25 +415,22 @@
     })
 
     document.getElementById("home-screen").addEventListener('click', () => {
-        var url
-        var json = "{}"
+        let sessionID = ""
 
-        // if the device is android use press_keycode endpoint and send keycode 3 which is for the Home button
-        // if device is iOS send empty json
-        if (device_os.includes("android")) {
-            url = appium_url + "/session/" + appium_session_id + "/appium/device/press_keycode"
-            json = JSON.stringify({ "keycode": 3 })
-
-        } else if (device_os.includes("ios")) {
-            url = wda_url + "/wda/homescreen"
+        if (device_os == "android") {
+            sessionID = appium_session_id
         } else {
-            console.log("Device OS does not match 'ios' or 'android'")
-            return
+            sessionID = wda_session_id
         }
 
+        let jsonData = JSON.stringify({
+            "sessionID": sessionID
+        })
+
+        let url = "http://localhost:10000/device/{{.Device.UDID}}/home"
         fetch(url, {
             method: 'POST',
-            body: json,
+            body: jsonData,
             headers: {
                 'Content-type': 'application/json'
             }
@@ -754,43 +751,23 @@
         }
 
         // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
-        let jsonData = JSON.stringify({
-            "actions": [
-                {
-                    "type": "pointer",
-                    "id": "finger1",
-                    "parameters": {
-                        "pointerType": "touch"
-                    },
-                    "actions": [
-                        {
-                            "type": "pointerMove",
-                            "duration": 0,
-                            "x": x,
-                            "y": y
-                        },
-                        {
-                            "type": "pointerDown",
-                            "button": 0
-                        },
-                        {
-                            "type": "pause",
-                            "duration": 200
-                        },
-                        {
-                            "type": "pointerUp",
-                            "button": 0
-                        }
-                    ]
-                }
-            ]
-        })
+
+
+        let sessionID = ""
 
         if (device_os == "android") {
-            url = appium_url + "/session/" + appium_session_id + "/actions"
+            sessionID = appium_session_id
         } else {
-            url = wda_url + "/session/" + wda_session_id + "/actions"
+            sessionID = wda_session_id
         }
+
+        let jsonData = JSON.stringify({
+            "x": x,
+            "y": y,
+            "sessionID": sessionID
+        })
+
+        let url = "http://localhost:10000/device/{{.Device.UDID}}/tap"
 
         fetch(url, {
             method: 'POST',

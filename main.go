@@ -49,7 +49,7 @@ func handleRequests() {
 	ginRouter.GET("/available-devices", device.AvailableDeviceWS)
 	ginRouter.POST("/devices/control/:udid", device.GetDevicePage)
 
-	ginRouter.Any("/proxy/:udid/*path", proxy.ProxyHandler)
+	ginRouter.Any("/device/:udid/*path", proxy.ProxyHandler)
 
 	ginRouter.Static("/static", "./static")
 
