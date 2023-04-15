@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ProxyHandler(c *gin.Context) {
+func DeviceProxyHandler(c *gin.Context) {
 	udid := c.Param("udid")
 	path := c.Param("path")
 	device := device.GetDeviceByUDID(udid)
