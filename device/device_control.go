@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,39 +63,52 @@ func GetDevicePage(c *gin.Context) {
 		return
 	}
 
-	var webDriverAgentSessionID = ""
-	if device.OS == "ios" {
-		webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
-		if err != nil {
-			c.String(http.StatusInternalServerError, err.Error())
-			return
-		}
+	res, err := http.Get("http://" + device.Host + ":10001/device/" + device.UDID + "/health")
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	var appiumSessionID = ""
-	if device.OS == "android" {
-		appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
+	if res.StatusCode != 200 {
+		body, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			c.String(http.StatusInternalServerError, err.Error())
-			return
+			// handle error
 		}
+
+		fmt.Println(string(body))
+		c.String(http.StatusInternalServerError, "Device not available")
+		return
 	}
+
+	// var webDriverAgentSessionID = ""
+	// if device.OS == "ios" {
+	// 	webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
+	// 	if err != nil {
+	// 		c.String(http.StatusInternalServerError, err.Error())
+	// 		return
+	// 	}
+	// }
+
+	// var appiumSessionID = ""
+	// if device.OS == "android" {
+	// 	appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
+	// 	if err != nil {
+	// 		c.String(http.StatusInternalServerError, err.Error())
+	// 		return
+	// 	}
+	// }
 
 	// Calculate the width and height for the canvas
 	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
 
 	pageData := struct {
-		Device                  Device
-		CanvasWidth             string
-		CanvasHeight            string
-		WebDriverAgentSessionID string
-		AppiumSessionID         string
+		Device       Device
+		CanvasWidth  string
+		CanvasHeight string
 	}{
-		Device:                  device,
-		CanvasWidth:             canvasWidth,
-		CanvasHeight:            canvasHeight,
-		WebDriverAgentSessionID: webDriverAgentSessionID,
-		AppiumSessionID:         appiumSessionID,
+		Device:       device,
+		CanvasWidth:  canvasWidth,
+		CanvasHeight: canvasHeight,
 	}
 
 	// This will generate only the device table, not the whole page

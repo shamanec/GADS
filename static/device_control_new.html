@@ -96,8 +96,6 @@
         text-align: center;
     }
 
-    #screenshot {}
-
     ul.fancytree-container {
         border: none;
     }
@@ -414,8 +412,6 @@
     let canvas_width = "{{.CanvasWidth}}"
     let canvas_height = "{{.CanvasHeight}}"
     let screen_size = "{{.Device.ScreenSize}}"
-    let wda_session_id = "{{.WebDriverAgentSessionID}}"
-    let appium_session_id = "{{.AppiumSessionID}}"
 
     document.getElementById("refresh-source").addEventListener('click', () => {
         getAppSource()
@@ -423,31 +419,26 @@
 
     setStream()
 
+    window.onload = function () {
+        console.log("Page loaded");
+        setStream()
+    };
+
+    document.addEventListener("DOMContentLoaded", function () {
+        console.log("DOM content loaded");
+        // your code here
+    });
+
     function setStream() {
+        console.log("Setting stream")
         let element = document.getElementById('image-stream')
         element.src = domain + "/device/{{.Device.UDID}}/stream"
     }
 
     document.getElementById("home-screen").addEventListener('click', () => {
-        let sessionID = ""
-
-        if (device_os == "android") {
-            sessionID = appium_session_id
-        } else {
-            sessionID = wda_session_id
-        }
-
-        let jsonData = JSON.stringify({
-            "sessionID": sessionID
-        })
-
         let url = domain + "/device/{{.Device.UDID}}/home"
         fetch(url, {
-            method: 'POST',
-            body: jsonData,
-            headers: {
-                'Content-type': 'application/json'
-            }
+            method: 'POST'
         })
             .then(() => {
             })
@@ -457,44 +448,18 @@
     })
 
     document.getElementById("unlock-device").addEventListener('click', () => {
-        let sessionID = ""
-
-        if (device_os == "android") {
-            sessionID = appium_session_id
-        } else {
-            sessionID = wda_session_id
-        }
-
-        let jsonData = JSON.stringify({
-            "sessionID": sessionID
-        })
-
         let url = domain + "/device/{{.Device.UDID}}/unlock"
         fetch(url, {
-            method: 'POST',
-            body: jsonData
+            method: 'POST'
         }).catch(function (error) {
             alert("Could not access device unlock endpoint. Error: " + error)
         })
     })
 
     document.getElementById("lock-device").addEventListener('click', () => {
-        let sessionID = ""
-
-        if (device_os == "android") {
-            sessionID = appium_session_id
-        } else {
-            sessionID = wda_session_id
-        }
-
-        let jsonData = JSON.stringify({
-            "sessionID": sessionID
-        })
-
         let url = domain + "/device/{{.Device.UDID}}/lock"
         fetch(url, {
-            method: 'POST',
-            body: jsonData
+            method: 'POST'
         })
             .then(() => {
             })
@@ -504,22 +469,9 @@
     })
 
     document.getElementById("screenshot").addEventListener('click', () => {
-        let sessionID = ""
-
-        if (device_os == "android") {
-            sessionID = appium_session_id
-        } else {
-            sessionID = wda_session_id
-        }
-
-        let jsonData = JSON.stringify({
-            "sessionID": sessionID
-        })
-
         let url = domain + "/device/{{.Device.UDID}}/screenshot"
         fetch(url, {
-            method: 'POST',
-            body: jsonData
+            method: 'POST'
         })
             .then(response => response.json())
             .then(screenshotJson => {
@@ -546,80 +498,80 @@
         wipeCanvas()
     })
 
-    async function typeText() {
-        var active_element_url;
-        var element_value_url;
+    // async function typeText() {
+    //     var active_element_url;
+    //     var element_value_url;
 
-        if (device_os == "android") {
-            active_element_url = appium_url + "/session/" + appium_session_id + "/element/active"
-        } else if (device_os == "ios") {
-            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
-        } else {
-            return
-        }
+    //     if (device_os == "android") {
+    //         active_element_url = appium_url + "/session/" + appium_session_id + "/element/active"
+    //     } else if (device_os == "ios") {
+    //         active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+    //     } else {
+    //         return
+    //     }
 
-        const control_response = await fetch(active_element_url).then(response => {
-            if (response.ok) {
-                return response.json()
-            } else {
-                return null
-            }
-        })
+    //     const control_response = await fetch(active_element_url).then(response => {
+    //         if (response.ok) {
+    //             return response.json()
+    //         } else {
+    //             return null
+    //         }
+    //     })
 
-        var element_id = control_response.value.ELEMENT
-        if (device_os == "android") {
-            element_value_url = appium_url + "/session/" + appium_session_id + "/element/" + element_id + "/value"
-        } else {
-            element_value_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value"
-        }
+    //     var element_id = control_response.value.ELEMENT
+    //     if (device_os == "android") {
+    //         element_value_url = appium_url + "/session/" + appium_session_id + "/element/" + element_id + "/value"
+    //     } else {
+    //         element_value_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/value"
+    //     }
 
-        if (control_response != null) {
-            if (element_id != "") {
-                var text_input = document.getElementById("type-text-input").value
-                await fetch(element_value_url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-type': 'application/json'
-                    },
-                    body: JSON.stringify({ "text": text_input })
-                }).then(() => {
-                    document.getElementById("type-text-input").value = ""
-                })
-            }
-        }
-    }
+    //     if (control_response != null) {
+    //         if (element_id != "") {
+    //             var text_input = document.getElementById("type-text-input").value
+    //             await fetch(element_value_url, {
+    //                 method: 'POST',
+    //                 headers: {
+    //                     'Content-type': 'application/json'
+    //                 },
+    //                 body: JSON.stringify({ "text": text_input })
+    //             }).then(() => {
+    //                 document.getElementById("type-text-input").value = ""
+    //             })
+    //         }
+    //     }
+    // }
 
-    async function clearActiveElementText() {
-        var active_element_url;
-        var element_clear_url;
+    // async function clearActiveElementText() {
+    //     var active_element_url;
+    //     var element_clear_url;
 
-        if (device_os == "android") {
-            active_element_url = appium_url + "/session/" + appium_session_id + "/element/active"
-        } else if (device_os == "ios") {
-            active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
-        } else {
-            return
-        }
+    //     if (device_os == "android") {
+    //         active_element_url = appium_url + "/session/" + appium_session_id + "/element/active"
+    //     } else if (device_os == "ios") {
+    //         active_element_url = wda_url + "/session/" + wda_session_id + "/element/active"
+    //     } else {
+    //         return
+    //     }
 
-        const control_response = await fetch(active_element_url).then(response => {
-            if (response.ok) {
-                return response.json()
-            } else {
-                return null
-            }
-        })
+    //     const control_response = await fetch(active_element_url).then(response => {
+    //         if (response.ok) {
+    //             return response.json()
+    //         } else {
+    //             return null
+    //         }
+    //     })
 
-        var element_id = control_response.value.ELEMENT
-        if (device_os == "android") {
-            element_clear_url = appium_url + "/session/" + appium_session_id + "/element/" + element_id + "/clear"
-        } else {
-            element_clear_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear"
-        }
+    //     var element_id = control_response.value.ELEMENT
+    //     if (device_os == "android") {
+    //         element_clear_url = appium_url + "/session/" + appium_session_id + "/element/" + element_id + "/clear"
+    //     } else {
+    //         element_clear_url = wda_url + "/session/" + wda_session_id + "/element/" + element_id + "/clear"
+    //     }
 
-        await fetch(element_clear_url, {
-            method: 'POST'
-        })
-    }
+    //     await fetch(element_clear_url, {
+    //         method: 'POST'
+    //     })
+    // }
 
     //=============CANVAS INTERACTIONS===================//
     // canvas over the WDA image stream that allows us to tap
@@ -662,92 +614,92 @@
         }
     })
 
-    function performSwipe(coord1, coord2) {
+    // function performSwipe(coord1, coord2) {
 
-        var firstCoordX = coord1[0]
-        var firstCoordY = coord1[1]
-        var secondCoordX = coord2[0]
-        var secondCoordY = coord2[1]
+    //     var firstCoordX = coord1[0]
+    //     var firstCoordY = coord1[1]
+    //     var secondCoordX = coord2[0]
+    //     var secondCoordY = coord2[1]
 
-        // get stream size and ratio
-        let stream_height = canvas_width
-        let stream_width = canvas_height
-        let stream_size_ratio = (stream_height / stream_width).toFixed(2)
+    //     // get stream size and ratio
+    //     let stream_height = canvas_width
+    //     let stream_width = canvas_height
+    //     let stream_size_ratio = (stream_height / stream_width).toFixed(2)
 
-        // get device screen size dimensions
-        let deviceSize = $("#device-size").text()
-        let dimensions = deviceSize.split('x');
-        let deviceHeight = parseInt(dimensions[1], 10)
-        let deviceWidth = parseInt(dimensions[0], 10)
+    //     // get device screen size dimensions
+    //     let deviceSize = $("#device-size").text()
+    //     let dimensions = deviceSize.split('x');
+    //     let deviceHeight = parseInt(dimensions[1], 10)
+    //     let deviceWidth = parseInt(dimensions[0], 10)
 
-        // if the stream height 
-        if (stream_height != deviceHeight) {
-            firstCoordX = (firstCoordX / stream_width) * deviceWidth
-            firstCoordY = (firstCoordY / stream_height) * deviceHeight
-            secondCoordX = (secondCoordX / stream_width) * deviceWidth
-            secondCoordY = (secondCoordY / stream_height) * deviceHeight
-        }
+    //     // if the stream height 
+    //     if (stream_height != deviceHeight) {
+    //         firstCoordX = (firstCoordX / stream_width) * deviceWidth
+    //         firstCoordY = (firstCoordY / stream_height) * deviceHeight
+    //         secondCoordX = (secondCoordX / stream_width) * deviceWidth
+    //         secondCoordY = (secondCoordY / stream_height) * deviceHeight
+    //     }
 
-        let jsonData = JSON.stringify({
-            "actions": [
-                {
-                    "type": "pointer",
-                    "id": "finger1",
-                    "parameters": {
-                        "pointerType": "touch"
-                    },
-                    "actions": [
-                        {
-                            "type": "pointerMove",
-                            "duration": 0,
-                            "x": firstCoordX,
-                            "y": firstCoordY
-                        },
-                        {
-                            "type": "pointerDown",
-                            "button": 0
-                        },
-                        {
-                            "type": "pointerMove",
-                            "duration": 750,
-                            "origin": "viewport",
-                            "x": secondCoordX,
-                            "y": secondCoordY
-                        },
-                        {
-                            "type": "pointerUp",
-                            "button": 0
-                        }
-                    ]
-                }
-            ]
-        })
+    //     let jsonData = JSON.stringify({
+    //         "actions": [
+    //             {
+    //                 "type": "pointer",
+    //                 "id": "finger1",
+    //                 "parameters": {
+    //                     "pointerType": "touch"
+    //                 },
+    //                 "actions": [
+    //                     {
+    //                         "type": "pointerMove",
+    //                         "duration": 0,
+    //                         "x": firstCoordX,
+    //                         "y": firstCoordY
+    //                     },
+    //                     {
+    //                         "type": "pointerDown",
+    //                         "button": 0
+    //                     },
+    //                     {
+    //                         "type": "pointerMove",
+    //                         "duration": 750,
+    //                         "origin": "viewport",
+    //                         "x": secondCoordX,
+    //                         "y": secondCoordY
+    //                     },
+    //                     {
+    //                         "type": "pointerUp",
+    //                         "button": 0
+    //                     }
+    //                 ]
+    //             }
+    //         ]
+    //     })
 
-        let session_id;
-        if (selected_device_text.includes("android")) {
-            let appium_port = $("#appium-port").text()
-            session_id = $("#appium-session-id").text()
-            url = "http://127.0.0.1:" + appium_port + "/session/" + session_id + "/actions"
-        } else {
-            let wda_url = $("#wda-url").text()
-            session_id = $("#wda-session-id").text()
-            url = wda_url + "/session/" + session_id + "/actions"
-        }
+    //     let session_id;
+    //     if (selected_device_text.includes("android")) {
+    //         let appium_port = $("#appium-port").text()
+    //         session_id = $("#appium-session-id").text()
+    //         url = "http://127.0.0.1:" + appium_port + "/session/" + session_id + "/actions"
+    //     } else {
+    //         let wda_url = $("#wda-url").text()
+    //         session_id = $("#wda-session-id").text()
+    //         url = wda_url + "/session/" + session_id + "/actions"
+    //     }
 
-        // call the /actions endpoint sending the tapp coordinates
-        // on response remove the canvas loader
-        $.ajax({
-            type: "POST",
-            contentType: 'application/json',
-            data: jsonData,
-            url: url,
-            success: function () {
-            },
-            error: function () {
-                alert("WDA session is invalid, please reload")
-            }
-        });
-    }
+    //     // call the /actions endpoint sending the tapp coordinates
+    //     // on response remove the canvas loader
+    //     $.ajax({
+    //         type: "POST",
+    //         contentType: 'application/json',
+    //         data: jsonData,
+    //         url: url,
+    //         success: function () {
+    //         },
+    //         error: function () {
+    //             alert("WDA session is invalid, please reload")
+    //         }
+    //     });
+    // }
 
     // get the coordinates of the cursor position of the canvas tap event
     function getCursorCoordinates(canvas, event) {
@@ -778,21 +730,9 @@
             y = (pos[1] / canvas_height) * deviceHeight
         }
 
-        // build the json accepted by the /actions Appium endpoint used by the Appium Inspector
-
-
-        let sessionID = ""
-
-        if (device_os == "android") {
-            sessionID = appium_session_id
-        } else {
-            sessionID = wda_session_id
-        }
-
         let jsonData = JSON.stringify({
             "x": x,
-            "y": y,
-            "sessionID": sessionID
+            "y": y
         })
 
         let url = domain + "/device/{{.Device.UDID}}/tap"
@@ -833,18 +773,9 @@
             secondCoordY = (secondCoordY / canvas_height) * deviceHeight
         }
 
-        let sessionID = ""
-
-        if (device_os == "android") {
-            sessionID = appium_session_id
-        } else {
-            sessionID = wda_session_id
-        }
-
         let jsonData = JSON.stringify({
             "x": firstCoordX,
             "y": firstCoordY,
-            "sessionID": sessionID,
             "endX": secondCoordX,
             "endY": secondCoordY
         })
@@ -975,63 +906,63 @@
     }
 
     //=============APP SOURCE===================//
-    function getAppSource() {
-        var url;
+    // function getAppSource() {
+    //     var url;
 
-        if (device_os == "android") {
-            url = appium_url + "/session/" + appium_session_id + "/source"
-        } else if (device_os == "ios") {
-            url = wda_url + "/session/" + wda_session_id + "/source"
-        } else {
-            return
-        }
+    //     if (device_os == "android") {
+    //         url = appium_url + "/session/" + appium_session_id + "/source"
+    //     } else if (device_os == "ios") {
+    //         url = wda_url + "/session/" + wda_session_id + "/source"
+    //     } else {
+    //         return
+    //     }
 
-        let app_source = $('#app-source')
-        parser = new DOMParser();
+    //     let app_source = $('#app-source')
+    //     parser = new DOMParser();
 
-        showSourceLoading()
-        fetch(url, {
-            method: 'GET',
-        })
-            .then((response) => {
-                return response.json()
-            })
-            .then((json) => {
-                // parse the xml doc from the Appium response xml
-                xmlDoc = parser.parseFromString(json.value, "text/xml");
+    //     showSourceLoading()
+    //     fetch(url, {
+    //         method: 'GET',
+    //     })
+    //         .then((response) => {
+    //             return response.json()
+    //         })
+    //         .then((json) => {
+    //             // parse the xml doc from the Appium response xml
+    //             xmlDoc = parser.parseFromString(json.value, "text/xml");
 
-                // parse the xml response into a json format accepted by jstree
-                if (device_os == "android") {
-                    var jstree_json = androidGenerateJSONForTreeFromXML(xmlDoc.documentElement)
-                } else {
-                    var jstree_json = iOSGenerateJSONForTreeFromXML(xmlDoc.documentElement)
-                }
+    //             // parse the xml response into a json format accepted by jstree
+    //             if (device_os == "android") {
+    //                 var jstree_json = androidGenerateJSONForTreeFromXML(xmlDoc.documentElement)
+    //             } else {
+    //                 var jstree_json = iOSGenerateJSONForTreeFromXML(xmlDoc.documentElement)
+    //             }
 
-                // If the tree already exists and has children - reload it with the new data
-                // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
-                if (app_source.children().length > 0) {
-                    $.ui.fancytree.getTree().reload(JSON.parse(jstree_json));
-                    setTimeout(hideSourceLoading(), 1000)
-                } else {
-                    app_source.fancytree({
-                        'source': [
-                            JSON.parse(jstree_json)
-                        ],
-                        activate: function (event, data) {
-                            console.log(data.node.key)
-                            var element_values = JSON.parse(data.node.key.replaceAll("'", "\""))
-                            showElementInfo(element_values)
-                            drawRectangleForTree(element_values)
-                        }
-                    });
-                    setTimeout(hideSourceLoading(), 1000)
-                }
-            })
-            .catch(function (error) {
-                alert("Could not get app source. Error: " + error)
-                hideSourceLoading()
-            })
-    }
+    //             // If the tree already exists and has children - reload it with the new data
+    //             // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
+    //             if (app_source.children().length > 0) {
+    //                 $.ui.fancytree.getTree().reload(JSON.parse(jstree_json));
+    //                 setTimeout(hideSourceLoading(), 1000)
+    //             } else {
+    //                 app_source.fancytree({
+    //                     'source': [
+    //                         JSON.parse(jstree_json)
+    //                     ],
+    //                     activate: function (event, data) {
+    //                         console.log(data.node.key)
+    //                         var element_values = JSON.parse(data.node.key.replaceAll("'", "\""))
+    //                         showElementInfo(element_values)
+    //                         drawRectangleForTree(element_values)
+    //                     }
+    //                 });
+    //                 setTimeout(hideSourceLoading(), 1000)
+    //             }
+    //         })
+    //         .catch(function (error) {
+    //             alert("Could not get app source. Error: " + error)
+    //             hideSourceLoading()
+    //         })
+    // }
 
     // read the Appium xml for an iOS device and transform it into a json accepted by fancytree
     function iOSGenerateJSONForTreeFromXML(node) {
