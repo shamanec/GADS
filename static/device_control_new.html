@@ -833,46 +833,23 @@
             secondCoordY = (secondCoordY / canvas_height) * deviceHeight
         }
 
-        let jsonData = JSON.stringify({
-            "actions": [
-                {
-                    "type": "pointer",
-                    "id": "finger1",
-                    "parameters": {
-                        "pointerType": "touch"
-                    },
-                    "actions": [
-                        {
-                            "type": "pointerMove",
-                            "duration": 0,
-                            "x": firstCoordX,
-                            "y": firstCoordY
-                        },
-                        {
-                            "type": "pointerDown",
-                            "button": 0
-                        },
-                        {
-                            "type": "pointerMove",
-                            "duration": 750,
-                            "origin": "viewport",
-                            "x": secondCoordX,
-                            "y": secondCoordY
-                        },
-                        {
-                            "type": "pointerUp",
-                            "button": 0
-                        }
-                    ]
-                }
-            ]
-        })
+        let sessionID = ""
 
         if (device_os == "android") {
-            url = appium_url + "/session/" + appium_session_id + "/actions"
+            sessionID = appium_session_id
         } else {
-            url = wda_url + "/session/" + wda_session_id + "/actions"
+            sessionID = wda_session_id
         }
+
+        let jsonData = JSON.stringify({
+            "x": firstCoordX,
+            "y": firstCoordY,
+            "sessionID": sessionID,
+            "endX": secondCoordX,
+            "endY": secondCoordY
+        })
+
+        let url = domain + "/device/{{.Device.UDID}}/swipe"
 
         fetch(url, {
             method: 'POST',
@@ -886,6 +863,7 @@
             .catch(function (error) {
                 alert("Could not access device homescreen endpoint. Error: " + error)
             })
+
     }
 
     function applyCursorRippleEffect(e) {
