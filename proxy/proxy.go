@@ -2,61 +2,39 @@ package proxy
 
 import (
 	"GADS/device"
-	"io"
+	"fmt"
 	"net/http"
-	"net/url"
+	"net/http/httputil"
 
 	"github.com/gin-gonic/gin"
 )
 
 // This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
-	// Get the UDID of the device from the path
-	udid := c.Param("udid")
-	// Get the remaining path which can be any
-	path := c.Param("path")
-
-	// Get a Device pointer for the respective device
-	device := device.GetDeviceByUDID(udid)
-
-	// Generate the provider base url for the respective device
-	providerBaseURL := "http://" + device.Host + ":10001"
-	// Generate the actual endpoint that will accept the proxied request
-	providerURL, err := url.Parse(providerBaseURL + "/device/" + udid + path)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error generating provider url for proxied endpoint: "+err.Error())
-		return
-	}
-
-	// Forward the request to the provider server
-	req, err := http.NewRequest(c.Request.Method, providerURL.String(), c.Request.Body)
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	req.Header = c.Request.Header
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	defer resp.Body.Close()
-
-	// Copy the headers from the provider response to the handler response
-	// Write the body of the provider response to the handler response
-	copyHeaders(c.Writer.Header(), resp.Header)
-	_, err = io.Copy(c.Writer, resp.Body)
-	if err != nil {
-		return
-	}
-}
-
-func copyHeaders(dst, src http.Header) {
-	for k, vv := range src {
-		for _, v := range vv {
-			dst.Add(k, v)
+	// Need to write a better recover for device screen stream endpoint
+	// Because it throws when it is closed in the browser
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic: %v. \nThis happens when closing device screen stream and I need to handle it \n", r)
 		}
+	}()
+
+	// Create a new ReverseProxy instansce that will forward the requests
+	// Update its scheme, host and path in the Director
+	// Limit the number of open connections for the host
+	proxy := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			udid := c.Param("udid")
+			req.URL.Scheme = "http"
+			req.URL.Host = device.GetDeviceByUDID(udid).Host + ":10001"
+			req.URL.Path = "/device/" + udid + c.Param("path")
+		},
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 10,
+			DisableCompression:  true,
+		},
 	}
+
+	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
+	proxy.ServeHTTP(c.Writer, c.Request)
 }
