@@ -80,24 +80,6 @@ func GetDevicePage(c *gin.Context) {
 		return
 	}
 
-	// var webDriverAgentSessionID = ""
-	// if device.OS == "ios" {
-	// 	webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
-	// 	if err != nil {
-	// 		c.String(http.StatusInternalServerError, err.Error())
-	// 		return
-	// 	}
-	// }
-
-	// var appiumSessionID = ""
-	// if device.OS == "android" {
-	// 	appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
-	// 	if err != nil {
-	// 		c.String(http.StatusInternalServerError, err.Error())
-	// 		return
-	// 	}
-	// }
-
 	// Calculate the width and height for the canvas
 	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
 

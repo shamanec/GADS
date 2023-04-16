@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"GADS/device"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -10,24 +9,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
+	// Get the UDID of the device from the path
 	udid := c.Param("udid")
+	// Get the remaining path which can be any
 	path := c.Param("path")
+
+	// Get a Device pointer for the respective device
 	device := device.GetDeviceByUDID(udid)
 
-	// Replace this URL with your provider server's base URL
+	// Generate the provider base url for the respective device
 	providerBaseURL := "http://" + device.Host + ":10001"
+	// Generate the actual endpoint that will accept the proxied request
 	providerURL, err := url.Parse(providerBaseURL + "/device/" + udid + path)
 	if err != nil {
-		fmt.Println("Error 1")
-		c.String(http.StatusInternalServerError, err.Error())
+		c.String(http.StatusInternalServerError, "Error generating provider url for proxied endpoint: "+err.Error())
 		return
 	}
 
 	// Forward the request to the provider server
 	req, err := http.NewRequest(c.Request.Method, providerURL.String(), c.Request.Body)
 	if err != nil {
-		fmt.Println("Error 2")
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -41,7 +44,8 @@ func DeviceProxyHandler(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	c.Status(resp.StatusCode)
+	// Copy the headers from the provider response to the handler response
+	// Write the body of the provider response to the handler response
 	copyHeaders(c.Writer.Header(), resp.Header)
 	_, err = io.Copy(c.Writer, resp.Body)
 	if err != nil {
