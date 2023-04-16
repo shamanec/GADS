@@ -819,63 +819,54 @@
     }
 
     //=============APP SOURCE===================//
-    // function getAppSource() {
-    //     var url;
+    function getAppSource() {
+        var url = domain + "/device/{{.Device.UDID}}/appiumSource"
+        let app_source = $('#app-source')
+        parser = new DOMParser();
 
-    //     if (device_os == "android") {
-    //         url = appium_url + "/session/" + appium_session_id + "/source"
-    //     } else if (device_os == "ios") {
-    //         url = wda_url + "/session/" + wda_session_id + "/source"
-    //     } else {
-    //         return
-    //     }
+        showSourceLoading()
+        fetch(url, {
+            method: 'GET',
+        })
+            .then((response) => {
+                return response.json()
+            })
+            .then((json) => {
+                // parse the xml doc from the Appium response xml
+                xmlDoc = parser.parseFromString(json.value, "text/xml");
 
-    //     let app_source = $('#app-source')
-    //     parser = new DOMParser();
+                // parse the xml response into a json format accepted by jstree
+                if (device_os == "android") {
+                    var jstree_json = androidGenerateJSONForTreeFromXML(xmlDoc.documentElement)
+                } else {
+                    var jstree_json = iOSGenerateJSONForTreeFromXML(xmlDoc.documentElement)
+                }
 
-    //     showSourceLoading()
-    //     fetch(url, {
-    //         method: 'GET',
-    //     })
-    //         .then((response) => {
-    //             return response.json()
-    //         })
-    //         .then((json) => {
-    //             // parse the xml doc from the Appium response xml
-    //             xmlDoc = parser.parseFromString(json.value, "text/xml");
-
-    //             // parse the xml response into a json format accepted by jstree
-    //             if (device_os == "android") {
-    //                 var jstree_json = androidGenerateJSONForTreeFromXML(xmlDoc.documentElement)
-    //             } else {
-    //                 var jstree_json = iOSGenerateJSONForTreeFromXML(xmlDoc.documentElement)
-    //             }
-
-    //             // If the tree already exists and has children - reload it with the new data
-    //             // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
-    //             if (app_source.children().length > 0) {
-    //                 $.ui.fancytree.getTree().reload(JSON.parse(jstree_json));
-    //                 setTimeout(hideSourceLoading(), 1000)
-    //             } else {
-    //                 app_source.fancytree({
-    //                     'source': [
-    //                         JSON.parse(jstree_json)
-    //                     ],
-    //                     activate: function (event, data) {
-    //                         console.log(data.node.key)
-    //                         var element_values = JSON.parse(data.node.key.replaceAll("'", "\""))
-    //                         showElementInfo(element_values)
-    //                         drawRectangleForTree(element_values)
-    //                     }
-    //                 });
-    //                 setTimeout(hideSourceLoading(), 1000)
-    //             }
-    //         })
-    //         .catch(function (error) {
-    //             alert("Could not get app source. Error: " + error)
-    //             hideSourceLoading()
-    //         })
-    // }
+                // If the tree already exists and has children - reload it with the new data
+                // If the tree doesn't exist or doesn't have children - initialize it for the first time with the needed options
+                if (app_source.children().length > 0) {
+                    $.ui.fancytree.getTree().reload(JSON.parse(jstree_json));
+                    setTimeout(hideSourceLoading(), 1000)
+                } else {
+                    app_source.fancytree({
+                        'source': [
+                            JSON.parse(jstree_json)
+                        ],
+                        activate: function (event, data) {
+                            console.log(data.node.key)
+                            var element_values = JSON.parse(data.node.key.replaceAll("'", "\""))
+                            showElementInfo(element_values)
+                            drawRectangleForTree(element_values)
+                        }
+                    });
+                    setTimeout(hideSourceLoading(), 1000)
+                }
+            })
+            .catch(function (error) {
+                alert("Could not get app source. Error: " + error)
+                hideSourceLoading()
+            })
+    }
 
     // read the Appium xml for an iOS device and transform it into a json accepted by fancytree
     function iOSGenerateJSONForTreeFromXML(node) {
