@@ -52,31 +52,28 @@ func getDBDevice(udid string) Device {
 
 // Load a specific device page
 func GetDevicePage(c *gin.Context) {
-	var err error
 	udid := c.Param("udid")
 
 	device := getDBDevice(udid)
-
 	// If the device does not exist in the cached devices
 	if device == (Device{}) {
-		fmt.Println("error")
+		c.String(http.StatusInternalServerError, "Device not found")
 		return
 	}
 
-	res, err := http.Get("http://" + device.Host + ":10001/device/" + device.UDID + "/health")
+	// Create the device health URL
+	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.Host, device.UDID)
+
+	// Try to check the device health
+	res, err := http.Get(url)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	if res.StatusCode != 200 {
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			// handle error
-		}
-
-		fmt.Println(string(body))
-		c.String(http.StatusInternalServerError, "Device not available")
+	if res.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(res.Body)
+		c.String(http.StatusInternalServerError, "Device not healthy: "+string(body))
 		return
 	}
 

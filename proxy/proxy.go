@@ -19,7 +19,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		}
 	}()
 
-	// Create a new ReverseProxy instansce that will forward the requests
+	// Create a new ReverseProxy instance that will forward the requests
 	// Update its scheme, host and path in the Director
 	// Limit the number of open connections for the host
 	proxy := &httputil.ReverseProxy{
