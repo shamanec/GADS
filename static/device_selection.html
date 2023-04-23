@@ -31,24 +31,21 @@
     <div id="top-container">
         <div id="device-selection-div">
             <ul class="device-results" id="device-results" style="display: flex;flex-direction: row;flex-wrap: wrap;">
-                <!-- {{template "device_selection_table"}} -->
             </ul>
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
+        let devicesSocket = null
         // Get the hostname and port from the browser
         const hostname = window.location.hostname;
         const port = window.location.port;
-        // Generate the final domain
-        let domain = ""
         if (hostname.includes('ngrok')) {
-            domain = hostname + (port ? ':' + port : '');
+            let domain = hostname + (port ? ':' + port : '');
+            devicesSocket = new WebSocket("ws://" + domain + "/available-devices");
         } else {
-            domain = hostname + (port ? ':' + port : '');
+            devicesSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/available-devices");
         }
-        // Connect to a websocket on the generated domain
-        let devicesSocket = new WebSocket("ws://" + domain + "/available-devices");
 
         // On each message over the websocket update the device selection table
         devicesSocket.onmessage = function (event) {

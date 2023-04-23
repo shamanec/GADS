@@ -162,21 +162,6 @@ func isHealthy(timestamp int64) bool {
 	return true
 }
 
-// Available devices html page
-// func LoadDevices(w http.ResponseWriter, r *http.Request) {
-// 	// Make functions available in the html template
-// 	funcMap := template.FuncMap{
-// 		"contains":    strings.Contains,
-// 		"healthCheck": isHealthy,
-// 	}
-
-// 	// Parse the template and return response with the created template
-// 	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/device_selection_table.html"))
-// 	if err := tmpl.ExecuteTemplate(w, "device_selection.html", util.ConfigData.GadsHostAddress); err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// }
-
 func LoadDevices(c *gin.Context) {
 	funcMap := template.FuncMap{
 		"contains":    strings.Contains,
@@ -185,7 +170,7 @@ func LoadDevices(c *gin.Context) {
 
 	// Parse the template and return response with the created template
 	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/device_selection_table.html"))
-	err := tmpl.ExecuteTemplate(c.Writer, "device_selection.html", util.ConfigData.GadsHostAddress)
+	err := tmpl.ExecuteTemplate(c.Writer, "device_selection.html", util.ConfigData)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 	}
