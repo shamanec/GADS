@@ -52,7 +52,7 @@ func handleRequests() {
 	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
 
 	// Start the GADS UI on the host IP address
-	router.Run(util.ConfigData.GadsHostAddress + ":10000")
+	router.Run(util.ConfigData.GadsHostAddress + ":" + util.ConfigData.GadsPort)
 }
 
 func main() {
