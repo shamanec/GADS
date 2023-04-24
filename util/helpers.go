@@ -23,6 +23,7 @@ type JsonResponse struct {
 
 type ConfigJsonData struct {
 	GadsHostAddress string   `json:"gads_host_address"`
+	GadsPort        string   `json:"gads_port"`
 	DeviceProviders []string `json:"device_providers"`
 	RethinkDB       string   `json:"rethink_db"`
 }

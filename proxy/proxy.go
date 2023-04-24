@@ -3,44 +3,38 @@ package proxy
 import (
 	"GADS/device"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
+	"net/http/httputil"
 
 	"github.com/gin-gonic/gin"
 )
 
-func ProxyHandler(c *gin.Context) {
-	udid := c.Param("udid")
-	path := c.Param("path")
-	device := device.GetDeviceByUDID(udid)
+// This is a proxy handler for device interaction endpoints
+func DeviceProxyHandler(c *gin.Context) {
+	// Need to write a better recover for device screen stream endpoint
+	// Because it throws when it is closed in the browser
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic: %v. \nThis happens when closing device screen stream and I need to handle it \n", r)
+		}
+	}()
 
-	// Replace this URL with your provider server's base URL
-	providerBaseURL := "http://" + device.Host + ":10001"
-	providerURL, err := url.Parse(providerBaseURL + "/device/" + udid + path)
-	if err != nil {
-		fmt.Println("Error 1")
-		c.String(http.StatusInternalServerError, err.Error())
-		return
+	// Create a new ReverseProxy instance that will forward the requests
+	// Update its scheme, host and path in the Director
+	// Limit the number of open connections for the host
+	proxy := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			udid := c.Param("udid")
+			req.URL.Scheme = "http"
+			req.URL.Host = device.GetDeviceByUDID(udid).Host + ":10001"
+			req.URL.Path = "/device/" + udid + c.Param("path")
+		},
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 10,
+			DisableCompression:  true,
+		},
 	}
 
-	// Forward the request to the provider server
-	req, err := http.NewRequest(c.Request.Method, providerURL.String(), c.Request.Body)
-	if err != nil {
-		fmt.Println("Error 2")
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	req.Header = c.Request.Header
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	defer resp.Body.Close()
-
-	c.Writer.WriteHeader(resp.StatusCode)
-	io.Copy(c.Writer, resp.Body)
+	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
+	proxy.ServeHTTP(c.Writer, c.Request)
 }

@@ -3,6 +3,7 @@ package device
 import (
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,50 +52,42 @@ func getDBDevice(udid string) Device {
 
 // Load a specific device page
 func GetDevicePage(c *gin.Context) {
-	var err error
 	udid := c.Param("udid")
 
 	device := getDBDevice(udid)
-
 	// If the device does not exist in the cached devices
 	if device == (Device{}) {
-		fmt.Println("error")
+		c.String(http.StatusInternalServerError, "Device not found")
 		return
 	}
 
-	var webDriverAgentSessionID = ""
-	if device.OS == "ios" {
-		webDriverAgentSessionID, err = CheckWDASession(device.Host + ":" + device.WDAPort)
-		if err != nil {
-			c.String(http.StatusInternalServerError, err.Error())
-			return
-		}
+	// Create the device health URL
+	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.Host, device.UDID)
+
+	// Try to check the device health
+	res, err := http.Get(url)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	var appiumSessionID = ""
-	if device.OS == "android" {
-		appiumSessionID, err = checkAppiumSession(device.Host + ":" + device.AppiumPort)
-		if err != nil {
-			c.String(http.StatusInternalServerError, err.Error())
-			return
-		}
+	if res.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(res.Body)
+		c.String(http.StatusInternalServerError, "Device not healthy: "+string(body))
+		return
 	}
 
 	// Calculate the width and height for the canvas
 	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
 
 	pageData := struct {
-		Device                  Device
-		CanvasWidth             string
-		CanvasHeight            string
-		WebDriverAgentSessionID string
-		AppiumSessionID         string
+		Device       Device
+		CanvasWidth  string
+		CanvasHeight string
 	}{
-		Device:                  device,
-		CanvasWidth:             canvasWidth,
-		CanvasHeight:            canvasHeight,
-		WebDriverAgentSessionID: webDriverAgentSessionID,
-		AppiumSessionID:         appiumSessionID,
+		Device:       device,
+		CanvasWidth:  canvasWidth,
+		CanvasHeight: canvasHeight,
 	}
 
 	// This will generate only the device table, not the whole page
