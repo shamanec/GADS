@@ -415,12 +415,11 @@
         getAppSource()
     })
 
-    setStream()
+    setIosStream()
     setAndroidStream()
 
     window.onload = function () {
         console.log("Page loaded");
-        setStream()
     };
 
     document.addEventListener("DOMContentLoaded", function () {
@@ -428,11 +427,37 @@
         // your code here
     });
 
-    function setStream() {
-        console.log("Setting stream")
-        let element = document.getElementById('image-stream')
+    function setIosStream() {
         if (device_os == 'ios') {
-            element.src = domain + "/device/{{.Device.UDID}}/stream"
+            // Connect to the android device streaming websocket
+            let iosStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/ios-stream")
+            // Set the type of the socket, did not work otherwise
+            iosStreamSocket.binaryType = 'arraybuffer'
+
+            let imgElement = document.getElementById('image-stream')
+            iosStreamSocket.onmessage = function (event) {
+                // Get the message data
+                const data = event.data
+                // Get the first 4 bytes of the message to Int
+                // To determing the message type - info or image
+                const messageType = new DataView(data.slice(0, 4)).getInt32(0, false)
+
+                // If message type is 1(Info)
+                if (messageType == 1) {
+                    const width = new DataView(data.slice(4, 8)).getInt32(0, false)
+                    const height = new DataView(data.slice(8, 12)).getInt32(0, false)
+                    console.log('Device width:' + width)
+                    console.log('Device height:' + height)
+                }
+
+                // If message type is 2(Image)
+                if (messageType == 2) {
+                    // Create an image URL
+                    const imageUrl = URL.createObjectURL(new Blob([data.slice(4)]))
+                    // Set the image in the image element to create a stream
+                    imgElement.src = imageUrl
+                }
+            }
         }
     }
 
@@ -455,8 +480,8 @@
                 if (messageType == 1) {
                     const width = new DataView(data.slice(4, 8)).getInt32(0, false)
                     const height = new DataView(data.slice(8, 12)).getInt32(0, false)
-                    console.log(width)
-                    console.log(height)
+                    console.log('Device width:' + width)
+                    console.log('Device height:' + height)
                 }
 
                 // If message type is 2(Image)
