@@ -36,8 +36,7 @@ The project uses RethinkDB for syncing devices info between providers and GADS U
 1. Open the `config.json` file.  
 2. Change the `gads_host_address` value to the IP of the host machine.  
 3. Change the `gads_port` value to the port you wish to service to run on - default is 10000.  
-4. Add the IP addresses and ports of the device providers in the `device_providers` array.  
-5. Change the `rethink_db` value to the IP address and port of the RethinkDB instance. Example: `192.168.1.2:32771`  
+4. Change the `rethink_db` value to the IP address and port of the RethinkDB instance. Example: `192.168.1.2:32771`  
 
 ### Start the GADS UI
 1. Execute `go build .`  in the main project folder  
