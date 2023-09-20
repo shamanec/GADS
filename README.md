@@ -41,7 +41,10 @@ The project uses RethinkDB for syncing devices info between providers and GADS U
 ### Start the GADS UI
 1. Execute `go build .`  in the main project folder  
 2. Execute `./GADS`  
-3. Access the UI on `http://{gads_host_address}:{gads_port}`  
+3. Access the UI on `http://{gads_host_address}:{gads_port}`
+
+### Start a provider instance
+This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provide the devices. Follow the setup steps in the linked repo to start a provider instance.
 
 ## Thanks
 
