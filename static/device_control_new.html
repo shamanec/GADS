@@ -432,31 +432,16 @@
             // Connect to the android device streaming websocket
             let iosStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/ios-stream")
             // Set the type of the socket, did not work otherwise
-            iosStreamSocket.binaryType = 'arraybuffer'
+            // iosStreamSocket.binaryType = 'arraybuffer'
 
             let imgElement = document.getElementById('image-stream')
             iosStreamSocket.onmessage = function (event) {
-                // Get the message data
-                const data = event.data
-                // Get the first 4 bytes of the message to Int
-                // To determing the message type - info or image
-                const messageType = new DataView(data.slice(0, 4)).getInt32(0, false)
+                const imageURL = URL.createObjectURL(event.data);
+                imgElement.src = imageURL
 
-                // If message type is 1(Info)
-                if (messageType == 1) {
-                    const width = new DataView(data.slice(4, 8)).getInt32(0, false)
-                    const height = new DataView(data.slice(8, 12)).getInt32(0, false)
-                    console.log('Device width:' + width)
-                    console.log('Device height:' + height)
-                }
-
-                // If message type is 2(Image)
-                if (messageType == 2) {
-                    // Create an image URL
-                    const imageUrl = URL.createObjectURL(new Blob([data.slice(4)]))
-                    // Set the image in the image element to create a stream
-                    imgElement.src = imageUrl
-                }
+                imgElement.onload = () => {
+                    URL.revokeObjectURL(imageURL);
+                };
             }
         }
     }
@@ -487,9 +472,13 @@
                 // If message type is 2(Image)
                 if (messageType == 2) {
                     // Create an image URL
-                    const imageUrl = URL.createObjectURL(new Blob([data.slice(4)]))
+                    const imageURL = URL.createObjectURL(new Blob([data.slice(4)]))
                     // Set the image in the image element to create a stream
-                    imgElement.src = imageUrl
+                    imgElement.src = imageURL
+
+                    imgElement.onload = () => {
+                    URL.revokeObjectURL(imageURL);
+                    };
                 }
             }
         }
