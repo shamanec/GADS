@@ -71,17 +71,19 @@
         <a class="active" href="logs">Logs</a>
         <a href="devices">Device Control</a>
     </div>
-    <button class="log-selection" value="/project-logs" id="gads-logs" style="margin-bottom: 10px;">GADS Logs</button>
+    <!-- <button class="log-selection" value="/project-logs" id="gads-logs" style="margin-bottom: 10px;">GADS Logs</button>
     {{range .DeviceProviders}}
     <button class="log-selection provider-buttons" value="http://{{.}}/logs" style="margin-bottom: 10px;">{{.}}</button>
-    {{end}}
+    {{end}} -->
+    <button class="log-selection provider-buttons" value="192.168.1.13" style="margin-bottom: 10px;">192.168.1.13</button>
     <table id="logs-table">
         <thead>
             <tr>
-                <th style="width: 10%;">Time</th>
+                <th style="width: 10%;">ID</th>
+                <th style="width: 10%;">Timestamp</th>
                 <th style="width: 5%;">Level</th>
                 <th style="width: 10%;">Event</th>
-                <th style="width: 75%;">Message</th>
+                <th style="width: 65%;">Message</th>
             </tr>
         </thead>
         <tbody id="logs-table-body">
@@ -112,11 +114,6 @@
         }
     }
 
-    document.getElementById("gads-logs").addEventListener('click', (event) => {
-        var button = event.target
-        getLogs(button.value)
-    })
-
     function getInitialLogs() {
         fetch("/project-logs", {
             method: 'GET',
@@ -125,7 +122,7 @@
                 return data.text()
             })
             .then((response) => {
-                createLogsTable(response)
+                // createLogsTable(response)
             })
             .catch(function (error) {
                 swal("Provider not available", "Could not get logs: " + error, "error")
@@ -133,30 +130,34 @@
     }
 
     function getLogs(url) {
-        fetch(url, {
-            method: 'GET',
-        })
-            .then((data) => {
-                return data.text()
-            })
-            .then((response) => {
-                createLogsTable(response)
-            })
-            .catch(function (error) {
-                swal("Provider not available", "Could not get logs: " + error, "error")
-            })
+        let logsSocket = null
+        // Get the hostname and port from the browser
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        if (hostname.includes('ngrok')) {
+            let domain = hostname + (port ? ':' + port : '');
+            devicesSocket = new WebSocket("ws://" + domain + "/provider-logs?provider=" + url);
+        } else {
+            devicesSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/provider-logs?provider=" + url);
+        }
+
+        // On each message over the websocket update the device selection table
+        devicesSocket.onmessage = function (event) {
+            console.log(event.data)
+            var json = JSON.parse(event.data)
+            createLogsTable(json)
+        };
     }
 
-    function createLogsTable(data) {
+    function createLogsTable(json) {
+        console.log(json)
         var table = document.getElementById("logs-table-body");
-        table.innerHTML = ""
-        var lines = data.trim().split(/\r\n|\r|\n/)
 
-        //Display the latest logs at the top of the page
-        lines.reverse()
-
-        for (var i = 0; i < lines.length - 1; i++) {
-
+        for (let i=json.length-1;i>=0;i--) {
+            if (json[i].message == "") {
+                continue
+            }
+            
             var tr = document.createElement('tr');
             tr.id = "table-row"
 
@@ -164,20 +165,25 @@
             var td2 = document.createElement('td');
             var td3 = document.createElement('td');
             var td4 = document.createElement('td');
+            var td5 = document.createElement('td');
 
-            var event = document.createTextNode(JSON.parse(lines[i]).event);
-            var level = document.createTextNode(JSON.parse(lines[i]).level);
-            var msg = document.createTextNode(JSON.parse(lines[i]).msg);
-            var time = document.createTextNode(JSON.parse(lines[i]).time);
+            var id = document.createTextNode(json[i]._id);
+            var timestamp = document.createTextNode(json[i].timestamp);
+            var level = document.createTextNode(json[i].level);
+            var event = document.createTextNode(json[i].eventname);
+            var message = document.createTextNode(json[i].message);
 
-            td1.appendChild(time);
-            td2.appendChild(level);
-            td3.appendChild(event);
-            td4.appendChild(msg);
+            td1.appendChild(id);
+            td2.appendChild(timestamp);
+            td3.appendChild(level);
+            td4.appendChild(event);
+            td5.appendChild(message);
             tr.appendChild(td1);
             tr.appendChild(td2);
             tr.appendChild(td3);
             tr.appendChild(td4);
+            tr.appendChild(td5);
+
             if (level.textContent === "error") {
                 tr.style.backgroundColor = "#ff8330"
             } else if (level.textContent === "info") {
@@ -186,9 +192,8 @@
                 tr.style.backgroundColor = "#e35040"
             }
 
-            table.appendChild(tr);
+            table.insertBefore(tr, table.firstChild)
         }
-        //document.body.appendChild(table);
     }
 </script>
 

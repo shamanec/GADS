@@ -44,6 +44,7 @@ func handleRequests() {
 	router.GET("/", GetInitialPage)
 	router.GET("/logs", GetLogsPage)
 	router.GET("/project-logs", GetLogs)
+	router.GET("/provider-logs", db.ProviderLogsWS)
 
 	// Devices endpoints
 	router.GET("/devices", device.LoadDevices)
@@ -58,9 +59,10 @@ func handleRequests() {
 func main() {
 	// Read the config.json and setup the data
 	util.GetConfigJsonData()
-	// Create a new connection to RethinkDB
-	db.NewConnection()
-	// Start a goroutine that continiously gets the latest devices data from RethinkDB
+
+	// Create a new connection to MongoDB
+	db.NewMongoClient()
+	// Start a goroutine that continiously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
 	// Start a goroutine that will send an html with the device selection to all clients connected to the socket
 	// This creates near real-time updates of the device selection

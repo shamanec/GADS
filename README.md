@@ -23,20 +23,18 @@
 Developed and tested on Ubuntu 18.04 LTS  
 
 ## Setup
-Currently the project assumes that GADS UI, RethinkDB and device providers are on the same network. They can all be on the same machine as well.  
+Currently the project assumes that GADS UI, MongoDB and device providers are on the same network. They can all be on the same machine as well.  
 
-### Start RethinkDB instance
-The project uses RethinkDB for syncing devices info between providers and GADS UI.  
-1. Execute `docker run -d --restart always --name gads-rethink -p 32770:8080 -p 32771:28015 rethinkdb:2.4.2`. This will pull the official RethinkDB 2.4.2 image from Docker Hub and start a container binding ports `32770` for the RethinkDB dashboard and `32771` for db connection.  
-2. Open the RethinkDB dashboard on `http://localhost:32770/`  
-3. Go to `Tables` and create a new database named `gads`  
-4. Add a new table to `gads` database named `devices` with primary key `UDID` (you need to click `Show optional settings` for the primary key)  
+### Start MongoDB instance
+The project uses MongoDB for syncing devices info between providers and GADS UI.  
+1. Execute `docker run -d --restart-alwas --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
+2. You can use MongoDB Compass or another tool to access the db.
 
 ### Setup config.json
 1. Open the `config.json` file.  
 2. Change the `gads_host_address` value to the IP of the host machine.  
 3. Change the `gads_port` value to the port you wish to service to run on - default is 10000.  
-4. Change the `rethink_db` value to the IP address and port of the RethinkDB instance. Example: `192.168.1.2:32771`  
+4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771`  
 
 ### Start the GADS UI
 1. Execute `go build .`  in the main project folder  
