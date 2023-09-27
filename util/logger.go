@@ -1,61 +1,19 @@
-package db
+package util
 
 import (
-	"GADS/util"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-var mongoClient *mongo.Client
-var mongoClientCtx context.Context
-
-func NewMongoClient() {
-	var err error
-	connectionString := "mongodb://" + util.ConfigData.MongoDB
-
-	// Set up a context for the connection.
-	mongoClientCtx = context.TODO()
-
-	// Create a MongoDB client with options.
-	clientOptions := options.Client().ApplyURI(connectionString)
-	mongoClient, err = mongo.Connect(mongoClientCtx, clientOptions)
-	if err != nil {
-		panic(fmt.Sprintf("Could not connect to Mongo server at `%s` - %s", connectionString, err))
-	}
-
-	go checkDBConnection()
-	go keepAlive()
-}
-
-func MongoClient() *mongo.Client {
-	return mongoClient
-}
-
-func MongoCtx() context.Context {
-	return mongoClientCtx
-}
-
-func checkDBConnection() {
-	for {
-		err := mongoClient.Ping(mongoClientCtx, nil)
-		if err != nil {
-			fmt.Println("Lost connection to MongoDB server, attempting to create a new client - " + err.Error())
-			NewMongoClient()
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-}
 
 var (
 	upgrader = websocket.Upgrader{
@@ -63,6 +21,7 @@ var (
 		WriteBufferSize: 1024,
 	}
 	connectedClients = make(map[*websocket.Conn]bool)
+	connMutex        sync.Mutex
 )
 
 func getLogsInitial(provider string, limit int) []map[string]interface{} {
@@ -121,6 +80,7 @@ func ProviderLogsWS(c *gin.Context) {
 	go sendLiveLogsToClients(provider)
 }
 
+// Periodically ping all connected websocket clients to keep the connection alive if no messages are sent
 func keepAlive() {
 	for {
 		// Send a ping message every 10 seconds
@@ -139,7 +99,9 @@ func keepAlive() {
 
 func sendLogsToClients(data []byte) {
 	for client := range connectedClients {
+		connMutex.Lock()
 		err := client.WriteMessage(1, data)
+		connMutex.Unlock()
 		if err != nil {
 			client.Close()
 			delete(connectedClients, client)

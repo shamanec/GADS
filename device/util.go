@@ -1,7 +1,7 @@
 package device
 
 import (
-	"GADS/db"
+	"GADS/util"
 	"context"
 	"time"
 
@@ -15,7 +15,7 @@ var latestDevices []Device
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
 	// Access the database and collection
-	collection := db.MongoClient().Database("gads").Collection("devices")
+	collection := util.MongoClient().Database("gads").Collection("devices")
 
 	for {
 		cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
@@ -23,14 +23,14 @@ func GetLatestDBDevices() {
 			log.Fatal(err)
 		}
 
-		if err := cursor.All(db.MongoCtx(), &latestDevices); err != nil {
+		if err := cursor.All(util.MongoCtx(), &latestDevices); err != nil {
 			log.Fatal(err)
 		}
 		if err := cursor.Err(); err != nil {
 			log.Fatal(err)
 		}
 
-		cursor.Close(db.MongoCtx())
+		cursor.Close(util.MongoCtx())
 
 		time.Sleep(1 * time.Second)
 	}

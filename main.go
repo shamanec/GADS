@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 
-	"GADS/db"
 	"GADS/device"
 	"GADS/proxy"
 	"GADS/util"
@@ -44,7 +43,7 @@ func handleRequests() {
 	router.GET("/", GetInitialPage)
 	router.GET("/logs", GetLogsPage)
 	router.GET("/project-logs", GetLogs)
-	router.GET("/provider-logs", db.ProviderLogsWS)
+	router.GET("/provider-logs", util.ProviderLogsWS)
 
 	// Devices endpoints
 	router.GET("/devices", device.LoadDevices)
@@ -61,7 +60,7 @@ func main() {
 	util.GetConfigJsonData()
 
 	// Create a new connection to MongoDB
-	db.NewMongoClient()
+	util.NewMongoClient()
 	// Start a goroutine that continiously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
 	// Start a goroutine that will send an html with the device selection to all clients connected to the socket
