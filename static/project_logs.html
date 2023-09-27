@@ -75,6 +75,7 @@
     {{range .DeviceProviders}}
     <button class="log-selection provider-buttons" value="http://{{.}}/logs" style="margin-bottom: 10px;">{{.}}</button>
     {{end}} -->
+    <button class="log-selection provider-buttons" value="GADS-UI" style="margin-bottom: 10px;">GADS-UI</button>
     <button class="log-selection provider-buttons" value="192.168.1.13" style="margin-bottom: 10px;">192.168.1.13</button>
     <table id="logs-table">
         <thead>
@@ -109,6 +110,8 @@
         for (var i = 0; i < provider_buttons.length; i++) {
             provider_buttons[i].addEventListener('click', (event) => {
                 var button = event.target
+                var table = document.getElementById("logs-table-body");
+                table.innerHTML = ""
                 getLogs(button.value)
             }, false);
         }
@@ -136,9 +139,9 @@
         const port = window.location.port;
         if (hostname.includes('ngrok')) {
             let domain = hostname + (port ? ':' + port : '');
-            devicesSocket = new WebSocket("ws://" + domain + "/provider-logs?provider=" + url);
+            devicesSocket = new WebSocket("ws://" + domain + "/provider-logs?logProvider=" + url);
         } else {
-            devicesSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/provider-logs?provider=" + url);
+            devicesSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/provider-logs?logProvider=" + url);
         }
 
         // On each message over the websocket update the device selection table

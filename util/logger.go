@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,10 +25,26 @@ var (
 	connMutex        sync.Mutex
 )
 
-func getLogsInitial(provider string, limit int) []map[string]interface{} {
+func InfoLog(collectionName, eventName, message string) {
+	logToMongo("info", eventName, message)
+}
+
+func ErrorLog(collectionName, eventName, message string) {
+	logToMongo("error", eventName, message)
+}
+
+func DebugLog(collectionName, eventName, message string) {
+	logToMongo("debug", eventName, message)
+}
+
+func WarningLog(collectionName, eventName, message string) {
+	logToMongo("warning", eventName, message)
+}
+
+func getLogsInitial(collectionName string, limit int) []map[string]interface{} {
 	var logs []map[string]interface{}
 
-	collection := MongoClient().Database("logs").Collection(provider)
+	collection := MongoClient().Database("logs").Collection(strings.ToLower(collectionName))
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 	findOptions.SetLimit(int64(limit))
@@ -55,21 +72,20 @@ func ProviderLogsWS(c *gin.Context) {
 		fmt.Println(err)
 		return
 	}
+	connectedClients[conn] = true
 
 	logLimit, err := strconv.Atoi(c.DefaultQuery("logLimit", "100"))
 	if err != nil {
 		fmt.Println("Could not convert provided limit to int")
 	}
 
-	provider := c.DefaultQuery("provider", "")
-	if provider == "" {
+	logProvider := c.DefaultQuery("logProvider", "")
+	if logProvider == "" {
 		fmt.Println("Empty provider")
 		return
 	}
 
-	connectedClients[conn] = true
-
-	initialLogs := getLogsInitial(provider, logLimit)
+	initialLogs := getLogsInitial(logProvider, logLimit)
 	jsonData, err := json.Marshal(initialLogs)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -77,7 +93,7 @@ func ProviderLogsWS(c *gin.Context) {
 	}
 	sendLogsToClients(jsonData)
 
-	go sendLiveLogsToClients(provider)
+	go sendLiveLogsToClients(logProvider)
 }
 
 // Periodically ping all connected websocket clients to keep the connection alive if no messages are sent
@@ -112,7 +128,7 @@ func sendLogsToClients(data []byte) {
 func sendLiveLogsToClients(collectionName string) {
 	fmt.Println("SENDING LIVE LOGS")
 	// Access the database and collection
-	collection := MongoClient().Database("logs").Collection(collectionName)
+	collection := MongoClient().Database("logs").Collection(strings.ToLower(collectionName))
 	lastPollTimestamp := time.Now().UnixMilli()
 
 	for {

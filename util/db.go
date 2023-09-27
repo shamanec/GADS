@@ -65,22 +65,6 @@ func logToMongo(logLevel, eventName, message string) {
 	}
 }
 
-func InfoLog(collectionName, eventName, message string) {
-	logToMongo("info", eventName, message)
-}
-
-func ErrorLog(collectionName, eventName, message string) {
-	logToMongo("error", eventName, message)
-}
-
-func DebugLog(collectionName, eventName, message string) {
-	logToMongo("debug", eventName, message)
-}
-
-func WarningLog(collectionName, eventName, message string) {
-	logToMongo("warning", eventName, message)
-}
-
 // Check the MongoDB connection each second and attempt to create a new client if connection is lost
 func checkDBConnection() {
 	fmt.Println("Starting to periodically check MongoDB connection, will attempt to re-establish if it is lost!")

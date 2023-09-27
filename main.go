@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -52,7 +53,9 @@ func handleRequests() {
 	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
 
 	// Start the GADS UI on the host IP address
-	router.Run(util.ConfigData.GadsHostAddress + ":" + util.ConfigData.GadsPort)
+	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
+	util.InfoLog("gads-ui", "startup", fmt.Sprintf("Starting GADS-UI on address `%s`", address))
+	router.Run(address)
 }
 
 func main() {
