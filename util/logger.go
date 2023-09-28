@@ -25,31 +25,6 @@ var (
 	connMutex        sync.Mutex
 )
 
-func getLogsInitial(collectionName string, limit int) []map[string]interface{} {
-	var logs []map[string]interface{}
-
-	collection := MongoClient().Database("logs").Collection(strings.ToLower(collectionName))
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
-	findOptions.SetLimit(int64(limit))
-
-	cursor, err := collection.Find(MongoCtx(), bson.D{{}}, findOptions)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := cursor.All(MongoCtx(), &logs); err != nil {
-		log.Fatal(err)
-	}
-	if err := cursor.Err(); err != nil {
-		log.Fatal(err)
-	}
-
-	cursor.Close(MongoCtx())
-
-	return logs
-}
-
 func ProviderLogsWS(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -80,21 +55,29 @@ func ProviderLogsWS(c *gin.Context) {
 	go sendLiveLogsToClients(logProvider)
 }
 
-// Periodically ping all connected websocket clients to keep the connection alive if no messages are sent
-func keepAlive() {
-	for {
-		// Send a ping message every 10 seconds
-		time.Sleep(10 * time.Second)
+func getLogsInitial(collectionName string, limit int) []map[string]interface{} {
+	var logs []map[string]interface{}
 
-		// Loop through the clients and send the message to each of them
-		for client := range connectedClients {
-			err := client.WriteMessage(websocket.PingMessage, nil)
-			if err != nil {
-				client.Close()
-				delete(connectedClients, client)
-			}
-		}
+	collection := MongoClient().Database("logs").Collection(strings.ToLower(collectionName))
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
+	findOptions.SetLimit(int64(limit))
+
+	cursor, err := collection.Find(MongoCtx(), bson.D{{}}, findOptions)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	if err := cursor.All(MongoCtx(), &logs); err != nil {
+		log.Fatal(err)
+	}
+	if err := cursor.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	cursor.Close(MongoCtx())
+
+	return logs
 }
 
 func sendLogsToClients(data []byte) {
@@ -110,7 +93,6 @@ func sendLogsToClients(data []byte) {
 }
 
 func sendLiveLogsToClients(collectionName string) {
-	fmt.Println("SENDING LIVE LOGS")
 	// Access the database and collection
 	collection := MongoClient().Database("logs").Collection(strings.ToLower(collectionName))
 	lastPollTimestamp := time.Now().UnixMilli()
@@ -154,5 +136,22 @@ func sendLiveLogsToClients(collectionName string) {
 		}
 
 		time.Sleep(2 * time.Second)
+	}
+}
+
+// Periodically ping all connected websocket clients to keep the connection alive if no messages are sent
+func keepAlive() {
+	for {
+		// Send a ping message every 10 seconds
+		time.Sleep(10 * time.Second)
+
+		// Loop through the clients and send the message to each of them
+		for client := range connectedClients {
+			err := client.WriteMessage(websocket.PingMessage, nil)
+			if err != nil {
+				client.Close()
+				delete(connectedClients, client)
+			}
+		}
 	}
 }
