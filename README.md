@@ -1,18 +1,17 @@
 ## Introduction
 
-* GADS or Go Appium Docker Service is a web UI for [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) orchestration and remote control of devices.  
+* GADS is a web UI for [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) orchestration and remote control of devices.  
 
 ## Features
 1. Provider logs for debugging  
 2. Devices remote control(most of which is wrapper around Appium)
   * Android
-    - `minicap` video stream - default option
-    - `GADS-Android-stream` video stream - not as good as `minicap` but it is inhouse, can be used in case `minicap` fails for device    
+    - `GADS-Android-stream` video stream   
     - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
     - basic remote control - tap, swipe  
     - basic Appium inspector
   * iOS
-    - `WDA mjpeg` video stream  
+    - `WebDriverAgent MJPEG` video stream  
     - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
     - basic remote control - tap, swipe  
     - basic Appium inspector  
@@ -20,10 +19,13 @@
 3. TODO - simple provider container info and orchestration page  
 4. TODO - more functionality for remote control  
 
-Developed and tested on Ubuntu 18.04 LTS  
+Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1  
 
 ## Setup
 Currently the project assumes that GADS UI, MongoDB and device providers are on the same network. They can all be on the same machine as well.  
+
+### Go
+1. Install Go version 1.21.0 or higher
 
 ### Start MongoDB instance
 The project uses MongoDB for syncing devices info between providers and GADS UI.  
