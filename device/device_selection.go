@@ -21,6 +21,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 var clients = make(map[*websocket.Conn]bool)
+var clients2 = make(map[*websocket.Conn]bool)
 var broadcast = make(chan []byte)
 
 func AvailableDeviceWS(c *gin.Context) {
@@ -43,6 +44,25 @@ func AvailableDeviceWS(c *gin.Context) {
 	clients[conn] = true
 }
 
+func AvailableDeviceWS2(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "devices_ws",
+		}).Error("Could not upgrade ws connection: " + err.Error())
+		return
+	}
+
+	err = conn.WriteJSON(&latestDevices)
+	if err != nil {
+		conn.Close()
+		return
+	}
+
+	// Add the new conn to clients map
+	clients2[conn] = true
+}
+
 func keepAlive() {
 	for {
 		// Send a ping message every 10 seconds
@@ -56,6 +76,38 @@ func keepAlive() {
 				delete(clients, client)
 			}
 		}
+	}
+}
+
+func keepAlive2() {
+	for {
+		// Send a ping message every 10 seconds
+		time.Sleep(10 * time.Second)
+
+		// Loop through the clients and send the message to each of them
+		for client := range clients2 {
+			err := client.WriteMessage(websocket.PingMessage, nil)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
+			}
+		}
+	}
+}
+
+func GetDevices2() {
+	go keepAlive2()
+
+	for {
+		for client := range clients {
+			err := client.WriteJSON(&latestDevices)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
+			}
+		}
+
+		time.Sleep(1 * time.Second)
 	}
 }
 

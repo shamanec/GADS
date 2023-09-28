@@ -48,6 +48,7 @@ func handleRequests() {
 	// Devices endpoints
 	router.GET("/devices", device.LoadDevices)
 	router.GET("/available-devices", device.AvailableDeviceWS)
+	router.GET("/available-devices2", device.AvailableDeviceWS2)
 	router.POST("/devices/control/:udid", device.GetDevicePage)
 	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
 
