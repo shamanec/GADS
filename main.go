@@ -66,6 +66,7 @@ func main() {
 	// Start a goroutine that will send an html with the device selection to all clients connected to the socket
 	// This creates near real-time updates of the device selection
 	go device.GetDevices()
+	go device.GetDevices2()
 	setLogging()
 	handleRequests()
 }

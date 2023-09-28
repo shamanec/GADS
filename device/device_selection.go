@@ -99,11 +99,11 @@ func GetDevices2() {
 	go keepAlive2()
 
 	for {
-		for client := range clients {
+		for client := range clients2 {
 			err := client.WriteJSON(&latestDevices)
 			if err != nil {
 				client.Close()
-				delete(clients, client)
+				delete(clients2, client)
 			}
 		}
 
