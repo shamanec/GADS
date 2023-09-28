@@ -25,22 +25,6 @@ var (
 	connMutex        sync.Mutex
 )
 
-func InfoLog(collectionName, eventName, message string) {
-	logToMongo("info", eventName, message)
-}
-
-func ErrorLog(collectionName, eventName, message string) {
-	logToMongo("error", eventName, message)
-}
-
-func DebugLog(collectionName, eventName, message string) {
-	logToMongo("debug", eventName, message)
-}
-
-func WarningLog(collectionName, eventName, message string) {
-	logToMongo("warning", eventName, message)
-}
-
 func getLogsInitial(collectionName string, limit int) []map[string]interface{} {
 	var logs []map[string]interface{}
 

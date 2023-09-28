@@ -54,7 +54,6 @@ func handleRequests() {
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
-	util.InfoLog("gads-ui", "startup", fmt.Sprintf("Starting GADS-UI on address `%s`", address))
 	router.Run(address)
 }
 
