@@ -49,6 +49,7 @@ func handleRequests() {
 	// Devices endpoints
 	router.GET("/devices", device.LoadDevices)
 	router.GET("/available-devices", device.AvailableDeviceWS)
+	router.GET("/available-devices2", device.AvailableDeviceWS2)
 	router.POST("/devices/control/:udid", device.GetDevicePage)
 	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
 
@@ -68,6 +69,7 @@ func main() {
 	// Start a goroutine that will send an html with the device selection to all clients connected to the socket
 	// This creates near real-time updates of the device selection
 	go device.GetDevices()
+	go device.GetDevices2()
 	setLogging()
 	handleRequests()
 }
