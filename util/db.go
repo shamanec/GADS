@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var mongoClient *mongo.Client
 var mongoClientCtx context.Context
-var logCollection *mongo.Collection
 
 // Create a new MongoDB Client to reuse for writing/reading from MongoDB
 func NewMongoClient() {
@@ -35,8 +33,6 @@ func NewMongoClient() {
 		panic(fmt.Sprintf("No initial connection to MongoDB server at `%s` was established - %s", connectionString, err))
 	}
 
-	logCollection = mongoClient.Database("logs").Collection("gads-ui")
-
 	go checkDBConnection()
 	go keepAlive()
 }
@@ -48,21 +44,6 @@ func MongoClient() *mongo.Client {
 
 func MongoCtx() context.Context {
 	return mongoClientCtx
-}
-
-func logToMongo(logLevel, eventName, message string) {
-	entry := logrus.WithFields(logrus.Fields{
-		"level":     logLevel,
-		"message":   message,
-		"event":     eventName,
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
-
-	// Log to MongoDB
-	_, err := logCollection.InsertOne(mongoClientCtx, entry.Data)
-	if err != nil {
-		fmt.Printf("Failed inserting log data in MongoDB, err:\n%s, \nentry:%v\n", err, entry)
-	}
 }
 
 // Check the MongoDB connection each second and attempt to create a new client if connection is lost

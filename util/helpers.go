@@ -22,10 +22,9 @@ type JsonResponse struct {
 }
 
 type ConfigJsonData struct {
-	GadsHostAddress string   `json:"gads_host_address"`
-	GadsPort        string   `json:"gads_port"`
-	DeviceProviders []string `json:"device_providers"`
-	MongoDB         string   `json:"mongo_db"`
+	GadsHostAddress string `json:"gads_host_address"`
+	GadsPort        string `json:"gads_port"`
+	MongoDB         string `json:"mongo_db"`
 }
 
 var ConfigData *ConfigJsonData
