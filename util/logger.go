@@ -7,7 +7,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,8 +20,6 @@ var (
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	connectedClients = make(map[*websocket.Conn]bool)
-	connMutex        sync.Mutex
 )
 
 type LogsWSClient struct {
@@ -113,7 +110,7 @@ func (client *LogsWSClient) sendLogsInitial(limit int) {
 
 	jsonData, err := json.Marshal(logs)
 	if err != nil {
-		err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to get marshal documents from cursor for logs from collection `%s` - %s", client.CollectionName, err)))
+		err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to marshal documents from cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 		if err != nil {
 			client.Conn.Close()
 			return

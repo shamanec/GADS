@@ -168,6 +168,38 @@
         width: 100%;
         font-size: 15px;
     }
+
+    table,
+    td,
+    th {
+        border: 1px solid #000000;
+        text-align: center;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    td {
+        padding: 15px;
+    }
+
+    thead th {
+        padding: 16px;
+        padding-left: 15px;
+        border-left: 1px solid #000000;
+        border-bottom: 1px solid #000000;
+        background: #ffc491;
+        text-align: center;
+        box-shadow: 0px 0px 0 1px #000000;
+    }
+
+    /* Set header to stick to the top of the container. */
+    thead tr th {
+        position: sticky;
+        top: 50px;
+    }
 </style>
 
 <body>
@@ -367,6 +399,20 @@
                 Screenshot</button>
             <img id="screenshot-image">
         </div>
+        <div id="device-logs">
+            <table id="logs-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Timestamp</th>
+                        <th style="width: 5%;">Level</th>
+                        <th style="width: 10%;">Event</th>
+                        <th style="width: 65%;">Message</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-table-body">
+                </tbody>
+            </table>
+        </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
@@ -395,6 +441,7 @@
 
     setIosStream()
     setAndroidStream()
+    getLogs()
 
     window.onload = function () {
         console.log("Page loaded");
@@ -459,6 +506,62 @@
                     };
                 }
             }
+        }
+    }
+
+    function getLogs() {
+        let logsSocket = new WebSocket("ws://" + hostname + ":" + port + "/logs-ws?collection={{.Device.UDID}}")
+        logsSocket.onmessage = function (event) {
+            var json = JSON.parse(event.data)
+            console.log(json)
+            createLogsTable(json)
+        };
+    }
+
+    function createLogsTable(json) {
+        console.log(json)
+        var table = document.getElementById("logs-table-body");
+
+        for (let i=0;i < json.length;i++) {
+            if (json[i].message == "") {
+                continue
+            }
+            
+            var tr = document.createElement('tr');
+            tr.id = "table-row"
+
+            var td2 = document.createElement('td');
+            var td3 = document.createElement('td');
+            var td4 = document.createElement('td');
+            var td5 = document.createElement('td');
+
+            var timestamp = document.createTextNode(json[i].timestamp);
+            var level = document.createTextNode(json[i].level);
+            var event = document.createTextNode(json[i].eventname);
+            var message = document.createTextNode(json[i].message);
+
+            td2.appendChild(timestamp);
+            td3.appendChild(level);
+            td4.appendChild(event);
+            td5.appendChild(message);
+            tr.appendChild(td2);
+            tr.appendChild(td3);
+            tr.appendChild(td4);
+            tr.appendChild(td5);
+
+            if (level.textContent === "error") {
+                tr.style.backgroundColor = "#ff8330"
+            } else if (level.textContent === "info") {
+                tr.style.backgroundColor = "#b7eb34"
+            } else if (level.textContent === "fatal") {
+                tr.style.backgroundColor = "#ff8330"
+            } else if (level.textContent === "debug") {
+                tr.style.backgroundColor = "#ffe330"
+            } else if (level.textContent === "warning") {
+                tr.style.backgroundColor = "#ff8330"
+            }
+
+            table.insertBefore(tr, table.firstChild)
         }
     }
 
