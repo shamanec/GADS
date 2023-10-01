@@ -63,7 +63,7 @@ func main() {
 	util.GetConfigJsonData()
 
 	// Create a new connection to MongoDB
-	util.NewMongoClient()
+	util.InitMongo()
 	// Start a goroutine that continiously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
 	// Start a goroutine that will send an html with the device selection to all clients connected to the socket

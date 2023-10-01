@@ -7,13 +7,15 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var mongoClient *mongo.Client
 var mongoClientCtx context.Context
 
 // Create a new MongoDB Client to reuse for writing/reading from MongoDB
-func NewMongoClient() {
+func InitMongo() {
 	var err error
 	connectionString := "mongodb://" + ConfigData.MongoDB
 
@@ -37,7 +39,6 @@ func NewMongoClient() {
 	go keepAlive()
 }
 
-// Access the
 func MongoClient() *mongo.Client {
 	return mongoClient
 }
@@ -46,16 +47,16 @@ func MongoCtx() context.Context {
 	return mongoClientCtx
 }
 
-// Check the MongoDB connection each second and attempt to create a new client if connection is lost
+// Periodically check the MongoDB connection and attempt to create a new client if connection is lost
 func checkDBConnection() {
-	fmt.Println("Starting to periodically check MongoDB connection, will attempt to re-establish if it is lost!")
+	log.Info("Starting to periodically check MongoDB connection, will attempt to re-establish if it is lost!")
 	for {
 		err := mongoClient.Ping(mongoClientCtx, nil)
 		if err != nil {
-			fmt.Printf("Lost connection to MongoDB server, attempting to create a new client - %s", err)
-			NewMongoClient()
+			log.Error(fmt.Sprintf("Lost connection to MongoDB server, attempting to create a new client - %s", err))
+			InitMongo()
 			break
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }

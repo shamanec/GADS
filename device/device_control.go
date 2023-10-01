@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,11 +26,8 @@ type Device struct {
 	Host                 string `json:"host" bson:"host"`
 }
 
-type DeviceContainer struct {
-	ContainerID     string `json:"id"`
-	ContainerStatus string `json:"status"`
-	ImageName       string `json:"image_name"`
-	ContainerName   string `json:"container_name"`
+var netClient = &http.Client{
+	Timeout: time.Second * 120,
 }
 
 // Get specific device info from DB
@@ -56,16 +54,21 @@ func GetDevicePage(c *gin.Context) {
 	// Create the device health URL
 	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.Host, device.UDID)
 
-	// Try to check the device health
-	res, err := http.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed creating http request to check device health from provider - %s", err.Error()))
 		return
 	}
 
-	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(res.Body)
-		c.String(http.StatusInternalServerError, "Device not healthy: "+string(body))
+	response, err := netClient.Do(req)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed performing http request to check device health from provider - %s", err.Error()))
+		return
+	}
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Device not healthy, health check response: %s", string(body)))
 		return
 	}
 
@@ -82,13 +85,11 @@ func GetDevicePage(c *gin.Context) {
 		CanvasHeight: canvasHeight,
 	}
 
-	// This will generate only the device table, not the whole page
 	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
 	err = tmpl.Execute(c.Writer, pageData)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 	}
-
 }
 
 // Calculate the device stream canvas dimensions

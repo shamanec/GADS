@@ -11,8 +11,7 @@ import (
 
 // This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
-	// Need to write a better recover for device screen stream endpoint
-	// Because it throws when it is closed in the browser
+	// Not really sure its needed anymore now that the stream comes over ws, but I'll keep it just in case
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Recovered from panic: %v. \nThis happens when closing device screen stream and I need to handle it \n", r)
