@@ -71,16 +71,12 @@
         <a class="active" href="logs">Logs</a>
         <a href="devices">Device Control</a>
     </div>
-    <!-- <button class="log-selection" value="/project-logs" id="gads-logs" style="margin-bottom: 10px;">GADS Logs</button>
-    {{range .DeviceProviders}}
-    <button class="log-selection provider-buttons" value="http://{{.}}/logs" style="margin-bottom: 10px;">{{.}}</button>
-    {{end}} -->
+   
     <button class="log-selection provider-buttons" value="GADS-UI" style="margin-bottom: 10px;">GADS-UI</button>
     <button class="log-selection provider-buttons" value="192.168.1.13" style="margin-bottom: 10px;">192.168.1.13</button>
     <table id="logs-table">
         <thead>
             <tr>
-                <th style="width: 10%;">ID</th>
                 <th style="width: 10%;">Timestamp</th>
                 <th style="width: 5%;">Level</th>
                 <th style="width: 10%;">Event</th>
@@ -139,9 +135,9 @@
         const port = window.location.port;
         if (hostname.includes('ngrok')) {
             let domain = hostname + (port ? ':' + port : '');
-            devicesSocket = new WebSocket("ws://" + domain + "/provider-logs?logProvider=" + url);
+            devicesSocket = new WebSocket("ws://" + domain + "/logs-ws?collection=" + url);
         } else {
-            devicesSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/provider-logs?logProvider=" + url);
+            devicesSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/logs-ws?collection=" + url);
         }
 
         // On each message over the websocket update the device selection table
@@ -164,24 +160,20 @@
             var tr = document.createElement('tr');
             tr.id = "table-row"
 
-            var td1 = document.createElement('td');
             var td2 = document.createElement('td');
             var td3 = document.createElement('td');
             var td4 = document.createElement('td');
             var td5 = document.createElement('td');
 
-            var id = document.createTextNode(json[i]._id);
             var timestamp = document.createTextNode(json[i].timestamp);
             var level = document.createTextNode(json[i].level);
             var event = document.createTextNode(json[i].eventname);
             var message = document.createTextNode(json[i].message);
 
-            td1.appendChild(id);
             td2.appendChild(timestamp);
             td3.appendChild(level);
             td4.appendChild(event);
             td5.appendChild(message);
-            tr.appendChild(td1);
             tr.appendChild(td2);
             tr.appendChild(td3);
             tr.appendChild(td4);
@@ -190,9 +182,13 @@
             if (level.textContent === "error") {
                 tr.style.backgroundColor = "#ff8330"
             } else if (level.textContent === "info") {
-                tr.style.backgroundColor = "#ffd163"
+                tr.style.backgroundColor = "#b7eb34"
             } else if (level.textContent === "fatal") {
-                tr.style.backgroundColor = "#e35040"
+                tr.style.backgroundColor = "#ff8330"
+            } else if (level.textContent === "debug") {
+                tr.style.backgroundColor = "#ffe330"
+            } else if (level.textContent === "warning") {
+                tr.style.backgroundColor = "#ff8330"
             }
 
             table.insertBefore(tr, table.firstChild)

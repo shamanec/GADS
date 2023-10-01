@@ -36,7 +36,6 @@ func InitMongo() {
 	}
 
 	go checkDBConnection()
-	go keepAlive()
 }
 
 func MongoClient() *mongo.Client {

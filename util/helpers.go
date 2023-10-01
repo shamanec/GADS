@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 )
@@ -125,7 +124,7 @@ func GetConfigJsonData() {
 	}
 	defer jsonFile.Close()
 
-	bs, err := ioutil.ReadAll(jsonFile)
+	bs, err := io.ReadAll(jsonFile)
 	if err != nil {
 		panic(err)
 	}
