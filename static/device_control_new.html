@@ -63,6 +63,8 @@
         margin-top: 10px;
         margin-left: 10px;
         align-items: flex-start;
+        flex-direction: row;
+        height: 100%;
     }
 
     #stream-div {
@@ -93,6 +95,14 @@
         overflow: scroll;
         border: 1px solid #000;
         margin-left: 10px;
+        text-align: center;
+    }
+
+    #device-logs {
+        overflow: scroll;
+        height: 800px;
+        width: auto;
+        border: 1px solid #000;
         text-align: center;
     }
 
@@ -195,10 +205,25 @@
         box-shadow: 0px 0px 0 1px #000000;
     }
 
-    /* Set header to stick to the top of the container. */
     thead tr th {
         position: sticky;
-        top: 50px;
+    }
+
+    .tabs {
+        display: flex;
+        list-style: none;
+        padding: 0px;
+    }
+
+    .tab {
+        cursor: pointer;
+        padding: 10px 20px;
+        background-color: #f2f2f2;
+        border-radius: 5px;
+    }
+
+    .tab-content {
+        display: none;
     }
 </style>
 
@@ -256,167 +281,175 @@
             <img id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
-        <div id="inspector-source">
-            <div id="app-source-buttons">
-                <div style="margin-right: 10px;">
-                    <button class="action-buttons" id="refresh-source"><i class="fa-solid fa-rotate"></i> Get
-                        source</button>
+        <div class="tab-container">
+            <ul class="tabs">
+                <li class="tab" onclick="openTab('inspector-source')">Inspector</li>
+                <li class="tab" onclick="openTab('screenshot-div')">Screenshot</li>
+                <li class="tab" onclick="openTab('device-logs')">Logs</li>
+            </ul>
+            <div id="inspector-source" class="tab-content">
+                <div id="app-source-buttons">
+                    <div style="margin-right: 10px;">
+                        <button class="action-buttons" id="refresh-source"><i class="fa-solid fa-rotate"></i> Get
+                            source</button>
+                    </div>
+                    <div>
+                        <button class="action-buttons" id="wipe-canvas"><i class="fa-solid fa-broom"></i> Wipe
+                            canvas</button>
+                    </div>
                 </div>
-                <div>
-                    <button class="action-buttons" id="wipe-canvas"><i class="fa-solid fa-broom"></i> Wipe
-                        canvas</button>
+                <div id="source-container">
+                    <div class="app-source-titles">App source</div>
+                    <div id="source-loading">
+                        <img style="object-fit: contain; height: 100%;" src="/static/images/gears.gif">
+                    </div>
+                    <div style="overflow: auto;">
+                        <div id="app-source"></div>
+                    </div>
+                </div>
+                <div id="element-info-container">
+                    <div class="app-source-titles">Element info</div>
+                    <div id="element-info-holder">
+                        {{if eq .Device.OS "ios"}}
+                        <div class="element-info">
+                            <div class="element-info-keys">type</div>
+                            <div class="element-info-values" id="element-type">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">name</div>
+                            <div class="element-info-values" id="element-name">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">label</div>
+                            <div class="element-info-values" id="element-label">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">visible</div>
+                            <div class="element-info-values" id="element-visible">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">enabled</div>
+                            <div class="element-info-values" id="element-enabled">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">value</div>
+                            <div class="element-info-values" id="element-value">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">x</div>
+                            <div class="element-info-values" id="element-x">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">y</div>
+                            <div class="element-info-values" id="element-y">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">width</div>
+                            <div class="element-info-values" id="element-width">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">height</div>
+                            <div class="element-info-values" id="element-height">none</div>
+                        </div>
+                        {{else}}
+                        <div class="element-info">
+                            <div class="element-info-keys">index</div>
+                            <div class="element-info-values" id="element-index">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">resource-id</div>
+                            <div class="element-info-values" id="element-resourceid">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">package</div>
+                            <div class="element-info-values" id="element-package">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">class</div>
+                            <div class="element-info-values" id="element-class">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">text</div>
+                            <div class="element-info-values" id="element-text">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">checkable</div>
+                            <div class="element-info-values" id="element-checkable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">checked</div>
+                            <div class="element-info-values" id="element-checked">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">clickable</div>
+                            <div class="element-info-values" id="element-clickable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">enabled</div>
+                            <div class="element-info-values" id="element-enabled">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">focusable</div>
+                            <div class="element-info-values" id="element-focusable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">focused</div>
+                            <div class="element-info-values" id="element-focused">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">long-clickable</div>
+                            <div class="element-info-values" id="element-long-clickable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">password</div>
+                            <div class="element-info-values" id="element-password">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">scrollable</div>
+                            <div class="element-info-values" id="element-scrollable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">selected</div>
+                            <div class="element-info-values" id="element-selected">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">bounds</div>
+                            <div class="element-info-values" id="element-bounds">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">displayed</div>
+                            <div class="element-info-values" id="element-displayed">none</div>
+                        </div>
+                        {{end}}
+                    </div>
                 </div>
             </div>
+            <div id="screenshot-div" class="tab-content">
+                <button class="device-buttons action-buttons" id="screenshot"><i class="fa-solid fa-camera"></i>
+                    Screenshot</button>
+                <img id="screenshot-image">
+            </div>
+            <div id="device-logs" class="tab-content">
+                <table id="logs-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 10%;">Timestamp</th>
+                            <th style="width: 5%;">Level</th>
+                            <th style="width: 10%;">Event</th>
+                            <th style="width: 75%;">Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-            <div id="source-container">
-                <div class="app-source-titles">App source</div>
-                <div id="source-loading">
-                    <img style="object-fit: contain; height: 100%;" src="/static/images/gears.gif">
-                </div>
-                <div style="overflow: auto;">
-                    <div id="app-source"></div>
-                </div>
-            </div>
-            <div id="element-info-container">
-                <div class="app-source-titles">Element info</div>
-                <div id="element-info-holder">
-                    {{if eq .Device.OS "ios"}}
-                    <div class="element-info">
-                        <div class="element-info-keys">type</div>
-                        <div class="element-info-values" id="element-type">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">name</div>
-                        <div class="element-info-values" id="element-name">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">label</div>
-                        <div class="element-info-values" id="element-label">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">visible</div>
-                        <div class="element-info-values" id="element-visible">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">enabled</div>
-                        <div class="element-info-values" id="element-enabled">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">value</div>
-                        <div class="element-info-values" id="element-value">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">x</div>
-                        <div class="element-info-values" id="element-x">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">y</div>
-                        <div class="element-info-values" id="element-y">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">width</div>
-                        <div class="element-info-values" id="element-width">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">height</div>
-                        <div class="element-info-values" id="element-height">none</div>
-                    </div>
-                    {{else}}
-                    <div class="element-info">
-                        <div class="element-info-keys">index</div>
-                        <div class="element-info-values" id="element-index">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">resource-id</div>
-                        <div class="element-info-values" id="element-resourceid">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">package</div>
-                        <div class="element-info-values" id="element-package">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">class</div>
-                        <div class="element-info-values" id="element-class">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">text</div>
-                        <div class="element-info-values" id="element-text">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">checkable</div>
-                        <div class="element-info-values" id="element-checkable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">checked</div>
-                        <div class="element-info-values" id="element-checked">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">clickable</div>
-                        <div class="element-info-values" id="element-clickable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">enabled</div>
-                        <div class="element-info-values" id="element-enabled">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">focusable</div>
-                        <div class="element-info-values" id="element-focusable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">focused</div>
-                        <div class="element-info-values" id="element-focused">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">long-clickable</div>
-                        <div class="element-info-values" id="element-long-clickable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">password</div>
-                        <div class="element-info-values" id="element-password">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">scrollable</div>
-                        <div class="element-info-values" id="element-scrollable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">selected</div>
-                        <div class="element-info-values" id="element-selected">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">bounds</div>
-                        <div class="element-info-values" id="element-bounds">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">displayed</div>
-                        <div class="element-info-values" id="element-displayed">none</div>
-                    </div>
-                    {{end}}
-                </div>
-            </div>
-        </div>
-        <div id="screenshot-div">
-            <button class="device-buttons action-buttons" id="screenshot"><i class="fa-solid fa-camera"></i>
-                Screenshot</button>
-            <img id="screenshot-image">
-        </div>
-        <div id="device-logs">
-            <table id="logs-table">
-                <thead>
-                    <tr>
-                        <th style="width: 10%;">Timestamp</th>
-                        <th style="width: 5%;">Level</th>
-                        <th style="width: 10%;">Event</th>
-                        <th style="width: 65%;">Message</th>
-                    </tr>
-                </thead>
-                <tbody id="logs-table-body">
-                </tbody>
-            </table>
-        </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all-deps.min.js"></script>
 </body>
@@ -451,6 +484,15 @@
         console.log("DOM content loaded");
         // your code here
     });
+
+    function openTab(tabName) {
+        var i;
+        var tabContents = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabContents.length; i++) {
+            tabContents[i].style.display = "none";
+        }
+        document.getElementById(tabName).style.display = "block";
+    }
 
     function setIosStream() {
         if (device_os == 'ios') {
@@ -502,7 +544,7 @@
                     imgElement.src = imageURL
 
                     imgElement.onload = () => {
-                    URL.revokeObjectURL(imageURL);
+                        URL.revokeObjectURL(imageURL);
                     };
                 }
             }
@@ -520,11 +562,12 @@
     function createLogsTable(json) {
         var table = document.getElementById("logs-table-body");
 
-        for (let i=0;i < json.length;i++) {
+        for (let i = json.length - 1; i >= 0; i--) {
+            console.log(i)
             if (json[i].message == "") {
                 continue
             }
-            
+
             var tr = document.createElement('tr');
             tr.id = "table-row"
 
@@ -533,7 +576,12 @@
             var td4 = document.createElement('td');
             var td5 = document.createElement('td');
 
-            var timestamp = document.createTextNode(json[i].timestamp);
+            const date = moment(json[i].timestamp);
+
+            // Format the date as per your desired format
+            const formattedDate = date.format("DD-MM-YYYY HH:mm:ss.SSS");
+
+            var timestamp = document.createTextNode(formattedDate);
             var level = document.createTextNode(json[i].level);
             var event = document.createTextNode(json[i].eventname);
             var message = document.createTextNode(json[i].message);
