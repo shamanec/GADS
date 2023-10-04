@@ -46,7 +46,7 @@ func (client *LogsWSClient) sendLiveLogs() {
 			err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to get db cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 			if err != nil {
 				client.Conn.Close()
-				return
+				break
 			}
 			continue
 		}
@@ -56,7 +56,7 @@ func (client *LogsWSClient) sendLiveLogs() {
 			err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to get read documents from cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 			if err != nil {
 				client.Conn.Close()
-				return
+				break
 			}
 		}
 
@@ -74,12 +74,13 @@ func (client *LogsWSClient) sendLiveLogs() {
 				err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to get marshal documents from cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 				if err != nil {
 					client.Conn.Close()
-					return
+					break
 				}
 			}
 			err = client.Conn.WriteMessage(1, jsonData)
 			if err != nil {
 				client.Conn.Close()
+				break
 			}
 		}
 		time.Sleep(2 * time.Second)
@@ -89,7 +90,7 @@ func (client *LogsWSClient) sendLiveLogs() {
 func (client *LogsWSClient) sendLogsInitial(limit int) {
 	var logs []map[string]interface{}
 
-	collection := MongoClient().Database("logs").Collection(strings.ToLower(client.CollectionName))
+	collection := MongoClient().Database("logs").Collection(client.CollectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 	findOptions.SetLimit(int64(limit))
@@ -158,6 +159,7 @@ func (client *LogsWSClient) keepAlive() {
 		time.Sleep(10 * time.Second)
 		err := client.Conn.WriteMessage(websocket.PingMessage, nil)
 		if err != nil {
+			fmt.Println("Closing connection")
 			client.Conn.Close()
 			break
 		}

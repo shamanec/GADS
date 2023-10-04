@@ -513,13 +513,11 @@
         let logsSocket = new WebSocket("ws://" + hostname + ":" + port + "/logs-ws?collection={{.Device.UDID}}")
         logsSocket.onmessage = function (event) {
             var json = JSON.parse(event.data)
-            console.log(json)
             createLogsTable(json)
         };
     }
 
     function createLogsTable(json) {
-        console.log(json)
         var table = document.getElementById("logs-table-body");
 
         for (let i=0;i < json.length;i++) {

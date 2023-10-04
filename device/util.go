@@ -40,8 +40,6 @@ func GetLatestDBDevices() {
 
 		cursor.Close(util.MongoCtx())
 
-		fmt.Println(latestDevices)
-
 		time.Sleep(1 * time.Second)
 	}
 }
