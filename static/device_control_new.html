@@ -196,6 +196,7 @@
         width: 100%;
         display: flex;
         flex-direction: column;
+        height: 80%;
     }
 
     /*
@@ -225,17 +226,13 @@
         background: #ffc491;
         text-align: center;
         box-shadow: 0px 0px 0 1px #000000;
-    }
-
-    thead tr th {
         position: sticky;
+        top: 0;
     }
 
     #logs-table {
-        height: 800px;
-        overflow: scroll;
+        overflow-y: auto;
         max-width: 100%;
-        table-layout: fixed;
         border: 1px solid #000;
         text-align: center;
     }
@@ -455,6 +452,7 @@
                 <tbody id="logs-table-body">
                 </tbody>
             </table>
+
         </div>
 
     </div>
