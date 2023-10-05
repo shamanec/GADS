@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,20 +29,15 @@ type LogsWSClient struct {
 func (client *LogsWSClient) sendLiveLogs() {
 	// Access the database and collection
 	collection := MongoClient().Database("logs").Collection(client.CollectionName)
-	lastPollTimestamp := time.Now().UnixMilli()
+	lastPolledDocTS := time.Now().UnixMilli()
 
 	for {
 		// Query for documents created or modified after the last poll
-		fmt.Printf("Getting logs after - %v\n", lastPollTimestamp)
-		filter := bson.D{{Key: "timestamp", Value: bson.D{{Key: "$gt", Value: lastPollTimestamp}}}}
+		filter := bson.D{{Key: "timestamp", Value: bson.D{{Key: "$gt", Value: lastPolledDocTS}}}}
 
 		// Sort the documents based on the timestamp field
 		findOptions := options.Find()
-		if client.CollectionName == "gads-ui" || strings.Contains(client.CollectionName, ".") {
-			findOptions.SetSort(bson.D{{Key: "timestamp", Value: 1}})
-		} else {
-			findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
-		}
+		findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 
 		cursor, err := collection.Find(context.Background(), filter, findOptions)
 		if err != nil {
@@ -64,18 +58,10 @@ func (client *LogsWSClient) sendLiveLogs() {
 			}
 		}
 
-		fmt.Println(documents)
-
 		// Update the last poll timestamp
 		if len(documents) > 0 {
-			var lastDocument map[string]interface{}
-			if client.CollectionName == "gads-ui" || strings.Contains(client.CollectionName, ".") {
-				lastDocument = documents[len(documents)-1]
-			} else {
-				lastDocument = documents[0]
-			}
-
-			lastPollTimestamp = lastDocument["timestamp"].(int64)
+			lastDocument := documents[0]
+			lastPolledDocTS = lastDocument["timestamp"].(int64)
 
 			// Close the cursor
 			cursor.Close(context.Background())

@@ -71,9 +71,10 @@
         <a class="active" href="logs">Logs</a>
         <a href="devices">Device Control</a>
     </div>
-   
+
     <button class="log-selection provider-buttons" value="gads-ui" style="margin-bottom: 10px;">GADS-UI</button>
-    <button class="log-selection provider-buttons" value="192.168.1.13" style="margin-bottom: 10px;">192.168.1.13</button>
+    <button class="log-selection provider-buttons" value="192.168.1.13"
+        style="margin-bottom: 10px;">192.168.1.13</button>
     <table id="logs-table">
         <thead>
             <tr>
@@ -88,6 +89,7 @@
     </table>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
 </body>
 
 <script>
@@ -151,11 +153,11 @@
         console.log(json)
         var table = document.getElementById("logs-table-body");
 
-        for (let i=json.length-1;i>=0;i--) {
+        for (let i = json.length - 1; i >= 0; i--) {
             if (json[i].message == "") {
                 continue
             }
-            
+
             var tr = document.createElement('tr');
             tr.id = "table-row"
 
@@ -164,7 +166,12 @@
             var td4 = document.createElement('td');
             var td5 = document.createElement('td');
 
-            var timestamp = document.createTextNode(json[i].timestamp);
+            const date = moment(json[i].timestamp);
+
+            // Format the date as per your desired format
+            const formattedDate = date.format("DD-MM-YYYY HH:mm:ss.SSS");
+
+            var timestamp = document.createTextNode(formattedDate);
             var level = document.createTextNode(json[i].level);
             var event = document.createTextNode(json[i].eventname);
             var message = document.createTextNode(json[i].message);
