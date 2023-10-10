@@ -30,8 +30,11 @@ func (client *LogsWSClient) sendLiveLogs() {
 	// Access the database and collection
 	collection := MongoClient().Database("logs").Collection(client.CollectionName)
 	lastPolledDocTS := time.Now().UnixMilli()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
 	for {
+		<-ticker.C
 		// Query for documents created or modified after the last poll
 		filter := bson.D{{Key: "timestamp", Value: bson.D{{Key: "$gt", Value: lastPolledDocTS}}}}
 
@@ -60,6 +63,7 @@ func (client *LogsWSClient) sendLiveLogs() {
 
 		// Update the last poll timestamp
 		if len(documents) > 0 {
+			// The documents come in descending order so the first one is essentially the latest one logged in the DB
 			lastDocument := documents[0]
 			lastPolledDocTS = lastDocument["timestamp"].(int64)
 
@@ -81,7 +85,6 @@ func (client *LogsWSClient) sendLiveLogs() {
 				break
 			}
 		}
-		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -152,12 +155,13 @@ func LogsWS(c *gin.Context) {
 
 // Periodically ping the websocket client to keep the connection alive if no messages are sent
 func (client *LogsWSClient) keepAlive() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
 	for {
-		// Send a ping message every 10 seconds
-		time.Sleep(10 * time.Second)
+		<-ticker.C
 		err := client.Conn.WriteMessage(websocket.PingMessage, nil)
 		if err != nil {
-			fmt.Println("Closing connection")
 			client.Conn.Close()
 			break
 		}

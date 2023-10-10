@@ -26,7 +26,7 @@ func InitMongo() {
 	clientOptions := options.Client().ApplyURI(connectionString)
 	mongoClient, err = mongo.Connect(mongoClientCtx, clientOptions)
 	if err != nil {
-		panic(fmt.Sprintf("Could not perform connect to Mongo server at `%s` - %s", connectionString, err))
+		panic(fmt.Sprintf("Could not new client for Mongo server at `%s` - %s", connectionString, err))
 	}
 
 	// Ping the client to see if the connection is alive

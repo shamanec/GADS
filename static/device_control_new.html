@@ -94,7 +94,6 @@
         height: 900;
         overflow: scroll;
         border: 1px solid #000;
-        margin-left: 10px;
         text-align: center;
     }
 
@@ -186,6 +185,7 @@
         padding: 10px 20px;
         background-color: #f2f2f2;
         border-radius: 5px;
+        margin-right: 10px;
     }
 
     .tab-content {
@@ -482,6 +482,10 @@
         getAppSource()
     })
 
+    var iosStreamSocket = null
+    var androidStreamSocket = null
+    var logsSocket = null
+
     setIosStream()
     setAndroidStream()
     getLogs()
@@ -506,11 +510,8 @@
 
     function setIosStream() {
         if (device_os == 'ios') {
-            // Connect to the android device streaming websocket
-            let iosStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/ios-stream")
-            // Set the type of the socket, did not work otherwise
-            // iosStreamSocket.binaryType = 'arraybuffer'
-
+            // Connect to the ios device streaming websocket
+            iosStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/ios-stream")
             let imgElement = document.getElementById('image-stream')
             iosStreamSocket.onmessage = function (event) {
                 const imageURL = URL.createObjectURL(event.data);
@@ -526,7 +527,7 @@
     function setAndroidStream() {
         if (device_os == 'android') {
             // Connect to the android device streaming websocket
-            let androidStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/android-stream")
+            androidStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/android-stream")
             // Set the type of the socket, did not work otherwise
             androidStreamSocket.binaryType = 'arraybuffer'
 
@@ -562,7 +563,7 @@
     }
 
     function getLogs() {
-        let logsSocket = new WebSocket("ws://" + hostname + ":" + port + "/logs-ws?collection={{.Device.UDID}}")
+        logsSocket = new WebSocket("ws://" + hostname + ":" + port + "/logs-ws?collection={{.Device.UDID}}")
         logsSocket.onmessage = function (event) {
             var json = JSON.parse(event.data)
             createLogsTable(json)
@@ -573,7 +574,6 @@
         var table = document.getElementById("logs-table-body");
 
         for (let i = json.length - 1; i >= 0; i--) {
-            console.log(i)
             if (json[i].message == "") {
                 continue
             }
@@ -621,6 +621,22 @@
         }
     }
 
+    document.getElementById("back-to-devices").addEventListener('click', () => {
+        if (iosStreamSocket != null) {
+            console.log('closing stream')
+            iosStreamSocket.close()
+        }
+
+        if (androidStreamSocket != null) {
+            androidStreamSocket.close()
+        }
+
+        if (logsSocket != null) {
+            console.log('closing logs')
+            logsSocket.close()
+        }
+    })
+
     document.getElementById("home-screen").addEventListener('click', () => {
         let url = domain + "/device/{{.Device.UDID}}/home"
         fetch(url, {
@@ -661,8 +677,6 @@
         })
             .then(response => response.json())
             .then(screenshotJson => {
-                // Then create a local URL for that image and print it 
-
                 var imageBase64String = screenshotJson.value
                 const image = document.getElementById('screenshot-image')
                 image.src = "data:image/png;base64," + imageBase64String
