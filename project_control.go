@@ -16,6 +16,8 @@ import (
 
 func GetLogsPage(c *gin.Context) {
 	var logs_page = template.Must(template.ParseFiles("static/project_logs.html"))
+	util.ConfigData.Providers = util.GetProvidersFromDB()
+
 	err := logs_page.Execute(c.Writer, util.ConfigData)
 	if err != nil {
 		log.WithFields(log.Fields{

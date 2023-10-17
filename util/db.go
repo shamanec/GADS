@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -58,4 +59,38 @@ func checkDBConnection() {
 		}
 		time.Sleep(2 * time.Second)
 	}
+}
+
+type ProviderData struct {
+	Name        string `json:"name" bson:"_id"`
+	Devices     int    `json:"devices" bson:"devices_in_config"`
+	HostAddress string `json:"host_address" bson:"host_address"`
+}
+
+func GetProvidersFromDB() []ProviderData {
+	var providers []ProviderData
+
+	collection := MongoClient().Database("gads").Collection("providers")
+	cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
+	}
+
+	if err := cursor.All(MongoCtx(), &providers); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
+	}
+
+	cursor.Close(MongoCtx())
+
+	return providers
 }

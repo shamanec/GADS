@@ -23,7 +23,7 @@ type Device struct {
 	ScreenSize           string `json:"screen_size" bson:"screen_size"`
 	Model                string `json:"model" bson:"model"`
 	Image                string `json:"image,omitempty" bson:"image,omitempty"`
-	Host                 string `json:"host" bson:"host"`
+	HostAddress          string `json:"host_address" bson:"host_address"`
 }
 
 var netClient = &http.Client{
@@ -52,7 +52,7 @@ func GetDevicePage(c *gin.Context) {
 	}
 
 	// Create the device health URL
-	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.Host, device.UDID)
+	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.HostAddress, device.UDID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
