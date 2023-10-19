@@ -207,7 +207,7 @@ func generateDeviceSelectionHTML() []byte {
 func isHealthy(timestamp int64) bool {
 	currentTime := time.Now().UnixMilli()
 	diff := currentTime - timestamp
-	if diff > 2000 {
+	if diff > 5000 {
 		return false
 	}
 
