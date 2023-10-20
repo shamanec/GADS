@@ -19,7 +19,6 @@ var mongoClientCtx context.Context
 func InitMongo() {
 	var err error
 	connectionString := "mongodb://" + ConfigData.MongoDB
-
 	// Set up a context for the connection.
 	mongoClientCtx = context.Background()
 
@@ -49,15 +48,20 @@ func MongoCtx() context.Context {
 
 // Periodically check the MongoDB connection and attempt to create a new client if connection is lost
 func checkDBConnection() {
-	log.Info("Starting to periodically check MongoDB connection, will attempt to re-establish if it is lost!")
+	log.Info("Starting to periodically check MongoDB connection!")
+	errorCounter := 0
 	for {
-		err := mongoClient.Ping(mongoClientCtx, nil)
-		if err != nil {
-			log.Error(fmt.Sprintf("Lost connection to MongoDB server, attempting to create a new client - %s", err))
-			InitMongo()
-			break
+		if errorCounter < 10 {
+			time.Sleep(2 * time.Second)
+			err := mongoClient.Ping(mongoClientCtx, nil)
+			if err != nil {
+				log.Error(fmt.Sprintf("Lost connection to MongoDB server - %s", err))
+				errorCounter++
+				continue
+			}
+		} else {
+			panic("Connection to MongoDB server was lost for more than 20 seconds!")
 		}
-		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -90,7 +94,7 @@ func GetProvidersFromDB() []ProviderData {
 		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
 	}
 
-	cursor.Close(MongoCtx())
+	cursor.Close(context.TODO())
 
 	return providers
 }

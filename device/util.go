@@ -26,7 +26,7 @@ func GetLatestDBDevices() {
 			}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
 		}
 
-		if err := cursor.All(util.MongoCtx(), &latestDevices); err != nil {
+		if err := cursor.All(context.Background(), &latestDevices); err != nil {
 			log.WithFields(log.Fields{
 				"event": "get_db_devices",
 			}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
@@ -38,7 +38,7 @@ func GetLatestDBDevices() {
 			}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
 		}
 
-		cursor.Close(util.MongoCtx())
+		cursor.Close(context.TODO())
 
 		time.Sleep(1 * time.Second)
 	}
