@@ -3,38 +3,32 @@ package device
 import (
 	"GADS/util"
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"html/template"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	log "github.com/sirupsen/logrus"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins
-	},
-}
-var clients = make(map[*websocket.Conn]bool)
-var clients2 = make(map[*websocket.Conn]bool)
+var clients = make(map[net.Conn]bool)
+var clients2 = make(map[net.Conn]bool)
 var broadcast = make(chan []byte)
 
 func AvailableDeviceWS(c *gin.Context) {
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "devices_ws",
-		}).Error("Could not upgrade ws connection: " + err.Error())
-		return
+		fmt.Println(err)
 	}
 
 	html_message := generateDeviceSelectionHTML()
-	err = conn.WriteMessage(1, html_message)
+	err = wsutil.WriteServerText(conn, html_message)
 	if err != nil {
 		conn.Close()
 		return
@@ -45,15 +39,13 @@ func AvailableDeviceWS(c *gin.Context) {
 }
 
 func AvailableDeviceWS2(c *gin.Context) {
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "devices_ws",
-		}).Error("Could not upgrade ws connection: " + err.Error())
-		return
+		fmt.Println(err)
 	}
+	jsonData, _ := json.Marshal(&latestDevices)
 
-	err = conn.WriteJSON(&latestDevices)
+	err = wsutil.WriteServerText(conn, jsonData)
 	if err != nil {
 		conn.Close()
 		return
@@ -70,7 +62,7 @@ func keepAlive() {
 
 		// Loop through the clients and send the message to each of them
 		for client := range clients {
-			err := client.WriteMessage(websocket.PingMessage, nil)
+			err := wsutil.WriteClientMessage(client, ws.OpPing, nil)
 			if err != nil {
 				client.Close()
 				delete(clients, client)
@@ -86,7 +78,7 @@ func keepAlive2() {
 
 		// Loop through the clients and send the message to each of them
 		for client := range clients2 {
-			err := client.WriteMessage(websocket.PingMessage, nil)
+			err := wsutil.WriteClientMessage(client, ws.OpPing, nil)
 			if err != nil {
 				client.Close()
 				delete(clients, client)
@@ -99,8 +91,10 @@ func GetDevices2() {
 	go keepAlive2()
 
 	for {
+		jsonData, _ := json.Marshal(&latestDevices)
+
 		for client := range clients2 {
-			err := client.WriteJSON(&latestDevices)
+			err := wsutil.WriteClientBinary(client, jsonData)
 			if err != nil {
 				client.Close()
 				delete(clients2, client)
@@ -158,7 +152,7 @@ func GetDevices() {
 		// If there is no actual change
 		if !bytes.Equal(htmlMessage, lastHtmlMessage) {
 			for client := range clients {
-				err := client.WriteMessage(1, htmlMessage)
+				err := wsutil.WriteClientBinary(client, htmlMessage)
 				if err != nil {
 					client.Close()
 					delete(clients, client)

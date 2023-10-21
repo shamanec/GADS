@@ -133,10 +133,17 @@
 
     window.addEventListener('beforeunload', () => {
         console.log("Closing WS")
+        logsSocket.onclose = function () { }
         logsSocket.close();
     });
 
     function getLogs(url) {
+
+        if (logsSocket != null) {
+            logsSocket.onclose = function () { }
+            console.log("Closing WS")
+            logsSocket.close()
+        }
 
         // Get the hostname and port from the browser
         const hostname = window.location.hostname;
