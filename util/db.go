@@ -14,13 +14,14 @@ import (
 
 var mongoClient *mongo.Client
 var mongoClientCtx context.Context
+var mongoClientCtxCancel context.CancelFunc
 
 // Create a new MongoDB Client to reuse for writing/reading from MongoDB
 func InitMongo() {
 	var err error
 	connectionString := "mongodb://" + ConfigData.MongoDB
 	// Set up a context for the connection.
-	mongoClientCtx = context.Background()
+	mongoClientCtx, mongoClientCtxCancel = context.WithCancel(context.Background())
 
 	// Create a MongoDB client with options
 	// serverAPI := options.ServerAPI(options.ServerAPIVersion1)
@@ -45,6 +46,10 @@ func MongoClient() *mongo.Client {
 
 func MongoClientCtx() context.Context {
 	return mongoClientCtx
+}
+
+func MongoClientCtxCancel() context.CancelFunc {
+	return mongoClientCtxCancel
 }
 
 // Periodically check the MongoDB connection and attempt to create a new client if connection is lost

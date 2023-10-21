@@ -33,7 +33,7 @@ func (client *LogsWSClient) sendLiveLogs() {
 	collection := mongoClient.Database("logs").Collection(client.CollectionName)
 
 	lastPolledDocTS := time.Now().UnixMilli()
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	defer fmt.Println("STOP SENDING LIVE LOGS")
 

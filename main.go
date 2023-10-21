@@ -72,6 +72,8 @@ func main() {
 	go device.GetDevices()
 	go device.GetDevices2()
 
+	defer util.MongoClientCtxCancel()
+
 	setLogging()
 	handleRequests()
 }
