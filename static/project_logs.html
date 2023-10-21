@@ -129,8 +129,15 @@
             })
     }
 
+    let logsSocket = null
+
+    window.addEventListener('beforeunload', () => {
+        console.log("Closing WS")
+        logsSocket.close();
+    });
+
     function getLogs(url) {
-        let logsSocket = null
+
         // Get the hostname and port from the browser
         const hostname = window.location.hostname;
         const port = window.location.port;

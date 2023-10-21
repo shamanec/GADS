@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,7 @@ var (
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
+	mu sync.Mutex
 )
 
 type LogsWSClient struct {
@@ -27,8 +29,11 @@ type LogsWSClient struct {
 }
 
 func (client *LogsWSClient) sendLiveLogs() {
-	// Access the database and collection
-	collection := MongoClient().Database("logs").Collection(client.CollectionName)
+	ctx, cancel := context.WithCancel(mongoClientCtx)
+	defer cancel()
+
+	collection := mongoClient.Database("logs").Collection(client.CollectionName)
+
 	lastPolledDocTS := time.Now().UnixMilli()
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -42,22 +47,26 @@ func (client *LogsWSClient) sendLiveLogs() {
 		findOptions := options.Find()
 		findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 
-		cursor, err := collection.Find(context.Background(), filter, findOptions)
+		cursor, err := collection.Find(ctx, filter, findOptions)
 		if err != nil {
+			mu.Lock()
+			defer mu.Unlock()
 			err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to get db cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 			if err != nil {
 				client.Conn.Close()
-				break
+				return
 			}
 			continue
 		}
 
 		var documents []map[string]interface{}
-		if err := cursor.All(context.Background(), &documents); err != nil {
+		if err := cursor.All(ctx, &documents); err != nil {
+			mu.Lock()
+			defer mu.Unlock()
 			err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to get read documents from cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 			if err != nil {
 				client.Conn.Close()
-				break
+				return
 			}
 		}
 
@@ -67,48 +76,49 @@ func (client *LogsWSClient) sendLiveLogs() {
 			lastDocument := documents[0]
 			lastPolledDocTS = lastDocument["timestamp"].(int64)
 
-			// Close the cursor
-			cursor.Close(context.Background())
-
 			// Sleep for a while before the next poll
 			jsonData, err := json.Marshal(documents)
 			if err != nil {
 				err = client.Conn.WriteMessage(1, []byte(fmt.Sprintf("Failed to get marshal documents from cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 				if err != nil {
 					client.Conn.Close()
-					break
+					return
 				}
 			}
+			mu.Lock()
+			defer mu.Unlock()
 			err = client.Conn.WriteMessage(1, jsonData)
 			if err != nil {
 				client.Conn.Close()
-				break
+				return
 			}
 		}
 	}
 }
 
 func (client *LogsWSClient) sendLogsInitial(limit int) {
+	ctx, cancel := context.WithCancel(mongoClientCtx)
+	defer cancel()
+
 	var logs []map[string]interface{}
 
-	collection := MongoClient().Database("logs").Collection(client.CollectionName)
+	collection := mongoClient.Database("logs").Collection(client.CollectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 	findOptions.SetLimit(int64(limit))
 
-	cursor, err := collection.Find(MongoCtx(), bson.D{{}}, findOptions)
+	cursor, err := collection.Find(ctx, bson.D{{}}, findOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer cursor.Close(ctx)
 
-	if err := cursor.All(MongoCtx(), &logs); err != nil {
+	if err := cursor.All(ctx, &logs); err != nil {
 		log.Fatal(err)
 	}
 	if err := cursor.Err(); err != nil {
 		log.Fatal(err)
 	}
-
-	cursor.Close(MongoCtx())
 
 	jsonData, err := json.Marshal(logs)
 	if err != nil {
@@ -119,6 +129,8 @@ func (client *LogsWSClient) sendLogsInitial(limit int) {
 		}
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
 	err = client.Conn.WriteMessage(1, jsonData)
 	if err != nil {
 		client.Conn.Close()
@@ -126,6 +138,7 @@ func (client *LogsWSClient) sendLogsInitial(limit int) {
 }
 
 func LogsWS(c *gin.Context) {
+	fmt.Println("ESTABLISHING WS")
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		fmt.Println(err)
@@ -162,6 +175,7 @@ func (client *LogsWSClient) keepAlive() {
 		<-ticker.C
 		err := client.Conn.WriteMessage(websocket.PingMessage, nil)
 		if err != nil {
+			fmt.Printf("CLOSING WS - %v\n", time.Now().UnixMilli())
 			client.Conn.Close()
 			break
 		}

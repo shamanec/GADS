@@ -22,7 +22,8 @@ func InitMongo() {
 	// Set up a context for the connection.
 	mongoClientCtx = context.Background()
 
-	// Create a MongoDB client with options.
+	// Create a MongoDB client with options
+	// serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	clientOptions := options.Client().ApplyURI(connectionString)
 	mongoClient, err = mongo.Connect(mongoClientCtx, clientOptions)
 	if err != nil {
@@ -42,7 +43,7 @@ func MongoClient() *mongo.Client {
 	return mongoClient
 }
 
-func MongoCtx() context.Context {
+func MongoClientCtx() context.Context {
 	return mongoClientCtx
 }
 
@@ -55,11 +56,16 @@ func checkDBConnection() {
 			time.Sleep(2 * time.Second)
 			err := mongoClient.Ping(mongoClientCtx, nil)
 			if err != nil {
-				log.Error(fmt.Sprintf("Lost connection to MongoDB server - %s", err))
+				log.WithFields(log.Fields{
+					"event": "check_db_connection",
+				}).Error(fmt.Sprintf("No connection to MongoDB server - %s", err))
 				errorCounter++
 				continue
 			}
 		} else {
+			log.WithFields(log.Fields{
+				"event": "check_db_connection",
+			}).Error("Connection to MongoDB server was lost for more than 20 seconds!")
 			panic("Connection to MongoDB server was lost for more than 20 seconds!")
 		}
 	}
@@ -73,16 +79,19 @@ type ProviderData struct {
 
 func GetProvidersFromDB() []ProviderData {
 	var providers []ProviderData
+	ctx, cancel := context.WithTimeout(mongoClientCtx, 10*time.Second)
+	defer cancel()
 
-	collection := MongoClient().Database("gads").Collection("providers")
-	cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
+	collection := mongoClient.Database("gads").Collection("providers")
+	cursor, err := collection.Find(ctx, bson.D{{}}, options.Find())
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "get_db_devices",
 		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
 	}
+	defer cursor.Close(ctx)
 
-	if err := cursor.All(MongoCtx(), &providers); err != nil {
+	if err := cursor.All(ctx, &providers); err != nil {
 		log.WithFields(log.Fields{
 			"event": "get_db_devices",
 		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
@@ -93,8 +102,6 @@ func GetProvidersFromDB() []ProviderData {
 			"event": "get_db_devices",
 		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
 	}
-
-	cursor.Close(context.TODO())
 
 	return providers
 }
