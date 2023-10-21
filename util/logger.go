@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,10 +14,6 @@ import (
 	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-)
-
-var (
-	mu sync.Mutex
 )
 
 type LogsWSClient struct {
