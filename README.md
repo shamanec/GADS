@@ -66,7 +66,8 @@ The `pages/api` directory is mapped to `/api/*`. Files in this directory are tre
     - basic remote control:
         - ❌ tap;
         - ❌ swipe.
-    - ❌ basic Appium inspector (Just for android)
+    - ❌ basic Appium inspector (Just for android).
+4. ✅ Open the device in a new window (For automated tests);
 
 ## Environment variables
 
