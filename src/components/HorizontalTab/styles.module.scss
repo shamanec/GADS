@@ -1,0 +1,52 @@
+.horizontalContainer {
+    height: 3rem;
+    border-bottom: 1px solid var(--gray-155);
+}
+
+.horizontalHeader {
+    height: 3rem;
+    margin: 0 auto;
+
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+
+    button {
+        background: none;
+        border: none;
+
+        display: inline-block;
+        position: relative;
+        padding: 0 0.5rem;
+        height: 3rem;
+        line-height: 3rem;
+        font-weight: 500;
+        color: var(--gray-500);
+        border-radius: 6px;
+
+        transition: 0.2s;
+
+        &.active {
+            color: var(--green-600);
+            transition: color 0.3s ease;
+        }
+
+        &.active::after {
+            content: '';
+            margin-bottom: -1.5px;
+            height: 3px;
+            width: 100%;
+            position: absolute;
+            bottom: 1px;
+            left: 0;
+            background: var(--green-600);
+            transition: background-color 0.2s ease;
+        }
+
+        &:hover {
+            transition: filter .2s;
+            filter: brightness(0.8);
+        }
+    }
+}

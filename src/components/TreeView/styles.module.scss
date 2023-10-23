@@ -1,0 +1,38 @@
+.nodeItemContainer {
+    width: inherit;
+
+    display: flex;
+    flex-direction: column;
+
+    .nodeItem {
+        width: inherit;
+
+        display: flex;
+        flex-direction: row;
+
+        align-items: center;
+        justify-content: flex-start;
+
+        gap: 16px;
+
+        padding: 16px 24px;
+
+        cursor: pointer;
+
+        &:hover {
+            transition: filter .2s;
+            filter: brightness(0.95);
+        }
+    }
+
+    hr {
+        width: 100%;
+
+        border: none;
+        border-bottom: 1px solid var(--gray-120);
+    }
+
+    &.selected {
+        background: var(--blue-150);
+    }
+}

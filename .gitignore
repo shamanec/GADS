@@ -1,15 +1,4 @@
-WebDriverAgent
-logs/*
-build-context.tar
-apps/*
-ca-cert.pem
-ca-key.pem
-configs/supervision.p12
-minicap/*
-gads-project.log
-GADS
-gads-ui/*
+node_modules
+.next
 
-minicap-commands-ran.zip
-
-.vscode/launch.json
+.env.local

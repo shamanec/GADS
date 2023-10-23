@@ -1,0 +1,85 @@
+.headerContainer {
+    height: 5rem;
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-120);
+}
+
+.headerContent {
+    max-width: 1240px;
+    height: 5rem;
+    margin: 0 auto;
+    padding: 0 2rem;
+
+    display: flex;
+    align-items: center;
+
+    nav {
+        margin-left: 5rem;
+        height: 5rem;
+
+        display: flex;
+        align-items: center;
+
+        a {
+            display: inline-block;
+            position: relative;
+            padding: 0 0.5rem;
+            height: 3rem;
+            line-height: 3rem;
+            font-weight: 500;
+            color: var(--gray-500);
+            border-radius: 6px;
+
+            transition: 0.2s;
+
+            & + a {
+                margin-left: 2rem;
+            }
+
+            &:hover {
+                color: var(--gray-900);
+            }
+
+            &.active {
+                color: var(--gray-700);
+                background: var(--gray-100);
+            }
+        }
+    }
+
+    div {
+        margin-left: auto;
+
+        display: flex;
+        flex-direction: row;
+
+        align-items: center;
+
+        gap: 12px;
+
+        svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .githubButton {
+            display: flex;
+            flex-direction: row;
+
+            align-items: center;
+            justify-content: center;
+
+            gap: 4px;
+
+            padding: 10px 14px;
+            border-radius: 8px;
+
+            border: 1px solid var(--gray-175);
+
+            &:hover {
+                transition: filter .2s;
+                filter: brightness(0.8);
+            }
+        }
+    }
+}

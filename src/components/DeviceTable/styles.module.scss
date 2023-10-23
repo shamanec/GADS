@@ -1,0 +1,257 @@
+.tableContainer {
+    display: flex;
+    flex-direction: column;
+
+    width: 100%;
+    height: max-content;
+
+    background: var(--white);
+    border: 1px solid var(--gray-120);
+
+    border-radius: 8px;
+
+    box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+
+    .cardHeader {
+        display: flex;
+        flex-direction: row;
+
+        align-items: center;
+        justify-content: space-between;
+
+        background: var(--white);
+        padding: 20px 24px;
+
+        border-bottom: 1px solid var(--gray-120);
+        border-radius: 8px 8px 0 0;
+
+        span {
+            font-size: 18px;
+            font-weight: 500;
+
+            color: var(--gray-900);
+        }
+
+        button {
+            background: none;
+            border: none;
+
+            outline: 0;
+
+            svg {
+                width: 24px;
+            }
+
+            &:hover {
+                filter: brightness(0.7);
+                transition: filter .2s;
+            }
+        }
+    }
+
+    .table {
+        border-collapse: collapse;
+        width: 100%;
+
+        thead {
+            background: var(--gray-100);
+            color: var(--gray-500);
+
+            font-size: 12px;
+
+            tr {
+                th {
+                    font-weight: 500;
+                }
+            }
+
+            th, td {
+                text-align: left;
+                padding: 10px 24px;
+
+                border-bottom: 1px solid var(--gray-120);
+            }
+        }
+
+        tbody {
+            tr {
+                td {
+                    color: var(--gray-500);
+                    padding: 16px 24px;
+
+                    .tableCellContainer {
+                        display: flex;
+                        flex-direction: row;
+
+                        gap: 12px;
+
+                        .deviceImage {
+                            background: var(--green-600);
+
+                            width: 50px;
+                            height: 50px;
+
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+
+                            border-radius: 50%;
+
+                            img {
+                                width: 24px;
+                            }
+                        }
+
+                        .deviceInfo {
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+
+                            gap: 4px;
+
+                            h2 {
+                                font-size: 14px;
+                                font-weight: 500;
+
+                                color: var(--gray-900);
+                            }
+    
+                            span {
+                                font-weight: 400;
+                                color: var(--gray-500);
+                            }
+                        }
+                    }
+
+                    .deviceStatus {
+                        font-size: 12px;
+                        font-weight: 500;
+
+                        padding: 2px 8px;
+
+                        border-radius: 16px;
+                        background: var(--gray-175);
+
+                        &.available {
+                            background: var(--green-100);
+                            color: var(--green-700);
+                        }
+
+                        &.unavailable {
+                            background: var(--red-100);
+                            color: var(--red-700);
+                        }
+                    }
+
+                    .actionButtons {
+                        display: flex;
+                        flex-direction: row;
+
+                        align-items: center;
+
+                        gap: 12px;
+
+                        button {
+                            background: var(--white);
+                            border: 1px solid var(--gray-175);
+                            border-radius: 8px;
+
+                            outline: 0;
+
+                            display: flex;
+                            flex-direction: row;
+
+                            align-items: center;
+                            justify-content: center;
+
+                            gap: 8px;
+
+                            padding: 10px 16px;
+
+                            svg {
+                                width: 20px;
+                            }
+
+                            color: var(--gray-700);
+                            font-weight: 500;
+
+                            &:hover {
+                                transition: filter .2s;
+                                filter: brightness(0.9);
+                            }
+                        }
+
+                        a {
+                            font-weight: 600;
+
+                            &:hover {
+                                transition: .2s;
+                                color: var(--green-600);
+                            }
+                        }
+                    }
+                }
+
+                & + tr {
+                    border-top: 1px solid var(--gray-120);
+                }
+            }
+        }
+    }
+}
+
+.tableFooter {
+    display: flex;
+    flex-direction: row;
+
+    align-items: center;
+    gap: 8px;
+
+    padding: 16px 24px;
+
+    border-top: 1px solid var(--gray-120);
+
+    width: 100%;
+
+    .button {
+        background: var(--white);
+        border: 1px solid var(--gray-175);
+        border-radius: 8px;
+
+        outline: 0;
+
+        display: flex;
+        flex-direction: row;
+
+        align-items: center;
+        justify-content: center;
+
+        gap: 8px;
+
+        padding: 10px 16px;
+
+        svg {
+            width: 20px;
+        }
+
+        color: var(--gray-700);
+        font-weight: 500;
+
+        &.activeButton {
+            background: none;
+            border: none;
+        }
+
+        &:hover {
+            transition: filter .2s;
+            filter: brightness(0.9);
+        }
+    }
+
+    span {
+        color: var(--gray-700);
+        font-weight: 500;
+
+        margin-left: auto;
+    }
+}

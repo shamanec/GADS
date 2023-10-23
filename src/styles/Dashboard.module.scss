@@ -1,0 +1,632 @@
+.contentContainer {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 48px 2rem;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 32px;
+}
+
+.headerSection {
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    .headerContainer {
+        display: flex;
+        flex-direction: column;
+
+        gap: 24px;
+
+        .content {
+            display: flex;
+            flex-direction: column;
+
+            h2 {
+                font-weight: 600;
+                color: var(--gray-900);
+
+                font-size: 30px;
+                line-height: 38px;
+            }
+
+            span {
+                font-size: 16px;
+                line-height: 24px;
+                color: var(--gray-500);
+            }
+        }
+
+        .routerButton {
+            width: max-content;
+
+            background: var(--white);
+
+            border: 1px solid var(--gray-175);
+            border-radius: 8px;
+
+            display: flex;
+            flex-direction: row;
+
+            align-items: center;
+            justify-content: center;
+
+            gap: 12px;
+
+            padding: 10px 14px;
+
+            span {
+                font-size: 16px;
+                font-weight: 500;
+
+                color: var(--gray-700);
+            }
+
+            &:hover {
+                transition: filter .2s;
+                filter: brightness(0.9);
+            }
+        }
+    }
+}
+
+.mainSection {
+    display: flex;
+    flex-direction: column;
+
+    gap: 24px;
+
+    .searchAndFilters {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .deviceController {
+        width: 100%;
+        
+        display: flex;
+        flex-direction: row;
+
+        align-items: flex-start;
+        justify-content: stretch;
+
+        gap: 24px;
+
+        height: max-content;
+
+        .device {
+            display: flex;
+            flex-direction: row;
+
+            align-items: flex-start;
+            justify-content: center;
+
+            gap: 16px;
+
+            .actions {
+                display: flex;
+                flex-direction: column;
+
+                align-items: center;
+                justify-content: center;
+
+                border: 1px solid var(--gray-175);
+                border-radius: 8px;
+
+                button {
+                    position: relative;
+                    display: flex;
+                    flex-direction: column;
+
+                    align-items: center;
+                    justify-content: center;
+
+                    background: var(--white);
+                    border: none;
+
+                    padding: 10px 16px;
+
+                    img {
+                        width: 18px;
+                        height: 18px;
+                    }
+
+                    .tooltipText {
+                        visibility: hidden;
+                        position: absolute;
+                        width: max-content;
+                        background-color: var(--green-600);
+                        color: var(--white);
+                        text-align: left;
+                        padding: 10px 14px;
+                        border-radius: 6px;
+                        z-index: 1;
+                        opacity: 0;
+                        transition: opacity 0.3s;
+
+                        font-weight: 500;
+
+                        top: -5px;
+                        left: 125%;
+
+                        &::after {
+                            content: "";
+                            position: absolute;
+                            top: 50%;
+                            right: 100%;
+                            margin-top: -5px;
+                            border-width: 5px;
+                            border-style: solid;
+                            border-color: transparent var(--green-600) transparent transparent;
+                        }
+                    }
+
+                    &:hover {
+                        transition: filter .2s;
+                        filter: brightness(0.9);
+
+                        .tooltipText {
+                            visibility: visible;
+                            opacity: 1;
+                        }
+                    }
+
+                    &:first-child {
+                        border-radius: 8px 8px 0 0;
+                    }
+
+                    &:last-child {
+                        border-radius: 0 0 8px 8px;
+                    }
+                }
+            }
+        }
+
+        .verticalDivider {
+            width: 1px;
+            height: 639px;
+
+            background: var(--gray-175);
+        }
+
+        .controllers {
+            width: 100%;
+
+            .controllersBody {
+                width: 100%;
+
+                display: flex;
+                flex-direction: column;
+
+                align-items: center;
+                justify-content: center;
+
+                .rowContainer {
+                    width: inherit;
+
+                    display: flex;
+                    flex-direction: row;
+
+                    gap: 16px;
+
+                    .content {
+                        width: 100%;
+                        margin-top: 24px;
+
+                        display: flex;
+                        flex-direction: column;
+
+                        gap: 24px;
+
+                        .contentHeader {
+                            display: flex;
+                            flex-direction: row;
+
+                            width: 100%;
+
+                            align-items: center;
+                            justify-content: flex-start;
+
+                            gap: 8px;
+
+                            border-bottom: 1px solid var(--gray-120);
+                            padding: 10px 0;
+
+                            img {
+                                width: 20px;
+                                height: 20px;
+                            }
+
+                            h2 {
+                                font-size: 16px;
+                                font-weight: 500;
+
+                                color: var(--gray-900);
+                            }
+                        }
+
+                        .buttonGroup {
+                            align-self: center;
+                            
+                            width: max-content;
+                            display: flex;
+                            flex-direction: row;
+
+                            align-items: center;
+                            justify-content: center;
+
+                            border-radius: 8px;
+                            border: 1px solid var(--gray-175);
+
+                            button {
+                                background: var(--white);
+                                border: none;
+
+                                padding: 12px 7px;
+
+                                color: var(--gray-700);
+
+                                display: flex;
+                                flex-direction: row;
+
+                                align-items: center;
+                                justify-content: center;
+
+                                gap: 8px;
+
+                                &:hover {
+                                    filter: brightness(0.9);
+                                    transition: filter .2s;
+                                }
+
+                                &:first-child {
+                                    border-radius: 8px 0 0 8px;
+                                }
+
+                                &:last-child {
+                                    border-radius: 0 8px 8px 0;
+                                }
+                            }
+
+                            .divider {
+                                width: 1px;
+                                height: 30px;
+
+                                margin: 0;
+
+                                background: var(--gray-120);
+                            }
+                        }
+
+                        .tree {
+                            width: 400px;
+                            max-width: 400px;
+                            max-height: 600px;
+
+                            overflow: auto;
+
+                            display: flex;
+                            flex-direction: column;
+
+                            align-items: center;
+
+                            background: var(--white);
+
+                            span {
+                                color: var(--gray-700);
+                            }
+
+                            p {
+                                font-size: 14px;
+
+                                color: var(--gray-500);
+                                text-align: center;
+
+                                padding: 10px 24px;
+                            }
+                        }
+
+                        .infoContainer {
+                            flex: 1;
+
+                            width: inherit;
+
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+
+                                thead {
+                                    background: var(--gray-100);
+                                    color: var(--gray-500);
+
+                                    font-size: 12px;
+
+                                    tr {
+                                        th {
+                                            font-weight: 500;
+                                            text-align: left;
+                                        }
+                                    }
+
+                                    th, td {
+                                        text-align: left;
+                                        padding: 10px 24px;
+                        
+                                        border-bottom: 1px solid var(--gray-120);
+                                    }
+                                }
+
+                                tbody {
+                                    tr {
+                                        td {
+                                            color: var(--gray-500);
+                                            padding: 16px 24px;
+                        
+                                            .tableCellContainer {
+                                                display: flex;
+                                                flex-direction: row;
+                        
+                                                gap: 12px;
+                        
+                                                .deviceImage {
+                                                    background: var(--green-600);
+                        
+                                                    width: 50px;
+                                                    height: 50px;
+                        
+                                                    display: flex;
+                                                    align-items: center;
+                                                    justify-content: center;
+                        
+                                                    border-radius: 50%;
+                        
+                                                    img {
+                                                        width: 24px;
+                                                    }
+                                                }
+                        
+                                                .deviceInfo {
+                                                    display: flex;
+                                                    flex-direction: column;
+                                                    justify-content: center;
+                        
+                                                    gap: 4px;
+                        
+                                                    h2 {
+                                                        font-size: 14px;
+                                                        font-weight: 500;
+                        
+                                                        color: var(--gray-900);
+                                                    }
+                            
+                                                    span {
+                                                        font-weight: 400;
+                                                        color: var(--gray-500);
+                                                    }
+                                                }
+                                            }
+                        
+                                            .deviceStatus {
+                                                font-size: 12px;
+                                                font-weight: 500;
+                        
+                                                padding: 2px 8px;
+                        
+                                                border-radius: 16px;
+                                                background: var(--gray-175);
+                        
+                                                &.available {
+                                                    background: var(--green-100);
+                                                    color: var(--green-700);
+                                                }
+                        
+                                                &.unavailable {
+                                                    background: var(--red-100);
+                                                    color: var(--red-700);
+                                                }
+                                            }
+                        
+                                            .actionButtons {
+                                                display: flex;
+                                                flex-direction: row;
+                        
+                                                align-items: center;
+                        
+                                                gap: 12px;
+                        
+                                                button {
+                                                    background: var(--white);
+                                                    border: 1px solid var(--gray-175);
+                                                    border-radius: 8px;
+                        
+                                                    outline: 0;
+                        
+                                                    display: flex;
+                                                    flex-direction: row;
+                        
+                                                    align-items: center;
+                                                    justify-content: center;
+                        
+                                                    gap: 8px;
+                        
+                                                    padding: 10px 16px;
+                        
+                                                    svg {
+                                                        width: 20px;
+                                                    }
+                        
+                                                    color: var(--gray-700);
+                                                    font-weight: 500;
+                        
+                                                    &:hover {
+                                                        transition: filter .2s;
+                                                        filter: brightness(0.9);
+                                                    }
+                                                }
+                        
+                                                a {
+                                                    font-weight: 600;
+                        
+                                                    &:hover {
+                                                        transition: .2s;
+                                                        color: var(--green-600);
+                                                    }
+                                                }
+                                            }
+                                        }
+                        
+                                        & + tr {
+                                            border-top: 1px solid var(--gray-120);
+                                        }
+                                    }
+                                }
+                            }
+
+                            p {
+                                font-size: 14px;
+
+                                color: var(--gray-500);
+                                text-align: center;
+
+                                padding: 10px 24px;
+                            }
+                        }
+
+                        & + .content {
+                            flex: 1;
+                        }
+                    }
+
+                    .divider {
+                        margin-top: 24px;
+
+                        height: inherit;
+                        width: 2px;
+
+                        background: var(--gray-120);
+                    }
+                }
+            }
+        }
+    }
+}
+
+.searchbox {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    gap: 8px;
+
+    background: var(--white);
+    border: 1px solid var(--gray-175);
+    border-radius: 8px;
+
+    width: 400px;
+    padding: 10px 14px;
+
+    svg {
+        width: 20px;
+    }
+
+    input[type=text] {
+        border: none;
+        width: 100%;
+        height: 100%;
+
+        outline: 0;
+    }
+}
+
+.deviceTableOptions {
+    display: flex;
+    flex-direction: row;
+
+    border: 1px solid var(--gray-175);
+    border-radius: 8px;
+
+    width: max-content;
+
+    button {
+        display: flex;
+        flex-direction: row;
+
+        gap: 8px;
+
+        align-items: center;
+        justify-content: center;
+
+        white-space: nowrap;
+        width: 100%;
+        background: var(--white);
+        border: none;
+
+        padding: 12px 8px;
+        border-radius: 0;
+
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gray-700);
+
+        img {
+            width: 16px;
+        }
+
+        & + button {
+            border-left: 1px solid var(--gray-175);
+        }
+
+        &.active {
+            background: var(--gray-100);
+            color: var(--gray-900);
+        }
+
+        &:first-child {
+            border-radius: 8px 0 0 8px;
+        }
+
+        &:last-child {
+            border-radius: 0 8px 8px 0;
+        }
+
+        &:hover {
+            transition: .2s;
+            background: var(--gray-110);
+        }
+    }
+}
+
+.filterButton {
+    background: var(--white);
+    border: 1px solid var(--gray-175);
+    border-radius: 8px;
+
+    outline: 0;
+
+    display: flex;
+    flex-direction: row;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 8px;
+
+    padding: 10px 16px;
+
+    svg {
+        width: 20px;
+    }
+
+    color: var(--gray-700);
+    font-weight: 500;
+
+    &:hover {
+        transition: filter .2s;
+        filter: brightness(0.9);
+    }
+}

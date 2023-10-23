@@ -1,64 +1,74 @@
-## Introduction
+## Before Getting Started
 
-* GADS or Go Appium Docker Service is a web UI for [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) orchestration and remote control of devices.  
+First, install the project dependencies:
 
-## Features
-1. Provider logs for debugging  
-2. Devices remote control(most of which is wrapper around Appium)
-  * Android
-    - `minicap` video stream - default option
-    - `GADS-Android-stream` video stream - not as good as `minicap` but it is inhouse, can be used in case `minicap` fails for device    
-    - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
-    - basic remote control - tap, swipe  
-    - basic Appium inspector
-  * iOS
-    - `WDA mjpeg` video stream  
-    - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
-    - basic remote control - tap, swipe  
-    - basic Appium inspector  
+```bash
+npm install
+# or
+yarn add
+```
 
-3. TODO - simple provider container info and orchestration page  
-4. TODO - more functionality for remote control  
+This command will install all project dependencies.
 
-Developed and tested on Ubuntu 18.04 LTS  
-
-## Setup
-Currently the project assumes that GADS UI, RethinkDB and device providers are on the same network. They can all be on the same machine as well.  
-
-### Start RethinkDB instance
-The project uses RethinkDB for syncing devices info between providers and GADS UI.  
-1. Execute `docker run -d --restart always --name gads-rethink -p 32770:8080 -p 32771:28015 rethinkdb:2.4.2`. This will pull the official RethinkDB 2.4.2 image from Docker Hub and start a container binding ports `32770` for the RethinkDB dashboard and `32771` for db connection.  
-2. Open the RethinkDB dashboard on `http://localhost:32770/`  
-3. Go to `Tables` and create a new database named `gads`  
-4. Add a new table to `gads` database named `devices` with primary key `UDID` (you need to click `Show optional settings` for the primary key)  
-
-### Setup config.json
-1. Open the `config.json` file.  
-2. Change the `gads_host_address` value to the IP of the host machine.  
-3. Change the `gads_port` value to the port you wish to service to run on - default is 10000.  
-4. Change the `rethink_db` value to the IP address and port of the RethinkDB instance. Example: `192.168.1.2:32771`  
-
-### Start the GADS UI
-1. Execute `go build .`  in the main project folder  
-2. Execute `./GADS`  
-3. Access the UI on `http://{gads_host_address}:{gads_port}`
-
-### Start a provider instance
-This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provide the devices. Follow the setup steps in the linked repo to start a provider instance.
-
-## Thanks
+## Project dependencies
 
 | |About|
 |---|---|
-|[go-ios](https://github.com/danielpaulus/go-ios)|Many thanks for creating this tool to communicate with iOS devices on Linux, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode. Without it none of this would be possible|
-|[iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)|This is an app for OS X that can (re)sign apps and bundle them into ipa files that are ready to be installed on an iOS device.|
-|[minicap](https://github.com/DeviceFarmer/minicap)|Stream screen capture data out of Android devices|  
-|[Appium](https://github.com/appium)|It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!|  
+|[sass](https://www.npmjs.com/package/sass)|This package is a distribution of Dart Sass, compiled to pure JavaScript with no native code or external dependencies. It provides a command-line sass executable and a Node.js API.|
+|[rethinkdb](https://www.npmjs.com/package/rethinkdb)|This package is the officially supported driver for querying a RethinkDB database from a JavaScript application.|
+|[socket.io](https://www.npmjs.com/package/socket.io)|Socket.IO enables real-time bidirectional event-based communication.|  
+|[socket.io-client](https://github.com/socketio/socket.io-client)|Realtime application framework (client)|  
 
-## WIP demo video  
+## Getting Started
 
-https://user-images.githubusercontent.com/60219580/183677067-237c12d9-f06d-4b14-985c-17aedbb19ea6.mp4
+Start the development server:
 
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+```
 
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+
+[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+
+The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+
+## Features
+1. ❌ Provider logs for debugging  
+2. ✅ Devices remote control(most of which is wrapper around Appium)
+  * ✅ Android
+    - ✅ `GADS-Android-stream` video stream - not as good as `minicap` but it is inhouse, can be used in case `minicap` fails for device;
+    - basic device interaction:
+        - ✅ Home;
+        - ✅ Lock;
+        - ✅ Unlock;
+        - ❌ Type text (TODO);
+        - ❌ Clear text (TODO).
+    - basic remote control:
+        - ✅ tap;
+        - ✅ swipe.
+    - ✅ basic Appium inspector (Just for android)
+3. ❌ (Not tested yet) iOS remote control
+  * iOS
+    - `WDA mjpeg` video stream  
+    - basic device interaction:
+        - ❌ Home;
+        - ❌ Lock;
+        - ❌ Unlock;
+        - ❌ Type text (TODO);
+        - ❌ Clear text (TODO).
+    - basic remote control:
+        - ❌ tap;
+        - ❌ swipe.
+    - ❌ basic Appium inspector (Just for android)
+
+## Environment variables
+
+This project uses `.env` files to run the application, find the `.env.examples` to see how to setup your variables and create a new `.env.local` file.
 
