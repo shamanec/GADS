@@ -28,9 +28,8 @@ func (client *LogsWSClient) sendLiveLogs() {
 	collection := mongoClient.Database("logs").Collection(client.CollectionName)
 
 	lastPolledDocTS := time.Now().UnixMilli()
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	defer fmt.Println("STOP SENDING LIVE LOGS")
 
 	for {
 		<-ticker.C
@@ -168,12 +167,10 @@ func (client *LogsWSClient) closeHandler() {
 	for {
 		_, r, err := wsutil.ReadClientData(client.Conn)
 		if err != nil {
-			fmt.Println("Client closed")
 			break
 		}
 
 		if r == ws.OpClose {
-			fmt.Println("CLIENT CLOSED")
 			break
 		}
 	}
