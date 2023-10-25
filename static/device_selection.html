@@ -59,7 +59,18 @@
 
         // On each message over the websocket update the device selection table
         devicesSocket.onmessage = function (event) {
-            document.getElementById('device-results').innerHTML = event.data
+            if (event.data instanceof Blob) {
+                var blobReader = new FileReader();
+                blobReader.onload = function () {
+                    var blobAsText = blobReader.result;
+                    document.getElementById('device-results').innerHTML = blobAsText;
+                };
+                blobReader.readAsText(event.data);
+            } else {
+                // Handle plain text data
+                document.getElementById('device-results').innerHTML = event.data;
+            }
+            // document.getElementById('device-results').innerHTML = event.data
         };
     </script>
 </body>

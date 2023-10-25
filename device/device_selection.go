@@ -111,7 +111,7 @@ func GetDevices() {
 	go keepAlive()
 
 	// Define a slice of bytes to contain the last sent html over the websocket
-	var lastHtmlMessage []byte
+	// var lastHtmlMessage []byte
 
 	// Start an endless loop polling the DB each second and sending an updated device selection html
 	// To each websocket client
@@ -150,16 +150,16 @@ func GetDevices() {
 		// If they are the same just continue the loop
 		// This is to avoid spamming identical html messages over the websocket each second
 		// If there is no actual change
-		if !bytes.Equal(htmlMessage, lastHtmlMessage) {
-			for client := range clients {
-				err := wsutil.WriteClientBinary(client, htmlMessage)
-				if err != nil {
-					client.Close()
-					delete(clients, client)
-				}
+		// if !bytes.Equal(htmlMessage, lastHtmlMessage) {
+		for client := range clients {
+			err := wsutil.WriteClientBinary(client, htmlMessage)
+			if err != nil {
+				client.Close()
+				delete(clients, client)
 			}
-			lastHtmlMessage = htmlMessage
 		}
+		// 	lastHtmlMessage = htmlMessage
+		// }
 
 		time.Sleep(1 * time.Second)
 	}

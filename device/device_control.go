@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 type Device struct {
@@ -24,6 +26,7 @@ type Device struct {
 	Model                string `json:"model" bson:"model"`
 	Image                string `json:"image,omitempty" bson:"image,omitempty"`
 	HostAddress          string `json:"host_address" bson:"host_address"`
+	InUse                bool   `json:"in_use"`
 }
 
 var netClient = &http.Client{
@@ -31,13 +34,13 @@ var netClient = &http.Client{
 }
 
 // Get specific device info from DB
-func getDBDevice(udid string) Device {
+func getDBDevice(udid string) *Device {
 	for _, dbDevice := range latestDevices {
 		if dbDevice.UDID == udid {
 			return dbDevice
 		}
 	}
-	return Device{}
+	return nil
 }
 
 // Load a specific device page
@@ -46,7 +49,7 @@ func GetDevicePage(c *gin.Context) {
 
 	device := getDBDevice(udid)
 	// If the device does not exist in the cached devices
-	if device == (Device{}) {
+	if device == nil {
 		c.String(http.StatusInternalServerError, "Device not found")
 		return
 	}
@@ -80,7 +83,7 @@ func GetDevicePage(c *gin.Context) {
 		CanvasWidth  string
 		CanvasHeight string
 	}{
-		Device:       device,
+		Device:       *device,
 		CanvasWidth:  canvasWidth,
 		CanvasHeight: canvasHeight,
 	}
@@ -109,4 +112,43 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 	canvasWidth = fmt.Sprintf("%f", 850*screen_ratio)
 
 	return
+}
+
+func DeviceInUseWS(c *gin.Context) {
+	udid := c.Param("udid")
+	device := GetDeviceByUDID(udid)
+
+	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	messageReceived := make(chan struct{})
+	defer close(messageReceived)
+
+	go func() {
+		for {
+			data, _, err := wsutil.ReadClientData(conn)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			if string(data) == "ping" {
+				messageReceived <- struct{}{}
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-messageReceived:
+			device.InUse = true
+		case <-time.After(2 * time.Second):
+			device.InUse = false
+			return
+		}
+	}
 }

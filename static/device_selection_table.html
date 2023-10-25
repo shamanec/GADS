@@ -20,7 +20,9 @@
   <div class="device-title" style="margin-bottom: 10px;">{{.Model}}</div>
   <div class="device-version" style="margin-bottom: 10px;">Version: {{.OSVersion}}</div>
   <form method="post" action="/devices/control/{{.UDID}}" class="inline">
-    {{ if and (eq .Connected true) (eq .Healthy true) (healthCheck .LastHealthyTimestamp) }}
+    {{if .InUse}}
+    <button class="use-device" type="submit" style="background-color: #fcb103" disabled>In use</button>
+    {{else if and (eq .Connected true) (eq .Healthy true) (healthCheck .LastHealthyTimestamp) }}
     <button class="use-device" type="submit">Use device</button>
     {{else if and (eq .Connected true) (eq .Healthy false) (eq (healthCheck .LastHealthyTimestamp) false)}}
     <button class="use-device" type="submit" disabled>Preparing</button>

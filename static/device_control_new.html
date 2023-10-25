@@ -485,10 +485,12 @@
     var iosStreamSocket = null
     var androidStreamSocket = null
     var logsSocket = null
+    var inUseSocket = null
 
     setIosStream()
     setAndroidStream()
     getLogs()
+    setInUse()
 
     window.onload = function () {
         console.log("Page loaded");
@@ -506,6 +508,15 @@
             tabContents[i].style.display = "none";
         }
         document.getElementById(tabName).style.display = "block";
+    }
+
+    function setInUse() {
+        inUseSocket = new WebSocket("ws://" + device_host + ":10000/devices/control/{{.Device.UDID}}/in-use")
+        const pingInterval = setInterval(() => {
+            if (inUseSocket.readyState === WebSocket.OPEN) {
+                inUseSocket.send('ping');
+            }
+        }, 1000);
     }
 
     function setIosStream() {
@@ -543,8 +554,6 @@
                 if (messageType == 1) {
                     const width = new DataView(data.slice(4, 8)).getInt32(0, false)
                     const height = new DataView(data.slice(8, 12)).getInt32(0, false)
-                    console.log('Device width:' + width)
-                    console.log('Device height:' + height)
                 }
 
                 // If message type is 2(Image)

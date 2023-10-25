@@ -50,6 +50,7 @@ func handleRequests() {
 	router.GET("/available-devices", device.AvailableDeviceWS)
 	router.GET("/available-devices2", device.AvailableDeviceWS2)
 	router.POST("/devices/control/:udid", device.GetDevicePage)
+	router.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
 	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
 
 	// Start the GADS UI on the host IP address

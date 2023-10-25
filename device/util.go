@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var latestDevices []Device
+var latestDevices []*Device
 
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
@@ -47,7 +47,7 @@ func GetLatestDBDevices() {
 func GetDeviceByUDID(udid string) *Device {
 	for _, device := range latestDevices {
 		if device.UDID == udid {
-			return &device
+			return device
 		}
 	}
 
