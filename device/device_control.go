@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,18 +16,16 @@ import (
 )
 
 type Device struct {
-	Connected            bool   `json:"connected,omitempty" bson:"connected,omitempty"`
-	Healthy              bool   `json:"healthy,omitempty" bson:"healthy,omitempty"`
-	LastHealthyTimestamp int64  `json:"last_healthy_timestamp,omitempty" bson:"last_healthy_timestamp,omitempty"`
-	UDID                 string `json:"udid" bson:"_id"`
-	OS                   string `json:"os" bson:"os"`
-	Name                 string `json:"name" bson:"name"`
-	OSVersion            string `json:"os_version" bson:"os_version"`
-	ScreenSize           string `json:"screen_size" bson:"screen_size"`
-	Model                string `json:"model" bson:"model"`
-	Image                string `json:"image,omitempty" bson:"image,omitempty"`
-	HostAddress          string `json:"host_address" bson:"host_address"`
-	InUse                bool   `json:"in_use"`
+	Connected   bool   `json:"connected,omitempty" bson:"connected,omitempty"`
+	UDID        string `json:"udid" bson:"_id"`
+	OS          string `json:"os" bson:"os"`
+	Name        string `json:"name" bson:"name"`
+	OSVersion   string `json:"os_version" bson:"os_version"`
+	ScreenSize  string `json:"screen_size" bson:"screen_size"`
+	Model       string `json:"model" bson:"model"`
+	Image       string `json:"image,omitempty" bson:"image,omitempty"`
+	HostAddress string `json:"host_address" bson:"host_address"`
+	InUse       bool   `json:"in_use"`
 }
 
 var netClient = &http.Client{
@@ -48,6 +47,10 @@ func GetDevicePage(c *gin.Context) {
 	udid := c.Param("udid")
 
 	device := getDBDevice(udid)
+	if device.InUse {
+		c.String(http.StatusInternalServerError, "Device is in use")
+		return
+	}
 	// If the device does not exist in the cached devices
 	if device == nil {
 		c.String(http.StatusInternalServerError, "Device not found")
@@ -116,7 +119,8 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
-	device := GetDeviceByUDID(udid)
+	device := getDBDevice(udid)
+	var mu sync.Mutex
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
@@ -145,9 +149,13 @@ func DeviceInUseWS(c *gin.Context) {
 	for {
 		select {
 		case <-messageReceived:
+			mu.Lock()
 			device.InUse = true
+			mu.Unlock()
 		case <-time.After(2 * time.Second):
+			mu.Lock()
 			device.InUse = false
+			mu.Unlock()
 			return
 		}
 	}

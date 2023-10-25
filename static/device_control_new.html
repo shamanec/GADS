@@ -512,6 +512,9 @@
 
     function setInUse() {
         inUseSocket = new WebSocket("ws://" + device_host + ":10000/devices/control/{{.Device.UDID}}/in-use")
+        if (inUseSocket.readyState === WebSocket.OPEN) {
+            inUseSocket.send('ping');
+        }
         const pingInterval = setInterval(() => {
             if (inUseSocket.readyState === WebSocket.OPEN) {
                 inUseSocket.send('ping');

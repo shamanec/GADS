@@ -22,10 +22,8 @@
   <form method="post" action="/devices/control/{{.UDID}}" class="inline">
     {{if .InUse}}
     <button class="use-device" type="submit" style="background-color: #fcb103" disabled>In use</button>
-    {{else if and (eq .Connected true) (eq .Healthy true) (healthCheck .LastHealthyTimestamp) }}
+    {{else if .Connected}}
     <button class="use-device" type="submit">Use device</button>
-    {{else if and (eq .Connected true) (eq .Healthy false) (eq (healthCheck .LastHealthyTimestamp) false)}}
-    <button class="use-device" type="submit" disabled>Preparing</button>
     {{else}}
     <button class="use-device" type="submit" disabled>N/A</button>
     {{end}}
