@@ -148,12 +148,7 @@
         // Get the hostname and port from the browser
         const hostname = window.location.hostname;
         const port = window.location.port;
-        if (hostname.includes('ngrok')) {
-            let domain = hostname + (port ? ':' + port : '');
-            logsSocket = new WebSocket("ws://" + domain + "/logs-ws?collection=" + url);
-        } else {
-            logsSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/logs-ws?collection=" + url);
-        }
+        logsSocket = new WebSocket("ws://{{.GadsHostAddress}}:{{.GadsPort}}/logs-ws?collection=" + url);
 
         // On each message over the websocket update the device selection table
         logsSocket.onmessage = function (event) {

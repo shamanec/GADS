@@ -510,12 +510,7 @@
 <script>
     const hostname = window.location.hostname
     const port = window.location.port
-    let domain = ""
-    if (hostname.includes('ngrok')) {
-        domain = 'https://' + hostname + (port ? ':' + port : '')
-    } else {
-        domain = 'http://' + hostname + (port ? ':' + port : '')
-    }
+    let domain = 'http://' + hostname + (port ? ':' + port : '')
 
     let device_host = "{{.Device.HostAddress}}"
     let device_os = "{{.Device.OS}}"
@@ -537,12 +532,9 @@
     setInUse()
 
     window.onload = function () {
-        console.log("Page loaded");
     };
 
     document.addEventListener("DOMContentLoaded", function () {
-        console.log("DOM content loaded");
-        // your code here
     });
 
     function showOverlay() {
@@ -733,7 +725,6 @@
 
     document.getElementById("back-to-devices").addEventListener('click', () => {
         if (iosStreamSocket != null) {
-            console.log('closing stream')
             iosStreamSocket.close()
         }
 
@@ -742,7 +733,6 @@
         }
 
         if (logsSocket != null) {
-            console.log('closing logs')
             logsSocket.close()
         }
     })

@@ -45,6 +45,7 @@
         </div>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 
 </html>
@@ -52,12 +53,7 @@
     var devicesWS = null
     const hostname = window.location.hostname
     const port = window.location.port
-    let domain = ""
-    if (hostname.includes('ngrok')) {
-        domain = hostname + (port ? ':' + port : '')
-    } else {
-        domain = hostname + (port ? ':' + port : '')
-    }
+    let domain = hostname + (port ? ':' + port : '')
 
     var lastDevicesJson
 
@@ -81,12 +77,35 @@
         };
     };
 
+    function showFailedSessionAlert() {
+        const swalWithBootstrapButtons = Swal.mixin({
+            customClass: {
+                confirmButton: 'btn btn-success',
+                cancelButton: 'btn btn-danger'
+            },
+            buttonsStyling: true
+        })
+
+        swalWithBootstrapButtons.fire({
+            title: 'Device unavailable',
+            text: "Do you want to refresh or go back to devices?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ok'
+        }).then((result) => {
+            result.dismiss === Swal.DismissReason.cancel
+        })
+    }
+
     function buildTable(json) {
+        if (lastDevicesJson == JSON.stringify(json)) {
+            return
+        }
+
         const listContainer = document.getElementById('device-results')
         listContainer.innerHTML = ""
 
         json.forEach((device) => {
-            console.log(device)
             const listItem = document.createElement('li');
             listItem.id = "device-list-item"
 
@@ -103,6 +122,14 @@
             imageDiv.appendChild(image)
             listItem.appendChild(imageDiv)
 
+            const deviceModel = document.createElement('div')
+            deviceModel.textContent = device.model
+            const deviceOSVersion = document.createElement('div')
+            deviceOSVersion.textContent = device.os_version
+
+            listItem.appendChild(deviceModel)
+            listItem.appendChild(deviceOSVersion)
+
             const form = document.createElement('form')
             form.method = "post"
             form.action = "/devices/control/" + device.udid
@@ -110,7 +137,7 @@
 
             const useButton = document.createElement('button')
             useButton.class = "use-device"
-            useButton.type = "submit"
+            useButton.id = "use-device"
             if (device.in_use) {
                 useButton.style.backgroundColor = "#fcb103"
                 useButton.disabled = true
@@ -122,11 +149,13 @@
                 useButton.disabled = true
             }
             useButton.className = "use-device"
+
             form.appendChild(useButton)
             listItem.appendChild(form)
 
             listContainer.appendChild(listItem)
         });
+        lastDevicesJson = JSON.stringify(json)
     }
 
 </script>
