@@ -16,9 +16,6 @@
     - basic remote control - tap, swipe  
     - basic Appium inspector  
 
-3. TODO - simple provider container info and orchestration page  
-4. TODO - more functionality for remote control  
-
 Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1  
 
 ## Setup
@@ -29,7 +26,7 @@ Currently the project assumes that GADS UI, MongoDB and device providers are on 
 
 ### Start MongoDB instance
 The project uses MongoDB for syncing devices info between providers and GADS UI.  
-1. Execute `docker run -d --restart-always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
+1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
 2. You can use MongoDB Compass or another tool to access the db.
 
 ### Setup config.json
@@ -44,7 +41,7 @@ The project uses MongoDB for syncing devices info between providers and GADS UI.
 3. Access the UI on `http://{gads_host_address}:{gads_port}`
 
 ### Start a provider instance
-This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provide the devices. Follow the setup steps in the linked repo to create a provider instance.
+This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision the devices. Follow the setup steps in the linked repo to create a provider instance.
 
 ## Thanks
 
