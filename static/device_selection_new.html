@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Devices</title>
+</head>
+<style>
+    #device-list-item {
+        width: 200px;
+        height: 450px;
+        border: 1px solid #eaeaf1;
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .device-results li:hover {
+        background-color: #b9b9b9;
+    }
+
+    .use-device {
+        background-color: #32dbb8;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 16px;
+        cursor: pointer;
+        margin: 5px;
+    }
+</style>
+
+<body>
+    <div class="topnav">
+        <link href="/static/css/top_navigation_style.css" rel="stylesheet">
+        <a href="/">Home</a>
+        <a href="logs">Logs</a>
+        <a class="active" href="devices">Devices</a>
+    </div>
+    <div id="top-container">
+        <div id="device-selection-div">
+            <ul class="device-results" id="device-results" style="display: flex;flex-direction: row;flex-wrap: wrap;">
+            </ul>
+        </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</body>
+
+</html>
+<script>
+    var devicesWS = null
+    const hostname = window.location.hostname
+    const port = window.location.port
+    let domain = ""
+    if (hostname.includes('ngrok')) {
+        domain = hostname + (port ? ':' + port : '')
+    } else {
+        domain = hostname + (port ? ':' + port : '')
+    }
+
+    var lastDevicesJson
+
+    window.onload = function () {
+        devicesWS = new WebSocket("ws://" + domain + "/available-devices")
+
+        devicesWS.onmessage = function (event) {
+            var json = ""
+            if (event.data instanceof Blob) {
+                var blobReader = new FileReader();
+                blobReader.onload = function () {
+                    var blobAsText = blobReader.result;
+                    json = JSON.parse(blobAsText)
+                    buildTable(json)
+                };
+                blobReader.readAsText(event.data);
+            } else {
+                json = JSON.parse(event.data)
+                buildTable(json)
+            }
+        };
+    };
+
+    function buildTable(json) {
+        const listContainer = document.getElementById('device-results')
+        listContainer.innerHTML = ""
+
+        json.forEach((device) => {
+            console.log(device)
+            const listItem = document.createElement('li');
+            listItem.id = "device-list-item"
+
+            const imageDiv = document.createElement('div')
+            imageDiv.style.marginTop = "30px"
+            imageDiv.style.marginBottom = "10px"
+            const image = document.createElement("img")
+            if (device.os == "ios") {
+                image.src = "/static/images/devices/default-apple.png"
+            } else {
+                image.src = "/static/images/devices/default-android.png"
+            }
+            image.style.height = "300px"
+            imageDiv.appendChild(image)
+            listItem.appendChild(imageDiv)
+
+            const form = document.createElement('form')
+            form.method = "post"
+            form.action = "/devices/control/" + device.udid
+            form.class = "inline"
+
+            const useButton = document.createElement('button')
+            useButton.class = "use-device"
+            useButton.type = "submit"
+            if (device.in_use) {
+                useButton.style.backgroundColor = "#fcb103"
+                useButton.disabled = true
+                useButton.textContent = "In use"
+            } else if (device.connected) {
+                useButton.textContent = "Use"
+            } else {
+                useButton.textContent = "N/A"
+                useButton.disabled = true
+            }
+            useButton.className = "use-device"
+            form.appendChild(useButton)
+            listItem.appendChild(form)
+
+            listContainer.appendChild(listItem)
+        });
+    }
+
+</script>

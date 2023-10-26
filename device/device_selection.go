@@ -1,44 +1,22 @@
 package device
 
 import (
-	"GADS/util"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	log "github.com/sirupsen/logrus"
 )
 
 var clients = make(map[net.Conn]bool)
-var clients2 = make(map[net.Conn]bool)
 var broadcast = make(chan []byte)
 
 func AvailableDeviceWS(c *gin.Context) {
-	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	html_message := generateDeviceSelectionHTML()
-	err = wsutil.WriteServerText(conn, html_message)
-	if err != nil {
-		conn.Close()
-		return
-	}
-
-	// Add the new conn to clients map
-	clients[conn] = true
-}
-
-func AvailableDeviceWS2(c *gin.Context) {
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		fmt.Println(err)
@@ -52,7 +30,7 @@ func AvailableDeviceWS2(c *gin.Context) {
 	}
 
 	// Add the new conn to clients map
-	clients2[conn] = true
+	clients[conn] = true
 }
 
 func keepAlive() {
@@ -71,127 +49,22 @@ func keepAlive() {
 	}
 }
 
-func keepAlive2() {
-	for {
-		// Send a ping message every 10 seconds
-		time.Sleep(10 * time.Second)
-
-		// Loop through the clients and send the message to each of them
-		for client := range clients2 {
-			err := wsutil.WriteClientMessage(client, ws.OpPing, nil)
-			if err != nil {
-				client.Close()
-				delete(clients, client)
-			}
-		}
-	}
-}
-
-func GetDevices2() {
-	go keepAlive2()
+func GetDevices() {
+	go keepAlive()
 
 	for {
 		jsonData, _ := json.Marshal(&latestDevices)
 
-		for client := range clients2 {
-			err := wsutil.WriteClientBinary(client, jsonData)
-			if err != nil {
-				client.Close()
-				delete(clients2, client)
-			}
-		}
-
-		time.Sleep(1 * time.Second)
-	}
-}
-
-func GetDevices() {
-	// Start a goroutine that will ping each websocket client
-	// To keep the connection alive
-	go keepAlive()
-
-	// Define a slice of bytes to contain the last sent html over the websocket
-	// var lastHtmlMessage []byte
-
-	// Start an endless loop polling the DB each second and sending an updated device selection html
-	// To each websocket client
-	for {
-		// Get the devices from the DB
-		var htmlMessage []byte
-
-		// Make functions available in html template
-		funcMap := template.FuncMap{
-			"contains":    strings.Contains,
-			"healthCheck": isHealthy,
-		}
-
-		// Generate the html for the device selection with the latest data
-		var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
-		var buf bytes.Buffer
-		err := tmpl.ExecuteTemplate(&buf, "device_selection_table", latestDevices)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"event": "send_devices_over_ws",
-			}).Error("Could not execute template when sending devices over ws: " + err.Error())
-			time.Sleep(2 * time.Second)
-			return
-		}
-
-		// If no devices are in the DB show a generic message html
-		// Or convert the generate html buffer to a slice of bytes
-		if latestDevices == nil {
-			htmlMessage = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
-		} else {
-			htmlMessage = []byte(buf.String())
-		}
-
-		// Check the generated html message to the last sent html message
-		// If they are not the same - send the message to each websocket client
-		// If they are the same just continue the loop
-		// This is to avoid spamming identical html messages over the websocket each second
-		// If there is no actual change
-		// if !bytes.Equal(htmlMessage, lastHtmlMessage) {
 		for client := range clients {
-			err := wsutil.WriteClientBinary(client, htmlMessage)
+			err := wsutil.WriteClientBinary(client, jsonData)
 			if err != nil {
 				client.Close()
 				delete(clients, client)
 			}
 		}
-		// 	lastHtmlMessage = htmlMessage
-		// }
 
 		time.Sleep(1 * time.Second)
 	}
-}
-
-func generateDeviceSelectionHTML() []byte {
-	var html_message []byte
-
-	// Make functions available in html template
-	funcMap := template.FuncMap{
-		"contains":    strings.Contains,
-		"healthCheck": isHealthy,
-	}
-
-	var tmpl = template.Must(template.New("device_selection_table").Funcs(funcMap).ParseFiles("static/device_selection_table.html"))
-
-	var buf bytes.Buffer
-	err := tmpl.ExecuteTemplate(&buf, "device_selection_table", latestDevices)
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "send_devices_over_ws",
-		}).Error("Could not execute template when sending devices over ws: " + err.Error())
-	}
-
-	if latestDevices == nil {
-		html_message = []byte(`<h1 style="align-items: center;">No devices registered from providers in the DB</h1>`)
-	} else {
-		html_message = []byte(buf.String())
-	}
-
-	return html_message
 }
 
 // This is an additional check on top of the "Healthy" field in the DB.
@@ -209,14 +82,10 @@ func isHealthy(timestamp int64) bool {
 }
 
 func LoadDevices(c *gin.Context) {
-	funcMap := template.FuncMap{
-		"contains":    strings.Contains,
-		"healthCheck": isHealthy,
-	}
 
 	// Parse the template and return response with the created template
-	var tmpl = template.Must(template.New("device_selection.html").Funcs(funcMap).ParseFiles("static/device_selection.html", "static/device_selection_table.html"))
-	err := tmpl.ExecuteTemplate(c.Writer, "device_selection.html", util.ConfigData)
+	var tmpl = template.Must(template.New("device_selection_new.html").ParseFiles("static/device_selection_new.html"))
+	err := tmpl.ExecuteTemplate(c.Writer, "device_selection_new.html", nil)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 	}
