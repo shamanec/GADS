@@ -63,6 +63,8 @@
         margin-top: 10px;
         margin-left: 10px;
         align-items: flex-start;
+        flex-direction: row;
+        height: 100%;
     }
 
     #stream-div {
@@ -92,7 +94,6 @@
         height: 900;
         overflow: scroll;
         border: 1px solid #000;
-        margin-left: 10px;
         text-align: center;
     }
 
@@ -168,9 +169,115 @@
         width: 100%;
         font-size: 15px;
     }
+
+    /*
+        Tabs styling
+    */
+
+    .tabs {
+        display: flex;
+        list-style: none;
+        padding: 0px;
+    }
+
+    .tab {
+        cursor: pointer;
+        padding: 10px 20px;
+        background-color: #f2f2f2;
+        border-radius: 5px;
+        margin-right: 10px;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-container {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        height: 80%;
+    }
+
+    /*
+        Logs styling
+    */
+    table,
+    td,
+    th {
+        border: 1px solid #000000;
+        text-align: center;
+    }
+
+    table {
+        border-collapse: collapse;
+    }
+
+    td {
+        padding: 15px;
+        overflow-wrap: anywhere;
+    }
+
+    thead th {
+        padding: 16px;
+        padding-left: 15px;
+        border-left: 1px solid #000000;
+        border-bottom: 1px solid #000000;
+        background: #ffc491;
+        text-align: center;
+        box-shadow: 0px 0px 0 1px #000000;
+        position: sticky;
+        top: 0;
+    }
+
+    #logs-table {
+        overflow-y: auto;
+        max-width: 100%;
+        border: 1px solid #000;
+        text-align: center;
+    }
+
+    .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        /* Semi-transparent black overlay */
+        z-index: 9999;
+    }
+
+    /* Styles for the loader */
+    .loader {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
 </style>
 
 <body>
+    <div class="overlay" id="overlay">
+        <div class="loader"></div>
+    </div>
     <div class="topnav">
         <link href="/static/css/top_navigation_style.css" rel="stylesheet">
         <a href="/">Home</a>
@@ -204,6 +311,10 @@
                 <button class="device-buttons action-buttons" id="clear-text"><i class="fa-solid fa-eraser"></i> Clear
                     text</button>
             </div>
+            <div>
+                <button class="device-buttons action-buttons" id="refresh-session"><i class="fa-solid fa-refresh"></i>
+                    Refresh session</button>
+            </div>
             <div id="device-info">
                 <div class="device-info-row">
                     <div>OS:</div>
@@ -213,24 +324,6 @@
                     <div>UDID:</div>
                     <div class="device-info-value">{{.Device.UDID}}</div>
                 </div>
-                <div class="device-info-row">
-                    <div>Device server:</div>
-                    <div class="device-info-value">
-                        {{.Device.Host}}:{{.Device.ContainerServerPort}}</div>
-                </div>
-                <div class="device-info-row">
-                    <div>Appium URL:</div>
-                    <div class="device-info-value">
-                        {{.Device.Host}}:{{.Device.AppiumPort}}</div>
-                </div>
-                {{ if eq .Device.OS "ios"}}
-                <div class="device-info-row">
-                    <div>WebDriverAgent URL:</div>
-                    <div class="device-info-value">
-                        {{.Device.Host}}:{{.Device.WDAPort}}
-                    </div>
-                </div>
-                {{end}}
             </div>
         </div>
         <div id="stream-div">
@@ -242,172 +335,185 @@
             <img id="image-stream" style="width: {{.CanvasWidth}}px;height: {{.CanvasHeight}}px;"></img>
             {{end}}
         </div>
-        <div id="inspector-source">
-            <div id="app-source-buttons">
-                <div style="margin-right: 10px;">
-                    <button class="action-buttons" id="refresh-source"><i class="fa-solid fa-rotate"></i> Get
-                        source</button>
+        <div class="tab-container">
+            <ul class="tabs">
+                <li class="tab" onclick="openTab('inspector-source')">Inspector</li>
+                <li class="tab" onclick="openTab('screenshot-div')">Screenshot</li>
+                <li class="tab" onclick="openTab('logs-table')">Logs</li>
+            </ul>
+            <div id="inspector-source" class="tab-content">
+                <div id="app-source-buttons">
+                    <div style="margin-right: 10px;">
+                        <button class="action-buttons" id="refresh-source"><i class="fa-solid fa-rotate"></i> Get
+                            source</button>
+                    </div>
+                    <div>
+                        <button class="action-buttons" id="wipe-canvas"><i class="fa-solid fa-broom"></i> Wipe
+                            canvas</button>
+                    </div>
                 </div>
-                <div>
-                    <button class="action-buttons" id="wipe-canvas"><i class="fa-solid fa-broom"></i> Wipe
-                        canvas</button>
+                <div id="source-container">
+                    <div class="app-source-titles">App source</div>
+                    <div id="source-loading">
+                        <img style="object-fit: contain; height: 100%;" src="/static/images/gears.gif">
+                    </div>
+                    <div style="overflow: auto;">
+                        <div id="app-source"></div>
+                    </div>
+                </div>
+                <div id="element-info-container">
+                    <div class="app-source-titles">Element info</div>
+                    <div id="element-info-holder">
+                        {{if eq .Device.OS "ios"}}
+                        <div class="element-info">
+                            <div class="element-info-keys">type</div>
+                            <div class="element-info-values" id="element-type">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">name</div>
+                            <div class="element-info-values" id="element-name">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">label</div>
+                            <div class="element-info-values" id="element-label">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">visible</div>
+                            <div class="element-info-values" id="element-visible">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">enabled</div>
+                            <div class="element-info-values" id="element-enabled">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">value</div>
+                            <div class="element-info-values" id="element-value">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">x</div>
+                            <div class="element-info-values" id="element-x">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">y</div>
+                            <div class="element-info-values" id="element-y">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">width</div>
+                            <div class="element-info-values" id="element-width">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">height</div>
+                            <div class="element-info-values" id="element-height">none</div>
+                        </div>
+                        {{else}}
+                        <div class="element-info">
+                            <div class="element-info-keys">index</div>
+                            <div class="element-info-values" id="element-index">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">resource-id</div>
+                            <div class="element-info-values" id="element-resourceid">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">package</div>
+                            <div class="element-info-values" id="element-package">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">class</div>
+                            <div class="element-info-values" id="element-class">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">text</div>
+                            <div class="element-info-values" id="element-text">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">checkable</div>
+                            <div class="element-info-values" id="element-checkable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">checked</div>
+                            <div class="element-info-values" id="element-checked">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">clickable</div>
+                            <div class="element-info-values" id="element-clickable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">enabled</div>
+                            <div class="element-info-values" id="element-enabled">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">focusable</div>
+                            <div class="element-info-values" id="element-focusable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">focused</div>
+                            <div class="element-info-values" id="element-focused">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">long-clickable</div>
+                            <div class="element-info-values" id="element-long-clickable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">password</div>
+                            <div class="element-info-values" id="element-password">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">scrollable</div>
+                            <div class="element-info-values" id="element-scrollable">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">selected</div>
+                            <div class="element-info-values" id="element-selected">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">bounds</div>
+                            <div class="element-info-values" id="element-bounds">none</div>
+                        </div>
+                        <div class="element-info">
+                            <div class="element-info-keys">displayed</div>
+                            <div class="element-info-values" id="element-displayed">none</div>
+                        </div>
+                        {{end}}
+                    </div>
                 </div>
             </div>
+            <div id="screenshot-div" class="tab-content">
+                <button class="device-buttons action-buttons" id="screenshot"><i class="fa-solid fa-camera"></i>
+                    Screenshot</button>
+                <img id="screenshot-image">
+            </div>
+            <table id="logs-table" class="tab-content">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Timestamp</th>
+                        <th style="width: 5%;">Level</th>
+                        <th style="width: 10%;">Event</th>
+                        <th style="width: 75%;">Message</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-table-body">
+                </tbody>
+            </table>
 
-            <div id="source-container">
-                <div class="app-source-titles">App source</div>
-                <div id="source-loading">
-                    <img style="object-fit: contain; height: 100%;" src="/static/images/gears.gif">
-                </div>
-                <div style="overflow: auto;">
-                    <div id="app-source"></div>
-                </div>
-            </div>
-            <div id="element-info-container">
-                <div class="app-source-titles">Element info</div>
-                <div id="element-info-holder">
-                    {{if eq .Device.OS "ios"}}
-                    <div class="element-info">
-                        <div class="element-info-keys">type</div>
-                        <div class="element-info-values" id="element-type">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">name</div>
-                        <div class="element-info-values" id="element-name">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">label</div>
-                        <div class="element-info-values" id="element-label">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">visible</div>
-                        <div class="element-info-values" id="element-visible">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">enabled</div>
-                        <div class="element-info-values" id="element-enabled">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">value</div>
-                        <div class="element-info-values" id="element-value">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">x</div>
-                        <div class="element-info-values" id="element-x">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">y</div>
-                        <div class="element-info-values" id="element-y">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">width</div>
-                        <div class="element-info-values" id="element-width">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">height</div>
-                        <div class="element-info-values" id="element-height">none</div>
-                    </div>
-                    {{else}}
-                    <div class="element-info">
-                        <div class="element-info-keys">index</div>
-                        <div class="element-info-values" id="element-index">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">resource-id</div>
-                        <div class="element-info-values" id="element-resourceid">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">package</div>
-                        <div class="element-info-values" id="element-package">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">class</div>
-                        <div class="element-info-values" id="element-class">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">text</div>
-                        <div class="element-info-values" id="element-text">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">checkable</div>
-                        <div class="element-info-values" id="element-checkable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">checked</div>
-                        <div class="element-info-values" id="element-checked">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">clickable</div>
-                        <div class="element-info-values" id="element-clickable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">enabled</div>
-                        <div class="element-info-values" id="element-enabled">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">focusable</div>
-                        <div class="element-info-values" id="element-focusable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">focused</div>
-                        <div class="element-info-values" id="element-focused">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">long-clickable</div>
-                        <div class="element-info-values" id="element-long-clickable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">password</div>
-                        <div class="element-info-values" id="element-password">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">scrollable</div>
-                        <div class="element-info-values" id="element-scrollable">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">selected</div>
-                        <div class="element-info-values" id="element-selected">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">bounds</div>
-                        <div class="element-info-values" id="element-bounds">none</div>
-                    </div>
-                    <div class="element-info">
-                        <div class="element-info-keys">displayed</div>
-                        <div class="element-info-values" id="element-displayed">none</div>
-                    </div>
-                    {{end}}
-                </div>
-            </div>
         </div>
-        <div id="screenshot-div">
-            <button class="device-buttons action-buttons" id="screenshot"><i class="fa-solid fa-camera"></i>
-                Screenshot</button>
-            <img id="screenshot-image">
-        </div>
+
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.38.1/jquery.fancytree-all-deps.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 <script>
     const hostname = window.location.hostname
     const port = window.location.port
-    let domain = ""
-    if (hostname.includes('ngrok')) {
-        domain = 'https://' + hostname + (port ? ':' + port : '')
-    } else {
-        domain = 'http://' + hostname + (port ? ':' + port : '')
-    }
+    let domain = 'http://' + hostname + (port ? ':' + port : '')
 
-    let device_host = "{{.Device.Host}}"
-    let wda_port = "{{.Device.WDAPort}}"
-    let wda_url = "http://" + device_host + ":" + wda_port
+    let device_host = "{{.Device.HostAddress}}"
     let device_os = "{{.Device.OS}}"
-    let appium_port = "{{.Device.AppiumPort}}"
-    let appium_url = "http://" + device_host + ":" + appium_port
     let canvas_width = "{{.CanvasWidth}}"
     let canvas_height = "{{.CanvasHeight}}"
     let screen_size = "{{.Device.ScreenSize}}"
@@ -415,25 +521,100 @@
         getAppSource()
     })
 
+    var iosStreamSocket = null
+    var androidStreamSocket = null
+    var logsSocket = null
+    var inUseSocket = null
+
     setIosStream()
     setAndroidStream()
+    getLogs()
+    setInUse()
 
     window.onload = function () {
-        console.log("Page loaded");
     };
 
     document.addEventListener("DOMContentLoaded", function () {
-        console.log("DOM content loaded");
-        // your code here
     });
+
+    function showOverlay() {
+        overlay.style.display = 'block';
+    }
+
+    // Function to hide the overlay
+    function hideOverlay() {
+        overlay.style.display = 'none'
+    }
+
+    function showFailedSessionAlert() {
+        const swalWithBootstrapButtons = Swal.mixin({
+            customClass: {
+                confirmButton: 'btn btn-success',
+                cancelButton: 'btn btn-danger'
+            },
+            buttonsStyling: true
+        })
+
+        swalWithBootstrapButtons.fire({
+            title: 'Session lost',
+            text: "Do you want to refresh or go back to devices?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Refresh session',
+            cancelButtonText: 'Back to devices',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                refreshSession()
+            } else if (
+                result.dismiss === Swal.DismissReason.cancel
+            ) {
+                window.location.href = domain + "/devices";
+            }
+        })
+    }
+
+    async function refreshSession() {
+        let url = domain + "/device/{{.Device.UDID}}/health"
+        showOverlay()
+        await fetch(url, {
+            method: 'GET'
+        }).catch((error) => {
+            window.location.href = domain + "/devices";
+            window.location.reload();
+        })
+        hideOverlay()
+    }
+
+    document.getElementById("refresh-session").addEventListener('click', () => {
+        refreshSession()
+    })
+
+    function openTab(tabName) {
+        var i;
+        var tabContents = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabContents.length; i++) {
+            tabContents[i].style.display = "none";
+        }
+        document.getElementById(tabName).style.display = "block";
+    }
+
+    function setInUse() {
+        inUseSocket = new WebSocket("ws://" + device_host + ":10000/devices/control/{{.Device.UDID}}/in-use")
+        if (inUseSocket.readyState === WebSocket.OPEN) {
+            inUseSocket.send('ping');
+        }
+        const pingInterval = setInterval(() => {
+            if (inUseSocket.readyState === WebSocket.OPEN) {
+                inUseSocket.send('ping');
+            }
+        }, 1000);
+    }
 
     function setIosStream() {
         if (device_os == 'ios') {
-            // Connect to the android device streaming websocket
-            let iosStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/ios-stream")
-            // Set the type of the socket, did not work otherwise
-            // iosStreamSocket.binaryType = 'arraybuffer'
-
+            // Connect to the ios device streaming websocket
+            iosStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/ios-stream")
             let imgElement = document.getElementById('image-stream')
             iosStreamSocket.onmessage = function (event) {
                 const imageURL = URL.createObjectURL(event.data);
@@ -449,7 +630,7 @@
     function setAndroidStream() {
         if (device_os == 'android') {
             // Connect to the android device streaming websocket
-            let androidStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/android-stream")
+            androidStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/android-stream")
             // Set the type of the socket, did not work otherwise
             androidStreamSocket.binaryType = 'arraybuffer'
 
@@ -465,8 +646,6 @@
                 if (messageType == 1) {
                     const width = new DataView(data.slice(4, 8)).getInt32(0, false)
                     const height = new DataView(data.slice(8, 12)).getInt32(0, false)
-                    console.log('Device width:' + width)
-                    console.log('Device height:' + height)
                 }
 
                 // If message type is 2(Image)
@@ -477,19 +656,96 @@
                     imgElement.src = imageURL
 
                     imgElement.onload = () => {
-                    URL.revokeObjectURL(imageURL);
+                        URL.revokeObjectURL(imageURL);
                     };
                 }
             }
         }
     }
 
+    function getLogs() {
+        logsSocket = new WebSocket("ws://" + hostname + ":" + port + "/logs-ws?collection={{.Device.UDID}}")
+        logsSocket.onmessage = function (event) {
+            var json = JSON.parse(event.data)
+            createLogsTable(json)
+        };
+    }
+
+    function createLogsTable(json) {
+        var table = document.getElementById("logs-table-body");
+
+        for (let i = json.length - 1; i >= 0; i--) {
+            if (json[i].message == "") {
+                continue
+            }
+
+            var tr = document.createElement('tr');
+            tr.id = "table-row"
+
+            var td2 = document.createElement('td');
+            var td3 = document.createElement('td');
+            var td4 = document.createElement('td');
+            var td5 = document.createElement('td');
+
+            const date = moment(json[i].timestamp);
+
+            // Format the date as per your desired format
+            const formattedDate = date.format("DD-MM-YYYY HH:mm:ss.SSS");
+
+            var timestamp = document.createTextNode(formattedDate);
+            var level = document.createTextNode(json[i].level);
+            var event = document.createTextNode(json[i].eventname);
+            var message = document.createTextNode(json[i].message);
+
+            td2.appendChild(timestamp);
+            td3.appendChild(level);
+            td4.appendChild(event);
+            td5.appendChild(message);
+            tr.appendChild(td2);
+            tr.appendChild(td3);
+            tr.appendChild(td4);
+            tr.appendChild(td5);
+
+            if (level.textContent === "error") {
+                tr.style.backgroundColor = "#ff8330"
+            } else if (level.textContent === "info") {
+                tr.style.backgroundColor = "#b7eb34"
+            } else if (level.textContent === "fatal") {
+                tr.style.backgroundColor = "#ff8330"
+            } else if (level.textContent === "debug") {
+                tr.style.backgroundColor = "#ffe330"
+            } else if (level.textContent === "warning") {
+                tr.style.backgroundColor = "#ff8330"
+            }
+
+            table.insertBefore(tr, table.firstChild)
+        }
+    }
+
+    document.getElementById("back-to-devices").addEventListener('click', () => {
+        if (iosStreamSocket != null) {
+            iosStreamSocket.close()
+        }
+
+        if (androidStreamSocket != null) {
+            androidStreamSocket.close()
+        }
+
+        if (logsSocket != null) {
+            logsSocket.close()
+        }
+    })
+
     document.getElementById("home-screen").addEventListener('click', () => {
         let url = domain + "/device/{{.Device.UDID}}/home"
         fetch(url, {
             method: 'POST'
         })
-            .then(() => {
+            .then(response => {
+                if (response.status === 404) {
+                    showFailedSessionAlert()
+                    return
+                }
             })
             .catch(function (error) {
                 alert("Could not access device homescreen endpoint. Error: " + error)
@@ -500,6 +756,11 @@
         let url = domain + "/device/{{.Device.UDID}}/unlock"
         fetch(url, {
             method: 'POST'
+        }).then(response => {
+            if (response.status === 404) {
+                showFailedSessionAlert()
+                return
+            }
         }).catch(function (error) {
             alert("Could not access device unlock endpoint. Error: " + error)
         })
@@ -510,7 +771,11 @@
         fetch(url, {
             method: 'POST'
         })
-            .then(() => {
+            .then(response => {
+                if (response.status === 404) {
+                    showFailedSessionAlert()
+                    return
+                }
             })
             .catch(function (error) {
                 alert("Could not access device lock endpoint. Error: " + error)
@@ -522,10 +787,14 @@
         fetch(url, {
             method: 'POST'
         })
-            .then(response => response.json())
+            .then((response) => {
+                if (response.status === 404) {
+                    showFailedSessionAlert()
+                    return
+                }
+                return response.json()
+            })
             .then(screenshotJson => {
-                // Then create a local URL for that image and print it 
-
                 var imageBase64String = screenshotJson.value
                 const image = document.getElementById('screenshot-image')
                 image.src = "data:image/png;base64," + imageBase64String
@@ -556,7 +825,12 @@
                 'Content-type': 'application/json'
             },
             body: JSON.stringify({ "text": text_input })
-        }).then(() => {
+        }).then((response) => {
+            if (response.status === 404) {
+                document.getElementById("type-text-input").value = ""
+                showFailedSessionAlert()
+                return
+            }
             document.getElementById("type-text-input").value = ""
         })
     }
@@ -566,6 +840,11 @@
         var text_input = document.getElementById("type-text-input").value
         await fetch(url, {
             method: 'POST'
+        }).then((response) => {
+            if (response.status === 404 || response.status === 500) {
+                showFailedSessionAlert()
+                return
+            }
         })
     }
 
@@ -653,7 +932,11 @@
                 'Content-type': 'application/json'
             }
         })
-            .then(() => {
+            .then(response => {
+                if (response.status === 404) {
+                    showFailedSessionAlert()
+                    return
+                }
             })
             .catch(function (error) {
                 alert("Could not access device homescreen endpoint. Error: " + error)
@@ -698,7 +981,11 @@
                 'Content-type': 'application/json'
             }
         })
-            .then(() => {
+            .then(response => {
+                if (response.status === 404) {
+                    showFailedSessionAlert()
+                    return
+                }
             })
             .catch(function (error) {
                 alert("Could not access device homescreen endpoint. Error: " + error)
@@ -825,6 +1112,10 @@
             method: 'GET',
         })
             .then((response) => {
+                if (response.status === 404) {
+                    showFailedSessionAlert()
+                    return
+                }
                 return response.json()
             })
             .then((json) => {

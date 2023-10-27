@@ -1,58 +1,62 @@
 ## Introduction
 
-* GADS or Go Appium Docker Service is a web UI for [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) orchestration and remote control of devices.  
+* GADS is a web UI for remote control of devices provisioned by [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider).  
 
 ## Features
-1. Provider logs for debugging  
-2. Devices remote control(most of which is wrapper around Appium)
+1. Near real-time provider logs for debugging  
+2. Devices control (most of interaction is a wrapper around Appium API)
   * Android
-    - `minicap` video stream - default option
-    - `GADS-Android-stream` video stream - not as good as `minicap` but it is inhouse, can be used in case `minicap` fails for device    
-    - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
-    - basic remote control - tap, swipe  
-    - basic Appium inspector
+    - `GADS-Android-stream` video stream  
   * iOS
-    - `WDA mjpeg` video stream  
-    - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
-    - basic remote control - tap, swipe  
-    - basic Appium inspector  
+    - `WebDriverAgent MJPEG` video stream   
+  * Both
+    - Basic functionalities - Home, Lock, Unlock, Type text, Clear text  
+    - Basic remote control - tap, swipe  
+    - Basic web Appium inspector - see elements tree with info only
+    - Take high quality screenshots
+    - Simple near real-time logs display - Appium/WebDriverAgent logs when provider is in `debug`, some simple interaction logs
+    - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
+    - Appium session refresh mechanism if a session timed out or was closed
 
-3. TODO - simple provider container info and orchestration page  
-4. TODO - more functionality for remote control  
-
-Developed and tested on Ubuntu 18.04 LTS  
+Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1  
 
 ## Setup
-Currently the project assumes that GADS UI, RethinkDB and device providers are on the same network. They can all be on the same machine as well.  
+Currently the project assumes that GADS UI, MongoDB and device providers are on the same network. They can all be on the same machine as well.  
 
-### Start RethinkDB instance
-The project uses RethinkDB for syncing devices info between providers and GADS UI.  
-1. Execute `docker run -d --restart always --name gads-rethink -p 32770:8080 -p 32771:28015 rethinkdb:2.4.2`. This will pull the official RethinkDB 2.4.2 image from Docker Hub and start a container binding ports `32770` for the RethinkDB dashboard and `32771` for db connection.  
-2. Open the RethinkDB dashboard on `http://localhost:32770/`  
-3. Go to `Tables` and create a new database named `gads`  
-4. Add a new table to `gads` database named `devices` with primary key `UDID` (you need to click `Show optional settings` for the primary key)  
+### Go
+1. Install Go version 1.21.0 or higher
 
-### Setup config.json
+### Start MongoDB instance - this can be done as provider step as well
+The project uses MongoDB for syncing devices info between providers and GADS UI.  
+
+#### Install Docker 
+1. You need to have Docker(Docker Desktop on macOS, Windows) installed.  
+
+#### Start a MongoDB container instance
+1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
+2. You can use MongoDB Compass or another tool to access the db.
+
+### Setup the GADS UI
+Download the latest release and the appropriate [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) release
+
+#### Setup config.json
 1. Open the `config.json` file.  
 2. Change the `gads_host_address` value to the IP of the host machine.  
-3. Change the `gads_port` value to the port you wish to service to run on - default is 10000.  
-4. Change the `rethink_db` value to the IP address and port of the RethinkDB instance. Example: `192.168.1.2:32771`  
+3. Change the `gads_port` value to the port you wish the service to run on - default is 10000.  
+4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771`  
 
-### Start the GADS UI
-1. Execute `go build .`  in the main project folder  
+#### Start the GADS UI
+1. Execute `go build .` in the main project folder  
 2. Execute `./GADS`  
 3. Access the UI on `http://{gads_host_address}:{gads_port}`
 
-### Start a provider instance
-This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provide the devices. Follow the setup steps in the linked repo to start a provider instance.
+#### Start a provider instance
+This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision the devices. Follow the setup steps in the linked repository to create a provider instance.
 
 ## Thanks
 
 | |About|
-|---|---|
-|[go-ios](https://github.com/danielpaulus/go-ios)|Many thanks for creating this tool to communicate with iOS devices on Linux, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode. Without it none of this would be possible|
-|[iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)|This is an app for OS X that can (re)sign apps and bundle them into ipa files that are ready to be installed on an iOS device.|
-|[minicap](https://github.com/DeviceFarmer/minicap)|Stream screen capture data out of Android devices|  
+|---|---| 
 |[Appium](https://github.com/appium)|It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!|  
 
 ## WIP demo video  

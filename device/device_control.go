@@ -3,51 +3,43 @@ package device
 import (
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 type Device struct {
-	Container             *DeviceContainer `json:"container,omitempty"`
-	Connected             bool             `json:"connected,omitempty"`
-	Healthy               bool             `json:"healthy,omitempty"`
-	LastHealthyTimestamp  int64            `json:"last_healthy_timestamp,omitempty"`
-	UDID                  string           `json:"udid"`
-	OS                    string           `json:"os"`
-	AppiumPort            string           `json:"appium_port"`
-	StreamPort            string           `json:"stream_port"`
-	ContainerServerPort   string           `json:"container_server_port"`
-	WDAPort               string           `json:"wda_port,omitempty"`
-	Name                  string           `json:"name"`
-	OSVersion             string           `json:"os_version"`
-	ScreenSize            string           `json:"screen_size"`
-	Model                 string           `json:"model"`
-	Image                 string           `json:"image,omitempty"`
-	Host                  string           `json:"host"`
-	MinicapFPS            string           `json:"minicap_fps,omitempty"`
-	MinicapHalfResolution string           `json:"minicap_half_resolution,omitempty"`
-	UseMinicap            string           `json:"use_minicap,omitempty"`
+	Connected   bool   `json:"connected,omitempty" bson:"connected,omitempty"`
+	UDID        string `json:"udid" bson:"_id"`
+	OS          string `json:"os" bson:"os"`
+	Name        string `json:"name" bson:"name"`
+	OSVersion   string `json:"os_version" bson:"os_version"`
+	ScreenSize  string `json:"screen_size" bson:"screen_size"`
+	Model       string `json:"model" bson:"model"`
+	Image       string `json:"image,omitempty" bson:"image,omitempty"`
+	HostAddress string `json:"host_address" bson:"host_address"`
+	InUse       bool   `json:"in_use"`
 }
 
-type DeviceContainer struct {
-	ContainerID     string `json:"id"`
-	ContainerStatus string `json:"status"`
-	ImageName       string `json:"image_name"`
-	ContainerName   string `json:"container_name"`
+var netClient = &http.Client{
+	Timeout: time.Second * 120,
 }
 
 // Get specific device info from DB
-func getDBDevice(udid string) Device {
+func getDBDevice(udid string) *Device {
 	for _, dbDevice := range latestDevices {
 		if dbDevice.UDID == udid {
 			return dbDevice
 		}
 	}
-	return Device{}
+	return nil
 }
 
 // Load a specific device page
@@ -55,25 +47,34 @@ func GetDevicePage(c *gin.Context) {
 	udid := c.Param("udid")
 
 	device := getDBDevice(udid)
+	if device.InUse {
+		c.String(http.StatusInternalServerError, "Device is in use")
+		return
+	}
 	// If the device does not exist in the cached devices
-	if device == (Device{}) {
+	if device == nil {
 		c.String(http.StatusInternalServerError, "Device not found")
 		return
 	}
 
 	// Create the device health URL
-	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.Host, device.UDID)
+	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.HostAddress, device.UDID)
 
-	// Try to check the device health
-	res, err := http.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed creating http request to check device health from provider - %s", err.Error()))
 		return
 	}
 
-	if res.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(res.Body)
-		c.String(http.StatusInternalServerError, "Device not healthy: "+string(body))
+	response, err := netClient.Do(req)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed performing http request to check device health from provider - %s", err.Error()))
+		return
+	}
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Device not healthy, health check response: %s", string(body)))
 		return
 	}
 
@@ -85,18 +86,16 @@ func GetDevicePage(c *gin.Context) {
 		CanvasWidth  string
 		CanvasHeight string
 	}{
-		Device:       device,
+		Device:       *device,
 		CanvasWidth:  canvasWidth,
 		CanvasHeight: canvasHeight,
 	}
 
-	// This will generate only the device table, not the whole page
 	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
 	err = tmpl.Execute(c.Writer, pageData)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 	}
-
 }
 
 // Calculate the device stream canvas dimensions
@@ -116,4 +115,48 @@ func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight st
 	canvasWidth = fmt.Sprintf("%f", 850*screen_ratio)
 
 	return
+}
+
+func DeviceInUseWS(c *gin.Context) {
+	udid := c.Param("udid")
+	device := getDBDevice(udid)
+	var mu sync.Mutex
+
+	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	messageReceived := make(chan struct{})
+	defer close(messageReceived)
+
+	go func() {
+		for {
+			data, _, err := wsutil.ReadClientData(conn)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			if string(data) == "ping" {
+				messageReceived <- struct{}{}
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-messageReceived:
+			mu.Lock()
+			device.InUse = true
+			mu.Unlock()
+		case <-time.After(2 * time.Second):
+			mu.Lock()
+			device.InUse = false
+			mu.Unlock()
+			return
+		}
+	}
 }

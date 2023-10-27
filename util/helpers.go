@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 )
@@ -22,10 +21,10 @@ type JsonResponse struct {
 }
 
 type ConfigJsonData struct {
-	GadsHostAddress string   `json:"gads_host_address"`
-	GadsPort        string   `json:"gads_port"`
-	DeviceProviders []string `json:"device_providers"`
-	RethinkDB       string   `json:"rethink_db"`
+	GadsHostAddress string         `json:"gads_host_address"`
+	GadsPort        string         `json:"gads_port"`
+	MongoDB         string         `json:"mongo_db"`
+	Providers       []ProviderData `json:"providers"`
 }
 
 var ConfigData *ConfigJsonData
@@ -126,7 +125,7 @@ func GetConfigJsonData() {
 	}
 	defer jsonFile.Close()
 
-	bs, err := ioutil.ReadAll(jsonFile)
+	bs, err := io.ReadAll(jsonFile)
 	if err != nil {
 		panic(err)
 	}
