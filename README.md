@@ -36,18 +36,21 @@ The project uses MongoDB for syncing devices info between providers and GADS UI.
 1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
 2. You can use MongoDB Compass or another tool to access the db.
 
-### Setup config.json
+### Setup the GADS UI
+Download the latest release and the appropriate [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) release
+
+#### Setup config.json
 1. Open the `config.json` file.  
 2. Change the `gads_host_address` value to the IP of the host machine.  
 3. Change the `gads_port` value to the port you wish the service to run on - default is 10000.  
 4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771`  
 
-### Start the GADS UI
+#### Start the GADS UI
 1. Execute `go build .` in the main project folder  
 2. Execute `./GADS`  
 3. Access the UI on `http://{gads_host_address}:{gads_port}`
 
-### Start a provider instance
+#### Start a provider instance
 This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision the devices. Follow the setup steps in the linked repository to create a provider instance.
 
 ## Thanks

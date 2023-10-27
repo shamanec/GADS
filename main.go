@@ -42,7 +42,6 @@ func handleRequests() {
 	router.Static("/static", "./static")
 	router.GET("/", GetInitialPage)
 	router.GET("/logs", GetLogsPage)
-	router.GET("/project-logs", GetLogs)
 	router.GET("/logs-ws", util.LogsWS)
 
 	// Devices endpoints

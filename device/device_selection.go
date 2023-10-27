@@ -67,20 +67,6 @@ func GetDevices() {
 	}
 }
 
-// This is an additional check on top of the "Healthy" field in the DB.
-// The reason is that the device might have old data in the DB where it is still "Connected" and "Healthy".
-// So we also check the timestamp of the last time the device was "Healthy".
-// It is used inside the html template.
-func isHealthy(timestamp int64) bool {
-	currentTime := time.Now().UnixMilli()
-	diff := currentTime - timestamp
-	if diff > 5000 {
-		return false
-	}
-
-	return true
-}
-
 func LoadDevices(c *gin.Context) {
 
 	// Parse the template and return response with the created template
