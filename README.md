@@ -1,20 +1,22 @@
 ## Introduction
 
-* GADS is a web UI for [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) orchestration and remote control of devices.  
+* GADS is a web UI for remote control of devices provisioned by [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider).  
 
 ## Features
-1. Provider logs for debugging  
-2. Devices remote control(most of which is wrapper around Appium)
+1. Near real-time provider logs for debugging  
+2. Devices control (most of interaction is a wrapper around Appium API)
   * Android
-    - `GADS-Android-stream` video stream   
-    - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
-    - basic remote control - tap, swipe  
-    - basic Appium inspector
+    - `GADS-Android-stream` video stream  
   * iOS
-    - `WebDriverAgent MJPEG` video stream  
-    - basic device interaction - Home, Lock, Unlock, Type text, Clear text  
-    - basic remote control - tap, swipe  
-    - basic Appium inspector  
+    - `WebDriverAgent MJPEG` video stream   
+  * Both
+    - Basic functionalities - Home, Lock, Unlock, Type text, Clear text  
+    - Basic remote control - tap, swipe  
+    - Basic web Appium inspector - see elements tree with info only
+    - Take high quality screenshots
+    - Simple near real-time logs display - Appium/WebDriverAgent logs when provider is in `debug`, some simple interaction logs
+    - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
+    - Appium session refresh mechanism if a session timed out or was closed
 
 Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1  
 
@@ -24,11 +26,13 @@ Currently the project assumes that GADS UI, MongoDB and device providers are on 
 ### Go
 1. Install Go version 1.21.0 or higher
 
-### Install Docker
+### Start MongoDB instance - this can be done as provider step as well
+The project uses MongoDB for syncing devices info between providers and GADS UI.  
+
+#### Install Docker 
 1. You need to have Docker(Docker Desktop on macOS, Windows) installed.  
 
-### Start MongoDB instance
-The project uses MongoDB for syncing devices info between providers and GADS UI.  
+#### Start a MongoDB container instance
 1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
 2. You can use MongoDB Compass or another tool to access the db.
 
@@ -39,19 +43,17 @@ The project uses MongoDB for syncing devices info between providers and GADS UI.
 4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771`  
 
 ### Start the GADS UI
-1. Execute `go build .`  in the main project folder  
+1. Execute `go build .` in the main project folder  
 2. Execute `./GADS`  
 3. Access the UI on `http://{gads_host_address}:{gads_port}`
 
 ### Start a provider instance
-This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision the devices. Follow the setup steps in the linked repo to create a provider instance.
+This is only a UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision the devices. Follow the setup steps in the linked repository to create a provider instance.
 
 ## Thanks
 
 | |About|
-|---|---|
-|[go-ios](https://github.com/danielpaulus/go-ios)|Many thanks for creating this tool to communicate with iOS devices on Linux, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode. Without it none of this would be possible|  
-|[iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)|This is an app for OS X that can (re)sign apps and bundle them into ipa files that are ready to be installed on an iOS device.|  
+|---|---| 
 |[Appium](https://github.com/appium)|It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!|  
 
 ## WIP demo video  
