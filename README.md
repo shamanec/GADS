@@ -3,18 +3,18 @@
 * GADS is a web UI for remote control of devices provisioned by [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider).  
 
 ## Features
-1. Near real-time provider logs for debugging  
-2. Devices control (most of interaction is a wrapper around Appium API)
+1. Provider logs for debugging  
+2. Devices control (most of interaction is wrapped around Appium API)
   * Android
-    - `GADS-Android-stream` video stream  
+    - [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream) video stream  
   * iOS
-    - `WebDriverAgent MJPEG` video stream   
+    - [WebDriverAgent](https://github.com/appium/WebDriverAgent) video stream   
   * Both
     - Basic functionalities - Home, Lock, Unlock, Type text, Clear text  
     - Basic remote control - tap, swipe  
     - Basic web Appium inspector - see elements tree with info only
     - Take high quality screenshots
-    - Simple near real-time logs display - Appium/WebDriverAgent logs when provider is in `debug`, some simple interaction logs
+    - Simple logs display - Appium/WebDriverAgent logs when provider is in `debug`, some simple interaction logs
     - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
     - Appium session refresh mechanism if a session timed out or was closed
 
@@ -34,7 +34,7 @@ The project uses MongoDB for syncing devices info between providers and GADS UI.
 
 #### Start a MongoDB container instance
 1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
-2. You can use MongoDB Compass or another tool to access the db.
+2. You can use MongoDB Compass or another tool to access the db if needed.
 
 ### Setup the GADS UI
 Download the latest release and the appropriate [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) release
@@ -46,7 +46,7 @@ Download the latest release and the appropriate [GADS-devices-provider](https://
 4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771`  
 
 #### Start the GADS UI
-1. Execute `go build .` in the main project folder  
+1. Open terminaExecute `go build .` in the main project folder  
 2. Execute `./GADS`  
 3. Access the UI on `http://{gads_host_address}:{gads_port}`
 
