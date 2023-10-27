@@ -59,10 +59,8 @@ This is only a UI, to actually have devices available you need to have at least 
 |---|---| 
 |[Appium](https://github.com/appium)|It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!|  
 
-## WIP demo video  
-
-https://user-images.githubusercontent.com/60219580/183677067-237c12d9-f06d-4b14-985c-17aedbb19ea6.mp4
-
-
-
-
+## Demo video  
+iOS  
+https://github.com/shamanec/GADS/assets/60219580/fc1c9005-942d-4406-9d99-60970150384c  
+Android  
+https://github.com/shamanec/GADS/assets/60219580/d528a7de-a9ea-4a20-9b40-75f964729d52
