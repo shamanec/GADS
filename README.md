@@ -24,6 +24,9 @@ Currently the project assumes that GADS UI, MongoDB and device providers are on 
 ### Go
 1. Install Go version 1.21.0 or higher
 
+### Install Docker
+1. You need to have Docker(Docker Desktop on macOS, Windows) installed.  
+
 ### Start MongoDB instance
 The project uses MongoDB for syncing devices info between providers and GADS UI.  
 1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
