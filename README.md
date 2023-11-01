@@ -17,7 +17,6 @@
     - Simple logs display - Appium/WebDriverAgent logs when provider is in `debug`, some simple interaction logs
     - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
     - Appium session refresh mechanism if a session timed out or was closed
-    - Optional usage of Selenium Grid 4 on provider level
 
 Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1  
 
@@ -45,7 +44,7 @@ Clone the project and the [GADS-devices-provider](https://github.com/shamanec/GA
 2. Change the `gads_host_address` value to the IP of the host machine.  
 3. Change the `gads_port` value to the port you wish the service to run on - default is 10000.  
 4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771` 
-5. If you are registering devices to Selenium Grid via providers, you can visualize the grid directly in the UI - change `selenium_grid_instance` to the instance url, e.g. `http://192.168.1.6:4444` 
+5. If you are registering devices to Selenium Grid via providers, you can visualize the grid directly in the UI - change `selenium_grid_instance` to the instance url, e.g. `http://192.168.1.6:4444` and access it via the UI
 
 #### Start the GADS UI
 1. Open terminal and execute `go build .` in the main project folder  
