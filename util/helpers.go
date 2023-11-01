@@ -21,10 +21,11 @@ type JsonResponse struct {
 }
 
 type ConfigJsonData struct {
-	GadsHostAddress string         `json:"gads_host_address"`
-	GadsPort        string         `json:"gads_port"`
-	MongoDB         string         `json:"mongo_db"`
-	Providers       []ProviderData `json:"providers"`
+	GadsHostAddress      string         `json:"gads_host_address"`
+	GadsPort             string         `json:"gads_port"`
+	MongoDB              string         `json:"mongo_db"`
+	Providers            []ProviderData `json:"providers"`
+	SeleniumGridInstance string         `json:"selenium_grid_instance"`
 }
 
 var ConfigData *ConfigJsonData

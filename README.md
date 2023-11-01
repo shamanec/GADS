@@ -43,7 +43,8 @@ Download the latest release and the appropriate [GADS-devices-provider](https://
 1. Open the `config.json` file.  
 2. Change the `gads_host_address` value to the IP of the host machine.  
 3. Change the `gads_port` value to the port you wish the service to run on - default is 10000.  
-4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771`  
+4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771` 
+5. If you are registering devices to Selenium Grid via providers, you can visualize the grid directly in the UI - change `selenium_grid_instance` to the instance url, e.g. `http://192.168.1.6:4444` 
 
 #### Start the GADS UI
 1. Open terminal and execute `go build .` in the main project folder  
