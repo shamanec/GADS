@@ -17,11 +17,12 @@
     - Simple logs display - Appium/WebDriverAgent logs when provider is in `debug`, some simple interaction logs
     - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
     - Appium session refresh mechanism if a session timed out or was closed
+    - Optional usage of Selenium Grid 4 on provider level
 
 Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1  
 
 ## Setup
-Currently the project assumes that GADS UI, MongoDB and device providers are on the same network. They can all be on the same machine as well.  
+Currently the project assumes that GADS UI, MongoDB, Selenium Grid and device providers are on the same network. They can all be on the same machine as well.  
 
 ### Go
 1. Install Go version 1.21.0 or higher
@@ -37,7 +38,7 @@ The project uses MongoDB for syncing devices info between providers and GADS UI.
 2. You can use MongoDB Compass or another tool to access the db if needed.
 
 ### Setup the GADS UI
-Download the latest release and the appropriate [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) release or clone the latest main code from both repos.
+Clone the project and the [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) code from both repos.
 
 #### Setup config.json
 1. Open the `config.json` file.  
