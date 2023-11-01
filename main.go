@@ -23,6 +23,14 @@ func GetInitialPage(c *gin.Context) {
 	}
 }
 
+func GetSeleniumGridPage(c *gin.Context) {
+	var index = template.Must(template.ParseFiles("static/selenium_grid.html"))
+	err := index.Execute(c.Writer, util.ConfigData)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Could not create the selenium grid page html - %s", err.Error()))
+	}
+}
+
 func setLogging() {
 	log.SetFormatter(&log.JSONFormatter{})
 	// Create/open the log file and set it as logrus output
@@ -43,6 +51,7 @@ func handleRequests() {
 	router.GET("/", GetInitialPage)
 	router.GET("/logs", GetLogsPage)
 	router.GET("/logs-ws", util.LogsWS)
+	router.GET("/selenium-grid", GetSeleniumGridPage)
 
 	// Devices endpoints
 	router.GET("/devices", device.LoadDevices)
