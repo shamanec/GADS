@@ -1,0 +1,44 @@
+/* ======== */
+.device-box {
+    background-color: #f1f1f1;
+    width: 300px;
+    margin: 10px;
+    text-align: center;
+    font-size: 30px;
+    border-radius: 10px;
+}
+
+.device-box:hover {
+    background-color: #b9b9b9;
+}
+
+.devices-container {
+    display: flex;
+    flex-wrap: nowrap;
+    margin: 10px
+}
+
+.deviceImage {
+    height: 300px;
+    margin-top: 30px
+}
+
+.device-buttons-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.device-buttons {
+    margin: 10px;
+    background: blue;
+    color: white;
+    width: 30%;
+    height: 50px;
+    border-radius: 10px;
+    position: relative;
+}
+
+.device-buttons:hover {
+    background: rgb(1, 1, 138)
+}

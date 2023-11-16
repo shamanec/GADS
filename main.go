@@ -41,10 +41,23 @@ func setLogging() {
 	log.SetOutput(project_log_file)
 }
 
+func handleIndex(c *gin.Context) {
+	var tmpl = template.Must(template.ParseFiles("gads-ui/build/index.html"))
+	err := tmpl.Execute(c.Writer, nil)
+	if err != nil {
+		return
+	}
+}
+
 func handleRequests() {
 	// Create the router and allow all origins
 	router := gin.Default()
 	router.Use(cors.Default())
+
+	// Serve static files from the React build folder
+	// router.Static("/static", "./gads-ui/build/static")
+	// router.Static("/static", "./gads-ui/build/static")
+	// router.GET("/", handleIndex)
 
 	// Other
 	router.Static("/static", "./static")
