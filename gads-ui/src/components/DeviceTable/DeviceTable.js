@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import './DeviceTable.css'
 import Alert from '@mui/material/Alert';
-import Snackbar, { SnackbarOrigin } from '@mui/material/Snackbar';
+import Snackbar from '@mui/material/Snackbar';
 
-export default function DeviceTable({ name }) {
+export default function DeviceTable() {
     let devicesSocket = null;
     const [devices, setDevices] = useState([]);
     const [showAlert, setShowAlert] = useState(false);
@@ -49,6 +49,7 @@ export default function DeviceTable({ name }) {
         // If component unmounts close the websocket connection
         return () => {
             if (devicesSocket) {
+                console.log('component unmounted')
                 devicesSocket.close()
             }
         }

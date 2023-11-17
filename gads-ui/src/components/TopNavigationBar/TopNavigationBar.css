@@ -1,0 +1,41 @@
+.navbar {
+    background-color: #3c68e6;
+    height: 50px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 5px;
+}
+
+.navbar a {
+    text-decoration: none;
+    color: white;
+}
+
+.navbar li {
+    list-style-type: none;
+}
+
+.nav-bar-logo {
+    height: 50px;
+}
+
+.nav-bar-button {
+    margin: 2px;
+}
+
+.selected {
+    background-color: #ddd;
+    /* or any style you like */
+}
+
+.nav-bar-link {
+    display: flex;
+    text-align: center;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    padding-left: 10px;
+    padding-right: 10px
+}

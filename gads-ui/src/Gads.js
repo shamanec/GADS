@@ -1,25 +1,21 @@
-import logo from './logo.svg';
 import './Gads.css';
+import DeviceTable from './components/DeviceTable/DeviceTable';
+import { Routes, Route } from 'react-router-dom';
+import ProviderLogsTable from './components/ProviderLogsTable/ProviderLogsTable';
+import NavBar from './components/TopNavigationBar/TopNavigationBar';
+import Home from './components/Home/Home'
 
-function App() {
+function Gads() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to .
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <NavBar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/devices" element={<DeviceTable />} />
+        <Route path="/logs" element={<ProviderLogsTable />} />
+      </Routes>
     </div>
   );
 }
 
-export default App;
+export default Gads;
