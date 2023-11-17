@@ -138,7 +138,6 @@ function UseButton({ device, handleAlert }) {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                handleAlert()
             })
             .catch((error) => {
                 handleAlert()
@@ -151,10 +150,11 @@ function UseButton({ device, handleAlert }) {
             });
     }
 
+    const buttonDisabled = loading || !device.connected;
 
     if (device.connected === true) {
         return (
-            <button className='device-buttons' onClick={handleUseButtonClick}>
+            <button className='device-buttons' onClick={handleUseButtonClick} disabled={buttonDisabled}>
                 {loading ? <span className="spinner"></span> : 'Use'}
             </button>
 
