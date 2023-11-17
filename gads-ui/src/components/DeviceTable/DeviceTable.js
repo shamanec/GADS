@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import './DeviceTable.css'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
+import { useNavigate } from 'react-router-dom';
 
 export default function DeviceTable() {
     let devicesSocket = null;
@@ -130,6 +131,7 @@ function UseButton({ device, handleAlert }) {
     // Difference between current time and last time the device was reported as healthy
     // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     function handleUseButtonClick() {
         setLoading(true);
@@ -138,6 +140,8 @@ function UseButton({ device, handleAlert }) {
             .then((response) => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
+                } else {
+                    navigate('/devices/control/' + device.udid);
                 }
             })
             .catch((error) => {
