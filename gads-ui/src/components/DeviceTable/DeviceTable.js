@@ -58,7 +58,13 @@ export default function DeviceTable() {
 
     return (
         <div id="wrapper-top">
-            <input type="text" id="search-input" onKeyUp={() => filterDevices()} placeholder="Search devices"></input>
+            <div id="filters-wrapper">
+                <div id='input-wrapper'>
+                    <input type="search" id="search-input" onKeyUp={() => filterDevices()} placeholder="Search devices"></input>
+                </div>
+                <OSSelect />
+            </div>
+
             <p></p>
             <div class="flex-container devices-container" id="devices-container">
                 {
@@ -82,6 +88,36 @@ export default function DeviceTable() {
             )}
         </div>
     )
+}
+
+function OSSelect() {
+    return (
+        <div class="custom-select" onChange={filterDevicesByOS}>
+            <select>
+                <option value="all">All</option>
+                <option value="ios">iOS</option>
+                <option value="android">Android</option>
+            </select>
+        </div>
+    )
+}
+
+function filterDevicesByOS(event) {
+    let os = event.target.value
+    let grid = document.getElementById('devices-container')
+    let deviceBoxes = grid.getElementsByClassName('device-box')
+
+    for (let i = 0; i < deviceBoxes.length; i++) {
+        let udid = deviceBoxes[i].getAttribute('data-id')
+        const deviceData = JSON.parse(localStorage.getItem(udid))
+        if (os === 'all') {
+            deviceBoxes[i].style.display = "";
+        } else if (os != deviceData.os) {
+            deviceBoxes[i].style.display = "none";
+        } else {
+            deviceBoxes[i].style.display = "";
+        }
+    }
 }
 
 function DeviceBox({ device, handleAlert }) {

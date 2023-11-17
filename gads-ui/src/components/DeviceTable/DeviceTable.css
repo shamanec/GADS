@@ -15,8 +15,8 @@
 
 .devices-container {
     display: flex;
-    flex-wrap: nowrap;
-    margin: 10px
+    flex-wrap: wrap;
+    margin: 10px;
 }
 
 .deviceImage {
@@ -73,4 +73,21 @@
 
 .info {
     font-size: 15px;
+}
+
+#input-wrapper {
+    margin-top: 10px;
+    margin-left: 10px;
+}
+
+#filters-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-content: center;
+}
+
+.custom-select {
+    position: relative;
+    font-family: Arial;
 }
