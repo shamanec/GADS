@@ -1,0 +1,71 @@
+.device-box {
+    background-color: #f1f1f1;
+    width: 300px;
+    height: 500px;
+    margin: 10px;
+    text-align: center;
+    font-size: 30px;
+    border-radius: 10px;
+}
+
+.device-box:hover {
+    background-color: #b9b9b9;
+}
+
+.devices-container {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 10px;
+}
+
+.deviceImage {
+    height: 300px;
+    margin-top: 30px
+}
+
+.device-buttons-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.device-buttons {
+    margin: 10px;
+    background: blue;
+    color: white;
+    width: 30%;
+    height: 50px;
+    border-radius: 10px;
+    position: relative;
+}
+
+.device-buttons:hover {
+    cursor: pointer;
+    background: rgb(1, 1, 138)
+}
+
+.spinner {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    border: 4px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+}
+
+@keyframes button-loading-spinner {
+    from {
+        transform: rotate(0turn);
+    }
+
+    to {
+        transform: rotate(1turn);
+    }
+}
