@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import './DeviceSelection.css'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
-import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import TabPanel from '@mui/lab/TabPanel';
 import TabContext from '@mui/lab/TabContext';
@@ -61,19 +60,21 @@ export default function DeviceSelection() {
     }, [])
 
     return (
-        <div>
-            <OSSelection devices={devices} handleAlert={presentDeviceUnavailableAlert} />
-            {showAlert && (
-                <Snackbar
-                    anchorOrigin={{ vertical, horizontal }}
-                    open={open}
-                    key='bottomcenter'
-                >
-                    <Alert severity="error">
-                        Device is unavailable
-                    </Alert>
-                </Snackbar>
-            )}
+        <div id='top-wrapper'>
+            <div id='selection-wrapper'>
+                <OSSelection devices={devices} handleAlert={presentDeviceUnavailableAlert} />
+                {showAlert && (
+                    <Snackbar
+                        anchorOrigin={{ vertical, horizontal }}
+                        open={open}
+                        key='bottomcenter'
+                    >
+                        <Alert severity="error">
+                            Device is unavailable
+                        </Alert>
+                    </Snackbar>
+                )}
+            </div>
         </div>
     )
 }

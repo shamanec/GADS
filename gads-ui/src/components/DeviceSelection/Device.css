@@ -31,12 +31,20 @@
 
 .device-buttons {
     margin: 10px;
-    background: blue;
+    background: #3c68e6;
     color: white;
     width: 30%;
     height: 50px;
     border-radius: 10px;
     position: relative;
+}
+
+.device-buttons:disabled {
+    background: #a1add0;
+}
+
+.device-buttons:disabled:hover {
+    background: #a1add0;
 }
 
 .device-buttons:hover {

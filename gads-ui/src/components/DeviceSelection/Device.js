@@ -16,7 +16,6 @@ export function DeviceBox({ device, handleAlert }) {
             <div className='filterable info'>{device.os_version}</div>
             <div className='device-buttons-container'>
                 <UseButton device={device} handleAlert={handleAlert} />
-                <button className='device-buttons'>Details</button>
             </div>
         </div>
     )

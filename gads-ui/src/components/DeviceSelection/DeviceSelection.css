@@ -9,3 +9,14 @@
     height: 40px;
     margin-left: 24px;
 }
+
+#selection-wrapper {
+    width: 80%;
+    margin-top: 10px;
+}
+
+#top-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
