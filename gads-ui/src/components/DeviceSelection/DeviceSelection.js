@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import './DeviceTable.css'
+import './DeviceSelection.css'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 import { useNavigate } from 'react-router-dom';
@@ -12,8 +12,9 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import { FiSearch } from "react-icons/fi";
+import { OSFilterTabs, DeviceSearch } from './Filters'
 
-export default function DeviceTable() {
+export default function DeviceSelection() {
     let devicesSocket = null;
     const [devices, setDevices] = useState([]);
     const [showAlert, setShowAlert] = useState(false);
@@ -100,17 +101,8 @@ function OSSelection({ devices, handleAlert }) {
                     alignItems="center"
                     className='filters-stack'
                 >
-                    <Tabs value={currentTabIndex} onChange={handleTabChange}>
-                        <Tab label="All" />
-                        <Tab label="Android" />
-                        <Tab label="iOS" />
-                    </Tabs>
-                    <div id='search-wrapper'>
-                        <div id='image-wrapper'>
-                            <FiSearch size={25} />
-                        </div>
-                        <input type="search" id="search-input" onKeyUp={() => filterDevices()} placeholder="Search devices"></input>
-                    </div>
+                    <OSFilterTabs currentTabIndex={currentTabIndex} handleTabChange={handleTabChange}></OSFilterTabs>
+                    <DeviceSearch keyUpFilterFunc={filterDevices}></DeviceSearch>
                 </Stack>
                 <TabPanel value='{currentTabIndex}'>
                     <Grid id='devices-container' container spacing={2}>
