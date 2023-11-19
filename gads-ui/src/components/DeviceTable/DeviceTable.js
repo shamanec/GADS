@@ -9,6 +9,8 @@ import Box from '@mui/material/Box';
 import TabPanel from '@mui/lab/TabPanel';
 import TabContext from '@mui/lab/TabContext';
 import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 
 export default function DeviceTable() {
     let devicesSocket = null;
@@ -19,7 +21,7 @@ export default function DeviceTable() {
     const [timeoutId, setTimeoutId] = useState(null);
     const open = true
 
-    localStorage.clear()
+    // localStorage.clear()
 
     // Show a snackbar alert if device is unavailable
     function presentDeviceUnavailableAlert() {
@@ -62,7 +64,7 @@ export default function DeviceTable() {
 
     return (
         <div>
-            <OSSelection devices={devices} />
+            <OSSelection devices={devices} handleAlert={presentDeviceUnavailableAlert} />
             {showAlert && (
                 <Snackbar
                     anchorOrigin={{ vertical, horizontal }}
@@ -78,49 +80,58 @@ export default function DeviceTable() {
     )
 }
 
-function OSSelection({ devices }) {
+function OSSelection({ devices, handleAlert }) {
     const [currentTabIndex, setCurrentTabIndex] = useState(0);
 
     const handleTabChange = (e, tabIndex) => {
         setCurrentTabIndex(tabIndex);
+        const searchInput = document.getElementById('search-input')
+        searchInput.value = ''
     };
 
     return (
         <TabContext value='{currentTabIndex}'>
             <Box>
-                <Tabs value={currentTabIndex} onChange={handleTabChange}>
-                    <Tab label="All" />
-                    <Tab label="Android" />
-                    <Tab label="iOS" />
-                </Tabs>
+                <Stack
+                    direction="row"
+                    divider={<Divider orientation="vertical" flexItem />}
+                    spacing={2}
+                    alignItems="center"
+                >
+                    <Tabs value={currentTabIndex} onChange={handleTabChange}>
+                        <Tab label="All" />
+                        <Tab label="Android" />
+                        <Tab label="iOS" />
+                    </Tabs>
+                    <div id='input-wrapper'>
+                        <input type="search" id="search-input" onKeyUp={() => filterDevices()} placeholder="Search devices"></input>
+                    </div>
+                </Stack>
                 <TabPanel value='{currentTabIndex}'>
-                    <Box sx={{ flexGrow: 1 }}></Box>
-                    <Grid container spacing={2}>
+                    <Grid id='devices-container' container spacing={2}>
                         {
-                            devices.map((device, index) => {
+                            devices.map((device) => {
                                 if (currentTabIndex === 0) {
                                     return (
-                                        <DeviceBox device={device} />
+                                        <DeviceBox device={device} handleAlert={handleAlert} />
                                     )
 
                                 } else if (currentTabIndex === 1 && device.os === "android") {
                                     return (
-                                        <DeviceBox device={device} />
+                                        <DeviceBox device={device} handleAlert={handleAlert} />
                                     )
 
                                 } else if (currentTabIndex === 2 && device.os === "ios") {
                                     return (
-                                        <DeviceBox device={device} />
+                                        <DeviceBox device={device} handleAlert={handleAlert} />
                                     )
                                 }
                             })
                         }
                     </Grid>
-
                 </TabPanel>
             </Box>
         </TabContext>
-
     )
 }
 
@@ -181,7 +192,7 @@ function UseButton({ device, handleAlert }) {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 } else {
-                    navigate('/devices/control/' + device.udid);
+                    navigate('/devices/control/' + device.udid, device);
                 }
             })
             .catch((error) => {
