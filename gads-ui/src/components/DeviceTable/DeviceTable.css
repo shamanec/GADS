@@ -75,19 +75,33 @@
     font-size: 15px;
 }
 
-#input-wrapper {
-    margin-top: 10px;
+.filters-stack {
+    height: 40px;
+    margin-left: 24px;
+}
+
+#search-input {
+    border: none;
+    font-size: 16px;
+    height: 100%;
+    border-bottom: 2px solid rgba(60, 104, 230, 0.5);
     margin-left: 10px;
 }
 
-#filters-wrapper {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    align-content: center;
+#search-input:focus {
+    outline: none;
+    border-bottom: 2px solid #3c68e6;
 }
 
-.custom-select {
-    position: relative;
-    font-family: Arial;
+#search-wrapper {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+#image-wrapper {
+    justify-content: center;
+    align-items: center;
 }

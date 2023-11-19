@@ -11,6 +11,7 @@ import TabContext from '@mui/lab/TabContext';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
+import { FiSearch } from "react-icons/fi";
 
 export default function DeviceTable() {
     let devicesSocket = null;
@@ -97,13 +98,17 @@ function OSSelection({ devices, handleAlert }) {
                     divider={<Divider orientation="vertical" flexItem />}
                     spacing={2}
                     alignItems="center"
+                    className='filters-stack'
                 >
                     <Tabs value={currentTabIndex} onChange={handleTabChange}>
                         <Tab label="All" />
                         <Tab label="Android" />
                         <Tab label="iOS" />
                     </Tabs>
-                    <div id='input-wrapper'>
+                    <div id='search-wrapper'>
+                        <div id='image-wrapper'>
+                            <FiSearch size={25} />
+                        </div>
                         <input type="search" id="search-input" onKeyUp={() => filterDevices()} placeholder="Search devices"></input>
                     </div>
                 </Stack>
