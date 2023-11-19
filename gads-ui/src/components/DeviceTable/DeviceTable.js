@@ -3,6 +3,12 @@ import './DeviceTable.css'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 import { useNavigate } from 'react-router-dom';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Box from '@mui/material/Box';
+import TabPanel from '@mui/lab/TabPanel';
+import TabContext from '@mui/lab/TabContext';
+import Grid from '@mui/material/Grid';
 
 export default function DeviceTable() {
     let devicesSocket = null;
@@ -12,6 +18,8 @@ export default function DeviceTable() {
     let horizontal = 'center'
     const [timeoutId, setTimeoutId] = useState(null);
     const open = true
+
+    localStorage.clear()
 
     // Show a snackbar alert if device is unavailable
     function presentDeviceUnavailableAlert() {
@@ -28,19 +36,15 @@ export default function DeviceTable() {
     }
 
     useEffect(() => {
-        // Close the devices websocket if it exists
         if (devicesSocket) {
             devicesSocket.close()
         }
-        // Create a new ws connection to get device data
         devicesSocket = new WebSocket('ws://192.168.1.28:10000/available-devices');
 
-        // On message set the device data in the local state
-        // Also save in local storage to use for something
         devicesSocket.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
+            localStorage.setItem("devices-data", devicesJson)
 
-            // Assuming the receivedData is an array of objects
             setDevices(devicesJson);
             devicesJson.forEach((device) => {
                 localStorage.setItem(device.udid, JSON.stringify(device))
@@ -57,24 +61,8 @@ export default function DeviceTable() {
     }, [])
 
     return (
-        <div id="wrapper-top">
-            <div id="filters-wrapper">
-                <div id='input-wrapper'>
-                    <input type="search" id="search-input" onKeyUp={() => filterDevices()} placeholder="Search devices"></input>
-                </div>
-                <OSSelect />
-            </div>
-
-            <p></p>
-            <div class="flex-container devices-container" id="devices-container">
-                {
-                    devices.map((device, index) => {
-                        return (
-                            <DeviceBox device={device} index={index} key={index} handleAlert={presentDeviceUnavailableAlert} />
-                        )
-                    })
-                }
-            </div>
+        <div>
+            <OSSelection devices={devices} />
             {showAlert && (
                 <Snackbar
                     anchorOrigin={{ vertical, horizontal }}
@@ -90,39 +78,50 @@ export default function DeviceTable() {
     )
 }
 
-function OSSelect() {
+function OSSelection({ devices }) {
+    const [currentTabIndex, setCurrentTabIndex] = useState(0);
+
+    const handleTabChange = (e, tabIndex) => {
+        setCurrentTabIndex(tabIndex);
+    };
+
     return (
-        <div class="custom-select" onChange={filterDevicesByOS}>
-            <select>
-                <option value="all">All</option>
-                <option value="ios">iOS</option>
-                <option value="android">Android</option>
-            </select>
-        </div>
+        <TabContext value='{currentTabIndex}'>
+            <Box>
+                <Tabs value={currentTabIndex} onChange={handleTabChange}>
+                    <Tab label="All" />
+                    <Tab label="Android" />
+                    <Tab label="iOS" />
+                </Tabs>
+                <TabPanel value='{currentTabIndex}'>
+                    <Box sx={{ flexGrow: 1 }}></Box>
+                    <Grid container spacing={2}>
+                        {
+                            devices.map((device, index) => {
+                                if (currentTabIndex === 0) {
+                                    return (
+                                        <DeviceBox device={device} />
+                                    )
+
+                                } else if (currentTabIndex === 1 && device.os === "android") {
+                                    return (
+                                        <DeviceBox device={device} />
+                                    )
+
+                                } else if (currentTabIndex === 2 && device.os === "ios") {
+                                    return (
+                                        <DeviceBox device={device} />
+                                    )
+                                }
+                            })
+                        }
+                    </Grid>
+
+                </TabPanel>
+            </Box>
+        </TabContext>
+
     )
-}
-
-function filterDevicesByOS(event) {
-    let os = event.target.value
-    let grid = document.getElementById('devices-container')
-    let deviceBoxes = grid.getElementsByClassName('device-box')
-
-    for (let i = 0; i < deviceBoxes.length; i++) {
-        let udid = deviceBoxes[i].getAttribute('data-id')
-        const deviceData = JSON.parse(localStorage.getItem(udid))
-
-        let display = ""
-
-        if (os === 'all') {
-            display = "";
-        } else if (os != deviceData.os) {
-            display = "none";
-        } else {
-            display = "";
-        }
-
-        deviceBoxes[i].style.display = display;
-    }
 }
 
 function filterDevices() {
