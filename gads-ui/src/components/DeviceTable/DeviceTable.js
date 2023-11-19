@@ -110,33 +110,19 @@ function filterDevicesByOS(event) {
     for (let i = 0; i < deviceBoxes.length; i++) {
         let udid = deviceBoxes[i].getAttribute('data-id')
         const deviceData = JSON.parse(localStorage.getItem(udid))
+
+        let display = ""
+
         if (os === 'all') {
-            deviceBoxes[i].style.display = "";
+            display = "";
         } else if (os != deviceData.os) {
-            deviceBoxes[i].style.display = "none";
+            display = "none";
         } else {
-            deviceBoxes[i].style.display = "";
+            display = "";
         }
+
+        deviceBoxes[i].style.display = display;
     }
-}
-
-function DeviceBox({ device, handleAlert }) {
-    let img_src = device.os === 'android' ? './images/default-android.png' : './images/default-apple.png'
-
-    return (
-        <div className='device-box' data-id={device.udid}>
-            <div>
-                <img className="deviceImage" src={img_src}>
-                </img>
-            </div>
-            <div className='filterable info'>{device.model}</div>
-            <div className='filterable info'>{device.os_version}</div>
-            <div className='device-buttons-container'>
-                <UseButton device={device} handleAlert={handleAlert} />
-                <button className='device-buttons'>Details</button>
-            </div>
-        </div>
-    )
 }
 
 function filterDevices() {
@@ -161,6 +147,25 @@ function filterDevices() {
             deviceBoxes[i].style.display = "none";
         }
     }
+}
+
+function DeviceBox({ device, handleAlert }) {
+    let img_src = device.os === 'android' ? './images/default-android.png' : './images/default-apple.png'
+
+    return (
+        <div className='device-box' data-id={device.udid}>
+            <div>
+                <img className="deviceImage" src={img_src}>
+                </img>
+            </div>
+            <div className='filterable info'>{device.model}</div>
+            <div className='filterable info'>{device.os_version}</div>
+            <div className='device-buttons-container'>
+                <UseButton device={device} handleAlert={handleAlert} />
+                <button className='device-buttons'>Details</button>
+            </div>
+        </div>
+    )
 }
 
 function UseButton({ device, handleAlert }) {
