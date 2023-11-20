@@ -1,7 +1,7 @@
 .device-box {
     background-color: #f1f1f1;
     width: 300px;
-    height: 500px;
+    height: 450px;
     margin: 10px;
     text-align: center;
     font-size: 30px;
@@ -9,7 +9,7 @@
 }
 
 .device-box:hover {
-    background-color: #b9b9b9;
+    background-color: #b6c7ad;
 }
 
 .devices-container {
@@ -31,11 +31,12 @@
 
 .device-buttons {
     margin: 10px;
-    background: #3c68e6;
+    background: blue;
     color: white;
     width: 30%;
     height: 50px;
     border-radius: 10px;
+    font-size: 15px;
     position: relative;
 }
 
@@ -49,7 +50,8 @@
 
 .device-buttons:hover {
     cursor: pointer;
-    background: rgb(1, 1, 138)
+    background: #ffc240;
+    color: black;
 }
 
 .spinner {
