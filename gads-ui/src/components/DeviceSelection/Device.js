@@ -29,7 +29,8 @@ function UseButton({ device, handleAlert }) {
 
     function handleUseButtonClick() {
         setLoading(true);
-        const url = `http://${device.host_address}:10000/device/${device.udid}/health`;
+        console.log(process.env.REACT_APP_GADS_BACKEND_HOST)
+        const url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${device.udid}/health`;
         fetch(url)
             .then((response) => {
                 if (!response.ok) {

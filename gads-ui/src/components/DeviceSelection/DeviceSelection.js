@@ -38,7 +38,7 @@ export default function DeviceSelection() {
         if (devicesSocket) {
             devicesSocket.close()
         }
-        devicesSocket = new WebSocket('ws://192.168.1.28:10000/available-devices');
+        devicesSocket = new WebSocket(`ws://${process.env.REACT_APP_GADS_BACKEND_HOST}/available-devices`);
 
         devicesSocket.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
@@ -99,7 +99,7 @@ function OSSelection({ devices, handleAlert }) {
                     className='filters-stack'
                 >
                     <OSFilterTabs currentTabIndex={currentTabIndex} handleTabChange={handleTabChange}></OSFilterTabs>
-                    <DeviceSearch keyUpFilterFunc={filterDevices}></DeviceSearch>
+                    <DeviceSearch keyUpFilterFunc={deviceSearch}></DeviceSearch>
                 </Stack>
                 <TabPanel value='{currentTabIndex}'>
                     <Grid id='devices-container' container spacing={2}>
@@ -129,7 +129,7 @@ function OSSelection({ devices, handleAlert }) {
     )
 }
 
-function filterDevices() {
+function deviceSearch() {
     var input = document.getElementById("search-input");
     var filter = input.value.toUpperCase();
     let grid = document.getElementById('devices-container')
