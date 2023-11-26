@@ -1,5 +1,5 @@
 .navbar {
-    background-color: #3c68e6;
+    background-color: #f5be4a;
     height: 50px;
     display: flex;
     flex-direction: row;
@@ -9,7 +9,7 @@
 
 .navbar a {
     text-decoration: none;
-    color: white;
+    color: black;
 }
 
 .navbar li {

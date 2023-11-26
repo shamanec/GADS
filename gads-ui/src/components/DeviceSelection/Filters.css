@@ -2,13 +2,13 @@
     border: none;
     font-size: 16px;
     height: 100%;
-    border-bottom: 2px solid rgba(60, 104, 230, 0.5);
+    border-bottom: 2px solid #f5be4a;
     margin-left: 10px;
 }
 
 #search-input:focus {
     outline: none;
-    border-bottom: 2px solid #3c68e6;
+    border-bottom: 2px solid #f5be4a;
 }
 
 #search-wrapper {
