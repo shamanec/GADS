@@ -90,13 +90,14 @@ function OSSelection({ devices, handleAlert }) {
 
     return (
         <TabContext value='{currentTabIndex}'>
-            <Box>
+            <Box sx={{ display: "flex", flexDirection: 'row' }}>
                 <Stack
-                    direction="row"
+                    direction="column"
                     divider={<Divider orientation="vertical" flexItem />}
                     spacing={2}
                     alignItems="center"
                     className='filters-stack'
+                    sx={{ height: "500px", backgroundColor: "#f5be4a", borderRadius: "10px" }}
                 >
                     <OSFilterTabs currentTabIndex={currentTabIndex} handleTabChange={handleTabChange}></OSFilterTabs>
                     <DeviceSearch keyUpFilterFunc={deviceSearch}></DeviceSearch>

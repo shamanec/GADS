@@ -1,15 +1,15 @@
 #search-input {
     border: none;
     font-size: 16px;
-    height: 100%;
-    border-bottom: 5px solid #f5be4a;
     margin-left: 10px;
+    height: 40px;
+    border-bottom: 2px solid black;
     background-color: #f5be4a;
+    color: black;
 }
 
 #search-input:focus {
     outline: none;
-    border-bottom: 5px solid #f5be4a;
 }
 
 #search-wrapper {
@@ -17,7 +17,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    height: 40px;
 }
 
 #image-wrapper {
