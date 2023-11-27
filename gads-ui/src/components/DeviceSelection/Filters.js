@@ -6,7 +6,7 @@ import { FiSearch } from "react-icons/fi";
 
 export function OSFilterTabs({ currentTabIndex, handleTabChange }) {
     return (
-        <Tabs value={currentTabIndex} onChange={handleTabChange} TabIndicatorProps={{ style: { background: "#f5be4a", height: "5px" } }} textColor='#f5be4a' sx={{ color: "#f5be4a", fontFamily: "Verdana" }}>
+        <Tabs value={currentTabIndex} onChange={handleTabChange} TabIndicatorProps={{ style: { background: "#282c34", height: "5px" } }} textColor='#f5be4a' sx={{ color: "#f5be4a", fontFamily: "Verdana" }}>
             <Tab label="All" />
             <Tab label="Android" />
             <Tab label="iOS" />

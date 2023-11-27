@@ -8,6 +8,10 @@
     border-radius: 10px;
 }
 
+.device-buttons .in-use {
+    background-color: #fcb103;
+}
+
 .device-box:hover {
     background-color: #b1bfa5;
 }
@@ -38,6 +42,7 @@
     border-radius: 10px;
     font-size: 15px;
     position: relative;
+    border: 2px solid black;
 }
 
 .device-buttons:disabled {

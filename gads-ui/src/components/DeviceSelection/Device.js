@@ -54,7 +54,7 @@ function UseButton({ device, handleAlert }) {
 
     if (device.in_use === true) {
         return (
-            <button className='device-buttons' style={{ background: '#fcb103' }} disabled>In Use</button>
+            <button className='device-buttons in-use' disabled>In Use</button>
         )
     } else if (device.connected === true) {
         return (

@@ -2,13 +2,14 @@
     border: none;
     font-size: 16px;
     height: 100%;
-    border-bottom: 2px solid #f5be4a;
+    border-bottom: 5px solid #f5be4a;
     margin-left: 10px;
+    background-color: #f5be4a;
 }
 
 #search-input:focus {
     outline: none;
-    border-bottom: 2px solid #f5be4a;
+    border-bottom: 5px solid #f5be4a;
 }
 
 #search-wrapper {

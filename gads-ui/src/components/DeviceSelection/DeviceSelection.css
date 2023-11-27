@@ -8,6 +8,7 @@
 .filters-stack {
     height: 40px;
     margin-left: 24px;
+    border-bottom: 5px solid #f5be4a;
 }
 
 #selection-wrapper {
