@@ -97,7 +97,7 @@ function OSSelection({ devices, handleAlert }) {
                     spacing={2}
                     alignItems="center"
                     className='filters-stack'
-                    sx={{ height: "500px", backgroundColor: "#f5be4a", borderRadius: "10px" }}
+                    sx={{ height: "500px", backgroundColor: "#E0D8C0", borderRadius: "10px" }}
                 >
                     <OSFilterTabs currentTabIndex={currentTabIndex} handleTabChange={handleTabChange}></OSFilterTabs>
                     <DeviceSearch keyUpFilterFunc={deviceSearch}></DeviceSearch>

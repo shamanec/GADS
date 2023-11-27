@@ -1,5 +1,5 @@
 .device-box {
-    background-color: #ffe2a4;
+    background-color: #E0D8C0;
     width: 300px;
     height: 450px;
     margin: 10px;
@@ -35,8 +35,8 @@
 
 .device-buttons {
     margin: 10px;
-    background: #f5be4a;
-    color: black;
+    background: #273616;
+    color: #E0D8C0;
     width: 30%;
     height: 50px;
     border-radius: 10px;
@@ -55,8 +55,8 @@
 
 .device-buttons:hover {
     cursor: pointer;
-    background: #cc9900;
-    color: black;
+    background: #496612;
+    color: #E0D8C0;
 }
 
 .spinner {

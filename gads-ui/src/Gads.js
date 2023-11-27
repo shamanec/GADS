@@ -8,7 +8,7 @@ import DeviceControl from './components/DeviceControl/DeviceControl'
 
 function Gads() {
   return (
-    <div style={{ backgroundColor: "#1f0030", height: "100vh" }}>
+    <div style={{ backgroundColor: "#273616", height: "100vh" }}>
       <NavBar />
       <Routes>
         <Route path="/" element={<Home />} />
