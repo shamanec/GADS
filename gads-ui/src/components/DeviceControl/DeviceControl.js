@@ -2,6 +2,8 @@ import { useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import StreamCanvas from './StreamCanvas'
+import ActionsStack from './ActionsStack';
+import { Stack } from '@mui/material';
 
 export default function DeviceControl() {
     const { id } = useParams();
@@ -71,7 +73,11 @@ export default function DeviceControl() {
             }}>
                 <BackButton />
             </div>
-            <StreamCanvas deviceData={deviceData}></StreamCanvas>
+            <Stack direction={"row"} spacing={2} style={{ marginLeft: "20px" }}>
+                <ActionsStack deviceData={deviceData}></ActionsStack>
+                <StreamCanvas deviceData={deviceData}></StreamCanvas>
+            </Stack>
+
         </div>
     )
 }
