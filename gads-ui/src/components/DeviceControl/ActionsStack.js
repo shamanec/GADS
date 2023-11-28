@@ -2,6 +2,7 @@ import Stack from '@mui/material/Stack';
 import { FaHome } from "react-icons/fa";
 import { FaLock, FaUnlock, FaEraser } from "react-icons/fa";
 import './ActionsStack.css'
+import ShowFailedSessionAlert from './SessionAlert';
 
 export default function ActionsStack({ deviceData }) {
     let deviceURL = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${deviceData.udid}`
@@ -24,11 +25,12 @@ function HomeButton({ deviceURL }) {
         })
             .then(response => {
                 if (response.status === 404) {
+                    ShowFailedSessionAlert(deviceURL)
                     return
                 }
             })
-            .catch(function (error) {
-                alert("Could not access device homescreen endpoint. Error: " + error)
+            .catch(() => {
+                ShowFailedSessionAlert(deviceURL)
             })
     }
 
@@ -48,11 +50,12 @@ function LockButton({ deviceURL }) {
         })
             .then(response => {
                 if (response.status === 404) {
+                    ShowFailedSessionAlert(deviceURL)
                     return
                 }
             })
-            .catch(function (error) {
-                alert("Could not access device lock endpoint. Error: " + error)
+            .catch(() => {
+                ShowFailedSessionAlert(deviceURL)
             })
     }
 
@@ -72,11 +75,12 @@ function UnlockButton({ deviceURL }) {
         })
             .then(response => {
                 if (response.status === 404) {
+                    ShowFailedSessionAlert(deviceURL)
                     return
                 }
             })
-            .catch(function (error) {
-                alert("Could not access device lock endpoint. Error: " + error)
+            .catch(() => {
+                ShowFailedSessionAlert(deviceURL)
             })
     }
 
@@ -96,11 +100,12 @@ function ClearTextButton({ deviceURL }) {
         })
             .then(response => {
                 if (response.status === 404) {
+                    ShowFailedSessionAlert(deviceURL)
                     return
                 }
             })
-            .catch(function (error) {
-                alert("Could not access device lock endpoint. Error: " + error)
+            .catch(() => {
+                ShowFailedSessionAlert(deviceURL)
             })
     }
 

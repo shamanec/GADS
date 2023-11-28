@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import ShowFailedSessionAlert from "./SessionAlert"
 
 export default function StreamCanvas({ deviceData }) {
     let screenDimensions = deviceData.screen_size.split("x")
@@ -127,9 +128,9 @@ function tapCoordinates(pos, streamData) {
         "y": y
     })
 
-    let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${streamData.udid}/tap`
+    let deviceURL = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${streamData.udid}`
 
-    fetch(url, {
+    fetch(deviceURL + "/tap", {
         method: 'POST',
         body: jsonData,
         headers: {
@@ -138,12 +139,12 @@ function tapCoordinates(pos, streamData) {
     })
         .then(response => {
             if (response.status === 404) {
-                console.log('fail')
+                ShowFailedSessionAlert(deviceURL)
                 return
             }
         })
         .catch(function (error) {
-            alert("Could not access device homescreen endpoint. Error: " + error)
+            ShowFailedSessionAlert(deviceURL)
         })
 }
 
@@ -169,9 +170,9 @@ function swipeCoordinates(coord1, coord2, streamData) {
         "endY": secondCoordY
     })
 
-    let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${streamData.udid}/swipe`
+    let deviceURL = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${streamData.udid}`
 
-    fetch(url, {
+    fetch(deviceURL + "/swipe", {
         method: 'POST',
         body: jsonData,
         headers: {
@@ -180,11 +181,12 @@ function swipeCoordinates(coord1, coord2, streamData) {
     })
         .then(response => {
             if (response.status === 404) {
+                ShowFailedSessionAlert(deviceURL)
                 return
             }
         })
         .catch(function (error) {
-            alert("Could not access device homescreen endpoint. Error: " + error)
+            ShowFailedSessionAlert(deviceURL)
         })
 
 }
