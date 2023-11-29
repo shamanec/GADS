@@ -32,6 +32,15 @@ func DeviceProxyHandler(c *gin.Context) {
 			MaxIdleConnsPerHost: 10,
 			DisableCompression:  true,
 		},
+		ModifyResponse: func(resp *http.Response) error {
+			for headerName, _ := range resp.Header {
+				if headerName == "Access-Control-Allow-Origin" {
+					resp.Header.Del(headerName)
+				}
+			}
+
+			return nil
+		},
 	}
 
 	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects

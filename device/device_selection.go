@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,7 @@ import (
 
 var clients = make(map[net.Conn]bool)
 var broadcast = make(chan []byte)
+var mu sync.Mutex
 
 func AvailableDeviceWS(c *gin.Context) {
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
@@ -30,7 +32,9 @@ func AvailableDeviceWS(c *gin.Context) {
 	}
 
 	// Add the new conn to clients map
+	mu.Lock()
 	clients[conn] = true
+	mu.Unlock()
 }
 
 func keepAlive() {
@@ -43,7 +47,9 @@ func keepAlive() {
 			err := wsutil.WriteClientMessage(client, ws.OpPing, nil)
 			if err != nil {
 				client.Close()
+				mu.Lock()
 				delete(clients, client)
+				mu.Unlock()
 			}
 		}
 	}
@@ -56,10 +62,12 @@ func GetDevices() {
 		jsonData, _ := json.Marshal(&latestDevices)
 
 		for client := range clients {
-			err := wsutil.WriteClientBinary(client, jsonData)
+			err := wsutil.WriteServerText(client, jsonData)
 			if err != nil {
 				client.Close()
+				mu.Lock()
 				delete(clients, client)
+				mu.Unlock()
 			}
 		}
 

@@ -16,7 +16,7 @@ import (
 )
 
 type Device struct {
-	Connected   bool   `json:"connected,omitempty" bson:"connected,omitempty"`
+	Connected   bool   `json:"connected" bson:"connected"`
 	UDID        string `json:"udid" bson:"_id"`
 	OS          string `json:"os" bson:"os"`
 	Name        string `json:"name" bson:"name"`

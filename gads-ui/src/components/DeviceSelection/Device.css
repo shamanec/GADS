@@ -1,0 +1,86 @@
+.device-box {
+    background-color: #E0D8C0;
+    width: 300px;
+    height: 450px;
+    margin: 10px;
+    text-align: center;
+    font-size: 30px;
+    border-radius: 10px;
+}
+
+.device-buttons .in-use {
+    background-color: #fcb103;
+}
+
+.device-box:hover {
+    background-color: #b1bfa5;
+}
+
+.devices-container {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 10px;
+}
+
+.deviceImage {
+    height: 300px;
+    margin-top: 30px
+}
+
+.device-buttons-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.device-buttons {
+    margin: 10px;
+    background: #273616;
+    color: #E0D8C0;
+    width: 30%;
+    height: 50px;
+    border-radius: 10px;
+    font-size: 15px;
+    position: relative;
+    border: 2px solid black;
+}
+
+.device-buttons:disabled {
+    background: #a1add0;
+}
+
+.device-buttons:disabled:hover {
+    background: #a1add0;
+}
+
+.device-buttons:hover {
+    cursor: pointer;
+    background: #496612;
+    color: #E0D8C0;
+}
+
+.spinner {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    border: 4px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+}
+
+@keyframes button-loading-spinner {
+    from {
+        transform: rotate(0turn);
+    }
+
+    to {
+        transform: rotate(1turn);
+    }
+}
