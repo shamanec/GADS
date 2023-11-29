@@ -3,11 +3,18 @@ import { NavLink } from 'react-router-dom'
 
 export default function NavBar() {
     return (
-        <nav className="navbar">
-            <StyledNavLink to="/" linkText='Home' />
-            <StyledNavLink to="/devices" linkText='Devices' />
-            <StyledNavLink to="/logs" linkText='Logs' />
-        </nav>
+        <div className='navbar-wrapper'>
+            <nav className="navbar">
+                <StyledNavLink to="/" linkText='Home' />
+                <StyledNavLink to="/devices" linkText='Devices' />
+                <StyledNavLink to="/logs" linkText='Logs' />
+            </nav>
+            <div className="social-buttons-wrapper">
+                <GithubButton></GithubButton>
+                <DiscordButton></DiscordButton>
+            </div>
+        </div>
+
     )
 }
 
@@ -22,5 +29,21 @@ function StyledNavLink({ to, linkText }) {
         >
             {linkText}
         </NavLink>
+    )
+}
+
+function GithubButton() {
+    return (
+        <a className='github-button' target='_blank' href='https://github.com/shamanec/GADS'>
+            <img src='./images/github.png' alt='github icon' />
+        </a>
+    )
+}
+
+function DiscordButton() {
+    return (
+        <a className='discord-button' target='_blank' href='https://discordapp.com/users/365565274470088704'>
+            <img src='./images/discord.png' alt='discord icon' />
+        </a>
     )
 }
