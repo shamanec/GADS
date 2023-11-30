@@ -115,7 +115,7 @@ type User struct {
 	UserName string `json:"username" bson:"username"`
 	Password string `json:"password" bson:"password"`
 	Role     string `json:"role" bson:"role"`
-	ID       string `json:"id" bson:"id"`
+	ID       string `json:"id" bson:"_id"`
 }
 
 func AddUserInDB(username, password, role string) error {

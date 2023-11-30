@@ -54,35 +54,35 @@ func handleIndex(c *gin.Context) {
 
 func handleRequests() {
 	// Create the router and allow all origins
+	// Also set use of gin session
 	router := gin.Default()
 	router.Use(cors.Default())
+	router.Use(sessions.Sessions("Access-Token", cookie.NewStore([]byte("secret"))))
 
 	// Serve static files from the React build folder
 	// router.Static("/static", "./gads-ui/build/static")
 	// router.Static("/static", "./gads-ui/build/static")
 	// router.GET("/", handleIndex)
 
-	// Other
-	router.Static("/static", "./static")
-	router.GET("/", GetInitialPage)
-	// router.GET("/logs", GetLogsPage)
-	router.GET("/logs-ws", util.LogsWS)
-	router.GET("/selenium-grid", GetSeleniumGridPage)
-
-	group := router.Group("/test")
-	group.Use(sessions.Sessions("Access-Token", cookie.NewStore([]byte("secret"))))
+	// Authenticated endpoints
+	group := router.Group("/")
 	group.Use(auth.AuthMiddleware())
 	group.GET("/logs", GetLogsPage)
-	group.POST("/login", auth.LoginHandler)
+	group.GET("/devices", device.LoadDevices)
+	group.GET("/", GetInitialPage)
+	group.POST("/devices/control/:udid", device.GetDevicePage)
+	group.POST("/logout", auth.LogoutHandler)
+	group.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
+	group.Static("/static", "./static")
 
-	// Devices endpoints
-	router.GET("/devices", device.LoadDevices)
+	// Unauthenticated endpoints
+	router.GET("/selenium-grid", GetSeleniumGridPage)
+	router.POST("/login", auth.LoginHandler)
+
+	// websockets - unauthenticated
+	router.GET("/logs-ws", util.LogsWS)
 	router.GET("/available-devices", device.AvailableDeviceWS)
-	router.POST("/devices/control/:udid", device.GetDevicePage)
 	router.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
-	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
-
-	// router.POST("/login", auth.LoginHandler)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
