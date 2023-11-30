@@ -2,5 +2,7 @@
   "gads_host_address": "192.168.1.28",
   "gads_port": "10000",
   "mongo_db": "192.168.1.28:27017",
-  "selenium_grid_instance": "http://192.168.1.6:4444"
+  "selenium_grid_instance": "http://192.168.1.6:4444",
+  "admin_username": "admin",
+  "admin_password": "strongpassword"
 }

@@ -6,11 +6,14 @@ import (
 	"net/http"
 	"os"
 
+	"GADS/auth"
 	"GADS/device"
 	"GADS/proxy"
 	"GADS/util"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
@@ -62,9 +65,15 @@ func handleRequests() {
 	// Other
 	router.Static("/static", "./static")
 	router.GET("/", GetInitialPage)
-	router.GET("/logs", GetLogsPage)
+	// router.GET("/logs", GetLogsPage)
 	router.GET("/logs-ws", util.LogsWS)
 	router.GET("/selenium-grid", GetSeleniumGridPage)
+
+	group := router.Group("/test")
+	group.Use(sessions.Sessions("Access-Token", cookie.NewStore([]byte("secret"))))
+	group.Use(auth.AuthMiddleware())
+	group.GET("/logs", GetLogsPage)
+	group.POST("/login", auth.LoginHandler)
 
 	// Devices endpoints
 	router.GET("/devices", device.LoadDevices)
@@ -72,6 +81,8 @@ func handleRequests() {
 	router.POST("/devices/control/:udid", device.GetDevicePage)
 	router.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
 	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
+
+	// router.POST("/login", auth.LoginHandler)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
@@ -84,6 +95,8 @@ func main() {
 
 	// Create a new connection to MongoDB
 	util.InitMongo()
+	err := util.AddUserInDB(util.ConfigData.AdminUsername, util.ConfigData.AdminPassword, "admin")
+	fmt.Println(err)
 
 	// Start a goroutine that continiously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
