@@ -8,7 +8,9 @@ import (
 
 	"GADS/auth"
 	"GADS/device"
+	"GADS/models"
 	"GADS/proxy"
+	"GADS/router"
 	"GADS/util"
 
 	"github.com/gin-contrib/cors"
@@ -55,9 +57,9 @@ func handleIndex(c *gin.Context) {
 func handleRequests() {
 	// Create the router and allow all origins
 	// Also set use of gin session
-	router := gin.Default()
-	router.Use(cors.Default())
-	router.Use(sessions.Sessions("Access-Token", cookie.NewStore([]byte("secret"))))
+	r := gin.Default()
+	r.Use(cors.Default())
+	r.Use(sessions.Sessions("Access-Token", cookie.NewStore([]byte("secret"))))
 
 	// Serve static files from the React build folder
 	// router.Static("/static", "./gads-ui/build/static")
@@ -65,7 +67,7 @@ func handleRequests() {
 	// router.GET("/", handleIndex)
 
 	// Authenticated endpoints
-	group := router.Group("/")
+	group := r.Group("/")
 	group.Use(auth.AuthMiddleware())
 	group.GET("/logs", GetLogsPage)
 	group.GET("/devices", device.LoadDevices)
@@ -74,19 +76,21 @@ func handleRequests() {
 	group.POST("/logout", auth.LogoutHandler)
 	group.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
 	group.Static("/static", "./static")
+	group.POST("/users/add", router.AddUser)
+	group.DELETE("/users/delete") // TODO
 
 	// Unauthenticated endpoints
-	router.GET("/selenium-grid", GetSeleniumGridPage)
-	router.POST("/login", auth.LoginHandler)
+	r.GET("/selenium-grid", GetSeleniumGridPage)
+	r.POST("/login", auth.LoginHandler)
 
 	// websockets - unauthenticated
-	router.GET("/logs-ws", util.LogsWS)
-	router.GET("/available-devices", device.AvailableDeviceWS)
-	router.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
+	r.GET("/logs-ws", util.LogsWS)
+	r.GET("/available-devices", device.AvailableDeviceWS)
+	r.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
-	router.Run(address)
+	r.Run(address)
 }
 
 func main() {
@@ -95,7 +99,7 @@ func main() {
 
 	// Create a new connection to MongoDB
 	util.InitMongo()
-	err := util.AddUserInDB(util.ConfigData.AdminUsername, util.ConfigData.AdminPassword, "admin")
+	err := util.AddOrUpdateUser(models.User{Username: util.ConfigData.AdminUsername, Password: util.ConfigData.AdminPassword, Role: "admin"})
 	fmt.Println(err)
 
 	// Start a goroutine that continiously gets the latest devices data from MongoDB

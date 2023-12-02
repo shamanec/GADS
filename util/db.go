@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"GADS/models"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -111,25 +113,12 @@ func GetProvidersFromDB() []ProviderData {
 	return providers
 }
 
-type User struct {
-	UserName string `json:"username" bson:"username"`
-	Password string `json:"password" bson:"password"`
-	Role     string `json:"role" bson:"role"`
-	ID       string `json:"id" bson:"_id"`
-}
-
-func AddUserInDB(username, password, role string) error {
-	user := User{
-		UserName: username,
-		Password: password,
-		Role:     role,
-	}
-
+func AddOrUpdateUser(user models.User) error {
 	update := bson.M{
 		"$set": user,
 	}
 	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "username", Value: username}}
+	filter := bson.D{{Key: "username", Value: user.Username}}
 	opts := options.Update().SetUpsert(true)
 	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
 	if err != nil {
@@ -138,17 +127,18 @@ func AddUserInDB(username, password, role string) error {
 	return nil
 }
 
-func GetUserFromDB(username string) (User, error) {
-	var user User
+func GetUserFromDB(username string) (models.User, error) {
+	var user models.User
 
 	coll := mongoClient.Database("gads").Collection("users")
 	filter := bson.D{{Key: "username", Value: username}}
 	err := coll.FindOne(context.TODO(), filter).Decode(&user)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return User{}, fmt.Errorf("username not found in DB")
-		}
-		return User{}, err
+		// if err == mongo.ErrNoDocuments {
+		// 	// ADD A LOG HERE
+		// 	// return models.User{}, fmt.Errorf("username not found in DB")
+		// }
+		return models.User{}, err
 	}
 	return user, nil
 }
