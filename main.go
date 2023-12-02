@@ -59,7 +59,11 @@ func handleRequests() {
 	// Also set use of gin session
 	r := gin.Default()
 	r.Use(cors.Default())
-	r.Use(sessions.Sessions("Access-Token", cookie.NewStore([]byte("secret"))))
+
+	// Create cookie store
+	store := cookie.NewStore([]byte(util.ConfigData.CookiesSecret))
+	store.Options(sessions.Options{MaxAge: 60 * 60})
+	r.Use(sessions.Sessions("Access-Token", store))
 
 	// Serve static files from the React build folder
 	// router.Static("/static", "./gads-ui/build/static")

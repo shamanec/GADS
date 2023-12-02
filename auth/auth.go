@@ -25,9 +25,6 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	session := sessions.Default(c)
-	session.Options(sessions.Options{
-		MaxAge: 60 * 60,
-	})
 
 	session.Set(user.ID, "admin")
 	if err := session.Save(); err != nil {
@@ -60,8 +57,6 @@ func LogoutHandler(c *gin.Context) {
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
-		fmt.Println(path)
-		fmt.Println("KOLEO")
 
 		if !strings.Contains(path, "appium") {
 			dbUser, err := util.GetUserFromDB("admin")
