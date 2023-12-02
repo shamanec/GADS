@@ -71,20 +71,20 @@ func handleRequests() {
 	// router.GET("/", handleIndex)
 
 	// Authenticated endpoints
-	group := r.Group("/")
-	group.Use(auth.AuthMiddleware())
-	group.GET("/logs", GetLogsPage)
-	group.GET("/devices", device.LoadDevices)
-	group.GET("/", GetInitialPage)
-	group.POST("/devices/control/:udid", device.GetDevicePage)
-	group.POST("/logout", auth.LogoutHandler)
-	group.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
-	group.Static("/static", "./static")
-	group.POST("/users/add", router.AddUser)
-	group.DELETE("/users/delete") // TODO
+	authGroup := r.Group("/")
+	authGroup.Use(auth.AuthMiddleware())
+	authGroup.GET("/logs", GetLogsPage)
+	authGroup.GET("/devices", device.LoadDevices)
+	authGroup.GET("/", GetInitialPage)
+	authGroup.GET("/selenium-grid", GetSeleniumGridPage)
+	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
+	authGroup.POST("/logout", auth.LogoutHandler)
+	authGroup.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
+	authGroup.Static("/static", "./static")
+	authGroup.POST("/users/add", router.AddUser)
+	authGroup.DELETE("/users/delete") // TODO
 
 	// Unauthenticated endpoints
-	r.GET("/selenium-grid", GetSeleniumGridPage)
 	r.POST("/login", auth.LoginHandler)
 
 	// websockets - unauthenticated
