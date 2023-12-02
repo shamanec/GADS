@@ -5,8 +5,19 @@ import ProviderLogsTable from './components/ProviderLogsTable/ProviderLogsTable'
 import NavBar from './components/TopNavigationBar/TopNavigationBar';
 import Home from './components/Home/Home'
 import DeviceControl from './components/DeviceControl/DeviceControl'
+import Login from './components/Login/Login';
+import { useState } from 'react';
 
 function Gads() {
+  const [accessToken, setAccessToken] = useState();
+
+  if (!accessToken) {
+    console.log("no access token")
+    return <Login setAccessToken={setAccessToken} />
+  } else {
+    console.log("yes access token")
+  }
+
   return (
     <div style={{ backgroundColor: "#273616", height: "100vh" }}>
       <NavBar />
