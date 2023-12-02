@@ -32,16 +32,16 @@ func AddUser(c *gin.Context) {
 	}
 
 	dbUser, err := util.GetUserFromDB(user.Username)
-	if err != mongo.ErrNoDocuments {
+	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "failed checking for user in db - "+err.Error())
 		return
 	} else {
-		fmt.Println("User does not exist, creating")
+		fmt.Println("user does not exist, creating")
 		// ADD LOGGER HERE
 	}
 
 	if dbUser != (models.User{}) {
-		BadRequest(c, fmt.Sprintf("User with username `%s` already exists", user.Username))
+		BadRequest(c, "user already exists")
 		return
 	}
 

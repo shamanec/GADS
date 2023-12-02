@@ -26,7 +26,8 @@ func LoginHandler(c *gin.Context) {
 
 	session := sessions.Default(c)
 
-	session.Set(user.ID, "admin")
+	session.Set("userID", user.ID)
+	session.Set("role", user.Role)
 	if err := session.Save(); err != nil {
 		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to create session - %s", err))
 		return
@@ -35,18 +36,13 @@ func LoginHandler(c *gin.Context) {
 }
 
 func LogoutHandler(c *gin.Context) {
-	dbUser, err := util.GetUserFromDB("admin")
-	if err != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Login unsuccessful - %s", err))
-	}
-
 	session := sessions.Default(c)
-	user := session.Get(dbUser.ID)
-	if user == nil {
+	userID := session.Get("userID")
+	if userID == nil {
 		c.String(http.StatusBadRequest, "Invalid session token")
 		return
 	}
-	session.Delete(dbUser.ID)
+	session.Delete("userID")
 	if err := session.Save(); err != nil {
 		c.String(http.StatusInternalServerError, "Failed to save session")
 		return
@@ -59,15 +55,19 @@ func AuthMiddleware() gin.HandlerFunc {
 		path := c.Request.URL.Path
 
 		if !strings.Contains(path, "appium") {
-			dbUser, err := util.GetUserFromDB("admin")
-			if err != nil {
-				c.String(http.StatusInternalServerError, fmt.Sprintf("Unauthorized - %s", err))
-			}
-
 			session := sessions.Default(c)
-			user := session.Get(dbUser.ID)
+			user := session.Get("userID")
 			if user == nil {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+				return
+			}
+
+			if strings.Contains(path, "admin") {
+				role := session.Get("role").(string)
+				if role != "admin" {
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you need admin privileges"})
+					return
+				}
 				return
 			}
 		}

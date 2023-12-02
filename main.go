@@ -81,8 +81,9 @@ func handleRequests() {
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
 	authGroup.Static("/static", "./static")
-	authGroup.POST("/users/add", router.AddUser)
-	authGroup.DELETE("/users/delete") // TODO
+	authGroup.POST("/admin/user", router.AddUser)
+	authGroup.PUT("/admin/user")    // TODO Update user
+	authGroup.DELETE("/admin/user") // TODO Delete user
 
 	// Unauthenticated endpoints
 	r.POST("/login", auth.LoginHandler)
