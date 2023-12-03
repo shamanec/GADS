@@ -11,9 +11,11 @@ export default function Login() {
     const [password, setPassword] = useState()
     const [session, setSession] = useContext(Auth)
     const [showAlert, setShowAlert] = useState(false)
+    const [alertText, setAlertText] = useState()
     const navigate = useNavigate()
 
-    function toggleAlert() {
+    function toggleAlert(message) {
+        setAlertText(message)
         setShowAlert(true)
     }
 
@@ -33,11 +35,15 @@ export default function Login() {
         })
             .then((response) => {
                 if (!response.ok) {
-                    toggleAlert()
-                    throw new Error('Network response was not ok.')
+                    return response.json().then((json) => {
+                        toggleAlert(json.error);
+                        throw new Error('Network response was not ok.');
+                    });
+                } else {
+                    return response.json().then((json) => {
+                        return json;
+                    });
                 }
-                // Parse the JSON data
-                return response.json();
             })
             .then(json => {
                 const sessionID = json.sessionID
@@ -84,7 +90,7 @@ export default function Login() {
                                 style={{ marginBottom: "5px" }}
                             >Log in</Button>
                         </div>
-                        {showAlert && <Alert severity="error">Invalid credentials</Alert>}
+                        {showAlert && <Alert severity="error">{alertText}</Alert>}
                     </form>
                 </div>
             </div>

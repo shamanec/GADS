@@ -30,23 +30,23 @@ func LoginHandler(c *gin.Context) {
 	var creds AuthCreds
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 
 	err = json.Unmarshal(body, &creds)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Internal server error"})
 		return
 	}
 
 	user, err := util.GetUserFromDB(creds.Username)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 	if user.Password != creds.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 

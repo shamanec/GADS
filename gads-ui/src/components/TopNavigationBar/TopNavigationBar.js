@@ -2,6 +2,7 @@ import { useContext } from 'react'
 import './TopNavigationBar.css'
 import { NavLink } from 'react-router-dom'
 import { Auth } from '../../contexts/Auth'
+import Button from '@mui/material/Button'
 
 export default function NavBar() {
     return (
@@ -12,9 +13,9 @@ export default function NavBar() {
                 <StyledNavLink to="/logs" linkText='Logs' />
             </nav>
             <div className="social-buttons-wrapper">
-                <LogoutButton></LogoutButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
+                <LogoutButton></LogoutButton>
             </div>
         </div>
 
@@ -73,6 +74,11 @@ function LogoutButton() {
             })
     }
     return (
-        <button onClick={handleLogout}>Logout</button>
+        <Button
+            variant="contained"
+            type="submit"
+            onClick={handleLogout}
+            style={{ marginLeft: "20px" }}
+        >Logout</Button>
     )
 }
