@@ -6,16 +6,14 @@ import NavBar from './components/TopNavigationBar/TopNavigationBar';
 import Home from './components/Home/Home'
 import DeviceControl from './components/DeviceControl/DeviceControl'
 import Login from './components/Login/Login';
-import { useState } from 'react';
+import { useContext } from 'react';
+import { Auth } from './contexts/Auth';
 
 function Gads() {
-  const [accessToken, setAccessToken] = useState();
+  const [authToken] = useContext(Auth);
 
-  if (!accessToken) {
-    console.log("no access token")
-    return <Login setAccessToken={setAccessToken} />
-  } else {
-    console.log("yes access token")
+  if (!authToken) {
+    return <Login />
   }
 
   return (

@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { Auth } from "../../contexts/Auth";
 
-export default function Login({ setAccessToken }) {
+export default function Login() {
     const [username, setUsername] = useState();
     const [password, setPassword] = useState();
+    const [session, setSession] = useContext(Auth);
     const navigate = useNavigate()
 
     function handleLogin(event) {
@@ -18,22 +20,20 @@ export default function Login({ setAccessToken }) {
 
         fetch(url, {
             method: 'POST',
-            body: JSON.stringify(loginData),
-            credentials: 'include'
+            body: JSON.stringify(loginData)
         })
-            .then(response => {
-                console.log('is success')
-                console.log(response.headers.get('X-Auth-Token'))
-                response.headers.forEach((value, name) => {
-                    console.log(`${name}: ${value}`);
-                });
-                const authCookie = response.headers.get('Set-Cookie');
-                console.log("COOKIE: " + authCookie)
-                if (authCookie) {
-                    console.log("setting access token")
-                    document.cookie = authCookie;
-                    setAccessToken = authCookie
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok.');
                 }
+                // Parse the JSON data
+                return response.json();
+
+
+            })
+            .then(json => {
+                const sessionID = json.sessionID
+                setSession(sessionID)
                 navigate("/devices")
             })
             .catch((e) => {

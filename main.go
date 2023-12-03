@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -14,8 +15,6 @@ import (
 	"GADS/util"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
@@ -54,16 +53,14 @@ func handleIndex(c *gin.Context) {
 	}
 }
 
-func handleRequests() {
+func handleRequests(authentication bool) {
 	// Create the router and allow all origins
 	// Also set use of gin session
 	r := gin.Default()
-	r.Use(cors.Default())
-
-	// Create cookie store
-	store := cookie.NewStore([]byte(util.ConfigData.CookiesSecret))
-	store.Options(sessions.Options{MaxAge: 60 * 60})
-	r.Use(sessions.Sessions("Access-Token", store))
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	config.AllowHeaders = []string{"X-Auth-Token"}
+	r.Use(cors.New(config))
 
 	// Serve static files from the React build folder
 	// router.Static("/static", "./gads-ui/build/static")
@@ -72,7 +69,10 @@ func handleRequests() {
 
 	// Authenticated endpoints
 	authGroup := r.Group("/")
-	authGroup.Use(auth.AuthMiddleware())
+	if authentication {
+		fmt.Printf("Authentication is %v", authentication)
+		authGroup.Use(auth.AuthMiddleware())
+	}
 	authGroup.GET("/logs", GetLogsPage)
 	authGroup.GET("/devices", device.LoadDevices)
 	authGroup.GET("/", GetInitialPage)
@@ -86,7 +86,7 @@ func handleRequests() {
 	authGroup.DELETE("/admin/user") // TODO Delete user
 
 	// Unauthenticated endpoints
-	r.POST("/login", auth.LoginHandler)
+	r.POST("/authenticate", auth.LoginHandler)
 
 	// websockets - unauthenticated
 	r.GET("/logs-ws", util.LogsWS)
@@ -99,6 +99,9 @@ func handleRequests() {
 }
 
 func main() {
+	auth_flag := flag.Bool("auth", false, "If authentication should be turned on")
+	flag.Parse()
+
 	// Read the config.json and setup the data
 	util.GetConfigJsonData()
 
@@ -117,5 +120,5 @@ func main() {
 	defer util.MongoClientCtxCancel()
 
 	setLogging()
-	handleRequests()
+	handleRequests(*auth_flag)
 }

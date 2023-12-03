@@ -1,73 +1,99 @@
 package auth
 
 import (
+	"GADS/models"
 	"GADS/util"
-	"fmt"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
+	"time"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
-func LoginHandler(c *gin.Context) {
-	username := c.Query("username")
-	password := c.Query("password")
+type AuthCreds struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
-	user, err := util.GetUserFromDB(username)
+var sessionsMap = make(map[string]*Session)
+
+type Session struct {
+	User      models.User
+	SessionID string
+	ExpireAt  time.Time
+}
+
+func LoginHandler(c *gin.Context) {
+	var creds AuthCreds
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error logging in")
+		return
+	}
+
+	err = json.Unmarshal(body, &creds)
+	if err != nil {
+		c.String(http.StatusBadRequest, "Invalid payload")
+		return
+	}
+
+	user, err := util.GetUserFromDB(creds.Username)
 	if err != nil {
 		c.String(http.StatusUnauthorized, "Invalid username or password!")
 		return
 	}
-	if user.Password != password {
+	if user.Password != creds.Password {
 		c.String(http.StatusUnauthorized, "Invalid username or password!")
 		return
 	}
 
-	session := sessions.Default(c)
-
-	session.Set("userID", user.ID)
-	session.Set("role", user.Role)
-	if err := session.Save(); err != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to create session - %s", err))
-		return
+	sessionID := uuid.New()
+	session := &Session{
+		User:      user,
+		SessionID: sessionID.String(),
+		ExpireAt:  time.Now().Add(time.Hour),
 	}
-	c.String(http.StatusOK, "Successful authentication!")
+	sessionsMap[sessionID.String()] = session
+
+	c.JSON(http.StatusOK, gin.H{"sessionID": sessionID})
 }
 
 func LogoutHandler(c *gin.Context) {
-	session := sessions.Default(c)
-	userID := session.Get("userID")
-	if userID == nil {
-		c.String(http.StatusBadRequest, "Invalid session token")
+	sessionID := c.GetHeader("X-Auth-Token")
+	if _, exists := sessionsMap[sessionID]; exists {
+		delete(sessionsMap, sessionID)
+		c.String(http.StatusOK, "Successfully logged out!")
 		return
 	}
-	session.Delete("userID")
-	if err := session.Save(); err != nil {
-		c.String(http.StatusInternalServerError, "Failed to save session")
-		return
-	}
-	c.String(http.StatusOK, "Successfully logged out!")
+
+	c.String(http.StatusInternalServerError, "Session does not exist")
 }
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
+		sessionID := c.GetHeader("X-Auth-Token")
 
-		if !strings.Contains(path, "appium") {
-			session := sessions.Default(c)
-			user := session.Get("userID")
-			if user == nil {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-				return
-			}
-
-			if strings.Contains(path, "admin") {
-				role := session.Get("role").(string)
-				if role != "admin" {
-					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you need admin privileges"})
+		if !strings.Contains(path, "appium") && !strings.Contains(path, "stream") {
+			if session, exists := sessionsMap[sessionID]; exists {
+				if session.ExpireAt.Before(time.Now()) {
+					delete(sessionsMap, sessionID)
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "session expired"})
 					return
 				}
+				// Refresh the session expiry time
+				session.ExpireAt = time.Now().Add(time.Hour)
+
+				if strings.Contains(path, "admin") && session.User.Role != "admin" {
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you need admin privileges to access this endpoint"})
+					return
+				}
+			} else {
+				// If the session doesn't exist
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 				return
 			}
 		}

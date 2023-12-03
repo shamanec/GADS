@@ -1,5 +1,7 @@
+import { useContext } from 'react'
 import './TopNavigationBar.css'
 import { NavLink } from 'react-router-dom'
+import { Auth } from '../../contexts/Auth'
 
 export default function NavBar() {
     return (
@@ -10,6 +12,7 @@ export default function NavBar() {
                 <StyledNavLink to="/logs" linkText='Logs' />
             </nav>
             <div className="social-buttons-wrapper">
+                <LogoutButton></LogoutButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
             </div>
@@ -45,5 +48,31 @@ function DiscordButton() {
         <a className='discord-button' target='_blank' href='https://discordapp.com/users/365565274470088704'>
             <img src='./images/discord.png' alt='discord icon' />
         </a>
+    )
+}
+
+function LogoutButton() {
+    const [authToken, login, logout] = useContext(Auth)
+    let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/logout`
+
+    function handleLogout() {
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .then((response) => {
+                logout()
+                if (!response.ok) {
+                    throw new Error('Network response was not ok.');
+                }
+            })
+            .catch((e) => {
+                console.log(e)
+            })
+    }
+    return (
+        <button onClick={handleLogout}>Logout</button>
     )
 }

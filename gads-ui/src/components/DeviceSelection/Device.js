@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import './DeviceSelection.css'
 import { useNavigate } from 'react-router-dom';
 import './Device.css'
+import { Auth } from '../../contexts/Auth';
 
 export function DeviceBox({ device, handleAlert }) {
     let img_src = device.os === 'android' ? './images/default-android.png' : './images/default-apple.png'
@@ -25,15 +26,25 @@ function UseButton({ device, handleAlert }) {
     // Difference between current time and last time the device was reported as healthy
     // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
     const [loading, setLoading] = useState(false);
+    const [authToken, login, logout] = useContext(Auth)
     const navigate = useNavigate();
 
     function handleUseButtonClick() {
         setLoading(true);
         console.log(process.env.REACT_APP_GADS_BACKEND_HOST)
         const url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${device.udid}/health`;
-        fetch(url)
+        fetch(url, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
             .then((response) => {
+                console.log(response.status)
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        logout()
+                        return
+                    }
                     throw new Error('Network response was not ok');
                 } else {
                     navigate('/devices/control/' + device.udid, device);
@@ -42,6 +53,7 @@ function UseButton({ device, handleAlert }) {
             .catch((error) => {
                 handleAlert()
                 console.error('Error fetching data:', error);
+
             })
             .finally(() => {
                 setTimeout(() => {
