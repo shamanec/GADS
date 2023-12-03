@@ -3,25 +3,32 @@ import { FaHome } from "react-icons/fa";
 import { FaLock, FaUnlock, FaEraser } from "react-icons/fa";
 import './ActionsStack.css'
 import ShowFailedSessionAlert from './SessionAlert';
+import { Auth } from '../../contexts/Auth';
+import { useContext } from 'react';
 
 export default function ActionsStack({ deviceData }) {
+    const [authToken, login, logout] = useContext(Auth)
+
     let deviceURL = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${deviceData.udid}`
     return (
         <Stack spacing={0} style={{ width: "50px" }}>
-            <HomeButton deviceURL={deviceURL}></HomeButton>
-            <LockButton deviceURL={deviceURL}></LockButton>
-            <UnlockButton deviceURL={deviceURL}></UnlockButton>
-            <ClearTextButton deviceURL={deviceURL}></ClearTextButton>
+            <HomeButton authToken={authToken} deviceURL={deviceURL}></HomeButton>
+            <LockButton authToken={authToken} deviceURL={deviceURL}></LockButton>
+            <UnlockButton authToken={authToken} deviceURL={deviceURL}></UnlockButton>
+            <ClearTextButton authToken={authToken} deviceURL={deviceURL}></ClearTextButton>
         </Stack>
     )
 }
 
-function HomeButton({ deviceURL }) {
+function HomeButton({ authToken, deviceURL }) {
     function handleClick(deviceURL) {
         let url = `${deviceURL}/home`
 
         fetch(url, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': authToken
+            }
         })
             .then(response => {
                 if (response.status === 404) {
@@ -41,12 +48,15 @@ function HomeButton({ deviceURL }) {
     )
 }
 
-function LockButton({ deviceURL }) {
+function LockButton({ authToken, deviceURL }) {
     function handleClick(deviceURL) {
         let url = `${deviceURL}/lock`
 
         fetch(url, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': authToken
+            }
         })
             .then(response => {
                 if (response.status === 404) {
@@ -66,12 +76,15 @@ function LockButton({ deviceURL }) {
     )
 }
 
-function UnlockButton({ deviceURL }) {
+function UnlockButton({ authToken, deviceURL }) {
     function handleClick(deviceURL) {
         let url = `${deviceURL}/unlock`
 
         fetch(url, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': authToken
+            }
         })
             .then(response => {
                 if (response.status === 404) {
@@ -91,12 +104,15 @@ function UnlockButton({ deviceURL }) {
     )
 }
 
-function ClearTextButton({ deviceURL }) {
+function ClearTextButton({ authToken, deviceURL }) {
     function handleClick(deviceURL) {
         let url = `${deviceURL}/clearText`
 
         fetch(url, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': authToken
+            }
         })
             .then(response => {
                 if (response.status === 404) {
