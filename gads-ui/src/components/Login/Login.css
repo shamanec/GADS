@@ -32,20 +32,3 @@
     border-top-left-radius: 10px;
     border-bottom-left-radius: 10px;
 }
-
-.login-button {
-    margin: 10px;
-    background: #4287f5;
-    color: #E0D8C0;
-    width: 100px;
-    height: 50px;
-    border-radius: 10px;
-    font-size: 15px;
-    border: 2px solid black;
-}
-
-.login-button:hover {
-    cursor: pointer;
-    background: #496612;
-    color: #E0D8C0;
-}

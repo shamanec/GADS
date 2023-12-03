@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Auth } from "../../contexts/Auth";
 import './Login.css'
 import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
 
 export default function Login() {
     const [username, setUsername] = useState();
@@ -60,7 +61,7 @@ export default function Login() {
                                 helperText="Username or email"
                             />
                         </label>
-                        <label style={{ marginTop: "10px", marginBottom: "20px" }}>
+                        <label style={{ marginTop: "20px", marginBottom: "20px" }}>
                             <TextField
                                 onChange={e => setPassword(e.target.value)}
                                 type="password"
@@ -70,7 +71,10 @@ export default function Login() {
                             />
                         </label>
                         <div>
-                            <button className="login-button" type="submit">Log in</button>
+                            <Button
+                                variant="contained"
+                                type="submit"
+                            >Log in</Button>
                         </div>
                     </form>
                 </div>
