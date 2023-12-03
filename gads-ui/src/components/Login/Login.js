@@ -1,15 +1,21 @@
-import { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { Auth } from "../../contexts/Auth";
+import { useState, useContext } from "react"
+import { useNavigate } from "react-router-dom"
+import { Auth } from "../../contexts/Auth"
 import './Login.css'
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import Alert from '@mui/material/Alert'
 
 export default function Login() {
-    const [username, setUsername] = useState();
-    const [password, setPassword] = useState();
-    const [session, setSession] = useContext(Auth);
+    const [username, setUsername] = useState()
+    const [password, setPassword] = useState()
+    const [session, setSession] = useContext(Auth)
+    const [showAlert, setShowAlert] = useState(false)
     const navigate = useNavigate()
+
+    function toggleAlert() {
+        setShowAlert(true)
+    }
 
     function handleLogin(event) {
         event.preventDefault()
@@ -27,7 +33,8 @@ export default function Login() {
         })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok.');
+                    toggleAlert()
+                    throw new Error('Network response was not ok.')
                 }
                 // Parse the JSON data
                 return response.json();
@@ -74,8 +81,10 @@ export default function Login() {
                             <Button
                                 variant="contained"
                                 type="submit"
+                                style={{ marginBottom: "5px" }}
                             >Log in</Button>
                         </div>
+                        {showAlert && <Alert severity="error">Invalid credentials</Alert>}
                     </form>
                 </div>
             </div>

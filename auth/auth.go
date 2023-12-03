@@ -30,23 +30,23 @@ func LoginHandler(c *gin.Context) {
 	var creds AuthCreds
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "Error logging in")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	err = json.Unmarshal(body, &creds)
 	if err != nil {
-		c.String(http.StatusBadRequest, "Invalid payload")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "internal server error"})
 		return
 	}
 
 	user, err := util.GetUserFromDB(creds.Username)
 	if err != nil {
-		c.String(http.StatusUnauthorized, "Invalid username or password!")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "internal server error"})
 		return
 	}
 	if user.Password != creds.Password {
-		c.String(http.StatusUnauthorized, "Invalid username or password!")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
@@ -65,11 +65,11 @@ func LogoutHandler(c *gin.Context) {
 	sessionID := c.GetHeader("X-Auth-Token")
 	if _, exists := sessionsMap[sessionID]; exists {
 		delete(sessionsMap, sessionID)
-		c.String(http.StatusOK, "Successfully logged out!")
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
 		return
 	}
 
-	c.String(http.StatusInternalServerError, "Session does not exist")
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "session does not exist"})
 }
 
 func AuthMiddleware() gin.HandlerFunc {
