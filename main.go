@@ -59,7 +59,7 @@ func handleRequests(authentication bool) {
 	r := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"X-Auth-Token"}
+	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
 	r.Use(cors.New(config))
 
 	// Serve static files from the React build folder
