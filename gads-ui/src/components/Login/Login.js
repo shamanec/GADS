@@ -1,6 +1,7 @@
 import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Auth } from "../../contexts/Auth";
+import './Login.css'
 
 export default function Login() {
     const [username, setUsername] = useState();
@@ -28,8 +29,6 @@ export default function Login() {
                 }
                 // Parse the JSON data
                 return response.json();
-
-
             })
             .then(json => {
                 const sessionID = json.sessionID
@@ -43,7 +42,8 @@ export default function Login() {
 
     return (
         <div className="login-wrapper">
-            <h1>Please Log In</h1>
+            <h1>GADS</h1>
+            <h2>Please log in</h2>
             <form onSubmit={handleLogin}>
                 <label>
                     <p>Username</p>
@@ -54,7 +54,7 @@ export default function Login() {
                     <input type="password" onChange={e => setPassword(e.target.value)} />
                 </label>
                 <div>
-                    <button type="submit">Submit</button>
+                    <button type="submit">Log in</button>
                 </div>
             </form>
         </div>
