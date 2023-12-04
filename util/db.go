@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"GADS/models"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -109,4 +111,30 @@ func GetProvidersFromDB() []ProviderData {
 	}
 
 	return providers
+}
+
+func AddOrUpdateUser(user models.User) error {
+	update := bson.M{
+		"$set": user,
+	}
+	coll := mongoClient.Database("gads").Collection("users")
+	filter := bson.D{{Key: "username", Value: user.Username}}
+	opts := options.Update().SetUpsert(true)
+	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetUserFromDB(username string) (models.User, error) {
+	var user models.User
+
+	coll := mongoClient.Database("gads").Collection("users")
+	filter := bson.D{{Key: "username", Value: username}}
+	err := coll.FindOne(context.TODO(), filter).Decode(&user)
+	if err != nil {
+		return models.User{}, err
+	}
+	return user, nil
 }

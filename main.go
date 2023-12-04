@@ -1,13 +1,17 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
 	"net/http"
 	"os"
 
+	"GADS/auth"
 	"GADS/device"
+	"GADS/models"
 	"GADS/proxy"
+	"GADS/router"
 	"GADS/util"
 
 	"github.com/gin-contrib/cors"
@@ -49,41 +53,62 @@ func handleIndex(c *gin.Context) {
 	}
 }
 
-func handleRequests() {
+func handleRequests(authentication bool) {
 	// Create the router and allow all origins
-	router := gin.Default()
-	router.Use(cors.Default())
+	// Also set use of gin session
+	r := gin.Default()
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
+	r.Use(cors.New(config))
 
 	// Serve static files from the React build folder
 	// router.Static("/static", "./gads-ui/build/static")
 	// router.Static("/static", "./gads-ui/build/static")
 	// router.GET("/", handleIndex)
 
-	// Other
-	router.Static("/static", "./static")
-	router.GET("/", GetInitialPage)
-	router.GET("/logs", GetLogsPage)
-	router.GET("/logs-ws", util.LogsWS)
-	router.GET("/selenium-grid", GetSeleniumGridPage)
+	// Authenticated endpoints
+	authGroup := r.Group("/")
+	if authentication {
+		fmt.Printf("Authentication is %v", authentication)
+		authGroup.Use(auth.AuthMiddleware())
+	}
+	authGroup.GET("/logs", GetLogsPage)
+	authGroup.GET("/devices", device.LoadDevices)
+	authGroup.GET("/", GetInitialPage)
+	authGroup.GET("/selenium-grid", GetSeleniumGridPage)
+	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
+	authGroup.POST("/logout", auth.LogoutHandler)
+	authGroup.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
+	authGroup.Static("/static", "./static")
+	authGroup.POST("/admin/user", router.AddUser)
+	authGroup.PUT("/admin/user")    // TODO Update user
+	authGroup.DELETE("/admin/user") // TODO Delete user
 
-	// Devices endpoints
-	router.GET("/devices", device.LoadDevices)
-	router.GET("/available-devices", device.AvailableDeviceWS)
-	router.POST("/devices/control/:udid", device.GetDevicePage)
-	router.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
-	router.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
+	// Unauthenticated endpoints
+	r.POST("/authenticate", auth.LoginHandler)
+
+	// websockets - unauthenticated
+	r.GET("/logs-ws", util.LogsWS)
+	r.GET("/available-devices", device.AvailableDeviceWS)
+	r.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
-	router.Run(address)
+	r.Run(address)
 }
 
 func main() {
+	auth_flag := flag.Bool("auth", false, "If authentication should be turned on")
+	flag.Parse()
+
 	// Read the config.json and setup the data
 	util.GetConfigJsonData()
 
 	// Create a new connection to MongoDB
 	util.InitMongo()
+	err := util.AddOrUpdateUser(models.User{Username: util.ConfigData.AdminUsername, Email: util.ConfigData.AdminEmail, Password: util.ConfigData.AdminPassword, Role: "admin"})
+	fmt.Println(err)
 
 	// Start a goroutine that continiously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
@@ -95,5 +120,5 @@ func main() {
 	defer util.MongoClientCtxCancel()
 
 	setLogging()
-	handleRequests()
+	handleRequests(*auth_flag)
 }

@@ -17,6 +17,7 @@ func DeviceProxyHandler(c *gin.Context) {
 			fmt.Printf("Recovered from panic: %v. \nThis happens when closing device screen stream and I need to handle it \n", r)
 		}
 	}()
+	path := c.Param("path")
 
 	// Create a new ReverseProxy instance that will forward the requests
 	// Update its scheme, host and path in the Director
@@ -26,7 +27,7 @@ func DeviceProxyHandler(c *gin.Context) {
 			udid := c.Param("udid")
 			req.URL.Scheme = "http"
 			req.URL.Host = device.GetDeviceByUDID(udid).HostAddress + ":10001"
-			req.URL.Path = "/device/" + udid + c.Param("path")
+			req.URL.Path = "/device/" + udid + path
 		},
 		Transport: &http.Transport{
 			MaxIdleConnsPerHost: 10,

@@ -26,6 +26,9 @@ type ConfigJsonData struct {
 	MongoDB              string         `json:"mongo_db"`
 	Providers            []ProviderData `json:"providers"`
 	SeleniumGridInstance string         `json:"selenium_grid_instance"`
+	AdminUsername        string         `json:"admin_username"`
+	AdminPassword        string         `json:"admin_password"`
+	AdminEmail           string         `json:"admin_email"`
 }
 
 var ConfigData *ConfigJsonData

@@ -1,7 +1,11 @@
 import { useEffect } from "react"
 import ShowFailedSessionAlert from "./SessionAlert"
+import { Auth } from "../../contexts/Auth"
+import { useContext } from "react"
 
 export default function StreamCanvas({ deviceData }) {
+    const [authToken, login, logout] = useContext(Auth)
+
     let screenDimensions = deviceData.screen_size.split("x")
     let deviceX = parseInt(screenDimensions[0], 10)
     let deviceY = parseInt(screenDimensions[1], 10)
@@ -53,13 +57,13 @@ export default function StreamCanvas({ deviceData }) {
 
     return (
         <div id="stream-div">
-            <Canvas canvasWidth={canvasWidth} canvasHeight={canvasHeight} streamData={streamData}></Canvas>
+            <Canvas canvasWidth={canvasWidth} canvasHeight={canvasHeight} authToken={authToken} logout={logout} streamData={streamData}></Canvas>
             <Stream canvasWidth={canvasWidth} canvasHeight={canvasHeight}></Stream>
         </div>
     )
 }
 
-function Canvas({ streamData }) {
+function Canvas({ authToken, logout, streamData }) {
     var tapStartAt = 0
     var coord1;
     var coord2;
@@ -94,9 +98,9 @@ function Canvas({ streamData }) {
         // if y2 < y1*0.9 - it is probably a swipe bottom to top
         // if y2 > y1*1.1 - it is probably a swipe top to bottom
         if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
-            swipeCoordinates(coord1, coord2, streamData)
+            swipeCoordinates(authToken, logout, coord1, coord2, streamData)
         } else {
-            tapCoordinates(coord1, streamData)
+            tapCoordinates(authToken, logout, coord1, streamData)
         }
     }
 
@@ -112,7 +116,7 @@ function Stream({ canvasWidth, canvasHeight }) {
 }
 
 // tap with WDA using coordinates
-function tapCoordinates(pos, streamData) {
+function tapCoordinates(authToken, logout, pos, streamData) {
     // set initial x and y tap coordinates
     let x = pos[0]
     let y = pos[1]
@@ -134,7 +138,8 @@ function tapCoordinates(pos, streamData) {
         method: 'POST',
         body: jsonData,
         headers: {
-            'Content-type': 'application/json'
+            'Content-type': 'application/json',
+            'X-Auth-Token': authToken
         }
     })
         .then(response => {
@@ -142,14 +147,17 @@ function tapCoordinates(pos, streamData) {
                 ShowFailedSessionAlert(deviceURL)
                 return
             }
+
+            if (response.status === 401) {
+                logout()
+            }
         })
         .catch(function (error) {
             ShowFailedSessionAlert(deviceURL)
         })
 }
 
-function swipeCoordinates(coord1, coord2, streamData) {
-
+function swipeCoordinates(authToken, logout, coord1, coord2, streamData) {
     var firstCoordX = coord1[0]
     var firstCoordY = coord1[1]
     var secondCoordX = coord2[0]
@@ -176,13 +184,18 @@ function swipeCoordinates(coord1, coord2, streamData) {
         method: 'POST',
         body: jsonData,
         headers: {
-            'Content-type': 'application/json'
+            'Content-type': 'application/json',
+            'X-Auth-Token': authToken
         }
     })
         .then(response => {
             if (response.status === 404) {
                 ShowFailedSessionAlert(deviceURL)
                 return
+            }
+
+            if (response.status === 401) {
+                logout()
             }
         })
         .catch(function (error) {
