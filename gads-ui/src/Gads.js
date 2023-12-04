@@ -8,6 +8,7 @@ import DeviceControl from './components/DeviceControl/DeviceControl'
 import Login from './components/Login/Login';
 import { useContext } from 'react';
 import { Auth } from './contexts/Auth';
+import AdminDashboard from './components/Admin/AdminDashboard';
 
 function Gads() {
   const [authToken] = useContext(Auth);
@@ -24,6 +25,7 @@ function Gads() {
         <Route path="/devices" element={<DeviceSelection />} />
         <Route path="/devices/control/:id" element={<DeviceControl />} />
         <Route path="/logs" element={<ProviderLogsTable />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </div>
   );

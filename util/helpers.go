@@ -28,6 +28,7 @@ type ConfigJsonData struct {
 	SeleniumGridInstance string         `json:"selenium_grid_instance"`
 	AdminUsername        string         `json:"admin_username"`
 	AdminPassword        string         `json:"admin_password"`
+	AdminEmail           string         `json:"admin_email"`
 }
 
 var ConfigData *ConfigJsonData

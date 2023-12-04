@@ -107,7 +107,7 @@ func main() {
 
 	// Create a new connection to MongoDB
 	util.InitMongo()
-	err := util.AddOrUpdateUser(models.User{Username: util.ConfigData.AdminUsername, Password: util.ConfigData.AdminPassword, Role: "admin"})
+	err := util.AddOrUpdateUser(models.User{Username: util.ConfigData.AdminUsername, Email: util.ConfigData.AdminEmail, Password: util.ConfigData.AdminPassword, Role: "admin"})
 	fmt.Println(err)
 
 	// Start a goroutine that continiously gets the latest devices data from MongoDB

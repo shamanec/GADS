@@ -11,6 +11,7 @@ export default function NavBar() {
                 <StyledNavLink to="/" linkText='Home' />
                 <StyledNavLink to="/devices" linkText='Devices' />
                 <StyledNavLink to="/logs" linkText='Logs' />
+                <StyledNavLink to="/admin" linkText='Admin' />
             </nav>
             <div className="social-buttons-wrapper">
                 <GithubButton></GithubButton>

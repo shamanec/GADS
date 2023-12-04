@@ -134,10 +134,6 @@ func GetUserFromDB(username string) (models.User, error) {
 	filter := bson.D{{Key: "username", Value: username}}
 	err := coll.FindOne(context.TODO(), filter).Decode(&user)
 	if err != nil {
-		// if err == mongo.ErrNoDocuments {
-		// 	// ADD A LOG HERE
-		// 	// return models.User{}, fmt.Errorf("username not found in DB")
-		// }
 		return models.User{}, err
 	}
 	return user, nil

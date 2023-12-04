@@ -54,7 +54,6 @@ export default function Login() {
                 console.log(e)
             })
     }
-    let img_src = './images/sea-wave.png'
 
     return (
         <div className="top-wrapper">
