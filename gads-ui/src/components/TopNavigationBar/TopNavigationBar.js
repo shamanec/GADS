@@ -64,10 +64,11 @@ function LogoutButton() {
             }
         })
             .then((response) => {
-                logout()
                 if (!response.ok) {
+                    logout()
                     throw new Error('Network response was not ok.');
                 }
+                logout()
             })
             .catch((e) => {
                 console.log(e)
@@ -78,7 +79,7 @@ function LogoutButton() {
             variant="contained"
             type="submit"
             onClick={handleLogout}
-            style={{ marginLeft: "20px" }}
+            style={{ marginLeft: "20px", backgroundColor: "#914400" }}
         >Logout</Button>
     )
 }
