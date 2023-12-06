@@ -4,36 +4,16 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
-	"net/http"
 	"os"
 
-	"GADS/auth"
 	"GADS/device"
 	"GADS/models"
-	"GADS/proxy"
 	"GADS/router"
 	"GADS/util"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
-
-func GetInitialPage(c *gin.Context) {
-	var index = template.Must(template.ParseFiles("static/index.html"))
-	err := index.Execute(c.Writer, nil)
-	if err != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Could not create the initial page html - %s", err.Error()))
-	}
-}
-
-func GetSeleniumGridPage(c *gin.Context) {
-	var index = template.Must(template.ParseFiles("static/selenium_grid.html"))
-	err := index.Execute(c.Writer, util.ConfigData)
-	if err != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Could not create the selenium grid page html - %s", err.Error()))
-	}
-}
 
 func setLogging() {
 	log.SetFormatter(&log.JSONFormatter{})
@@ -51,51 +31,6 @@ func handleIndex(c *gin.Context) {
 	if err != nil {
 		return
 	}
-}
-
-func handleRequests(authentication bool) {
-	// Create the router and allow all origins
-	// Also set use of gin session
-	r := gin.Default()
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
-	r.Use(cors.New(config))
-
-	// Serve static files from the React build folder
-	// router.Static("/static", "./gads-ui/build/static")
-	// router.Static("/static", "./gads-ui/build/static")
-	// router.GET("/", handleIndex)
-
-	// Authenticated endpoints
-	authGroup := r.Group("/")
-	if authentication {
-		fmt.Printf("Authentication is %v", authentication)
-		authGroup.Use(auth.AuthMiddleware())
-	}
-	authGroup.GET("/logs", GetLogsPage)
-	authGroup.GET("/devices", device.LoadDevices)
-	authGroup.GET("/", GetInitialPage)
-	authGroup.GET("/selenium-grid", GetSeleniumGridPage)
-	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
-	authGroup.POST("/logout", auth.LogoutHandler)
-	authGroup.Any("/device/:udid/*path", proxy.DeviceProxyHandler)
-	authGroup.Static("/static", "./static")
-	authGroup.POST("/admin/user", router.AddUser)
-	authGroup.PUT("/admin/user")    // TODO Update user
-	authGroup.DELETE("/admin/user") // TODO Delete user
-
-	// Unauthenticated endpoints
-	r.POST("/authenticate", auth.LoginHandler)
-
-	// websockets - unauthenticated
-	r.GET("/logs-ws", util.LogsWS)
-	r.GET("/available-devices", device.AvailableDeviceWS)
-	r.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
-
-	// Start the GADS UI on the host IP address
-	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
-	r.Run(address)
 }
 
 func main() {
@@ -120,5 +55,10 @@ func main() {
 	defer util.MongoClientCtxCancel()
 
 	setLogging()
-	handleRequests(*auth_flag)
+
+	r := router.HandleRequests(*auth_flag)
+
+	// Start the GADS UI on the host IP address
+	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
+	r.Run(address)
 }

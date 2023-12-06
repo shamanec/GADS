@@ -54,6 +54,9 @@ Clone the project and the [GADS-devices-provider](https://github.com/shamanec/GA
 #### Start a provider instance
 This is only the UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision the devices. Follow the setup steps in the linked repository to create a provider instance.
 
+#### Authentication
+Added authentication mechanism for users - will be used when the new React UI is finished. To use with the React UI for development run `./GADS --auth=true`  
+
 ## Thanks
 
 | |About|
