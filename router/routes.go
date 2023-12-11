@@ -46,6 +46,10 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
+	if user.Username == "" {
+		user.Username = "New user"
+	}
+
 	dbUser, err := util.GetUserFromDB(user.Email)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())

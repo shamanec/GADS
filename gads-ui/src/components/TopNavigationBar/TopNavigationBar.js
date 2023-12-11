@@ -21,7 +21,6 @@ export default function NavBar() {
             <nav className="navbar">
                 <StyledNavLink to="/" linkText='Home' />
                 <StyledNavLink to="/devices" linkText='Devices' />
-                <StyledNavLink to="/logs" linkText='Logs' />
                 {showAdmin && (<StyledNavLink to="/admin" linkText='Admin' />)}
             </nav>
             <div className="social-buttons-wrapper">

@@ -24,7 +24,6 @@ function Gads() {
         <Route path="/" element={<Home />} />
         <Route path="/devices" element={<DeviceSelection />} />
         <Route path="/devices/control/:id" element={<DeviceControl />} />
-        <Route path="/logs" element={<ProviderLogsTable />} />
         <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </div>
