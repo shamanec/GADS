@@ -13,12 +13,15 @@ import { DeviceBox } from './Device'
 import { Auth } from '../../contexts/Auth';
 
 export default function DeviceSelection() {
-    let devicesSocket = null;
+    // States
     const [devices, setDevices] = useState([]);
     const [showAlert, setShowAlert] = useState(false);
+    const [timeoutId, setTimeoutId] = useState(null);
+
+    let devicesSocket = null;
     let vertical = 'bottom'
     let horizontal = 'center'
-    const [timeoutId, setTimeoutId] = useState(null);
+
     const open = true
 
     // Authentication and session control
@@ -103,27 +106,6 @@ export default function DeviceSelection() {
             </div>
         </div>
     )
-}
-
-function CheckServerHealth() {
-    const [authToken, , logout] = useContext(Auth)
-    let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/health`
-
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'X-Auth-Token': authToken
-        }
-    })
-        .then((response) => {
-            if (!response.ok) {
-                logout()
-            }
-        })
-        .catch((e) => {
-            logout()
-            console.log(e)
-        })
 }
 
 function OSSelection({ devices, handleAlert }) {
