@@ -118,7 +118,7 @@ func AddOrUpdateUser(user models.User) error {
 		"$set": user,
 	}
 	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "username", Value: user.Username}}
+	filter := bson.D{{Key: "email", Value: user.Email}}
 	opts := options.Update().SetUpsert(true)
 	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
 	if err != nil {
@@ -127,11 +127,11 @@ func AddOrUpdateUser(user models.User) error {
 	return nil
 }
 
-func GetUserFromDB(username string) (models.User, error) {
+func GetUserFromDB(email string) (models.User, error) {
 	var user models.User
 
 	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "username", Value: username}}
+	filter := bson.D{{Key: "email", Value: email}}
 	err := coll.FindOne(context.TODO(), filter).Decode(&user)
 	if err != nil {
 		return models.User{}, err
