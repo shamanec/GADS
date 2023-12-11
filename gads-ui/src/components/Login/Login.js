@@ -37,7 +37,7 @@ export default function Login() {
                 if (!response.ok) {
                     return response.json().then((json) => {
                         toggleAlert(json.error);
-                        throw new Error('Network response was not ok.');
+                        throw new Error(json.error)
                     });
                 } else {
                     return response.json().then((json) => {
@@ -48,10 +48,11 @@ export default function Login() {
             .then(json => {
                 const sessionID = json.sessionID
                 login(sessionID)
+                localStorage.setItem("username", json.username)
+                localStorage.setItem("role", json.role)
                 navigate("/devices")
             })
             .catch((e) => {
-                toggleAlert("Service unavailable");
                 console.log(e)
             })
     }

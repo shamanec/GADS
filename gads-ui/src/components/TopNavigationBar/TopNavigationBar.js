@@ -1,19 +1,31 @@
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import './TopNavigationBar.css'
 import { NavLink } from 'react-router-dom'
 import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
 
 export default function NavBar() {
+    let username = localStorage.getItem('username')
+    let role = localStorage.getItem('role')
+
+    const [showAdmin, setShowAdmin] = useState(false)
+
+    if (role == 'admin') {
+        if (!showAdmin) {
+            setShowAdmin(true)
+        }
+    }
+
     return (
         <div className='navbar-wrapper'>
             <nav className="navbar">
                 <StyledNavLink to="/" linkText='Home' />
                 <StyledNavLink to="/devices" linkText='Devices' />
                 <StyledNavLink to="/logs" linkText='Logs' />
-                <StyledNavLink to="/admin" linkText='Admin' />
+                {showAdmin && (<StyledNavLink to="/admin" linkText='Admin' />)}
             </nav>
             <div className="social-buttons-wrapper">
+                <p>Welcome, {username}</p>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
                 <LogoutButton></LogoutButton>
@@ -28,7 +40,7 @@ function StyledNavLink({ to, linkText }) {
         <NavLink className="nav-bar-link"
             style={({ isActive }) => ({
                 backgroundColor: isActive ? "#273616" : "",
-                color: "#E0D8C0",
+                color: "#E0D8C0"
             })}
             to={to}
         >
