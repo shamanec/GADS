@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
 import './DeviceSelection.css'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
@@ -10,6 +10,7 @@ import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import { OSFilterTabs, DeviceSearch } from './Filters'
 import { DeviceBox } from './Device'
+import { Auth } from '../../contexts/Auth';
 
 export default function DeviceSelection() {
     let devicesSocket = null;
@@ -19,6 +20,29 @@ export default function DeviceSelection() {
     let horizontal = 'center'
     const [timeoutId, setTimeoutId] = useState(null);
     const open = true
+
+    // Authentication and session control
+    const [authToken, , logout] = useContext(Auth)
+
+    function CheckServerHealth() {
+        let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/health`
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    logout()
+                }
+            })
+            .catch((e) => {
+                logout()
+                console.log(e)
+            })
+    }
 
     // Show a snackbar alert if device is unavailable
     function presentDeviceUnavailableAlert() {
@@ -35,6 +59,8 @@ export default function DeviceSelection() {
     }
 
     useEffect(() => {
+        CheckServerHealth()
+
         if (devicesSocket) {
             devicesSocket.close()
         }
@@ -77,6 +103,27 @@ export default function DeviceSelection() {
             </div>
         </div>
     )
+}
+
+function CheckServerHealth() {
+    const [authToken, , logout] = useContext(Auth)
+    let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/health`
+
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Auth-Token': authToken
+        }
+    })
+        .then((response) => {
+            if (!response.ok) {
+                logout()
+            }
+        })
+        .catch((e) => {
+            logout()
+            console.log(e)
+        })
 }
 
 function OSSelection({ devices, handleAlert }) {

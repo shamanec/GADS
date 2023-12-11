@@ -34,6 +34,7 @@ func HandleRequests(authentication bool) *gin.Engine {
 	authGroup.GET("/devices", device.LoadDevices)
 	authGroup.GET("/", GetInitialPage)
 	authGroup.GET("/selenium-grid", GetSeleniumGridPage)
+	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
