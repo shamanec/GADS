@@ -3,10 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import StreamCanvas from './StreamCanvas'
 import ActionsStack from './ActionsStack';
 import { Stack } from '@mui/material';
+import { useEffect } from 'react';
+import { Button } from '@mui/material';
 
 export default function DeviceControl() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const deviceData = JSON.parse(localStorage.getItem(id))
+
+    const handleBackClick = () => {
+        navigate('/devices');
+    };
 
     return (
         <div>
@@ -14,7 +21,11 @@ export default function DeviceControl() {
                 marginBottom: '10px',
                 marginTop: '10px'
             }}>
-                <BackButton />
+                <Button
+                    variant="contained"
+                    onClick={handleBackClick}
+                    style={{ marginLeft: "20px" }}
+                >Back to devices</Button>
             </div>
             <Stack direction={"row"} spacing={2} style={{ marginLeft: "20px" }}>
                 <ActionsStack deviceData={deviceData}></ActionsStack>
@@ -22,23 +33,5 @@ export default function DeviceControl() {
             </Stack>
 
         </div>
-    )
-}
-
-function BackButton() {
-    const navigate = useNavigate();
-
-    const handleBackClick = () => {
-        navigate('/devices');
-    };
-
-    return (
-        <button onClick={handleBackClick}
-            style={{
-                borderRadius: '5px',
-                backgroundColor: 'white',
-                border: '1px solid #f3f3f5',
-                padding: '5px'
-            }}> &larr; Go back to devices</button>
     )
 }

@@ -9,7 +9,7 @@ import Alert from '@mui/material/Alert'
 export default function Login() {
     const [username, setUsername] = useState()
     const [password, setPassword] = useState()
-    const [session, setSession] = useContext(Auth)
+    const [, login,] = useContext(Auth)
     const [showAlert, setShowAlert] = useState(false)
     const [alertText, setAlertText] = useState()
     const navigate = useNavigate()
@@ -37,7 +37,7 @@ export default function Login() {
                 if (!response.ok) {
                     return response.json().then((json) => {
                         toggleAlert(json.error);
-                        throw new Error('Network response was not ok.');
+                        throw new Error(json.error)
                     });
                 } else {
                     return response.json().then((json) => {
@@ -47,7 +47,9 @@ export default function Login() {
             })
             .then(json => {
                 const sessionID = json.sessionID
-                setSession(sessionID)
+                login(sessionID)
+                localStorage.setItem("username", json.username)
+                localStorage.setItem("role", json.role)
                 navigate("/devices")
             })
             .catch((e) => {
@@ -67,17 +69,16 @@ export default function Login() {
                         <label>
                             <TextField
                                 onChange={e => setUsername(e.target.value)}
-                                label="username"
+                                label="Email"
                                 required
                                 id="outlined-required"
-                                helperText="Username or email"
                             />
                         </label>
                         <label style={{ marginTop: "20px", marginBottom: "20px" }}>
                             <TextField
                                 onChange={e => setPassword(e.target.value)}
                                 type="password"
-                                label="password"
+                                label="Password"
                                 required
                                 id="outlined-required"
                             />

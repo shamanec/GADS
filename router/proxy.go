@@ -1,4 +1,4 @@
-package proxy
+package router
 
 import (
 	"GADS/device"

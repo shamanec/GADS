@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
 import './DeviceSelection.css'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
@@ -10,15 +10,42 @@ import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import { OSFilterTabs, DeviceSearch } from './Filters'
 import { DeviceBox } from './Device'
+import { Auth } from '../../contexts/Auth';
 
 export default function DeviceSelection() {
-    let devicesSocket = null;
+    // States
     const [devices, setDevices] = useState([]);
     const [showAlert, setShowAlert] = useState(false);
+    const [timeoutId, setTimeoutId] = useState(null);
+
+    let devicesSocket = null;
     let vertical = 'bottom'
     let horizontal = 'center'
-    const [timeoutId, setTimeoutId] = useState(null);
+
     const open = true
+
+    // Authentication and session control
+    const [authToken, , logout] = useContext(Auth)
+
+    function CheckServerHealth() {
+        let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/health`
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    logout()
+                }
+            })
+            .catch((e) => {
+                logout()
+                console.log(e)
+            })
+    }
 
     // Show a snackbar alert if device is unavailable
     function presentDeviceUnavailableAlert() {
@@ -35,6 +62,8 @@ export default function DeviceSelection() {
     }
 
     useEffect(() => {
+        CheckServerHealth()
+
         if (devicesSocket) {
             devicesSocket.close()
         }
@@ -90,14 +119,14 @@ function OSSelection({ devices, handleAlert }) {
 
     return (
         <TabContext value='{currentTabIndex}'>
-            <Box sx={{ display: "flex", flexDirection: 'row' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'row' }}>
                 <Stack
-                    direction="column"
-                    divider={<Divider orientation="vertical" flexItem />}
+                    direction='column'
+                    divider={<Divider orientation='vertical' flexItem />}
                     spacing={2}
-                    alignItems="center"
+                    alignItems='center'
                     className='filters-stack'
-                    sx={{ height: "500px", backgroundColor: "#E0D8C0", borderRadius: "10px" }}
+                    sx={{ height: '500px', backgroundColor: '#E0D8C0', borderRadius: '10px' }}
                 >
                     <OSFilterTabs currentTabIndex={currentTabIndex} handleTabChange={handleTabChange}></OSFilterTabs>
                     <DeviceSearch keyUpFilterFunc={deviceSearch}></DeviceSearch>
@@ -111,12 +140,12 @@ function OSSelection({ devices, handleAlert }) {
                                         <DeviceBox device={device} handleAlert={handleAlert} />
                                     )
 
-                                } else if (currentTabIndex === 1 && device.os === "android") {
+                                } else if (currentTabIndex === 1 && device.os === 'android') {
                                     return (
                                         <DeviceBox device={device} handleAlert={handleAlert} />
                                     )
 
-                                } else if (currentTabIndex === 2 && device.os === "ios") {
+                                } else if (currentTabIndex === 2 && device.os === 'ios') {
                                     return (
                                         <DeviceBox device={device} handleAlert={handleAlert} />
                                     )
@@ -131,13 +160,13 @@ function OSSelection({ devices, handleAlert }) {
 }
 
 function deviceSearch() {
-    var input = document.getElementById("search-input");
+    var input = document.getElementById('search-input');
     var filter = input.value.toUpperCase();
     let grid = document.getElementById('devices-container')
     let deviceBoxes = grid.getElementsByClassName('device-box')
     for (let i = 0; i < deviceBoxes.length; i++) {
         let shouldDisplay = false
-        var filterables = deviceBoxes[i].getElementsByClassName("filterable")
+        var filterables = deviceBoxes[i].getElementsByClassName('filterable')
         for (let j = 0; j < filterables.length; j++) {
             var filterable = filterables[j]
             var txtValue = filterable.textContent || filterable.innerText;
@@ -147,9 +176,9 @@ function deviceSearch() {
         }
 
         if (shouldDisplay) {
-            deviceBoxes[i].style.display = "";
+            deviceBoxes[i].style.display = '';
         } else {
-            deviceBoxes[i].style.display = "none";
+            deviceBoxes[i].style.display = 'none';
         }
     }
 }
