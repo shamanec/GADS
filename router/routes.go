@@ -72,3 +72,8 @@ func AddUser(c *gin.Context) {
 
 	OK(c, "Successfully added user")
 }
+
+func GetProviders(c *gin.Context) {
+	providers := util.GetProvidersFromDB()
+	c.JSON(http.StatusOK, providers)
+}
