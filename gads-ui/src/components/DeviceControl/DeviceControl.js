@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import StreamCanvas from './StreamCanvas'
 import ActionsStack from './ActionsStack';
 import { Stack } from '@mui/material';
-import { useEffect } from 'react';
 import { Button } from '@mui/material';
+import TabularControl from './TabularControl';
 
 export default function DeviceControl() {
     const { id } = useParams();
@@ -30,6 +30,7 @@ export default function DeviceControl() {
             <Stack direction={"row"} spacing={2} style={{ marginLeft: "20px" }}>
                 <ActionsStack deviceData={deviceData}></ActionsStack>
                 <StreamCanvas deviceData={deviceData}></StreamCanvas>
+                <TabularControl></TabularControl>
             </Stack>
 
         </div>
