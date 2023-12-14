@@ -4,6 +4,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Provider from "./Provider/Provider";
 import axios from "axios";
+import Skeleton from '@mui/material/Skeleton';
 
 
 export default function ProvidersAdministration() {
@@ -47,20 +48,28 @@ export default function ProvidersAdministration() {
 
     }, [])
 
-    if (isLoading) {
-        return null
-    } else {
-        return (
-            <Tabs
-                value={currentTabIndex}
-                onChange={handleTabChange}
-                TabIndicatorProps={{ style: { background: "#496612", height: "5px" } }} textColor='white' sx={{ color: "white", fontFamily: "Verdana" }}
-            >
-                {providers.map((provider) => (
-                    <Tab label={provider.name} style={{ textTransform: 'none', fontSize: '16px' }} />
-                ))}
-                <Provider info={providerInfo}></Provider>
-            </Tabs>
-        )
-    }
+    return (
+        <div style={{ marginTop: '10px' }}>
+            {
+                isLoading ? (
+                    <Skeleton variant="rounded" width='100%' height={60} sx={{ background: '#496612', animationDuration: '1s' }} />
+                ) : (
+                    <div>
+                        <Tabs
+                            value={currentTabIndex}
+                            onChange={handleTabChange}
+                            TabIndicatorProps={{ style: { background: "#496612", height: "5px" } }} textColor='white' sx={{ color: "white", fontFamily: "Verdana" }}
+                        >
+                            {providers.map((provider) => (
+                                <Tab label={provider.name} style={{ textTransform: 'none', fontSize: '16px' }} />
+                            ))}
+
+                        </Tabs>
+                        <Provider info={providerInfo}></Provider>
+                    </div>
+
+                )
+            }
+        </div>
+    )
 }
