@@ -2,15 +2,11 @@ import ShowFailedSessionAlert from "../SessionAlert";
 import { Box } from "@mui/material";
 import { Button } from "@mui/material";
 import { Stack } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function Screenshot({ udid }) {
     const [width, setWidth] = useState(0)
     const [height, setHeight] = useState(0)
-
-    useEffect(() => {
-        takeScreenshot()
-    })
 
     function takeScreenshot() {
         const url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${udid}/screenshot`;
@@ -33,7 +29,7 @@ export default function Screenshot({ udid }) {
                 setHeight(image.height)
             })
             .catch(error => {
-                alert("Could not take screenshot. Error: " + error)
+                console.log('could not take screenshot - ' + error)
             })
     }
 
