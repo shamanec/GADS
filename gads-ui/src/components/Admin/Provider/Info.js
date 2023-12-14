@@ -3,7 +3,7 @@ import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import LanIcon from '@mui/icons-material/Lan';
 import Tooltip from '@mui/material/Tooltip';
 import HomeIcon from '@mui/icons-material/Home';
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import Box from '@mui/material/Box';
 import { Button } from '@mui/material';
 
@@ -48,7 +48,7 @@ export default function Info({ info }) {
             <Button
                 variant='contained'
                 style={{ width: '80%', marginBottom: '5px' }}
-            >Configure</Button>
+            >Select</Button>
         </Box>
     )
 }
