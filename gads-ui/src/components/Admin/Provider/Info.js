@@ -5,11 +5,12 @@ import Tooltip from '@mui/material/Tooltip';
 import HomeIcon from '@mui/icons-material/Home';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import Box from '@mui/material/Box';
+import { Button } from '@mui/material';
 
 export default function Info({ info }) {
     return (
         <Box
-            sx={{ height: '200px', maxWidth: '200px', background: 'white', borderRadius: '10px', marginLeft: '10px' }}
+            sx={{ maxWidth: '200px', background: 'white', borderRadius: '10px', marginLeft: '10px', alignItems: 'center', display: 'flex', flexDirection: 'column' }}
         >
             <ListItem>
                 <Tooltip title='Nickname' placement='bottom' leaveDelay={0}>
@@ -44,7 +45,10 @@ export default function Info({ info }) {
                     style={{ wordWrap: 'break-word' }}
                 />
             </ListItem>
-
+            <Button
+                variant='contained'
+                style={{ width: '80%', marginBottom: '5px' }}
+            >Configure</Button>
         </Box>
     )
 }

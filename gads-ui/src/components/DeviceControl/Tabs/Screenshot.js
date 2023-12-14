@@ -2,16 +2,21 @@ import ShowFailedSessionAlert from "../SessionAlert";
 import { Box } from "@mui/material";
 import { Button } from "@mui/material";
 import { Stack } from "@mui/material";
-import { useState } from "react";
+import { useState, useContext } from "react";
+import { Auth } from "../../../contexts/Auth";
 
 export default function Screenshot({ udid }) {
+    const [authToken, , logout] = useContext(Auth)
     const [width, setWidth] = useState(0)
     const [height, setHeight] = useState(0)
 
     function takeScreenshot() {
         const url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${udid}/screenshot`;
         fetch(url, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'X-Auth-Token': authToken
+            }
         })
             .then((response) => {
                 if (response.status === 404) {

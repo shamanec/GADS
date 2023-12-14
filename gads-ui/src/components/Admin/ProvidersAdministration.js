@@ -45,7 +45,7 @@ export default function ProvidersAdministration() {
 
         setInterval(() => {
             setIsLoading(false)
-        }, 2000);
+        }, 1500);
 
     }, [])
 
