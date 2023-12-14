@@ -2,34 +2,49 @@
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import LanIcon from '@mui/icons-material/Lan';
 import Tooltip from '@mui/material/Tooltip';
+import HomeIcon from '@mui/icons-material/Home';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import Box from '@mui/material/Box';
 
 export default function Info({ info }) {
     return (
         <Box
-            sx={{ height: '100px', maxWidth: '200px', background: 'white', borderRadius: '10px', margin: '10px' }}
+            sx={{ height: '200px', maxWidth: '200px', background: 'white', borderRadius: '10px', marginLeft: '10px' }}
         >
-            <Tooltip title='Configured devices' placement='left' leaveDelay={0}>
-                <ListItem>
+            <ListItem>
+                <Tooltip title='Nickname' placement='bottom' leaveDelay={0}>
+                    <ListItemIcon>
+                        <HomeIcon />
+                    </ListItemIcon>
+                </Tooltip>
+                <ListItemText
+                    primary={info.name}
+                    style={{ wordWrap: 'break-word' }}
+                />
+            </ListItem>
+            <ListItem>
+                <Tooltip title='Configured devices' placement='bottom'>
                     <ListItemIcon>
                         <SmartphoneIcon />
                     </ListItemIcon>
-                    <ListItemText
-                        primary={info.devices}
-                    />
-                </ListItem>
-            </Tooltip>
-            <Tooltip title='Provider address' placement='left'>
-                <ListItem>
+                </Tooltip>
+                <ListItemText
+                    primary={info.devices}
+                    style={{ wordWrap: 'break-word' }}
+                />
+            </ListItem>
+            <ListItem>
+                <Tooltip title='Provider address' placement='bottom'>
                     <ListItemIcon>
                         <LanIcon />
                     </ListItemIcon>
-                    <ListItemText
-                        primary={info.host_address}
-                    />
-                </ListItem>
-            </Tooltip>
+                </Tooltip>
+                <ListItemText
+                    primary={info.host_address}
+                    style={{ wordWrap: 'break-word' }}
+                />
+            </ListItem>
+
         </Box>
     )
 }
