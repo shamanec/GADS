@@ -1,22 +1,14 @@
 import { Auth } from "../../contexts/Auth"
 import { useContext, useState, useEffect } from "react"
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 import Provider from "./Provider/Provider";
 import axios from "axios";
 import Skeleton from '@mui/material/Skeleton';
-import SmartphoneIcon from '@mui/icons-material/Smartphone';
-import LanIcon from '@mui/icons-material/Lan';
-import Tooltip from '@mui/material/Tooltip';
-import { ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import Box from '@mui/material/Box';
 import { Stack } from "@mui/material";
 
 
 export default function ProvidersAdministration() {
     const [authToken, , logout] = useContext(Auth)
     const [providers, setProviders] = useState([])
-    const [currentTabIndex, setCurrentTabIndex] = useState(0)
     const [providerInfo, setProviderInfo] = useState()
     const [isLoading, setIsLoading] = useState(true)
 
@@ -50,18 +42,18 @@ export default function ProvidersAdministration() {
     }, [])
 
     return (
-        <div style={{ marginTop: '10px' }}>
+        <Stack spacing={2} width='230px' height='80%' style={{ overflowY: 'scroll', marginTop: '10px' }}>
             {
                 isLoading ? (
-                    <Skeleton variant="rounded" width='100%' height={60} sx={{ background: '#496612', animationDuration: '1s' }} />
+                    <Skeleton variant="rounded" style={{ marginLeft: '10px', background: '#496612', animationDuration: '1s', height: '100%' }} />
                 ) : (
-                    <Stack height='800px' spacing={2} width='230px' sx={{ overflowY: 'scroll' }}>
+                    <>
                         {providers.map((provider) => (
                             <Provider info={provider}></Provider>
                         ))}
-                    </Stack>
+                    </>
                 )
             }
-        </div>
+        </Stack>
     )
 }

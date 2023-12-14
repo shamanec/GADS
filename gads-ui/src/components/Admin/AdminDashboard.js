@@ -14,7 +14,7 @@ export default function AdminDashboard() {
     }
 
     return (
-        <Box sx={{ width: '100%' }}>
+        <Box id='dashboard-box' style={{ width: '100%', height: '100%' }}>
             <Tabs
                 value={currentTabIndex}
                 onChange={handleTabChange}
