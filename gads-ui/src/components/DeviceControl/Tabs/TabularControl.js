@@ -2,6 +2,7 @@ import { Box } from "@mui/material"
 import { Tabs, Tab } from "@mui/material"
 import { useState } from "react"
 import Screenshot from "./Screenshot"
+import Actions from "./Actions"
 
 export default function TabularControl({ deviceData }) {
     const udid = deviceData.udid
@@ -25,6 +26,7 @@ export default function TabularControl({ deviceData }) {
                 <Tab label="Other" style={{ textTransform: 'none', fontSize: '16px' }} />
             </Tabs>
             {currentTabIndex === 2 && <Screenshot udid={udid}></Screenshot>}
+            {currentTabIndex === 0 && <Actions deviceData={deviceData}></Actions>}
         </Box >
     )
 }
