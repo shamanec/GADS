@@ -1,6 +1,5 @@
 
-export default function Provider(info) {
-    console.log(info)
+export default function Provider({ info }) {
     return (
         <div>
             <div>{info.name}</div>
