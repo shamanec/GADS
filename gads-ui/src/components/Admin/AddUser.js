@@ -35,7 +35,6 @@ export default function AddUser() {
     const [passwordColor, setPasswordColor] = useState('')
 
     function showAlertWithTimeout(alertText, severity) {
-        // setShowAlert(false)
         setAlertText(alertText)
         setShowAlert(true)
         setAlertSeverity(severity)
