@@ -5,5 +5,5 @@
   "selenium_grid_instance": "http://192.168.1.6:4444",
   "admin_username": "admin",
   "admin_password": "password",
-  "admin_email": "admin@gads.gads"
+  "admin_email": "admin@gads.ui"
 }

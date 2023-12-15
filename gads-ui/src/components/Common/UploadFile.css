@@ -1,0 +1,26 @@
+#upload-wrapper {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    border: 1px solid black;
+    align-items: left;
+    justify-content: center;
+    width: 300px;
+    padding: 10px;
+    background-color: white;
+}
+
+#upload-button {
+    width: 50%;
+}
+
+#progress-indicator {
+    margin-left: 5px;
+}
+
+#upload-box {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: left;
+}

@@ -17,7 +17,7 @@ function Gads() {
   }
 
   return (
-    <div style={{ backgroundColor: "#273616", height: "100vh" }}>
+    <div style={{ backgroundColor: "#273616", height: "100%" }}>
       <NavBar />
       <Routes>
         <Route path="/" element={<Home />} />

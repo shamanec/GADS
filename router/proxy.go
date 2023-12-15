@@ -47,3 +47,35 @@ func DeviceProxyHandler(c *gin.Context) {
 	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
+
+func ProviderProxyHandler(c *gin.Context) {
+	path := c.Param("path")
+
+	// Create a new ReverseProxy instance that will forward the requests
+	// Update its scheme, host and path in the Director
+	// Limit the number of open connections for the host
+	proxy := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			udid := c.Param("udid")
+			req.URL.Scheme = "http"
+			req.URL.Host = device.GetDeviceByUDID(udid).HostAddress + ":10001"
+			req.URL.Path = "/provider/" + path
+		},
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 10,
+			DisableCompression:  true,
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			for headerName, _ := range resp.Header {
+				if headerName == "Access-Control-Allow-Origin" {
+					resp.Header.Del(headerName)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
+	proxy.ServeHTTP(c.Writer, c.Request)
+}
