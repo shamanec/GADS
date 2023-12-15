@@ -19,6 +19,8 @@
 }
 
 #upload-box {
+    height: 50px;
     display: flex;
-    align-content: left;
+    align-items: center;
+    justify-content: left;
 }

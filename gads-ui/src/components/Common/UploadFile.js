@@ -37,6 +37,7 @@ export default function UploadFile({ deviceData }) {
                             </ListSubheader>
                         }
                         dense={true}
+                        alignitems='left'
                     >
                         <ListItem>
                             <ListItemIcon>
@@ -68,7 +69,6 @@ function Uploader({ file, deviceData }) {
     const [isUploading, setIsUploading] = useState(false)
 
     function handleUpload() {
-        console.log('uploading')
         setIsUploading(true)
         const url = `http://${deviceData.host_address}:10001/provider/uploadFile`;
 
@@ -104,6 +104,7 @@ function Uploader({ file, deviceData }) {
             <Button startIcon={<FileUploadIcon />} id='upload-button' variant='contained' onClick={handleUpload} disabled={isUploading}>Upload</Button>
             {isUploading &&
                 <CircularProgress id='progress-indicator' size={30} />
+
             }
         </Box>
     )
