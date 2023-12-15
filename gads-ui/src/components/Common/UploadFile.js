@@ -8,6 +8,7 @@ import './UploadFile.css'
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
 
 export default function UploadFile({ deviceData }) {
     const [file, setFile] = useState(null);
@@ -27,7 +28,15 @@ export default function UploadFile({ deviceData }) {
 
     return (
         <Box id='upload-wrapper'>
-            <input id='file' type="file" onChange={(event) => handleFileChange(event)} />
+            <h3>Upload file</h3>
+            <Button
+                component='label'
+                variant='contained'
+                startIcon={<AttachFileIcon />}
+            >
+                <input id='file' type="file" onChange={(event) => handleFileChange(event)} style={{ display: 'none' }} />
+                Select file
+            </Button>
             {file && (
                 <>
                     <List
