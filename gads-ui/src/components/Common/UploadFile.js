@@ -1,10 +1,15 @@
-import React, { useRef, useState, useContext } from 'react'
+import React, { useState, useContext } from 'react'
 import { Button } from '@mui/material';
 import axios from 'axios'
 import { Auth } from '../../contexts/Auth';
+import CircularProgress from '@mui/material/CircularProgress';
+import { Box } from '@mui/material';
+import './UploadFile.css'
+import FileUploadIcon from '@mui/icons-material/FileUpload';
+import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from '@mui/material';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 export default function UploadFile({ deviceData }) {
-    const [authToken, , logout] = useContext(Auth)
     const [file, setFile] = useState(null);
     const [fileName, setFileName] = useState(null)
     const [fileSize, setFileSize] = useState(null)
@@ -13,15 +18,58 @@ export default function UploadFile({ deviceData }) {
         if (e.target.files) {
             const targetFile = e.target.files[0]
             setFileName(targetFile.name)
-            console.log(targetFile.size)
             setFileSize((targetFile.size / (1024 * 1024)).toFixed(2))
-            setFile(e.target.files[0]);
+            setFile(targetFile);
         } else {
             return
         }
     }
 
+    return (
+        <Box id='upload-wrapper'>
+            <input id='file' type="file" onChange={(event) => handleFileChange(event)} />
+            {file && (
+                <>
+                    <List
+                        subheader={
+                            <ListSubheader component="div">
+                                File details
+                            </ListSubheader>
+                        }
+                        dense={true}
+                    >
+                        <ListItem>
+                            <ListItemIcon>
+                                <DescriptionIcon />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={fileName}
+                            />
+                        </ListItem>
+                        <ListItem>
+                            <ListItemIcon>
+                                <DescriptionIcon />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={fileSize + ' mb'}
+                            />
+                        </ListItem>
+                    </List>
+
+                    <Uploader file={file} deviceData={deviceData}></Uploader>
+                </>
+            )}
+        </Box>
+    )
+}
+
+function Uploader({ file, deviceData }) {
+    const [authToken, , logout] = useContext(Auth)
+    const [isUploading, setIsUploading] = useState(false)
+
     function handleUpload() {
+        console.log('uploading')
+        setIsUploading(true)
         const url = `http://${deviceData.host_address}:10001/provider/uploadFile`;
 
         const form = new FormData();
@@ -34,7 +82,7 @@ export default function UploadFile({ deviceData }) {
             }
         })
             .then((response) => {
-                console.log(response)
+                console.log(response.data)
             })
             .catch(error => {
                 if (error.response) {
@@ -46,23 +94,17 @@ export default function UploadFile({ deviceData }) {
                 }
                 console.log('Failed uploading file - ' + error)
             });
+        setTimeout(() => {
+            setIsUploading(false)
+        }, 2000)
     }
 
     return (
-        < >
-            <input id='file' type="file" onChange={(event) => handleFileChange(event)} />
-            {file && (
-                <div>
-                    <section>
-                        File details:
-                        <ul>
-                            <li>Name: {fileName}</li>
-                            <li>Size: {fileSize} mb</li>
-                        </ul>
-                    </section>
-                    <Button variant='contained' onClick={handleUpload}>Upload</Button>
-                </div>
-            )}
-        </>
+        <Box id='upload-box'>
+            <Button startIcon={<FileUploadIcon />} id='upload-button' variant='contained' onClick={handleUpload} disabled={isUploading}>Upload</Button>
+            {isUploading &&
+                <CircularProgress id='progress-indicator' size={30} />
+            }
+        </Box>
     )
 }
