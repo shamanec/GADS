@@ -6,9 +6,8 @@ import { useContext } from "react"
 export default function StreamCanvas({ deviceData }) {
     const [authToken, login, logout] = useContext(Auth)
 
-    let screenDimensions = deviceData.screen_size.split("x")
-    let deviceX = parseInt(screenDimensions[0], 10)
-    let deviceY = parseInt(screenDimensions[1], 10)
+    let deviceX = parseInt(deviceData.screen_width, 10)
+    let deviceY = parseInt(deviceData.screen_height, 10)
     let screen_ratio = deviceX / deviceY
     let canvasHeight = 850
     let canvasWidth = 850 * screen_ratio

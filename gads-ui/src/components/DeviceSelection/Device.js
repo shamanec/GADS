@@ -13,7 +13,7 @@ export function DeviceBox({ device, handleAlert }) {
                 <img className="deviceImage" src={img_src}>
                 </img>
             </div>
-            <div className='filterable info'>{device.model}</div>
+            <div className='filterable info'>{device.name}</div>
             <div className='filterable info'>{device.os_version}</div>
             <div className='device-buttons-container'>
                 <UseButton device={device} handleAlert={handleAlert} />

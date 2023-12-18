@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,16 +15,17 @@ import (
 )
 
 type Device struct {
-	Connected   bool   `json:"connected" bson:"connected"`
-	UDID        string `json:"udid" bson:"_id"`
-	OS          string `json:"os" bson:"os"`
-	Name        string `json:"name" bson:"name"`
-	OSVersion   string `json:"os_version" bson:"os_version"`
-	ScreenSize  string `json:"screen_size" bson:"screen_size"`
-	Model       string `json:"model" bson:"model"`
-	Image       string `json:"image,omitempty" bson:"image,omitempty"`
-	HostAddress string `json:"host_address" bson:"host_address"`
-	InUse       bool   `json:"in_use"`
+	Connected    bool   `json:"connected" bson:"connected"`
+	UDID         string `json:"udid" bson:"_id"`
+	OS           string `json:"os" bson:"os"`
+	Name         string `json:"name" bson:"name"`
+	OSVersion    string `json:"os_version" bson:"os_version"`
+	Model        string `json:"model" bson:"model"`
+	Image        string `json:"image,omitempty" bson:"image,omitempty"`
+	HostAddress  string `json:"host_address" bson:"host_address"`
+	InUse        bool   `json:"in_use"`
+	ScreenWidth  string `json:"screen_width" bson:"screen_width"`
+	ScreenHeight string `json:"screen_height" bson:"screen_height"`
 }
 
 var netClient = &http.Client{
@@ -79,16 +79,20 @@ func GetDevicePage(c *gin.Context) {
 	}
 
 	// Calculate the width and height for the canvas
-	canvasWidth, canvasHeight := calculateCanvasDimensions(device.ScreenSize)
+	canvasWidth, canvasHeight := calculateCanvasDimensions(device)
 
 	pageData := struct {
 		Device       Device
 		CanvasWidth  string
 		CanvasHeight string
+		ScreenHeight string
+		ScreenWidth  string
 	}{
 		Device:       *device,
 		CanvasWidth:  canvasWidth,
 		CanvasHeight: canvasHeight,
+		ScreenHeight: device.ScreenHeight,
+		ScreenWidth:  device.ScreenWidth,
 	}
 
 	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
@@ -99,11 +103,10 @@ func GetDevicePage(c *gin.Context) {
 }
 
 // Calculate the device stream canvas dimensions
-func calculateCanvasDimensions(size string) (canvasWidth string, canvasHeight string) {
+func calculateCanvasDimensions(device *Device) (canvasWidth string, canvasHeight string) {
 	// Get the width and height provided
-	dimensions := strings.Split(size, "x")
-	widthString := dimensions[0]
-	heightString := dimensions[1]
+	widthString := device.ScreenWidth
+	heightString := device.ScreenHeight
 
 	// Convert them to ints
 	width, _ := strconv.Atoi(widthString)

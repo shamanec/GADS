@@ -509,6 +509,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 <script>
+    console.log('inside script')
     const hostname = window.location.hostname
     const port = window.location.port
     let domain = 'http://' + hostname + (port ? ':' + port : '')
@@ -517,7 +518,8 @@
     let device_os = "{{.Device.OS}}"
     let canvas_width = "{{.CanvasWidth}}"
     let canvas_height = "{{.CanvasHeight}}"
-    let screen_size = "{{.Device.ScreenSize}}"
+    let device_height = "{{.ScreenHeight}}"
+    let device_width = "{{.ScreenWidth}}"
     document.getElementById("refresh-source").addEventListener('click', () => {
         getAppSource()
     })
@@ -527,6 +529,7 @@
     var logsSocket = null
     var inUseSocket = null
 
+    console.log("Setting stream")
     setIosStream()
     setAndroidStream()
     getLogs()
@@ -632,34 +635,17 @@
         if (device_os == 'android') {
             // Connect to the android device streaming websocket
             androidStreamSocket = new WebSocket("ws://" + device_host + ":10001/device/{{.Device.UDID}}/android-stream")
-            // Set the type of the socket, did not work otherwise
-            androidStreamSocket.binaryType = 'arraybuffer'
 
             let imgElement = document.getElementById('image-stream')
             androidStreamSocket.onmessage = function (event) {
-                // Get the message data
-                const data = event.data
-                // Get the first 4 bytes of the message to Int
-                // To determing the message type - info or image
-                const messageType = new DataView(data.slice(0, 4)).getInt32(0, false)
 
-                // If message type is 1(Info)
-                if (messageType == 1) {
-                    const width = new DataView(data.slice(4, 8)).getInt32(0, false)
-                    const height = new DataView(data.slice(8, 12)).getInt32(0, false)
-                }
+                const imageURL = URL.createObjectURL(event.data)
+                // Set the image in the image element to create a stream
+                imgElement.src = imageURL
 
-                // If message type is 2(Image)
-                if (messageType == 2) {
-                    // Create an image URL
-                    const imageURL = URL.createObjectURL(new Blob([data.slice(4)]))
-                    // Set the image in the image element to create a stream
-                    imgElement.src = imageURL
-
-                    imgElement.onload = () => {
-                        URL.revokeObjectURL(imageURL);
-                    };
-                }
+                imgElement.onload = () => {
+                    URL.revokeObjectURL(imageURL);
+                };
             }
         }
     }
@@ -905,9 +891,8 @@
         let stream_size_ratio = (canvas_height / canvas_width).toFixed(2)
 
         // get device screen size dimensions
-        let dimensions = screen_size.split('x');
-        let deviceHeight = parseInt(dimensions[1], 10)
-        let deviceWidth = parseInt(dimensions[0], 10)
+        let deviceHeight = parseInt(device_height, 10)
+        let deviceWidth = parseInt(device_width, 10)
 
         // set initial x and y tap coordinates
         let x = pos[0]
@@ -954,9 +939,8 @@
         let stream_size_ratio = (canvas_height / canvas_width).toFixed(2)
 
         // get device screen size dimensions
-        let dimensions = screen_size.split('x');
-        let deviceHeight = parseInt(dimensions[1], 10)
-        let deviceWidth = parseInt(dimensions[0], 10)
+        let deviceHeight = parseInt(device_height, 10)
+        let deviceWidth = parseInt(device_width, 10)
 
         // if the stream height 
         if (canvas_height != deviceHeight) {
@@ -1027,9 +1011,8 @@
         let stream_width = canvas.width
 
         // get device screen size dimensions
-        let dimensions = screen_size.split('x');
-        let device_height = parseInt(dimensions[1], 10)
-        let device_width = parseInt(dimensions[0], 10)
+        let device_height = parseInt(device_height, 10)
+        let device_width = parseInt(device_width, 10)
 
         let elementX;
         let elementY;

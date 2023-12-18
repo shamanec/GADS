@@ -121,9 +121,9 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
             }
         })
             .then((response) => {
-                setShowAlert(true)
                 setAlertSeverity('success')
                 setAlertText(response.data.message)
+                setShowAlert(true)
                 setIsUploading(false)
             })
             .catch(error => {
@@ -132,15 +132,15 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                         logout()
                         return
                     }
-                    setShowAlert(true)
-                    setAlertSeverity('success')
+                    setAlertSeverity('error')
                     setAlertText(error.response.data.message)
+                    setShowAlert(true)
                     setIsUploading(false)
                 }
                 setIsUploading(false)
-                setShowAlert(true)
-                setAlertSeverity('success')
+                setAlertSeverity('error')
                 setAlertText('Failed uploading file')
+                setShowAlert(true)
                 console.log('Failed uploading file - ' + error)
             });
     }
