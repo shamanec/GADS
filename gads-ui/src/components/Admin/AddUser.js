@@ -76,7 +76,7 @@ export default function AddUser() {
             return
         }
 
-        let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/admin/user`
+        let url = `/admin/user`
 
         const loginData = {
             username: username,

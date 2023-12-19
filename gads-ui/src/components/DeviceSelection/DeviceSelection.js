@@ -28,7 +28,7 @@ export default function DeviceSelection() {
     const [authToken, , logout] = useContext(Auth)
 
     function CheckServerHealth() {
-        let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/health`
+        let url = `/health`
 
         fetch(url, {
             method: 'GET',
@@ -67,7 +67,7 @@ export default function DeviceSelection() {
         if (devicesSocket) {
             devicesSocket.close()
         }
-        devicesSocket = new WebSocket(`ws://${process.env.REACT_APP_GADS_BACKEND_HOST}/available-devices`);
+        devicesSocket = new WebSocket(`ws://${window.location}/available-devices`);
 
         devicesSocket.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)

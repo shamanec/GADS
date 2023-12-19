@@ -22,7 +22,7 @@ export default function Login() {
     function handleLogin(event) {
         event.preventDefault()
 
-        let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/authenticate`
+        let url = `/authenticate`
 
         const loginData = {
             username: username,

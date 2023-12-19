@@ -66,7 +66,7 @@ function DiscordButton() {
 
 function LogoutButton() {
     const [authToken, login, logout] = useContext(Auth)
-    let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/logout`
+    let url = `/logout`
 
     function handleLogout() {
         fetch(url, {

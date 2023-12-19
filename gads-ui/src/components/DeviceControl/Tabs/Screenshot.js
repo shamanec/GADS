@@ -11,7 +11,7 @@ export default function Screenshot({ udid }) {
     const [height, setHeight] = useState(0)
 
     function takeScreenshot() {
-        const url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${udid}/screenshot`;
+        const url = `/device/${udid}/screenshot`;
         fetch(url, {
             method: 'POST',
             headers: {

@@ -12,7 +12,7 @@ export default function ProvidersAdministration() {
     const [providerInfo, setProviderInfo] = useState()
     const [isLoading, setIsLoading] = useState(true)
 
-    let url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/admin/providers`
+    let url = `/admin/providers`
 
     useEffect(() => {
         axios.get(url, {

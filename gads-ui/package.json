@@ -1,5 +1,8 @@
 {
   "name": "gads-ui",
+  "options": {
+    "proxy": "http://192.168.1.28:10000/"
+  },
   "version": "0.1.0",
   "private": true,
   "dependencies": {

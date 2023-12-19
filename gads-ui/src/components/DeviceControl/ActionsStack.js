@@ -9,7 +9,7 @@ import { useContext } from 'react';
 export default function ActionsStack({ deviceData }) {
     const [authToken, login, logout] = useContext(Auth)
 
-    let deviceURL = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${deviceData.udid}`
+    let deviceURL = `/device/${deviceData.udid}`
     return (
         <Stack spacing={0} style={{ width: "50px" }}>
             <HomeButton authToken={authToken} deviceURL={deviceURL}></HomeButton>

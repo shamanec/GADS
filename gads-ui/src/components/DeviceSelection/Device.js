@@ -31,8 +31,7 @@ function UseButton({ device, handleAlert }) {
 
     function handleUseButtonClick() {
         setLoading(true);
-        console.log(process.env.REACT_APP_GADS_BACKEND_HOST)
-        const url = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${device.udid}/health`;
+        const url = `/device/${device.udid}/health`;
         fetch(url, {
             headers: {
                 'X-Auth-Token': authToken

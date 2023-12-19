@@ -28,9 +28,9 @@ export default function StreamCanvas({ deviceData }) {
         }
 
         if (deviceData.os === 'ios') {
-            streamSocket = new WebSocket(`ws://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${deviceData.udid}/ios-stream`);
+            streamSocket = new WebSocket(`ws://${window.location}/device/${deviceData.udid}/ios-stream`);
         } else {
-            streamSocket = new WebSocket(`ws://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${deviceData.udid}/android-stream`);
+            streamSocket = new WebSocket(`ws://${window.location}/device/${deviceData.udid}/android-stream`);
         }
 
         let imgElement = document.getElementById('image-stream')
@@ -131,7 +131,7 @@ function tapCoordinates(authToken, logout, pos, streamData) {
         "y": y
     })
 
-    let deviceURL = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${streamData.udid}`
+    let deviceURL = `/device/${streamData.udid}`
 
     fetch(deviceURL + "/tap", {
         method: 'POST',
@@ -177,7 +177,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData) {
         "endY": secondCoordY
     })
 
-    let deviceURL = `http://${process.env.REACT_APP_GADS_BACKEND_HOST}/device/${streamData.udid}`
+    let deviceURL = `/device/${streamData.udid}`
 
     fetch(deviceURL + "/swipe", {
         method: 'POST',
