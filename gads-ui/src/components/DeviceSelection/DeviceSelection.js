@@ -67,7 +67,8 @@ export default function DeviceSelection() {
         if (devicesSocket) {
             devicesSocket.close()
         }
-        devicesSocket = new WebSocket(`ws://${window.location}/available-devices`);
+        let url = `ws://${window.location.host}/available-devices`
+        devicesSocket = new WebSocket(url);
 
         devicesSocket.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)

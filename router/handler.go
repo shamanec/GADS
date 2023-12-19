@@ -4,53 +4,61 @@ import (
 	"GADS/auth"
 	"GADS/device"
 	"GADS/util"
-	"fmt"
+	"html/template"
+	"strings"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
+func handleIndex(c *gin.Context) {
+	var tmpl = template.Must(template.ParseFiles("gads-ui/build/index.html"))
+	err := tmpl.Execute(c.Writer, nil)
+	if err != nil {
+		return
+	}
+}
+
 func HandleRequests(authentication bool) *gin.Engine {
 	// Create the router and allow all origins
-	// Also set use of gin session
+	// Allow particular headers as well
 	r := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
 	r.Use(cors.New(config))
 
-	// Serve static files from the React build folder
-	// router.Static("/static", "./gads-ui/build/static")
-	// router.Static("/static", "./gads-ui/build/static")
-	// router.GET("/", handleIndex)
+	// Configuration for SAP applications
+	// Serve the static files from the built React app
+	r.Use(static.Serve("/", static.LocalFile("./gads-ui/build", true)))
+	// For any missing route serve the index.html from the static files
+	// This will fix the issue with accessing particular endpoint in the browser manually or with refresh
+	r.NoRoute(func(c *gin.Context) {
+		if !strings.HasPrefix(c.Request.RequestURI, "/api") {
+			c.File("./gads-ui/build/index.html")
+		}
+	})
 
-	// Authenticated endpoints
 	authGroup := r.Group("/")
+	// Unauthenticated endpoints
+	authGroup.POST("/authenticate", auth.LoginHandler)
+	// websockets - unauthenticated
+	authGroup.GET("/logs-ws", util.LogsWS)
+	authGroup.GET("/available-devices", device.AvailableDeviceWS)
+	authGroup.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
+	// Enable authentication on the endpoints below
 	if authentication {
-		fmt.Printf("Authentication is %v", authentication)
 		authGroup.Use(auth.AuthMiddleware())
 	}
-	authGroup.GET("/logs", GetLogsPage)
-	authGroup.GET("/devices", device.LoadDevices)
-	authGroup.GET("/", GetInitialPage)
-	authGroup.GET("/selenium-grid", GetSeleniumGridPage)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
-	authGroup.Static("/static", "./static")
 	authGroup.GET("/admin/providers", GetProviders)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.PUT("/admin/user")    // TODO Update user
 	authGroup.DELETE("/admin/user") // TODO Delete user
-
-	// Unauthenticated endpoints
-	r.POST("/authenticate", auth.LoginHandler)
-
-	// websockets - unauthenticated
-	r.GET("/logs-ws", util.LogsWS)
-	r.GET("/available-devices", device.AvailableDeviceWS)
-	r.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
 
 	return r
 }

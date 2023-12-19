@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html/template"
 	"os"
 
 	"GADS/device"
@@ -11,7 +10,6 @@ import (
 	"GADS/router"
 	"GADS/util"
 
-	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,14 +21,6 @@ func setLogging() {
 		panic(fmt.Sprintf("Could not create/open the gads-project log file for logrus - %s", err))
 	}
 	log.SetOutput(project_log_file)
-}
-
-func handleIndex(c *gin.Context) {
-	var tmpl = template.Must(template.ParseFiles("gads-ui/build/index.html"))
-	err := tmpl.Execute(c.Writer, nil)
-	if err != nil {
-		return
-	}
 }
 
 func main() {

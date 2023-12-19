@@ -28,9 +28,9 @@ export default function StreamCanvas({ deviceData }) {
         }
 
         if (deviceData.os === 'ios') {
-            streamSocket = new WebSocket(`ws://${window.location}/device/${deviceData.udid}/ios-stream`);
+            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/ios-stream`);
         } else {
-            streamSocket = new WebSocket(`ws://${window.location}/device/${deviceData.udid}/android-stream`);
+            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/android-stream`);
         }
 
         let imgElement = document.getElementById('image-stream')
