@@ -1,16 +1,17 @@
 import React, { useState, useContext } from 'react'
 import axios from 'axios'
-import { Auth } from '../../contexts/Auth';
+import { Auth } from '../../../../../contexts/Auth';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Box, Alert, Button } from '@mui/material';
-import './UploadFile.css'
+import './UploadAppFile.css'
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 
 
-export default function UploadFile({ deviceData }) {
+export default function UploadAppFile({ deviceData, setInstallableApps }) {
+    // Upload file and file data
     const [file, setFile] = useState(null);
     const [fileName, setFileName] = useState('No data')
     const [fileSize, setFileSize] = useState('No data')
@@ -61,7 +62,7 @@ export default function UploadFile({ deviceData }) {
                 variant='contained'
                 startIcon={<AttachFileIcon />}
             >
-                <input id='file' type="file" onChange={(event) => handleFileChange(event)} style={{ display: 'none' }} />
+                <input id='input-file' type="file" onChange={(event) => handleFileChange(event)} />
                 Select file
             </Button>
             <List
@@ -97,13 +98,14 @@ export default function UploadFile({ deviceData }) {
                 setAlertSeverity={setAlertSeverity}
                 setAlertText={setAlertText}
                 setShowAlert={setShowAlert}
+                setInstallableApps={setInstallableApps}
             ></Uploader>
             {showAlert && <Alert id="add-user-alert" severity={alertSeverity}>{alertText}</Alert>}
         </Box>
     )
 }
 
-function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText }) {
+function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText, setInstallableApps }) {
     const [authToken, , logout] = useContext(Auth)
     const [isUploading, setIsUploading] = useState(false)
 
@@ -125,6 +127,7 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 setAlertText(response.data.message)
                 setShowAlert(true)
                 setIsUploading(false)
+                setInstallableApps(response.data.apps)
             })
             .catch(error => {
                 if (error.response) {
