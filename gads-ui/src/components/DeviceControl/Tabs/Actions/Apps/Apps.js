@@ -13,8 +13,7 @@ export default function Apps({ deviceData }) {
 
                 </UploadFile>
                 <Divider orientation="vertical" flexItem />
-                <InstallApp installableApps={installableApps}>
-
+                <InstallApp installableApps={installableApps} installedApps={deviceData.Device.installed_apps}>
                 </InstallApp>
             </Stack>
         </Box>

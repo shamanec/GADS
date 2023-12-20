@@ -5,7 +5,7 @@ import Screenshot from "./Screenshot/Screenshot"
 import Actions from "./Actions/Actions"
 
 export default function TabularControl({ deviceData }) {
-    const udid = deviceData.udid
+    const udid = deviceData.Device.udid
 
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
 

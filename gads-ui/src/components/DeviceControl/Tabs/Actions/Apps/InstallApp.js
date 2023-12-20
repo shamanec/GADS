@@ -3,16 +3,29 @@ import InstallMobileIcon from '@mui/icons-material/InstallMobile';
 import './InstallApp.css'
 import { useState } from "react";
 
-export default function InstallApp({ installableApps }) {
+export default function InstallApp({ installableApps, installedApps }) {
     const [selectedApp, setSelectedApp] = useState('no-app')
-    const [buttonDisabled, setButtonDisabled] = useState(true)
+    const [installButtonDisabled, setInstallButtonDisabled] = useState(true)
+    const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
+    const [isInstalling, setIsInstalling] = useState(false)
+    const [isUninstalling, setIsUninstalling] = useState(false)
 
-    function handleSelectChange(event) {
+    function handleInstallChange(event) {
         const app = event.target.value
         if (app.includes('no-app')) {
-            setButtonDisabled(true)
+            setInstallButtonDisabled(true)
         } else {
-            setButtonDisabled(false)
+            setInstallButtonDisabled(false)
+        }
+        setSelectedApp(app)
+    }
+
+    function handleUninstallChange(event) {
+        const app = event.target.value
+        if (app.includes('no-app')) {
+            setUninstallButtonDisabled(true)
+        } else {
+            setUninstallButtonDisabled(false)
         }
         setSelectedApp(app)
     }
@@ -21,6 +34,7 @@ export default function InstallApp({ installableApps }) {
         <Box style={{ width: '300px' }}>
             <Stack
                 alignItems='center'
+                height='50%'
             >
                 <h3>Install app</h3>
                 <Box style={{ width: '260px' }}>
@@ -28,7 +42,7 @@ export default function InstallApp({ installableApps }) {
                         <Select
                             defaultValue='no-app'
                             id='app-select'
-                            onChange={(event) => handleSelectChange(event)}
+                            onChange={(event) => handleInstallChange(event)}
                         >
                             <MenuItem className='select-items' value='no-app'>No app selected</MenuItem>
                             {
@@ -42,10 +56,39 @@ export default function InstallApp({ installableApps }) {
                     </FormControl>
                 </Box>
                 <Box id='install-box'>
-                    <Button startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={buttonDisabled}>Install</Button>
-                    {/* {isUploading &&
-                <CircularProgress id='progress-indicator' size={30} />
-            } */}
+                    <Button startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={installButtonDisabled}>Install</Button>
+                    {isInstalling &&
+                        <CircularProgress id='progress-indicator' size={30} />
+                    }
+                </Box>
+            </Stack>
+            <Stack
+                alignItems='center'
+            >
+                <h3>Uninstall app</h3>
+                <Box style={{ width: '260px' }}>
+                    <FormControl id='form-control'>
+                        <Select
+                            defaultValue='no-app'
+                            id='app-select'
+                            onChange={(event) => handleUninstallChange(event)}
+                        >
+                            <MenuItem className='select-items' value='no-app'>No app selected</MenuItem>
+                            {
+                                installedApps.map((installedApp) => {
+                                    return (
+                                        <MenuItem className='select-items' value={installedApp}> {installedApp}</MenuItem>
+                                    )
+                                })
+                            }
+                        </Select>
+                    </FormControl>
+                </Box>
+                <Box id='install-box'>
+                    <Button startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={uninstallButtonDisabled}>Uninstall</Button>
+                    {isUninstalling &&
+                        <CircularProgress id='progress-indicator' size={30} />
+                    }
                 </Box>
             </Stack>
         </Box >

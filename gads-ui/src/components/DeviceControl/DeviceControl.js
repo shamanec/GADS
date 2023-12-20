@@ -2,14 +2,48 @@ import { useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import StreamCanvas from './StreamCanvas'
 import ActionsStack from './ActionsStack';
-import { Stack } from '@mui/material';
+import { Skeleton, Stack } from '@mui/material';
 import { Button } from '@mui/material';
 import TabularControl from './Tabs/TabularControl';
+import { useContext, useEffect, useState } from 'react';
+import { Auth } from '../../contexts/Auth';
+import axios from 'axios'
 
 export default function DeviceControl() {
+    const [authToken, , logout] = useContext(Auth)
     const { id } = useParams();
     const navigate = useNavigate();
-    const deviceData = JSON.parse(localStorage.getItem(id))
+    const [deviceData, setDeviceData] = useState(null)
+
+    const [isLoading, setIsLoading] = useState(true)
+
+    let url = `/device/${id}/info`
+    useEffect(() => {
+        axios.get(url, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .then((response) => {
+                setDeviceData(response.data)
+            })
+            .catch(error => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                        return
+                    }
+                }
+                console.log('Failed getting providers data' + error)
+                navigate('/devices');
+                return
+            });
+
+        setInterval(() => {
+            setIsLoading(false)
+        }, 2000);
+
+    }, [])
 
     const handleBackClick = () => {
         navigate('/devices');
@@ -27,12 +61,23 @@ export default function DeviceControl() {
                     style={{ marginLeft: "20px" }}
                 >Back to devices</Button>
             </div>
-            <Stack direction={"row"} spacing={2} style={{ marginLeft: "20px" }}>
-                <ActionsStack deviceData={deviceData}></ActionsStack>
-                <StreamCanvas deviceData={deviceData}></StreamCanvas>
-                <TabularControl deviceData={deviceData}></TabularControl>
-            </Stack>
-
+            {
+                isLoading ? (
+                    <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
+                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '600px', width: '50px' }} />
+                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '480px' }} />
+                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '100%', marginRight: '10px' }} />
+                    </Stack>
+                ) : (
+                    <>
+                        <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
+                            <ActionsStack deviceData={deviceData}></ActionsStack>
+                            <StreamCanvas deviceData={deviceData}></StreamCanvas>
+                            <TabularControl deviceData={deviceData}></TabularControl>
+                        </Stack>
+                    </>
+                )
+            }
         </div>
     )
 }
