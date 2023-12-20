@@ -4,7 +4,7 @@ import UploadFile from "./UploadAppFile"
 import InstallApp from "./InstallApp"
 
 export default function Apps({ deviceData }) {
-    const [installableApps, setInstallableApps] = useState([])
+    const [installableApps, setInstallableApps] = useState(deviceData.installable_apps)
 
     return (
         <Box style={{ width: '600px', backgroundColor: 'white', borderRadius: '10px' }}>
