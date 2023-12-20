@@ -1,14 +1,18 @@
 import { Box, Button, CircularProgress, FormControl, MenuItem, Select, Stack } from "@mui/material";
 import InstallMobileIcon from '@mui/icons-material/InstallMobile';
 import './InstallApp.css'
-import { useState } from "react";
+import { useContext, useState } from "react";
+import axios from 'axios'
+import { Auth } from "../../../../../contexts/Auth";
 
-export default function InstallApp({ installableApps, installedApps }) {
-    const [selectedApp, setSelectedApp] = useState('no-app')
+export default function InstallApp({ udid, installableApps, installedApps }) {
+    const [selectedAppUninstall, setSelectedAppUninstall] = useState('no-app')
+    const [selectedAppInstall, setSelectedAppInstall] = useState('no-app')
     const [installButtonDisabled, setInstallButtonDisabled] = useState(true)
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isInstalling, setIsInstalling] = useState(false)
     const [isUninstalling, setIsUninstalling] = useState(false)
+    const [authToken, , logout] = useContext(Auth)
 
     function handleInstallChange(event) {
         const app = event.target.value
@@ -17,7 +21,7 @@ export default function InstallApp({ installableApps, installedApps }) {
         } else {
             setInstallButtonDisabled(false)
         }
-        setSelectedApp(app)
+        setSelectedAppInstall(app)
     }
 
     function handleUninstallChange(event) {
@@ -27,7 +31,65 @@ export default function InstallApp({ installableApps, installedApps }) {
         } else {
             setUninstallButtonDisabled(false)
         }
-        setSelectedApp(app)
+        setSelectedAppUninstall(app)
+    }
+
+    function handleUninstall() {
+        setIsUninstalling(true)
+        const url = `/device/${udid}/uninstallApp`;
+
+        const body = `{
+            "app": "` + selectedAppUninstall + `"
+        } `
+
+        axios.post(url, body, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .then((response) => {
+                setIsUninstalling(false)
+            })
+            .catch(error => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                        return
+                    }
+                    setIsUninstalling(false)
+                }
+                setIsUninstalling(false)
+                console.log('Failed uploading file - ' + error)
+            });
+    }
+
+    function handleInstall() {
+        setIsInstalling(true)
+        const url = `/device/${udid}/installApp`;
+
+        const body = `{
+            "app": "` + selectedAppInstall + `"
+        } `
+
+        axios.post(url, body, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .then((response) => {
+                setIsInstalling(false)
+            })
+            .catch(error => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                        return
+                    }
+                    setIsInstalling(false)
+                }
+                setIsInstalling(false)
+                console.log('Failed uploading file - ' + error)
+            });
     }
 
     return (
@@ -56,7 +118,7 @@ export default function InstallApp({ installableApps, installedApps }) {
                     </FormControl>
                 </Box>
                 <Box id='install-box'>
-                    <Button startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={installButtonDisabled}>Install</Button>
+                    <Button onClick={handleInstall} startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={installButtonDisabled}>Install</Button>
                     {isInstalling &&
                         <CircularProgress id='progress-indicator' size={30} />
                     }
@@ -85,7 +147,7 @@ export default function InstallApp({ installableApps, installedApps }) {
                     </FormControl>
                 </Box>
                 <Box id='install-box'>
-                    <Button startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={uninstallButtonDisabled}>Uninstall</Button>
+                    <Button onClick={handleUninstall} startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={uninstallButtonDisabled}>Uninstall</Button>
                     {isUninstalling &&
                         <CircularProgress id='progress-indicator' size={30} />
                     }
