@@ -1,0 +1,12 @@
+#stream-div {
+    margin-top: 50px;
+    margin-left: 5px;
+    margin-right: 5px;
+    border-bottom: 1px solid gray;
+    border-top: 1px solid gray;
+}
+
+#phone-imitation {
+    background-color: black;
+    border-radius: 30px;
+}

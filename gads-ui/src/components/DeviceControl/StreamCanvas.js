@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import ShowFailedSessionAlert from "./SessionAlert"
 import { Auth } from "../../contexts/Auth"
 import { useContext } from "react"
-import { Divider } from "@mui/material"
+import './StreamCanvas.css'
 
 export default function StreamCanvas({ deviceData }) {
     const [authToken, login, logout] = useContext(Auth)
@@ -56,12 +56,32 @@ export default function StreamCanvas({ deviceData }) {
     }, [])
 
     return (
-        <div style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: '40px', paddingBottom: '80px', backgroundColor: 'black', borderRadius: '25px' }}>
-            <div id="stream-div" style={{ borderBottom: '1px solid gray' }}>
-                <Canvas canvasWidth={canvasWidth} canvasHeight={canvasHeight} authToken={authToken} logout={logout} streamData={streamData}></Canvas>
-                <Stream canvasWidth={canvasWidth} canvasHeight={canvasHeight}></Stream>
+        <div
+            id='phone-imitation'
+        >
+            <div
+                id="stream-div"
+            >
+                <Canvas
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    authToken={authToken}
+                    logout={logout}
+                    streamData={streamData}
+                ></Canvas>
+                <Stream
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                ></Stream>
             </div>
-        </div>
+            <div
+                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            >
+                <h2
+                    style={{ color: 'white', fontFamily: 'Verdana' }}>{deviceData.Device.model}
+                </h2>
+            </div>
+        </div >
 
     )
 }
@@ -108,13 +128,25 @@ function Canvas({ authToken, logout, streamData }) {
     }
 
     return (
-        <canvas id="actions-canvas" onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} style={{ position: "absolute", width: streamData.canvasWidth + 'px', height: streamData.canvasHeight + 'px' }}></canvas>
+        <canvas
+            id="actions-canvas"
+            width={streamData.canvasWidth + 'px'}
+            height={streamData.canvasHeight + 'px'}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            style={{ position: "absolute" }}
+        ></canvas>
     )
 }
 
 function Stream({ canvasWidth, canvasHeight }) {
     return (
-        <img id="image-stream" style={{ width: canvasWidth + 'px', height: canvasHeight + 'px' }}></img>
+        <img
+            id="image-stream"
+            width={canvasWidth + 'px'}
+            height={canvasHeight + 'px'}
+            style={{ display: 'block' }}
+        ></img>
     )
 }
 
