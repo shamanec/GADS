@@ -1,9 +1,9 @@
-import ShowFailedSessionAlert from "../SessionAlert";
+import ShowFailedSessionAlert from "../../SessionAlert";
 import { Box } from "@mui/material";
 import { Button } from "@mui/material";
 import { Stack } from "@mui/material";
 import { useState, useContext } from "react";
-import { Auth } from "../../../contexts/Auth";
+import { Auth } from "../../../../contexts/Auth";
 
 export default function Screenshot({ udid }) {
     const [authToken, , logout] = useContext(Auth)

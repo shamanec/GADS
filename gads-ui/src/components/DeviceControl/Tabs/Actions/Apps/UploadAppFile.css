@@ -1,8 +1,8 @@
 #upload-wrapper {
     display: flex;
     flex-direction: column;
-    border-radius: 10px;
-    border: 1px solid black;
+    /* border-radius: 10px; */
+    /* border: 1px solid black; */
     align-items: left;
     justify-content: center;
     width: 300px;
@@ -23,4 +23,8 @@
     display: flex;
     align-items: center;
     justify-content: left;
+}
+
+#input-file {
+    display: none;
 }

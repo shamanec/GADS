@@ -6,14 +6,14 @@ import { useContext } from "react"
 export default function StreamCanvas({ deviceData }) {
     const [authToken, login, logout] = useContext(Auth)
 
-    let deviceX = parseInt(deviceData.screen_width, 10)
-    let deviceY = parseInt(deviceData.screen_height, 10)
+    let deviceX = parseInt(deviceData.Device.screen_width, 10)
+    let deviceY = parseInt(deviceData.Device.screen_height, 10)
     let screen_ratio = deviceX / deviceY
     let canvasHeight = 850
     let canvasWidth = 850 * screen_ratio
 
     const streamData = {
-        udid: deviceData.udid,
+        udid: deviceData.Device.udid,
         deviceX: deviceX,
         deviceY: deviceY,
         screen_ratio: screen_ratio,
@@ -27,10 +27,10 @@ export default function StreamCanvas({ deviceData }) {
             streamSocket.close()
         }
 
-        if (deviceData.os === 'ios') {
-            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/ios-stream`);
+        if (deviceData.Device.os === 'ios') {
+            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.Device.udid}/ios-stream`);
         } else {
-            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/android-stream`);
+            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.Device.udid}/android-stream`);
         }
 
         let imgElement = document.getElementById('image-stream')

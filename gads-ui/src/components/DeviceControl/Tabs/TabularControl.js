@@ -1,11 +1,11 @@
 import { Box } from "@mui/material"
 import { Tabs, Tab } from "@mui/material"
 import { useState } from "react"
-import Screenshot from "./Screenshot"
-import Actions from "./Actions"
+import Screenshot from "./Screenshot/Screenshot"
+import Actions from "./Actions/Actions"
 
 export default function TabularControl({ deviceData }) {
-    const udid = deviceData.udid
+    const udid = deviceData.Device.udid
 
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
 
@@ -18,15 +18,15 @@ export default function TabularControl({ deviceData }) {
             <Tabs
                 value={currentTabIndex}
                 onChange={handleTabChange}
-                TabIndicatorProps={{ style: { background: "#496612", height: "5px" } }} textColor='white' sx={{ color: "white", fontFamily: "Verdana" }}
+                TabIndicatorProps={{ style: { background: '#496612', height: '5px' } }} textColor='white' sx={{ color: 'white', fontFamily: 'Verdana' }}
             >
-                <Tab label="Actions" style={{ textTransform: 'none', fontSize: '16px' }} />
-                <Tab label="Logs" style={{ textTransform: 'none', fontSize: '16px' }} />
-                <Tab label="Screenshot" style={{ textTransform: 'none', fontSize: '16px' }} />
-                <Tab label="Other" style={{ textTransform: 'none', fontSize: '16px' }} />
+                <Tab className='control-tabs' label='Actions' />
+                <Tab className='control-tabs' label='Logs' />
+                <Tab className='control-tabs' label='Screenshot' />
+                <Tab className='control-tabs' label='Other' />
             </Tabs>
-            {currentTabIndex === 2 && <Screenshot udid={udid}></Screenshot>}
-            {currentTabIndex === 0 && <Actions deviceData={deviceData}></Actions>}
+            {currentTabIndex === 2 && <Screenshot udid={udid} />}
+            {currentTabIndex === 0 && <Actions deviceData={deviceData} />}
         </Box >
     )
 }
