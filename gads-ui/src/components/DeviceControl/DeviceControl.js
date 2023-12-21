@@ -65,7 +65,7 @@ export default function DeviceControl() {
                 isLoading ? (
                     <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
                         <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '600px', width: '50px' }} />
-                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '480px' }} />
+                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '950px', width: '500px', borderRadius: '30px' }} />
                         <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '100%', marginRight: '10px' }} />
                     </Stack>
                 ) : (
