@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import ShowFailedSessionAlert from "./SessionAlert"
 import { Auth } from "../../contexts/Auth"
 import { useContext } from "react"
+import { Divider } from "@mui/material"
 
 export default function StreamCanvas({ deviceData }) {
     const [authToken, login, logout] = useContext(Auth)
@@ -55,10 +56,13 @@ export default function StreamCanvas({ deviceData }) {
     }, [])
 
     return (
-        <div id="stream-div">
-            <Canvas canvasWidth={canvasWidth} canvasHeight={canvasHeight} authToken={authToken} logout={logout} streamData={streamData}></Canvas>
-            <Stream canvasWidth={canvasWidth} canvasHeight={canvasHeight}></Stream>
+        <div style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: '40px', paddingBottom: '80px', backgroundColor: 'black', borderRadius: '25px' }}>
+            <div id="stream-div" style={{ borderBottom: '1px solid gray' }}>
+                <Canvas canvasWidth={canvasWidth} canvasHeight={canvasHeight} authToken={authToken} logout={logout} streamData={streamData}></Canvas>
+                <Stream canvasWidth={canvasWidth} canvasHeight={canvasHeight}></Stream>
+            </div>
         </div>
+
     )
 }
 
