@@ -3,6 +3,10 @@ import ShowFailedSessionAlert from "./SessionAlert"
 import { Auth } from "../../contexts/Auth"
 import { useContext } from "react"
 import './StreamCanvas.css'
+import { Button, Divider, Grid, Stack } from "@mui/material"
+import HomeIcon from '@mui/icons-material/Home';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import LockIcon from '@mui/icons-material/Lock';
 
 export default function StreamCanvas({ deviceData }) {
     const [authToken, login, logout] = useContext(Auth)
@@ -74,13 +78,12 @@ export default function StreamCanvas({ deviceData }) {
                     canvasHeight={canvasHeight}
                 ></Stream>
             </div>
-            <div
-                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-            >
-                <h2
-                    style={{ color: 'white', fontFamily: 'Verdana' }}>{deviceData.Device.model}
-                </h2>
-            </div>
+            <Divider></Divider>
+            <Grid height='50px' display='flex' justifyContent='center' style={{ marginTop: '10px' }}>
+                <Button onClick={() => homeButton(authToken, deviceData)} className='canvas-buttons' startIcon={<HomeIcon />} variant='contained' style={{ borderBottomLeftRadius: '25px' }}>Home</Button>
+                <Button onClick={() => lockButton(authToken, deviceData)} className='canvas-buttons' startIcon={<LockIcon />} variant='contained' >Lock</Button>
+                <Button onClick={() => unlockButton(authToken, deviceData)} className='canvas-buttons' startIcon={<LockOpenIcon />} variant='contained' style={{ borderBottomRightRadius: '25px' }}>Unlock</Button>
+            </Grid>
         </div >
 
     )
@@ -236,5 +239,64 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData) {
         .catch(function (error) {
             ShowFailedSessionAlert(deviceURL)
         })
+}
 
+function homeButton(authToken, deviceData) {
+    let deviceURL = `/device/${deviceData.Device.udid}/home`
+
+    fetch(deviceURL, {
+        method: 'POST',
+        headers: {
+            'X-Auth-Token': authToken
+        }
+    })
+        .then(response => {
+            if (response.status === 404) {
+                ShowFailedSessionAlert(deviceURL)
+                return
+            }
+        })
+        .catch(() => {
+            ShowFailedSessionAlert(deviceURL)
+        })
+}
+
+function lockButton(authToken, deviceData) {
+    let deviceURL = `/device/${deviceData.Device.udid}/lock`
+
+    fetch(deviceURL, {
+        method: 'POST',
+        headers: {
+            'X-Auth-Token': authToken
+        }
+    })
+        .then(response => {
+            if (response.status === 404) {
+                ShowFailedSessionAlert(deviceURL)
+                return
+            }
+        })
+        .catch(() => {
+            ShowFailedSessionAlert(deviceURL)
+        })
+}
+
+function unlockButton(authToken, deviceData) {
+    let deviceURL = `/device/${deviceData.Device.udid}/unlock`
+
+    fetch(deviceURL, {
+        method: 'POST',
+        headers: {
+            'X-Auth-Token': authToken
+        }
+    })
+        .then(response => {
+            if (response.status === 404) {
+                ShowFailedSessionAlert(deviceURL)
+                return
+            }
+        })
+        .catch(() => {
+            ShowFailedSessionAlert(deviceURL)
+        })
 }

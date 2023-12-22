@@ -1,12 +1,18 @@
 #stream-div {
     margin-top: 50px;
-    margin-left: 10px;
-    margin-right: 10px;
-    border-bottom: 1px solid gray;
     border-top: 1px solid gray;
+    border-bottom: 1px solid gray;
+    margin-left: 5px;
+    margin-right: 5px;
 }
 
 #phone-imitation {
     background-color: black;
     border-radius: 30px;
+}
+
+.canvas-buttons {
+    width: 33.33%;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }
