@@ -63,6 +63,7 @@ export default function StreamCanvas({ deviceData }) {
         <div
             id='phone-imitation'
         >
+            <h3 style={{ color: 'white', display: 'flex', fontFamily: 'Verdana', justifyContent: 'center' }}>{deviceData.Device.model}</h3>
             <div
                 id="stream-div"
             >
