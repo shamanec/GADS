@@ -1,7 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import StreamCanvas from './StreamCanvas'
-import ActionsStack from './ActionsStack';
 import { Skeleton, Stack } from '@mui/material';
 import { Button } from '@mui/material';
 import TabularControl from './Tabs/TabularControl';
@@ -64,14 +63,12 @@ export default function DeviceControl() {
             {
                 isLoading ? (
                     <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
-                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '600px', width: '50px' }} />
-                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '480px' }} />
+                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '950px', width: '500px', borderRadius: '30px' }} />
                         <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '100%', marginRight: '10px' }} />
                     </Stack>
                 ) : (
                     <>
                         <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
-                            <ActionsStack deviceData={deviceData}></ActionsStack>
                             <StreamCanvas deviceData={deviceData}></StreamCanvas>
                             <TabularControl deviceData={deviceData}></TabularControl>
                         </Stack>
