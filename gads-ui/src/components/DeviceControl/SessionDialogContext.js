@@ -1,30 +1,63 @@
 import { Button, Dialog, DialogContent, DialogContentText, DialogTitle } from "@mui/material";
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import DialogActions from '@mui/material/DialogActions';
+import { Auth } from "../../contexts/Auth";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const DialogContext = createContext()
 
-function SessionAlert({ dialog, unsetDialog }) {
+function SessionAlert({ dialog, setDialog }) {
+    const [authToken, , logout] = useContext(Auth)
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const navigate = useNavigate()
+
+    function hideDialog() {
+        setDialog(false)
+    }
+
+    function refreshSession() {
+        let healthURL = `/health`
+        axios.get(healthURL, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                        return
+                    }
+                }
+                navigate('/devices')
+            })
+        setDialog(false)
+    }
+
+    function backToDevices() {
+        navigate('/devices')
+    }
+
     return (
         <Dialog
             open={dialog}
-            onClose={unsetDialog}
+            onClose={hideDialog}
             aria-labelledby="alert-dialog-title"
             aria-describedby="alert-dialog-description"
         >
             <DialogTitle id="alert-dialog-title">
-                {"Use Google's location service?"}
+                {"Session lost!"}
             </DialogTitle>
             <DialogContent>
                 <DialogContentText id="alert-dialog-description">
-                    Let Google help apps determine location. This means sending anonymous
-                    location data to Google, even when no apps are running.
+                    You can attempt to refresh the session or go back to the devices list
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-                <Button onClick={unsetDialog}>Disagree</Button>
-                <Button onClick={unsetDialog} autoFocus>
-                    Agree
+                <Button variant='contained' onClick={backToDevices}>Back to devices</Button>
+                <Button variant='contained' onClick={refreshSession} autoFocus>
+                    Refresh session
                 </Button>
             </DialogActions>
         </Dialog>
@@ -34,14 +67,10 @@ function SessionAlert({ dialog, unsetDialog }) {
 function DialogProvider({ children }) {
     const [dialog, setDialog] = useState()
 
-    const unsetDialog = useCallback(() => {
-        setDialog()
-    }, [setDialog])
-
     return (
-        <DialogContext.Provider value={{ unsetDialog, setDialog }} >
+        <DialogContext.Provider value={{ setDialog }} >
             {children}
-            {dialog && <SessionAlert dialog={dialog} unsetDialog={unsetDialog} />}
+            {dialog && <SessionAlert dialog={dialog} setDialog={setDialog} />}
         </DialogContext.Provider>
     )
 }
