@@ -7,9 +7,11 @@ import { Button, Divider, Grid, Stack } from "@mui/material"
 import HomeIcon from '@mui/icons-material/Home';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
+import { useDialog } from "./SessionDialogContext"
 
 export default function StreamCanvas({ deviceData }) {
     const [authToken, login, logout] = useContext(Auth)
+    const { setDialog } = useDialog()
 
     let deviceX = parseInt(deviceData.Device.screen_width, 10)
     let deviceY = parseInt(deviceData.Device.screen_height, 10)
@@ -73,6 +75,7 @@ export default function StreamCanvas({ deviceData }) {
                     authToken={authToken}
                     logout={logout}
                     streamData={streamData}
+                    setDialog={setDialog}
                 ></Canvas>
                 <Stream
                     canvasWidth={canvasWidth}
@@ -90,7 +93,7 @@ export default function StreamCanvas({ deviceData }) {
     )
 }
 
-function Canvas({ authToken, logout, streamData }) {
+function Canvas({ authToken, logout, streamData, setDialog }) {
     var tapStartAt = 0
     var coord1;
     var coord2;
@@ -127,7 +130,7 @@ function Canvas({ authToken, logout, streamData }) {
         if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
             swipeCoordinates(authToken, logout, coord1, coord2, streamData)
         } else {
-            tapCoordinates(authToken, logout, coord1, streamData)
+            tapCoordinates(authToken, logout, coord1, streamData, setDialog)
         }
     }
 
@@ -155,7 +158,7 @@ function Stream({ canvasWidth, canvasHeight }) {
 }
 
 // tap with WDA using coordinates
-function tapCoordinates(authToken, logout, pos, streamData) {
+function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
     // set initial x and y tap coordinates
     let x = pos[0]
     let y = pos[1]
@@ -183,7 +186,9 @@ function tapCoordinates(authToken, logout, pos, streamData) {
     })
         .then(response => {
             if (response.status === 404) {
-                ShowFailedSessionAlert(deviceURL)
+                // ShowFailedSessionAlert(deviceURL)
+                setDialog(true)
+
                 return
             }
 
