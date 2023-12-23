@@ -1,5 +1,4 @@
 import { useEffect } from "react"
-import ShowFailedSessionAlert from "./SessionAlert"
 import { Auth } from "../../contexts/Auth"
 import { useContext } from "react"
 import './StreamCanvas.css'
@@ -84,9 +83,9 @@ export default function StreamCanvas({ deviceData }) {
             </div>
             <Divider></Divider>
             <Grid height='50px' display='flex' justifyContent='center' style={{ marginTop: '10px' }}>
-                <Button onClick={() => homeButton(authToken, deviceData)} className='canvas-buttons' startIcon={<HomeIcon />} variant='contained' style={{ borderBottomLeftRadius: '25px' }}>Home</Button>
-                <Button onClick={() => lockButton(authToken, deviceData)} className='canvas-buttons' startIcon={<LockIcon />} variant='contained' >Lock</Button>
-                <Button onClick={() => unlockButton(authToken, deviceData)} className='canvas-buttons' startIcon={<LockOpenIcon />} variant='contained' style={{ borderBottomRightRadius: '25px' }}>Unlock</Button>
+                <Button onClick={() => homeButton(authToken, deviceData, setDialog)} className='canvas-buttons' startIcon={<HomeIcon />} variant='contained' style={{ borderBottomLeftRadius: '25px' }}>Home</Button>
+                <Button onClick={() => lockButton(authToken, deviceData, setDialog)} className='canvas-buttons' startIcon={<LockIcon />} variant='contained' >Lock</Button>
+                <Button onClick={() => unlockButton(authToken, deviceData, setDialog)} className='canvas-buttons' startIcon={<LockOpenIcon />} variant='contained' style={{ borderBottomRightRadius: '25px' }}>Unlock</Button>
             </Grid>
         </div >
 
@@ -128,7 +127,7 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
         // if y2 < y1*0.9 - it is probably a swipe bottom to top
         // if y2 > y1*1.1 - it is probably a swipe top to bottom
         if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
-            swipeCoordinates(authToken, logout, coord1, coord2, streamData)
+            swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
         } else {
             tapCoordinates(authToken, logout, coord1, streamData, setDialog)
         }
@@ -186,9 +185,7 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
     })
         .then(response => {
             if (response.status === 404) {
-                // ShowFailedSessionAlert(deviceURL)
                 setDialog(true)
-
                 return
             }
 
@@ -197,11 +194,11 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
             }
         })
         .catch(function (error) {
-            ShowFailedSessionAlert(deviceURL)
+            setDialog(true)
         })
 }
 
-function swipeCoordinates(authToken, logout, coord1, coord2, streamData) {
+function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog) {
     var firstCoordX = coord1[0]
     var firstCoordY = coord1[1]
     var secondCoordX = coord2[0]
@@ -234,7 +231,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData) {
     })
         .then(response => {
             if (response.status === 404) {
-                ShowFailedSessionAlert(deviceURL)
+                setDialog(true)
                 return
             }
 
@@ -243,11 +240,11 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData) {
             }
         })
         .catch(function (error) {
-            ShowFailedSessionAlert(deviceURL)
+            setDialog(true)
         })
 }
 
-function homeButton(authToken, deviceData) {
+function homeButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.Device.udid}/home`
 
     fetch(deviceURL, {
@@ -258,16 +255,16 @@ function homeButton(authToken, deviceData) {
     })
         .then(response => {
             if (response.status === 404) {
-                ShowFailedSessionAlert(deviceURL)
+                setDialog(true)
                 return
             }
         })
         .catch(() => {
-            ShowFailedSessionAlert(deviceURL)
+            setDialog(true)
         })
 }
 
-function lockButton(authToken, deviceData) {
+function lockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.Device.udid}/lock`
 
     fetch(deviceURL, {
@@ -278,16 +275,16 @@ function lockButton(authToken, deviceData) {
     })
         .then(response => {
             if (response.status === 404) {
-                ShowFailedSessionAlert(deviceURL)
+                setDialog(true)
                 return
             }
         })
         .catch(() => {
-            ShowFailedSessionAlert(deviceURL)
+            setDialog(true)
         })
 }
 
-function unlockButton(authToken, deviceData) {
+function unlockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.Device.udid}/unlock`
 
     fetch(deviceURL, {
@@ -298,11 +295,11 @@ function unlockButton(authToken, deviceData) {
     })
         .then(response => {
             if (response.status === 404) {
-                ShowFailedSessionAlert(deviceURL)
+                setDialog(true)
                 return
             }
         })
         .catch(() => {
-            ShowFailedSessionAlert(deviceURL)
+            setDialog(true)
         })
 }
