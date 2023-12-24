@@ -51,14 +51,14 @@ function SessionAlert({ dialog, setDialog }) {
             </DialogTitle>
             <DialogContent>
                 <DialogContentText id="alert-dialog-description">
-                    You can attempt to refresh the session or go back to the devices list
+                    You should navigate back to the devices list
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
                 <Button variant='contained' onClick={backToDevices}>Back to devices</Button>
-                <Button variant='contained' onClick={refreshSession} autoFocus>
+                {/* <Button variant='contained' onClick={refreshSession} autoFocus>
                     Refresh session
-                </Button>
+                </Button> */}
             </DialogActions>
         </Dialog>
     )
