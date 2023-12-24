@@ -128,8 +128,10 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
         // if y2 > y1*1.1 - it is probably a swipe top to bottom
         if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
             swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
-        } else {
+        } else if (mouseEventsTimeDiff < 500) {
             tapCoordinates(authToken, logout, coord1, streamData, setDialog)
+        } else {
+            touchAndHoldCoordinates(authToken, logout, coord1, streamData, setDialog)
         }
     }
 
@@ -156,7 +158,7 @@ function Stream({ canvasWidth, canvasHeight }) {
     )
 }
 
-// tap with WDA using coordinates
+// tap using coordinates
 function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
     // set initial x and y tap coordinates
     let x = pos[0]
@@ -176,6 +178,47 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
     let deviceURL = `/device/${streamData.udid}`
 
     fetch(deviceURL + "/tap", {
+        method: 'POST',
+        body: jsonData,
+        headers: {
+            'Content-type': 'application/json',
+            'X-Auth-Token': authToken
+        }
+    })
+        .then(response => {
+            if (response.status === 404) {
+                setDialog(true)
+                return
+            }
+
+            if (response.status === 401) {
+                logout()
+            }
+        })
+        .catch(function (error) {
+            setDialog(true)
+        })
+}
+
+function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) {
+    // set initial x and y tap coordinates
+    let x = pos[0]
+    let y = pos[1]
+
+    // if the stream height 
+    if (streamData.canvasHeight != streamData.deviceY) {
+        x = (x / streamData.canvasWidth) * streamData.deviceX
+        y = (y / streamData.canvasHeight) * streamData.deviceY
+    }
+
+    let jsonData = JSON.stringify({
+        "x": x,
+        "y": y
+    })
+
+    let deviceURL = `/device/${streamData.udid}`
+
+    fetch(deviceURL + "/touchAndHold", {
         method: 'POST',
         body: jsonData,
         headers: {
