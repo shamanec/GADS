@@ -25,6 +25,7 @@ export default function NavBar() {
             </nav>
             <div className="social-buttons-wrapper">
                 <p>Welcome, {username}</p>
+                <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
                 <LogoutButton></LogoutButton>
@@ -60,6 +61,14 @@ function DiscordButton() {
     return (
         <a className='discord-button' target='_blank' href='https://discordapp.com/users/365565274470088704'>
             <img src='./images/discord.png' alt='discord icon' />
+        </a>
+    )
+}
+
+function KoFiButton() {
+    return (
+        <a className='ko-fi-button' target='_blank' href='https://ko-fi.com/shamanec'>
+            <img src='./images/kofi_s_logo_nolabel.png' alt='kofi icon' />
         </a>
     )
 }
