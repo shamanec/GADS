@@ -7,6 +7,7 @@ import TabularControl from './Tabs/TabularControl';
 import { useContext, useEffect, useState } from 'react';
 import { Auth } from '../../contexts/Auth';
 import axios from 'axios'
+import { DialogProvider } from './SessionDialogContext';
 
 export default function DeviceControl() {
     const [authToken, , logout] = useContext(Auth)
@@ -49,32 +50,34 @@ export default function DeviceControl() {
     };
 
     return (
-        <div>
-            <div className='back-button-bar' style={{
-                marginBottom: '10px',
-                marginTop: '10px'
-            }}>
-                <Button
-                    variant="contained"
-                    onClick={handleBackClick}
-                    style={{ marginLeft: "20px" }}
-                >Back to devices</Button>
-            </div>
-            {
-                isLoading ? (
-                    <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
-                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '950px', width: '500px', borderRadius: '30px' }} />
-                        <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '100%', marginRight: '10px' }} />
-                    </Stack>
-                ) : (
-                    <>
+        <DialogProvider>
+            <div>
+                <div className='back-button-bar' style={{
+                    marginBottom: '10px',
+                    marginTop: '10px'
+                }}>
+                    <Button
+                        variant="contained"
+                        onClick={handleBackClick}
+                        style={{ marginLeft: "20px" }}
+                    >Back to devices</Button>
+                </div>
+                {
+                    isLoading ? (
                         <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
-                            <StreamCanvas deviceData={deviceData}></StreamCanvas>
-                            <TabularControl deviceData={deviceData}></TabularControl>
+                            <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '950px', width: '500px', borderRadius: '30px' }} />
+                            <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '100%', marginRight: '10px' }} />
                         </Stack>
-                    </>
-                )
-            }
-        </div>
+                    ) : (
+                        <>
+                            <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
+                                <StreamCanvas deviceData={deviceData}></StreamCanvas>
+                                <TabularControl deviceData={deviceData}></TabularControl>
+                            </Stack>
+                        </>
+                    )
+                }
+            </div>
+        </DialogProvider>
     )
 }

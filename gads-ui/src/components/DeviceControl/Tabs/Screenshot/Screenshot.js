@@ -1,14 +1,15 @@
-import ShowFailedSessionAlert from "../../SessionAlert";
 import { Box } from "@mui/material";
 import { Button } from "@mui/material";
 import { Stack } from "@mui/material";
 import { useState, useContext } from "react";
 import { Auth } from "../../../../contexts/Auth";
+import { useDialog } from "../../SessionDialogContext";
 
 export default function Screenshot({ udid }) {
     const [authToken, , logout] = useContext(Auth)
     const [width, setWidth] = useState(0)
     const [height, setHeight] = useState(0)
+    const { setDialog } = useDialog()
 
     function takeScreenshot() {
         const url = `/device/${udid}/screenshot`;
@@ -20,7 +21,7 @@ export default function Screenshot({ udid }) {
         })
             .then((response) => {
                 if (response.status === 404) {
-                    ShowFailedSessionAlert()
+                    setDialog(true)
                     return
                 }
                 return response.json()

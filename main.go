@@ -45,6 +45,7 @@ func main() {
 	defer util.MongoClientCtxCancel()
 
 	setLogging()
+	fmt.Println("")
 
 	r := router.HandleRequests(*auth_flag)
 
