@@ -19,6 +19,7 @@ function TypeText({ deviceData }) {
     const [isTyping, setIsTyping] = useState(false)
     const [authToken, , logout] = useContext(Auth)
     const [showError, setShowError] = useState(false)
+    const [alertTimeoutId, setAlertTimeoutId] = useState(null)
 
     function handleEnter(event) {
         // If currently typing text through the API with Appium do not allow typing in input box
@@ -32,16 +33,24 @@ function TypeText({ deviceData }) {
         }
     }
 
+    // Show error for the typing
     function handleShowError() {
+        // Hide the previous error
         setShowError(false)
+        // Show the current error
         setShowError(true)
-        setTimeout(() => {
+        // Clear the previous timeout set on the previous error
+        clearTimeout(alertTimeoutId)
+        // Set a new timeout on the error
+        setAlertTimeoutId(setTimeout(() => {
             setShowError(false)
-        }, 3000)
+        }, 3000))
     }
 
     function handleType(text) {
         setIsTyping(true)
+        setShowError(false)
+
         let json = `{"text": "${text}"}`
 
         let url = `/device/${deviceData.Device.udid}/typeText`
@@ -64,14 +73,14 @@ function TypeText({ deviceData }) {
             .finally(() => {
                 setTimeout(() => {
                     setIsTyping(false)
-                }, 1000)
+                }, 500)
             })
     }
 
     return (
         <Box style={{ backgroundColor: 'white', width: '600px', marginTop: '5px', height: '155px' }}>
             <div style={{ marginLeft: '10px', marginTop: '5px' }}>Make sure you've selected input element in the app</div>
-            <Box style={{ display: 'flex', alignItems: 'center', marginLeft: '10px', marginBottom: '10px' }}>
+            <Box style={{ marginLeft: '10px' }}>
                 <TextField
                     id="outlined-basic"
                     label="Type something and press Enter"
@@ -80,11 +89,11 @@ function TypeText({ deviceData }) {
                     style={{ backgroundColor: 'white', marginTop: '15px', width: '80%' }}
                 />
                 {isTyping &&
-                    <CircularProgress id='progress-indicator' size={45} />
+                    <CircularProgress variant='indeterminate' size={40} style={{ animationDuration: '600ms', marginTop: '20px', marginLeft: '5px' }} />
                 }
             </Box>
             {showError &&
-                <Alert severity="error">Error typing or no active input element selected</Alert>
+                <Alert severity="error" sx={{ width: '80%', marginTop: '5px', marginLeft: '10px' }}>Error typing or no active input element selected</Alert>
             }
         </Box>
     )
