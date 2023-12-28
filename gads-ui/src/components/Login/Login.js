@@ -9,7 +9,7 @@ import Alert from '@mui/material/Alert'
 export default function Login() {
     const [username, setUsername] = useState()
     const [password, setPassword] = useState()
-    const [, login,] = useContext(Auth)
+    const [, , , login,] = useContext(Auth)
     const [showAlert, setShowAlert] = useState(false)
     const [alertText, setAlertText] = useState()
     const navigate = useNavigate()
@@ -47,9 +47,7 @@ export default function Login() {
             })
             .then(json => {
                 const sessionID = json.sessionID
-                login(sessionID)
-                localStorage.setItem("username", json.username)
-                localStorage.setItem("role", json.role)
+                login(sessionID, json.username, json.role)
                 navigate("/devices")
             })
             .catch((e) => {

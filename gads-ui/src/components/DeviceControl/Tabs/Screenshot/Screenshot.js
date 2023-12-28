@@ -6,7 +6,7 @@ import { Auth } from "../../../../contexts/Auth";
 import { useDialog } from "../../SessionDialogContext";
 
 export default function Screenshot({ udid }) {
-    const [authToken, , logout] = useContext(Auth)
+    const [authToken, , , , logout] = useContext(Auth)
     const [width, setWidth] = useState(0)
     const [height, setHeight] = useState(0)
     const { setDialog } = useDialog()

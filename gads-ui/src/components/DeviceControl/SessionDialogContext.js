@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 const DialogContext = createContext()
 
 function SessionAlert({ dialog, setDialog }) {
-    const [authToken, , logout] = useContext(Auth)
+    const [authToken, , , , logout] = useContext(Auth)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const navigate = useNavigate()
 

@@ -3,9 +3,7 @@ package device
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net"
-	"net/http"
 	"sync"
 	"time"
 
@@ -15,7 +13,6 @@ import (
 )
 
 var clients = make(map[net.Conn]bool)
-var broadcast = make(chan []byte)
 var mu sync.Mutex
 
 func AvailableDeviceWS(c *gin.Context) {
@@ -72,15 +69,5 @@ func GetDevices() {
 		}
 
 		time.Sleep(1 * time.Second)
-	}
-}
-
-func LoadDevices(c *gin.Context) {
-
-	// Parse the template and return response with the created template
-	var tmpl = template.Must(template.New("device_selection_new.html").ParseFiles("static/device_selection_new.html"))
-	err := tmpl.ExecuteTemplate(c.Writer, "device_selection_new.html", nil)
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
 	}
 }

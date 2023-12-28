@@ -9,7 +9,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import { useDialog } from "./SessionDialogContext"
 
 export default function StreamCanvas({ deviceData }) {
-    const [authToken, login, logout] = useContext(Auth)
+    const [authToken, , , , logout] = useContext(Auth)
     const { setDialog } = useDialog()
 
     let deviceX = parseInt(deviceData.Device.screen_width, 10)

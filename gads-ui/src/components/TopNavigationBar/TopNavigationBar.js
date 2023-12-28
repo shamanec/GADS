@@ -5,8 +5,7 @@ import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
 
 export default function NavBar() {
-    let username = localStorage.getItem('username')
-    let role = localStorage.getItem('role')
+    const [, username, role, ,] = useContext(Auth)
 
     const [showAdmin, setShowAdmin] = useState(false)
 
@@ -74,7 +73,7 @@ function KoFiButton() {
 }
 
 function LogoutButton() {
-    const [authToken, login, logout] = useContext(Auth)
+    const [authToken, , , , logout] = useContext(Auth)
     let url = `/logout`
 
     function handleLogout() {
