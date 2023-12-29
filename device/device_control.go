@@ -137,9 +137,14 @@ func DeviceInUseWS(c *gin.Context) {
 
 	go func() {
 		for {
-			data, _, err := wsutil.ReadClientData(conn)
+			data, code, err := wsutil.ReadClientData(conn)
 			if err != nil {
 				fmt.Println(err)
+				return
+			}
+
+			if code == 8 {
+				close(messageReceived)
 				return
 			}
 
