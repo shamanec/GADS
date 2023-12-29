@@ -1,6 +1,6 @@
-import { Auth } from "../../contexts/Auth"
+import { Auth } from "../../../contexts/Auth"
 import { useContext, useState, useEffect } from "react"
-import Provider from "./Provider/Provider";
+import Provider from "./Provider";
 import axios from "axios";
 import Skeleton from '@mui/material/Skeleton';
 import { Stack } from "@mui/material";

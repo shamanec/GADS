@@ -6,7 +6,7 @@ import { Alert } from '@mui/material';
 import MenuItem from '@mui/material/MenuItem';
 import './AddUser.css'
 import Select from '@mui/material/Select';
-import { Auth } from '../../contexts/Auth';
+import { Auth } from '../../../contexts/Auth';
 
 
 export default function AddUser() {

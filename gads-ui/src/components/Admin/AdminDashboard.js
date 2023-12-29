@@ -2,8 +2,8 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { useState } from "react";
 import { Box } from "@mui/material";
-import UsersAdministration from "./UsersAdministration";
-import ProvidersAdministration from "./ProvidersAdministration";
+import UsersAdministration from "./Users/UsersAdministration";
+import ProvidersAdministration from "./Providers/ProvidersAdministration";
 
 
 export default function AdminDashboard() {
