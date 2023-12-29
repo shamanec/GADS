@@ -3,9 +3,8 @@ package device
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
+	"io"
 	"net"
-	"net/http"
 	"sync"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 )
 
 var clients = make(map[net.Conn]bool)
-var broadcast = make(chan []byte)
 var mu sync.Mutex
 
 func AvailableDeviceWS(c *gin.Context) {
@@ -35,29 +33,38 @@ func AvailableDeviceWS(c *gin.Context) {
 	mu.Lock()
 	clients[conn] = true
 	mu.Unlock()
+	go monitorConnClose(conn)
 }
 
-func keepAlive() {
+// Wait to receive a message on the connection.
+// If it errors out or the message is close frame,
+// clean up the connection and remove the client from the map.
+// With this we can immediately clean up resources instead of waiting for the browser to gracefully close the connection in around 30s
+func monitorConnClose(client net.Conn) {
 	for {
-		// Send a ping message every 10 seconds
-		time.Sleep(10 * time.Second)
+		msg, err := wsutil.ReadClientMessage(client, nil)
+		// If we got io.EOF error then the ws was probably abnormally closed
+		// Remove the client
+		if err == io.EOF {
+			client.Close()
+			mu.Lock()
+			delete(clients, client)
+			mu.Unlock()
+			return
+		}
 
-		// Loop through the clients and send the message to each of them
-		for client := range clients {
-			err := wsutil.WriteClientMessage(client, ws.OpPing, nil)
-			if err != nil {
-				client.Close()
-				mu.Lock()
-				delete(clients, client)
-				mu.Unlock()
-			}
+		// If we get Op.Code = 8, then we received a close frame and we can remove the client
+		if msg[0].OpCode == 8 {
+			client.Close()
+			mu.Lock()
+			delete(clients, client)
+			mu.Unlock()
+			return
 		}
 	}
 }
 
 func GetDevices() {
-	go keepAlive()
-
 	for {
 		jsonData, _ := json.Marshal(&latestDevices)
 
@@ -72,15 +79,5 @@ func GetDevices() {
 		}
 
 		time.Sleep(1 * time.Second)
-	}
-}
-
-func LoadDevices(c *gin.Context) {
-
-	// Parse the template and return response with the created template
-	var tmpl = template.Must(template.New("device_selection_new.html").ParseFiles("static/device_selection_new.html"))
-	err := tmpl.ExecuteTemplate(c.Writer, "device_selection_new.html", nil)
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
 	}
 }

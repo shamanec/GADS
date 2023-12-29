@@ -10,14 +10,14 @@ import axios from 'axios'
 import { DialogProvider } from './SessionDialogContext';
 
 export default function DeviceControl() {
-    const [authToken, , logout] = useContext(Auth)
+    const [authToken, , , , logout] = useContext(Auth)
     const { id } = useParams();
     const navigate = useNavigate();
     const [deviceData, setDeviceData] = useState(null)
-
     const [isLoading, setIsLoading] = useState(true)
 
     let url = `/device/${id}/info`
+    let in_use_socket = null
     useEffect(() => {
         axios.get(url, {
             headers: {
@@ -39,9 +39,31 @@ export default function DeviceControl() {
                 return
             });
 
+        if (in_use_socket) {
+            in_use_socket.close()
+        }
+        let socketUrl = `ws://${window.location.host}/devices/control/${id}/in-use`
+        in_use_socket = new WebSocket(socketUrl);
+        if (in_use_socket.readyState === WebSocket.OPEN) {
+            in_use_socket.send('ping');
+        }
+        const pingInterval = setInterval(() => {
+            if (in_use_socket.readyState === WebSocket.OPEN) {
+                in_use_socket.send('ping');
+            }
+        }, 1000);
+
         setInterval(() => {
             setIsLoading(false)
         }, 2000);
+
+        return () => {
+            if (in_use_socket) {
+                console.log('component unmounted, clearing itnerval and closing socket')
+                clearInterval(pingInterval)
+                in_use_socket.close()
+            }
+        }
 
     }, [])
 

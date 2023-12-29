@@ -10,7 +10,7 @@ import { Auth } from '../../contexts/Auth';
 
 
 export default function AddUser() {
-    const [authToken, ,] = useContext(Auth)
+    const [authToken] = useContext(Auth)
 
     // Inputs
     const [username, setUsername] = useState()

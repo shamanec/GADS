@@ -7,7 +7,7 @@ import { Stack } from "@mui/material";
 
 
 export default function ProvidersAdministration() {
-    const [authToken, , logout] = useContext(Auth)
+    const [authToken, , , , logout] = useContext(Auth)
     const [providers, setProviders] = useState([])
     const [providerInfo, setProviderInfo] = useState()
     const [isLoading, setIsLoading] = useState(true)

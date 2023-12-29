@@ -26,7 +26,8 @@ function UseButton({ device, handleAlert }) {
     // Difference between current time and last time the device was reported as healthy
     // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
     const [loading, setLoading] = useState(false);
-    const [authToken, login, logout] = useContext(Auth)
+    const [authToken, username, , login, logout] = useContext(Auth)
+
     const navigate = useNavigate();
 
     function handleUseButtonClick() {
