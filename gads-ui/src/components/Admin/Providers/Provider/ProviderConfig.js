@@ -1,6 +1,7 @@
 import { Alert, Box, Button, Grid, MenuItem, Select, Stack, TextField } from "@mui/material"
 import axios from "axios"
-import { useState } from "react"
+import { useContext, useState } from "react"
+import { Auth } from "../../../../contexts/Auth"
 
 export default function ProviderConfig({ isNew, data }) {
     let os_string = 'windows'
@@ -15,7 +16,7 @@ export default function ProviderConfig({ isNew, data }) {
     let wda_repo_path = ''
     let button_string = 'Add'
     if (data) {
-        os_string = data.os
+        os_string = data.provider.os
         host_address_string = data.provider.host_address
         nickname_string = data.provider.provider_nickname
         port_string = data.provider.host_port
@@ -27,6 +28,8 @@ export default function ProviderConfig({ isNew, data }) {
         wda_repo_path = data.provider.wda_repo_path
         button_string = 'Update'
     }
+    // Main
+    const [authToken, , logout] = useContext(Auth)
     // OS
     const [os, setOS] = useState(os_string)
     const [osDisabled, setOsDisabled] = useState(false)
@@ -61,7 +64,7 @@ export default function ProviderConfig({ isNew, data }) {
     const [wdaRepoPath, setWdaRepoPath] = useState(wda_repo_path)
 
     function handleAddClick() {
-        let url = `/admin/addProvider`
+        let url = `/admin/providers/add`
         let body = {}
         body.os = os
         body.host_address = hostAddress
@@ -81,7 +84,14 @@ export default function ProviderConfig({ isNew, data }) {
 
         let bodyString = JSON.stringify(body)
 
-        axios.post(url, bodyString)
+        axios.post(url, bodyString, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .catch((error) => {
+                alert(error)
+            })
     }
 
     function handleError(msg) {
