@@ -2,38 +2,63 @@ import { Alert, Box, Button, Grid, MenuItem, Select, Stack, TextField } from "@m
 import axios from "axios"
 import { useState } from "react"
 
-export default function AddProvider() {
+export default function ProviderConfig({ isNew, data }) {
+    let os_string = 'windows'
+    let host_address_string = ''
+    let nickname_string = ''
+    let port_string = ''
+    let provide_android = false
+    let provide_ios = false
+    let use_selenium_grid = false
+    let selenium_grid = ''
+    let wda_bundle_id = ''
+    let wda_repo_path = ''
+    let button_string = 'Add'
+    if (data) {
+        os_string = data.os
+        host_address_string = data.provider.host_address
+        nickname_string = data.provider.provider_nickname
+        port_string = data.provider.host_port
+        provide_android = data.provider.provide_android
+        provide_ios = data.provider.provide_ios
+        use_selenium_grid = data.provider.use_selenium_grid
+        selenium_grid = data.provider.selenium_grid
+        wda_bundle_id = data.provider.wda_bundle_id
+        wda_repo_path = data.provider.wda_repo_path
+        button_string = 'Update'
+    }
     // OS
-    const [os, setOS] = useState('windows')
+    const [os, setOS] = useState(os_string)
+    const [osDisabled, setOsDisabled] = useState(false)
     // Host address
-    const [hostAddress, setHostAddress] = useState('')
+    const [hostAddress, setHostAddress] = useState(host_address_string)
     const [hostAddressColor, setHostAddressColor] = useState('')
     function validateHostAddress(val) {
 
     }
     // Nickname
-    const [nickname, setNickname] = useState('')
+    const [nickname, setNickname] = useState(nickname_string)
     const [nicknameColor, setNicknameColor] = useState('')
     // Port
-    const [port, setPort] = useState('')
+    const [port, setPort] = useState(port_string)
     const [portColor, setPortColor] = useState('')
     function validatePort(val) {
 
     }
     // Provide Android
-    const [android, setAndroid] = useState(false)
+    const [android, setAndroid] = useState(provide_android)
     // Provide iOS
-    const [ios, setIos] = useState(false)
+    const [ios, setIos] = useState(provide_ios)
     // Use Selenium Grid
-    const [useSeleniumGrid, setUseSeleniumGrid] = useState(false)
+    const [useSeleniumGrid, setUseSeleniumGrid] = useState(use_selenium_grid)
     // Selenium Grid
-    const [seleniumGrid, setSeleniumGrid] = useState('')
+    const [seleniumGrid, setSeleniumGrid] = useState(selenium_grid)
     // Supervision password
     const [supervisionPassword, setSupervisionPassword] = useState('')
     // WebDriverAgent bundle id
-    const [wdaBundleId, setWdaBundleId] = useState('')
+    const [wdaBundleId, setWdaBundleId] = useState(wda_bundle_id)
     // WebDriverAgent repo path - MacOS
-    const [wdaRepoPath, setWdaRepoPath] = useState('')
+    const [wdaRepoPath, setWdaRepoPath] = useState(wda_repo_path)
 
     function handleAddClick() {
         let url = `/admin/addProvider`
@@ -73,6 +98,7 @@ export default function AddProvider() {
                         value={os}
                         onChange={(event) => setOS(event.target.value)}
                         style={{ width: '100%' }}
+                        disabled={!isNew}
                     >
                         <MenuItem value='windows'>Windows</MenuItem>
                         <MenuItem value='linux'>Linux</MenuItem>
@@ -89,6 +115,7 @@ export default function AddProvider() {
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Unique nickname for the provider'
                         style={{ width: '100%' }}
+                        value={nickname}
                     />
                     <h4>Host address</h4>
                     <TextField
@@ -101,6 +128,7 @@ export default function AddProvider() {
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Local IP address of the provider host without scheme, e.g. 192.168.1.10'
                         style={{ width: '100%' }}
+                        value={hostAddress}
                     />
                     <h4>Port</h4>
                     <TextField
@@ -113,6 +141,7 @@ export default function AddProvider() {
                         onKeyUp={e => validatePort(e.target.value)}
                         helperText='The port on which you want the provider instance to run'
                         style={{ width: '100%' }}
+                        value={port}
                     />
                     <h4>Provide Android devices?</h4>
                     <Select
@@ -148,6 +177,7 @@ export default function AddProvider() {
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         disabled={!ios || (ios && os === 'macos')}
                         helperText='Bundle ID of the prebuilt WebDriverAgent.ipa, used by `go-ios` to start it'
+                        value={wdaBundleId}
                     />
                     <h4>WebDriverAgent repo path</h4>
                     <TextField
@@ -160,10 +190,11 @@ export default function AddProvider() {
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Path on the host to the WebDriverAgent repo to build from, e.g. /Users/shamanec/WebDriverAgent-5.8.3'
                         disabled={!ios || (ios && os !== 'macos')}
+                        value={wdaRepoPath}
                     />
                     <h4>Use Selenium Grid?</h4>
                     <Select
-                        defaultValue={false}
+                        // defaultValue={useSeleniumGrid}
                         value={useSeleniumGrid}
                         onChange={(event) => setUseSeleniumGrid(event.target.value)}
                         style={{ width: '100%' }}
@@ -182,11 +213,12 @@ export default function AddProvider() {
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Address of the Selenium Grid instance, e.g. http://192.168.1.28:4444'
                         disabled={!useSeleniumGrid}
+                        value={seleniumGrid}
                     />
 
                 </Stack>
             </Stack>
-            <Button variant='contained' style={{ width: '100px' }} onClick={handleAddClick}>Add</Button>
+            <Button variant='contained' style={{ width: '100px' }} onClick={handleAddClick}>{button_string}</Button>
             <Alert color='error'>Test</Alert>
         </Stack>
 

@@ -4,7 +4,8 @@ import ListProvider from "./ListProvider";
 import axios from "axios";
 import Skeleton from '@mui/material/Skeleton';
 import { Box, Button, Stack } from "@mui/material";
-import AddProvider from "./AddProvider/AddProvider";
+import ProviderConfig from "./Provider/ProviderConfig";
+import Provider from "./Provider/Provider";
 
 
 export default function ProvidersAdministration() {
@@ -13,9 +14,16 @@ export default function ProvidersAdministration() {
     const [isLoading, setIsLoading] = useState(true)
     const [providerInfo, setProviderInfo] = useState({})
     const [showAddProvider, setShowAddProvider] = useState(false)
+    const [showProvider, setShowProvider] = useState(false)
 
     function handleAddProvider() {
+        setShowProvider(false)
         setShowAddProvider(true)
+    }
+
+    function handleShowProvider() {
+        setShowAddProvider(false)
+        setShowProvider(true)
     }
 
     function handleSelectProvider(name) {
@@ -27,6 +35,7 @@ export default function ProvidersAdministration() {
             }
         }).then((response) => {
             setProviderInfo(response.data)
+            handleShowProvider()
         })
             .catch(error => {
                 if (error.response) {
@@ -38,7 +47,6 @@ export default function ProvidersAdministration() {
                 console.log('Failed getting providers data' + error)
                 return
             });
-
     }
 
     let url = `/admin/providers`
@@ -88,7 +96,10 @@ export default function ProvidersAdministration() {
                     }
                 </Stack>
                 {showAddProvider &&
-                    <AddProvider></AddProvider>
+                    <ProviderConfig isNew={true}></ProviderConfig>
+                }
+                {showProvider &&
+                    <Provider isNew={false} data={providerInfo}></Provider>
                 }
             </Stack>
 
