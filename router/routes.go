@@ -77,3 +77,19 @@ func GetProviders(c *gin.Context) {
 	providers := util.GetProvidersFromDB()
 	c.JSON(http.StatusOK, providers)
 }
+
+func GetProviderInfo(c *gin.Context) {
+	providerName := c.Param("name")
+	providers := util.GetProvidersFromDB()
+	for _, provider := range providers {
+		if provider.Name == providerName {
+			c.JSON(http.StatusOK, provider)
+			return
+		}
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No provider with name `%s` found", providerName)})
+}
+
+func CreateProvider(c *gin.Context) {
+
+}

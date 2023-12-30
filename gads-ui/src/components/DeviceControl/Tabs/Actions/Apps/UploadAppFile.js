@@ -111,7 +111,7 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
 
     function handleUpload() {
         setIsUploading(true)
-        const url = `http://${deviceData.Device.host_address}:10001/provider/uploadFile`;
+        const url = `/device/${deviceData.Device.udid}/uploadFile`;
 
         const form = new FormData();
         form.append('file', file);

@@ -55,6 +55,7 @@ func HandleRequests(authentication bool) *gin.Engine {
 	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
+	authGroup.Any("/provider/:name/*path", ProviderProxyHandler)
 	authGroup.GET("/admin/providers", GetProviders)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.PUT("/admin/user")    // TODO Update user
