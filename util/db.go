@@ -138,3 +138,42 @@ func GetUserFromDB(email string) (models.User, error) {
 	}
 	return user, nil
 }
+
+type ProviderDB struct {
+	OS              string `json:"os" bson:"os"`
+	Nickname        string `json:"nickname" bson:"nickname"`
+	HostAddress     string `json:"host_address" bson:"host_address"`
+	Port            string `json:"port" bson:"port"`
+	UseSeleniumGrid bool   `json:"use_selenium_grid" bson:"use_selenium_grid"`
+	SeleniumGrid    string `json:"selenium_grid" bson:"selenium_grid"`
+	ProvideAndroid  bool   `json:"provide_android" bson:"provide_android"`
+	ProvideIOS      bool   `json:"provide_ios" bson:"provide_ios"`
+	WdaBundleID     string `json:"wda_bundle_id" bson:"wda_bundle_id"`
+	WdaRepoPath     string `json:"wda_repo_path" bson:"wda_repo_path"`
+}
+
+func AddOrUpdateProvider(provider ProviderDB) error {
+	update := bson.M{
+		"$set": provider,
+	}
+	coll := mongoClient.Database("gads").Collection("providers_new")
+	filter := bson.D{{Key: "nickname", Value: provider.Nickname}}
+	opts := options.Update().SetUpsert(true)
+	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetProviderFromDB(nickname string) (ProviderDB, error) {
+	var provider ProviderDB
+	coll := mongoClient.Database("gads").Collection("providers_new")
+	filter := bson.D{{Key: "nickname", Value: nickname}}
+
+	err := coll.FindOne(context.TODO(), filter).Decode(&provider)
+	if err != nil {
+		return ProviderDB{}, err
+	}
+	return provider, nil
+}

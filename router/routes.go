@@ -90,6 +90,126 @@ func GetProviderInfo(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No provider with name `%s` found", providerName)})
 }
 
-func CreateProvider(c *gin.Context) {
+func AddProvider(c *gin.Context) {
+	var provider util.ProviderDB
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		InternalServerError(c, fmt.Sprintf("%s", err))
+		return
+	}
 
+	err = json.Unmarshal(body, &provider)
+	if err != nil {
+		BadRequest(c, fmt.Sprintf("%s", err))
+		return
+	}
+
+	if provider == (util.ProviderDB{}) {
+		BadRequest(c, "Empty or invalid body")
+		return
+	}
+
+	// Validations
+	if provider.Nickname == "" {
+		BadRequest(c, "missing `nickname` field")
+		return
+	}
+	providerDB, _ := util.GetProviderFromDB(provider.Nickname)
+	if (providerDB != util.ProviderDB{}) {
+		BadRequest(c, fmt.Sprintf("Provider with nickname `%s` already exists, choose another one", provider.Nickname))
+		return
+	}
+
+	if provider.OS == "" {
+		BadRequest(c, "missing `os` field")
+		return
+	}
+	if provider.HostAddress == "" {
+		BadRequest(c, "missing `host_address` field")
+		return
+	}
+	if provider.Port == "" {
+		BadRequest(c, "missing `port` field")
+		return
+	}
+	if provider.ProvideIOS {
+		if provider.WdaBundleID == "" && (provider.OS == "windows" || provider.OS == "linux") {
+			BadRequest(c, "missing `wda_bundle_id` field")
+			return
+		}
+		if provider.WdaRepoPath == "" && provider.OS == "macos" {
+			BadRequest(c, "missing `wda_repo_path` field")
+			return
+		}
+	}
+	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
+		BadRequest(c, "missing `selenium_grid` field")
+		return
+	}
+
+	err = util.AddOrUpdateProvider(provider)
+	if err != nil {
+		InternalServerError(c, "Could not create provider")
+		return
+	}
+	OK(c, "Provider added successfully")
+}
+
+func UpdateProvider(c *gin.Context) {
+	var provider util.ProviderDB
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		InternalServerError(c, fmt.Sprintf("%s", err))
+		return
+	}
+
+	err = json.Unmarshal(body, &provider)
+	if err != nil {
+		BadRequest(c, fmt.Sprintf("%s", err))
+		return
+	}
+
+	if provider == (util.ProviderDB{}) {
+		BadRequest(c, "Empty or invalid body")
+		return
+	}
+
+	// Validations
+	if provider.Nickname == "" {
+		BadRequest(c, "missing `nickname` field")
+		return
+	}
+	if provider.OS == "" {
+		BadRequest(c, "missing `os` field")
+		return
+	}
+	if provider.HostAddress == "" {
+		BadRequest(c, "missing `host_address` field")
+		return
+	}
+	if provider.Port == "" {
+		BadRequest(c, "missing `port` field")
+		return
+	}
+	if provider.ProvideIOS {
+		if provider.WdaBundleID == "" && (provider.OS == "windows" || provider.OS == "linux") {
+			BadRequest(c, "missing `wda_bundle_id` field")
+			return
+		}
+		if provider.WdaRepoPath == "" && provider.OS == "macos" {
+			BadRequest(c, "missing `wda_repo_path` field")
+			return
+		}
+	}
+	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
+		BadRequest(c, "missing `selenium_grid` field")
+		return
+	}
+
+	err = util.AddOrUpdateProvider(provider)
+	if err != nil {
+		InternalServerError(c, "Could not update provider")
+		return
+	}
+	OK(c, "Provider updated successfully")
 }
