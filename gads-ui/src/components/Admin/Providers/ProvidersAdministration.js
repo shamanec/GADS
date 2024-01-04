@@ -26,29 +26,18 @@ export default function ProvidersAdministration() {
         setShowProvider(true)
     }
 
-    function handleSelectProvider(name) {
-        console.log(name)
-        let url = `/provider/${name}/info`
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
+    function getProviderInfo(name) {
+        for (let i = 0; i < providers.length; i++) {
+            if (providers[i].nickname === name) {
+                return providers[i]
             }
-        }).then((response) => {
-            console.log("Setting info ")
-            console.log(response.data)
-            setProviderInfo(response.data)
-            handleShowProvider()
-        })
-            .catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
-                }
-                console.log('Failed getting providers data' + error)
-                return
-            });
+        }
+        return null
+    }
+
+    function handleSelectProvider(name) {
+        setProviderInfo(getProviderInfo(name))
+        handleShowProvider()
     }
 
     let url = `/admin/providers`

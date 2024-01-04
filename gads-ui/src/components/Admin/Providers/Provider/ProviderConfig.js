@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Grid, MenuItem, Select, Stack, TextField } from '@mui/material'
 import axios from 'axios'
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { Auth } from '../../../../contexts/Auth'
 
 export default function ProviderConfig({ isNew, data }) {
@@ -18,17 +18,17 @@ export default function ProviderConfig({ isNew, data }) {
     let url_path = 'add'
     let supervision_password = ''
     if (data) {
-        os_string = data.provider.os
-        host_address_string = data.provider.host_address
-        nickname_string = data.provider.provider_nickname
-        port_value = data.provider.port
-        provide_android = data.provider.provide_android
-        provide_ios = data.provider.provide_ios
-        use_selenium_grid = data.provider.use_selenium_grid
-        selenium_grid = data.provider.selenium_grid
-        wda_bundle_id = data.provider.wda_bundle_id
-        wda_repo_path = data.provider.wda_repo_path
-        supervision_password = data.provider.supervision_password
+        os_string = data.os
+        host_address_string = data.host_address
+        nickname_string = data.nickname
+        port_value = data.port
+        provide_android = data.provide_android
+        provide_ios = data.provide_ios
+        use_selenium_grid = data.use_selenium_grid
+        selenium_grid = data.selenium_grid
+        wda_bundle_id = data.wda_bundle_id
+        wda_repo_path = data.wda_repo_path
+        supervision_password = data.supervision_password
         button_string = 'Update'
         url_path = 'update'
     }
@@ -71,9 +71,13 @@ export default function ProviderConfig({ isNew, data }) {
     const [errorText, setErrorText] = useState('')
     const [errorColor, setErrorColor] = useState('error')
 
+    useEffect(() => {
+        resetForm()
+    })
+
     // On successful provider creation reset the form data
     function resetForm() {
-        setOS('windows')
+        setOS(os_string)
         setHostAddress(host_address_string)
         setNickname(nickname_string)
         setPort(port_value)
