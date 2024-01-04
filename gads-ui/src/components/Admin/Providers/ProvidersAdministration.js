@@ -34,6 +34,8 @@ export default function ProvidersAdministration() {
                 'X-Auth-Token': authToken
             }
         }).then((response) => {
+            console.log("Setting info ")
+            console.log(response.data)
             setProviderInfo(response.data)
             handleShowProvider()
         })

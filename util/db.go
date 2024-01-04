@@ -79,9 +79,11 @@ func checkDBConnection() {
 }
 
 type ProviderData struct {
-	Name        string `json:"name" bson:"_id"`
-	Devices     int    `json:"devices" bson:"devices_in_config"`
+	ID          string `json:"id" bson:"_id"`
+	Name        string `json:"nickname" bson:"nickname"`
 	HostAddress string `json:"host_address" bson:"host_address"`
+	Port        int    `json:"port" bson:"port"`
+	OS          string `json:"os" bson:"os"`
 }
 
 func GetProvidersFromDB() []ProviderData {

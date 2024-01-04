@@ -1,13 +1,13 @@
-import { Alert, Box, Button, Grid, MenuItem, Select, Stack, TextField } from "@mui/material"
-import axios from "axios"
-import { useContext, useState } from "react"
-import { Auth } from "../../../../contexts/Auth"
+import { Alert, Box, Button, Grid, MenuItem, Select, Stack, TextField } from '@mui/material'
+import axios from 'axios'
+import { useContext, useState } from 'react'
+import { Auth } from '../../../../contexts/Auth'
 
 export default function ProviderConfig({ isNew, data }) {
     let os_string = 'windows'
     let host_address_string = ''
     let nickname_string = ''
-    let port_value = null
+    let port_value = 0
     let provide_android = false
     let provide_ios = false
     let use_selenium_grid = false
@@ -68,11 +68,53 @@ export default function ProviderConfig({ isNew, data }) {
     const [wdaRepoPath, setWdaRepoPath] = useState(wda_repo_path)
     // Error
     const [showError, setShowError] = useState(false)
-    const [errorText, setErrorText] = useState("")
+    const [errorText, setErrorText] = useState('')
+    const [errorColor, setErrorColor] = useState('error')
 
+    // On successful provider creation reset the form data
+    function resetForm() {
+        setOS('windows')
+        setHostAddress(host_address_string)
+        setNickname(nickname_string)
+        setPort(port_value)
+        setAndroid(provide_android)
+        setIos(provide_ios)
+        setUseSeleniumGrid(use_selenium_grid)
+        setSeleniumGrid(selenium_grid)
+        setSupervisionPassword(supervision_password)
+        setWdaBundleId(wda_bundle_id)
+        setWdaRepoPath(wda_repo_path)
+    }
+
+    // On pressing Add/Update
     function handleAddClick() {
         setShowError(false)
         let url = `/admin/providers/${url_path}`
+        let bodyString = buildPayload()
+
+        axios.post(url, bodyString, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        })
+            .then(() => {
+                resetForm()
+            })
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                        return
+                    }
+                    handleError(error.response.data.error)
+                    return
+                }
+                handleError('Failure')
+            })
+    }
+
+    // Create the payload for adding/updating provider request
+    function buildPayload() {
         let body = {}
         body.os = os
         body.host_address = hostAddress
@@ -91,23 +133,7 @@ export default function ProviderConfig({ isNew, data }) {
         }
 
         let bodyString = JSON.stringify(body)
-
-        axios.post(url, bodyString, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .catch((error) => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
-                    handleError(error.response.data.error)
-                    return
-                }
-                handleError("Failure")
-            })
+        return bodyString
     }
 
     function handleError(msg) {
@@ -129,15 +155,15 @@ export default function ProviderConfig({ isNew, data }) {
                     >
                         <MenuItem value='windows'>Windows</MenuItem>
                         <MenuItem value='linux'>Linux</MenuItem>
-                        <MenuItem value='macos'>MacOS</MenuItem>
+                        <MenuItem value='darwin'>MacOS</MenuItem>
                     </Select>
                     <h4>Nickname</h4>
                     <TextField
                         onChange={e => setNickname(e.target.value)}
-                        label="Nickname"
+                        label='Nickname'
                         color={nicknameColor}
                         required
-                        id="outlined-required"
+                        id='outlined-required'
                         autoComplete='off'
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Unique nickname for the provider'
@@ -148,10 +174,10 @@ export default function ProviderConfig({ isNew, data }) {
                     <h4>Host address</h4>
                     <TextField
                         onChange={e => setHostAddress(e.target.value)}
-                        label="Host address"
+                        label='Host address'
                         color={hostAddressColor}
                         required
-                        id="outlined-required"
+                        id='outlined-required'
                         autoComplete='off'
                         onKeyUp={e => validateHostAddress(e)}
                         helperText='Local IP address of the provider host without scheme, e.g. 192.168.1.10'
@@ -161,10 +187,10 @@ export default function ProviderConfig({ isNew, data }) {
                     <h4>Port</h4>
                     <TextField
                         onChange={e => setPort(Number(e.target.value))}
-                        label="Port"
+                        label='Port'
                         color={hostAddressColor}
                         required
-                        id="outlined-required"
+                        id='outlined-required'
                         autoComplete='off'
                         onKeyUp={e => validatePort(e.target.value)}
                         helperText='The port on which you want the provider instance to run'
@@ -197,10 +223,10 @@ export default function ProviderConfig({ isNew, data }) {
                     <h4>WebDriverAgent bundle ID</h4>
                     <TextField
                         onChange={e => setWdaBundleId(e.target.value)}
-                        label="WebDriverAgent bundle ID"
+                        label='WebDriverAgent bundle ID'
                         color={hostAddressColor}
                         required
-                        id="outlined-required"
+                        id='outlined-required'
                         autoComplete='off'
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         disabled={!ios}
@@ -210,21 +236,21 @@ export default function ProviderConfig({ isNew, data }) {
                     <h4>WebDriverAgent repo path</h4>
                     <TextField
                         onChange={e => setWdaRepoPath(e.target.value)}
-                        label="WebDriverAgent repo path"
+                        label='WebDriverAgent repo path'
                         color={hostAddressColor}
                         required
-                        id="outlined-required"
+                        id='outlined-required'
                         autoComplete='off'
                         helperText='Path on the host to the WebDriverAgent repo to build from, e.g. /Users/shamanec/WebDriverAgent-5.8.3'
-                        disabled={!ios || (ios && os !== 'macos')}
+                        disabled={!ios || (ios && os !== 'darwin')}
                         value={wdaRepoPath}
                     />
                     <h4>Supervision password</h4>
                     <TextField
                         onChange={e => setSupervisionPassword(e.target.value)}
-                        label="Supervision password"
+                        label='Supervision password'
                         color={hostAddressColor}
-                        id="outlined-required"
+                        id='outlined-required'
                         autoComplete='off'
                         helperText='Password for the supervision profile for iOS devices(leave empty if devices not supervised)'
                         disabled={!ios}
@@ -243,10 +269,10 @@ export default function ProviderConfig({ isNew, data }) {
                     <h4>Selenium Grid address</h4>
                     <TextField
                         onChange={e => setSeleniumGrid(e.target.value)}
-                        label="Selenium Grid"
+                        label='Selenium Grid'
                         color={hostAddressColor}
                         required
-                        id="outlined-required"
+                        id='outlined-required'
                         autoComplete='off'
                         onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Address of the Selenium Grid instance, e.g. http://192.168.1.28:4444'
