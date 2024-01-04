@@ -23,6 +23,14 @@ func AvailableDeviceWS(c *gin.Context) {
 	}
 	jsonData, _ := json.Marshal(&latestDevices)
 
+	for _, device := range latestDevices {
+		if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-2000) {
+			device.Available = true
+			continue
+		}
+		device.Available = false
+	}
+
 	err = wsutil.WriteServerText(conn, jsonData)
 	if err != nil {
 		conn.Close()
@@ -67,6 +75,13 @@ func monitorConnClose(client net.Conn) {
 func GetDevices() {
 	for {
 		jsonData, _ := json.Marshal(&latestDevices)
+		for _, device := range latestDevices {
+			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-2000) {
+				device.Available = true
+				continue
+			}
+			device.Available = false
+		}
 
 		for client := range clients {
 			err := wsutil.WriteServerText(client, jsonData)

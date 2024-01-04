@@ -15,17 +15,19 @@ import (
 )
 
 type Device struct {
-	Connected    bool   `json:"connected" bson:"connected"`
-	UDID         string `json:"udid" bson:"_id"`
-	OS           string `json:"os" bson:"os"`
-	Name         string `json:"name" bson:"name"`
-	OSVersion    string `json:"os_version" bson:"os_version"`
-	Model        string `json:"model" bson:"model"`
-	Image        string `json:"image,omitempty" bson:"image,omitempty"`
-	HostAddress  string `json:"host_address" bson:"host_address"`
-	InUse        bool   `json:"in_use"`
-	ScreenWidth  string `json:"screen_width" bson:"screen_width"`
-	ScreenHeight string `json:"screen_height" bson:"screen_height"`
+	Connected            bool   `json:"connected" bson:"connected"`
+	UDID                 string `json:"udid" bson:"_id"`
+	OS                   string `json:"os" bson:"os"`
+	Name                 string `json:"name" bson:"name"`
+	OSVersion            string `json:"os_version" bson:"os_version"`
+	Model                string `json:"model" bson:"model"`
+	Image                string `json:"image,omitempty" bson:"image,omitempty"`
+	HostAddress          string `json:"host_address" bson:"host_address"`
+	InUse                bool   `json:"in_use"`
+	ScreenWidth          string `json:"screen_width" bson:"screen_width"`
+	ScreenHeight         string `json:"screen_height" bson:"screen_height"`
+	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"last_updated_timestamp"`
+	Available            bool   `json:"available" bson:"-"`
 }
 
 var netClient = &http.Client{

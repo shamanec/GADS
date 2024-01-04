@@ -68,7 +68,7 @@ function UseButton({ device, handleAlert }) {
         return (
             <button className='device-buttons in-use' disabled>In Use</button>
         )
-    } else if (device.connected === true) {
+    } else if (device.available === true) {
         return (
             <button className='device-buttons' onClick={handleUseButtonClick} disabled={buttonDisabled}>
                 {loading ? <span className="spinner"></span> : 'Use'}
