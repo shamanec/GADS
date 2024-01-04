@@ -79,7 +79,7 @@ func GetProviders(c *gin.Context) {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
 	}
-	c.JSON(http.StatusOK, providers)
+	OkJSON(c, providers)
 }
 
 func GetProviderInfo(c *gin.Context) {
@@ -91,7 +91,7 @@ func GetProviderInfo(c *gin.Context) {
 			return
 		}
 	}
-	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No provider with name `%s` found", providerName)})
+	NotFound(c, fmt.Sprintf("No provider with name `%s` found", providerName))
 }
 
 func AddProvider(c *gin.Context) {
@@ -115,7 +115,7 @@ func AddProvider(c *gin.Context) {
 
 	// Validations
 	if provider.Nickname == "" {
-		BadRequest(c, "missing `nickname` field")
+		BadRequest(c, "Missing or invalid nickname")
 		return
 	}
 	providerDB, _ := util.GetProviderFromDB(provider.Nickname)
@@ -125,29 +125,29 @@ func AddProvider(c *gin.Context) {
 	}
 
 	if provider.OS == "" {
-		BadRequest(c, "missing `os` field")
+		BadRequest(c, "Missing or invalid OS")
 		return
 	}
 	if provider.HostAddress == "" {
-		BadRequest(c, "missing `host_address` field")
+		BadRequest(c, "Missing or invalid host address")
 		return
 	}
 	if provider.Port == 0 {
-		BadRequest(c, "missing `port` field")
+		BadRequest(c, "Missing or invalid port")
 		return
 	}
 	if provider.ProvideIOS {
 		if provider.WdaBundleID == "" && (provider.OS == "windows" || provider.OS == "linux") {
-			BadRequest(c, "missing `wda_bundle_id` field")
+			BadRequest(c, "Missing or invalid WebDriverAgent bundle ID")
 			return
 		}
 		if provider.WdaRepoPath == "" && provider.OS == "macos" {
-			BadRequest(c, "missing `wda_repo_path` field")
+			BadRequest(c, "Missing or invalid WebDriverAgent repo path")
 			return
 		}
 	}
 	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		BadRequest(c, "missing `selenium_grid` field")
+		BadRequest(c, "Missing or invalid Selenium Grid address")
 		return
 	}
 

@@ -66,8 +66,12 @@ export default function ProviderConfig({ isNew, data }) {
     const [wdaBundleId, setWdaBundleId] = useState(wda_bundle_id)
     // WebDriverAgent repo path - MacOS
     const [wdaRepoPath, setWdaRepoPath] = useState(wda_repo_path)
+    // Error
+    const [showError, setShowError] = useState(false)
+    const [errorText, setErrorText] = useState("")
 
     function handleAddClick() {
+        setShowError(false)
         let url = `/admin/providers/${url_path}`
         let body = {}
         body.os = os
@@ -94,12 +98,21 @@ export default function ProviderConfig({ isNew, data }) {
             }
         })
             .catch((error) => {
-                alert(error)
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                        return
+                    }
+                    handleError(error.response.data.error)
+                    return
+                }
+                handleError("Failure")
             })
     }
 
     function handleError(msg) {
-
+        setErrorText(msg)
+        setShowError(true)
     }
 
     return (
@@ -244,7 +257,9 @@ export default function ProviderConfig({ isNew, data }) {
                 </Stack>
             </Stack>
             <Button variant='contained' style={{ width: '100px' }} onClick={handleAddClick}>{button_string}</Button>
-            <Alert color='error'>Test</Alert>
+            {showError &&
+                <Alert color='error'>{errorText}</Alert>
+            }
         </Stack>
 
     )
