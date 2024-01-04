@@ -157,7 +157,7 @@ func AddOrUpdateProvider(provider ProviderDB) error {
 	update := bson.M{
 		"$set": provider,
 	}
-	coll := mongoClient.Database("gads").Collection("providers_new")
+	coll := mongoClient.Database("gads").Collection("providers")
 	filter := bson.D{{Key: "nickname", Value: provider.Nickname}}
 	opts := options.Update().SetUpsert(true)
 	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
@@ -169,7 +169,7 @@ func AddOrUpdateProvider(provider ProviderDB) error {
 
 func GetProviderFromDB(nickname string) (ProviderDB, error) {
 	var provider ProviderDB
-	coll := mongoClient.Database("gads").Collection("providers_new")
+	coll := mongoClient.Database("gads").Collection("providers")
 	filter := bson.D{{Key: "nickname", Value: nickname}}
 
 	err := coll.FindOne(context.TODO(), filter).Decode(&provider)

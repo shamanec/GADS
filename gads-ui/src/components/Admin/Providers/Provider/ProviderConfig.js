@@ -140,7 +140,7 @@ export default function ProviderConfig({ isNew, data }) {
                         required
                         id="outlined-required"
                         autoComplete='off'
-                        onKeyUp={e => validateHostAddress(e.target.value)}
+                        onKeyUp={e => validateHostAddress(e)}
                         helperText='Local IP address of the provider host without scheme, e.g. 192.168.1.10'
                         style={{ width: '100%' }}
                         value={hostAddress}
@@ -190,7 +190,7 @@ export default function ProviderConfig({ isNew, data }) {
                         id="outlined-required"
                         autoComplete='off'
                         onKeyUp={e => validateHostAddress(e.target.value)}
-                        disabled={!ios || (ios && os === 'macos')}
+                        disabled={!ios}
                         helperText='Bundle ID of the prebuilt WebDriverAgent.ipa, used by `go-ios` to start it'
                         value={wdaBundleId}
                     />

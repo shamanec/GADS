@@ -75,6 +75,10 @@ func AddUser(c *gin.Context) {
 
 func GetProviders(c *gin.Context) {
 	providers := util.GetProvidersFromDB()
+	if len(providers) == 0 {
+		c.JSON(http.StatusOK, []interface{}{})
+		return
+	}
 	c.JSON(http.StatusOK, providers)
 }
 
