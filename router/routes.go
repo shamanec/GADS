@@ -116,7 +116,7 @@ func AddProvider(c *gin.Context) {
 	}
 	providerDB, _ := util.GetProviderFromDB(provider.Nickname)
 	if (providerDB != util.ProviderDB{}) {
-		BadRequest(c, fmt.Sprintf("Provider with nickname `%s` already exists, choose another one", provider.Nickname))
+		BadRequest(c, "Provider with this nickname already exists")
 		return
 	}
 
@@ -128,7 +128,7 @@ func AddProvider(c *gin.Context) {
 		BadRequest(c, "missing `host_address` field")
 		return
 	}
-	if provider.Port == "" {
+	if provider.Port == 0 {
 		BadRequest(c, "missing `port` field")
 		return
 	}
@@ -187,7 +187,7 @@ func UpdateProvider(c *gin.Context) {
 		BadRequest(c, "missing `host_address` field")
 		return
 	}
-	if provider.Port == "" {
+	if provider.Port == 0 {
 		BadRequest(c, "missing `port` field")
 		return
 	}

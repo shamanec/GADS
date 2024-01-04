@@ -9,7 +9,7 @@ import { Button } from '@mui/material';
 
 export default function Info({ info, handleSelectProvider }) {
     console.log(info)
-    const name = info.nickname
+    const name = info.name
     return (
         <Box
             sx={{ maxWidth: '200px', background: 'white', borderRadius: '10px', marginLeft: '10px', alignItems: 'center', display: 'flex', flexDirection: 'column' }}

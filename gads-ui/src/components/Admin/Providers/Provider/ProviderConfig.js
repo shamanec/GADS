@@ -7,7 +7,7 @@ export default function ProviderConfig({ isNew, data }) {
     let os_string = 'windows'
     let host_address_string = ''
     let nickname_string = ''
-    let port_string = ''
+    let port_value = null
     let provide_android = false
     let provide_ios = false
     let use_selenium_grid = false
@@ -15,18 +15,22 @@ export default function ProviderConfig({ isNew, data }) {
     let wda_bundle_id = ''
     let wda_repo_path = ''
     let button_string = 'Add'
+    let url_path = 'add'
+    let supervision_password = ''
     if (data) {
         os_string = data.provider.os
         host_address_string = data.provider.host_address
         nickname_string = data.provider.provider_nickname
-        port_string = data.provider.host_port
+        port_value = data.provider.port
         provide_android = data.provider.provide_android
         provide_ios = data.provider.provide_ios
         use_selenium_grid = data.provider.use_selenium_grid
         selenium_grid = data.provider.selenium_grid
         wda_bundle_id = data.provider.wda_bundle_id
         wda_repo_path = data.provider.wda_repo_path
+        supervision_password = data.provider.supervision_password
         button_string = 'Update'
+        url_path = 'update'
     }
     // Main
     const [authToken, , logout] = useContext(Auth)
@@ -43,7 +47,7 @@ export default function ProviderConfig({ isNew, data }) {
     const [nickname, setNickname] = useState(nickname_string)
     const [nicknameColor, setNicknameColor] = useState('')
     // Port
-    const [port, setPort] = useState(port_string)
+    const [port, setPort] = useState(port_value)
     const [portColor, setPortColor] = useState('')
     function validatePort(val) {
 
@@ -57,14 +61,14 @@ export default function ProviderConfig({ isNew, data }) {
     // Selenium Grid
     const [seleniumGrid, setSeleniumGrid] = useState(selenium_grid)
     // Supervision password
-    const [supervisionPassword, setSupervisionPassword] = useState('')
+    const [supervisionPassword, setSupervisionPassword] = useState(supervision_password)
     // WebDriverAgent bundle id
     const [wdaBundleId, setWdaBundleId] = useState(wda_bundle_id)
     // WebDriverAgent repo path - MacOS
     const [wdaRepoPath, setWdaRepoPath] = useState(wda_repo_path)
 
     function handleAddClick() {
-        let url = `/admin/providers/add`
+        let url = `/admin/providers/${url_path}`
         let body = {}
         body.os = os
         body.host_address = hostAddress
@@ -75,7 +79,7 @@ export default function ProviderConfig({ isNew, data }) {
         if (ios) {
             body.wda_bundle_id = wdaBundleId
             body.wda_repo_path = wdaRepoPath
-            body.supervisionPassword = supervisionPassword
+            body.supervision_password = supervisionPassword
         }
         body.use_selenium_grid = useSeleniumGrid
         if (useSeleniumGrid) {
@@ -126,6 +130,7 @@ export default function ProviderConfig({ isNew, data }) {
                         helperText='Unique nickname for the provider'
                         style={{ width: '100%' }}
                         value={nickname}
+                        disabled={!isNew}
                     />
                     <h4>Host address</h4>
                     <TextField
@@ -142,7 +147,7 @@ export default function ProviderConfig({ isNew, data }) {
                     />
                     <h4>Port</h4>
                     <TextField
-                        onChange={e => setPort(e.target.value)}
+                        onChange={e => setPort(Number(e.target.value))}
                         label="Port"
                         color={hostAddressColor}
                         required
@@ -197,10 +202,20 @@ export default function ProviderConfig({ isNew, data }) {
                         required
                         id="outlined-required"
                         autoComplete='off'
-                        onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Path on the host to the WebDriverAgent repo to build from, e.g. /Users/shamanec/WebDriverAgent-5.8.3'
                         disabled={!ios || (ios && os !== 'macos')}
                         value={wdaRepoPath}
+                    />
+                    <h4>Supervision password</h4>
+                    <TextField
+                        onChange={e => setSupervisionPassword(e.target.value)}
+                        label="Supervision password"
+                        color={hostAddressColor}
+                        id="outlined-required"
+                        autoComplete='off'
+                        helperText='Password for the supervision profile for iOS devices(leave empty if devices not supervised)'
+                        disabled={!ios}
+                        value={supervisionPassword}
                     />
                     <h4>Use Selenium Grid?</h4>
                     <Select
