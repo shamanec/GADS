@@ -42,7 +42,7 @@ export default function Provider({ info }) {
     return (
         <Stack id='koleo'>
             <ProviderInfo isOnline={isOnline}></ProviderInfo>
-            <Stack direction='row'>
+            <Stack direction='row' spacing={1}>
                 <ProviderConfig isNew={false} data={info}>
                 </ProviderConfig>
                 {

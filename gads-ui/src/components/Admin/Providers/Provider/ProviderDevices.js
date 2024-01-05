@@ -1,15 +1,17 @@
 import { Stack } from "@mui/material"
-import { useState } from "react"
+import ProviderDevice from "./ProviderDevice"
 
 export default function ProviderDevices({ devicesData }) {
     // const [isLoading, setIsLoading] = useState(true)
 
     return (
         <>
-            <Stack>
+            <Stack spacing={1} style={{ height: '800px', overflowY: 'scroll', backgroundColor: 'white', borderRadius: '5px' }}>
                 {devicesData.map((device) => {
                     return (
-                        <div>{device.Device.udid}</div>
+                        <ProviderDevice deviceInfo={device}>
+
+                        </ProviderDevice>
                     )
                 })
                 }
