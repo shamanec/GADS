@@ -1,18 +1,12 @@
 import { Box, Tab, Tabs } from "@mui/material"
-import Info from "./Info"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Provider from "./Provider/Provider"
 
 export default function Providers({ providers }) {
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
-    const [providerInfo, setProviderInfo] = useState(providers[0])
 
     const handleTabChange = (e, tabIndex) => {
-        setProviderInfo(null)
         setCurrentTabIndex(tabIndex)
-        console.log('setting')
-        console.log(providers[tabIndex])
-        setProviderInfo(providers[tabIndex])
     }
 
     return (
@@ -29,7 +23,7 @@ export default function Providers({ providers }) {
                 })
                 }
             </Tabs>
-            <Provider isNew={false} info={providerInfo}></Provider>
+            <Provider isNew={false} info={providers[currentTabIndex]}></Provider>
         </Box>
 
     )

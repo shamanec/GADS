@@ -9,7 +9,6 @@ import Box from '@mui/material/Box';
 import { Button } from '@mui/material';
 
 export default function Info({ info, handleSelectProvider }) {
-    console.log(info)
     const name = info.nickname
     return (
         <Box
