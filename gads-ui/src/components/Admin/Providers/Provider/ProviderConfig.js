@@ -4,6 +4,9 @@ import { useContext, useEffect, useState } from 'react'
 import { Auth } from '../../../../contexts/Auth'
 
 export default function ProviderConfig({ isNew, data }) {
+    console.log('in provider config')
+    console.log(data)
+    console.log(isNew)
     let os_string = 'windows'
     let host_address_string = ''
     let nickname_string = ''
@@ -18,6 +21,8 @@ export default function ProviderConfig({ isNew, data }) {
     let url_path = 'add'
     let supervision_password = ''
     if (data) {
+        console.log('inside data')
+        console.log(data.os)
         os_string = data.os
         host_address_string = data.host_address
         nickname_string = data.nickname
@@ -40,9 +45,6 @@ export default function ProviderConfig({ isNew, data }) {
     // Host address
     const [hostAddress, setHostAddress] = useState(host_address_string)
     const [hostAddressColor, setHostAddressColor] = useState('')
-    function validateHostAddress(val) {
-
-    }
     // Nickname
     const [nickname, setNickname] = useState(nickname_string)
     const [nicknameColor, setNicknameColor] = useState('')
@@ -70,10 +72,6 @@ export default function ProviderConfig({ isNew, data }) {
     const [showError, setShowError] = useState(false)
     const [errorText, setErrorText] = useState('')
     const [errorColor, setErrorColor] = useState('error')
-
-    useEffect(() => {
-        resetForm()
-    })
 
     // On successful provider creation reset the form data
     function resetForm() {
@@ -146,7 +144,7 @@ export default function ProviderConfig({ isNew, data }) {
     }
 
     return (
-        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px' }}>
+        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflow: 'scroll' }}>
             <Stack id='top-stack' direction='row' spacing={2} >
                 <Stack id='main-info' style={{ width: '250px', alignItems: 'center' }}>
                     <h4>OS</h4>
@@ -169,7 +167,6 @@ export default function ProviderConfig({ isNew, data }) {
                         required
                         id='outlined-required'
                         autoComplete='off'
-                        onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Unique nickname for the provider'
                         style={{ width: '100%' }}
                         value={nickname}
@@ -183,7 +180,6 @@ export default function ProviderConfig({ isNew, data }) {
                         required
                         id='outlined-required'
                         autoComplete='off'
-                        onKeyUp={e => validateHostAddress(e)}
                         helperText='Local IP address of the provider host without scheme, e.g. 192.168.1.10'
                         style={{ width: '100%' }}
                         value={hostAddress}
@@ -232,7 +228,6 @@ export default function ProviderConfig({ isNew, data }) {
                         required
                         id='outlined-required'
                         autoComplete='off'
-                        onKeyUp={e => validateHostAddress(e.target.value)}
                         disabled={!ios}
                         helperText='Bundle ID of the prebuilt WebDriverAgent.ipa, used by `go-ios` to start it'
                         value={wdaBundleId}
@@ -278,7 +273,6 @@ export default function ProviderConfig({ isNew, data }) {
                         required
                         id='outlined-required'
                         autoComplete='off'
-                        onKeyUp={e => validateHostAddress(e.target.value)}
                         helperText='Address of the Selenium Grid instance, e.g. http://192.168.1.28:4444'
                         disabled={!useSeleniumGrid}
                         value={seleniumGrid}

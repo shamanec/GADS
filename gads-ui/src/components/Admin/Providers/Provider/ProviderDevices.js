@@ -1,6 +1,8 @@
+import { useState } from "react"
 
 export default function ProviderDevices({ devicesData }) {
-    console.log(devicesData)
+    // const [isLoading, setIsLoading] = useState(true)
+
     return (
         <div>Test</div>
     )
