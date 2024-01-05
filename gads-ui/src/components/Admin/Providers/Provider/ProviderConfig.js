@@ -4,94 +4,82 @@ import { useContext, useEffect, useState } from 'react'
 import { Auth } from '../../../../contexts/Auth'
 
 export default function ProviderConfig({ isNew, data }) {
-    console.log('in provider config')
-    console.log(data)
-    console.log(isNew)
-    let os_string = 'windows'
-    let host_address_string = ''
-    let nickname_string = ''
-    let port_value = 0
-    let provide_android = false
-    let provide_ios = false
-    let use_selenium_grid = false
-    let selenium_grid = ''
-    let wda_bundle_id = ''
-    let wda_repo_path = ''
-    let button_string = 'Add'
-    let url_path = 'add'
-    let supervision_password = ''
-    if (data) {
-        console.log('inside data')
-        console.log(data.os)
-        os_string = data.os
-        host_address_string = data.host_address
-        nickname_string = data.nickname
-        port_value = data.port
-        provide_android = data.provide_android
-        provide_ios = data.provide_ios
-        use_selenium_grid = data.use_selenium_grid
-        selenium_grid = data.selenium_grid
-        wda_bundle_id = data.wda_bundle_id
-        wda_repo_path = data.wda_repo_path
-        supervision_password = data.supervision_password
-        button_string = 'Update'
-        url_path = 'update'
-    }
+    useEffect(() => {
+        if (data) {
+            setOS(data.os)
+            setHostAddress(data.host_address)
+            setNickname(data.nickname)
+            setPort(data.port)
+            setAndroid(data.provide_android)
+            setIos(data.provide_ios)
+            setUseSeleniumGrid(data.use_selenium_grid)
+            setSeleniumGrid(data.selenium_grid)
+            setWdaBundleId(data.wda_bundle_id)
+            setWdaRepoPath(data.wda_repo_path)
+            setSupervisionPassword(data.supervision_password)
+            setButtonText('Update')
+            setUrlPath('update')
+        }
+    }, [data])
     // Main
     const [authToken, , logout] = useContext(Auth)
     // OS
-    const [os, setOS] = useState(os_string)
+    const [os, setOS] = useState('windows')
     const [osDisabled, setOsDisabled] = useState(false)
     // Host address
-    const [hostAddress, setHostAddress] = useState(host_address_string)
+    const [hostAddress, setHostAddress] = useState('')
     const [hostAddressColor, setHostAddressColor] = useState('')
     // Nickname
-    const [nickname, setNickname] = useState(nickname_string)
+    const [nickname, setNickname] = useState('')
     const [nicknameColor, setNicknameColor] = useState('')
     // Port
-    const [port, setPort] = useState(port_value)
+    const [port, setPort] = useState(0)
     const [portColor, setPortColor] = useState('')
     function validatePort(val) {
 
     }
     // Provide Android
-    const [android, setAndroid] = useState(provide_android)
+    const [android, setAndroid] = useState(false)
     // Provide iOS
-    const [ios, setIos] = useState(provide_ios)
+    const [ios, setIos] = useState(false)
     // Use Selenium Grid
-    const [useSeleniumGrid, setUseSeleniumGrid] = useState(use_selenium_grid)
+    const [useSeleniumGrid, setUseSeleniumGrid] = useState(false)
     // Selenium Grid
-    const [seleniumGrid, setSeleniumGrid] = useState(selenium_grid)
+    const [seleniumGrid, setSeleniumGrid] = useState('')
     // Supervision password
-    const [supervisionPassword, setSupervisionPassword] = useState(supervision_password)
+    const [supervisionPassword, setSupervisionPassword] = useState('')
     // WebDriverAgent bundle id
-    const [wdaBundleId, setWdaBundleId] = useState(wda_bundle_id)
+    const [wdaBundleId, setWdaBundleId] = useState('')
     // WebDriverAgent repo path - MacOS
-    const [wdaRepoPath, setWdaRepoPath] = useState(wda_repo_path)
+    const [wdaRepoPath, setWdaRepoPath] = useState('')
     // Error
     const [showError, setShowError] = useState(false)
     const [errorText, setErrorText] = useState('')
     const [errorColor, setErrorColor] = useState('error')
+    // Button
+    const [buttonText, setButtonText] = useState('Add')
+    // URL path
+    const [urlPath, setUrlPath] = useState('add')
 
     // On successful provider creation reset the form data
     function resetForm() {
-        setOS(os_string)
-        setHostAddress(host_address_string)
-        setNickname(nickname_string)
-        setPort(port_value)
-        setAndroid(provide_android)
-        setIos(provide_ios)
-        setUseSeleniumGrid(use_selenium_grid)
-        setSeleniumGrid(selenium_grid)
-        setSupervisionPassword(supervision_password)
-        setWdaBundleId(wda_bundle_id)
-        setWdaRepoPath(wda_repo_path)
+        setOS('windows')
+        setHostAddress('')
+        setNickname('')
+        setPort(0)
+        setAndroid(false)
+        setIos(false)
+        setUseSeleniumGrid(false)
+        setSeleniumGrid('')
+        setSupervisionPassword('')
+        setWdaBundleId('')
+        setWdaRepoPath('')
     }
 
     // On pressing Add/Update
     function handleAddClick() {
         setShowError(false)
-        let url = `/admin/providers/${url_path}`
+        let url = `/admin/providers/${urlPath}`
         let bodyString = buildPayload()
 
         axios.post(url, bodyString, {
@@ -144,7 +132,7 @@ export default function ProviderConfig({ isNew, data }) {
     }
 
     return (
-        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflow: 'scroll' }}>
+        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflowY: 'scroll' }}>
             <Stack id='top-stack' direction='row' spacing={2} >
                 <Stack id='main-info' style={{ width: '250px', alignItems: 'center' }}>
                     <h4>OS</h4>
@@ -280,7 +268,7 @@ export default function ProviderConfig({ isNew, data }) {
 
                 </Stack>
             </Stack>
-            <Button variant='contained' style={{ width: '100px' }} onClick={handleAddClick}>{button_string}</Button>
+            <Button variant='contained' style={{ width: '100px' }} onClick={handleAddClick}>{buttonText}</Button>
             {showError &&
                 <Alert color='error'>{errorText}</Alert>
             }

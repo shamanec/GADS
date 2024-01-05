@@ -8,6 +8,7 @@ export default function Providers({ providers }) {
     const [providerInfo, setProviderInfo] = useState(providers[0])
 
     const handleTabChange = (e, tabIndex) => {
+        setProviderInfo(null)
         setCurrentTabIndex(tabIndex)
         console.log('setting')
         console.log(providers[tabIndex])
@@ -28,9 +29,7 @@ export default function Providers({ providers }) {
                 })
                 }
             </Tabs>
-            {providerInfo &&
-                <Provider isNew={false} info={providerInfo}></Provider>
-            }
+            <Provider isNew={false} info={providerInfo}></Provider>
         </Box>
 
     )

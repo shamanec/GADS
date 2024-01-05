@@ -9,11 +9,8 @@ export default function Provider({ info }) {
     const [authToken, , logout] = useContext(Auth)
     const [devicesData, setDevicesData] = useState([])
     const [isLoading, setIsLoading] = useState(true)
-    console.log('in provider')
-    console.log(info)
 
     useEffect(() => {
-        console.log('use effect')
         let url = `/provider/${info.nickname}/info`
         axios.get(url, {
             headers: {
