@@ -88,7 +88,9 @@ export default function ProviderConfig({ isNew, data }) {
             }
         })
             .then(() => {
-                resetForm()
+                if (isNew) {
+                    resetForm()
+                }
             })
             .catch((error) => {
                 if (error.response) {
