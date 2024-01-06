@@ -7,36 +7,43 @@ import { Auth } from "../../../../contexts/Auth";
 import ProviderInfo from "./ProviderInfo";
 
 export default function Provider({ info }) {
-    const [authToken, , logout] = useContext(Auth)
+    const [authToken, , , , logout] = useContext(Auth)
     const [devicesData, setDevicesData] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [isOnline, setIsOnline] = useState(false)
 
     useEffect(() => {
+        const axiosController = new AbortController();
+        setDevicesData([])
         setIsOnline(false)
         let url = `/provider/${info.nickname}/info`
         axios.get(url, {
             headers: {
                 'X-Auth-Token': authToken
-            }
+            },
+            timeout: 5000,
+            signal: axiosController.signal
         }).then((response) => {
             setDevicesData(response.data.device_data)
             setIsOnline(true)
         })
             .catch(error => {
-                setDevicesData([])
                 if (error.response) {
                     if (error.response.status === 401) {
                         logout()
                         return
                     }
                 }
-                setIsOnline(false)
                 return
             })
         setTimeout(() => {
             setIsLoading(false)
         }, 1000)
+
+        return () => {
+            axiosController.abort()
+        }
+
     }, [info])
 
     return (
