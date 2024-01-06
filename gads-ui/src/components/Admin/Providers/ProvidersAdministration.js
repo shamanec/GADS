@@ -3,8 +3,7 @@ import { useContext, useState, useEffect } from "react"
 import Providers from "./Providers";
 import axios from "axios";
 import Skeleton from '@mui/material/Skeleton';
-import { Box, Divider, Stack } from "@mui/material";
-import ProviderConfig from "./Provider/ProviderConfig";
+import { Box, Stack } from "@mui/material";
 
 export default function ProvidersAdministration() {
     const [authToken, , , , logout] = useContext(Auth)
@@ -41,11 +40,9 @@ export default function ProvidersAdministration() {
     return (
         <Box height='100%'>
             <Stack direction='row' height='80%' spacing={1}>
-                <ProviderConfig isNew={true}></ProviderConfig>
-                <Divider width='2px' style={{ backgroundColor: 'white' }}></Divider>
                 {
                     isLoading ? (
-                        <Skeleton variant="rounded" style={{ margin: '10px', background: '#496612', animationDuration: '1s', height: '100%', width: '80%' }} />
+                        <Skeleton variant="rounded" style={{ margin: '10px', background: '#496612', animationDuration: '1s', height: '100%', width: '100%' }} />
                     ) : (
                         <Providers providers={providers}></Providers>
                     )
