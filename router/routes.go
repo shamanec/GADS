@@ -156,7 +156,9 @@ func AddProvider(c *gin.Context) {
 		InternalServerError(c, "Could not create provider")
 		return
 	}
-	OK(c, "Provider added successfully")
+
+	providersDB := util.GetProvidersFromDB()
+	OkJSON(c, providersDB)
 }
 
 func UpdateProvider(c *gin.Context) {

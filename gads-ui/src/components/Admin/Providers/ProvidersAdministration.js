@@ -44,7 +44,7 @@ export default function ProvidersAdministration() {
                     isLoading ? (
                         <Skeleton variant="rounded" style={{ margin: '10px', background: '#496612', animationDuration: '1s', height: '100%', width: '100%' }} />
                     ) : (
-                        <Providers providers={providers}></Providers>
+                        <Providers providers={providers} setProviders={setProviders}></Providers>
                     )
                 }
             </Stack>

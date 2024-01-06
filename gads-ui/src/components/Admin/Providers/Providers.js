@@ -3,7 +3,7 @@ import { useState } from "react"
 import Provider from "./Provider/Provider"
 import ProviderConfig from "./Provider/ProviderConfig"
 
-export default function Providers({ providers }) {
+export default function Providers({ providers, setProviders }) {
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
 
     const handleTabChange = (e, tabIndex) => {
@@ -25,9 +25,9 @@ export default function Providers({ providers }) {
                 })
                 }
             </Tabs>
-            {currentTabIndex === 0 && <ProviderConfig isNew={true}></ProviderConfig>}
+            {currentTabIndex === 0 && <ProviderConfig isNew={true} setProviders={setProviders} ></ProviderConfig>}
             {currentTabIndex !== 0 && <Provider isNew={false} info={providers[currentTabIndex - 1]}></Provider>}
-        </Box>
+        </Box >
 
     )
 }

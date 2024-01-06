@@ -3,7 +3,7 @@ import axios from 'axios'
 import { useContext, useEffect, useState } from 'react'
 import { Auth } from '../../../../contexts/Auth'
 
-export default function ProviderConfig({ isNew, data }) {
+export default function ProviderConfig({ isNew, data, setProviders }) {
     useEffect(() => {
         if (data) {
             setOS(data.os)
@@ -25,19 +25,12 @@ export default function ProviderConfig({ isNew, data }) {
     const [authToken, , logout] = useContext(Auth)
     // OS
     const [os, setOS] = useState('windows')
-    const [osDisabled, setOsDisabled] = useState(false)
     // Host address
     const [hostAddress, setHostAddress] = useState('')
-    const [hostAddressColor, setHostAddressColor] = useState('')
     // Nickname
     const [nickname, setNickname] = useState('')
-    const [nicknameColor, setNicknameColor] = useState('')
     // Port
     const [port, setPort] = useState(0)
-    const [portColor, setPortColor] = useState('')
-    function validatePort(val) {
-
-    }
     // Provide Android
     const [android, setAndroid] = useState(false)
     // Provide iOS
@@ -55,7 +48,6 @@ export default function ProviderConfig({ isNew, data }) {
     // Error
     const [showError, setShowError] = useState(false)
     const [errorText, setErrorText] = useState('')
-    const [errorColor, setErrorColor] = useState('error')
     // Button
     const [buttonText, setButtonText] = useState('Add')
     // URL path
@@ -87,9 +79,14 @@ export default function ProviderConfig({ isNew, data }) {
                 'X-Auth-Token': authToken
             }
         })
-            .then(() => {
+            .then((response) => {
                 if (isNew) {
                     resetForm()
+                }
+                if (urlPath === 'add') {
+                    console.log(' is add')
+                    console.log(response.data)
+                    setProviders(response.data)
                 }
             })
             .catch((error) => {
@@ -153,7 +150,6 @@ export default function ProviderConfig({ isNew, data }) {
                     <TextField
                         onChange={e => setNickname(e.target.value)}
                         label='Nickname'
-                        color={nicknameColor}
                         required
                         id='outlined-required'
                         autoComplete='off'
@@ -166,7 +162,6 @@ export default function ProviderConfig({ isNew, data }) {
                     <TextField
                         onChange={e => setHostAddress(e.target.value)}
                         label='Host address'
-                        color={hostAddressColor}
                         required
                         id='outlined-required'
                         autoComplete='off'
@@ -178,11 +173,9 @@ export default function ProviderConfig({ isNew, data }) {
                     <TextField
                         onChange={e => setPort(Number(e.target.value))}
                         label='Port'
-                        color={hostAddressColor}
                         required
                         id='outlined-required'
                         autoComplete='off'
-                        onKeyUp={e => validatePort(e.target.value)}
                         helperText='The port on which you want the provider instance to run'
                         style={{ width: '100%' }}
                         value={port}
@@ -214,7 +207,6 @@ export default function ProviderConfig({ isNew, data }) {
                     <TextField
                         onChange={e => setWdaBundleId(e.target.value)}
                         label='WebDriverAgent bundle ID'
-                        color={hostAddressColor}
                         required
                         id='outlined-required'
                         autoComplete='off'
@@ -226,7 +218,6 @@ export default function ProviderConfig({ isNew, data }) {
                     <TextField
                         onChange={e => setWdaRepoPath(e.target.value)}
                         label='WebDriverAgent repo path'
-                        color={hostAddressColor}
                         required
                         id='outlined-required'
                         autoComplete='off'
@@ -238,7 +229,6 @@ export default function ProviderConfig({ isNew, data }) {
                     <TextField
                         onChange={e => setSupervisionPassword(e.target.value)}
                         label='Supervision password'
-                        color={hostAddressColor}
                         id='outlined-required'
                         autoComplete='off'
                         helperText='Password for the supervision profile for iOS devices(leave empty if devices not supervised)'
@@ -259,7 +249,6 @@ export default function ProviderConfig({ isNew, data }) {
                     <TextField
                         onChange={e => setSeleniumGrid(e.target.value)}
                         label='Selenium Grid'
-                        color={hostAddressColor}
                         required
                         id='outlined-required'
                         autoComplete='off'
