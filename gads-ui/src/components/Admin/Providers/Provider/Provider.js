@@ -8,14 +8,15 @@ import ProviderInfo from "./ProviderInfo";
 
 export default function Provider({ info }) {
     const [authToken, , , , logout] = useContext(Auth)
-    const [devicesData, setDevicesData] = useState([])
+    const [devicesData, setDevicesData] = useState('')
     const [isLoading, setIsLoading] = useState(true)
     const [isOnline, setIsOnline] = useState(false)
 
     useEffect(() => {
         const axiosController = new AbortController();
-        setDevicesData([])
+        setDevicesData(null)
         setIsOnline(false)
+        setIsLoading(true)
         let url = `/provider/${info.nickname}/info`
         axios.get(url, {
             headers: {
@@ -46,20 +47,29 @@ export default function Provider({ info }) {
 
     }, [info])
 
+    function ProviderBox() {
+        if (isLoading) {
+            return (
+                <Skeleton variant="rounded" style={{ marginLeft: '10px', backgroundColor: 'gray', animationDuration: '1s', height: '80%', width: '500px' }} />
+            )
+        } else if (devicesData === null) {
+            return (
+                <div>Provider offline</div>
+            )
+        } else {
+            return (
+                <ProviderDevices devicesData={devicesData}></ProviderDevices>
+            )
+        }
+    }
+
     return (
         <Stack id='koleo'>
             <ProviderInfo isOnline={isOnline}></ProviderInfo>
             <Stack direction='row' spacing={1}>
                 <ProviderConfig isNew={false} data={info}>
                 </ProviderConfig>
-                {
-                    isLoading ? (
-                        <Skeleton variant="rounded" style={{ marginLeft: '10px', background: '#496612', animationDuration: '1s', height: '100%', width: '500px' }} />
-                    ) : (
-                        <ProviderDevices devicesData={devicesData}></ProviderDevices>
-                    )
-                }
-
+                <ProviderBox></ProviderBox>
             </Stack>
         </Stack>
     )

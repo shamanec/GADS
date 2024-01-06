@@ -22,7 +22,7 @@ export default function ProviderDevice({ deviceInfo }) {
     }, [])
 
     function handleResetClick() {
-
+        let url = `/`
     }
 
     return (
