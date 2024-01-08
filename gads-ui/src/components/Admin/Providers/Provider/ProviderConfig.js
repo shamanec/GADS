@@ -131,7 +131,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
     }
 
     return (
-        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', maxWidth: '500px', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflowY: 'scroll' }}>
+        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', maxWidth: '500px', height: '700px', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflowY: 'scroll' }}>
             <Stack id='top-stack' direction='row' spacing={2} style={{ marginTop: '10px' }} >
                 <Stack spacing={2} id='main-info' style={{ alignItems: 'center', width: '50%' }}>
                     <Select
