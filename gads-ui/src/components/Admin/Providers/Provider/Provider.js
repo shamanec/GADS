@@ -61,11 +61,11 @@ export default function Provider({ info }) {
     function InfoBox() {
         if (isLoading) {
             return (
-                <Skeleton variant="rounded" style={{ background: 'gray', animationDuration: '1s', width: '200px', height: '40px' }}></Skeleton>
+                <Skeleton variant="rounded" style={{ background: 'gray', animationDuration: '1s', width: '200px', height: '50px' }}></Skeleton>
             )
         } else {
             return (
-                <ProviderInfo isOnline={isOnline}></ProviderInfo>
+                <ProviderInfo os={info.os} isOnline={isOnline}></ProviderInfo>
             )
         }
     }
