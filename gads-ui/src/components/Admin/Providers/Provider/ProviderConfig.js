@@ -131,9 +131,9 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
     }
 
     return (
-        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflowY: 'scroll' }}>
+        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', maxWidth: '500px', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflowY: 'scroll' }}>
             <Stack id='top-stack' direction='row' spacing={2} style={{ marginTop: '10px' }} >
-                <Stack spacing={2} id='main-info' style={{ width: '250px', alignItems: 'center' }}>
+                <Stack spacing={2} id='main-info' style={{ alignItems: 'center', width: '50%' }}>
                     <Select
                         defaultValue='windows'
                         value={os}
@@ -203,7 +203,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         <MenuItem value={false}>No</MenuItem>
                     </Select>
                 </Stack>
-                <Stack spacing={2} id='secondary-info' style={{ width: '250px', alignItems: 'center' }}>
+                <Stack spacing={2} id='secondary-info' style={{ width: '50%', alignItems: 'center' }}>
                     <TextField
                         onChange={e => setWdaBundleId(e.target.value)}
                         label='WebDriverAgent bundle ID'
