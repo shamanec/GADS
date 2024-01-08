@@ -16,7 +16,7 @@ export default function ProviderInfo({ info, isOnline }) {
     }, [isOnline])
 
     return (
-        <Box display='flex' style={{ height: '50px', width: "200px", backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' }}>
+        <Box display='flex' style={{ height: '40px', width: "200px", backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' }}>
             <Stack direction='row' spacing={1}>
                 <div>Status</div>
                 <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: `${statusColor}` }}></div>

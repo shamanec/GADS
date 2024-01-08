@@ -35,7 +35,6 @@ export default function Provider({ info }) {
                         return
                     }
                 }
-                return
             })
         setTimeout(() => {
             setIsLoading(false)
@@ -50,11 +49,7 @@ export default function Provider({ info }) {
     function ProviderBox() {
         if (isLoading) {
             return (
-                <Skeleton variant="rounded" style={{ marginLeft: '10px', backgroundColor: 'gray', animationDuration: '1s', height: '80%', width: '500px' }} />
-            )
-        } else if (devicesData === null) {
-            return (
-                <div>Provider offline</div>
+                <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
             )
         } else {
             return (
@@ -64,10 +59,13 @@ export default function Provider({ info }) {
     }
 
     return (
-        <Stack id='koleo'>
+        <Stack id='koleo' style={{ marginTop: '10px', marginBottom: '10px', borderRadius: '10px', padding: '10px' }}>
             <ProviderInfo isOnline={isOnline}></ProviderInfo>
-            <Stack direction='row' spacing={1}>
-                <ProviderConfig isNew={false} data={info}>
+            <Stack direction='row' spacing={2}>
+                <ProviderConfig
+                    isNew={false}
+                    data={info}
+                >
                 </ProviderConfig>
                 <ProviderBox></ProviderBox>
             </Stack>

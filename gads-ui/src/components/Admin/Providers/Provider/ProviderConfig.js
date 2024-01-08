@@ -132,21 +132,19 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
 
     return (
         <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflowY: 'scroll' }}>
-            <Stack id='top-stack' direction='row' spacing={2} >
-                <Stack id='main-info' style={{ width: '250px', alignItems: 'center' }}>
-                    <h4>OS</h4>
+            <Stack id='top-stack' direction='row' spacing={2} style={{ marginTop: '10px' }} >
+                <Stack spacing={2} id='main-info' style={{ width: '250px', alignItems: 'center' }}>
                     <Select
                         defaultValue='windows'
                         value={os}
                         onChange={(event) => setOS(event.target.value)}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', height: '40px' }}
                         disabled={!isNew}
                     >
                         <MenuItem value='windows'>Windows</MenuItem>
                         <MenuItem value='linux'>Linux</MenuItem>
                         <MenuItem value='darwin'>MacOS</MenuItem>
                     </Select>
-                    <h4>Nickname</h4>
                     <TextField
                         onChange={e => setNickname(e.target.value)}
                         label='Nickname'
@@ -154,11 +152,11 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         id='outlined-required'
                         autoComplete='off'
                         helperText='Unique nickname for the provider'
-                        style={{ width: '100%' }}
+                        fullWidth
+                        size='small'
                         value={nickname}
                         disabled={!isNew}
                     />
-                    <h4>Host address</h4>
                     <TextField
                         onChange={e => setHostAddress(e.target.value)}
                         label='Host address'
@@ -166,10 +164,12 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         id='outlined-required'
                         autoComplete='off'
                         helperText='Local IP address of the provider host without scheme, e.g. 192.168.1.10'
-                        style={{ width: '100%' }}
+                        fullWidth
+                        size='small'
                         value={hostAddress}
+                        // inputProps={{ style: { fontSize: 14 } }}
+                        InputLabelProps={{ style: { fontSize: 14 } }}
                     />
-                    <h4>Port</h4>
                     <TextField
                         onChange={e => setPort(Number(e.target.value))}
                         label='Port'
@@ -177,33 +177,33 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         id='outlined-required'
                         autoComplete='off'
                         helperText='The port on which you want the provider instance to run'
-                        style={{ width: '100%' }}
+                        fullWidth
+                        size='small'
                         value={port}
                     />
-                    <h4>Provide Android devices?</h4>
+                    <div style={{ fontWeight: '500' }}>Provide Android?</div>
                     <Select
                         defaultValue={false}
                         value={android}
                         onChange={(event) => setAndroid(event.target.value)}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', height: '40px' }}
                     >
                         <MenuItem value={true}>Yes</MenuItem>
                         <MenuItem value={false}>No</MenuItem>
                     </Select>
-                    <h4>Provide iOS devices?</h4>
+                    <div style={{ fontWeight: '500' }}>Provide iOS?</div>
                     <Select
                         defaultValue={false}
                         value={ios}
                         onChange={(event) => setIos(event.target.value)}
                         disabled={os === 'windows'}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', height: '40px' }}
                     >
                         <MenuItem value={true}>Yes</MenuItem>
                         <MenuItem value={false}>No</MenuItem>
                     </Select>
                 </Stack>
-                <Stack id='secondary-info' style={{ width: '250px', alignItems: 'center' }}>
-                    <h4>WebDriverAgent bundle ID</h4>
+                <Stack spacing={2} id='secondary-info' style={{ width: '250px', alignItems: 'center' }}>
                     <TextField
                         onChange={e => setWdaBundleId(e.target.value)}
                         label='WebDriverAgent bundle ID'
@@ -213,8 +213,9 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         disabled={!ios}
                         helperText='Bundle ID of the prebuilt WebDriverAgent.ipa, used by `go-ios` to start it'
                         value={wdaBundleId}
+                        size='small'
+                        fullWidth
                     />
-                    <h4>WebDriverAgent repo path</h4>
                     <TextField
                         onChange={e => setWdaRepoPath(e.target.value)}
                         label='WebDriverAgent repo path'
@@ -224,8 +225,9 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         helperText='Path on the host to the WebDriverAgent repo to build from, e.g. /Users/shamanec/WebDriverAgent-5.8.3'
                         disabled={!ios || (ios && os !== 'darwin')}
                         value={wdaRepoPath}
+                        size='small'
+                        fullWidth
                     />
-                    <h4>Supervision password</h4>
                     <TextField
                         onChange={e => setSupervisionPassword(e.target.value)}
                         label='Supervision password'
@@ -234,18 +236,19 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         helperText='Password for the supervision profile for iOS devices(leave empty if devices not supervised)'
                         disabled={!ios}
                         value={supervisionPassword}
+                        size='small'
+                        fullWidth
                     />
-                    <h4>Use Selenium Grid?</h4>
+                    <div style={{ fontWeight: '500' }}>Use Selenium Grid?</div>
                     <Select
                         // defaultValue={useSeleniumGrid}
                         value={useSeleniumGrid}
                         onChange={(event) => setUseSeleniumGrid(event.target.value)}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', height: '40px' }}
                     >
                         <MenuItem value={true}>Yes</MenuItem>
                         <MenuItem value={false}>No</MenuItem>
                     </Select>
-                    <h4>Selenium Grid address</h4>
                     <TextField
                         onChange={e => setSeleniumGrid(e.target.value)}
                         label='Selenium Grid'
@@ -255,6 +258,8 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         helperText='Address of the Selenium Grid instance, e.g. http://192.168.1.28:4444'
                         disabled={!useSeleniumGrid}
                         value={seleniumGrid}
+                        size='small'
+                        fullWidth
                     />
 
                 </Stack>
