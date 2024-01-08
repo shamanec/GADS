@@ -30,12 +30,9 @@ Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1
 ## Setup
 Currently the project assumes that GADS UI, MongoDB, Selenium Grid and device providers are on the same network. They can all be on the same machine as well.  
 
-### Go
+### Deps
 1. Install Go version 1.21.0 or higher
 2. Install Node > 16.
-
-### Start MongoDB instance - this can be done as provider step as well
-The project uses MongoDB for syncing devices info between providers and GADS UI.  
 
 #### Install Docker 
 1. You need to have Docker(Docker Desktop on macOS, Windows) installed.  
@@ -53,6 +50,8 @@ Clone the project and the [GADS-devices-provider](https://github.com/shamanec/GA
 3. Change the `gads_port` value to the port you wish the service to run on - default is 10000.  
 4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771` 
 5. If you are registering devices to Selenium Grid via providers, you can visualize the grid directly in the UI - change `selenium_grid_instance` to the instance url, e.g. `http://192.168.1.6:4444` and access it via the UI
+
+**NB** You can change the default admin username and password values in config.json if you wish.  
 
 #### Build the UI
 1. Open the `gads-ui` folder in Terminal.
