@@ -46,28 +46,40 @@ export default function Provider({ info }) {
 
     }, [info])
 
-    function ProviderBox() {
+    // function ProviderBox() {
+    //     if (isLoading) {
+    //         return (
+    //             <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
+    //         )
+    //     } else {
+    //         return (
+    //             <ProviderDevices devicesData={devicesData}></ProviderDevices>
+    //         )
+    //     }
+    // }
+
+    function InfoBox() {
         if (isLoading) {
             return (
-                <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
+                <Skeleton variant="rounded" style={{ background: 'gray', animationDuration: '1s', width: '200px', height: '40px' }}></Skeleton>
             )
         } else {
             return (
-                <ProviderDevices devicesData={devicesData}></ProviderDevices>
+                <ProviderInfo isOnline={isOnline}></ProviderInfo>
             )
         }
     }
 
     return (
         <Stack id='koleo' style={{ marginTop: '10px', marginBottom: '10px', borderRadius: '10px', padding: '10px' }}>
-            <ProviderInfo isOnline={isOnline}></ProviderInfo>
+            <InfoBox></InfoBox>
             <Stack direction='row' spacing={2}>
                 <ProviderConfig
                     isNew={false}
                     data={info}
                 >
                 </ProviderConfig>
-                <ProviderBox></ProviderBox>
+                {/* <ProviderBox></ProviderBox> */}
             </Stack>
         </Stack>
     )

@@ -21,11 +21,9 @@ export default function TabularControl({ deviceData }) {
                 TabIndicatorProps={{ style: { background: '#496612', height: '5px' } }} textColor='white' sx={{ color: 'white', fontFamily: 'Verdana' }}
             >
                 <Tab className='control-tabs' label='Actions' />
-                <Tab className='control-tabs' label='Logs' />
                 <Tab className='control-tabs' label='Screenshot' />
-                <Tab className='control-tabs' label='Other' />
             </Tabs>
-            {currentTabIndex === 2 && <Screenshot udid={udid} />}
+            {currentTabIndex === 1 && <Screenshot udid={udid} />}
             {currentTabIndex === 0 && <Actions deviceData={deviceData} />}
         </Box >
     )
