@@ -12,14 +12,14 @@ export default function StreamCanvas({ deviceData }) {
     const [authToken, , , , logout] = useContext(Auth)
     const { setDialog } = useDialog()
 
-    let deviceX = parseInt(deviceData.Device.screen_width, 10)
-    let deviceY = parseInt(deviceData.Device.screen_height, 10)
+    let deviceX = parseInt(deviceData.screen_width, 10)
+    let deviceY = parseInt(deviceData.screen_height, 10)
     let screen_ratio = deviceX / deviceY
     let canvasHeight = 850
     let canvasWidth = 850 * screen_ratio
 
     const streamData = {
-        udid: deviceData.Device.udid,
+        udid: deviceData.udid,
         deviceX: deviceX,
         deviceY: deviceY,
         screen_ratio: screen_ratio,
@@ -33,10 +33,10 @@ export default function StreamCanvas({ deviceData }) {
             streamSocket.close()
         }
 
-        if (deviceData.Device.os === 'ios') {
-            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.Device.udid}/ios-stream`);
+        if (deviceData.os === 'ios') {
+            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/ios-stream`);
         } else {
-            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.Device.udid}/android-stream`);
+            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/android-stream`);
         }
 
         let imgElement = document.getElementById('image-stream')
@@ -64,7 +64,7 @@ export default function StreamCanvas({ deviceData }) {
         <div
             id='phone-imitation'
         >
-            <h3 style={{ color: 'white', display: 'flex', fontFamily: 'Verdana', justifyContent: 'center' }}>{deviceData.Device.model}</h3>
+            <h3 style={{ color: 'white', display: 'flex', fontFamily: 'Verdana', justifyContent: 'center' }}>{deviceData.model}</h3>
             <div
                 id="stream-div"
             >
@@ -288,7 +288,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 }
 
 function homeButton(authToken, deviceData, setDialog) {
-    let deviceURL = `/device/${deviceData.Device.udid}/home`
+    let deviceURL = `/device/${deviceData.udid}/home`
 
     fetch(deviceURL, {
         method: 'POST',
@@ -308,7 +308,7 @@ function homeButton(authToken, deviceData, setDialog) {
 }
 
 function lockButton(authToken, deviceData, setDialog) {
-    let deviceURL = `/device/${deviceData.Device.udid}/lock`
+    let deviceURL = `/device/${deviceData.udid}/lock`
 
     fetch(deviceURL, {
         method: 'POST',
@@ -328,7 +328,7 @@ function lockButton(authToken, deviceData, setDialog) {
 }
 
 function unlockButton(authToken, deviceData, setDialog) {
-    let deviceURL = `/device/${deviceData.Device.udid}/unlock`
+    let deviceURL = `/device/${deviceData.udid}/unlock`
 
     fetch(deviceURL, {
         method: 'POST',

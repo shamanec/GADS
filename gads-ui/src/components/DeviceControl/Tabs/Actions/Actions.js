@@ -53,7 +53,7 @@ function TypeText({ deviceData }) {
 
         let json = `{"text": "${text}"}`
 
-        let url = `/device/${deviceData.Device.udid}/typeText`
+        let url = `/device/${deviceData.udid}/typeText`
         axios.post(url, json, {
             headers: {
                 'X-Auth-Token': authToken
