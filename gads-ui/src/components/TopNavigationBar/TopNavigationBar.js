@@ -18,7 +18,7 @@ export default function NavBar() {
     return (
         <div className='navbar-wrapper'>
             <nav className="navbar">
-                <StyledNavLink to="/" linkText='Home' />
+                <StyledNavLink to="/" linkText='Dashboard' />
                 <StyledNavLink to="/devices" linkText='Devices' />
                 {showAdmin && (<StyledNavLink to="/admin" linkText='Admin' />)}
             </nav>
