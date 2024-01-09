@@ -12,6 +12,8 @@ export default function Provider({ info }) {
     const [isLoading, setIsLoading] = useState(true)
     const [isOnline, setIsOnline] = useState(false)
 
+    let infoSocket = null;
+
     useEffect(() => {
         const axiosController = new AbortController();
         setDevicesData(null)
@@ -36,27 +38,47 @@ export default function Provider({ info }) {
                     }
                 }
             })
+
         setTimeout(() => {
             setIsLoading(false)
         }, 1000)
 
+        if (infoSocket) {
+            infoSocket.close()
+        }
+        infoSocket = new WebSocket(`ws://${window.location.host}/provider/${info.nickname}/info-ws`);
+
+        infoSocket.onerror = (error) => {
+            setIsOnline(false)
+        };
+
+
+        infoSocket.onmessage = (message) => {
+            let providerJSON = JSON.parse(message.data)
+            // setDevicesData(providerJSON.device_data)
+        }
+
         return () => {
             axiosController.abort()
+            if (infoSocket) {
+                console.log('info socket unmounted')
+                infoSocket.close()
+            }
         }
 
     }, [info])
 
-    // function ProviderBox() {
-    //     if (isLoading) {
-    //         return (
-    //             <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
-    //         )
-    //     } else {
-    //         return (
-    //             <ProviderDevices devicesData={devicesData}></ProviderDevices>
-    //         )
-    //     }
-    // }
+    function DevicesBox() {
+        if (isLoading) {
+            return (
+                <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
+            )
+        } else {
+            return (
+                <ProviderDevices devicesData={devicesData}></ProviderDevices>
+            )
+        }
+    }
 
     function InfoBox() {
         if (isLoading) {
@@ -79,7 +101,7 @@ export default function Provider({ info }) {
                     data={info}
                 >
                 </ProviderConfig>
-                {/* <ProviderBox></ProviderBox> */}
+                <DevicesBox></DevicesBox>
             </Stack>
         </Stack>
     )

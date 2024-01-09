@@ -7,14 +7,14 @@ export default function ProviderDevice({ deviceInfo }) {
     const [buttonDisabled, setButtonDisabled] = useState(false)
 
     useEffect(() => {
-        if (deviceInfo.connected && deviceInfo.ProviderState === 'live') {
+        if (deviceInfo.connected && deviceInfo.provider_state === 'live') {
             setStatusColor('green')
-        } else if (deviceInfo.connected && deviceInfo.ProviderState === 'preparing') {
+        } else if (deviceInfo.connected && deviceInfo.provider_state === 'preparing') {
             setStatusColor('orange')
         } else {
             setStatusColor('red')
         }
-        if (deviceInfo.ProviderState !== 'init') {
+        if (deviceInfo.provider_state !== 'init') {
             setButtonDisabled(false)
         } else {
             setButtonDisabled(true)
@@ -35,7 +35,7 @@ export default function ProviderDevice({ deviceInfo }) {
             </Stack>
             <div>UDID</div>
             <div>{deviceInfo.udid}</div>
-            <div>Last provider state: {deviceInfo.ProviderState}</div>
+            <div>Last provider state: {deviceInfo.provider_state}</div>
             <div>Name: {deviceInfo.name}</div>
             <div>Width: {deviceInfo.screen_width}</div>
             <div>Height: {deviceInfo.screen_height}</div>
