@@ -19,10 +19,10 @@ export default function ProviderDevice({ deviceInfo }) {
         } else {
             setButtonDisabled(true)
         }
-    }, [])
+    })
 
     function handleResetClick() {
-        let url = `/`
+        let url = `/devices/${deviceInfo.udid}/reset`
     }
 
     return (

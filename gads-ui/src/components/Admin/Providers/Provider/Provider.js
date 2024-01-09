@@ -1,4 +1,4 @@
-import { Skeleton, Stack } from "@mui/material";
+import { Box, Skeleton, Stack } from "@mui/material";
 import ProviderConfig from "./ProviderConfig";
 import ProviderDevices from "./ProviderDevices";
 import { useContext, useEffect, useState } from "react";
@@ -8,101 +8,82 @@ import ProviderInfo from "./ProviderInfo";
 
 export default function Provider({ info }) {
     const [authToken, , , , logout] = useContext(Auth)
-    const [devicesData, setDevicesData] = useState('')
-    const [isLoading, setIsLoading] = useState(true)
-    const [isOnline, setIsOnline] = useState(false)
-
-    let infoSocket = null;
-
-    useEffect(() => {
-        const axiosController = new AbortController();
-        setDevicesData(null)
-        setIsOnline(false)
-        setIsLoading(true)
-        let url = `/provider/${info.nickname}/info`
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
-            },
-            timeout: 5000,
-            signal: axiosController.signal
-        }).then((response) => {
-            setDevicesData(response.data.device_data)
-            setIsOnline(true)
-        })
-            .catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
-                }
-            })
-
-        setTimeout(() => {
-            setIsLoading(false)
-        }, 1000)
-
-        if (infoSocket) {
-            infoSocket.close()
-        }
-        infoSocket = new WebSocket(`ws://${window.location.host}/provider/${info.nickname}/info-ws`);
-
-        infoSocket.onerror = (error) => {
-            setIsOnline(false)
-        };
-
-
-        infoSocket.onmessage = (message) => {
-            let providerJSON = JSON.parse(message.data)
-            // setDevicesData(providerJSON.device_data)
-        }
-
-        return () => {
-            axiosController.abort()
-            if (infoSocket) {
-                console.log('info socket unmounted')
-                infoSocket.close()
-            }
-        }
-
-    }, [info])
-
-    function DevicesBox() {
-        if (isLoading) {
-            return (
-                <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
-            )
-        } else {
-            return (
-                <ProviderDevices devicesData={devicesData}></ProviderDevices>
-            )
-        }
-    }
-
-    function InfoBox() {
-        if (isLoading) {
-            return (
-                <Skeleton variant="rounded" style={{ background: 'gray', animationDuration: '1s', width: '200px', height: '50px' }}></Skeleton>
-            )
-        } else {
-            return (
-                <ProviderInfo os={info.os} isOnline={isOnline}></ProviderInfo>
-            )
-        }
-    }
 
     return (
         <Stack id='koleo' style={{ marginTop: '10px', marginBottom: '10px', borderRadius: '10px', padding: '10px' }}>
-            <InfoBox></InfoBox>
             <Stack direction='row' spacing={2}>
                 <ProviderConfig
                     isNew={false}
                     data={info}
                 >
                 </ProviderConfig>
-                <DevicesBox></DevicesBox>
+                <LiveProviderBox nickname={info.nickname} os={info.os}></LiveProviderBox>
             </Stack>
         </Stack>
     )
+}
+
+function InfoBox({ os, isOnline }) {
+    return (
+        <ProviderInfo os={os} isOnline={isOnline}></ProviderInfo>
+    )
+}
+
+
+function LiveProviderBox({ nickname, os }) {
+    let infoSocket = null;
+    let [devicesData, setDevicesData] = useState(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isOnline, setIsOnline] = useState(false)
+
+    useEffect(() => {
+        console.log('inside use effect')
+        if (infoSocket) {
+            infoSocket.close()
+        }
+        infoSocket = new WebSocket(`ws://${window.location.host}/provider/${nickname}/info-ws`);
+
+        infoSocket.onerror = (error) => {
+            setIsOnline(false)
+            setIsLoading(false)
+            setDevicesData(null)
+        };
+
+        infoSocket.onclose = () => {
+            setIsOnline(false)
+            setIsLoading(false)
+            setDevicesData(null)
+        }
+
+        infoSocket.onmessage = (message) => {
+            if (!isOnline) {
+                setIsOnline(true)
+            }
+            if (isLoading) {
+                setIsLoading(false)
+            }
+            let providerJSON = JSON.parse(message.data)
+            setDevicesData(providerJSON.device_data)
+        }
+
+        return () => {
+            if (infoSocket) {
+                console.log('info socket unmounted')
+                infoSocket.close()
+            }
+        }
+    }, [])
+
+    if (isLoading) {
+        return (
+            <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
+        )
+    } else {
+        return (
+            <Box>
+                <InfoBox os={os} isOnline={isOnline}></InfoBox>
+                <ProviderDevices devicesData={devicesData}></ProviderDevices>
+            </Box >
+        )
+    }
 }

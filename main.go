@@ -38,7 +38,7 @@ func main() {
 	// Start a goroutine that continiously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
 
-	// Start a goroutine that will send an html with the device selection to all clients connected to the socket
+	// Start a goroutine that will get latest devices data from DB and sends it to all connected clients
 	// This creates near real-time updates of the device selection
 	go device.GetDevices()
 
