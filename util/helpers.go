@@ -1,6 +1,7 @@
 package util
 
 import (
+	"GADS/models"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,14 +22,14 @@ type JsonResponse struct {
 }
 
 type ConfigJsonData struct {
-	GadsHostAddress      string         `json:"gads_host_address"`
-	GadsPort             string         `json:"gads_port"`
-	MongoDB              string         `json:"mongo_db"`
-	Providers            []ProviderData `json:"providers"`
-	SeleniumGridInstance string         `json:"selenium_grid_instance"`
-	AdminUsername        string         `json:"admin_username"`
-	AdminPassword        string         `json:"admin_password"`
-	AdminEmail           string         `json:"admin_email"`
+	GadsHostAddress      string              `json:"gads_host_address"`
+	GadsPort             string              `json:"gads_port"`
+	MongoDB              string              `json:"mongo_db"`
+	Providers            []models.ProviderDB `json:"providers"`
+	SeleniumGridInstance string              `json:"selenium_grid_instance"`
+	AdminUsername        string              `json:"admin_username"`
+	AdminPassword        string              `json:"admin_password"`
+	AdminEmail           string              `json:"admin_email"`
 }
 
 var ConfigData *ConfigJsonData

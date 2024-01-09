@@ -56,7 +56,7 @@ func ProviderProxyHandler(c *gin.Context) {
 
 	providers := util.GetProvidersFromDB()
 	for _, provider := range providers {
-		if provider.Name == name {
+		if provider.Nickname == name {
 			providerAddress = provider.HostAddress
 		}
 	}

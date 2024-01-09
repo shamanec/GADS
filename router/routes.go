@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -86,7 +90,7 @@ func GetProviderInfo(c *gin.Context) {
 	providerName := c.Param("name")
 	providers := util.GetProvidersFromDB()
 	for _, provider := range providers {
-		if provider.Name == providerName {
+		if provider.Nickname == providerName {
 			c.JSON(http.StatusOK, provider)
 			return
 		}
@@ -95,7 +99,7 @@ func GetProviderInfo(c *gin.Context) {
 }
 
 func AddProvider(c *gin.Context) {
-	var provider util.ProviderDB
+	var provider models.ProviderDB
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("%s", err))
@@ -108,18 +112,13 @@ func AddProvider(c *gin.Context) {
 		return
 	}
 
-	if provider == (util.ProviderDB{}) {
-		BadRequest(c, "Empty or invalid body")
-		return
-	}
-
 	// Validations
 	if provider.Nickname == "" {
 		BadRequest(c, "Missing or invalid nickname")
 		return
 	}
 	providerDB, _ := util.GetProviderFromDB(provider.Nickname)
-	if (providerDB != util.ProviderDB{}) {
+	if providerDB.Nickname == provider.Nickname {
 		BadRequest(c, "Provider with this nickname already exists")
 		return
 	}
@@ -162,7 +161,7 @@ func AddProvider(c *gin.Context) {
 }
 
 func UpdateProvider(c *gin.Context) {
-	var provider util.ProviderDB
+	var provider models.ProviderDB
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("%s", err))
@@ -172,11 +171,6 @@ func UpdateProvider(c *gin.Context) {
 	err = json.Unmarshal(body, &provider)
 	if err != nil {
 		BadRequest(c, fmt.Sprintf("%s", err))
-		return
-	}
-
-	if provider == (util.ProviderDB{}) {
-		BadRequest(c, "Empty or invalid body")
 		return
 	}
 
@@ -218,4 +212,33 @@ func UpdateProvider(c *gin.Context) {
 		return
 	}
 	OK(c, "Provider updated successfully")
+}
+
+func ProviderInfoWS(c *gin.Context) {
+	nickname := c.Param("nickname")
+	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for {
+		providerData, _ := util.GetProviderFromDB(nickname)
+		dbDevices := util.GetDBDevicesUDIDs()
+
+		for i, connectedDevice := range providerData.ConnectedDevices {
+			if slices.Contains(dbDevices, connectedDevice.UDID) {
+				providerData.ConnectedDevices[i].IsConfigured = true
+			}
+		}
+
+		jsonData, _ := json.Marshal(&providerData)
+
+		err = wsutil.WriteServerText(conn, jsonData)
+		if err != nil {
+			conn.Close()
+			return
+		}
+
+		time.Sleep(1 * time.Second)
+	}
 }

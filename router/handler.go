@@ -47,6 +47,7 @@ func HandleRequests(authentication bool) *gin.Engine {
 	authGroup.GET("/logs-ws", util.LogsWS)
 	authGroup.GET("/available-devices", device.AvailableDeviceWS)
 	authGroup.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
+	authGroup.GET("/admin/provider/:nickname/info-ws", ProviderInfoWS)
 	// Enable authentication on the endpoints below
 	if authentication {
 		authGroup.Use(auth.AuthMiddleware())

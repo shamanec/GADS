@@ -41,7 +41,7 @@ function LiveProviderBox({ nickname, os }) {
         if (infoSocket) {
             infoSocket.close()
         }
-        infoSocket = new WebSocket(`ws://${window.location.host}/provider/${nickname}/info-ws`);
+        infoSocket = new WebSocket(`ws://${window.location.host}/admin/provider/${nickname}/info-ws`);
 
         infoSocket.onerror = (error) => {
             setIsOnline(false)
@@ -63,7 +63,7 @@ function LiveProviderBox({ nickname, os }) {
                 setIsLoading(false)
             }
             let providerJSON = JSON.parse(message.data)
-            setDevicesData(providerJSON.device_data)
+            setDevicesData(providerJSON.provided_devices)
         }
 
         return () => {
