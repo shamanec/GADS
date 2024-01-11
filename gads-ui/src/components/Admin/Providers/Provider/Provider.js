@@ -1,4 +1,4 @@
-import { Box, Button, Skeleton, Stack } from "@mui/material";
+import { Box, Button, Divider, Skeleton, Stack } from "@mui/material";
 import ProviderConfig from "./ProviderConfig";
 import { useContext, useEffect, useState } from "react";
 import { Auth } from "../../../../contexts/Auth";
@@ -62,7 +62,7 @@ function LiveProviderBox({ nickname, os }) {
 
             let unixTimestamp = new Date().getTime();
             let diff = unixTimestamp - providerJSON.last_updated
-            if (diff > 3000) {
+            if (diff > 4000) {
                 setIsOnline(false)
             } else {
                 setIsOnline(true)
@@ -102,8 +102,9 @@ function ConnectedDevices({ connectedDevices, isOnline, providerName }) {
         )
     } else {
         return (
-            <Stack>
-                <div>Connected devices</div>
+            <Stack spacing={1} style={{ backgroundColor: 'white', marginTop: '10px', marginBottom: '10px', borderRadius: '5px', height: '200px', overflowY: 'scroll' }}>
+                <div style={{ textAlign: 'center', marginTop: '5px' }}>Connected devices</div>
+                <Divider></Divider>
                 {connectedDevices.map((connectedDevice) => {
                     return (
                         <ConnectedDevice deviceInfo={connectedDevice} providerName={providerName}></ConnectedDevice>
@@ -145,8 +146,9 @@ function ConnectedDevice({ deviceInfo, providerName }) {
 
 
     return (
-        <Stack style={{ backgroundColor: 'white' }}>
+        <Stack>
             <img src={img_src} style={{ width: '20px', height: '20px' }}></img>
+            <div>{deviceInfo.udid}</div>
             {deviceInfo.is_configured ? (
                 <div style={{ color: 'green' }}>Device already in DB</div>
             ) : (
@@ -166,7 +168,7 @@ function ProviderDevices({ devicesData, isOnline }) {
     } else {
         return (
             <>
-                <Stack spacing={1} style={{ height: '800px', overflowY: 'scroll', backgroundColor: 'white', borderRadius: '5px' }}>
+                <Stack spacing={1} style={{ height: '400px', overflowY: 'scroll', backgroundColor: 'white', borderRadius: '5px', overflowY: 'scroll' }}>
                     {devicesData.map((device) => {
                         return (
                             <ProviderDevice deviceInfo={device}>
