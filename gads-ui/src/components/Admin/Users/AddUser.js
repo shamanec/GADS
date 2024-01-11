@@ -111,7 +111,12 @@ export default function AddUser() {
 
             <form onSubmit={handleAddUser}>
 
-                <Stack className='add-user' alignItems="center" justifyContent="center" spacing={2}>
+                <Stack
+                    className='add-user'
+                    alignItems="center"
+                    justifyContent="center"
+                    spacing={2}
+                >
                     <h3>Add user</h3>
                     <label style={{}}>
                         <TextField
