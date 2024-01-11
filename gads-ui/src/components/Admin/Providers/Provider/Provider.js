@@ -7,17 +7,28 @@ import ProviderDevice from "./ProviderDevice"
 import axios from "axios";
 
 export default function Provider({ info }) {
-    const [authToken, , , , logout] = useContext(Auth)
-
     return (
-        <Stack id='koleo' style={{ marginTop: '10px', marginBottom: '10px', borderRadius: '10px', padding: '10px' }}>
-            <Stack direction='row' spacing={2}>
+        <Stack
+            style={{
+                marginTop: '10px',
+                marginBottom: '10px',
+                borderRadius: '10px',
+                padding: '10px'
+            }}
+        >
+            <Stack
+                direction='row'
+                spacing={2}
+            >
                 <ProviderConfig
                     isNew={false}
                     data={info}
                 >
                 </ProviderConfig>
-                <LiveProviderBox nickname={info.nickname} os={info.os}></LiveProviderBox>
+                <LiveProviderBox
+                    nickname={info.nickname}
+                    os={info.os}
+                ></LiveProviderBox>
             </Stack>
         </Stack>
     )
@@ -82,14 +93,33 @@ function LiveProviderBox({ nickname, os }) {
 
     if (isLoading) {
         return (
-            <Skeleton variant="rounded" style={{ marginLeft: '10px', background: 'gray', animationDuration: '1s', width: '60%', height: '600px' }} />
+            <Skeleton
+                variant="rounded"
+                style={{
+                    marginLeft: '10px',
+                    background: 'gray',
+                    animationDuration: '1s',
+                    width: '60%',
+                    height: '600px'
+                }}
+            />
         )
     } else {
         return (
             <Box>
-                <InfoBox os={os} isOnline={isOnline}></InfoBox>
-                <ConnectedDevices connectedDevices={providerData.connected_devices} isOnline={isOnline} providerName={nickname}></ConnectedDevices>
-                <ProviderDevices devicesData={devicesData} isOnline={isOnline}></ProviderDevices>
+                <InfoBox
+                    os={os}
+                    isOnline={isOnline}
+                ></InfoBox>
+                <ConnectedDevices
+                    connectedDevices={providerData.connected_devices}
+                    isOnline={isOnline}
+                    providerName={nickname}
+                ></ConnectedDevices>
+                <ProviderDevices
+                    devicesData={devicesData}
+                    isOnline={isOnline}
+                ></ProviderDevices>
             </Box >
         )
     }
@@ -98,16 +128,45 @@ function LiveProviderBox({ nickname, os }) {
 function ConnectedDevices({ connectedDevices, isOnline, providerName }) {
     if (!isOnline) {
         return (
-            <div style={{ height: '200px', width: '400px', backgroundColor: 'white', borderRadius: '10px', justifyContent: 'center', alignItems: 'center', display: 'flex', fontSize: '20px' }}>Provider offline</div>
+            <div
+                style={{
+                    height: '200px',
+                    width: '400px',
+                    backgroundColor: 'white',
+                    borderRadius: '10px',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    display: 'flex',
+                    fontSize: '20px'
+                }}
+            >Provider offline</div>
         )
     } else {
         return (
-            <Stack spacing={1} style={{ backgroundColor: 'white', marginTop: '10px', marginBottom: '10px', borderRadius: '5px', height: '200px', overflowY: 'scroll' }}>
-                <div style={{ textAlign: 'center', marginTop: '5px' }}>Connected devices</div>
+            <Stack
+                spacing={1}
+                style={{
+                    backgroundColor: 'white',
+                    marginTop: '10px',
+                    marginBottom: '10px',
+                    borderRadius: '5px',
+                    height: '200px',
+                    overflowY: 'scroll'
+                }}
+            >
+                <div
+                    style={{
+                        textAlign: 'center',
+                        marginTop: '5px'
+                    }}
+                >Connected devices</div>
                 <Divider></Divider>
                 {connectedDevices.map((connectedDevice) => {
                     return (
-                        <ConnectedDevice deviceInfo={connectedDevice} providerName={providerName}></ConnectedDevice>
+                        <ConnectedDevice
+                            deviceInfo={connectedDevice}
+                            providerName={providerName}
+                        ></ConnectedDevice>
                     )
                 })
                 }
@@ -147,7 +206,13 @@ function ConnectedDevice({ deviceInfo, providerName }) {
 
     return (
         <Stack>
-            <img src={img_src} style={{ width: '20px', height: '20px' }}></img>
+            <img
+                src={img_src}
+                style={{
+                    width: '20px',
+                    height: '20px'
+                }}>
+            </img>
             <div>{deviceInfo.udid}</div>
             {deviceInfo.is_configured ? (
                 <div style={{ color: 'green' }}>Device already in DB</div>
@@ -155,7 +220,11 @@ function ConnectedDevice({ deviceInfo, providerName }) {
                 <div style={{ color: 'red' }}>Device not configured in DB</div>
             )
             }
-            <Button variant='contained' disabled={deviceInfo.is_configured} onClick={handleClick}>Configure</Button>
+            <Button
+                variant='contained'
+                disabled={deviceInfo.is_configured}
+                onClick={handleClick}
+            >Configure</Button>
         </Stack>
     )
 }
@@ -163,16 +232,38 @@ function ConnectedDevice({ deviceInfo, providerName }) {
 function ProviderDevices({ devicesData, isOnline }) {
     if (!isOnline || devicesData === null) {
         return (
-            <div style={{ height: '800px', width: '400px', backgroundColor: 'white', borderRadius: '10px', justifyContent: 'center', alignItems: 'center', display: 'flex', fontSize: '20px' }}>Provider offline</div>
+            <div
+                style={{
+                    height: '400px',
+                    width: '400px',
+                    backgroundColor: 'white',
+                    borderRadius: '10px',
+                    textAlign: 'center',
+                    fontSize: '20px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: '10px'
+                }}
+            >Provider offline or no local device data available yet</div>
         )
     } else {
         return (
             <>
-                <Stack spacing={1} style={{ height: '400px', overflowY: 'scroll', backgroundColor: 'white', borderRadius: '5px', overflowY: 'scroll' }}>
+                <Stack
+                    spacing={1}
+                    style={{
+                        height: '400px',
+                        overflowY: 'scroll',
+                        backgroundColor: 'white',
+                        borderRadius: '5px',
+                        overflowY: 'scroll'
+                    }}
+                >
                     {devicesData.map((device) => {
                         return (
-                            <ProviderDevice deviceInfo={device}>
-
+                            <ProviderDevice
+                                deviceInfo={device}>
                             </ProviderDevice>
                         )
                     })
