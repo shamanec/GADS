@@ -40,11 +40,38 @@ export default function Screenshot({ udid }) {
     }
 
     return (
-        <Box style={{ marginTop: "20px" }}>
-            <Stack style={{ height: "800px", width: "650px" }}>
-                <Button onClick={() => takeScreenshot(udid)} variant="contained" style={{ marginBottom: "10px" }}>Screenshot</Button>
-                <div style={{ overflowY: 'auto', height: "auto", position: "relative" }}>
-                    <img id="screenshot-image" style={{ maxWidth: "100%", width: "auto", height: "auto" }} />
+        <Box
+            style={{
+                marginTop: "20px"
+            }}
+        >
+            <Stack
+                style={{
+                    height: "800px",
+                    width: "650px"
+                }}
+            >
+                <Button
+                    onClick={() => takeScreenshot(udid)}
+                    variant="contained"
+                    style={{
+                        marginBottom: "10px"
+                    }}
+                >Screenshot</Button>
+                <div
+                    style={{
+                        overflowY: 'auto',
+                        height: "auto",
+                        position: "relative"
+                    }}
+                >
+                    <img id="screenshot-image"
+                        style={{
+                            maxWidth: "100%",
+                            width: "auto",
+                            height: "auto"
+                        }}
+                    />
                 </div>
 
             </Stack>

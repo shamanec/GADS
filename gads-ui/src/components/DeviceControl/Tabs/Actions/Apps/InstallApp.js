@@ -100,25 +100,41 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
             >
                 <h3>Install app</h3>
                 <Box style={{ width: '260px' }}>
-                    <FormControl id='form-control'>
+                    <FormControl
+                        id='form-control'
+                    >
                         <Select
                             defaultValue='no-app'
                             id='app-select'
                             onChange={(event) => handleInstallChange(event)}
                         >
-                            <MenuItem className='select-items' value='no-app'>No app selected</MenuItem>
+                            <MenuItem
+                                className='select-items'
+                                value='no-app'
+                            >No app selected</MenuItem>
                             {
                                 installableApps.map((installableApp) => {
                                     return (
-                                        <MenuItem className='select-items' value={installableApp}> {installableApp}</MenuItem>
+                                        <MenuItem
+                                            className='select-items'
+                                            value={installableApp}
+                                        > {installableApp}</MenuItem>
                                     )
                                 })
                             }
                         </Select>
                     </FormControl>
                 </Box>
-                <Box id='install-box'>
-                    <Button onClick={handleInstall} startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={installButtonDisabled}>Install</Button>
+                <Box
+                    id='install-box'
+                >
+                    <Button
+                        onClick={handleInstall}
+                        startIcon={<InstallMobileIcon />}
+                        id='install-button'
+                        variant='contained'
+                        disabled={installButtonDisabled}
+                    >Install</Button>
                     {isInstalling &&
                         <CircularProgress id='progress-indicator' size={30} />
                     }
@@ -128,18 +144,30 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
                 alignItems='center'
             >
                 <h3>Uninstall app</h3>
-                <Box style={{ width: '260px' }}>
-                    <FormControl id='form-control'>
+                <Box
+                    style={{
+                        width: '260px'
+                    }}
+                >
+                    <FormControl
+                        id='form-control'
+                    >
                         <Select
                             defaultValue='no-app'
                             id='app-select'
                             onChange={(event) => handleUninstallChange(event)}
                         >
-                            <MenuItem className='select-items' value='no-app'>No app selected</MenuItem>
+                            <MenuItem
+                                className='select-items'
+                                value='no-app'
+                            >No app selected</MenuItem>
                             {
                                 installedApps.map((installedApp) => {
                                     return (
-                                        <MenuItem className='select-items' value={installedApp}> {installedApp}</MenuItem>
+                                        <MenuItem
+                                            className='select-items'
+                                            value={installedApp}
+                                        > {installedApp}</MenuItem>
                                     )
                                 })
                             }
@@ -147,7 +175,13 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
                     </FormControl>
                 </Box>
                 <Box id='install-box'>
-                    <Button onClick={handleUninstall} startIcon={<InstallMobileIcon />} id='install-button' variant='contained' disabled={uninstallButtonDisabled}>Uninstall</Button>
+                    <Button
+                        onClick={handleUninstall}
+                        startIcon={<InstallMobileIcon />}
+                        id='install-button'
+                        variant='contained'
+                        disabled={uninstallButtonDisabled}
+                    >Uninstall</Button>
                     {isUninstalling &&
                         <CircularProgress id='progress-indicator' size={30} />
                     }

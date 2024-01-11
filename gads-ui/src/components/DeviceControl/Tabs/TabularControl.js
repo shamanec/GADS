@@ -14,14 +14,34 @@ export default function TabularControl({ deviceData }) {
     }
 
     return (
-        <Box sx={{ width: '100%' }}>
+        <Box
+            sx={{
+                width: '100%'
+            }}
+        >
             <Tabs
                 value={currentTabIndex}
                 onChange={handleTabChange}
-                TabIndicatorProps={{ style: { background: '#496612', height: '5px' } }} textColor='white' sx={{ color: 'white', fontFamily: 'Verdana' }}
+                TabIndicatorProps={{
+                    style: {
+                        background: '#496612',
+                        height: '5px'
+                    }
+                }}
+                textColor='white'
+                sx={{
+                    color: 'white',
+                    fontFamily: 'Verdana'
+                }}
             >
-                <Tab className='control-tabs' label='Actions' />
-                <Tab className='control-tabs' label='Screenshot' />
+                <Tab
+                    className='control-tabs'
+                    label='Actions'
+                />
+                <Tab
+                    className='control-tabs'
+                    label='Screenshot'
+                />
             </Tabs>
             {currentTabIndex === 1 && <Screenshot udid={udid} />}
             {currentTabIndex === 0 && <Actions deviceData={deviceData} />}

@@ -63,7 +63,13 @@ export default function Login() {
                 <div className="login-wrapper">
                     <h1>GADS</h1>
                     <h2>Please log in</h2>
-                    <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column" }}>
+                    <form
+                        onSubmit={handleLogin}
+                        style={{
+                            display: "flex",
+                            flexDirection: "column"
+                        }}
+                    >
                         <label>
                             <TextField
                                 onChange={e => setUsername(e.target.value)}
@@ -72,7 +78,12 @@ export default function Login() {
                                 id="outlined-required"
                             />
                         </label>
-                        <label style={{ marginTop: "20px", marginBottom: "20px" }}>
+                        <label
+                            style={{
+                                marginTop: "20px",
+                                marginBottom: "20px"
+                            }}
+                        >
                             <TextField
                                 onChange={e => setPassword(e.target.value)}
                                 type="password"
@@ -85,7 +96,9 @@ export default function Login() {
                             <Button
                                 variant="contained"
                                 type="submit"
-                                style={{ marginBottom: "5px" }}
+                                style={{
+                                    marginBottom: "5px"
+                                }}
                             >Log in</Button>
                         </div>
                         {showAlert && <Alert severity="error">{alertText}</Alert>}

@@ -62,7 +62,11 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
                 variant='contained'
                 startIcon={<AttachFileIcon />}
             >
-                <input id='input-file' type="file" onChange={(event) => handleFileChange(event)} />
+                <input
+                    id='input-file'
+                    type="file"
+                    onChange={(event) => handleFileChange(event)}
+                />
                 Select file
             </Button>
             <List
@@ -150,7 +154,13 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
 
     return (
         <Box id='upload-box'>
-            <Button startIcon={<FileUploadIcon />} id='upload-button' variant='contained' onClick={handleUpload} disabled={isUploading || buttonDisabled}>Upload</Button>
+            <Button
+                startIcon={<FileUploadIcon />}
+                id='upload-button'
+                variant='contained'
+                onClick={handleUpload}
+                disabled={isUploading || buttonDisabled}
+            >Upload</Button>
             {isUploading &&
                 <CircularProgress id='progress-indicator' size={30} />
             }

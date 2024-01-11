@@ -64,7 +64,14 @@ export default function StreamCanvas({ deviceData }) {
         <div
             id='phone-imitation'
         >
-            <h3 style={{ color: 'white', display: 'flex', fontFamily: 'Verdana', justifyContent: 'center' }}>{deviceData.model}</h3>
+            <h3
+                style={{
+                    color: 'white',
+                    display: 'flex',
+                    fontFamily: 'Verdana',
+                    justifyContent: 'center'
+                }}
+            >{deviceData.model}</h3>
             <div
                 id="stream-div"
             >
@@ -82,10 +89,38 @@ export default function StreamCanvas({ deviceData }) {
                 ></Stream>
             </div>
             <Divider></Divider>
-            <Grid height='50px' display='flex' justifyContent='center' style={{ marginTop: '10px' }}>
-                <Button onClick={() => homeButton(authToken, deviceData, setDialog)} className='canvas-buttons' startIcon={<HomeIcon />} variant='contained' style={{ borderBottomLeftRadius: '25px' }}>Home</Button>
-                <Button onClick={() => lockButton(authToken, deviceData, setDialog)} className='canvas-buttons' startIcon={<LockIcon />} variant='contained' >Lock</Button>
-                <Button onClick={() => unlockButton(authToken, deviceData, setDialog)} className='canvas-buttons' startIcon={<LockOpenIcon />} variant='contained' style={{ borderBottomRightRadius: '25px' }}>Unlock</Button>
+            <Grid
+                height='50px'
+                display='flex'
+                justifyContent='center'
+                style={{
+                    marginTop: '10px'
+                }}
+            >
+                <Button
+                    onClick={() => homeButton(authToken, deviceData, setDialog)}
+                    className='canvas-buttons'
+                    startIcon={<HomeIcon />}
+                    variant='contained'
+                    style={{
+                        borderBottomLeftRadius: '25px'
+                    }}
+                >Home</Button>
+                <Button
+                    onClick={() => lockButton(authToken, deviceData, setDialog)}
+                    className='canvas-buttons'
+                    startIcon={<LockIcon />}
+                    variant='contained'
+                >Lock</Button>
+                <Button
+                    onClick={() => unlockButton(authToken, deviceData, setDialog)}
+                    className='canvas-buttons'
+                    startIcon={<LockOpenIcon />}
+                    variant='contained'
+                    style={{
+                        borderBottomRightRadius: '25px'
+                    }}
+                >Unlock</Button>
             </Grid>
         </div >
 
