@@ -38,13 +38,30 @@ export default function ProvidersAdministration() {
     }, [])
 
     return (
-        <Box height='100%'>
-            <Stack direction='row' height='80%' spacing={1}>
+        <Box
+            height='100%'
+        >
+            <Stack
+                direction='row'
+                height='80%'
+                spacing={1}
+            >
                 {
                     isLoading ? (
-                        <Skeleton variant="rounded" style={{ margin: '10px', background: '#496612', animationDuration: '1s', height: '100%', width: '100%' }} />
+                        <Skeleton
+                            variant="rounded"
+                            style={{
+                                margin: '10px',
+                                background: '#496612',
+                                animationDuration: '1s',
+                                height: '100%',
+                                width: '100%'
+                            }} />
                     ) : (
-                        <Providers providers={providers} setProviders={setProviders}></Providers>
+                        <Providers
+                            providers={providers}
+                            setProviders={setProviders}
+                        ></Providers>
                     )
                 }
             </Stack>

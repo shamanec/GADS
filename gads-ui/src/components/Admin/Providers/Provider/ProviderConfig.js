@@ -131,9 +131,36 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
     }
 
     return (
-        <Stack direction='column' spacing={2} style={{ backgroundColor: 'white', maxWidth: '500px', height: '700px', marginLeft: '10px', marginTop: '10px', borderRadius: '10px', padding: '10px', overflowY: 'scroll' }}>
-            <Stack id='top-stack' direction='row' spacing={2} style={{ marginTop: '10px' }} >
-                <Stack spacing={2} id='main-info' style={{ alignItems: 'center', width: '50%' }}>
+        <Stack
+            direction='column'
+            spacing={2}
+            style={{
+                backgroundColor: 'white',
+                maxWidth: '500px',
+                height: '700px',
+                marginLeft: '10px',
+                marginTop: '10px',
+                borderRadius: '10px',
+                padding: '10px',
+                overflowY: 'scroll'
+            }}
+        >
+            <Stack
+                id='top-stack'
+                direction='row'
+                spacing={2}
+                style={{
+                    marginTop: '10px'
+                }}
+            >
+                <Stack
+                    spacing={2}
+                    id='main-info'
+                    style={{
+                        alignItems: 'center',
+                        width: '50%'
+                    }}
+                >
                     <Select
                         defaultValue='windows'
                         value={os}
@@ -167,7 +194,6 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         fullWidth
                         size='small'
                         value={hostAddress}
-                        // inputProps={{ style: { fontSize: 14 } }}
                         InputLabelProps={{ style: { fontSize: 14 } }}
                     />
                     <TextField
@@ -186,7 +212,10 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         defaultValue={false}
                         value={android}
                         onChange={(event) => setAndroid(event.target.value)}
-                        style={{ width: '100%', height: '40px' }}
+                        style={{
+                            width: '100%',
+                            height: '40px'
+                        }}
                     >
                         <MenuItem value={true}>Yes</MenuItem>
                         <MenuItem value={false}>No</MenuItem>
@@ -197,13 +226,23 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         value={ios}
                         onChange={(event) => setIos(event.target.value)}
                         disabled={os === 'windows'}
-                        style={{ width: '100%', height: '40px' }}
+                        style={{
+                            width: '100%',
+                            height: '40px'
+                        }}
                     >
                         <MenuItem value={true}>Yes</MenuItem>
                         <MenuItem value={false}>No</MenuItem>
                     </Select>
                 </Stack>
-                <Stack spacing={2} id='secondary-info' style={{ width: '50%', alignItems: 'center' }}>
+                <Stack
+                    spacing={2}
+                    id='secondary-info'
+                    style={{
+                        width: '50%',
+                        alignItems: 'center'
+                    }}
+                >
                     <TextField
                         onChange={e => setWdaBundleId(e.target.value)}
                         label='WebDriverAgent bundle ID'
@@ -244,7 +283,10 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         // defaultValue={useSeleniumGrid}
                         value={useSeleniumGrid}
                         onChange={(event) => setUseSeleniumGrid(event.target.value)}
-                        style={{ width: '100%', height: '40px' }}
+                        style={{
+                            width: '100%',
+                            height: '40px'
+                        }}
                     >
                         <MenuItem value={true}>Yes</MenuItem>
                         <MenuItem value={false}>No</MenuItem>

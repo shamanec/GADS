@@ -12,7 +12,15 @@ export default function Info({ info, handleSelectProvider }) {
     const name = info.nickname
     return (
         <Box
-            sx={{ maxWidth: '200px', background: 'white', borderRadius: '10px', marginLeft: '10px', alignItems: 'center', display: 'flex', flexDirection: 'column' }}
+            sx={{
+                maxWidth: '200px',
+                background: 'white',
+                borderRadius: '10px',
+                marginLeft: '10px',
+                alignItems: 'center',
+                display: 'flex',
+                flexDirection: 'column'
+            }}
         >
             <ListItem>
                 <Tooltip title='Nickname' placement='bottom' leaveDelay={0}>

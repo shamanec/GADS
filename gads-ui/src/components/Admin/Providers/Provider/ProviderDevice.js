@@ -26,11 +26,31 @@ export default function ProviderDevice({ deviceInfo }) {
     }
 
     return (
-        <Box style={{ width: '360px', margin: '5px', border: '1px solid black' }}>
+        <Box
+            style={{
+                width: '360px',
+                margin: '5px',
+                border: '1px solid black'
+            }}
+        >
             <Stack direction='row'>
-                <div style={{ height: '60px', display: 'flex', justifyContent: 'left', alignItems: 'center' }}>
+                <div
+                    style={{
+                        height: '60px',
+                        display: 'flex',
+                        justifyContent: 'left',
+                        alignItems: 'center'
+                    }}
+                >
                     <OSImage img_src={img_src}></OSImage>
-                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: `${statusColor}` }}></div>
+                    <div
+                        style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            backgroundColor: `${statusColor}`
+                        }}
+                    ></div>
                 </div>
             </Stack>
             <div>UDID</div>
@@ -46,6 +66,10 @@ export default function ProviderDevice({ deviceInfo }) {
 
 function OSImage({ img_src }) {
     return (
-        <img src={img_src} height='50px' alt='OS logo'></img>
+        <img
+            src={img_src}
+            height='50px'
+            alt='OS logo'
+        ></img>
     )
 }
