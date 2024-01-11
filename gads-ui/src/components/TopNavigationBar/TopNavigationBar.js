@@ -23,10 +23,6 @@ export default function NavBar() {
                 className="navbar"
             >
                 <StyledNavLink
-                    to="/"
-                    linkText='Dashboard'
-                />
-                <StyledNavLink
                     to="/devices"
                     linkText='Devices'
                 />

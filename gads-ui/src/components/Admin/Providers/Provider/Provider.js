@@ -137,7 +137,8 @@ function ConnectedDevices({ connectedDevices, isOnline, providerName }) {
                     justifyContent: 'center',
                     alignItems: 'center',
                     display: 'flex',
-                    fontSize: '20px'
+                    fontSize: '20px',
+                    marginTop: '10px'
                 }}
             >Provider offline</div>
         )
@@ -186,6 +187,11 @@ function ConnectedDevice({ deviceInfo, providerName }) {
         body.udid = deviceInfo.udid
         body.provider = providerName
         body.os = deviceInfo.os
+        if (deviceInfo.os === 'android') {
+            body.name = 'Android'
+        } else {
+            body.name = 'iPhone'
+        }
         let bodyString = JSON.stringify(body)
 
         axios.post(url, bodyString, {
@@ -215,7 +221,7 @@ function ConnectedDevice({ deviceInfo, providerName }) {
             </img>
             <div>{deviceInfo.udid}</div>
             {deviceInfo.is_configured ? (
-                <div style={{ color: 'green' }}>Device already in DB</div>
+                <div style={{ color: 'green' }}>Device is in DB</div>
             ) : (
                 <div style={{ color: 'red' }}>Device not configured in DB</div>
             )

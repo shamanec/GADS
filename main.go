@@ -25,10 +25,33 @@ func setLogging() {
 
 func main() {
 	auth_flag := flag.Bool("auth", false, "If authentication should be turned on")
+	host_address := flag.String("host-address", "localhost", "The IP address of the host machine, defaults to `localhost`")
+	port := flag.String("port", "10000", "The port on which the UI should be accessed")
+	mongo_db := flag.String("mongo-db", "localhost:27017", "The address of the MongoDB instance")
+	admin_username := flag.String("admin-username", "admin", "Username for the default admin user")
+	admin_password := flag.String("admin-password", "password", "Password for the default admin user")
+	admin_email := flag.String("admin-email", "admin@gads.ui", "Email for the default admin user")
 	flag.Parse()
 
-	// Read the config.json and setup the data
-	util.GetConfigJsonData()
+	// Print out some useful information
+	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", *mongo_db)
+	fmt.Printf("Authentication enabled: %v\n", *auth_flag)
+	fmt.Printf("UI accessible on http://%s:%v. You can change the address and port with the --host-address and --port flags\n", *host_address, *port)
+	fmt.Println("Adding admin user with:")
+	fmt.Printf(" Name: %s. You can change the name with the --admin-username flag\n", *admin_username)
+	fmt.Printf(" Password: %s. You can change the password with the --admin-password flag\n", *admin_password)
+	fmt.Printf(" Email: %s. You can change the email with the --admin-email flag\n", *admin_email)
+
+	config := util.ConfigJsonData{
+		HostAddress:   *host_address,
+		Port:          *port,
+		MongoDB:       *mongo_db,
+		AdminUsername: *admin_username,
+		AdminEmail:    *admin_email,
+		AdminPassword: *admin_password,
+	}
+
+	util.ConfigData = &config
 
 	// Create a new connection to MongoDB
 	util.InitMongo()
@@ -50,6 +73,6 @@ func main() {
 	r := router.HandleRequests(*auth_flag)
 
 	// Start the GADS UI on the host IP address
-	address := fmt.Sprintf("%s:%s", util.ConfigData.GadsHostAddress, util.ConfigData.GadsPort)
+	address := fmt.Sprintf("%s:%s", util.ConfigData.HostAddress, util.ConfigData.Port)
 	r.Run(address)
 }

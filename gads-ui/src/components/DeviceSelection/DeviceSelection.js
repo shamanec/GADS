@@ -72,12 +72,11 @@ export default function DeviceSelection() {
 
         devicesSocket.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
-            localStorage.setItem("devices-data", devicesJson)
-
             setDevices(devicesJson);
-            devicesJson.forEach((device) => {
-                localStorage.setItem(device.udid, JSON.stringify(device))
-            })
+        }
+
+        devicesSocket.onerror = () => {
+            console.log('some error')
         }
 
         // If component unmounts close the websocket connection
@@ -153,45 +152,67 @@ function OSSelection({ devices, handleAlert }) {
                         keyUpFilterFunc={deviceSearch}
                     ></DeviceSearch>
                 </Stack>
-                <TabPanel
-                    value='{currentTabIndex}'
-                >
-                    <Grid
-                        id='devices-container'
-                        container spacing={2}
+                {devices.length === 0 ? (
+                    <Box
+                        style={{
+                            backgroundColor: '#E0D8C0',
+                            width: '100%',
+                            height: '800px',
+                            borderRadius: '10px',
+                            margin: '10px',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}
                     >
-                        {
-                            devices.map((device) => {
-                                if (currentTabIndex === 0) {
-                                    return (
-                                        <DeviceBox
-                                            device={device}
-                                            handleAlert={handleAlert}
-                                        />
-                                    )
+                        <div
+                            style={{
+                                fontSize: '30px',
+                                fontFamily: 'Verdana'
+                            }}
+                        >No device data available</div>
+                    </Box>
+                ) : (
+                    <TabPanel
+                        value='{currentTabIndex}'
+                    >
+                        <Grid
+                            id='devices-container'
+                            container spacing={2}
+                        >
+                            {
+                                devices.map((device) => {
+                                    if (currentTabIndex === 0) {
+                                        return (
+                                            <DeviceBox
+                                                device={device}
+                                                handleAlert={handleAlert}
+                                            />
+                                        )
 
-                                } else if (currentTabIndex === 1 && device.os === 'android') {
-                                    return (
-                                        <DeviceBox
-                                            device={device}
-                                            handleAlert={handleAlert}
-                                        />
-                                    )
+                                    } else if (currentTabIndex === 1 && device.os === 'android') {
+                                        return (
+                                            <DeviceBox
+                                                device={device}
+                                                handleAlert={handleAlert}
+                                            />
+                                        )
 
-                                } else if (currentTabIndex === 2 && device.os === 'ios') {
-                                    return (
-                                        <DeviceBox
-                                            device={device}
-                                            handleAlert={handleAlert}
-                                        />
-                                    )
-                                }
-                            })
-                        }
-                    </Grid>
-                </TabPanel>
+                                    } else if (currentTabIndex === 2 && device.os === 'ios') {
+                                        return (
+                                            <DeviceBox
+                                                device={device}
+                                                handleAlert={handleAlert}
+                                            />
+                                        )
+                                    }
+                                })
+                            }
+                        </Grid>
+                    </TabPanel>
+                )}
             </Box>
-        </TabContext>
+        </TabContext >
     )
 }
 
