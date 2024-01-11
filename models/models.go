@@ -23,6 +23,7 @@ type Device struct {
 	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"last_updated_timestamp"`
 	Available            bool   `json:"available" bson:"-"`
 	ProviderState        string `json:"provider_state" bson:"provider_state"`
+	Provider             string `json:"provider" bson:"provider"`
 }
 
 type ProviderDB struct {

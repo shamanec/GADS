@@ -39,7 +39,7 @@ export default function ProviderDevice({ deviceInfo }) {
             <div>Name: {deviceInfo.name}</div>
             <div>Width: {deviceInfo.screen_width}</div>
             <div>Height: {deviceInfo.screen_height}</div>
-            <Button onClick={handleResetClick} disabled={buttonDisabled}>Reset</Button>
+            {/* <Button onClick={handleResetClick} disabled={buttonDisabled}>Reset</Button> */}
         </Box >
     )
 }

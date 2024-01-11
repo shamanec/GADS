@@ -197,3 +197,32 @@ func GetDBDevicesUDIDs() []string {
 
 	return udids
 }
+
+func GetDBDevice(udid string) (models.Device, error) {
+	var deviceInfo models.Device
+	ctx, cancel := context.WithTimeout(mongoClientCtx, 10*time.Second)
+	defer cancel()
+
+	collection := mongoClient.Database("gads").Collection("devices")
+	filter := bson.D{{Key: "udid", Value: udid}}
+
+	err := collection.FindOne(ctx, filter).Decode(&deviceInfo)
+	if err != nil {
+		return models.Device{}, err
+	}
+	return deviceInfo, nil
+}
+
+func UpsertDeviceDB(device models.Device) error {
+	update := bson.M{
+		"$set": device,
+	}
+	coll := mongoClient.Database("gads").Collection("devices")
+	filter := bson.D{{Key: "udid", Value: device.UDID}}
+	opts := options.Update().SetUpsert(true)
+	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
+	if err != nil {
+		return err
+	}
+	return nil
+}

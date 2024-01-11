@@ -60,6 +60,7 @@ func HandleRequests(authentication bool) *gin.Engine {
 	authGroup.GET("/admin/providers", GetProviders)
 	authGroup.POST("/admin/providers/add", AddProvider)
 	authGroup.POST("/admin/providers/update", UpdateProvider)
+	authGroup.POST("/admin/devices/add", AddNewDevice)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.PUT("/admin/user")    // TODO Update user
 	authGroup.DELETE("/admin/user") // TODO Delete user

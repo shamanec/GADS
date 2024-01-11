@@ -242,3 +242,27 @@ func ProviderInfoWS(c *gin.Context) {
 		time.Sleep(1 * time.Second)
 	}
 }
+
+func AddNewDevice(c *gin.Context) {
+	var device models.Device
+
+	payload, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	err = json.Unmarshal(payload, &device)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	err = util.UpsertDeviceDB(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB for the current provider"})
+}

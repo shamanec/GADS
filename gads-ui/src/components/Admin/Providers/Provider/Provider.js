@@ -4,6 +4,7 @@ import { useContext, useEffect, useState } from "react";
 import { Auth } from "../../../../contexts/Auth";
 import ProviderInfo from "./ProviderInfo";
 import ProviderDevice from "./ProviderDevice"
+import axios from "axios";
 
 export default function Provider({ info }) {
     const [authToken, , , , logout] = useContext(Auth)
@@ -46,37 +47,34 @@ function LiveProviderBox({ nickname, os }) {
         infoSocket.onerror = (error) => {
             setIsOnline(false)
             setIsLoading(false)
-            setProviderData([])
-            setDevicesData(null)
         };
 
         infoSocket.onclose = () => {
             setIsOnline(false)
             setIsLoading(false)
-            setProviderData([])
-            setDevicesData(null)
         }
 
         infoSocket.onmessage = (message) => {
-            if (isLoading) {
-                setIsLoading(false)
-            }
-            if (!isOnline) {
-                setIsOnline(true)
-            }
+
             let providerJSON = JSON.parse(message.data)
+            setProviderData(providerJSON)
+            setDevicesData(providerJSON.provided_devices)
+
             let unixTimestamp = new Date().getTime();
             let diff = unixTimestamp - providerJSON.last_updated
             if (diff > 3000) {
                 setIsOnline(false)
+            } else {
+                setIsOnline(true)
             }
-            setProviderData(providerJSON)
-            setDevicesData(providerJSON.provided_devices)
+
+            if (isLoading) {
+                setIsLoading(false)
+            }
         }
 
         return () => {
             if (infoSocket) {
-                console.log('info socket unmounted')
                 infoSocket.close()
             }
         }
@@ -90,14 +88,14 @@ function LiveProviderBox({ nickname, os }) {
         return (
             <Box>
                 <InfoBox os={os} isOnline={isOnline}></InfoBox>
-                <ConnectedDevices connectedDevices={providerData.connected_devices} isOnline={isOnline}></ConnectedDevices>
+                <ConnectedDevices connectedDevices={providerData.connected_devices} isOnline={isOnline} providerName={nickname}></ConnectedDevices>
                 <ProviderDevices devicesData={devicesData} isOnline={isOnline}></ProviderDevices>
             </Box >
         )
     }
 }
 
-function ConnectedDevices({ connectedDevices, isOnline }) {
+function ConnectedDevices({ connectedDevices, isOnline, providerName }) {
     if (!isOnline) {
         return (
             <div style={{ height: '200px', width: '400px', backgroundColor: 'white', borderRadius: '10px', justifyContent: 'center', alignItems: 'center', display: 'flex', fontSize: '20px' }}>Provider offline</div>
@@ -108,7 +106,7 @@ function ConnectedDevices({ connectedDevices, isOnline }) {
                 <div>Connected devices</div>
                 {connectedDevices.map((connectedDevice) => {
                     return (
-                        <ConnectedDevice deviceInfo={connectedDevice}></ConnectedDevice>
+                        <ConnectedDevice deviceInfo={connectedDevice} providerName={providerName}></ConnectedDevice>
                     )
                 })
                 }
@@ -117,25 +115,51 @@ function ConnectedDevices({ connectedDevices, isOnline }) {
     }
 }
 
-function ConnectedDevice({ deviceInfo }) {
+function ConnectedDevice({ deviceInfo, providerName }) {
+    const [authToken, , , , logout] = useContext(Auth)
     let img_src = deviceInfo.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
 
     function handleClick() {
+        let url = `/admin/devices/add`
 
+        let body = {}
+        body.udid = deviceInfo.udid
+        body.provider = providerName
+        body.os = deviceInfo.os
+        let bodyString = JSON.stringify(body)
+
+        axios.post(url, bodyString, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    logout()
+                    return
+                }
+                console.log(error.response)
+            }
+        })
     }
 
 
     return (
-        <Stack>
+        <Stack style={{ backgroundColor: 'white' }}>
             <img src={img_src} style={{ width: '20px', height: '20px' }}></img>
-            <div>{deviceInfo.udid}</div>
+            {deviceInfo.is_configured ? (
+                <div style={{ color: 'green' }}>Device already in DB</div>
+            ) : (
+                <div style={{ color: 'red' }}>Device not configured in DB</div>
+            )
+            }
             <Button variant='contained' disabled={deviceInfo.is_configured} onClick={handleClick}>Configure</Button>
         </Stack>
     )
 }
 
 function ProviderDevices({ devicesData, isOnline }) {
-    if (!isOnline) {
+    if (!isOnline || devicesData === null) {
         return (
             <div style={{ height: '800px', width: '400px', backgroundColor: 'white', borderRadius: '10px', justifyContent: 'center', alignItems: 'center', display: 'flex', fontSize: '20px' }}>Provider offline</div>
         )
