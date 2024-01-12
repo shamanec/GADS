@@ -18,6 +18,7 @@ var latestDevices []*models.Device
 func GetLatestDBDevices() {
 	// Access the database and collection
 	collection := util.MongoClient().Database("gads").Collection("devices")
+	latestDevices = []*models.Device{}
 
 	for {
 		cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
