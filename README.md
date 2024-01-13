@@ -2,8 +2,6 @@
 
 * GADS is a web UI for remote control of devices provisioned by [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider).
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Q5Q8SJ31N)
-
 **NB** New React based UI - work in progress
 
 ## Features
