@@ -140,7 +140,7 @@ func AddProvider(c *gin.Context) {
 			BadRequest(c, "Missing or invalid WebDriverAgent bundle ID")
 			return
 		}
-		if provider.WdaRepoPath == "" && provider.OS == "macos" {
+		if provider.WdaRepoPath == "" && provider.OS == "darwin" {
 			BadRequest(c, "Missing or invalid WebDriverAgent repo path")
 			return
 		}
@@ -196,7 +196,7 @@ func UpdateProvider(c *gin.Context) {
 			BadRequest(c, "missing `wda_bundle_id` field")
 			return
 		}
-		if provider.WdaRepoPath == "" && provider.OS == "macos" {
+		if provider.WdaRepoPath == "" && provider.OS == "darwin" {
 			BadRequest(c, "missing `wda_repo_path` field")
 			return
 		}
