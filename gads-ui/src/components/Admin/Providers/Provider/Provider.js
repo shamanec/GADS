@@ -1,10 +1,8 @@
-import { Box, Button, Divider, Skeleton, Stack } from "@mui/material";
+import { Box, Skeleton, Stack } from "@mui/material";
 import ProviderConfig from "./ProviderConfig";
-import { useContext, useEffect, useState } from "react";
-import { Auth } from "../../../../contexts/Auth";
+import { useEffect, useState } from "react";
 import ProviderInfo from "./ProviderInfo";
 import ProviderDevice from "./ProviderDevice"
-import axios from "axios";
 
 export default function Provider({ info }) {
     return (
@@ -111,11 +109,6 @@ function LiveProviderBox({ nickname, os }) {
                     os={os}
                     isOnline={isOnline}
                 ></InfoBox>
-                <ConnectedDevices
-                    connectedDevices={providerData.connected_devices}
-                    isOnline={isOnline}
-                    providerName={nickname}
-                ></ConnectedDevices>
                 <ProviderDevices
                     devicesData={devicesData}
                     isOnline={isOnline}
@@ -125,122 +118,12 @@ function LiveProviderBox({ nickname, os }) {
     }
 }
 
-function ConnectedDevices({ connectedDevices, isOnline, providerName }) {
-    if (!isOnline) {
-        return (
-            <div
-                style={{
-                    height: '200px',
-                    width: '400px',
-                    backgroundColor: 'white',
-                    borderRadius: '10px',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    display: 'flex',
-                    fontSize: '20px',
-                    marginTop: '10px'
-                }}
-            >Provider offline</div>
-        )
-    } else {
-        return (
-            <Stack
-                spacing={1}
-                style={{
-                    backgroundColor: 'white',
-                    marginTop: '10px',
-                    marginBottom: '10px',
-                    borderRadius: '5px',
-                    height: '200px',
-                    overflowY: 'scroll'
-                }}
-            >
-                <div
-                    style={{
-                        textAlign: 'center',
-                        marginTop: '5px'
-                    }}
-                >Connected devices</div>
-                <Divider></Divider>
-                {connectedDevices.map((connectedDevice) => {
-                    return (
-                        <ConnectedDevice
-                            deviceInfo={connectedDevice}
-                            providerName={providerName}
-                        ></ConnectedDevice>
-                    )
-                })
-                }
-            </Stack>
-        )
-    }
-}
-
-function ConnectedDevice({ deviceInfo, providerName }) {
-    const [authToken, , , , logout] = useContext(Auth)
-    let img_src = deviceInfo.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
-
-    function handleClick() {
-        let url = `/admin/devices/add`
-
-        let body = {}
-        body.udid = deviceInfo.udid
-        body.provider = providerName
-        body.os = deviceInfo.os
-        if (deviceInfo.os === 'android') {
-            body.name = 'Android'
-        } else {
-            body.name = 'iPhone'
-        }
-        let bodyString = JSON.stringify(body)
-
-        axios.post(url, bodyString, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        }).catch((error) => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    logout()
-                    return
-                }
-                console.log(error.response)
-            }
-        })
-    }
-
-
-    return (
-        <Stack>
-            <img
-                src={img_src}
-                style={{
-                    width: '20px',
-                    height: '20px'
-                }}>
-            </img>
-            <div>{deviceInfo.udid}</div>
-            {deviceInfo.is_configured ? (
-                <div style={{ color: 'green' }}>Device is in DB</div>
-            ) : (
-                <div style={{ color: 'red' }}>Device not configured in DB</div>
-            )
-            }
-            <Button
-                variant='contained'
-                disabled={deviceInfo.is_configured}
-                onClick={handleClick}
-            >Configure</Button>
-        </Stack>
-    )
-}
-
 function ProviderDevices({ devicesData, isOnline }) {
     if (!isOnline || devicesData === null) {
         return (
             <div
                 style={{
-                    height: '400px',
+                    height: '600px',
                     width: '400px',
                     backgroundColor: 'white',
                     borderRadius: '10px',
@@ -259,11 +142,12 @@ function ProviderDevices({ devicesData, isOnline }) {
                 <Stack
                     spacing={1}
                     style={{
-                        height: '400px',
+                        height: '600px',
                         overflowY: 'scroll',
                         backgroundColor: 'white',
                         borderRadius: '5px',
-                        overflowY: 'scroll'
+                        overflowY: 'scroll',
+                        marginTop: '10px'
                     }}
                 >
                     {devicesData.map((device) => {
