@@ -1,10 +1,13 @@
 import { Box, Button, Stack } from "@mui/material";
-import { useEffect, useState } from "react";
+import axios from "axios";
+import { useContext, useEffect, useState } from "react";
+import { Auth } from "../../../../contexts/Auth";
 
 export default function ProviderDevice({ deviceInfo }) {
     let img_src = deviceInfo.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
     const [statusColor, setStatusColor] = useState('red')
     const [buttonDisabled, setButtonDisabled] = useState(false)
+    const [authToken, , , , logout] = useContext(Auth)
 
     useEffect(() => {
         if (deviceInfo.connected && deviceInfo.provider_state === 'live') {
@@ -22,7 +25,19 @@ export default function ProviderDevice({ deviceInfo }) {
     })
 
     function handleResetClick() {
-        let url = `/devices/${deviceInfo.udid}/reset`
+        let url = `/device/${deviceInfo.udid}/reset`
+
+        axios.post(url, null, {
+            headers: {
+                'X-Auth-Token': authToken
+            }
+        }).catch((error) => {
+            if (error.response) {
+                if (error.response.status === 401) {
+                    logout()
+                }
+            }
+        })
     }
 
     return (
@@ -59,7 +74,7 @@ export default function ProviderDevice({ deviceInfo }) {
             <div>Name: {deviceInfo.name}</div>
             <div>Width: {deviceInfo.screen_width}</div>
             <div>Height: {deviceInfo.screen_height}</div>
-            {/* <Button onClick={handleResetClick} disabled={buttonDisabled}>Reset</Button> */}
+            <Button onClick={handleResetClick} disabled={buttonDisabled}>Reset</Button>
         </Box >
     )
 }
