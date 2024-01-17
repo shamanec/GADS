@@ -21,7 +21,7 @@ export default function Providers({ providers, setProviders }) {
                         height: "5px"
                     }
                 }}
-                textColor='white'
+                textColor='#E0D8C0'
                 sx={{
                     color: "white",
                     fontFamily: "Verdana"

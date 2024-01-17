@@ -34,24 +34,19 @@ Currently the project assumes that GADS UI, MongoDB, Selenium Grid and device pr
 1. Install Go version 1.21.0 or higher
 2. Install Node > 16.
 
-#### Install Docker 
+#### Start a MongoDB instance
+##### Install Docker 
 1. You need to have Docker(Docker Desktop on macOS, Windows) installed.  
 
-#### Start a MongoDB container instance
+##### Start MongoDB in a docker container
 1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
 2. You can use MongoDB Compass or another tool to access the db if needed.
 
+##### Note
+You can potentially use any other way you prefer to create a MongoDB instance, doesn't have to be Docker in particular
+
 ### Setup the GADS UI
-Clone the project and the [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) code from both repos.
-
-#### Setup config.json
-1. Open the `config.json` file.  
-2. Change the `gads_host_address` value to the IP of the host machine.  
-3. Change the `gads_port` value to the port you wish the service to run on - default is 10000.  
-4. Change the `mongo_db` value to the IP address and port of the MongoDB instance. Example: `192.168.1.2:32771` 
-5. ~~If you are registering devices to Selenium Grid via providers, you can visualize the grid directly in the UI - change `selenium_grid_instance` to the instance url, e.g. `http://192.168.1.6:4444` and access it via the UI~~
-
-**NB** You can change the default admin username and password values in `config.json` if you wish.  
+Clone the project code from the repo.
 
 #### Build the UI
 1. Open the `gads-ui` folder in Terminal.
@@ -60,8 +55,22 @@ Clone the project and the [GADS-devices-provider](https://github.com/shamanec/GA
 
 #### Start the UI and backend service
 1. Open terminal and execute `go build .` in the main project folder  
-2. Execute `./GADS --auth=true`  
-3. Access the UI on `http://{gads_host_address}:{gads_port}`
+2. Execute `./GADS` providing the following flags:
+  a. `--auth=` - true/false to enable actual authentication (default is `false`)
+  b. `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)
+  c. `--port=` - port on which the UI and backend service will run (default is `10000`)
+  d. `--mongo-db=` - address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`)
+  e. `--admin-username=` - username of the default admin user (default is `admin`)
+  f. `--admin-password=` - password of the default admin user (default is `password`)
+  g. `--admin-email=` - email of the default admin user (default is `admin@gads.ui`)
+3. Access the UI on `http://{host-address}:{port}`
+
+#### Add new provider config
+1. Log in with an admin user.
+2. Go to the `Admin` section
+3. Open `Providers administration`
+4. On the `New provider` tab fill in all needed data and save.
+5. You should see a new provider tab. You can now start up a provider instance using the new configuration.
 
 #### UI development
 If you want to work on the UI you need to add a proxy in `package.json` to point to the Go backend 
@@ -71,7 +80,7 @@ If you want to work on the UI you need to add a proxy in `package.json` to point
 4. Run `npm start`
 
 #### Start a provider instance
-This is only the UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision the devices. Follow the setup steps in the linked repository to create a provider instance.
+This is only the UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision devices. Follow the setup steps in the linked repository to create a provider instance. You can have multiple provider instances on different hosts providing devices.
 
 ## Thanks
 

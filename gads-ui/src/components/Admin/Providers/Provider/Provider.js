@@ -125,7 +125,7 @@ function ProviderDevices({ devicesData, isOnline }) {
                 style={{
                     height: '600px',
                     width: '400px',
-                    backgroundColor: 'white',
+                    backgroundColor: '#E0D8C0',
                     borderRadius: '10px',
                     textAlign: 'center',
                     fontSize: '20px',
@@ -144,7 +144,7 @@ function ProviderDevices({ devicesData, isOnline }) {
                     style={{
                         height: '600px',
                         overflowY: 'scroll',
-                        backgroundColor: 'white',
+                        backgroundColor: '#E0D8C0',
                         borderRadius: '5px',
                         overflowY: 'scroll',
                         marginTop: '10px'

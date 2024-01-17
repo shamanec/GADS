@@ -28,9 +28,9 @@ export default function TabularControl({ deviceData }) {
                         height: '5px'
                     }
                 }}
-                textColor='white'
+                textColor='#E0D8C0'
                 sx={{
-                    color: 'white',
+                    color: '#E0D8C0',
                     fontFamily: 'Verdana'
                 }}
             >
