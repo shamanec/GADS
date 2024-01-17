@@ -8,14 +8,26 @@ export function DeviceBox({ device, handleAlert }) {
     let img_src = device.os === 'android' ? './images/default-android.png' : './images/default-apple.png'
 
     return (
-        <div className='device-box' data-id={device.udid}>
+        <div
+            className='device-box'
+            data-id={device.udid}
+        >
             <div>
-                <img className="deviceImage" src={img_src}>
+                <img
+                    className="deviceImage"
+                    src={img_src}
+                >
                 </img>
             </div>
-            <div className='filterable info'>{device.name}</div>
-            <div className='filterable info'>{device.os_version}</div>
-            <div className='device-buttons-container'>
+            <div
+                className='filterable info'
+            >{device.name}</div>
+            <div
+                className='filterable info'
+            >{device.os_version}</div>
+            <div
+                className='device-buttons-container'
+            >
                 <UseButton device={device} handleAlert={handleAlert} />
             </div>
         </div>
@@ -68,7 +80,7 @@ function UseButton({ device, handleAlert }) {
         return (
             <button className='device-buttons in-use' disabled>In Use</button>
         )
-    } else if (device.connected === true) {
+    } else if (device.available === true) {
         return (
             <button className='device-buttons' onClick={handleUseButtonClick} disabled={buttonDisabled}>
                 {loading ? <span className="spinner"></span> : 'Use'}

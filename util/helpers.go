@@ -21,14 +21,13 @@ type JsonResponse struct {
 }
 
 type ConfigJsonData struct {
-	GadsHostAddress      string         `json:"gads_host_address"`
-	GadsPort             string         `json:"gads_port"`
-	MongoDB              string         `json:"mongo_db"`
-	Providers            []ProviderData `json:"providers"`
-	SeleniumGridInstance string         `json:"selenium_grid_instance"`
-	AdminUsername        string         `json:"admin_username"`
-	AdminPassword        string         `json:"admin_password"`
-	AdminEmail           string         `json:"admin_email"`
+	HostAddress          string `json:"host_address"`
+	Port                 string `json:"port"`
+	MongoDB              string `json:"mongo_db"`
+	SeleniumGridInstance string `json:"selenium_grid_instance"`
+	AdminUsername        string `json:"admin_username"`
+	AdminPassword        string `json:"admin_password"`
+	AdminEmail           string `json:"admin_email"`
 }
 
 var ConfigData *ConfigJsonData
@@ -119,23 +118,4 @@ func UnmarshalJSONString(jsonString string, v interface{}) error {
 	}
 
 	return nil
-}
-
-// Get a ConfigJsonData pointer with the current configuration from config.json
-func GetConfigJsonData() {
-	jsonFile, err := os.Open("./config.json")
-	if err != nil {
-		panic(err)
-	}
-	defer jsonFile.Close()
-
-	bs, err := io.ReadAll(jsonFile)
-	if err != nil {
-		panic(err)
-	}
-
-	err = json.Unmarshal(bs, &ConfigData)
-	if err != nil {
-		panic(err)
-	}
 }

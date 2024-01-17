@@ -6,7 +6,7 @@ import { Alert } from '@mui/material';
 import MenuItem from '@mui/material/MenuItem';
 import './AddUser.css'
 import Select from '@mui/material/Select';
-import { Auth } from '../../contexts/Auth';
+import { Auth } from '../../../contexts/Auth';
 
 
 export default function AddUser() {
@@ -111,7 +111,12 @@ export default function AddUser() {
 
             <form onSubmit={handleAddUser}>
 
-                <Stack className='add-user' alignItems="center" justifyContent="center" spacing={2}>
+                <Stack
+                    className='add-user'
+                    alignItems="center"
+                    justifyContent="center"
+                    spacing={2}
+                >
                     <h3>Add user</h3>
                     <label style={{}}>
                         <TextField

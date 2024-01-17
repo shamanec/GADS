@@ -5,7 +5,7 @@ import Screenshot from "./Screenshot/Screenshot"
 import Actions from "./Actions/Actions"
 
 export default function TabularControl({ deviceData }) {
-    const udid = deviceData.Device.udid
+    const udid = deviceData.udid
 
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
 
@@ -14,18 +14,36 @@ export default function TabularControl({ deviceData }) {
     }
 
     return (
-        <Box sx={{ width: '100%' }}>
+        <Box
+            sx={{
+                width: '100%'
+            }}
+        >
             <Tabs
                 value={currentTabIndex}
                 onChange={handleTabChange}
-                TabIndicatorProps={{ style: { background: '#496612', height: '5px' } }} textColor='white' sx={{ color: 'white', fontFamily: 'Verdana' }}
+                TabIndicatorProps={{
+                    style: {
+                        background: '#496612',
+                        height: '5px'
+                    }
+                }}
+                textColor='white'
+                sx={{
+                    color: 'white',
+                    fontFamily: 'Verdana'
+                }}
             >
-                <Tab className='control-tabs' label='Actions' />
-                <Tab className='control-tabs' label='Logs' />
-                <Tab className='control-tabs' label='Screenshot' />
-                <Tab className='control-tabs' label='Other' />
+                <Tab
+                    className='control-tabs'
+                    label='Actions'
+                />
+                <Tab
+                    className='control-tabs'
+                    label='Screenshot'
+                />
             </Tabs>
-            {currentTabIndex === 2 && <Screenshot udid={udid} />}
+            {currentTabIndex === 1 && <Screenshot udid={udid} />}
             {currentTabIndex === 0 && <Actions deviceData={deviceData} />}
         </Box >
     )

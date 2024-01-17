@@ -1,6 +1,7 @@
 package device
 
 import (
+	"GADS/models"
 	"fmt"
 	"html/template"
 	"io"
@@ -14,26 +15,12 @@ import (
 	"github.com/gobwas/ws/wsutil"
 )
 
-type Device struct {
-	Connected    bool   `json:"connected" bson:"connected"`
-	UDID         string `json:"udid" bson:"_id"`
-	OS           string `json:"os" bson:"os"`
-	Name         string `json:"name" bson:"name"`
-	OSVersion    string `json:"os_version" bson:"os_version"`
-	Model        string `json:"model" bson:"model"`
-	Image        string `json:"image,omitempty" bson:"image,omitempty"`
-	HostAddress  string `json:"host_address" bson:"host_address"`
-	InUse        bool   `json:"in_use"`
-	ScreenWidth  string `json:"screen_width" bson:"screen_width"`
-	ScreenHeight string `json:"screen_height" bson:"screen_height"`
-}
-
 var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
 
 // Get specific device info from DB
-func getDBDevice(udid string) *Device {
+func getDBDevice(udid string) *models.Device {
 	for _, dbDevice := range latestDevices {
 		if dbDevice.UDID == udid {
 			return dbDevice
@@ -82,7 +69,7 @@ func GetDevicePage(c *gin.Context) {
 	canvasWidth, canvasHeight := calculateCanvasDimensions(device)
 
 	pageData := struct {
-		Device       Device
+		Device       models.Device
 		CanvasWidth  string
 		CanvasHeight string
 		ScreenHeight string
@@ -103,7 +90,7 @@ func GetDevicePage(c *gin.Context) {
 }
 
 // Calculate the device stream canvas dimensions
-func calculateCanvasDimensions(device *Device) (canvasWidth string, canvasHeight string) {
+func calculateCanvasDimensions(device *models.Device) (canvasWidth string, canvasHeight string) {
 	// Get the width and height provided
 	widthString := device.ScreenWidth
 	heightString := device.ScreenHeight

@@ -77,7 +77,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		path := c.Request.URL.Path
 		sessionID := c.GetHeader("X-Auth-Token")
 
-		if !strings.Contains(path, "appium") && !strings.Contains(path, "stream") {
+		if !strings.Contains(path, "appium") && !strings.Contains(path, "stream") && !strings.Contains(path, "ws") {
 			if session, exists := sessionsMap[sessionID]; exists {
 				if session.ExpireAt.Before(time.Now()) {
 					delete(sessionsMap, sessionID)

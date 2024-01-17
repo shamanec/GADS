@@ -72,12 +72,11 @@ export default function DeviceSelection() {
 
         devicesSocket.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
-            localStorage.setItem("devices-data", devicesJson)
-
             setDevices(devicesJson);
-            devicesJson.forEach((device) => {
-                localStorage.setItem(device.udid, JSON.stringify(device))
-            })
+        }
+
+        devicesSocket.onerror = () => {
+            console.log('some error')
         }
 
         // If component unmounts close the websocket connection
@@ -90,9 +89,16 @@ export default function DeviceSelection() {
     }, [])
 
     return (
-        <div id='top-wrapper'>
-            <div id='selection-wrapper'>
-                <OSSelection devices={devices} handleAlert={presentDeviceUnavailableAlert} />
+        <div
+            id='top-wrapper'
+        >
+            <div
+                id='selection-wrapper'
+            >
+                <OSSelection
+                    devices={devices}
+                    handleAlert={presentDeviceUnavailableAlert}
+                />
                 {showAlert && (
                     <Snackbar
                         anchorOrigin={{ vertical, horizontal }}
@@ -120,43 +126,93 @@ function OSSelection({ devices, handleAlert }) {
 
     return (
         <TabContext value='{currentTabIndex}'>
-            <Box sx={{ display: 'flex', flexDirection: 'row' }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'row'
+                }}
+            >
                 <Stack
                     direction='column'
                     divider={<Divider orientation='vertical' flexItem />}
                     spacing={2}
                     alignItems='center'
                     className='filters-stack'
-                    sx={{ height: '500px', backgroundColor: '#E0D8C0', borderRadius: '10px' }}
+                    sx={{
+                        height: '500px',
+                        backgroundColor: '#E0D8C0',
+                        borderRadius: '10px'
+                    }}
                 >
-                    <OSFilterTabs currentTabIndex={currentTabIndex} handleTabChange={handleTabChange}></OSFilterTabs>
-                    <DeviceSearch keyUpFilterFunc={deviceSearch}></DeviceSearch>
+                    <OSFilterTabs
+                        currentTabIndex={currentTabIndex}
+                        handleTabChange={handleTabChange}
+                    ></OSFilterTabs>
+                    <DeviceSearch
+                        keyUpFilterFunc={deviceSearch}
+                    ></DeviceSearch>
                 </Stack>
-                <TabPanel value='{currentTabIndex}'>
-                    <Grid id='devices-container' container spacing={2}>
-                        {
-                            devices.map((device) => {
-                                if (currentTabIndex === 0) {
-                                    return (
-                                        <DeviceBox device={device} handleAlert={handleAlert} />
-                                    )
+                {devices.length === 0 ? (
+                    <Box
+                        style={{
+                            backgroundColor: '#E0D8C0',
+                            width: '100%',
+                            height: '800px',
+                            borderRadius: '10px',
+                            margin: '10px',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: '30px',
+                                fontFamily: 'Verdana'
+                            }}
+                        >No device data available</div>
+                    </Box>
+                ) : (
+                    <TabPanel
+                        value='{currentTabIndex}'
+                    >
+                        <Grid
+                            id='devices-container'
+                            container spacing={2}
+                        >
+                            {
+                                devices.map((device) => {
+                                    if (currentTabIndex === 0) {
+                                        return (
+                                            <DeviceBox
+                                                device={device}
+                                                handleAlert={handleAlert}
+                                            />
+                                        )
 
-                                } else if (currentTabIndex === 1 && device.os === 'android') {
-                                    return (
-                                        <DeviceBox device={device} handleAlert={handleAlert} />
-                                    )
+                                    } else if (currentTabIndex === 1 && device.os === 'android') {
+                                        return (
+                                            <DeviceBox
+                                                device={device}
+                                                handleAlert={handleAlert}
+                                            />
+                                        )
 
-                                } else if (currentTabIndex === 2 && device.os === 'ios') {
-                                    return (
-                                        <DeviceBox device={device} handleAlert={handleAlert} />
-                                    )
-                                }
-                            })
-                        }
-                    </Grid>
-                </TabPanel>
+                                    } else if (currentTabIndex === 2 && device.os === 'ios') {
+                                        return (
+                                            <DeviceBox
+                                                device={device}
+                                                handleAlert={handleAlert}
+                                            />
+                                        )
+                                    }
+                                })
+                            }
+                        </Grid>
+                    </TabPanel>
+                )}
             </Box>
-        </TabContext>
+        </TabContext >
     )
 }
 

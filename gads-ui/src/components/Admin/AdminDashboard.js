@@ -2,8 +2,8 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import { useState } from "react";
 import { Box } from "@mui/material";
-import UsersAdministration from "./UsersAdministration";
-import ProvidersAdministration from "./ProvidersAdministration";
+import UsersAdministration from "./Users/UsersAdministration";
+import ProvidersAdministration from "./Providers/ProvidersAdministration";
 
 
 export default function AdminDashboard() {
@@ -14,14 +14,42 @@ export default function AdminDashboard() {
     }
 
     return (
-        <Box id='dashboard-box' style={{ width: '100%', height: '100%' }}>
+        <Box
+            id='dashboard-box'
+            style={{
+                width: '100%',
+                height: '100%'
+            }}
+        >
             <Tabs
                 value={currentTabIndex}
                 onChange={handleTabChange}
-                TabIndicatorProps={{ style: { background: "#496612", height: "5px" } }} textColor='white' sx={{ color: "white", fontFamily: "Verdana" }}
+                TabIndicatorProps={{
+                    style: {
+                        background: "#496612",
+                        height: "5px"
+                    }
+                }}
+                textColor='white'
+                sx={{
+                    color: "white",
+                    fontFamily: "Verdana"
+                }}
             >
-                <Tab label="User administration" style={{ textTransform: 'none', fontSize: '16px' }} />
-                <Tab label="Providers administration" style={{ textTransform: 'none', fontSize: '16px' }} />
+                <Tab
+                    label="User administration"
+                    style={{
+                        textTransform: 'none',
+                        fontSize: '16px'
+                    }}
+                />
+                <Tab
+                    label="Providers administration"
+                    style={{
+                        textTransform: 'none',
+                        fontSize: '16px'
+                    }}
+                />
             </Tabs>
             {currentTabIndex === 0 && <UsersAdministration></UsersAdministration>}
             {currentTabIndex === 1 && <ProvidersAdministration></ProvidersAdministration>}

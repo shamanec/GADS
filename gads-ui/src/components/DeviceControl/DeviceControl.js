@@ -86,15 +86,49 @@ export default function DeviceControl() {
                 </div>
                 {
                     isLoading ? (
-                        <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
-                            <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '950px', width: '500px', borderRadius: '30px' }} />
-                            <Skeleton variant="rounded" style={{ backgroundColor: 'gray', animationDuration: '1s', height: '850px', width: '100%', marginRight: '10px' }} />
+                        <Stack
+                            direction='row'
+                            spacing={2}
+                            style={{
+                                marginLeft: "20px"
+                            }}
+                        >
+                            <Skeleton
+                                variant="rounded"
+                                style={{
+                                    backgroundColor: 'gray',
+                                    animationDuration: '1s',
+                                    height: '950px',
+                                    width: '500px',
+                                    borderRadius: '30px'
+                                }}
+                            />
+                            <Skeleton
+                                variant="rounded"
+                                style={{
+                                    backgroundColor: 'gray',
+                                    animationDuration: '1s',
+                                    height: '850px',
+                                    width: '100%',
+                                    marginRight: '10px'
+                                }}
+                            />
                         </Stack>
                     ) : (
                         <>
-                            <Stack direction='row' spacing={2} style={{ marginLeft: "20px" }}>
-                                <StreamCanvas deviceData={deviceData}></StreamCanvas>
-                                <TabularControl deviceData={deviceData}></TabularControl>
+                            <Stack
+                                direction='row'
+                                spacing={2}
+                                style={{
+                                    marginLeft: "20px"
+                                }}
+                            >
+                                <StreamCanvas
+                                    deviceData={deviceData}
+                                ></StreamCanvas>
+                                <TabularControl
+                                    deviceData={deviceData}
+                                ></TabularControl>
                             </Stack>
                         </>
                     )
