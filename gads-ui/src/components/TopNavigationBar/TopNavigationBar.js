@@ -19,6 +19,14 @@ export default function NavBar() {
         <div
             className='navbar-wrapper'
         >
+            <img
+                src='./images/no-gads.png'
+                alt='gads-logo'
+                style={{
+                    width: '50px',
+                    marginLeft: '10px'
+                }}
+            ></img>
             <nav
                 className="navbar"
             >
