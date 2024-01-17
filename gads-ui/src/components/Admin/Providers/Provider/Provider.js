@@ -134,7 +134,7 @@ function ProviderDevices({ devicesData, isOnline }) {
                     alignItems: 'center',
                     marginTop: '10px'
                 }}
-            >Provider offline or no local device data available yet</div>
+            >No device data or provider offline</div>
         )
     } else {
         return (
