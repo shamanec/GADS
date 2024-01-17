@@ -14,7 +14,7 @@ export default function Info({ info, handleSelectProvider }) {
         <Box
             sx={{
                 maxWidth: '200px',
-                background: 'white',
+                background: '#E0D8C0',
                 borderRadius: '10px',
                 marginLeft: '10px',
                 alignItems: 'center',

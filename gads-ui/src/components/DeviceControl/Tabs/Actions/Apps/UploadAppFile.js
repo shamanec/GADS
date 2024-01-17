@@ -71,7 +71,12 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
             </Button>
             <List
                 subheader={
-                    <ListSubheader component="div">
+                    <ListSubheader
+                        component="div"
+                        style={{
+                            backgroundColor: '#E0D8C0'
+                        }}
+                    >
                         File details
                     </ListSubheader>
                 }
