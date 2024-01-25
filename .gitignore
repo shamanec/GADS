@@ -8,7 +8,7 @@ configs/supervision.p12
 minicap/*
 gads-project.log
 GADS
-gads-ui/*
+gads-ui/node_modules
 
 minicap-commands-ran.zip
 

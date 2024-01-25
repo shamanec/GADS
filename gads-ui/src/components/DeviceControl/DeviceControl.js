@@ -10,7 +10,7 @@ import axios from 'axios'
 import { DialogProvider } from './SessionDialogContext';
 
 export default function DeviceControl() {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { authToken, logout } = useContext(Auth)
     const { id } = useParams();
     const navigate = useNavigate();
     const [deviceData, setDeviceData] = useState(null)

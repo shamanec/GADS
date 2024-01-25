@@ -2,12 +2,34 @@ import { createContext, useState, useEffect } from "react"
 
 export const Auth = createContext()
 
+//
+//
+//
+//
+// TODO: restructure this context and implements nookies 
+//
+//
+//
+//
+//
+
+
 export const AuthProvider = ({ children }) => {
     const [authToken, setAuthToken] = useState(localStorage.getItem('authToken') || '')
+    const [user, setUser] = useState({
+        username: '',
+        role: '',
+        authToken: ''
+    })
     const [userName, setUserName] = useState("")
     const [userRole, setUserRole] = useState("")
 
     function login(token, name, role) {
+        setUser({
+            username: name,
+            role: role,
+            authToken: token
+        })
         setAuthToken(token)
         setUserName(name)
         setUserRole(role)
@@ -30,5 +52,5 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
 
-    return <Auth.Provider value={[authToken, userName, userRole, login, logout]}>{children}</Auth.Provider>;
+    return <Auth.Provider value={{ user, authToken, userName, userRole, login, logout }}>{children}</Auth.Provider>;
 }

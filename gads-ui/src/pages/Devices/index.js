@@ -25,7 +25,7 @@ export default function DeviceSelection() {
     const open = true
 
     // Authentication and session control
-    const { authToken, username, logout } = useContext(Auth)
+    const [authToken, username, , , logout] = useContext(Auth)
 
     function CheckServerHealth() {
         let url = `/health`

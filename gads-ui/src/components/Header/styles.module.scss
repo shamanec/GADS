@@ -1,0 +1,135 @@
+.headerContainer {
+    width: 100%;
+    height: 5rem;
+    background: var(--gray-900);
+    border-bottom: 1px solid var(--gray-700);
+}
+
+.headerContent {
+    height: 5rem;
+    margin: 0 auto;
+    padding: 0 2rem;
+
+    display: flex;
+    align-items: center;
+
+    img {
+        height: 40px;
+        width: auto;
+    }
+
+    nav {
+        margin-left: 5rem;
+        height: 5rem;
+
+        display: flex;
+        align-items: center;
+
+        a {
+            display: inline-block;
+            position: relative;
+            padding: 0 0.5rem;
+            height: 3rem;
+            line-height: 3rem;
+            font-weight: 500;
+            color: var(--gray-500);
+            border-radius: 6px;
+
+            transition: 0.2s;
+
+            & + a {
+                margin-left: 2rem;
+            }
+
+            &:hover {
+                color: var(--blue-500);
+            }
+
+            &.active {
+                color: var(--gray-100);
+                background: var(--gray-700);
+
+                span {
+                    font-weight: 600;
+                }
+            }
+        }
+    }
+
+    div {
+        margin-left: auto;
+
+        display: flex;
+        flex-direction: row;
+
+        align-items: center;
+        justify-content: center;
+
+        gap: 12px;
+
+        a {
+            color: var(--gray-500);
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            &:hover {
+                transition: filter .2s;
+                filter: brightness(1.8);
+            }
+
+            &.active {
+                color: var(--gray-100);
+                background: var(--gray-700);
+
+                span {
+                    font-weight: 600;
+                }
+            }
+        }
+
+        svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        button {
+            display: flex;
+            flex-direction: row;
+
+            align-items: center;
+            justify-content: center;
+
+            gap: 8px;
+
+            padding: 10px 14px;
+
+            background: var(--gray-900);
+            border: 1px solid var(--gray-100);
+            border-radius: 26px;
+
+            color: var(--gray-100);
+
+            &:hover {
+                transition: filter .2s;
+                filter: brightness(0.6);
+            }
+        }
+
+        .socialIcons {
+            margin-left: 5rem;
+            display: flex;
+            flex-direction: row;
+
+            gap: 8px;
+
+            a {
+                img {
+                    height: 22px;
+                    width: auto;
+                }
+            }
+        }
+    }
+}

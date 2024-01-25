@@ -1,0 +1,202 @@
+.mainContainer {
+    display: flex;
+    flex-direction: row;
+
+    height: 100vh;
+}
+
+.mainSection {
+    background: var(--gray-900);
+    flex: 7;
+    display: flex;
+    flex-direction: column;
+
+    justify-content: center;
+
+    padding: 32px;
+
+    .formContainer {
+        display: flex;
+        flex-direction: column;
+        
+        align-items: stretch;
+        align-self: center;
+
+        width: 100%;
+        max-width: 360px;
+
+        gap: 32px;
+
+        .textAndSupportingText {
+            display: flex;
+            flex-direction: column;
+
+            gap: 12px;
+
+            h2 {
+                font-size: 36px;
+                font-weight: 600;
+
+                color: var(--gray-100);
+            }
+
+            span {
+                text-align: left;
+                font-size: 16px;
+                color: var(--gray-500);
+            }
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+
+            gap: 24px;
+
+            .inputGroup {
+                width: 100%;
+
+                display: flex;
+                flex-direction: column;
+
+                gap: 8px;
+
+                label {
+                    font-size: 14px;
+                    font-weight: 500;
+
+                    color: var(--gray-75);
+                }
+
+                input {
+                    width: 100%;
+
+                    padding: 14px;
+                    background: var(--gray-900);
+
+                    border: 1px solid var(--gray-600);
+                    border-radius: 8px;
+
+                    color: var(--white);
+                    font-weight: 600;
+
+                    outline: 0;
+
+                    &:focus {
+                        border-color: var(--blue-500);
+
+                        -webkit-box-shadow: 0px 0px 2px 2px rgba(2, 24, 122, 0.39);
+                        -moz-box-shadow: 0px 0px 2px 2px rgba(2, 24, 122, 0.39);
+                        box-shadow: 0px 0px 2px 2px rgba(2, 24, 122, 0.39);
+                    }
+
+                    &.error {
+                        background: var(--red-900);
+                        border-color: var(--red-550);
+                    }
+                }
+            }
+        }
+
+        button {
+            color: var(--white);
+            background: var(--blue-500);
+            border: 1px solid var(--blue-700);
+            border-radius: 8px;
+
+            padding: 14px;
+
+            width: 100%;
+
+            &:hover {
+                transition: filter .2s;
+                filter: brightness(0.8);
+            }
+
+            &.loading {
+                position: relative;
+        
+                span {
+                    visibility: hidden;
+                }
+        
+                &::after {
+                    content: "";
+                    position: absolute;
+                    width: 16px;
+                    height: 16px;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    margin: auto;
+                    border: 4px solid transparent;
+                    border-top-color: var(--white);
+                    border-radius: 50%;
+                    animation: loading-spinner 1s ease infinite;
+                }
+            }
+        }
+    }
+}
+
+.aside {
+    flex: 8;
+
+    background: var(--gray-800);
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 40px;
+
+    padding: 0 4rem;
+
+    img {
+        width: 160px;
+    }
+
+    p {
+        font-size: 36px;
+        text-align: center;
+
+        font-weight: 400;
+        color: var(--gray-500)
+    }
+
+    .rowIcons {
+        margin-top: 4rem;
+        
+        display: flex;
+        flex-direction: row;
+
+        align-items: center;
+        justify-content: center;
+
+        gap: 24px;
+
+        a {
+            img {
+                width: 32px;
+            }
+
+            &:hover {
+                transition: filter .2s;
+                filter: brightness(1.8);
+            }
+        }
+    }
+}
+
+@keyframes loading-spinner {
+    from {
+      transform: rotate(0turn);
+    }
+  
+    to {
+      transform: rotate(1turn);
+    }
+}

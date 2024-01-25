@@ -9,13 +9,13 @@ import LockIcon from '@mui/icons-material/Lock';
 import { useDialog } from "./SessionDialogContext"
 
 export default function StreamCanvas({ deviceData }) {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { authToken, logout } = useContext(Auth)
     const { setDialog } = useDialog()
 
     let deviceX = parseInt(deviceData.screen_width, 10)
     let deviceY = parseInt(deviceData.screen_height, 10)
     let screen_ratio = deviceX / deviceY
-    let canvasHeight = 850
+    let canvasHeight = (window.innerHeight * 0.8) //80% viewport height
     let canvasWidth = 850 * screen_ratio
 
     const streamData = {
