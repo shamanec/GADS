@@ -230,7 +230,7 @@ export function ProviderTable({ data, providerForm, setProviderForm }) {
                 onlineSocket.close()
             }
         }
-    }, [])
+    }, [isOnline])
 
     return(
         <>
@@ -257,7 +257,7 @@ export function ProviderTable({ data, providerForm, setProviderForm }) {
                             <div className={styles.modalContentForm}>
                             <div className={styles.devicesInfo}>
                                 <h3>Devices list</h3>
-                                {!isOnline || !devices.length === 0 ? (
+                                {!isOnline || devices !== null ? (
                                     <span>No device data or provider offline</span>
                                 ): <span>TODO (I need to do)</span>}
                             </div>

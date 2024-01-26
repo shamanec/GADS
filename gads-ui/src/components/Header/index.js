@@ -38,9 +38,11 @@ export function Header({ user }) {
                 </nav>
 
                 <div className={styles.rightElements}>
-                    <NavLink to={'/admin'} className={`${location.pathname === '/admin' && styles.active}`} style={{padding: '10px 14px', borderRadius: '8px'}}>
-                        <FiSettings color='var(--gray-500)' />
-                    </NavLink>
+                    {user.role === 'admin' && (
+                        <NavLink to={'/admin'} className={`${location.pathname === '/admin' && styles.active}`} style={{padding: '10px 14px', borderRadius: '8px'}}>
+                            <FiSettings color='var(--gray-500)' />
+                        </NavLink>
+                    )}
                     <button onClick={handleLogout}>
                         <FiX color='var(--white)' />
                         {user.username}
