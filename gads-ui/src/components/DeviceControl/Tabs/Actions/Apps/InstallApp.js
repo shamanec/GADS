@@ -12,7 +12,7 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isInstalling, setIsInstalling] = useState(false)
     const [isUninstalling, setIsUninstalling] = useState(false)
-    const [authToken, , , , logout] = useContext(Auth)
+    const { authToken, logout } = useContext(Auth)
 
     function handleInstallChange(event) {
         const app = event.target.value

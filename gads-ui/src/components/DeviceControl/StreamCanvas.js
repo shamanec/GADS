@@ -15,8 +15,8 @@ export default function StreamCanvas({ deviceData }) {
     let deviceX = parseInt(deviceData.screen_width, 10)
     let deviceY = parseInt(deviceData.screen_height, 10)
     let screen_ratio = deviceX / deviceY
-    let canvasHeight = (window.innerHeight * 0.8) //80% viewport height
-    let canvasWidth = 850 * screen_ratio
+    let canvasHeight = (window.innerHeight * 0.7) //80% viewport height
+    let canvasWidth = (window.innerHeight * 0.7) * screen_ratio
 
     const streamData = {
         udid: deviceData.udid,
