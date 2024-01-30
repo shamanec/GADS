@@ -16,7 +16,7 @@ type Device struct {
 	OSVersion            string `json:"os_version" bson:"os_version"`
 	Model                string `json:"model" bson:"model"`
 	Image                string `json:"image,omitempty" bson:"image,omitempty"`
-	HostAddress          string `json:"host_address" bson:"host_address"`
+	Host                 string `json:"host" bson:"host"`
 	InUse                bool   `json:"in_use"`
 	ScreenWidth          string `json:"screen_width" bson:"screen_width"`
 	ScreenHeight         string `json:"screen_height" bson:"screen_height"`

@@ -27,7 +27,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		Director: func(req *http.Request) {
 			udid := c.Param("udid")
 			req.URL.Scheme = "http"
-			req.URL.Host = device.GetDeviceByUDID(udid).HostAddress + ":10001"
+			req.URL.Host = device.GetDeviceByUDID(udid).Host
 			req.URL.Path = "/device/" + udid + path
 		},
 		Transport: &http.Transport{
@@ -57,7 +57,7 @@ func ProviderProxyHandler(c *gin.Context) {
 	providers := util.GetProvidersFromDB()
 	for _, provider := range providers {
 		if provider.Nickname == name {
-			providerAddress = provider.HostAddress
+			providerAddress = fmt.Sprintf("%s:%v", provider.HostAddress, provider.Port)
 		}
 	}
 
@@ -72,7 +72,7 @@ func ProviderProxyHandler(c *gin.Context) {
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "http"
-			req.URL.Host = providerAddress + ":10001"
+			req.URL.Host = providerAddress
 			req.URL.Path = path
 		},
 		Transport: &http.Transport{

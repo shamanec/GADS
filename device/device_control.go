@@ -45,7 +45,7 @@ func GetDevicePage(c *gin.Context) {
 	}
 
 	// Create the device health URL
-	url := fmt.Sprintf("http://%s:10001/device/%s/health", device.HostAddress, device.UDID)
+	url := fmt.Sprintf("http://%s/device/%s/health", device.Host, device.UDID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
