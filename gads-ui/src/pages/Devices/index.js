@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react'
+
 import './DeviceSelection.css'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
@@ -10,65 +11,41 @@ import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import { OSFilterTabs, DeviceSearch } from './Filters'
 import { DeviceBox } from './Device'
-import { Auth } from '../../contexts/Auth';
 
-export default function DeviceSelection() {
-    // States
-    const [devices, setDevices] = useState([]);
-    const [showAlert, setShowAlert] = useState(false);
-    const [timeoutId, setTimeoutId] = useState(null);
+import { useDevice } from '../../hooks/useDevice'
 
-    let devicesSocket = null;
-    let vertical = 'bottom'
-    let horizontal = 'center'
+export default function Devices() {
+
+    const { devices, setDevices, checkServerHealth } = useDevice()
+    
+    const [showAlert, setShowAlert] = useState(false)
+    const [timeoutId, setTimeoutId] = useState(null)
+
+    let devicesSocket = null
 
     const open = true
 
-    // Authentication and session control
-    const [authToken, username, , , logout] = useContext(Auth)
 
-    function CheckServerHealth() {
-        let url = `/health`
-
-        fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    logout()
-                }
-            })
-            .catch((e) => {
-                logout()
-                console.log(e)
-            })
-    }
-
-    // Show a snackbar alert if device is unavailable
     function presentDeviceUnavailableAlert() {
-        // Present the alert
-        setShowAlert(true);
-        // Clear the previous timeout if it exists
-        clearTimeout(timeoutId);
-        // Set a new timeout for the alert
+        setShowAlert(true)
+        clearTimeout(timeoutId)
+
         setTimeoutId(
             setTimeout(() => {
-                setShowAlert(false);
+                setShowAlert(false)
             }, 3000)
-        );
+        )
     }
 
     useEffect(() => {
-        CheckServerHealth()
+        checkServerHealth()
 
         if (devicesSocket) {
             devicesSocket.close()
         }
+
         let url = `ws://${window.location.host}/available-devices`
-        devicesSocket = new WebSocket(url);
+        devicesSocket = new WebSocket(url)
 
         devicesSocket.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
@@ -79,10 +56,9 @@ export default function DeviceSelection() {
             console.log('some error')
         }
 
-        // If component unmounts close the websocket connection
+
         return () => {
             if (devicesSocket) {
-                console.log('component unmounted')
                 devicesSocket.close()
             }
         }
@@ -101,7 +77,7 @@ export default function DeviceSelection() {
                 />
                 {showAlert && (
                     <Snackbar
-                        anchorOrigin={{ vertical, horizontal }}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
                         open={open}
                         key='bottomcenter'
                     >

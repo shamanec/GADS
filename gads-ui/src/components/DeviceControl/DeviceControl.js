@@ -10,7 +10,7 @@ import axios from 'axios'
 import { DialogProvider } from './SessionDialogContext';
 
 export default function DeviceControl() {
-    const { authToken, logout } = useContext(Auth)
+    const { authToken, signOut } = useContext(Auth)
     const { id } = useParams();
     const navigate = useNavigate();
     const [deviceData, setDeviceData] = useState(null)
@@ -30,7 +30,7 @@ export default function DeviceControl() {
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
-                        logout()
+                        signOut()
                         return
                     }
                 }

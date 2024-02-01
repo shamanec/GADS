@@ -14,6 +14,8 @@ import { Auth } from './contexts/Auth'
 function Gads() {
   const { authToken, user } = useContext(Auth)
 
+  console.log('Auth token >>>', authToken)
+
   if (!authToken) {
     return <Login />
   }

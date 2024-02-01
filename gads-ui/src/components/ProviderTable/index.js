@@ -3,14 +3,14 @@ import { useState, useEffect, useContext } from 'react'
 import { Modal } from '../Modal'
 import { Badge } from '../Badge'
 
-import { api } from '../../services/axios'
+import { api } from '../../services/api'
 
 import { Auth } from '../../contexts/Auth'
 
 import styles from './styles.module.scss'
   
 export function ProviderTable({ data, providerForm, setProviderForm }) {
-    const { authToken, logout } = useContext(Auth)
+    const { authToken, signOut } = useContext(Auth)
 
     let infoSocket = null
     let onlineSocket = null
@@ -118,7 +118,7 @@ export function ProviderTable({ data, providerForm, setProviderForm }) {
         }).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
-                    logout()
+                    signOut()
                 }
             }
         })

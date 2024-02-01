@@ -9,7 +9,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import { useDialog } from "./SessionDialogContext"
 
 export default function StreamCanvas({ deviceData }) {
-    const { authToken, logout } = useContext(Auth)
+    const { authToken, signOut } = useContext(Auth)
     const { setDialog } = useDialog()
 
     let deviceX = parseInt(deviceData.screen_width, 10)
@@ -79,7 +79,7 @@ export default function StreamCanvas({ deviceData }) {
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
                     authToken={authToken}
-                    logout={logout}
+                    signOut={signOut}
                     streamData={streamData}
                     setDialog={setDialog}
                 ></Canvas>
@@ -127,7 +127,7 @@ export default function StreamCanvas({ deviceData }) {
     )
 }
 
-function Canvas({ authToken, logout, streamData, setDialog }) {
+function Canvas({ authToken, signOut, streamData, setDialog }) {
     var tapStartAt = 0
     var coord1;
     var coord2;
@@ -162,11 +162,11 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
         // if y2 < y1*0.9 - it is probably a swipe bottom to top
         // if y2 > y1*1.1 - it is probably a swipe top to bottom
         if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
-            swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+            swipeCoordinates(authToken, signOut, coord1, coord2, streamData, setDialog)
         } else if (mouseEventsTimeDiff < 500) {
-            tapCoordinates(authToken, logout, coord1, streamData, setDialog)
+            tapCoordinates(authToken, signOut, coord1, streamData, setDialog)
         } else {
-            touchAndHoldCoordinates(authToken, logout, coord1, streamData, setDialog)
+            touchAndHoldCoordinates(authToken, signOut, coord1, streamData, setDialog)
         }
     }
 
@@ -194,7 +194,7 @@ function Stream({ canvasWidth, canvasHeight }) {
 }
 
 // tap using coordinates
-function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
+function tapCoordinates(authToken, signOut, pos, streamData, setDialog) {
     // set initial x and y tap coordinates
     let x = pos[0]
     let y = pos[1]
@@ -227,7 +227,7 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
             }
 
             if (response.status === 401) {
-                logout()
+                signOut()
             }
         })
         .catch(function (error) {
@@ -235,7 +235,7 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
         })
 }
 
-function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) {
+function touchAndHoldCoordinates(authToken, signOut, pos, streamData, setDialog) {
     // set initial x and y tap coordinates
     let x = pos[0]
     let y = pos[1]
@@ -268,7 +268,7 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
             }
 
             if (response.status === 401) {
-                logout()
+                signOut()
             }
         })
         .catch(function (error) {
@@ -276,7 +276,7 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
         })
 }
 
-function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog) {
+function swipeCoordinates(authToken, signOut, coord1, coord2, streamData, setDialog) {
     var firstCoordX = coord1[0]
     var firstCoordY = coord1[1]
     var secondCoordX = coord2[0]
@@ -314,7 +314,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
             }
 
             if (response.status === 401) {
-                logout()
+                signOut()
             }
         })
         .catch(function (error) {

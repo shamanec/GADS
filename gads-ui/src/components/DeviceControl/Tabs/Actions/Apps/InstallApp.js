@@ -12,7 +12,7 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isInstalling, setIsInstalling] = useState(false)
     const [isUninstalling, setIsUninstalling] = useState(false)
-    const { authToken, logout } = useContext(Auth)
+    const { authToken, signOut } = useContext(Auth)
 
     function handleInstallChange(event) {
         const app = event.target.value
@@ -53,7 +53,7 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
-                        logout()
+                        signOut()
                         return
                     }
                     setIsUninstalling(false)
@@ -82,7 +82,7 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
-                        logout()
+                        signOut()
                         return
                     }
                     setIsInstalling(false)

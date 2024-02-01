@@ -25,7 +25,7 @@ export default function DeviceSelection() {
     const open = true
 
     // Authentication and session control
-    const { authToken, username, logout } = useContext(Auth)
+    const { authToken, signOut } = useContext(Auth)
 
     function CheckServerHealth() {
         let url = `/health`
@@ -38,11 +38,11 @@ export default function DeviceSelection() {
         })
             .then((response) => {
                 if (!response.ok) {
-                    logout()
+                    signOut()
                 }
             })
             .catch((e) => {
-                logout()
+                signOut()
                 console.log(e)
             })
     }

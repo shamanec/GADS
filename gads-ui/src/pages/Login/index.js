@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Badge } from '../../components/Badge'
 
 import { Auth } from '../../contexts/Auth'
-import { api } from '../../services/axios'
 
 import styles from '../../styles/Auth.module.scss'
 
 export default function Login() {
-    const { login } = useContext(Auth)
+    const { signIn } = useContext(Auth)
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
@@ -34,23 +33,15 @@ export default function Login() {
         }
 
         setIsLoading(true)
-
-        await api.post('/authenticate', {
-            username,
-            password
-        }).then(res => {
-            if(res.status === 200) {
-                console.log(res.data)
-                login(res.data.sessionID, res.data.username, res.data.role)
-                navigate('/devices')
-
-                setMessage({ visible: false, message: '' })
-            } else {
-                setMessage({ visible: true, message: 'An error ocurred, please try again.'})
-            }
-        })
-
+        const result = await signIn(username, password)
         setIsLoading(false)
+
+        if(result.response?.status === 200) {
+            setMessage({ visible: false, message: ''}) 
+            navigate('/devices')
+        } else {
+            setMessage({ visible: true, message: result.message })
+        }
     }
 
     return (

@@ -38,7 +38,7 @@ function UseButton({ device, handleAlert }) {
     // Difference between current time and last time the device was reported as healthy
     // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
     const [loading, setLoading] = useState(false);
-    const { authToken, username, login, logout } = useContext(Auth)
+    const { authToken, username, signOut } = useContext(Auth)
 
     const navigate = useNavigate();
 
@@ -54,7 +54,7 @@ function UseButton({ device, handleAlert }) {
                 console.log(response.status)
                 if (!response.ok) {
                     if (response.status === 401) {
-                        logout()
+                        signOut()
                         return
                     }
                     throw new Error('Network response was not ok');

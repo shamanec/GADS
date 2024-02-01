@@ -115,7 +115,7 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
 }
 
 function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText, setInstallableApps }) {
-    const { authToken, logout } = useContext(Auth)
+    const { authToken, signOut } = useContext(Auth)
     const [isUploading, setIsUploading] = useState(false)
 
     function handleUpload() {
@@ -141,7 +141,7 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
-                        logout()
+                        signOut()
                         return
                     }
                     setAlertSeverity('error')

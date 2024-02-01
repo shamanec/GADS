@@ -1,30 +1,27 @@
 import { useContext } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { FiX, FiSettings } from 'react-icons/fi'
-
-import { api } from '../../services/axios'
+import { FiX, FiSettings, FiLogOut } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
 
 import { Auth } from '../../contexts/Auth'
 
 import styles from './styles.module.scss'
 
 export function Header({ user }) {
-    const { authToken, logout } = useContext(Auth)
+    const navigate = useNavigate()
+
+    const { signOut } = useContext(Auth)
 
     const location = useLocation()
 
     const handleLogout = async () => {
-        await api.post('/logout', null, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        }).then(res => {
-            if(res.status === 200) {
-                return logout()
-            }
-            
-            logout()
-        })
+        const result = await signOut()
+
+        if(result.response?.status === 200) {
+            navigate('/login')
+        } else {
+            navigate('/login')
+        }
     }
 
     return(
@@ -35,17 +32,17 @@ export function Header({ user }) {
                     <NavLink to={'/devices'} className={`${location.pathname === '/devices' && styles.active}`}>
                         <span>Devices</span>
                     </NavLink>
+                    {user.role === 'admin' && (
+                        <NavLink to={'/admin'} className={`${location.pathname === '/admin' && styles.active}`}>
+                            <span>Admin panel</span>
+                        </NavLink>
+                    )}
                 </nav>
 
                 <div className={styles.rightElements}>
-                    {user.role === 'admin' && (
-                        <NavLink to={'/admin'} className={`${location.pathname === '/admin' && styles.active}`} style={{padding: '10px 14px', borderRadius: '8px'}}>
-                            <FiSettings color='var(--gray-500)' />
-                        </NavLink>
-                    )}
                     <button onClick={handleLogout}>
-                        <FiX color='var(--white)' />
-                        {user.username}
+                        <FiLogOut color='var(--white)' />
+                        Log out
                     </button>
                     <div className={styles.socialIcons}>
                         <a href='https://github.com/shamanec/GADS' target='_blank'>

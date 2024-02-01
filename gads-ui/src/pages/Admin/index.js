@@ -1,20 +1,20 @@
 import { useState, useEffect, useContext } from 'react'
 import { FiPlus } from 'react-icons/fi'
+import toast, { Toaster } from 'react-hot-toast'
 
 import { Modal } from '../../components/Modal'
 import { Badge } from '../../components/Badge'
 import { EmptyBlock } from '../../components/EmptyBlock'
 import { ProviderTable } from '../../components/ProviderTable'
 
-import { Auth } from '../../contexts/Auth'
+import { useAdmin } from '../../hooks/useAdmin'
 
-import { api } from '../../services/axios'
-
-import styles from '../../styles/Settings.module.scss'
 import { validateEmail, validatePassword } from '../../utils/validators'
 
+import styles from '../../styles/Settings.module.scss'
+
 export default function Admin() {
-    const { authToken } = useContext(Auth)
+    const { providers, listProviders, registerProvider, registerUser } = useAdmin()
 
     const [activeView, setActiveView] = useState(1)
 
@@ -41,8 +41,6 @@ export default function Admin() {
         wdaBundleId: '',
         wdaRepoPath: ''
     })
-
-    const [providers, setProviders] = useState([])
 
     const [isLoadingCreation, setIsLoadingCreation] = useState(false)
 
@@ -75,40 +73,51 @@ export default function Admin() {
 
         setIsLoadingCreation(true)
 
-        console.log('user fomr >>', userForm)
-
-        await api.post('/admin/user', {
-            username: userForm.username,
-            password: userForm.password,
-            role: userForm.role,
-            email: userForm.email
-        }, {
-            headers: {
-                'X-Auth-Token': authToken
+        const response = await toast.promise(
+            registerUser(
+                userForm.username,
+                userForm.password,
+                userForm.role,
+                userForm.email
+            ),
+            {
+                loading: 'Adding new user',
+                success: <b>User added</b>,
+                error: <b>Something went wrong :(</b>
+            },
+            {
+                style: {
+                    border: '1px solid #027A48',
+                    padding: '16px',
+                    backgroundColor: '#28CE77',
+                    color: '#FFFFFF',
+                  },
+                  iconTheme: {
+                    primary: '#FFFAEE',
+                    secondary: '#28CE77',
+                },
+                duration: 3000
             }
-        }).then(response => {
-            if(response.status === 200) {
-                setUserForm({
-                    email: '',
-                    password: '',
-                    role: 'user',
-                    username: ''
-                })
-
-                setMessage({ visible: false, message: ''})
-                setUserModalOpen(!userModalOpen)
-            }
-        }).catch(error => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    return
-                }
-
-                return
-            }
-        })
+        )
 
         setIsLoadingCreation(false)
+
+        if(response.message.includes('Successfully added user')) {
+            setUserForm({
+                email: '',
+                password: '',
+                role: 'user',
+                username: ''
+            })
+
+            setMessage({ visible: false, message: ''})
+            setUserModalOpen(!userModalOpen)
+
+            return toast.success('User added')
+        } else {
+            setMessage({ visible: true, message: response.message })
+            return toast.error('Something went wrong')
+        }
     }
 
     const handleAddProvider = async () => {
@@ -138,75 +147,62 @@ export default function Admin() {
 
         setIsLoadingCreation(true)
 
-        await api.post('/admin/providers/add', {
-            os: providerForm.os,
-            host_address: providerForm.hostAddress,
-            nickname: providerForm.nickname,
-            port: Number(providerForm.port),
-            provide_android: providerForm.android,
-            provide_ios: providerForm.ios,
-            wda_bundle_id: providerForm.wdaBundleId,
-            wda_repo_path: providerForm.wdaRepoPath,
-            supervision_password: providerForm.supervisionPassword,
-            use_selenium_grid: providerForm.useSeleniumGrid,
-            selenium_grid: providerForm.seleniumGrid
-        }, {
-            headers: {
-                'X-Auth-Token': authToken
+        const response = await toast.promise(
+            registerProvider(
+                providerForm.os,
+                providerForm.hostAddress,
+                providerForm.nickname,
+                Number(providerForm.port),
+                providerForm.android,
+                providerForm.ios,
+                providerForm.wdaBundleId,
+                providerForm.wdaRepoPath,
+                providerForm.supervisionPassword,
+                providerForm.useSeleniumGrid,
+                providerForm.seleniumGrid
+            ),
+            {
+                loading: 'Adding new provider',
+                success: <b>Provider added</b>,
+                error: <b>Something went wrong :(</b>
+            },
+            {
+                style: {
+                    border: '1px solid #027A48',
+                    padding: '16px',
+                    backgroundColor: '#28CE77',
+                    color: '#FFFFFF',
+                  },
+                  iconTheme: {
+                    primary: '#FFFAEE',
+                    secondary: '#28CE77',
+                },
+                duration: 3000
             }
-        }).then(response => {
-            if(response.status === 200) {
-                setProviders(response.data)
-                setProviderForm({
-                    os: 'linux',
-                    hostAddress: '',
-                    nickname: '',
-                    port: 0,
-                    android: false,
-                    ios: false,
-                    useSeleniumGrid: false,
-                    seleniumGrid: '',
-                    supervisionPassword: '',
-                    wdaBundleId: '',
-                    wdaRepoPath: ''
-                })
-
-                setMessage({ visible: false, message: ''})
-                setProviderModalOpen(!providerModalOpen)
-            }
-        }).catch(error => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    return
-                }
-
-                return
-            }
-        })
+        )
 
         setIsLoadingCreation(false)
+
+        if(response.message.includes('Successfully added user')) {
+            setUserForm({
+                email: '',
+                password: '',
+                role: 'user',
+                username: ''
+            })
+
+            setMessage({ visible: false, message: ''})
+            setUserModalOpen(!userModalOpen)
+
+            return toast.success('User added')
+        } else {
+            setMessage({ visible: true, message: response.message })
+            return toast.error('Something went wrong')
+        }
     }
 
     useEffect(() => {
-        const fetchData = async () => {
-            await api.get('/admin/providers', {
-                headers: {
-                    'X-Auth-Token': authToken
-                }
-            }).then(response => {
-                setProviders(response.data)
-            }).catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        return
-                    }
-                }
-                console.log('Failed getting providers data' + error)
-                return
-            })
-        }
-
-        fetchData()
+        listProviders()
     }, [])
 
     return(
@@ -221,12 +217,12 @@ export default function Admin() {
                     {message.visible && <Badge type='error' baseText='Erro' contentText={message.message} />}
                     <div className={styles.modalContentForm} style={{ height: 'max-content'}}>
                         <div className={styles.columnGroups}>
-                            <label htmlFor='email'>Email</label>
+                            <label htmlFor='emailInput'>Email</label>
                             <input
                                 className={`${message.message?.includes("user email") && styles.error}`}
                                 type='text'
-                                name='email'
-                                id='email'
+                                name='emailInput'
+                                id='emailInput'
                                 placeholder='Enter with your email address'
                                 value={userForm.email}
                                 onChange={e => setUserForm({...userForm, email: e.target.value})}
@@ -450,6 +446,7 @@ export default function Admin() {
                     </div>
                 </div>
             </Modal>
+            <Toaster position='bottom-right' reverseOrder={false} />
             <main className={styles.contentContainer}>
                 <div className={styles.mainSection}>
                     <div className={styles.textAndSupportingText}>

@@ -17,7 +17,7 @@ export default function Actions({ deviceData }) {
 
 function TypeText({ deviceData }) {
     const [isTyping, setIsTyping] = useState(false)
-    const { authToken, logout } = useContext(Auth)
+    const { authToken, signOut } = useContext(Auth)
     const [showError, setShowError] = useState(false)
     const [alertTimeoutId, setAlertTimeoutId] = useState(null)
 
@@ -62,7 +62,7 @@ function TypeText({ deviceData }) {
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
-                        logout()
+                        signOut()
                         return
                     }
                     if (error.response.status === 404) {

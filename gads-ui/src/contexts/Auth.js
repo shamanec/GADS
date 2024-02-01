@@ -1,56 +1,123 @@
-import { createContext, useState, useEffect } from "react"
+import { createContext, useState, useEffect } from 'react'
+
+import { api } from '../services/api'
 
 export const Auth = createContext()
-
-//
-//
-//
-//
-// TODO: restructure this context and implements nookies 
-//
-//
-//
-//
-//
 
 
 export const AuthProvider = ({ children }) => {
     const [authToken, setAuthToken] = useState(localStorage.getItem('authToken') || '')
     const [user, setUser] = useState({
         username: '',
-        role: '',
-        authToken: ''
+        role: ''
     })
-    const [userName, setUserName] = useState("")
-    const [userRole, setUserRole] = useState("")
-
-    function login(token, name, role) {
-        setUser({
-            username: name,
-            role: role,
-            authToken: token
-        })
-        setAuthToken(token)
-        setUserName(name)
-        setUserRole(role)
-        localStorage.setItem('authToken', token);
-    }
-
-    function logout() {
-        setAuthToken(null);
-        setUserName("")
-        setUserRole("")
-        localStorage.removeItem('authToken');
-    }
 
     useEffect(() => {
-        // Check if the auth token exists in localStorage on initial load
-        const storedToken = localStorage.getItem('authToken');
-        if (storedToken) {
-            setAuthToken(storedToken);
+        const storedToken = localStorage.getItem('authToken')
+        const storedRole = localStorage.getItem('role')
+
+        if(storedToken) {
+            setAuthToken(storedToken)
+            setUser({...user, role: storedRole})
         }
-    }, []);
+    }, [])
 
+    async function signIn(username, password) {
+        try {
+            const response = await api.post('/authenticate', {
+                username,
+                password
+            })
+      
+            if (response.status === 200) {
+                const token = response.data.sessionID
+      
+                localStorage.setItem('authToken', token)
+                localStorage.setItem('role', response.data.role)
+      
+                setUser({
+                    username: response.data.username,
+                    role: response.data.role
+                })
 
-    return <Auth.Provider value={{ user, authToken, userName, userRole, login, logout }}>{children}</Auth.Provider>;
+                setAuthToken(token)
+
+                api.defaults.headers['X-Auth-Token'] = `${token}`
+      
+                return {
+                    success: true,
+                    message: 'Login successfully.',
+                    response: response
+                }
+            } else {
+                return {
+                    success: false,
+                    message: 'An unknown error has occurred.',
+                    response: response
+                }
+            }
+        } catch (error) {
+            if (error.response) {
+              if (error.response.status === 401) {
+                return {
+                  success: false,
+                  message: 'Invalid credentials. Check your email and password.',
+                  response: error.response
+                };
+                } else if (error.response.status === 404) {
+                    return {
+                        success: false,
+                        message: 'User not found',
+                        response: error.response
+                    }
+                }
+            }
+      
+            return {
+                success: false,
+                message: 'An unknown error has occurred.',
+                response: error.response
+            }
+        }
+    }
+
+    async function signOut() {
+        try {
+            const response = await api.post('/logout', null)
+      
+            if (response.status === 200) {
+                setAuthToken(null)
+                setUser({ username: '', role: ''})
+
+                localStorage.removeItem('authToken')
+                localStorage.removeItem('role')
+      
+                delete api.defaults.headers['X-Auth-Token']
+      
+                return {
+                    success: true,
+                    message: 'Logout successfully.',
+                    response: response
+                }
+            } else {
+                return {
+                    success: false,
+                    message: 'An unknown error has occurred.',
+                    response: response
+                }
+            }
+        } catch (error) {      
+            return {
+                success: false,
+                message: 'An unknown error has occurred.',
+                response: error.response
+            }
+        }
+    }
+
+    return(
+        <Auth.Provider value={{ user, authToken, signIn, signOut }}>
+            {children}
+        </Auth.Provider>
+    )
 }
