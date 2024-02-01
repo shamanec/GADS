@@ -183,18 +183,9 @@ export default function Admin() {
 
         setIsLoadingCreation(false)
 
-        if(response.message.includes('Successfully added user')) {
-            setUserForm({
-                email: '',
-                password: '',
-                role: 'user',
-                username: ''
-            })
-
-            setMessage({ visible: false, message: ''})
-            setUserModalOpen(!userModalOpen)
-
-            return toast.success('User added')
+        if (response.success) {
+            setProviderModalOpen(!providerModalOpen)
+            return toast.success('Provider config added')
         } else {
             setMessage({ visible: true, message: response.message })
             return toast.error('Something went wrong')

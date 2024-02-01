@@ -39,12 +39,12 @@ export function useAdmin() {
         }
     }
 
-    const registerProvider = async (os, host_address, nickaname, port, provider_android, provide_ios, wda_bundle_id, wda_repo_path, supervision_password, use_selenium_grid, selenium_grid) => {
+    const registerProvider = async (os, host_address, nickname, port, provider_android, provide_ios, wda_bundle_id, wda_repo_path, supervision_password, use_selenium_grid, selenium_grid) => {
         try{
             const response = await api.post(`/admin/providers/add`, {
                 os,
                 host_address,
-                nickaname,
+                nickname,
                 port,
                 provider_android,
                 provide_ios,
@@ -58,7 +58,10 @@ export function useAdmin() {
             if(response.status === 200) {
                 let providers = response.data ?? {}
                 setProviders(providers)
-                return providers
+                return {
+                    providers: providers,
+                    success: true
+                }
             }else {
                 return {
                     success: false,
@@ -85,12 +88,12 @@ export function useAdmin() {
         }
     }
 
-    const updateProvider = async (os, host_address, nickaname, port, provider_android, provide_ios, wda_bundle_id, wda_repo_path, supervision_password, use_selenium_grid, selenium_grid) => {
+    const updateProvider = async (os, host_address, nickname, port, provider_android, provide_ios, wda_bundle_id, wda_repo_path, supervision_password, use_selenium_grid, selenium_grid) => {
         try{
             const response = await api.post(`/admin/providers/update`, {
                 os,
                 host_address,
-                nickaname,
+                nickname,
                 port,
                 provider_android,
                 provide_ios,
