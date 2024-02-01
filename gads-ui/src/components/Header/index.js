@@ -34,7 +34,7 @@ export function Header({ user }) {
                     </NavLink>
                     {user.role === 'admin' && (
                         <NavLink to={'/admin'} className={`${location.pathname === '/admin' && styles.active}`}>
-                            <span>Admin panel</span>
+                            <span>Admin</span>
                         </NavLink>
                     )}
                 </nav>

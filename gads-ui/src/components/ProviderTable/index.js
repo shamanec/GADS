@@ -236,18 +236,18 @@ export function ProviderTable({ data, providerForm, setProviderForm }) {
         <>
             <Modal
                 icon={selectedProvider.os === 'linux' ? <img style={{ width: '32px'}} src='./images/linux.svg' alt='linux icon'/> : selectedProvider.os === 'windows' ? <img style={{ width: '32px'}} src='./images/windows.svg' alt='windows icon' /> : <img style={{ width: '32px'}} src='./images/darwin.svg' alt='darwin icon' />}
-                title={`${selectedProvider.nickname} info`}
+                title={`${selectedProvider.nickname}`}
                 block={
                     <div className={styles.providerInfo}>
                         <span style={{ color: `${isOnline ? 'var(--green-700)' : 'var(--red-550)'}`}}>&#9679;</span>
-                        <span>{isOnline ? 'Active now' : 'Inactive'}</span>
+                        <span>{isOnline ? 'Online' : 'Offline'}</span>
                     </div>
                 }
-                supporting='View provider info and update your settings'
+                supporting='View and update provider configuration'
                 modalOpen={infoModalOpen}
             >
                 <div className={styles.modalContent}>
-                    {message.visible && <Badge type='error' baseText='Erro' contentText={message.message} />}
+                    {message.visible && <Badge type='error' baseText='Error' contentText={message.message} />}
                     {isLoadingProviderInfo ? (
                         <div className={styles.boxLoading} style={{ height: '480px'}}>
                             <div className={styles.loading} />
@@ -263,16 +263,17 @@ export function ProviderTable({ data, providerForm, setProviderForm }) {
                             </div>
                                 <div className={styles.rowGroups}>
                                     <div className={styles.columnGroups}>
-                                        <label htmlFor='os'>Operational system</label>
-                                        <select name='os' id='os' value={providerForm.os} onChange={e => setProviderForm({...providerForm, os: e.target.value})}>
+                                        <label htmlFor='os'>OS</label>
+                                        <select disabled name='os' id='os' value={providerForm.os} onChange={e => setProviderForm({...providerForm, os: e.target.value})}>
                                             <option value='linux'>Linux</option>
                                             <option value='windows'>Windows</option>
-                                            <option value='dawin'>MacOS</option>
+                                            <option value='darwin'>macOS</option>
                                         </select>
                                     </div>
                                     <div className={styles.columnGroups}>
                                         <label htmlFor='nickname'>Nickname*</label>
                                         <input
+                                            disabled
                                             className={`${message.message?.includes("provider name") && styles.error}`}
                                             type='text'
                                             name='nickname'
@@ -417,7 +418,7 @@ export function ProviderTable({ data, providerForm, setProviderForm }) {
                                             onChange={e => setProviderForm({...providerForm, seleniumGrid: e.target.value})}
                                         />
                                         <span className={styles.textHint}>
-                                            Address of the Selenium Grid instance, e.g. https://192.168.1.28:4444
+                                            Address of the Selenium Grid instance, e.g. http://192.168.1.28:4444
                                         </span>
                                     </div>
                                 </div>

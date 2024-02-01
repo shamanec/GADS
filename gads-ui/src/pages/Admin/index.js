@@ -210,11 +210,11 @@ export default function Admin() {
             <Modal
                 icon={<FiPlus color='var(--gray-500)' />}
                 title='Add user'
-                supporting='Add a new user with permissions or not'
+                supporting='Add a regular user or administrator'
                 modalOpen={userModalOpen}
             >
                 <div className={styles.modalContent}>
-                    {message.visible && <Badge type='error' baseText='Erro' contentText={message.message} />}
+                    {message.visible && <Badge type='error' baseText='Error' contentText={message.message} />}
                     <div className={styles.modalContentForm} style={{ height: 'max-content'}}>
                         <div className={styles.columnGroups}>
                             <label htmlFor='emailInput'>Email</label>
@@ -247,7 +247,7 @@ export default function Admin() {
                                 type='text'
                                 name='username'
                                 id='username'
-                                placeholder='Create a username'
+                                placeholder='Real name or nickname'
                                 value={userForm.username}
                                 onChange={e => setUserForm({...userForm, username: e.target.value})}
                             />
@@ -271,19 +271,19 @@ export default function Admin() {
             <Modal
                 icon={<FiPlus color='var(--gray-500)' />}
                 title='Add provider'
-                supporting='Add a new provider for each device block'
+                supporting='Add a new provider configuration'
                 modalOpen={providerModalOpen}
             >
                 <div className={styles.modalContent}>
-                    {message.visible && <Badge type='error' baseText='Erro' contentText={message.message} />}
+                    {message.visible && <Badge type='error' baseText='Error' contentText={message.message} />}
                     <div className={styles.modalContentForm}>
                         <div className={styles.rowGroups}>
                             <div className={styles.columnGroups}>
-                                <label htmlFor='os'>Operational system</label>
+                                <label htmlFor='os'>OS</label>
                                 <select name='os' id='os' value={providerForm.os} onChange={e => setProviderForm({...providerForm, os: e.target.value})}>
                                     <option value='linux'>Linux</option>
                                     <option value='windows'>Windows</option>
-                                    <option value='dawin'>MacOS</option>
+                                    <option value='darwin'>macOS</option>
                                 </select>
                             </div>
                             <div className={styles.columnGroups}>
@@ -433,7 +433,7 @@ export default function Admin() {
                                     onChange={e => setProviderForm({...providerForm, seleniumGrid: e.target.value})}
                                 />
                                 <span className={styles.textHint}>
-                                    Address of the Selenium Grid instance, e.g. https://192.168.1.28:4444
+                                    Address of the Selenium Grid instance, e.g. http://192.168.1.28:4444
                                 </span>
                             </div>
                         </div>
@@ -450,7 +450,7 @@ export default function Admin() {
             <main className={styles.contentContainer}>
                 <div className={styles.mainSection}>
                     <div className={styles.textAndSupportingText}>
-                        <h2>Admin settings</h2>
+                        <h2>Admin dashboard</h2>
                         <div className={styles.divider}></div>
                     </div>
 
@@ -465,7 +465,7 @@ export default function Admin() {
                                 <div className={styles.settingsHeader}>
                                     <div className={styles.textAndSupportingText}>
                                         <h2>User administration</h2>
-                                        <span>Manage users and their account permissions here.</span>
+                                        <span>Manage users and their permissions here</span>
                                     </div>
                                     <div className={styles.actions}>
                                         <button className={styles.quickButton} onClick={() => setUserModalOpen(!userModalOpen)}>
@@ -474,7 +474,7 @@ export default function Admin() {
                                             </div>
                                             <div className={styles.columnItems}>
                                                 <h2>Add a new user</h2>
-                                                <span>Create a new common user or administrator.</span>
+                                                <span>Create a regular user or administration</span>
                                             </div>
                                         </button>
                                     </div>
@@ -493,7 +493,7 @@ export default function Admin() {
                                 <div className={styles.settingsHeader}>
                                     <div className={styles.textAndSupportingText}>
                                         <h2>Providers administration</h2>
-                                        <span>Create and manage providers for device blocks.</span>
+                                        <span>Create and manage device providers</span>
                                     </div>
                                     <div className={styles.actions}>
                                         <button className={styles.quickButton} onClick={() => setProviderModalOpen(!providerModalOpen)}>
@@ -501,8 +501,8 @@ export default function Admin() {
                                                 <img src='/images/provider.svg' alt='user icon' />
                                             </div>
                                             <div className={styles.columnItems}>
-                                                <h2>Add a new provider</h2>
-                                                <span>Create a single provider for your devices</span>
+                                                <h2>Add provider</h2>
+                                                <span>Create new provider configuration</span>
                                             </div>
                                         </button>
                                     </div>
