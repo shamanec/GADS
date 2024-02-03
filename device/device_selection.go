@@ -24,7 +24,7 @@ func AvailableDeviceWS(c *gin.Context) {
 	jsonData, _ := json.Marshal(&latestDevices)
 
 	for _, device := range latestDevices {
-		if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-2000) {
+		if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
 			device.Available = true
 			continue
 		}
@@ -76,7 +76,7 @@ func GetDevices() {
 	for {
 		jsonData, _ := json.Marshal(&latestDevices)
 		for _, device := range latestDevices {
-			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-2000) {
+			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
 				device.Available = true
 				continue
 			}
