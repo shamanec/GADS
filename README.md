@@ -1,6 +1,8 @@
 ## Introduction
 
-* GADS is a web UI for remote control of devices provisioned by [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider).
+* GADS is a web UI for remote control and management of devices provisioned by [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider).
+
+[![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)  
 
 **NB** New React based UI - work in progress
 
