@@ -6,9 +6,16 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+var proxyTransport = &http.Transport{
+	MaxIdleConnsPerHost: 10,
+	DisableCompression:  true,
+	IdleConnTimeout:     60 * time.Second,
+}
 
 // This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
@@ -30,10 +37,7 @@ func DeviceProxyHandler(c *gin.Context) {
 			req.URL.Host = device.GetDeviceByUDID(udid).Host
 			req.URL.Path = "/device/" + udid + path
 		},
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost: 10,
-			DisableCompression:  true,
-		},
+		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
 			for headerName, _ := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {
@@ -75,10 +79,7 @@ func ProviderProxyHandler(c *gin.Context) {
 			req.URL.Host = providerAddress
 			req.URL.Path = path
 		},
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost: 10,
-			DisableCompression:  true,
-		},
+		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
 			for headerName, _ := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {
