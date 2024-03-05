@@ -4,7 +4,9 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 
 	"GADS/device"
 	"GADS/models"
@@ -37,6 +39,9 @@ func main() {
 	adminEmail := flag.String("admin-email", "admin@gads.ui", "Email for the default admin user")
 	flag.Parse()
 
+	osTempDir := os.TempDir()
+	uiFilesTempDir := fmt.Sprintf("%sgads-ui", osTempDir)
+
 	// Print out some useful information
 	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", *mongoDB)
 	fmt.Printf("Authentication enabled: %v\n", *authFlag)
@@ -45,14 +50,17 @@ func main() {
 	fmt.Printf(" Name: %s. You can change the name with the --admin-username flag\n", *adminUser)
 	fmt.Printf(" Password: %s. You can change the password with the --admin-password flag\n", *adminPassword)
 	fmt.Printf(" Email: %s. You can change the email with the --admin-email flag\n", *adminEmail)
+	fmt.Printf("UI static files will be unpacked in `%sgads-ui`\n", osTempDir)
 
 	config := util.ConfigJsonData{
-		HostAddress:   *hostAddress,
-		Port:          *port,
-		MongoDB:       *mongoDB,
-		AdminUsername: *adminUser,
-		AdminEmail:    *adminEmail,
-		AdminPassword: *adminPassword,
+		HostAddress:    *hostAddress,
+		Port:           *port,
+		MongoDB:        *mongoDB,
+		AdminUsername:  *adminUser,
+		AdminEmail:     *adminEmail,
+		AdminPassword:  *adminPassword,
+		OSTempDir:      osTempDir,
+		UIFilesTempDir: uiFilesTempDir,
 	}
 
 	util.ConfigData = &config
@@ -74,7 +82,12 @@ func main() {
 	setLogging()
 	fmt.Println("")
 
-	r := router.HandleRequests(*authFlag, uiFiles)
+	err = setupUIFiles()
+	if err != nil {
+		log.Fatalf("Failed to setup UI files in temp folder `%s/gads-ui` - %s", osTempDir, err)
+	}
+
+	r := router.HandleRequests(*authFlag)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.HostAddress, util.ConfigData.Port)
@@ -82,4 +95,56 @@ func main() {
 	if err != nil {
 		log.Fatalf("Gin Run failed - %s", err)
 	}
+}
+
+func setupUIFiles() error {
+	embeddedDir := "gads-ui/build"
+
+	fmt.Printf("Attempting to unpack embedded UI static files from `%s` to `%s`\n", embeddedDir, util.ConfigData.UIFilesTempDir)
+
+	err := os.RemoveAll(util.ConfigData.UIFilesTempDir)
+	if err != nil {
+		return err
+	}
+
+	// Ensure the target directory exists
+	if err := os.MkdirAll(util.ConfigData.UIFilesTempDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// Access the embedded directory as if it's the root
+	fsSub, err := fs.Sub(uiFiles, embeddedDir)
+	if err != nil {
+		return err
+	}
+
+	// Walk the 'virtual' root of the embedded filesystem
+	err = fs.WalkDir(fsSub, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Path here is relative to the 'virtual' root, no need to strip directories
+		outputPath := filepath.Join(util.ConfigData.UIFilesTempDir, path)
+
+		if d.IsDir() {
+			// Create directory
+			return os.MkdirAll(outputPath, os.ModePerm)
+		}
+
+		// Read file data from the 'virtual' root
+		data, err := fs.ReadFile(fsSub, path)
+		if err != nil {
+			return err
+		}
+
+		// Write file data
+		return os.WriteFile(outputPath, data, os.ModePerm)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
