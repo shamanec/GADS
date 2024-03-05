@@ -4,12 +4,13 @@ import (
 	"GADS/auth"
 	"GADS/device"
 	"GADS/util"
-	"html/template"
-	"strings"
-
+	"embed"
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
+	"html/template"
+	"io/fs"
+	"net/http"
 )
 
 func handleIndex(c *gin.Context) {
@@ -20,7 +21,7 @@ func handleIndex(c *gin.Context) {
 	}
 }
 
-func HandleRequests(authentication bool) *gin.Engine {
+func HandleRequests(authentication bool, uiFiles embed.FS) *gin.Engine {
 	// Create the router and allow all origins
 	// Allow particular headers as well
 	r := gin.Default()
@@ -30,14 +31,17 @@ func HandleRequests(authentication bool) *gin.Engine {
 	r.Use(cors.New(config))
 
 	// Configuration for SAP applications
-	// Serve the static files from the built React app
-	r.Use(static.Serve("/", static.LocalFile("./gads-ui/build", true)))
+	// Serve the static files from the built React app that are embedded in the binary
+	r.StaticFS("/static", http.FS(uiFiles))
+
 	// For any missing route serve the index.html from the static files
 	// This will fix the issue with accessing particular endpoint in the browser manually or with refresh
+	indexData, err := fs.ReadFile(uiFiles, "gads-ui/build/index.html")
+	if err != nil {
+		log.Fatalf("Failed to read index.html from embedded UI files - %s", err)
+	}
 	r.NoRoute(func(c *gin.Context) {
-		if !strings.HasPrefix(c.Request.RequestURI, "/api") {
-			c.File("./gads-ui/build/index.html")
-		}
+		c.Data(200, "text/html", indexData)
 	})
 
 	authGroup := r.Group("/")

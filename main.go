@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"os"
@@ -22,6 +23,9 @@ func setLogging() {
 	}
 	log.SetOutput(projectLogFile)
 }
+
+//go:embed gads-ui/build
+var uiFiles embed.FS
 
 func main() {
 	authFlag := flag.Bool("auth", false, "If authentication should be turned on")
@@ -70,7 +74,7 @@ func main() {
 	setLogging()
 	fmt.Println("")
 
-	r := router.HandleRequests(*authFlag)
+	r := router.HandleRequests(*authFlag, uiFiles)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.HostAddress, util.ConfigData.Port)
