@@ -37,27 +37,31 @@ Currently the project assumes that GADS UI, MongoDB, Selenium Grid and device pr
 2. Install Node > 16.
 
 #### Start a MongoDB instance
-##### Install Docker 
-1. You need to have Docker(Docker Desktop on macOS, Windows) installed.  
-
 ##### Start MongoDB in a docker container
-1. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
-2. You can use MongoDB Compass or another tool to access the db if needed.
+1. You need to have Docker(Docker Desktop on macOS, Windows) installed.
+2. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
+3. You can use MongoDB Compass or another tool to access the db if needed.
+
+##### Or
+1. Start MongoDB instance in the way you prefer
 
 ##### Note
 You can potentially use any other way you prefer to create a MongoDB instance, doesn't have to be Docker in particular
 
 ### Setup the GADS UI
-Clone the project code from the repo.
+#### Prebuilt binaries
+1. Download the prebuilt binary for your respective operating system.
 
-#### Build the UI
-1. Open the `gads-ui` folder in Terminal.
-2. Execute `npm install`
-3. Execute `npm run build`
+#### Or build the project from source
+1. Clone the project code from the repo.
+2. Open the `gads-ui` folder in Terminal.
+3. Execute `npm install`
+4. Execute `npm run build`
+5. Go back to the main repo folder.
+6. Execute `go build .`
 
 #### Start the UI and backend service
-1. Open terminal and execute `go build .` in the main project folder  
-2. Execute `./GADS` providing the following flags:
+1. Execute `./GADS` or `./GADS-{os}` providing the following flags:
   a. `--auth=` - true/false to enable actual authentication (default is `false`)
   b. `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)
   c. `--port=` - port on which the UI and backend service will run (default is `10000`)
@@ -65,7 +69,7 @@ Clone the project code from the repo.
   e. `--admin-username=` - username of the default admin user (default is `admin`)
   f. `--admin-password=` - password of the default admin user (default is `password`)
   g. `--admin-email=` - email of the default admin user (default is `admin@gads.ui`)
-3. Access the UI on `http://{host-address}:{port}`
+2. Access the UI on `http://{host-address}:{port}`
 
 #### Add new provider config
 1. Log in with an admin user.
