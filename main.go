@@ -1,17 +1,16 @@
 package main
 
 import (
+	"GADS/device"
+	"GADS/models"
+	"GADS/router"
+	"GADS/util"
 	"embed"
 	"flag"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"GADS/device"
-	"GADS/models"
-	"GADS/router"
-	"GADS/util"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -40,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	osTempDir := os.TempDir()
-	uiFilesTempDir := fmt.Sprintf("%sgads-ui", osTempDir)
+	uiFilesTempDir := filepath.Join(osTempDir, "gads-ui")
 
 	// Print out some useful information
 	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", *mongoDB)

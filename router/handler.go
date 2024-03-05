@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
+	"path/filepath"
 )
 
 func HandleRequests(authentication bool) *gin.Engine {
@@ -18,13 +19,15 @@ func HandleRequests(authentication bool) *gin.Engine {
 	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
 	r.Use(cors.New(config))
 
+	indexHtmlPath := filepath.Join(util.ConfigData.UIFilesTempDir, "index.html")
+
 	// Configuration for SAP applications
 	// Serve the static files from the built React app
 	r.Use(static.Serve("/", static.LocalFile(util.ConfigData.UIFilesTempDir, true)))
 	// For any missing route serve the index.htm from the static files
 	// This will fix the issue with accessing particular endpoint in the browser manually or with refresh
 	r.NoRoute(func(c *gin.Context) {
-		c.File(util.ConfigData.UIFilesTempDir + "/index.html")
+		c.File(indexHtmlPath)
 	})
 
 	authGroup := r.Group("/")
