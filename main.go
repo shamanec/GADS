@@ -51,7 +51,7 @@ func main() {
 			if os.IsNotExist(err) {
 				log.Fatalf("The provided ui-files-dir `%s` does not exist - %s", *uiFilesDir, err)
 			}
-			log.Fatalf("Could not check if the provided ui-files dir `%s` exists - %s", *uiFilesDir, err)
+			log.Fatalf("Could not check if the provided ui-files-dir `%s` exists - %s", *uiFilesDir, err)
 		}
 		uiFilesTempDir = filepath.Join(*uiFilesDir, "gads-ui")
 	} else {
@@ -67,7 +67,7 @@ func main() {
 	fmt.Printf(" Name: %s. You can change the name with the --admin-username flag\n", *adminUser)
 	fmt.Printf(" Password: %s. You can change the password with the --admin-password flag\n", *adminPassword)
 	fmt.Printf(" Email: %s. You can change the email with the --admin-email flag\n", *adminEmail)
-	fmt.Printf("UI static files will be unpacked in `%sgads-ui`\n", osTempDir)
+	fmt.Printf("UI static files will be unpacked in `%s`\n", uiFilesTempDir)
 
 	config := util.ConfigJsonData{
 		HostAddress:    *hostAddress,
