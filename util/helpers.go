@@ -28,6 +28,8 @@ type ConfigJsonData struct {
 	AdminUsername        string `json:"admin_username"`
 	AdminPassword        string `json:"admin_password"`
 	AdminEmail           string `json:"admin_email"`
+	OSTempDir            string `json:"-"`
+	UIFilesTempDir       string `json:"-"`
 }
 
 var ConfigData *ConfigJsonData
