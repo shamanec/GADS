@@ -53,7 +53,7 @@ You can potentially use any other way you prefer to create a MongoDB instance, d
 1. Download the prebuilt binary for your respective operating system.
 
 #### Or build the project from source
-1. Clone the project code from the repo.
+1. Clone the project.
 2. Open the `gads-ui` folder in Terminal.
 3. Execute `npm install`
 4. Execute `npm run build`
@@ -61,7 +61,7 @@ You can potentially use any other way you prefer to create a MongoDB instance, d
 6. Execute `go build .`
 
 #### Start the UI and backend service
-1. Execute `./GADS` or `./GADS-{os}` providing the following flags:
+1. Execute `./GADS` providing the following flags:
   a. `--auth=` - true/false to enable actual authentication (default is `false`)
   b. `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)
   c. `--port=` - port on which the UI and backend service will run (default is `10000`)
@@ -69,9 +69,10 @@ You can potentially use any other way you prefer to create a MongoDB instance, d
   e. `--admin-username=` - username of the default admin user (default is `admin`)
   f. `--admin-password=` - password of the default admin user (default is `password`)
   g. `--admin-email=` - email of the default admin user (default is `admin@gads.ui`)
+  h. `--ui-files-dir=` - directory where the UI static files will be unpacked and served from. By default the app tries to use a temp folder available on the host. Use this flag only if you have issues with the default behaviour.  
 2. Access the UI on `http://{host-address}:{port}`
 
-#### Add new provider config
+#### Add new provider configuration
 1. Log in with an admin user.
 2. Go to the `Admin` section
 3. Open `Providers administration`
