@@ -36,10 +36,28 @@ func main() {
 	adminUser := flag.String("admin-username", "admin", "Username for the default admin user")
 	adminPassword := flag.String("admin-password", "password", "Password for the default admin user")
 	adminEmail := flag.String("admin-email", "admin@gads.ui", "Email for the default admin user")
+	uiFilesDir := flag.String("ui-files-dir", "",
+		"Directory where the UI static files will be unpacked and served from."+
+			"\nBy default app will try to use a temp dir on the host, use this flag only if you encounter issues with the temp folder."+
+			"\nAlso you need to have created the folder in advance!")
 	flag.Parse()
 
 	osTempDir := os.TempDir()
-	uiFilesTempDir := filepath.Join(osTempDir, "gads-ui")
+	var uiFilesTempDir string
+	// If a specific folder is provided, unpack the UI files there
+	if *uiFilesDir != "" {
+		_, err := os.Stat(*uiFilesDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				log.Fatalf("The provided ui-files-dir `%s` does not exist - %s", *uiFilesDir, err)
+			}
+			log.Fatalf("Could not check if the provided ui-files dir `%s` exists - %s", *uiFilesDir, err)
+		}
+		uiFilesTempDir = filepath.Join(*uiFilesDir, "gads-ui")
+	} else {
+		// If no folder is specified, use a temporary directory on the host
+		uiFilesTempDir = filepath.Join(osTempDir, "gads-ui")
+	}
 
 	// Print out some useful information
 	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", *mongoDB)
@@ -83,7 +101,7 @@ func main() {
 
 	err = setupUIFiles()
 	if err != nil {
-		log.Fatalf("Failed to setup UI files in temp folder `%s/gads-ui` - %s", osTempDir, err)
+		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", uiFilesTempDir, err)
 	}
 
 	r := router.HandleRequests(*authFlag)
