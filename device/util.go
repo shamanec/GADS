@@ -1,6 +1,7 @@
 package device
 
 import (
+	"GADS/models"
 	"GADS/util"
 	"context"
 	"fmt"
@@ -11,12 +12,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var latestDevices []*Device
+var latestDevices []*models.Device
 
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
 	// Access the database and collection
 	collection := util.MongoClient().Database("gads").Collection("devices")
+	latestDevices = []*models.Device{}
 
 	for {
 		cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
@@ -44,7 +46,7 @@ func GetLatestDBDevices() {
 	}
 }
 
-func GetDeviceByUDID(udid string) *Device {
+func GetDeviceByUDID(udid string) *models.Device {
 	for _, device := range latestDevices {
 		if device.UDID == udid {
 			return device

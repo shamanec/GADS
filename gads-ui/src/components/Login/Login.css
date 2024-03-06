@@ -19,7 +19,7 @@
 .fancy-wrapper {
     width: 30%;
     height: 500px;
-    background-color: white;
+    background-color: #E0D8C0;
     display: flex;
     flex-direction: row;
     border-radius: 10px;

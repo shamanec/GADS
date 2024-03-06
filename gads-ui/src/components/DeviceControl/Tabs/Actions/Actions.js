@@ -53,7 +53,7 @@ function TypeText({ deviceData }) {
 
         let json = `{"text": "${text}"}`
 
-        let url = `/device/${deviceData.Device.udid}/typeText`
+        let url = `/device/${deviceData.udid}/typeText`
         axios.post(url, json, {
             headers: {
                 'X-Auth-Token': authToken
@@ -78,22 +78,57 @@ function TypeText({ deviceData }) {
     }
 
     return (
-        <Box style={{ backgroundColor: 'white', width: '600px', marginTop: '5px', height: '155px' }}>
-            <div style={{ marginLeft: '10px', marginTop: '5px' }}>Make sure you've selected input element in the app</div>
-            <Box style={{ marginLeft: '10px' }}>
+        <Box
+            style={{
+                backgroundColor: '#E0D8C0',
+                width: '600px',
+                marginTop: '5px',
+                height: '155px'
+            }}
+        >
+            <div
+                style={{
+                    marginLeft: '10px',
+                    marginTop: '5px'
+                }}
+            >Make sure you've selected input element in the app</div>
+            <Box
+                style={{
+                    marginLeft: '10px'
+                }}
+            >
                 <TextField
                     id="outlined-basic"
                     label="Type something and press Enter"
                     variant="outlined"
                     onKeyUp={(event) => handleEnter(event)}
-                    style={{ backgroundColor: 'white', marginTop: '15px', width: '80%' }}
+                    style={{
+                        backgroundColor: '#E0D8C0',
+                        marginTop: '15px',
+                        width: '80%'
+                    }}
                 />
                 {isTyping &&
-                    <CircularProgress variant='indeterminate' size={40} style={{ animationDuration: '600ms', marginTop: '20px', marginLeft: '5px' }} />
+                    <CircularProgress
+                        variant='indeterminate'
+                        size={40}
+                        style={{
+                            animationDuration: '600ms',
+                            marginTop: '20px',
+                            marginLeft: '5px'
+                        }}
+                    />
                 }
             </Box>
             {showError &&
-                <Alert severity="error" sx={{ width: '80%', marginTop: '5px', marginLeft: '10px' }}>Error typing or no active input element selected</Alert>
+                <Alert
+                    severity="error"
+                    sx={{
+                        width: '80%',
+                        marginTop: '5px',
+                        marginLeft: '10px'
+                    }}
+                >Error typing or no active input element selected</Alert>
             }
         </Box>
     )

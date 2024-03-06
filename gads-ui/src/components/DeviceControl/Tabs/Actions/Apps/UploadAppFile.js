@@ -62,12 +62,21 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
                 variant='contained'
                 startIcon={<AttachFileIcon />}
             >
-                <input id='input-file' type="file" onChange={(event) => handleFileChange(event)} />
+                <input
+                    id='input-file'
+                    type="file"
+                    onChange={(event) => handleFileChange(event)}
+                />
                 Select file
             </Button>
             <List
                 subheader={
-                    <ListSubheader component="div">
+                    <ListSubheader
+                        component="div"
+                        style={{
+                            backgroundColor: '#E0D8C0'
+                        }}
+                    >
                         File details
                     </ListSubheader>
                 }
@@ -111,7 +120,7 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
 
     function handleUpload() {
         setIsUploading(true)
-        const url = `http://${deviceData.Device.host_address}:10001/provider/uploadFile`;
+        const url = `/device/${deviceData.udid}/uploadFile`;
 
         const form = new FormData();
         form.append('file', file);
@@ -150,7 +159,13 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
 
     return (
         <Box id='upload-box'>
-            <Button startIcon={<FileUploadIcon />} id='upload-button' variant='contained' onClick={handleUpload} disabled={isUploading || buttonDisabled}>Upload</Button>
+            <Button
+                startIcon={<FileUploadIcon />}
+                id='upload-button'
+                variant='contained'
+                onClick={handleUpload}
+                disabled={isUploading || buttonDisabled}
+            >Upload</Button>
             {isUploading &&
                 <CircularProgress id='progress-indicator' size={30} />
             }

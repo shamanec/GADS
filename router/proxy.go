@@ -2,12 +2,20 @@ package router
 
 import (
 	"GADS/device"
+	"GADS/util"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+var proxyTransport = &http.Transport{
+	MaxIdleConnsPerHost: 10,
+	DisableCompression:  true,
+	IdleConnTimeout:     60 * time.Second,
+}
 
 // This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
@@ -26,13 +34,10 @@ func DeviceProxyHandler(c *gin.Context) {
 		Director: func(req *http.Request) {
 			udid := c.Param("udid")
 			req.URL.Scheme = "http"
-			req.URL.Host = device.GetDeviceByUDID(udid).HostAddress + ":10001"
+			req.URL.Host = device.GetDeviceByUDID(udid).Host
 			req.URL.Path = "/device/" + udid + path
 		},
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost: 10,
-			DisableCompression:  true,
-		},
+		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
 			for headerName, _ := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {
@@ -50,21 +55,31 @@ func DeviceProxyHandler(c *gin.Context) {
 
 func ProviderProxyHandler(c *gin.Context) {
 	path := c.Param("path")
+	name := c.Param("name")
+	providerAddress := ""
+
+	providers := util.GetProvidersFromDB()
+	for _, provider := range providers {
+		if provider.Nickname == name {
+			providerAddress = fmt.Sprintf("%s:%v", provider.HostAddress, provider.Port)
+		}
+	}
+
+	if providerAddress == "" {
+		c.JSON(http.StatusNotFound, fmt.Sprintf("Provider with name `%s` does not exist", name))
+		return
+	}
 
 	// Create a new ReverseProxy instance that will forward the requests
 	// Update its scheme, host and path in the Director
 	// Limit the number of open connections for the host
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			udid := c.Param("udid")
 			req.URL.Scheme = "http"
-			req.URL.Host = device.GetDeviceByUDID(udid).HostAddress + ":10001"
-			req.URL.Path = "/provider/" + path
+			req.URL.Host = providerAddress
+			req.URL.Path = path
 		},
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost: 10,
-			DisableCompression:  true,
-		},
+		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
 			for headerName, _ := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {

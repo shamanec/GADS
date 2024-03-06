@@ -31,16 +31,19 @@ func (client *LogsWSClient) sendLiveLogs() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+	// Query for documents created or modified after the last poll
+	filter := bson.D{{Key: "timestamp", Value: bson.D{{Key: "$gt", Value: lastPolledDocTS}}}}
+
+	// Sort the documents based on the timestamp field
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
+
+	cursor, err := collection.Find(client.Ctx, filter, findOptions)
+	defer cursor.Close(client.Ctx)
+
 	for {
 		<-ticker.C
-		// Query for documents created or modified after the last poll
-		filter := bson.D{{Key: "timestamp", Value: bson.D{{Key: "$gt", Value: lastPolledDocTS}}}}
 
-		// Sort the documents based on the timestamp field
-		findOptions := options.Find()
-		findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
-
-		cursor, err := collection.Find(client.Ctx, filter, findOptions)
 		if err != nil {
 			err = wsutil.WriteServerText(client.Conn, []byte(fmt.Sprintf("Failed to get db cursor for logs from collection `%s` - %s", client.CollectionName, err)))
 			if err != nil {
@@ -49,7 +52,6 @@ func (client *LogsWSClient) sendLiveLogs() {
 			}
 			continue
 		}
-		defer cursor.Close(client.Ctx)
 
 		var documents []map[string]interface{}
 		if err := cursor.All(client.Ctx, &documents); err != nil {

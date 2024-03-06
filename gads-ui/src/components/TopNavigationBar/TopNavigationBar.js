@@ -16,13 +16,29 @@ export default function NavBar() {
     }
 
     return (
-        <div className='navbar-wrapper'>
-            <nav className="navbar">
-                <StyledNavLink to="/" linkText='Home' />
-                <StyledNavLink to="/devices" linkText='Devices' />
+        <div
+            className='navbar-wrapper'
+        >
+            <img
+                src='./images/no-gads.png'
+                alt='gads-logo'
+                style={{
+                    width: '50px',
+                    marginLeft: '10px'
+                }}
+            ></img>
+            <nav
+                className="navbar"
+            >
+                <StyledNavLink
+                    to="/devices"
+                    linkText='Devices'
+                />
                 {showAdmin && (<StyledNavLink to="/admin" linkText='Admin' />)}
             </nav>
-            <div className="social-buttons-wrapper">
+            <div
+                className="social-buttons-wrapper"
+            >
                 <p>Welcome, {username}</p>
                 <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
@@ -50,24 +66,45 @@ function StyledNavLink({ to, linkText }) {
 
 function GithubButton() {
     return (
-        <a className='github-button' target='_blank' href='https://github.com/shamanec/GADS'>
-            <img src='./images/github.png' alt='github icon' />
+        <a
+            className='github-button'
+            target='_blank'
+            href='https://github.com/shamanec/GADS'
+        >
+            <img
+                src='./images/github.png'
+                alt='github icon'
+            />
         </a>
     )
 }
 
 function DiscordButton() {
     return (
-        <a className='discord-button' target='_blank' href='https://discordapp.com/users/365565274470088704'>
-            <img src='./images/discord.png' alt='discord icon' />
+        <a
+            className='discord-button'
+            target='_blank'
+            href='https://discordapp.com/users/365565274470088704'
+        >
+            <img
+                src='./images/discord.png'
+                alt='discord icon'
+            />
         </a>
     )
 }
 
 function KoFiButton() {
     return (
-        <a className='ko-fi-button' target='_blank' href='https://ko-fi.com/shamanec'>
-            <img src='./images/kofi_s_logo_nolabel.png' alt='kofi icon' />
+        <a
+            className='ko-fi-button'
+            target='_blank'
+            href='https://ko-fi.com/shamanec'
+        >
+            <img
+                src='./images/kofi_s_logo_nolabel.png'
+                alt='kofi icon'
+            />
         </a>
     )
 }
@@ -99,7 +136,10 @@ function LogoutButton() {
             variant="contained"
             type="submit"
             onClick={handleLogout}
-            style={{ marginLeft: "20px", backgroundColor: "#914400" }}
+            style={{
+                marginLeft: "20px",
+                backgroundColor: "#914400"
+            }}
         >Logout</Button>
     )
 }
