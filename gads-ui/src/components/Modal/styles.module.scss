@@ -1,0 +1,132 @@
+.modal {
+    transition: .2s;
+    z-index: 999;
+    position: absolute;
+    overflow-y: hidden !important;
+
+    position: fixed;
+
+    width: 100vw;
+    height: 100vh;
+
+    top: 0;
+    left: 0;
+    
+    background: rgba(52, 64, 84, 0.20);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  
+    display: flex;
+    flex-direction: column;
+  
+    align-items: center;
+    justify-content: center;
+  
+    .modalContent {
+      position: relative;
+      width: 640px;
+      max-width: 1320px;
+      background: var(--gray-900);
+  
+      padding: 12px 14px;
+      border-radius: 8px;
+  
+      border: 1px solid var(--gray-600);
+  
+      display: flex;
+      flex-direction: column;
+  
+      gap: 12px;
+
+      animation: dropTop .2s;
+
+      .header {
+        width: 100%;
+
+        display: flex;
+        flex-direction: row;
+
+        gap: 20px;
+
+        align-items: center;
+
+        padding: 24px 24px 0;
+
+        padding-bottom: 20px;
+
+        border-bottom: 1px solid var(--gray-700);
+
+        .iconContainer {
+          display: flex;
+
+          align-items: center;
+          justify-content: center;
+
+          background: var(--gray-800);
+          border: 1px solid var(--gray-700);
+          border-radius: 16px;
+
+          width: 56px;
+          height: 56px;
+
+          padding: 12px;
+        }
+
+        .textAndSupportingText {
+          display: flex;
+          flex-direction: column;
+
+          gap: 4px;
+
+          h2 {
+            font-size: 18px;
+            height: 600;
+            color: var(--gray-100);
+
+            display: flex;
+            flex-direction: row;
+
+            align-items: center;
+            justify-content: flex-start;
+
+            gap: 12px;
+          }
+
+          span {
+            font-size: 14px;
+            color: var(--gray-500);
+          }
+        }
+      }
+
+      .body {
+        .content {          
+          display: flex;
+          flex-direction: column;
+
+          gap: 20px;
+
+          padding: 20px 24px 0 20px;
+
+          h3 {
+            font-size: 16px;
+            font-weight: 600;
+
+            color: var(--gray-900);
+          }
+        }
+      }
+    }
+}
+
+@keyframes dropTop {
+  0% {
+    transform: translateY(-100%) scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0%) scale(1);
+    opacity: 1;
+  }
+}

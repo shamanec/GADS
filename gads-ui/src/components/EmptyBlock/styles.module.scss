@@ -1,0 +1,116 @@
+.empty {
+    width: 100%;
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 12px;
+
+    border: 1px solid var(--gray-700);
+    border-radius: 8px;
+
+    padding: 40px 32px 48px 32px;
+
+    -webkit-box-shadow: 0px 2px 5px 0px rgba(0,0,0,0.10);
+    -moz-box-shadow: 0px 2px 5px 0px rgba(0,0,0,0.10);
+    box-shadow: 0px 2px 5px 0px rgba(0,0,0,0.10);
+
+    img {
+        width: 160px;
+        opacity: 0.4;
+    }
+
+    h2 {
+        font-size: 16px;
+        font-weight: 600;
+
+        color: var(--gray-900);
+        width: 400px;
+
+        text-align: center;
+    }
+
+    span{
+        color: var(--gray-500);
+        font-size: 14px;
+
+        width: 400px;
+
+        text-align: center;
+    }
+
+    button {
+        margin-top: 24px;
+        background: var(--green-500);
+        border: 1px solid var(--green-480);
+        border-radius: 8px;
+
+        padding: 10px 14px;
+
+        display: flex;
+        flex-direction: row;
+
+        align-items: center;
+        justify-content: center;
+
+        gap: 12px;
+
+        width: 400px;
+
+        span {
+            font-weight: 500;
+            color: var(--white);
+
+            font-size: 16px;
+
+            width: max-content;
+        }
+
+        &:hover {
+            transition: filter .2s;
+            filter: brightness(0.9);
+        }
+    }
+
+    .loadingPanel {
+        width: 100%;
+        height: 150px;
+    
+        &.loading {
+            position: relative;
+    
+            span {
+                visibility: hidden;
+            }
+    
+            &::after {
+                content: "";
+                position: absolute;
+                width: 16px;
+                height: 16px;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                margin: auto;
+                border: 4px solid transparent;
+                border-top-color: var(--green-500);
+                border-radius: 50%;
+                animation: loading-spinner 1s ease infinite;
+            }
+        }
+    }
+}
+
+@keyframes loading-spinner {
+    from {
+      transform: rotate(0turn);
+    }
+  
+    to {
+      transform: rotate(1turn);
+    }
+}
