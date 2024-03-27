@@ -74,9 +74,9 @@ function TablePaginationActions(props) {
 
 export default function AppiumLogsTable({ udid }) {
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
     const [authToken, , , , logout] = useContext(Auth)
     const [logData, setLogData] = useState([])
+    const rowsPerPage = 15
 
     // Avoid a layout jump when reaching the last page with empty rows.
     const emptyRows =
@@ -85,12 +85,6 @@ export default function AppiumLogsTable({ udid }) {
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
     };
-
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
-
 
     function getLogs() {
         const url = `/appium-logs?collection=${udid}`
@@ -115,24 +109,24 @@ export default function AppiumLogsTable({ udid }) {
     }
 
     return (
-        <div style={{width: '1000px'}}>
+        <div style={{width: '1200px', marginTop: '10px'}}>
             <Button
                 onClick={getLogs}
                 id='install-button'
                 variant='contained'
             >GetLogs</Button>
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} style={{marginTop: '10px'}}>
                 <Table sx={{ minWidth: 500 }} size='small' padding='checkbox'>
                     <TableBody>
                         {(rowsPerPage > 0
                                 ? logData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                 : logData
                         ).map((logEntry, index) => (
-                            <TableRow key={index} sx={{height: '30px'}}>
-                                <TableCell style={{ width: 140 }}>
+                            <TableRow key={index}>
+                                <TableCell style={{ width: 80 }} align='center'>
                                     {logEntry.appium_ts}
                                 </TableCell>
-                                <TableCell style={{ width: 200 }} align="left">
+                                <TableCell style={{ width: 200 }}>
                                     {logEntry.log_type}
                                 </TableCell>
                                 <TableCell style={{ width: 660, maxWidth: 660, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -141,7 +135,7 @@ export default function AppiumLogsTable({ udid }) {
                             </TableRow>
                         ))}
                         {emptyRows > 0 && (
-                            <TableRow style={{ height: 53 * emptyRows }}>
+                            <TableRow style={{ height: 40 * emptyRows }}>
                                 <TableCell colSpan={6} />
                             </TableRow>
                         )}
@@ -149,7 +143,7 @@ export default function AppiumLogsTable({ udid }) {
                     <TableFooter>
                         <TableRow>
                             <TablePagination
-                                rowsPerPageOptions={[5, 10, 25, { label: 'All', value: -1 }]}
+                                rowsPerPageOptions={[]}
                                 colSpan={3}
                                 count={logData.length}
                                 rowsPerPage={rowsPerPage}
@@ -163,7 +157,6 @@ export default function AppiumLogsTable({ udid }) {
                                     },
                                 }}
                                 onPageChange={handleChangePage}
-                                onRowsPerPageChange={handleChangeRowsPerPage}
                                 ActionsComponent={TablePaginationActions}
                             />
                         </TableRow>
