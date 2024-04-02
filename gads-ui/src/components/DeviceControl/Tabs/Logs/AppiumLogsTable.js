@@ -114,7 +114,7 @@ export default function AppiumLogsTable({ udid }) {
                 onClick={getLogs}
                 id='install-button'
                 variant='contained'
-            >GetLogs</Button>
+            >Get Logs</Button>
             <TableContainer component={Paper} style={{marginTop: '10px'}}>
                 <Table sx={{ minWidth: 500 }} size='small' padding='checkbox'>
                     <TableBody>
