@@ -34,27 +34,27 @@ export default function StreamCanvas({ deviceData }) {
         }
 
         if (deviceData.os === 'ios') {
-            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/ios-stream`);
+            let imgElement = document.getElementById('image-stream')
+            imgElement.src = `http://${window.location.host}/device/${deviceData.udid}/ios-stream-mjpeg`
         } else {
             streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/android-stream`);
-        }
 
-        let imgElement = document.getElementById('image-stream')
-        streamSocket.onmessage = (message) => {
-            streamSocket.onmessage = function (event) {
-                const imageURL = URL.createObjectURL(event.data);
-                imgElement.src = imageURL
+            let imgElement = document.getElementById('image-stream')
+            streamSocket.onmessage = (message) => {
+                streamSocket.onmessage = function (event) {
+                    const imageURL = URL.createObjectURL(event.data);
+                    imgElement.src = imageURL
 
-                imgElement.onload = () => {
-                    URL.revokeObjectURL(imageURL);
-                };
+                    imgElement.onload = () => {
+                        URL.revokeObjectURL(imageURL);
+                    };
+                }
             }
         }
 
         // If component unmounts close the websocket connection
         return () => {
             if (streamSocket) {
-                console.log('stream unmounted')
                 streamSocket.close()
             }
         }
