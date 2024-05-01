@@ -27,38 +27,28 @@ export default function StreamCanvas({ deviceData }) {
         canvasWidth: canvasWidth
     }
 
-    let streamSocket = null;
-    useEffect(() => {
-        if (streamSocket) {
-            streamSocket.close()
-        }
+    let streamUrl = ""
+    if (deviceData.os === 'ios') {
+        streamUrl = `http://${window.location.host}/device/${deviceData.udid}/ios-stream-mjpeg`
+    } else {
+        streamUrl = `http://${window.location.host}/device/${deviceData.udid}/android-stream-mjpeg`
+    }
 
-        if (deviceData.os === 'ios') {
-            let imgElement = document.getElementById('image-stream')
-            imgElement.src = `http://${window.location.host}/device/${deviceData.udid}/ios-stream-mjpeg`
-        } else {
-            streamSocket = new WebSocket(`ws://${window.location.host}/device/${deviceData.udid}/android-stream`);
-
-            let imgElement = document.getElementById('image-stream')
-            streamSocket.onmessage = (message) => {
-                streamSocket.onmessage = function (event) {
-                    const imageURL = URL.createObjectURL(event.data);
-                    imgElement.src = imageURL
-
-                    imgElement.onload = () => {
-                        URL.revokeObjectURL(imageURL);
-                    };
-                }
-            }
-        }
-
-        // If component unmounts close the websocket connection
-        return () => {
-            if (streamSocket) {
-                streamSocket.close()
-            }
-        }
-    }, [])
+    // useEffect(() => {
+    //
+    //     if (deviceData.os === 'ios') {
+    //         let imgElement = document.getElementById('image-stream')
+    //         imgElement.src = `http://${window.location.host}/device/${deviceData.udid}/ios-stream-mjpeg`
+    //     } else {
+    //         let imgElement = document.getElementById('image-stream')
+    //         imgElement.src = `http://${window.location.host}/device/${deviceData.udid}/android-stream-mjpeg`
+    //     }
+    //
+    //     // If component unmounts close the websocket connection
+    //     return () => {
+    //
+    //     }
+    // }, [])
 
     return (
         <div
@@ -86,6 +76,7 @@ export default function StreamCanvas({ deviceData }) {
                 <Stream
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
+                    streamUrl={streamUrl}
                 ></Stream>
             </div>
             <Divider></Divider>
@@ -182,13 +173,14 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
     )
 }
 
-function Stream({ canvasWidth, canvasHeight }) {
+function Stream({ canvasWidth, canvasHeight, streamUrl }) {
     return (
         <img
             id="image-stream"
             width={canvasWidth + 'px'}
             height={canvasHeight + 'px'}
             style={{ display: 'block' }}
+            src={streamUrl}
         ></img>
     )
 }
