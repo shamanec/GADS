@@ -3,6 +3,7 @@ import { Tabs, Tab } from "@mui/material"
 import { useState } from "react"
 import Screenshot from "./Screenshot/Screenshot"
 import Actions from "./Actions/Actions"
+import AppiumLogsTable from "./Logs/AppiumLogsTable";
 
 export default function TabularControl({ deviceData }) {
     const udid = deviceData.udid
@@ -42,9 +43,14 @@ export default function TabularControl({ deviceData }) {
                     className='control-tabs'
                     label='Screenshot'
                 />
+                <Tab
+                    className='control-tabs'
+                    label='Appium Logs'
+                />
             </Tabs>
             {currentTabIndex === 1 && <Screenshot udid={udid} />}
             {currentTabIndex === 0 && <Actions deviceData={deviceData} />}
+            {currentTabIndex === 2 && <AppiumLogsTable udid={udid} />}
         </Box >
     )
 }
