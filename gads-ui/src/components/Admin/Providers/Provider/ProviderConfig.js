@@ -19,6 +19,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
             setSupervisionPassword(data.supervision_password)
             setButtonText('Update')
             setUrlPath('update')
+            setUseCustomWda(data.use_custom_wda)
         }
     }, [data])
     // Main
@@ -41,6 +42,8 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
     const [seleniumGrid, setSeleniumGrid] = useState('')
     // Supervision password
     const [supervisionPassword, setSupervisionPassword] = useState('')
+    // Custom WebDriverAgent
+    const [useCustomWda, setUseCustomWda] = useState(false)
     // WebDriverAgent bundle id
     const [wdaBundleId, setWdaBundleId] = useState('')
     // WebDriverAgent repo path - MacOS
@@ -66,6 +69,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
         setSupervisionPassword('')
         setWdaBundleId('')
         setWdaRepoPath('')
+        setUseCustomWda(false)
     }
 
     // On pressing Add/Update
@@ -115,6 +119,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
             body.wda_bundle_id = wdaBundleId
             body.wda_repo_path = wdaRepoPath
             body.supervision_password = supervisionPassword
+            body.use_custom_wda = useCustomWda
         }
         body.use_selenium_grid = useSeleniumGrid
         if (useSeleniumGrid) {
@@ -278,7 +283,20 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         size='small'
                         fullWidth
                     />
-                    <div style={{ fontWeight: '500' }}>Use Selenium Grid?</div>
+                    <div style={{fontWeight: '500'}}>Use custom WebDriverAgent?</div>
+                    <Select
+                        defaultValue={false}
+                        value={useCustomWda}
+                        onChange={(event) => setUseCustomWda(event.target.value)}
+                        style={{
+                            width: '100%',
+                            height: '40px'
+                        }}
+                    >
+                        <MenuItem value={true}>Yes</MenuItem>
+                        <MenuItem value={false}>No</MenuItem>
+                    </Select>
+                    <div style={{fontWeight: '500'}}>Use Selenium Grid?</div>
                     <Select
                         // defaultValue={useSeleniumGrid}
                         value={useSeleniumGrid}
