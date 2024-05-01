@@ -5,9 +5,12 @@ import (
 	"GADS/util"
 	"encoding/json"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"io"
 	"net/http"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +21,86 @@ import (
 
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+}
+
+type AppiumLog struct {
+	TS        int64  `json:"ts" bson:"ts"`
+	Message   string `json:"msg" bson:"msg"`
+	AppiumTS  string `json:"appium_ts" bson:"appium_ts"`
+	LogType   string `json:"log_type" bson:"log_type"`
+	SessionID string `json:"session_id" bson:"session_id"`
+}
+
+func GetAppiumLogs(c *gin.Context) {
+	logLimit, _ := strconv.Atoi(c.DefaultQuery("logLimit", "100"))
+	if logLimit > 1000 {
+		logLimit = 1000
+	}
+
+	collectionName := c.DefaultQuery("collection", "")
+	if collectionName == "" {
+		BadRequest(c, "Empty collection name provided")
+		return
+	}
+
+	var logs []AppiumLog
+
+	collection := util.MongoClient().Database("appium_logs").Collection(collectionName)
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
+	findOptions.SetLimit(int64(logLimit))
+
+	cursor, err := collection.Find(util.MongoClientCtx(), bson.D{{}}, findOptions)
+	if err != nil {
+		InternalServerError(c, "Failed to get cursor for collection")
+	}
+	defer cursor.Close(util.MongoClientCtx())
+
+	if err := cursor.All(util.MongoClientCtx(), &logs); err != nil {
+		InternalServerError(c, "Failed to read data from cursor")
+	}
+	if err := cursor.Err(); err != nil {
+		InternalServerError(c, "Cursor error")
+	}
+
+	c.JSON(200, logs)
+}
+
+func GetAppiumSessionLogs(c *gin.Context) {
+	var logs []AppiumLog
+
+	collectionName := c.DefaultQuery("collection", "")
+	if collectionName == "" {
+		BadRequest(c, "Empty collection name provided")
+		return
+	}
+
+	sessionID := c.DefaultQuery("session", "")
+	if sessionID == "" {
+		BadRequest(c, "Empty Appium session ID provided")
+		return
+	}
+
+	collection := util.MongoClient().Database("appium_logs").Collection(collectionName)
+
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
+	filter := bson.D{{"session_id", sessionID}}
+
+	cursor, err := collection.Find(util.MongoClientCtx(), filter, findOptions)
+	if err != nil {
+		InternalServerError(c, "Failed to get cursor for collection")
+	}
+	defer cursor.Close(util.MongoClientCtx())
+
+	if err := cursor.All(util.MongoClientCtx(), &logs); err != nil {
+		InternalServerError(c, "Failed to read data from cursor")
+	}
+	if err := cursor.Err(); err != nil {
+		InternalServerError(c, "Cursor error")
+	}
+
+	c.JSON(200, logs)
 }
 
 func AddUser(c *gin.Context) {

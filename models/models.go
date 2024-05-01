@@ -41,6 +41,7 @@ type ProviderDB struct {
 	ConnectedDevices     []ConnectedDevice `json:"connected_devices" bson:"connected_devices"`
 	LastUpdatedTimestamp int64             `json:"last_updated" bson:"last_updated"`
 	ProvidedDevices      []Device          `json:"provided_devices" bson:"provided_devices"`
+	UseCustomWda         bool              `json:"use_custom_wda" bson:"use_custom_wda"`
 }
 
 type ConnectedDevice struct {

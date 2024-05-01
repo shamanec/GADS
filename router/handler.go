@@ -42,6 +42,8 @@ func HandleRequests(authentication bool) *gin.Engine {
 	if authentication {
 		authGroup.Use(auth.AuthMiddleware())
 	}
+	authGroup.GET("/appium-logs", GetAppiumLogs)
+	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
 	authGroup.POST("/logout", auth.LogoutHandler)
