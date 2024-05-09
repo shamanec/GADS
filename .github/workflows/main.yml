@@ -26,7 +26,7 @@ jobs:
       - name: Build
         run: |
           cd gads-ui && npm install && npm run build
-          go get .
+          go get
           GOOS=windows GOARCH=amd64 go build -o GADS-x86_64.exe .
           GOOS=darwin GOARCH=amd64 go build -o GADS-darwin-amd .
           GOOS=darwin GOARCH=arm64 go build -o GADS-darwin-arm .
