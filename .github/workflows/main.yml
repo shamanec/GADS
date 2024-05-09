@@ -32,14 +32,22 @@ jobs:
       - name: Build binaries
         run: |
           go get
-          GOOS=windows GOARCH=amd64 go build -o GADS-x86_64.exe .
-          GOOS=darwin GOARCH=amd64 go build -o GADS-darwin-amd .
-          GOOS=darwin GOARCH=arm64 go build -o GADS-darwin-arm .
-          GOOS=linux GOARCH=amd64 go build -o GADS-linux .
-          zip -j gads-win.zip GADS-x86_64.exe
-          zip -j gads-mac-amd64.zip GADS-darwin-amd
-          zip -j gads-mac-arm64.zip GADS-darwin-arm
-          zip -j gads-linux.zip GADS-linux
+          echo "Preparing Windows binary"
+          GOOS=windows GOARCH=amd64 go build -o GADS.exe .
+          zip -j gads-win.zip GADS.exe
+          rm GADS.exe
+          echo "Preparing macOS amd64 binary"
+          GOOS=darwin GOARCH=amd64 go build -o GADS .
+          zip -j gads-mac-amd64.zip GADS
+          rm GADS
+          echo "Preparing macOS arm64 binary"
+          GOOS=darwin GOARCH=arm64 go build -o GADS .
+          zip -j gads-mac-arm64.zip GADS
+          rm GADS
+          echo "Preparing Linux binary"
+          GOOS=linux GOARCH=amd64 go build -o GADS .
+          zip -j gads-linux.zip GADS
+          rm GADS
 
       - uses: AButler/upload-release-assets@v2.0
         with:
