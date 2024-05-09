@@ -41,7 +41,8 @@ jobs:
           zip -j gads-mac-arm64.zip GADS-darwin-arm
           zip -j gads-linux.zip GADS-linux
 
-      - uses: AButler/upload-release-assets@v3.0
+      - uses: AButler/upload-release-assets@v2.0
         with:
           files: '*.zip'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ env.release_tag }}
