@@ -21,11 +21,16 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '18'
 
-      - name: Build
+      - name: Build UI static files
         run: |
-          cd gads-ui && npm install && npm run build --verbose
+          cd gads-ui
+          npm install
+          npm run build --verbose
+
+      - name: Build binaries
+        run: |
           go get
           GOOS=windows GOARCH=amd64 go build -o GADS-x86_64.exe .
           GOOS=darwin GOARCH=amd64 go build -o GADS-darwin-amd .
