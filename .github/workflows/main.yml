@@ -24,6 +24,8 @@ jobs:
           node-version: '18'
 
       - name: Build UI static files
+        env:
+          CI: false
         run: |
           cd gads-ui && npm ci && npm run build --verbose
 
