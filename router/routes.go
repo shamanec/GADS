@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -297,12 +295,17 @@ func UpdateProvider(c *gin.Context) {
 	OK(c, "Provider updated successfully")
 }
 
-func ProviderInfoWS(c *gin.Context) {
+func ProviderInfoSSE(c *gin.Context) {
+	// Ensure the headers are correctly set for SSE
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.WriteHeader(http.StatusOK)
+
+	// Flush the headers to establish an SSE connection
+	c.Writer.Flush()
+
 	nickname := c.Param("nickname")
-	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
-	if err != nil {
-		fmt.Println(err)
-	}
 
 	for {
 		providerData, _ := util.GetProviderFromDB(nickname)
@@ -314,13 +317,16 @@ func ProviderInfoWS(c *gin.Context) {
 			}
 		}
 
-		jsonData, _ := json.Marshal(&providerData)
-
-		err = wsutil.WriteServerText(conn, jsonData)
+		jsonData, err := json.Marshal(&providerData)
 		if err != nil {
-			conn.Close()
-			return
+			c.Writer.Write([]byte("data: error\n\n"))
+		} else {
+			_, err := fmt.Fprintf(c.Writer, "data: %s\n\n", string(jsonData))
+			if err != nil {
+				return
+			}
 		}
+		c.Writer.Flush()
 
 		time.Sleep(1 * time.Second)
 	}

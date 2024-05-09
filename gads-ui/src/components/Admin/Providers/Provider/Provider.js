@@ -47,25 +47,10 @@ function LiveProviderBox({ nickname, os }) {
     const [providerData, setProviderData] = useState(null)
 
     useEffect(() => {
-        console.log('inside use effect')
-        if (infoSocket) {
-            infoSocket.close()
-        }
-        infoSocket = new WebSocket(`ws://${window.location.host}/admin/provider/${nickname}/info-ws`);
+        const evtSource = new EventSource(`/admin/provider/${nickname}/info`);
 
-        infoSocket.onerror = (error) => {
-            setIsOnline(false)
-            setIsLoading(false)
-        };
-
-        infoSocket.onclose = () => {
-            setIsOnline(false)
-            setIsLoading(false)
-        }
-
-        infoSocket.onmessage = (message) => {
-
-            let providerJSON = JSON.parse(message.data)
+        evtSource.onmessage = (event) => {
+            let providerJSON = JSON.parse(event.data)
             setProviderData(providerJSON)
             setDevicesData(providerJSON.provided_devices)
 
@@ -83,9 +68,7 @@ function LiveProviderBox({ nickname, os }) {
         }
 
         return () => {
-            if (infoSocket) {
-                infoSocket.close()
-            }
+            evtSource.close()
         }
     }, [])
 
@@ -146,7 +129,6 @@ function ProviderDevices({ devicesData, isOnline }) {
                         overflowY: 'scroll',
                         backgroundColor: '#E0D8C0',
                         borderRadius: '5px',
-                        overflowY: 'scroll',
                         marginTop: '10px'
                     }}
                 >

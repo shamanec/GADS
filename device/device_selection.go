@@ -5,43 +5,53 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 )
 
 var clients = make(map[net.Conn]bool)
 var mu sync.Mutex
 
-func AvailableDeviceWS(c *gin.Context) {
-	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
-	if err != nil {
-		fmt.Println(err)
-	}
-	jsonData, _ := json.Marshal(&latestDevices)
+func AvailableDeviceSSE(c *gin.Context) {
+	// Ensure the headers are correctly set for SSE
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.WriteHeader(http.StatusOK)
 
-	for _, device := range latestDevices {
-		if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
-			device.Available = true
-			continue
+	// Flush the headers to establish an SSE connection
+	c.Writer.Flush()
+
+	for {
+		jsonData, err := json.Marshal(&latestDevices)
+
+		if err != nil {
+			_, err = c.Writer.Write([]byte("data: error\n\n"))
+			if err != nil {
+				return
+			}
+		} else {
+			for _, device := range latestDevices {
+				if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
+					device.Available = true
+					continue
+				}
+				device.Available = false
+			}
+
+			_, err := fmt.Fprintf(c.Writer, "data: %s\n\n", string(jsonData))
+			if err != nil {
+				return
+			}
 		}
-		device.Available = false
-	}
+		c.Writer.Flush()
 
-	err = wsutil.WriteServerText(conn, jsonData)
-	if err != nil {
-		conn.Close()
-		return
+		time.Sleep(1 * time.Second)
 	}
-
-	// Add the new conn to clients map
-	mu.Lock()
-	clients[conn] = true
-	mu.Unlock()
-	go monitorConnClose(conn)
 }
 
 // Wait to receive a message on the connection.

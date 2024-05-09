@@ -64,26 +64,19 @@ export default function DeviceSelection() {
     useEffect(() => {
         CheckServerHealth()
 
-        if (devicesSocket) {
-            devicesSocket.close()
-        }
-        let url = `ws://${window.location.host}/available-devices`
-        devicesSocket = new WebSocket(url);
+        const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
+        // const evtSource = new EventSource(`/available-devices`);
 
-        devicesSocket.onmessage = (message) => {
+        evtSource.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
             setDevices(devicesJson);
         }
 
-        devicesSocket.onerror = () => {
-            console.log('some error')
-        }
-
         // If component unmounts close the websocket connection
         return () => {
-            if (devicesSocket) {
+            if (evtSource) {
                 console.log('component unmounted')
-                devicesSocket.close()
+                evtSource.close()
             }
         }
     }, [])
