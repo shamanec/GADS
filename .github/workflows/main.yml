@@ -25,9 +25,7 @@ jobs:
 
       - name: Build UI static files
         run: |
-          cd gads-ui
-          npm install
-          npm run build --verbose
+          cd gads-ui && npm ci && npm run build --verbose
 
       - name: Build binaries
         run: |
