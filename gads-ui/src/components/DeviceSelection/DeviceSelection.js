@@ -64,6 +64,7 @@ export default function DeviceSelection() {
     useEffect(() => {
         CheckServerHealth()
 
+        // Use specific full address for local development, proxy does not seem to work okay
         const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
         // const evtSource = new EventSource(`/available-devices`);
 

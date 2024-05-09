@@ -296,18 +296,9 @@ func UpdateProvider(c *gin.Context) {
 }
 
 func ProviderInfoSSE(c *gin.Context) {
-	// Ensure the headers are correctly set for SSE
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.WriteHeader(http.StatusOK)
-
-	// Flush the headers to establish an SSE connection
-	c.Writer.Flush()
-
 	nickname := c.Param("nickname")
 
-	for {
+	c.Stream(func(w io.Writer) bool {
 		providerData, _ := util.GetProviderFromDB(nickname)
 		dbDevices := util.GetDBDevicesUDIDs()
 
@@ -317,19 +308,13 @@ func ProviderInfoSSE(c *gin.Context) {
 			}
 		}
 
-		jsonData, err := json.Marshal(&providerData)
-		if err != nil {
-			c.Writer.Write([]byte("data: error\n\n"))
-		} else {
-			_, err := fmt.Fprintf(c.Writer, "data: %s\n\n", string(jsonData))
-			if err != nil {
-				return
-			}
-		}
-		c.Writer.Flush()
+		jsonData, _ := json.Marshal(&providerData)
 
+		c.SSEvent("", string(jsonData))
+		c.Writer.Flush()
 		time.Sleep(1 * time.Second)
-	}
+		return true
+	})
 }
 
 func AddNewDevice(c *gin.Context) {

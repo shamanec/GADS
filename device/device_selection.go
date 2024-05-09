@@ -2,10 +2,8 @@ package device
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"sync"
 	"time"
 
@@ -17,41 +15,13 @@ var clients = make(map[net.Conn]bool)
 var mu sync.Mutex
 
 func AvailableDeviceSSE(c *gin.Context) {
-	// Ensure the headers are correctly set for SSE
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.WriteHeader(http.StatusOK)
-
-	// Flush the headers to establish an SSE connection
-	c.Writer.Flush()
-
-	for {
-		jsonData, err := json.Marshal(&latestDevices)
-
-		if err != nil {
-			_, err = c.Writer.Write([]byte("data: error\n\n"))
-			if err != nil {
-				return
-			}
-		} else {
-			for _, device := range latestDevices {
-				if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
-					device.Available = true
-					continue
-				}
-				device.Available = false
-			}
-
-			_, err := fmt.Fprintf(c.Writer, "data: %s\n\n", string(jsonData))
-			if err != nil {
-				return
-			}
-		}
+	c.Stream(func(w io.Writer) bool {
+		jsonData, _ := json.Marshal(&latestDevices)
+		c.SSEvent("", string(jsonData))
 		c.Writer.Flush()
-
 		time.Sleep(1 * time.Second)
-	}
+		return true
+	})
 }
 
 // Wait to receive a message on the connection.

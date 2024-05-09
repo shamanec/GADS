@@ -47,7 +47,9 @@ function LiveProviderBox({ nickname, os }) {
     const [providerData, setProviderData] = useState(null)
 
     useEffect(() => {
-        const evtSource = new EventSource(`/admin/provider/${nickname}/info`);
+        // Use specific full address for local development, proxy does not seem to work okay
+        const evtSource = new EventSource(`http://192.168.1.6:10000/admin/provider/${nickname}/info`);
+        // const evtSource = new EventSource(`/admin/provider/${nickname}/info`);
 
         evtSource.onmessage = (event) => {
             let providerJSON = JSON.parse(event.data)
