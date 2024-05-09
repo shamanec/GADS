@@ -45,3 +45,4 @@ jobs:
         with:
           files: '*.zip'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ env.release_tag }}
