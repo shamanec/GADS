@@ -90,10 +90,6 @@ func main() {
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
 
-	// Start a goroutine that will get latest devices data from DB and sends it to all connected clients
-	// This creates near real-time updates of the device selection
-	go device.GetDevices()
-
 	defer util.MongoClientCtxCancel()
 
 	setLogging()

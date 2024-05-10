@@ -39,18 +39,23 @@ export default function DeviceControl() {
                 return
             });
 
-        if (in_use_socket) {
-            in_use_socket.close()
-        }
-        let socketUrl = `ws://${window.location.host}/devices/control/${id}/in-use`
-        in_use_socket = new WebSocket(socketUrl);
-        if (in_use_socket.readyState === WebSocket.OPEN) {
-            in_use_socket.send('ping');
-        }
-        const pingInterval = setInterval(() => {
-            if (in_use_socket.readyState === WebSocket.OPEN) {
-                in_use_socket.send('ping');
-            }
+        const inUseInterval = setInterval(() => {
+            let inUseUrl = `/devices/control/${id}/in-use`
+            axios.post(inUseUrl, {
+                headers: {
+                    'X-Auth-Token': authToken
+                }
+            })
+                .catch(error => {
+                    if (error.response) {
+                        if (error.response.status === 401) {
+                            logout()
+                            return
+                        }
+                    }
+                    console.log('Failed setting the device being in use' + error)
+                    navigate('/devices');
+                });
         }, 1000);
 
         setInterval(() => {
@@ -58,11 +63,7 @@ export default function DeviceControl() {
         }, 2000);
 
         return () => {
-            if (in_use_socket) {
-                console.log('component unmounted, clearing itnerval and closing socket')
-                clearInterval(pingInterval)
-                in_use_socket.close()
-            }
+            clearInterval(inUseInterval)
         }
 
     }, [])
