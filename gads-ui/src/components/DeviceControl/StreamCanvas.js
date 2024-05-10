@@ -1,4 +1,3 @@
-import { useEffect } from "react"
 import { Auth } from "../../contexts/Auth"
 import { useContext } from "react"
 import './StreamCanvas.css'
@@ -29,26 +28,10 @@ export default function StreamCanvas({ deviceData }) {
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
-        streamUrl = `http://${window.location.host}/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        streamUrl = `http://${window.location.host}/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
-
-    // useEffect(() => {
-    //
-    //     if (deviceData.os === 'ios') {
-    //         let imgElement = document.getElementById('image-stream')
-    //         imgElement.src = `http://${window.location.host}/device/${deviceData.udid}/ios-stream-mjpeg`
-    //     } else {
-    //         let imgElement = document.getElementById('image-stream')
-    //         imgElement.src = `http://${window.location.host}/device/${deviceData.udid}/android-stream-mjpeg`
-    //     }
-    //
-    //     // If component unmounts close the websocket connection
-    //     return () => {
-    //
-    //     }
-    // }, [])
 
     return (
         <div

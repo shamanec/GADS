@@ -104,6 +104,7 @@ func main() {
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.HostAddress, util.ConfigData.Port)
+	//err = r.RunTLS(address, "./server.crt", "./server.key")
 	err = r.Run(address)
 	if err != nil {
 		log.Fatalf("Gin Run failed - %s", err)
