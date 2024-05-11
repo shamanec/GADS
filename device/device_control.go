@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 )
 
 var netClient = &http.Client{
@@ -107,51 +105,14 @@ func calculateCanvasDimensions(device *models.Device) (canvasWidth string, canva
 	return
 }
 
-func DeviceInUseWS(c *gin.Context) {
+func DeviceInUse(c *gin.Context) {
 	udid := c.Param("udid")
 	device := getDBDevice(udid)
+
 	var mu sync.Mutex
+	mu.Lock()
+	defer mu.Unlock()
 
-	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer conn.Close()
-
-	messageReceived := make(chan struct{})
-	defer close(messageReceived)
-
-	go func() {
-		for {
-			data, code, err := wsutil.ReadClientData(conn)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-			if code == 8 {
-				close(messageReceived)
-				return
-			}
-
-			if string(data) == "ping" {
-				messageReceived <- struct{}{}
-			}
-		}
-	}()
-
-	for {
-		select {
-		case <-messageReceived:
-			mu.Lock()
-			device.InUse = true
-			mu.Unlock()
-		case <-time.After(2 * time.Second):
-			mu.Lock()
-			device.InUse = false
-			mu.Unlock()
-			return
-		}
-	}
+	device.InUseLastTS = time.Now().UnixMilli()
+	c.String(200, "")
 }

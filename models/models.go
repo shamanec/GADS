@@ -18,6 +18,7 @@ type Device struct {
 	Image                string `json:"image,omitempty" bson:"image,omitempty"`
 	Host                 string `json:"host" bson:"host"`
 	InUse                bool   `json:"in_use"`
+	InUseLastTS          int64  `json:"last_used_ts"`
 	ScreenWidth          string `json:"screen_width" bson:"screen_width"`
 	ScreenHeight         string `json:"screen_height" bson:"screen_height"`
 	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"last_updated_timestamp"`

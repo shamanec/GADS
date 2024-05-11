@@ -91,6 +91,8 @@ func ProviderProxyHandler(c *gin.Context) {
 		},
 	}
 
+	c.Writer.Flush()
+
 	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
 	proxy.ServeHTTP(c.Writer, c.Request)
 }

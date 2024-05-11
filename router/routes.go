@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -297,14 +295,10 @@ func UpdateProvider(c *gin.Context) {
 	OK(c, "Provider updated successfully")
 }
 
-func ProviderInfoWS(c *gin.Context) {
+func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
-	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
-	if err != nil {
-		fmt.Println(err)
-	}
 
-	for {
+	c.Stream(func(w io.Writer) bool {
 		providerData, _ := util.GetProviderFromDB(nickname)
 		dbDevices := util.GetDBDevicesUDIDs()
 
@@ -316,14 +310,11 @@ func ProviderInfoWS(c *gin.Context) {
 
 		jsonData, _ := json.Marshal(&providerData)
 
-		err = wsutil.WriteServerText(conn, jsonData)
-		if err != nil {
-			conn.Close()
-			return
-		}
-
+		c.SSEvent("", string(jsonData))
+		c.Writer.Flush()
 		time.Sleep(1 * time.Second)
-	}
+		return true
+	})
 }
 
 func AddNewDevice(c *gin.Context) {

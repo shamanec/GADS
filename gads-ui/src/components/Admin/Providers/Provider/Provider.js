@@ -47,25 +47,12 @@ function LiveProviderBox({ nickname, os }) {
     const [providerData, setProviderData] = useState(null)
 
     useEffect(() => {
-        console.log('inside use effect')
-        if (infoSocket) {
-            infoSocket.close()
-        }
-        infoSocket = new WebSocket(`ws://${window.location.host}/admin/provider/${nickname}/info-ws`);
+        // Use specific full address for local development, proxy does not seem to work okay
+        // const evtSource = new EventSource(`http://192.168.1.6:10000/admin/provider/${nickname}/info`);
+        const evtSource = new EventSource(`/admin/provider/${nickname}/info`);
 
-        infoSocket.onerror = (error) => {
-            setIsOnline(false)
-            setIsLoading(false)
-        };
-
-        infoSocket.onclose = () => {
-            setIsOnline(false)
-            setIsLoading(false)
-        }
-
-        infoSocket.onmessage = (message) => {
-
-            let providerJSON = JSON.parse(message.data)
+        evtSource.onmessage = (event) => {
+            let providerJSON = JSON.parse(event.data)
             setProviderData(providerJSON)
             setDevicesData(providerJSON.provided_devices)
 
@@ -83,9 +70,7 @@ function LiveProviderBox({ nickname, os }) {
         }
 
         return () => {
-            if (infoSocket) {
-                infoSocket.close()
-            }
+            evtSource.close()
         }
     }, [])
 
@@ -146,7 +131,6 @@ function ProviderDevices({ devicesData, isOnline }) {
                         overflowY: 'scroll',
                         backgroundColor: '#E0D8C0',
                         borderRadius: '5px',
-                        overflowY: 'scroll',
                         marginTop: '10px'
                     }}
                 >

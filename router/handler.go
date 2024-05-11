@@ -34,10 +34,9 @@ func HandleRequests(authentication bool) *gin.Engine {
 	// Unauthenticated endpoints
 	authGroup.POST("/authenticate", auth.LoginHandler)
 	// websockets - unauthenticated
-	authGroup.GET("/logs-ws", util.LogsWS)
-	authGroup.GET("/available-devices", device.AvailableDeviceWS)
-	authGroup.GET("/devices/control/:udid/in-use", device.DeviceInUseWS)
-	authGroup.GET("/admin/provider/:nickname/info-ws", ProviderInfoWS)
+	authGroup.GET("/available-devices", device.AvailableDevicesSSE)
+	authGroup.POST("/devices/control/:udid/in-use", device.DeviceInUse)
+	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	// Enable authentication on the endpoints below
 	if authentication {
 		authGroup.Use(auth.AuthMiddleware())
