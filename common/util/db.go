@@ -55,7 +55,6 @@ func MongoClientCtxCancel() context.CancelFunc {
 
 // Periodically check the MongoDB connection and attempt to create a new client if connection is lost
 func checkDBConnection() {
-	log.Info("Starting to periodically check MongoDB connection!")
 	errorCounter := 0
 	for {
 		if errorCounter < 10 {

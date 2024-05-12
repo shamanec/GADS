@@ -6,9 +6,9 @@ import (
 	"GADS/hub/device"
 	"GADS/hub/router"
 	"embed"
-	"flag"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -27,54 +27,54 @@ func setLogging() {
 //go:embed gads-ui/build
 var uiFiles embed.FS
 
-func StartHub() {
-	authFlag := flag.Bool("auth", false, "If authentication should be turned on")
-	hostAddress := flag.String("host-address", "localhost", "The IP address of the host machine, defaults to `localhost`")
-	port := flag.String("port", "10000", "The port on which the UI should be accessed")
-	mongoDB := flag.String("mongo-db", "localhost:27017", "The address of the MongoDB instance")
-	adminUser := flag.String("admin-username", "admin", "Username for the default admin user")
-	adminPassword := flag.String("admin-password", "password", "Password for the default admin user")
-	adminEmail := flag.String("admin-email", "admin@gads.ui", "Email for the default admin user")
-	uiFilesDir := flag.String("ui-files-dir", "",
-		"Directory where the UI static files will be unpacked and served from."+
-			"\nBy default app will try to use a temp dir on the host, use this flag only if you encounter issues with the temp folder."+
-			"\nAlso you need to have created the folder in advance!")
-	flag.Parse()
+func StartHub(flags *pflag.FlagSet) {
+	port, _ := flags.GetString("port")
+	if port == "" {
+		log.Fatalf("Please provide a port on which the hub instance should run through the --port flag, e.g. --port=10000")
+	}
+	hostAddress, _ := flags.GetString("host-address")
+	fmt.Printf("UI accessible on http://%s:%v. You can change the address and port with the --host-address and --port flags\n", hostAddress, port)
 
+	mongoDB, _ := flags.GetString("mongo-db")
+	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", mongoDB)
+
+	auth, _ := flags.GetBool("auth")
+	fmt.Printf("Authentication enabled: %v\n", auth)
+
+	adminUsername, _ := flags.GetString("admin-username")
+	adminPassword, _ := flags.GetString("admin-password")
+	adminEmail, _ := flags.GetString("admin-email")
+	fmt.Println("Adding admin user with:")
+	fmt.Printf(" Name: %s. You can change the name with the --admin-username flag\n", adminUsername)
+	fmt.Printf(" Password: %s. You can change the password with the --admin-password flag\n", adminPassword)
+	fmt.Printf(" Email: %s. You can change the email with the --admin-email flag\n", adminEmail)
+
+	uiFilesDir, _ := flags.GetString("ui-files-dir")
 	osTempDir := os.TempDir()
 	var uiFilesTempDir string
 	// If a specific folder is provided, unpack the UI files there
-	if *uiFilesDir != "" {
-		_, err := os.Stat(*uiFilesDir)
+	if uiFilesDir != "" {
+		_, err := os.Stat(uiFilesDir)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Fatalf("The provided ui-files-dir `%s` does not exist - %s", *uiFilesDir, err)
+				log.Fatalf("The provided ui-files-dir `%s` does not exist - %s", uiFilesDir, err)
 			}
-			log.Fatalf("Could not check if the provided ui-files-dir `%s` exists - %s", *uiFilesDir, err)
+			log.Fatalf("Could not check if the provided ui-files-dir `%s` exists - %s", uiFilesDir, err)
 		}
-		uiFilesTempDir = filepath.Join(*uiFilesDir, "gads-ui")
+		uiFilesTempDir = filepath.Join(uiFilesDir, "gads-ui")
 	} else {
 		// If no folder is specified, use a temporary directory on the host
 		uiFilesTempDir = filepath.Join(osTempDir, "gads-ui")
 	}
-
-	// Print out some useful information
-	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", *mongoDB)
-	fmt.Printf("Authentication enabled: %v\n", *authFlag)
-	fmt.Printf("UI accessible on http://%s:%v. You can change the address and port with the --host-address and --port flags\n", *hostAddress, *port)
-	fmt.Println("Adding admin user with:")
-	fmt.Printf(" Name: %s. You can change the name with the --admin-username flag\n", *adminUser)
-	fmt.Printf(" Password: %s. You can change the password with the --admin-password flag\n", *adminPassword)
-	fmt.Printf(" Email: %s. You can change the email with the --admin-email flag\n", *adminEmail)
 	fmt.Printf("UI static files will be unpacked in `%s`\n", uiFilesTempDir)
 
 	config := util.ConfigJsonData{
-		HostAddress:    *hostAddress,
-		Port:           *port,
-		MongoDB:        *mongoDB,
-		AdminUsername:  *adminUser,
-		AdminEmail:     *adminEmail,
-		AdminPassword:  *adminPassword,
+		HostAddress:    hostAddress,
+		Port:           port,
+		MongoDB:        mongoDB,
+		AdminUsername:  adminUsername,
+		AdminEmail:     adminEmail,
+		AdminPassword:  adminPassword,
 		OSTempDir:      osTempDir,
 		UIFilesTempDir: uiFilesTempDir,
 	}
@@ -99,7 +99,7 @@ func StartHub() {
 		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", uiFilesTempDir, err)
 	}
 
-	r := router.HandleRequests(*authFlag)
+	r := router.HandleRequests(auth)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", util.ConfigData.HostAddress, util.ConfigData.Port)
