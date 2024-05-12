@@ -1,8 +1,8 @@
 package router
 
 import (
-	"GADS/device"
-	"GADS/util"
+	"GADS/common/util"
+	"GADS/hub/device"
 	"fmt"
 	"net/http"
 	"net/http/httputil"

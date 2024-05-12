@@ -1,8 +1,8 @@
 package router
 
 import (
-	"GADS/models"
-	"GADS/util"
+	"GADS/common/models"
+	"GADS/common/util"
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"

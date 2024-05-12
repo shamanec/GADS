@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"GADS/models"
-	"GADS/util"
+	"GADS/common/models"
+	"GADS/common/util"
 	"encoding/json"
 	"io"
 	"net/http"

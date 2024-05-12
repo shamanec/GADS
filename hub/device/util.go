@@ -1,8 +1,8 @@
 package device
 
 import (
-	"GADS/models"
-	"GADS/util"
+	"GADS/common/models"
+	"GADS/common/util"
 	"context"
 	"fmt"
 	"time"

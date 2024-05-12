@@ -1,10 +1,10 @@
 package main
 
 import (
-	"GADS/device"
-	"GADS/models"
-	"GADS/router"
-	"GADS/util"
+	"GADS/common/models"
+	"GADS/common/util"
+	"GADS/hub/device"
+	"GADS/hub/router"
 	"embed"
 	"flag"
 	"fmt"

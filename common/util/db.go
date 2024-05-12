@@ -1,7 +1,7 @@
 package util
 
 import (
-	"GADS/models"
+	"GADS/common/models"
 	"context"
 	"fmt"
 	"time"

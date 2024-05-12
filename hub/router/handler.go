@@ -1,9 +1,9 @@
 package router
 
 import (
-	"GADS/auth"
-	"GADS/device"
-	"GADS/util"
+	"GADS/common/util"
+	"GADS/hub/auth"
+	"GADS/hub/device"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"

@@ -1,7 +1,7 @@
 package device
 
 import (
-	"GADS/models"
+	"GADS/common/models"
 	"fmt"
 	"html/template"
 	"io"
