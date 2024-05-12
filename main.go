@@ -2,6 +2,7 @@ package main
 
 import (
 	"GADS/hub"
+	"GADS/provider"
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
@@ -35,13 +36,12 @@ func main() {
 		Use:   "provider",
 		Short: "Run a provider component",
 		Run: func(cmd *cobra.Command, args []string) {
-			// Access the flags
-			config, _ := cmd.Flags().GetString("config")
-			fmt.Printf("Running provider with config: %s\n", config)
-			// Additional logic for running the provider
-
+			provider.StartProvider(cmd.Flags())
 		},
 	}
+	providerCmd.Flags().String("nickname", "", "Nickname of the provider")
+	providerCmd.Flags().String("provider-folder", ".", "The folder where logs and apps are stored")
+	providerCmd.Flags().String("log-level", "info", "The verbosity of the logs of the provider instance")
 	rootCmd.AddCommand(providerCmd)
 
 	// Execute the root command
