@@ -1,0 +1,17 @@
+#app-select {}
+
+#install-box {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    width: 90%;
+}
+
+#install-button {
+    width: 50%;
+}
+
+#form-control {
+    display: flex;
+}
