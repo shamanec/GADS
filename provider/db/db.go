@@ -1,7 +1,7 @@
 package db
 
 import (
-	"GADS/provider/models"
+	"GADS/common/models"
 	"context"
 	"fmt"
 	"log"

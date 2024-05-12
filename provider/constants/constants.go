@@ -1,6 +1,6 @@
 package constants
 
-import "GADS/provider/models"
+import "GADS/common/models"
 
 type IndexSort int
 

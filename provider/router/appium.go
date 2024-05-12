@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"GADS/provider/models"
+	"GADS/common/models"
 )
 
 var netClient = &http.Client{

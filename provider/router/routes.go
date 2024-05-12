@@ -12,9 +12,9 @@ import (
 	"slices"
 	"strings"
 
+	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/devices"
-	"GADS/provider/models"
 	"GADS/provider/util"
 	"github.com/gin-gonic/gin"
 )

@@ -18,11 +18,11 @@ import (
 	"strings"
 	"time"
 
+	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/constants"
 	"GADS/provider/db"
 	"GADS/provider/logger"
-	"GADS/provider/models"
 	"GADS/provider/util"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"

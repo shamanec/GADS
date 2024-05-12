@@ -16,9 +16,9 @@ import (
 	"strings"
 	"sync"
 
+	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
-	"GADS/provider/models"
 )
 
 // Forward iOS device ports using `go-ios` CLI, for some reason using the library doesn't work properly

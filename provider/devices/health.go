@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"GADS/provider/models"
+	"GADS/common/models"
 )
 
 // Check if a device is healthy by checking Appium and WebDriverAgent(for iOS) services

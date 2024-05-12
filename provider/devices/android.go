@@ -1,9 +1,9 @@
 package devices
 
 import (
+	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
-	"GADS/provider/models"
 	"bytes"
 	"fmt"
 	"os/exec"

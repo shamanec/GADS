@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 
+	"GADS/common/models"
 	"GADS/provider/logger"
-	"GADS/provider/models"
 )
 
 func InstallAppWithDevice(device *models.Device, filePath string) error {

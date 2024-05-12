@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/devices"
-	"GADS/provider/models"
 	"github.com/gin-gonic/gin"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"

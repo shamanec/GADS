@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
+	"GADS/common/models"
 	"GADS/provider/devices"
-	"GADS/provider/models"
 	"github.com/gin-gonic/gin"
 )
 
