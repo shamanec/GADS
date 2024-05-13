@@ -3,9 +3,8 @@ package hub
 import (
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/util"
-	"GADS/hub/device"
 	"GADS/hub/router"
+	"GADS/hub/util"
 	"embed"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -69,7 +68,7 @@ func StartHub(flags *pflag.FlagSet) {
 	}
 	fmt.Printf("UI static files will be unpacked in `%s`\n", uiFilesTempDir)
 
-	config := util.ConfigJsonData{
+	config := models.HubConfig{
 		HostAddress:    hostAddress,
 		Port:           port,
 		MongoDB:        mongoDB,
@@ -88,7 +87,7 @@ func StartHub(flags *pflag.FlagSet) {
 	fmt.Println(err)
 
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
-	go device.GetLatestDBDevices()
+	go util.GetLatestDBDevices()
 
 	defer db.MongoCtxCancel()
 

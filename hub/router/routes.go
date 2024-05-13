@@ -3,19 +3,26 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/hub/util"
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"html/template"
 	"io"
 	"net/http"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+var netClient = &http.Client{
+	Timeout: time.Second * 120,
+}
 
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
@@ -339,4 +346,116 @@ func AddNewDevice(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB for the current provider"})
+}
+
+func getDBDevice(udid string) *models.Device {
+	for _, dbDevice := range util.LatestDevices {
+		if dbDevice.UDID == udid {
+			return dbDevice
+		}
+	}
+	return nil
+}
+
+func DeviceInUse(c *gin.Context) {
+	udid := c.Param("udid")
+	dbDevice := func() *models.Device {
+		for _, dbDevice := range util.LatestDevices {
+			if dbDevice.UDID == udid {
+				return dbDevice
+			}
+		}
+		return nil
+	}()
+
+	var mu sync.Mutex
+	mu.Lock()
+	defer mu.Unlock()
+
+	dbDevice.InUseLastTS = time.Now().UnixMilli()
+	c.String(200, "")
+}
+
+func GetDevicePage(c *gin.Context) {
+	udid := c.Param("udid")
+
+	reqDevice := getDBDevice(udid)
+	if reqDevice.InUse {
+		c.String(http.StatusInternalServerError, "Device is in use")
+		return
+	}
+	// If the reqDevice does not exist in the cached devices
+	if reqDevice == nil {
+		c.String(http.StatusInternalServerError, "Device not found")
+		return
+	}
+
+	// Create the reqDevice health URL
+	url := fmt.Sprintf("http://%s/device/%s/health", reqDevice.Host, reqDevice.UDID)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed creating http request to check reqDevice health from provider - %s", err.Error()))
+		return
+	}
+
+	response, err := netClient.Do(req)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed performing http request to check reqDevice health from provider - %s", err.Error()))
+		return
+	}
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Device not healthy, health check response: %s", string(body)))
+		return
+	}
+
+	// Calculate the width and height for the canvas
+	canvasWidth, canvasHeight := util.CalculateCanvasDimensions(reqDevice)
+
+	pageData := struct {
+		Device       models.Device
+		CanvasWidth  string
+		CanvasHeight string
+		ScreenHeight string
+		ScreenWidth  string
+	}{
+		Device:       *reqDevice,
+		CanvasWidth:  canvasWidth,
+		CanvasHeight: canvasHeight,
+		ScreenHeight: reqDevice.ScreenHeight,
+		ScreenWidth:  reqDevice.ScreenWidth,
+	}
+
+	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
+	err = tmpl.Execute(c.Writer, pageData)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+	}
+}
+
+func AvailableDevicesSSE(c *gin.Context) {
+	c.Stream(func(w io.Writer) bool {
+		for _, device := range util.LatestDevices {
+
+			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
+				device.Available = true
+				if device.InUseLastTS <= (time.Now().UnixMilli() - 5000) {
+					device.InUse = false
+				} else {
+					device.InUse = true
+				}
+				continue
+			}
+			device.InUse = false
+			device.Available = false
+		}
+
+		jsonData, _ := json.Marshal(&util.LatestDevices)
+		c.SSEvent("", string(jsonData))
+		c.Writer.Flush()
+		time.Sleep(1 * time.Second)
+		return true
+	})
 }

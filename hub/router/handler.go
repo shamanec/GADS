@@ -1,9 +1,8 @@
 package router
 
 import (
-	"GADS/common/util"
 	"GADS/hub/auth"
-	"GADS/hub/device"
+	"GADS/hub/util"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
@@ -34,8 +33,8 @@ func HandleRequests(authentication bool) *gin.Engine {
 	// Unauthenticated endpoints
 	authGroup.POST("/authenticate", auth.LoginHandler)
 	// websockets - unauthenticated
-	authGroup.GET("/available-devices", device.AvailableDevicesSSE)
-	authGroup.POST("/devices/control/:udid/in-use", device.DeviceInUse)
+	authGroup.GET("/available-devices", AvailableDevicesSSE)
+	authGroup.POST("/devices/control/:udid/in-use", DeviceInUse)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	// Enable authentication on the endpoints below
 	if authentication {
@@ -44,7 +43,7 @@ func HandleRequests(authentication bool) *gin.Engine {
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
-	authGroup.POST("/devices/control/:udid", device.GetDevicePage)
+	authGroup.POST("/devices/control/:udid", GetDevicePage)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
 	authGroup.Any("/provider/:name/*path", ProviderProxyHandler)
