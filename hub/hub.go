@@ -3,8 +3,8 @@ package hub
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/hub/hubutil"
 	"GADS/hub/router"
-	"GADS/hub/util"
 	"embed"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -79,15 +79,15 @@ func StartHub(flags *pflag.FlagSet) {
 		UIFilesTempDir: uiFilesTempDir,
 	}
 
-	util.ConfigData = &config
+	hubutil.ConfigData = &config
 
 	// Create a new connection to MongoDB
 	db.InitMongoClient(mongoDB)
-	err := db.AddOrUpdateUser(models.User{Username: util.ConfigData.AdminUsername, Email: util.ConfigData.AdminEmail, Password: util.ConfigData.AdminPassword, Role: "admin"})
+	err := db.AddOrUpdateUser(models.User{Username: hubutil.ConfigData.AdminUsername, Email: hubutil.ConfigData.AdminEmail, Password: hubutil.ConfigData.AdminPassword, Role: "admin"})
 	fmt.Println(err)
 
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
-	go util.GetLatestDBDevices()
+	go hubutil.GetLatestDBDevices()
 
 	defer db.MongoCtxCancel()
 
@@ -102,7 +102,7 @@ func StartHub(flags *pflag.FlagSet) {
 	r := router.HandleRequests(auth)
 
 	// Start the GADS UI on the host IP address
-	address := fmt.Sprintf("%s:%s", util.ConfigData.HostAddress, util.ConfigData.Port)
+	address := fmt.Sprintf("%s:%s", hubutil.ConfigData.HostAddress, hubutil.ConfigData.Port)
 	//err = r.RunTLS(address, "./server.crt", "./server.key")
 	err = r.Run(address)
 	if err != nil {
@@ -113,15 +113,15 @@ func StartHub(flags *pflag.FlagSet) {
 func setupUIFiles() error {
 	embeddedDir := "gads-ui/build"
 
-	fmt.Printf("Attempting to unpack embedded UI static files from `%s` to `%s`\n", embeddedDir, util.ConfigData.UIFilesTempDir)
+	fmt.Printf("Attempting to unpack embedded UI static files from `%s` to `%s`\n", embeddedDir, hubutil.ConfigData.UIFilesTempDir)
 
-	err := os.RemoveAll(util.ConfigData.UIFilesTempDir)
+	err := os.RemoveAll(hubutil.ConfigData.UIFilesTempDir)
 	if err != nil {
 		return err
 	}
 
 	// Ensure the target directory exists
-	if err := os.MkdirAll(util.ConfigData.UIFilesTempDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(hubutil.ConfigData.UIFilesTempDir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -138,7 +138,7 @@ func setupUIFiles() error {
 		}
 
 		// Path here is relative to the 'virtual' root, no need to strip directories
-		outputPath := filepath.Join(util.ConfigData.UIFilesTempDir, path)
+		outputPath := filepath.Join(hubutil.ConfigData.UIFilesTempDir, path)
 
 		if d.IsDir() {
 			// Create directory

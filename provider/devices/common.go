@@ -23,7 +23,7 @@ import (
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
-	"GADS/provider/util"
+	"GADS/provider/providerutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -169,7 +169,7 @@ func updateDevices() {
 // Create a map of *device.LocalDevice for easier access across the code
 func Setup() {
 	if config.Config.EnvConfig.ProvideAndroid {
-		err := util.CheckGadsStreamAndDownload()
+		err := providerutil.CheckGadsStreamAndDownload()
 		if err != nil {
 			log.Fatalf("Setup: Could not check availability of and download GADS-stream latest release - %s", err)
 		}
@@ -207,7 +207,7 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 
-	streamPort, err := util.GetFreePort()
+	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS-stream for device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
@@ -329,7 +329,7 @@ func setupIOSDevice(device *models.Device) {
 	}
 	getModel(device)
 
-	wdaPort, err := util.GetFreePort()
+	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent port for device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
@@ -337,7 +337,7 @@ func setupIOSDevice(device *models.Device) {
 	}
 	device.WDAPort = wdaPort
 
-	streamPort, err := util.GetFreePort()
+	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free iOS stream port for device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
@@ -345,7 +345,7 @@ func setupIOSDevice(device *models.Device) {
 	}
 	device.StreamPort = streamPort
 
-	wdaStreamPort, err := util.GetFreePort()
+	wdaStreamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent stream port for device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
@@ -495,10 +495,10 @@ func resetLocalDevice(device *models.Device) {
 		device.IsResetting = false
 
 		// Free any used ports from the map where we keep them
-		delete(util.UsedPorts, device.WDAPort)
-		delete(util.UsedPorts, device.StreamPort)
-		delete(util.UsedPorts, device.AppiumPort)
-		delete(util.UsedPorts, device.WDAStreamPort)
+		delete(providerutil.UsedPorts, device.WDAPort)
+		delete(providerutil.UsedPorts, device.StreamPort)
+		delete(providerutil.UsedPorts, device.AppiumPort)
+		delete(providerutil.UsedPorts, device.WDAStreamPort)
 	}
 }
 
@@ -539,7 +539,7 @@ func startAppium(device *models.Device) {
 	capabilitiesJson, _ := json.Marshal(capabilities)
 
 	// Get a free port on the host for Appium server
-	appiumPort, err := util.GetFreePort()
+	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Could not allocate free Appium host port for device - %v, err - %v", device.UDID, err))
 		resetLocalDevice(device)
@@ -591,7 +591,7 @@ func createGridTOML(device *models.Device) error {
 	url := fmt.Sprintf("http://%s:%v/device/%s/appium", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port, device.UDID)
 	configs := fmt.Sprintf(`{"appium:deviceName": "%s", "platformName": "%s", "appium:platformVersion": "%s", "appium:automationName": "%s"}`, device.Name, device.OS, device.OSVersion, automationName)
 
-	port, _ := util.GetFreePort()
+	port, _ := providerutil.GetFreePort()
 	portInt, _ := strconv.Atoi(port)
 	conf := models.AppiumTomlConfig{
 		Server: models.AppiumTomlServer{

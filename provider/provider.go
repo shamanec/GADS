@@ -6,8 +6,8 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
+	"GADS/provider/providerutil"
 	"GADS/provider/router"
-	"GADS/provider/util"
 	"context"
 	"flag"
 	"fmt"
@@ -55,7 +55,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	logger.SetupLogging(logLevel)
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.Config.EnvConfig.Port))
 
-	if !util.AppiumAvailable() {
+	if !providerutil.AppiumAvailable() {
 		log.Fatal("Appium is not available, set it up on the host as explained in the readme")
 	}
 
@@ -75,17 +75,17 @@ func StartProvider(flags *pflag.FlagSet) {
 		}
 
 		// Check if xcodebuild is available - Xcode and command line tools should be installed
-		if !util.XcodebuildAvailable() {
+		if !providerutil.XcodebuildAvailable() {
 			log.Fatal("xcodebuild is not available, you need to set it up on the host as explained in the readme")
 		}
 
 		// Check if the `go-ios` binary is available on PATH as explained in the setup readme
-		if !util.GoIOSAvailable() {
+		if !providerutil.GoIOSAvailable() {
 			log.Fatal("go-ios is not available, you need to set it up on the host as explained in the readme")
 		}
 
 		// Build the WebDriverAgent using xcodebuild from the provided repo path
-		err = util.BuildWebDriverAgent()
+		err = providerutil.BuildWebDriverAgent()
 		if err != nil {
 			log.Fatalf("Could not build WebDriverAgent for testing - %s", err)
 		}
@@ -101,7 +101,7 @@ func StartProvider(flags *pflag.FlagSet) {
 
 	// If we want to provide Android devices check if adb is available on PATH
 	if config.Config.EnvConfig.ProvideAndroid {
-		if !util.AdbAvailable() {
+		if !providerutil.AdbAvailable() {
 			logger.ProviderLogger.LogError("provider", "adb is not available, you need to set up the host as explained in the readme")
 			fmt.Println("adb is not available, you need to set up the host as explained in the readme")
 			os.Exit(1)
@@ -109,7 +109,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	}
 
 	// Try to remove potentially hanging ports forwarded by adb
-	util.RemoveAdbForwardedPorts()
+	providerutil.RemoveAdbForwardedPorts()
 
 	// Finalize grid configuration if Selenium Grid usage enabled
 	if config.Config.EnvConfig.UseSeleniumGrid {

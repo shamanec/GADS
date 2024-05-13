@@ -1,8 +1,8 @@
 package db
 
 import (
+	"GADS/common/errors"
 	"GADS/common/models"
-	"GADS/common/util"
 	"context"
 	"fmt"
 	"time"
@@ -39,7 +39,7 @@ func InitMongoClient(mongoDb string) {
 
 func MongoClient() *mongo.Client {
 	if mongoClient == nil {
-		util.ExitWithErrorMessage("Mongo client is not initialized")
+		errors.ExitWithErrorMessage("Mongo client is not initialized")
 	}
 	return mongoClient
 }
@@ -264,4 +264,39 @@ func UpsertDeviceDB(device models.Device) error {
 		return err
 	}
 	return nil
+}
+
+func GetDevices() []*models.Device {
+	// Access the database and collection
+	collection := MongoClient().Database("gads").Collection("devices")
+	latestDevices := []*models.Device{}
+
+	cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
+		return latestDevices
+	}
+
+	if err := cursor.All(context.Background(), &latestDevices); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
+		return latestDevices
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
+		return latestDevices
+	}
+
+	err = cursor.Close(context.TODO())
+	if err != nil {
+		//stuff
+	}
+
+	return latestDevices
 }

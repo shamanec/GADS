@@ -3,7 +3,7 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/hub/util"
+	"GADS/hub/hubutil"
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
@@ -349,7 +349,7 @@ func AddNewDevice(c *gin.Context) {
 }
 
 func getDBDevice(udid string) *models.Device {
-	for _, dbDevice := range util.LatestDevices {
+	for _, dbDevice := range hubutil.LatestDevices {
 		if dbDevice.UDID == udid {
 			return dbDevice
 		}
@@ -360,7 +360,7 @@ func getDBDevice(udid string) *models.Device {
 func DeviceInUse(c *gin.Context) {
 	udid := c.Param("udid")
 	dbDevice := func() *models.Device {
-		for _, dbDevice := range util.LatestDevices {
+		for _, dbDevice := range hubutil.LatestDevices {
 			if dbDevice.UDID == udid {
 				return dbDevice
 			}
@@ -412,7 +412,7 @@ func GetDevicePage(c *gin.Context) {
 	}
 
 	// Calculate the width and height for the canvas
-	canvasWidth, canvasHeight := util.CalculateCanvasDimensions(reqDevice)
+	canvasWidth, canvasHeight := hubutil.CalculateCanvasDimensions(reqDevice)
 
 	pageData := struct {
 		Device       models.Device
@@ -437,7 +437,7 @@ func GetDevicePage(c *gin.Context) {
 
 func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
-		for _, device := range util.LatestDevices {
+		for _, device := range hubutil.LatestDevices {
 
 			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
 				device.Available = true
@@ -452,7 +452,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 			device.Available = false
 		}
 
-		jsonData, _ := json.Marshal(&util.LatestDevices)
+		jsonData, _ := json.Marshal(&hubutil.LatestDevices)
 		c.SSEvent("", string(jsonData))
 		c.Writer.Flush()
 		time.Sleep(1 * time.Second)

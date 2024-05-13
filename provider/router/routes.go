@@ -15,7 +15,7 @@ import (
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/devices"
-	"GADS/provider/util"
+	"GADS/provider/providerutil"
 	"github.com/gin-gonic/gin"
 )
 
@@ -103,7 +103,7 @@ func UploadFile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "status": "success", "apps": util.GetAllAppFiles()})
+	c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "status": "success", "apps": providerutil.GetAllAppFiles()})
 }
 
 func GetProviderData(c *gin.Context) {
@@ -125,7 +125,7 @@ func DeviceInfo(c *gin.Context) {
 
 	if dev, ok := devices.DeviceMap[udid]; ok {
 		devices.UpdateInstalledApps(dev)
-		appFiles := util.GetAllAppFiles()
+		appFiles := providerutil.GetAllAppFiles()
 		if appFiles == nil {
 			dev.InstallableApps = []string{}
 		} else {

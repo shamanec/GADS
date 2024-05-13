@@ -2,7 +2,7 @@ package router
 
 import (
 	"GADS/common/db"
-	"GADS/hub/util"
+	"GADS/hub/hubutil"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -34,7 +34,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		Director: func(req *http.Request) {
 			udid := c.Param("udid")
 			req.URL.Scheme = "http"
-			req.URL.Host = util.GetDeviceByUDID(udid).Host
+			req.URL.Host = hubutil.GetDeviceByUDID(udid).Host
 			req.URL.Path = "/device/" + udid + path
 		},
 		Transport: proxyTransport,
