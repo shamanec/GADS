@@ -2,6 +2,7 @@ package db
 
 import (
 	"GADS/common/models"
+	"GADS/common/util"
 	"context"
 	"fmt"
 	"time"
@@ -37,6 +38,9 @@ func InitMongoClient(mongoDb string) {
 }
 
 func MongoClient() *mongo.Client {
+	if mongoClient == nil {
+		util.ExitWithErrorMessage("Mongo client is not initialized")
+	}
 	return mongoClient
 }
 
