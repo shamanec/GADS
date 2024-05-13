@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/common/util"
 	"GADS/hub/device"
@@ -82,14 +83,14 @@ func StartHub(flags *pflag.FlagSet) {
 	util.ConfigData = &config
 
 	// Create a new connection to MongoDB
-	util.InitMongo()
-	err := util.AddOrUpdateUser(models.User{Username: util.ConfigData.AdminUsername, Email: util.ConfigData.AdminEmail, Password: util.ConfigData.AdminPassword, Role: "admin"})
+	db.InitMongoClient(mongoDB)
+	err := db.AddOrUpdateUser(models.User{Username: util.ConfigData.AdminUsername, Email: util.ConfigData.AdminEmail, Password: util.ConfigData.AdminPassword, Role: "admin"})
 	fmt.Println(err)
 
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
 	go device.GetLatestDBDevices()
 
-	defer util.MongoClientCtxCancel()
+	defer db.MongoCtxCancel()
 
 	setLogging()
 	fmt.Println("")

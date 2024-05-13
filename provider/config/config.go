@@ -1,8 +1,8 @@
 package config
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/provider/db"
 )
 
 var Config = &models.ConfigJsonData{}

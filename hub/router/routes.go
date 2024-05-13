@@ -1,8 +1,8 @@
 package router
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/util"
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
@@ -43,18 +43,18 @@ func GetAppiumLogs(c *gin.Context) {
 
 	var logs []AppiumLog
 
-	collection := util.MongoClient().Database("appium_logs").Collection(collectionName)
+	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
 	findOptions.SetLimit(int64(logLimit))
 
-	cursor, err := collection.Find(util.MongoClientCtx(), bson.D{{}}, findOptions)
+	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)
 	if err != nil {
 		InternalServerError(c, "Failed to get cursor for collection")
 	}
-	defer cursor.Close(util.MongoClientCtx())
+	defer cursor.Close(db.MongoCtx())
 
-	if err := cursor.All(util.MongoClientCtx(), &logs); err != nil {
+	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
 		InternalServerError(c, "Failed to read data from cursor")
 	}
 	if err := cursor.Err(); err != nil {
@@ -79,19 +79,19 @@ func GetAppiumSessionLogs(c *gin.Context) {
 		return
 	}
 
-	collection := util.MongoClient().Database("appium_logs").Collection(collectionName)
+	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
 
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
 	filter := bson.D{{"session_id", sessionID}}
 
-	cursor, err := collection.Find(util.MongoClientCtx(), filter, findOptions)
+	cursor, err := collection.Find(db.MongoCtx(), filter, findOptions)
 	if err != nil {
 		InternalServerError(c, "Failed to get cursor for collection")
 	}
-	defer cursor.Close(util.MongoClientCtx())
+	defer cursor.Close(db.MongoCtx())
 
-	if err := cursor.All(util.MongoClientCtx(), &logs); err != nil {
+	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
 		InternalServerError(c, "Failed to read data from cursor")
 	}
 	if err := cursor.Err(); err != nil {
@@ -135,7 +135,7 @@ func AddUser(c *gin.Context) {
 		user.Username = "New user"
 	}
 
-	dbUser, err := util.GetUserFromDB(user.Email)
+	dbUser, err := db.GetUserFromDB(user.Email)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -149,7 +149,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	err = util.AddOrUpdateUser(user)
+	err = db.AddOrUpdateUser(user)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
@@ -159,7 +159,7 @@ func AddUser(c *gin.Context) {
 }
 
 func GetProviders(c *gin.Context) {
-	providers := util.GetProvidersFromDB()
+	providers := db.GetProvidersFromDB()
 	if len(providers) == 0 {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
@@ -169,7 +169,7 @@ func GetProviders(c *gin.Context) {
 
 func GetProviderInfo(c *gin.Context) {
 	providerName := c.Param("name")
-	providers := util.GetProvidersFromDB()
+	providers := db.GetProvidersFromDB()
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
 			c.JSON(http.StatusOK, provider)
@@ -198,7 +198,7 @@ func AddProvider(c *gin.Context) {
 		BadRequest(c, "Missing or invalid nickname")
 		return
 	}
-	providerDB, _ := util.GetProviderFromDB(provider.Nickname)
+	providerDB, _ := db.GetProviderFromDB(provider.Nickname)
 	if providerDB.Nickname == provider.Nickname {
 		BadRequest(c, "Provider with this nickname already exists")
 		return
@@ -231,13 +231,13 @@ func AddProvider(c *gin.Context) {
 		return
 	}
 
-	err = util.AddOrUpdateProvider(provider)
+	err = db.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not create provider")
 		return
 	}
 
-	providersDB := util.GetProvidersFromDB()
+	providersDB := db.GetProvidersFromDB()
 	OkJSON(c, providersDB)
 }
 
@@ -287,7 +287,7 @@ func UpdateProvider(c *gin.Context) {
 		return
 	}
 
-	err = util.AddOrUpdateProvider(provider)
+	err = db.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not update provider")
 		return
@@ -299,8 +299,8 @@ func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
 	c.Stream(func(w io.Writer) bool {
-		providerData, _ := util.GetProviderFromDB(nickname)
-		dbDevices := util.GetDBDevicesUDIDs()
+		providerData, _ := db.GetProviderFromDB(nickname)
+		dbDevices := db.GetDBDevicesUDIDs()
 
 		for i, connectedDevice := range providerData.ConnectedDevices {
 			if slices.Contains(dbDevices, connectedDevice.UDID) {
@@ -332,7 +332,7 @@ func AddNewDevice(c *gin.Context) {
 		return
 	}
 
-	err = util.UpsertDeviceDB(device)
+	err = db.UpsertDeviceDB(device)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 		return

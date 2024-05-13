@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"GADS/common/constants"
+	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/provider/config"
-	"GADS/provider/db"
 	"GADS/provider/logger"
 	"GADS/provider/util"
 	"go.mongodb.org/mongo-driver/bson"

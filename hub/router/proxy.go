@@ -1,7 +1,7 @@
 package router
 
 import (
-	"GADS/common/util"
+	"GADS/common/db"
 	"GADS/hub/device"
 	"fmt"
 	"net/http"
@@ -58,7 +58,7 @@ func ProviderProxyHandler(c *gin.Context) {
 	name := c.Param("name")
 	providerAddress := ""
 
-	providers := util.GetProvidersFromDB()
+	providers := db.GetProvidersFromDB()
 	for _, provider := range providers {
 		if provider.Nickname == name {
 			providerAddress = fmt.Sprintf("%s:%v", provider.HostAddress, provider.Port)

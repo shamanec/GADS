@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/provider/db"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 

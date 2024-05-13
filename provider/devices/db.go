@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"GADS/provider/db"
+	"GADS/common/db"
 	"GADS/provider/logger"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"

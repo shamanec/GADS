@@ -1,10 +1,12 @@
-package util
+package db
 
 import (
 	"GADS/common/models"
 	"context"
 	"fmt"
 	"time"
+
+	"slices"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,25 +19,18 @@ var mongoClient *mongo.Client
 var mongoClientCtx context.Context
 var mongoClientCtxCancel context.CancelFunc
 
-// Create a new MongoDB Client to reuse for writing/reading from MongoDB
-func InitMongo() {
+func InitMongoClient(mongoDb string) {
 	var err error
-	connectionString := "mongodb://" + ConfigData.MongoDB
+	connectionString := "mongodb://" + mongoDb + "/?keepAlive=true"
+
 	// Set up a context for the connection.
 	mongoClientCtx, mongoClientCtxCancel = context.WithCancel(context.Background())
 
-	// Create a MongoDB client with options
-	// serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+	// Create a MongoDB client with options.
 	clientOptions := options.Client().ApplyURI(connectionString)
 	mongoClient, err = mongo.Connect(mongoClientCtx, clientOptions)
 	if err != nil {
-		panic(fmt.Sprintf("Could not new client for Mongo server at `%s` - %s", connectionString, err))
-	}
-
-	// Ping the client to see if the connection is alive
-	err = mongoClient.Ping(mongoClientCtx, nil)
-	if err != nil {
-		panic(fmt.Sprintf("No initial connection to MongoDB server at `%s` was established - %s", connectionString, err))
+		log.Fatalf("Could not connect to Mongo server at `%s` - %s", connectionString, err)
 	}
 
 	go checkDBConnection()
@@ -45,35 +40,48 @@ func MongoClient() *mongo.Client {
 	return mongoClient
 }
 
-func MongoClientCtx() context.Context {
+func MongoCtx() context.Context {
 	return mongoClientCtx
 }
 
-func MongoClientCtxCancel() context.CancelFunc {
+func MongoCtxCancel() context.CancelFunc {
 	return mongoClientCtxCancel
 }
 
-// Periodically check the MongoDB connection and attempt to create a new client if connection is lost
+func CloseMongoConn() {
+	err := mongoClient.Disconnect(mongoClientCtx)
+	if err != nil {
+		log.Fatalf("Failed to close mongo connection when stopping provider - %s", err)
+	}
+}
+
 func checkDBConnection() {
 	errorCounter := 0
 	for {
 		if errorCounter < 10 {
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 			err := mongoClient.Ping(mongoClientCtx, nil)
 			if err != nil {
-				log.WithFields(log.Fields{
-					"event": "check_db_connection",
-				}).Error(fmt.Sprintf("No connection to MongoDB server - %s", err))
+				fmt.Println("FAILED PINGING MONGO")
 				errorCounter++
 				continue
 			}
 		} else {
-			log.WithFields(log.Fields{
-				"event": "check_db_connection",
-			}).Error("Connection to MongoDB server was lost for more than 20 seconds!")
-			panic("Connection to MongoDB server was lost for more than 20 seconds!")
+			log.Fatal("Lost connection to MongoDB server for more than 10 seconds!")
 		}
 	}
+}
+
+func GetProviderFromDB(nickname string) (models.ProviderDB, error) {
+	var provider models.ProviderDB
+	coll := mongoClient.Database("gads").Collection("providers")
+	filter := bson.D{{Key: "nickname", Value: nickname}}
+
+	err := coll.FindOne(context.TODO(), filter).Decode(&provider)
+	if err != nil {
+		return models.ProviderDB{}, err
+	}
+	return provider, nil
 }
 
 func GetProvidersFromDB() []models.ProviderDB {
@@ -119,6 +127,61 @@ func AddOrUpdateUser(user models.User) error {
 	return nil
 }
 
+func CreateCappedCollection(dbName, collectionName string, maxDocuments, mb int64) error {
+
+	database := MongoClient().Database(dbName)
+	collections, err := database.ListCollectionNames(context.Background(), bson.M{})
+	if err != nil {
+		return err
+	}
+
+	if slices.Contains(collections, collectionName) {
+		return err
+	}
+
+	// Create capped collection options with limit of documents or 20 mb size limit
+	// Seems reasonable for now, I have no idea what is a proper amount
+	collectionOptions := options.CreateCollection()
+	collectionOptions.SetCapped(true)
+	collectionOptions.SetMaxDocuments(maxDocuments)
+	collectionOptions.SetSizeInBytes(mb * 1024 * 1024)
+
+	// Create the actual collection
+	err = database.CreateCollection(MongoCtx(), collectionName, collectionOptions)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CollectionExists(dbName, collectionName string) (bool, error) {
+	database := MongoClient().Database(dbName)
+	collections, err := database.ListCollectionNames(context.Background(), bson.M{})
+	if err != nil {
+		return false, err
+	}
+
+	if slices.Contains(collections, collectionName) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func AddCollectionIndex(dbName, collectionName string, indexModel mongo.IndexModel) error {
+	ctx, cancel := context.WithCancel(MongoCtx())
+	defer cancel()
+
+	db := MongoClient().Database(dbName)
+	_, err := db.Collection(collectionName).Indexes().CreateOne(ctx, indexModel)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetUserFromDB(email string) (models.User, error) {
 	var user models.User
 
@@ -143,18 +206,6 @@ func AddOrUpdateProvider(provider models.ProviderDB) error {
 		return err
 	}
 	return nil
-}
-
-func GetProviderFromDB(nickname string) (models.ProviderDB, error) {
-	var provider models.ProviderDB
-	coll := mongoClient.Database("gads").Collection("providers")
-	filter := bson.D{{Key: "nickname", Value: nickname}}
-
-	err := coll.FindOne(context.TODO(), filter).Decode(&provider)
-	if err != nil {
-		return models.ProviderDB{}, err
-	}
-	return provider, nil
 }
 
 func GetDBDevices() []models.Device {
@@ -195,21 +246,6 @@ func GetDBDevicesUDIDs() []string {
 	}
 
 	return udids
-}
-
-func GetDBDevice(udid string) (models.Device, error) {
-	var deviceInfo models.Device
-	ctx, cancel := context.WithTimeout(mongoClientCtx, 10*time.Second)
-	defer cancel()
-
-	collection := mongoClient.Database("gads").Collection("devices")
-	filter := bson.D{{Key: "udid", Value: udid}}
-
-	err := collection.FindOne(ctx, filter).Decode(&deviceInfo)
-	if err != nil {
-		return models.Device{}, err
-	}
-	return deviceInfo, nil
 }
 
 func UpsertDeviceDB(device models.Device) error {

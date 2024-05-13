@@ -1,8 +1,8 @@
 package auth
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/util"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -40,7 +40,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := util.GetUserFromDB(creds.Username)
+	user, err := db.GetUserFromDB(creds.Username)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return

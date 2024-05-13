@@ -1,8 +1,8 @@
 package device
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/util"
 	"context"
 	"fmt"
 	"time"
@@ -17,7 +17,7 @@ var latestDevices []*models.Device
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
 	// Access the database and collection
-	collection := util.MongoClient().Database("gads").Collection("devices")
+	collection := db.MongoClient().Database("gads").Collection("devices")
 	latestDevices = []*models.Device{}
 
 	for {

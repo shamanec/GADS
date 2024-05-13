@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
+	"GADS/common/db"
 	"GADS/provider/config"
-	"GADS/provider/db"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"

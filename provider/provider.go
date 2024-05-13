@@ -1,9 +1,9 @@
 package provider
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/provider/config"
-	"GADS/provider/db"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
 	"GADS/provider/router"
