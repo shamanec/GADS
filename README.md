@@ -9,16 +9,16 @@
 - [Thanks](#thanks)
 - [Demo video](#thanks)
 
-## Introduction
-* GADS is an application for remote control and Appium test execution on mobile devices
-
 [![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
-## Components
+
+## Introduction
+GADS is an application for remote control and Appium test execution on mobile devices  
+
 The app consists of two main components  - `hub` and `provider`  
 The role of the `hub` is to serve a web interface for the remote control of devices and provider management.  
-The role of the `provider` is to set up and provide the mobile devices.  
-Supports both Android and iOS devices
-Supports Linux, macOS and Windows - notes below  
+The role of the `provider` is to set up and provide the mobile devices for remote control/testing  
+Supports both Android and iOS devices  
+Supports Linux, macOS and Windows - notes below
 
 ## Hub features
 1. Authentication  
