@@ -1,99 +1,93 @@
+- [Intro](#introduction)  
+- [Components](#components)
+- [Features](#hub-features)  
+- [Setup](#setup) 
+  - [Common setup](#common-setup)
+    - [MongoDB](#mongodb)
+  - [Hub setup](./docs/hub.md)
+  - [Provider setup](./docs/provider.md)
+- [Thanks](#thanks)
+- [Demo video](#thanks)
+
 ## Introduction
+* GADS is an application for remote control and Appium test execution on mobile devices
 
-* GADS is a web UI for remote control and management of devices provisioned by [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider).
+[![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
+## Components
+The app consists of two main components  - `hub` and `provider`  
+The role of the `hub` is to serve a web interface for the remote control of devices and provider management.  
+The role of the `provider` is to set up and provide the mobile devices.  
+Supports both Android and iOS devices
+Supports Linux, macOS and Windows - notes below  
 
-[![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)  
-
-**NB** New React based UI - work in progress
-
-## Features
+## Hub features
 1. Authentication  
-  a. Log in, session expiry  
-  b. Add users (for admins)  
-2. Devices control (most of interaction is wrapped around Appium API)
-  * Android
-    - [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream) video stream  
-  * iOS
-    - [WebDriverAgent](https://github.com/appium/WebDriverAgent) video stream   
-  * Both
-    - Basic functionalities - Home, Lock, Unlock, Type text
-    - Basic remote control - tap, swipe, touch&hold
-    - Take high quality screenshots
-    - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
-    - Appium session refresh mechanism if a session timed out or was closed
+   a. Log in, session expiry  
+   b. Add users (for admins)
+2. Devices control (most of interaction is wrapped around Appium APIs)
+- Basic functionalities - Home, Lock, Unlock, Type text
+- Basic remote control - tap, swipe, touch&hold
+- Take high quality screenshots
+- Reservation - loading a device sets it `In use` and can't be used by another person until it is released
+- Appium session refresh mechanism if a session timed out or was closed
 
-Developed and tested on Ubuntu 18.04 LTS, Windows 10, macOS Ventura 13.5.1  
+## Provider features
+* Straightforward common dependencies setup
+* Automatic provisioning when devices are connected
+    * Dependencies automatically installed on devices
+    * Appium server set up and started for each device
+    * Optionally Selenium Grid 4 node can be registered for each device Appium server
+* Remote control support for the hub
+    * iOS video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
+    * Android video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
+    * Limited interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device
+* Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
+* macOS
+    * Supports both Android and iOS
+* Linux
+    * Supports both Android and iOS < 17
+    * Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Linux
+* Windows 10
+    * Supports Android and iOS < 17
+    * Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Windows
 
-## TODO
-* Basic browser Appium inspector
-* Provider and devices log display
-* Extend features - better administration, more control options - e.g. simulate location
+Developed and tested on Ubuntu 18.04 LTS, Ubuntu 20.04 LTS, Windows 10, macOS Ventura 13.5.1
 
 ## Setup
-Currently the project assumes that GADS UI, MongoDB, Selenium Grid and device providers are on the same network. They can all be on the same machine as well.  
+Currently the project assumes that GADS hub, device providers, MongoDB and Selenium Grid are on the same network. They can all be on the same machine as well.  
+1. Download the latest binary for your OS from [releases](https://github.com/shamanec/GADS/releases).
 
-### Deps
-1. Install Go version 1.21.0 or higher
-2. Install Node > 16.
-
-#### Start a MongoDB instance
-##### Start MongoDB in a docker container
-1. You need to have Docker(Docker Desktop on macOS, Windows) installed.
-2. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.  
-3. You can use MongoDB Compass or another tool to access the db if needed.
-
-##### Or
-1. Start MongoDB instance in the way you prefer
-
-##### Note
-You can potentially use any other way you prefer to create a MongoDB instance, doesn't have to be Docker in particular
-
-### Setup the GADS UI
-#### Prebuilt binaries
-1. Download the prebuilt binary for your respective operating system.
-
-#### Or build the project from source
+or build the project from source
 1. Clone the project.
-2. Open the `gads-ui` folder in Terminal.
+2. Open the `hub/gads-ui` folder in Terminal.
 3. Execute `npm install`
 4. Execute `npm run build`
 5. Go back to the main repo folder.
 6. Execute `go build .`
 
-#### Start the UI and backend service
-1. Execute `./GADS` providing the following flags:
-  a. `--auth=` - true/false to enable actual authentication (default is `false`)
-  b. `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)
-  c. `--port=` - port on which the UI and backend service will run (default is `10000`)
-  d. `--mongo-db=` - address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`)
-  e. `--admin-username=` - username of the default admin user (default is `admin`)
-  f. `--admin-password=` - password of the default admin user (default is `password`)
-  g. `--admin-email=` - email of the default admin user (default is `admin@gads.ui`)
-  h. `--ui-files-dir=` - directory where the UI static files will be unpacked and served from. By default the app tries to use a temp folder available on the host. Use this flag only if you have issues with the default behaviour.  
-2. Access the UI on `http://{host-address}:{port}`
+### Common setup
+#### MongoDB
+The project uses MongoDB for storing logs and for synchronization of some data between hub and providers.
+You can either run MongoDB in a docker container:  
+1. You need to have Docker(Docker Desktop on macOS, Windows) installed.
+2. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.
+3. You can use MongoDB Compass or another tool to access the db if needed.
 
-#### Add new provider configuration
-1. Log in with an admin user.
-2. Go to the `Admin` section
-3. Open `Providers administration`
-4. On the `New provider` tab fill in all needed data and save.
-5. You should see a new provider tab. You can now start up a provider instance using the new configuration.
+or  
+1. Start MongoDB instance in the way you prefer
 
-#### UI development
-If you want to work on the UI you need to add a proxy in `package.json` to point to the Go backend 
-1. Open the `gads-ui` folder.
-2. Open the `package-json` file.
-3. Add a new field `"proxy": "http://192.168.1.28:10000/"` providing the host and port of the Go backend service.
-4. Run `npm start`
+#### Hub setup
+[Docs](./docs/hub.md)  
 
-#### Start a provider instance
-This is only the UI, to actually have devices available you need to have at least one [GADS-devices-provider](https://github.com/shamanec/GADS-devices-provider) instance running on the same host(or another host on the same network) that will actually set up and provision devices. Follow the setup steps in the linked repository to create a provider instance. You can have multiple provider instances on different hosts providing devices.
+#### Provider setup
+[Docs](./docs/provider.md)
 
 ## Thanks
 
-| |About|
-|---|---| 
-|[Appium](https://github.com/appium)|It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!|  
+| | About                                                                                                                                                              |
+|---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
+|[go-ios](https://github.com/danielpaulus/go-ios)| Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
+|[Appium](https://github.com/appium)| It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                         |  
 
 ## Demo video  
 https://github.com/shamanec/GADS/assets/60219580/3142fb7b-74a6-49bd-83c9-7e8512dee5fc

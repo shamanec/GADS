@@ -13,6 +13,7 @@ func main() {
 	rootCmd.PersistentFlags().String("host-address", "localhost", "The IP address of the host machine")
 	rootCmd.PersistentFlags().String("port", "", "The port on which the component should run")
 	rootCmd.PersistentFlags().String("mongo-db", "localhost:27017", "The address of the MongoDB instance")
+	rootCmd.PersistentFlags().Bool("log-stdout", false, "Provide flag if you want to see logs printed to stdout")
 
 	// Hub Command
 	var hubCmd = &cobra.Command{
