@@ -1,4 +1,4 @@
-package hubutil
+package devices
 
 import (
 	"GADS/common/db"
