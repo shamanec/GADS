@@ -1,6 +1,7 @@
 - [Intro](#introduction)  
-- [Components](#components)
-- [Features](#hub-features)  
+- [Features](#features)  
+  - [Hub](#hub-features)
+  - [Provider](#provider-features)
 - [Setup](#setup) 
   - [Common setup](#common-setup)
     - [MongoDB](#mongodb)
@@ -20,7 +21,8 @@ The role of the `provider` is to set up and provide the mobile devices for remot
 Supports both Android and iOS devices  
 Supports Linux, macOS and Windows - notes below
 
-## Hub features
+## Features
+### Hub features
 1. Authentication  
    a. Log in, session expiry  
    b. Add users (for admins)
@@ -31,7 +33,9 @@ Supports Linux, macOS and Windows - notes below
 - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
 - Appium session refresh mechanism if a session timed out or was closed
 
-## Provider features
+**NB** The hub is just that - a hub, to actually have devices you need to run a provider as well.
+
+### Provider features
 * Straightforward common dependencies setup
 * Automatic provisioning when devices are connected
     * Dependencies automatically installed on devices
