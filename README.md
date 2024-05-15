@@ -16,7 +16,7 @@
 GADS is an application for remote control and Appium test execution on mobile devices  
 
 The app consists of two main components  - `hub` and `provider`  
-The role of the `hub` is to serve a web interface for the remote control of devices and provider management.  
+The role of the `hub` is to serve a web interface for the remote control of devices and provider management, as well as act as proxy for providers.  
 The role of the `provider` is to set up and provide the mobile devices for remote control/testing  
 Supports both Android and iOS devices  
 Supports Linux, macOS and Windows - notes below
@@ -24,19 +24,18 @@ Supports Linux, macOS and Windows - notes below
 ## Features
 ### Hub features
 1. Authentication  
-   a. Log in, session expiry  
+   a. Login, session expiry  
    b. Add users (for admins)
 2. Devices control (most of interaction is wrapped around Appium APIs)
 - Basic functionalities - Home, Lock, Unlock, Type text
 - Basic remote control - tap, swipe, touch&hold
 - Take high quality screenshots
 - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
-- Appium session refresh mechanism if a session timed out or was closed
 
 **NB** The hub is just that - a hub, to actually have devices you need to run a provider as well.
 
 ### Provider features
-* Straightforward common dependencies setup
+* Straightforward dependencies setup
 * Automatic provisioning when devices are connected
     * Dependencies automatically installed on devices
     * Appium server set up and started for each device
