@@ -158,8 +158,13 @@ func getInstalledAppsAndroid(device *models.Device) []string {
 
 	// Clean the package names and add them to the device installed apps
 	for _, line := range lines {
-		packageName := strings.Split(line, ":")[1]
-		installedApps = append(installedApps, packageName)
+		lineSplit := strings.Split(line, ":")
+		if len(lineSplit) > 1 {
+			packageName := lineSplit[1]
+			installedApps = append(installedApps, packageName)
+		} else {
+			device.Logger.LogWarn("get_installed_apps", "Could not parse package line: "+line)
+		}
 	}
 
 	return installedApps
