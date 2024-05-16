@@ -28,9 +28,11 @@ Supports Linux, macOS and Windows - notes below
     - Login, session expiry
     - Add users (for admins)
   - Devices control (most of interaction is wrapped around Appium APIs)
-    - Basic functionalities - Home, Lock, Unlock, Type text
+    - Live video
     - Basic remote control - tap, swipe, touch&hold
+    - Basic functionalities - Home, Lock, Unlock, Type text
     - Take high quality screenshots
+    - Install/Uninstall apps
     - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
 - Backend
   - Serving the web interface
