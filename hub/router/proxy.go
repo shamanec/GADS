@@ -1,8 +1,8 @@
 package router
 
 import (
-	"GADS/device"
-	"GADS/util"
+	"GADS/common/db"
+	"GADS/hub/devices"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -34,7 +34,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		Director: func(req *http.Request) {
 			udid := c.Param("udid")
 			req.URL.Scheme = "http"
-			req.URL.Host = device.GetDeviceByUDID(udid).Host
+			req.URL.Host = devices.GetDeviceByUDID(udid).Host
 			req.URL.Path = "/device/" + udid + path
 		},
 		Transport: proxyTransport,
@@ -58,7 +58,7 @@ func ProviderProxyHandler(c *gin.Context) {
 	name := c.Param("name")
 	providerAddress := ""
 
-	providers := util.GetProvidersFromDB()
+	providers := db.GetProvidersFromDB()
 	for _, provider := range providers {
 		if provider.Nickname == name {
 			providerAddress = fmt.Sprintf("%s:%v", provider.HostAddress, provider.Port)

@@ -1,21 +1,28 @@
 package router
 
 import (
-	"GADS/models"
-	"GADS/util"
+	"GADS/common/db"
+	"GADS/common/models"
+	"GADS/hub/devices"
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"html/template"
 	"io"
 	"net/http"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+var netClient = &http.Client{
+	Timeout: time.Second * 120,
+}
 
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
@@ -43,18 +50,18 @@ func GetAppiumLogs(c *gin.Context) {
 
 	var logs []AppiumLog
 
-	collection := util.MongoClient().Database("appium_logs").Collection(collectionName)
+	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
 	findOptions.SetLimit(int64(logLimit))
 
-	cursor, err := collection.Find(util.MongoClientCtx(), bson.D{{}}, findOptions)
+	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)
 	if err != nil {
 		InternalServerError(c, "Failed to get cursor for collection")
 	}
-	defer cursor.Close(util.MongoClientCtx())
+	defer cursor.Close(db.MongoCtx())
 
-	if err := cursor.All(util.MongoClientCtx(), &logs); err != nil {
+	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
 		InternalServerError(c, "Failed to read data from cursor")
 	}
 	if err := cursor.Err(); err != nil {
@@ -79,19 +86,19 @@ func GetAppiumSessionLogs(c *gin.Context) {
 		return
 	}
 
-	collection := util.MongoClient().Database("appium_logs").Collection(collectionName)
+	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
 
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
 	filter := bson.D{{"session_id", sessionID}}
 
-	cursor, err := collection.Find(util.MongoClientCtx(), filter, findOptions)
+	cursor, err := collection.Find(db.MongoCtx(), filter, findOptions)
 	if err != nil {
 		InternalServerError(c, "Failed to get cursor for collection")
 	}
-	defer cursor.Close(util.MongoClientCtx())
+	defer cursor.Close(db.MongoCtx())
 
-	if err := cursor.All(util.MongoClientCtx(), &logs); err != nil {
+	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
 		InternalServerError(c, "Failed to read data from cursor")
 	}
 	if err := cursor.Err(); err != nil {
@@ -135,7 +142,7 @@ func AddUser(c *gin.Context) {
 		user.Username = "New user"
 	}
 
-	dbUser, err := util.GetUserFromDB(user.Email)
+	dbUser, err := db.GetUserFromDB(user.Email)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -149,7 +156,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	err = util.AddOrUpdateUser(user)
+	err = db.AddOrUpdateUser(user)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
@@ -159,7 +166,7 @@ func AddUser(c *gin.Context) {
 }
 
 func GetProviders(c *gin.Context) {
-	providers := util.GetProvidersFromDB()
+	providers := db.GetProvidersFromDB()
 	if len(providers) == 0 {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
@@ -169,7 +176,7 @@ func GetProviders(c *gin.Context) {
 
 func GetProviderInfo(c *gin.Context) {
 	providerName := c.Param("name")
-	providers := util.GetProvidersFromDB()
+	providers := db.GetProvidersFromDB()
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
 			c.JSON(http.StatusOK, provider)
@@ -198,7 +205,7 @@ func AddProvider(c *gin.Context) {
 		BadRequest(c, "Missing or invalid nickname")
 		return
 	}
-	providerDB, _ := util.GetProviderFromDB(provider.Nickname)
+	providerDB, _ := db.GetProviderFromDB(provider.Nickname)
 	if providerDB.Nickname == provider.Nickname {
 		BadRequest(c, "Provider with this nickname already exists")
 		return
@@ -231,13 +238,13 @@ func AddProvider(c *gin.Context) {
 		return
 	}
 
-	err = util.AddOrUpdateProvider(provider)
+	err = db.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not create provider")
 		return
 	}
 
-	providersDB := util.GetProvidersFromDB()
+	providersDB := db.GetProvidersFromDB()
 	OkJSON(c, providersDB)
 }
 
@@ -287,7 +294,7 @@ func UpdateProvider(c *gin.Context) {
 		return
 	}
 
-	err = util.AddOrUpdateProvider(provider)
+	err = db.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not update provider")
 		return
@@ -299,8 +306,8 @@ func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
 	c.Stream(func(w io.Writer) bool {
-		providerData, _ := util.GetProviderFromDB(nickname)
-		dbDevices := util.GetDBDevicesUDIDs()
+		providerData, _ := db.GetProviderFromDB(nickname)
+		dbDevices := db.GetDBDevicesUDIDs()
 
 		for i, connectedDevice := range providerData.ConnectedDevices {
 			if slices.Contains(dbDevices, connectedDevice.UDID) {
@@ -332,11 +339,123 @@ func AddNewDevice(c *gin.Context) {
 		return
 	}
 
-	err = util.UpsertDeviceDB(device)
+	err = db.UpsertDeviceDB(device)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB for the current provider"})
+}
+
+func getDBDevice(udid string) *models.Device {
+	for _, dbDevice := range devices.LatestDevices {
+		if dbDevice.UDID == udid {
+			return dbDevice
+		}
+	}
+	return nil
+}
+
+func DeviceInUse(c *gin.Context) {
+	udid := c.Param("udid")
+	dbDevice := func() *models.Device {
+		for _, dbDevice := range devices.LatestDevices {
+			if dbDevice.UDID == udid {
+				return dbDevice
+			}
+		}
+		return nil
+	}()
+
+	var mu sync.Mutex
+	mu.Lock()
+	defer mu.Unlock()
+
+	dbDevice.InUseLastTS = time.Now().UnixMilli()
+	c.String(200, "")
+}
+
+func GetDevicePage(c *gin.Context) {
+	udid := c.Param("udid")
+
+	reqDevice := getDBDevice(udid)
+	if reqDevice.InUse {
+		c.String(http.StatusInternalServerError, "Device is in use")
+		return
+	}
+	// If the reqDevice does not exist in the cached devices
+	if reqDevice == nil {
+		c.String(http.StatusInternalServerError, "Device not found")
+		return
+	}
+
+	// Create the reqDevice health URL
+	url := fmt.Sprintf("http://%s/device/%s/health", reqDevice.Host, reqDevice.UDID)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed creating http request to check reqDevice health from provider - %s", err.Error()))
+		return
+	}
+
+	response, err := netClient.Do(req)
+	if err != nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed performing http request to check reqDevice health from provider - %s", err.Error()))
+		return
+	}
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		c.String(http.StatusInternalServerError, fmt.Sprintf("Device not healthy, health check response: %s", string(body)))
+		return
+	}
+
+	// Calculate the width and height for the canvas
+	canvasWidth, canvasHeight := devices.CalculateCanvasDimensions(reqDevice)
+
+	pageData := struct {
+		Device       models.Device
+		CanvasWidth  string
+		CanvasHeight string
+		ScreenHeight string
+		ScreenWidth  string
+	}{
+		Device:       *reqDevice,
+		CanvasWidth:  canvasWidth,
+		CanvasHeight: canvasHeight,
+		ScreenHeight: reqDevice.ScreenHeight,
+		ScreenWidth:  reqDevice.ScreenWidth,
+	}
+
+	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
+	err = tmpl.Execute(c.Writer, pageData)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+	}
+}
+
+func AvailableDevicesSSE(c *gin.Context) {
+	c.Stream(func(w io.Writer) bool {
+		for _, device := range devices.LatestDevices {
+
+			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
+				device.Available = true
+				if device.InUseLastTS <= (time.Now().UnixMilli() - 5000) {
+					device.InUse = false
+				} else {
+					device.InUse = true
+				}
+				continue
+			}
+			device.InUse = false
+			device.Available = false
+		}
+
+		jsonData, _ := json.Marshal(&devices.LatestDevices)
+		c.SSEvent("", string(jsonData))
+		c.Writer.Flush()
+		time.Sleep(1 * time.Second)
+		return true
+	})
 }
