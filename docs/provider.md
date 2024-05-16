@@ -94,7 +94,7 @@ Refer to the `--provider-folder` flag in [Running a provider instance](#running-
 
 ### Dependencies notes
 #### Appium
-Appium is foundational in GADS - we use it both to provider Appium servers to run UI tests against, but also to allow the interactions in the web remote control.  
+Appium is foundational in GADS - we use it both to create Appium servers to run UI tests against, but also to allow the interactions in the web remote control.  
 Installation is pretty similar for all operating systems, you just have to find the proper steps for your setup.
 - Install Node > 16
 - Install Appium with `npm install -g appium`
