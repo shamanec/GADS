@@ -11,6 +11,7 @@ The provider component is what actually sets up the Appium servers and all other
 - [Logging](#logging)
 - [Additional notes](#additional-notes)
   - [Selenium Grid](#selenium-grid)
+- [FAQ](#FAQ)
 
 ## Provider configuration
 
@@ -193,3 +194,18 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 Devices can be automatically connected to Selenium Grid 4 instance. You need to create the Selenium Grid hub instance yourself and then setup the provider to connect to it.  
 To setup the provider download the Selenium server jar [release](https://github.com/SeleniumHQ/selenium/releases/tag/selenium-4.13.0) v4.13. Copy the downloaded jar and put it in the provider `./conf` folder.  
 **NOTE** Currently versions above 4.13 don't work with Appium relay nodes and I haven't tested with lower versions. Use lower versions at your own risk.
+
+### FAQ
+- I have connected Android devices but provider is not picking them up, why?
+  - GADS uses `adb` to detect devices. First run `adb devices` in terminal to determine if you actually have devices discovered.
+  - Make sure you have enabled [USB Debugging](#usb-debugging) on each device
+  - Make sure you have accepted the popup for debugging after connecting the devices to the host
+- [macOS] I have a connected iOS device where WebDriverAgent installation consistently fails, why?
+  - GADS uses `xcodebuild` to run WebDriverAgent on iOS 17+ devices on macOS
+  - Make sure that you have signed the WebDriverAgent project from `Xcode` and have attempted to `Product > Test` it successfully at least once
+  - Observe the provider logs - you will see the full `xcodebuild` command used by GADS to attempt and start it on the device. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
+- [Linux/Windows] I have a connected iOS device where WebDriverAgent installation/start up consistently fails, why?
+  - GADS uses `go-ios` to install and run WebDriverAgent on iOS < 17 devices on Linux/Windows
+  - Make sure you've properly signed and created the [WebDriverAgent](#prepare-webdriveragent-file---linux-windows) ipa/app
+  - Observe the provider logs - if installation is failing, you will see the full `go-ios` command used by GADS to install the prepared WebDriverAgent ipa/app. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
+  - Observe the provider logs - if running of WDA is failing, you will see the full `go-ios` command used by GADS to run the installed WebDriverAgent. Copy the command and run it from terminal without the provider. Observe and debug the output
