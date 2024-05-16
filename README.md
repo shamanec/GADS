@@ -23,36 +23,38 @@ Supports Linux, macOS and Windows - notes below
 
 ## Features
 ### Hub features
-1. Authentication  
-   - Login, session expiry
-   - Add users (for admins)
-2. Devices control (most of interaction is wrapped around Appium APIs)
-   - Basic functionalities - Home, Lock, Unlock, Type text
-   - Basic remote control - tap, swipe, touch&hold
-   - Take high quality screenshots
-   - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
-
-**NB** The hub is just that - a hub, to actually have devices you need to run a provider as well.
+- Web interface
+  - Authentication
+    - Login, session expiry
+    - Add users (for admins)
+  - Devices control (most of interaction is wrapped around Appium APIs)
+    - Basic functionalities - Home, Lock, Unlock, Type text
+    - Basic remote control - tap, swipe, touch&hold
+    - Take high quality screenshots
+    - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
+- Backend
+  - Serving the web interface
+  - Proxy the communication to the provider instances
 
 ### Provider features
-* Straightforward dependencies setup
-* Automatic provisioning when devices are connected
-    * Dependencies automatically installed on devices
-    * Appium server set up and started for each device
-    * Optionally Selenium Grid 4 node can be registered for each device Appium server
-* Remote control support for the hub
-    * iOS video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
-    * Android video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
-    * Limited interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device
-* Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
-* macOS
-    * Supports both Android and iOS
-* Linux
-    * Supports both Android and iOS < 17
-    * Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Linux
-* Windows 10
-    * Supports Android and iOS < 17
-    * Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Windows
+- Straightforward dependencies setup
+- Automatic provisioning when devices are connected
+  - Dependencies automatically installed on devices 
+  - Appium server set up and started for each device 
+  - Optionally Selenium Grid 4 node can be registered for each device Appium server
+- Remote control APIs for the hub
+  - iOS video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
+  - Android video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
+  - Limited interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device
+- Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
+- macOS
+  - Supports both Android and iOS
+- Linux
+  - Supports both Android and iOS < 17
+  - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Linux
+- Windows 10
+  - Supports Android and iOS < 17
+  - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Windows
 
 Developed and tested on Ubuntu 18.04 LTS, Ubuntu 20.04 LTS, Windows 10, macOS Ventura 13.5.1
 

@@ -2,7 +2,9 @@
 Unless you are building from source, running the hub does not require any additional dependencies except a running MongoDB instance.
 
 ### IMPORTANT
-This is only hub/UI, to actually have devices available you need to have at least one [provider](./provider.md) instance running on the same host(or another host on the same network) that will actually set up and provision devices. Follow the setup steps to create and run a provider instance. You can have multiple provider instances on different hosts providing devices.
+This is only hub/UI, to actually have devices available you need to have at least one [provider](./provider.md) instance running on the same host(or another host on the same network) that will actually set up and provision devices.   
+Follow the setup steps to create and run a provider instance.  
+You can have multiple provider instances on different hosts providing devices.  
 
 ### Starting hub instance
 Run `./GADS hub` with the following flags:  
