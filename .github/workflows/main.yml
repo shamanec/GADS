@@ -27,25 +27,25 @@ jobs:
         env:
           CI: false
         run: |
-          cd gads-ui && npm install && npm run build --verbose
+          cd hub/gads-ui && npm install && npm run build --verbose
 
       - name: Build binaries
         run: |
           go get
           echo "Preparing Windows binary"
-          GOOS=windows GOARCH=amd64 go build -o GADS.exe .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '" -o GADS.exe .
           zip -j gads-win.zip GADS.exe
           rm GADS.exe
           echo "Preparing macOS amd64 binary"
-          GOOS=darwin GOARCH=amd64 go build -o GADS .
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '"  -o GADS .
           zip -j gads-mac-amd64.zip GADS
           rm GADS
           echo "Preparing macOS arm64 binary"
-          GOOS=darwin GOARCH=arm64 go build -o GADS .
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '"  -o GADS .
           zip -j gads-mac-arm64.zip GADS
           rm GADS
           echo "Preparing Linux binary"
-          GOOS=linux GOARCH=amd64 go build -o GADS .
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '"  -o GADS .
           zip -j gads-linux.zip GADS
           rm GADS
 

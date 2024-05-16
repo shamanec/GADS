@@ -8,6 +8,8 @@ import (
 	"os"
 )
 
+var AppVersion = "development"
+
 func main() {
 	var rootCmd = &cobra.Command{Use: "GADS"}
 	rootCmd.PersistentFlags().String("host-address", "localhost", "The IP address of the host machine")
@@ -44,6 +46,15 @@ func main() {
 	providerCmd.Flags().String("provider-folder", ".", "The folder where logs and apps are stored")
 	providerCmd.Flags().String("log-level", "info", "The verbosity of the logs of the provider instance")
 	rootCmd.AddCommand(providerCmd)
+
+	var versionCmd = &cobra.Command{
+		Use:   "version",
+		Short: "Print the application version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(AppVersion)
+		},
+	}
+	rootCmd.AddCommand(versionCmd)
 
 	// Execute the root command
 	if err := rootCmd.Execute(); err != nil {
