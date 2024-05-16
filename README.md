@@ -1,4 +1,4 @@
-- [Intro](#introduction)  
+- [Intro](#intro)  
 - [Features](#features)  
   - [Hub](#hub-features)
   - [Provider](#provider-features)
@@ -12,7 +12,7 @@
 
 [![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
 
-## Introduction
+## Intro
 GADS is an application for remote control and Appium test execution on mobile devices  
 
 The app consists of two main components  - `hub` and `provider`  
@@ -24,13 +24,13 @@ Supports Linux, macOS and Windows - notes below
 ## Features
 ### Hub features
 1. Authentication  
-   a. Login, session expiry  
-   b. Add users (for admins)
+   - Login, session expiry
+   - Add users (for admins)
 2. Devices control (most of interaction is wrapped around Appium APIs)
-- Basic functionalities - Home, Lock, Unlock, Type text
-- Basic remote control - tap, swipe, touch&hold
-- Take high quality screenshots
-- Reservation - loading a device sets it `In use` and can't be used by another person until it is released
+   - Basic functionalities - Home, Lock, Unlock, Type text
+   - Basic remote control - tap, swipe, touch&hold
+   - Take high quality screenshots
+   - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
 
 **NB** The hub is just that - a hub, to actually have devices you need to run a provider as well.
 
@@ -57,27 +57,27 @@ Supports Linux, macOS and Windows - notes below
 Developed and tested on Ubuntu 18.04 LTS, Ubuntu 20.04 LTS, Windows 10, macOS Ventura 13.5.1
 
 ## Setup
-Currently the project assumes that GADS hub, device providers, MongoDB and Selenium Grid are on the same network. They can all be on the same machine as well.  
-1. Download the latest binary for your OS from [releases](https://github.com/shamanec/GADS/releases).
+Currently the project assumes that GADS hub, device providers, MongoDB and Selenium Grid are on the same network. They can all be on the same machine as well.
+- Download the latest binary for your OS from [releases](https://github.com/shamanec/GADS/releases).
 
-or build the project from source
-1. Clone the project.
-2. Open the `hub/gads-ui` folder in Terminal.
-3. Execute `npm install`
-4. Execute `npm run build`
-5. Go back to the main repo folder.
-6. Execute `go build .`
+or build the project from source 
+- Clone the project.
+- Open the `hub/gads-ui` folder in Terminal.
+- Execute `npm install`
+- Execute `npm run build`
+- Go back to the main repo folder.
+- Execute `go build .`
 
 ### Common setup
 #### MongoDB
 The project uses MongoDB for storing logs and for synchronization of some data between hub and providers.
 You can either run MongoDB in a docker container:  
-1. You need to have Docker(Docker Desktop on macOS, Windows) installed.
-2. Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.
-3. You can use MongoDB Compass or another tool to access the db if needed.
+- You need to have Docker(Docker Desktop on macOS, Windows) installed.
+- Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.
+- You can use MongoDB Compass or another tool to access the db if needed.
 
 or  
-1. Start MongoDB instance in the way you prefer
+- Start MongoDB instance in the way you prefer
 
 #### Hub setup
 [Docs](./docs/hub.md)  
@@ -85,14 +85,14 @@ or
 #### Provider setup
 [Docs](./docs/provider.md)
 
-## Thanks
+### Thanks
 
 | | About                                                                                                                                                              |
 |---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
 |[go-ios](https://github.com/danielpaulus/go-ios)| Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
 |[Appium](https://github.com/appium)| It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                         |  
 
-## Demo video  
+### Demo video  
 https://github.com/shamanec/GADS/assets/60219580/3142fb7b-74a6-49bd-83c9-7e8512dee5fc
 
 
