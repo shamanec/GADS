@@ -144,7 +144,11 @@ function LogoutButton() {
             onClick={handleLogout}
             style={{
                 marginLeft: "20px",
-                backgroundColor: "#914400"
+                backgroundColor: "#914400",
+                marginTop: "5px",
+                marginBottom: "5px",
+                color: "#0c111e",
+                fontWeight: "bold"
             }}
         >Logout</Button>
     )

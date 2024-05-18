@@ -134,6 +134,11 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
                         id='install-button'
                         variant='contained'
                         disabled={installButtonDisabled}
+                        style={{
+                            backgroundColor: "#0c111e",
+                            color: "#78866B",
+                            fontWeight: "bold"
+                        }}
                     >Install</Button>
                     {isInstalling &&
                         <CircularProgress id='progress-indicator' size={30} />
@@ -181,6 +186,11 @@ export default function InstallApp({ udid, installableApps, installedApps }) {
                         id='install-button'
                         variant='contained'
                         disabled={uninstallButtonDisabled}
+                        style={{
+                            backgroundColor: "#0c111e",
+                            color: "#78866B",
+                            fontWeight: "bold"
+                        }}
                     >Uninstall</Button>
                     {isUninstalling &&
                         <CircularProgress id='progress-indicator' size={30} />

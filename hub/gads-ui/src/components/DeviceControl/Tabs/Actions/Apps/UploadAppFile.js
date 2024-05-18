@@ -61,6 +61,11 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
                 component='label'
                 variant='contained'
                 startIcon={<AttachFileIcon />}
+                style={{
+                    backgroundColor: "#0c111e",
+                    color: "#78866B",
+                    fontWeight: "bold"
+                }}
             >
                 <input
                     id='input-file'
@@ -165,6 +170,11 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 variant='contained'
                 onClick={handleUpload}
                 disabled={isUploading || buttonDisabled}
+                style={{
+                    backgroundColor: (isUploading || buttonDisabled) ? "rgba(51,71,110,0.47)" : "#0c111e",
+                    color: "#78866B",
+                    fontWeight: "bold"
+                }}
             >Upload</Button>
             {isUploading &&
                 <CircularProgress id='progress-indicator' size={30} />

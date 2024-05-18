@@ -324,7 +324,15 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
 
                 </Stack>
             </Stack>
-            <Button variant='contained' style={{ width: '100px' }} onClick={handleAddClick}>{buttonText}</Button>
+            <Button
+                variant='contained'
+                style={{
+                    width: '100px',
+                    backgroundColor: "#0c111e",
+                    color: "#78866B",
+                    fontWeight: "bold"
+                }}
+                onClick={handleAddClick}>{buttonText}</Button>
             {showError &&
                 <Alert color='error'>{errorText}</Alert>
             }

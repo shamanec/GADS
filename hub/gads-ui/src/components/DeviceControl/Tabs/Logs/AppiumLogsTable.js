@@ -114,8 +114,19 @@ export default function AppiumLogsTable({ udid }) {
                 onClick={getLogs}
                 id='install-button'
                 variant='contained'
+                style={{
+                    backgroundColor: "#78866B",
+                    color: "#0c111e",
+                    fontWeight: "bold"
+                }}
             >Get Logs</Button>
-            <TableContainer component={Paper} style={{marginTop: '10px'}}>
+            <TableContainer
+                component={Paper}
+                style={{
+                    marginTop: '10px',
+                    backgroundColor: "#78866B"
+                }}
+            >
                 <Table sx={{ minWidth: 500 }} size='small' padding='checkbox'>
                     <TableBody>
                         {(rowsPerPage > 0
@@ -123,13 +134,13 @@ export default function AppiumLogsTable({ udid }) {
                                 : logData
                         ).map((logEntry, index) => (
                             <TableRow key={index}>
-                                <TableCell style={{ width: 80 }} align='center'>
+                                <TableCell style={{ width: 80, fontSize: "14px" }} align='center'>
                                     {logEntry.appium_ts}
                                 </TableCell>
-                                <TableCell style={{ width: 200 }}>
+                                <TableCell style={{ width: 200, fontSize: "14px" }}>
                                     {logEntry.log_type}
                                 </TableCell>
-                                <TableCell style={{ width: 660, maxWidth: 660, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <TableCell style={{ width: 660, maxWidth: 660, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
                                     {logEntry.msg}
                                 </TableCell>
                             </TableRow>
