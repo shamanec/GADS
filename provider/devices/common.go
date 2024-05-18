@@ -263,6 +263,30 @@ func setupAndroidDevice(device *models.Device) {
 
 	device.InstalledApps = getInstalledAppsAndroid(device)
 
+	if slices.Contains(device.InstalledApps, "io.appium.settings") {
+		logger.ProviderLogger.LogInfo("android_device_setup", "Appium settings found on device, attempting to uninstall")
+		err = UninstallApp(device, "io.appium.settings")
+		if err != nil {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium settings on device %s - %s", device.UDID, err))
+		}
+	}
+
+	if slices.Contains(device.InstalledApps, "io.appium.uiautomator2.server") {
+		logger.ProviderLogger.LogInfo("android_device_setup", "Appium uiautomator2 server found on device, attempting to uninstall")
+		err = UninstallApp(device, "io.appium.uiautomator2.server")
+		if err != nil {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium uiautomator2 server on device %s - %s", device.UDID, err))
+		}
+	}
+
+	if slices.Contains(device.InstalledApps, "io.appium.uiautomator2.server.test") {
+		logger.ProviderLogger.LogInfo("android_device_setup", "Appium uiautomator2 server test found on device, attempting to uninstall")
+		err = UninstallApp(device, "io.appium.uiautomator2.server.test")
+		if err != nil {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium uiautomator2 server test on device %s - %s", device.UDID, err))
+		}
+	}
+
 	go startAppium(device)
 	if config.Config.EnvConfig.UseSeleniumGrid {
 		go startGridNode(device)
