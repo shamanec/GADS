@@ -37,7 +37,7 @@ export function DeviceSearch({ keyUpFilterFunc }) {
             <input
                 type="search"
                 id="search-input"
-                onKeyUp={() => keyUpFilterFunc()}
+                onInput={() => keyUpFilterFunc()}
                 placeholder="Search devices"
             ></input>
         </div>
