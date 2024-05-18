@@ -1,5 +1,5 @@
 .device-box {
-    background-color: #E0D8C0;
+    background-color: #78866B;
     width: 300px;
     height: 450px;
     margin: 10px;
@@ -46,11 +46,11 @@
 }
 
 .device-buttons:disabled {
-    background: #a1add0;
+    background: #878a91;
 }
 
 .device-buttons:disabled:hover {
-    background: #a1add0;
+    background: #878a91;
 }
 
 .device-buttons:hover {
