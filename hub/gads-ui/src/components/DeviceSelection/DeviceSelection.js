@@ -149,7 +149,7 @@ function OSSelection({ devices, handleAlert }) {
                 {devices.length === 0 ? (
                     <Box
                         style={{
-                            backgroundColor: '#E0D8C0',
+                            backgroundColor: '#78866B',
                             width: '100%',
                             height: '800px',
                             borderRadius: '10px',

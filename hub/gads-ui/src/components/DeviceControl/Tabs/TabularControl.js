@@ -25,27 +25,30 @@ export default function TabularControl({ deviceData }) {
                 onChange={handleTabChange}
                 TabIndicatorProps={{
                     style: {
-                        background: '#496612',
+                        background: '#78866B',
                         height: '5px'
                     }
                 }}
-                textColor='#E0D8C0'
+                textColor='#78866B'
                 sx={{
-                    color: '#E0D8C0',
+                    color: '#78866B',
                     fontFamily: 'Verdana'
                 }}
             >
                 <Tab
                     className='control-tabs'
                     label='Actions'
+                    style={{ fontWeight: "bold"}}
                 />
                 <Tab
                     className='control-tabs'
                     label='Screenshot'
+                    style={{ fontWeight: "bold"}}
                 />
                 <Tab
                     className='control-tabs'
                     label='Appium Logs'
+                    style={{ fontWeight: "bold"}}
                 />
             </Tabs>
             {currentTabIndex === 1 && <Screenshot udid={udid} />}

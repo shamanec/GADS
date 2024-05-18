@@ -76,6 +76,7 @@ export default function Login() {
                                 label="Email"
                                 required
                                 id="outlined-required"
+                                style={{ color: "#78866B" }}
                             />
                         </label>
                         <label
@@ -90,6 +91,7 @@ export default function Login() {
                                 label="Password"
                                 required
                                 id="outlined-required"
+                                style={{ color: "#78866B" }}
                             />
                         </label>
                         <div>
@@ -98,7 +100,9 @@ export default function Login() {
                                 type="submit"
                                 style={{
                                     marginBottom: "5px",
-                                    backgroundColor: "#265ed3"
+                                    backgroundColor: "#0c111e",
+                                    color: "#78866B",
+                                    fontWeight: "bold"
                                 }}
                             >Log in</Button>
                         </div>
