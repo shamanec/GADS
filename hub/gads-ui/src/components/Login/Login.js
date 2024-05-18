@@ -97,7 +97,8 @@ export default function Login() {
                                 variant="contained"
                                 type="submit"
                                 style={{
-                                    marginBottom: "5px"
+                                    marginBottom: "5px",
+                                    backgroundColor: "#265ed3"
                                 }}
                             >Log in</Button>
                         </div>

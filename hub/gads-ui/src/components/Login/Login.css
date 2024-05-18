@@ -26,7 +26,7 @@
 }
 
 #funky-div {
-    background: rgb(210, 158, 94);
+    background: #78866B;
     background: linear-gradient(342deg, rgba(210, 158, 94, 1) 12%, rgba(130, 150, 11, 1) 55%, rgba(164, 255, 0, 1) 100%);
     width: 50%;
     border-top-left-radius: 10px;
