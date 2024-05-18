@@ -54,7 +54,7 @@ function StyledNavLink({ to, linkText }) {
     return (
         <NavLink className="nav-bar-link"
             style={({ isActive }) => ({
-                backgroundColor: isActive ? "#273616" : "",
+                backgroundColor: isActive ? "#0c111e" : "",
                 color: "#E0D8C0"
             })}
             to={to}
