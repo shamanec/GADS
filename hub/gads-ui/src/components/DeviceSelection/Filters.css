@@ -3,7 +3,7 @@
     font-size: 16px;
     margin-left: 10px;
     height: 40px;
-    border-bottom: 2px solid black;
+    border-bottom: 2px solid #0c111e;
     background-color: #78866B;
     color: #0c111e;
 }
@@ -30,7 +30,7 @@
     font-weight: bold;
 }
 
-.custom-placeholder::-ms-input-placeholder { /* Microsoft Edge */
+.custom-placeholder::-ms-input-placeholder {
     color: #0c111e;
     font-weight: bold;
 }

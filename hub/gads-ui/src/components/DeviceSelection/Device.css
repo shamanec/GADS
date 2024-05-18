@@ -42,7 +42,7 @@
     border-radius: 10px;
     font-size: 15px;
     position: relative;
-    border: 2px solid black;
+    border: 2px solid #0c111e;
 }
 
 .device-buttons:disabled {
