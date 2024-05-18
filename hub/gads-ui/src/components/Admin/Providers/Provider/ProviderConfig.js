@@ -140,7 +140,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
             direction='column'
             spacing={2}
             style={{
-                backgroundColor: '#E0D8C0',
+                backgroundColor: '#78866B',
                 maxWidth: '500px',
                 height: '700px',
                 marginLeft: '10px',

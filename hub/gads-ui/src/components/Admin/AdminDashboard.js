@@ -30,9 +30,9 @@ export default function AdminDashboard() {
                         height: "5px"
                     }
                 }}
-                textColor='#E0D8C0'
+                textColor='black'
                 sx={{
-                    color: "white",
+                    color: "#E0D8C0",
                     fontFamily: "Verdana"
                 }}
             >

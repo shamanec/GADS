@@ -34,12 +34,17 @@ export default function NavBar() {
                     to="/devices"
                     linkText='Devices'
                 />
-                {showAdmin && (<StyledNavLink to="/admin" linkText='Admin' />)}
+                {showAdmin && (
+                    <StyledNavLink
+                        to="/admin"
+                        linkText='Admin'
+                    />
+                )}
             </nav>
             <div
                 className="social-buttons-wrapper"
             >
-                <p>Welcome, {username}</p>
+                <p style={{ fontWeight: "bold"}}>Welcome, {username}</p>
                 <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
@@ -55,7 +60,8 @@ function StyledNavLink({ to, linkText }) {
         <NavLink className="nav-bar-link"
             style={({ isActive }) => ({
                 backgroundColor: isActive ? "#0c111e" : "",
-                color: "#E0D8C0"
+                color: isActive ? "#78866B" : "#0c111e",
+                fontWeight: "bold"
             })}
             to={to}
         >
