@@ -17,13 +17,13 @@ export default function Providers({ providers, setProviders }) {
                 onChange={handleTabChange}
                 TabIndicatorProps={{
                     style: {
-                        background: "#496612",
+                        background: "#78866B",
                         height: "5px"
                     }
                 }}
                 textColor='#E0D8C0'
                 sx={{
-                    color: "white",
+                    color: "#78866B",
                     fontFamily: "Verdana"
                 }}
             >
@@ -31,12 +31,13 @@ export default function Providers({ providers, setProviders }) {
                     label='New provider'
                     style={{
                         textTransform: 'none',
-                        fontSize: '16px'
+                        fontSize: '16px',
+                        fontWeight: "bold"
                     }}
                 ></Tab>
                 {providers.map((provider) => {
                     return (
-                        <Tab label={provider.nickname} style={{ textTransform: 'none', fontSize: '16px' }} />
+                        <Tab label={provider.nickname} style={{ textTransform: 'none', fontSize: '16px', fontWeight: "bold" }} />
                     )
                 })
                 }
