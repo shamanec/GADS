@@ -77,6 +77,11 @@ export default function Login() {
                                 required
                                 id="outlined-required"
                                 style={{ color: "#78866B" }}
+                                sx={{
+                                    input: {
+                                        background: "#78866B"
+                                    }
+                                }}
                             />
                         </label>
                         <label
