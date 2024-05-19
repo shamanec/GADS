@@ -26,9 +26,6 @@ func main() {
 		},
 	}
 	hubCmd.Flags().Bool("auth", false, "Enable strict authentication")
-	hubCmd.Flags().String("admin-username", "admin", "Username for the default admin user")
-	hubCmd.Flags().String("admin-password", "password", "Password for the default admin user")
-	hubCmd.Flags().String("admin-email", "admin@gads.ui", "Email for the default admin user")
 	hubCmd.Flags().String("ui-files-dir", "", "Directory where the UI static files will be unpacked and served from."+
 		"\nBy default app will try to use a temp dir on the host, use this flag only if you encounter issues with the temp folder."+
 		"\nAlso you need to have created the folder in advance!")

@@ -41,13 +41,8 @@ func StartHub(flags *pflag.FlagSet) {
 	auth, _ := flags.GetBool("auth")
 	fmt.Printf("Authentication enabled: %v\n", auth)
 
-	adminUsername, _ := flags.GetString("admin-username")
-	adminPassword, _ := flags.GetString("admin-password")
-	adminEmail, _ := flags.GetString("admin-email")
-	fmt.Println("Adding admin user with:")
-	fmt.Printf(" Name: %s. You can change the name with the --admin-username flag\n", adminUsername)
-	fmt.Printf(" Password: %s. You can change the password with the --admin-password flag\n", adminPassword)
-	fmt.Printf(" Email: %s. You can change the email with the --admin-email flag\n", adminEmail)
+	fmt.Println("Default admin username is `admin`")
+	fmt.Println("Default admin password is `password` unless you've changed it")
 
 	uiFilesDir, _ := flags.GetString("ui-files-dir")
 	osTempDir := os.TempDir()
@@ -72,9 +67,6 @@ func StartHub(flags *pflag.FlagSet) {
 		HostAddress:    hostAddress,
 		Port:           port,
 		MongoDB:        mongoDB,
-		AdminUsername:  adminUsername,
-		AdminEmail:     adminEmail,
-		AdminPassword:  adminPassword,
 		OSTempDir:      osTempDir,
 		UIFilesTempDir: uiFilesTempDir,
 	}
@@ -83,8 +75,6 @@ func StartHub(flags *pflag.FlagSet) {
 
 	// Create a new connection to MongoDB
 	db.InitMongoClient(mongoDB)
-	err := db.AddOrUpdateUser(models.User{Username: devices.ConfigData.AdminUsername, Email: devices.ConfigData.AdminEmail, Password: devices.ConfigData.AdminPassword, Role: "admin"})
-	fmt.Println(err)
 
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
 	go devices.GetLatestDBDevices()
@@ -93,6 +83,11 @@ func StartHub(flags *pflag.FlagSet) {
 
 	setLogging()
 	fmt.Println("")
+
+	err := db.AddAdminUserIfMissing()
+	if err != nil {
+		log.Fatalf("Failed adding admin user on start - %s", err)
+	}
 
 	err = setupUIFiles()
 	if err != nil {

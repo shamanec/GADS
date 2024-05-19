@@ -128,11 +128,6 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	if user.Email == "" || user.Password == "" || user.Role == "" {
-		BadRequest(c, "Email, password and role are mandatory")
-		return
-	}
-
 	if user.Role != "admin" && user.Role != "user" {
 		BadRequest(c, "Invalid role - `admin` and `user` are the accepted values")
 		return
@@ -142,7 +137,7 @@ func AddUser(c *gin.Context) {
 		user.Username = "New user"
 	}
 
-	dbUser, err := db.GetUserFromDB(user.Email)
+	dbUser, err := db.GetUserFromDB(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return

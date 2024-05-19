@@ -122,7 +122,7 @@ func AddOrUpdateUser(user models.User) error {
 		"$set": user,
 	}
 	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "email", Value: user.Email}}
+	filter := bson.D{{Key: "username", Value: user.Username}}
 	opts := options.Update().SetUpsert(true)
 	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
 	if err != nil {
@@ -186,11 +186,11 @@ func AddCollectionIndex(dbName, collectionName string, indexModel mongo.IndexMod
 	return nil
 }
 
-func GetUserFromDB(email string) (models.User, error) {
+func GetUserFromDB(username string) (models.User, error) {
 	var user models.User
 
 	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "email", Value: email}}
+	filter := bson.D{{Key: "username", Value: username}}
 	err := coll.FindOne(context.TODO(), filter).Decode(&user)
 	if err != nil {
 		return models.User{}, err
@@ -299,4 +299,21 @@ func GetDevices() []*models.Device {
 	}
 
 	return latestDevices
+}
+
+func AddAdminUserIfMissing() error {
+	dbUser, err := GetUserFromDB("admin")
+	if err != nil && err != mongo.ErrNoDocuments {
+		return fmt.Errorf("AddAdminUserIfMissing: Failed to check if admin user is in the DB - %s", err)
+	}
+
+	if dbUser != (models.User{}) {
+		return nil
+	}
+
+	err = AddOrUpdateUser(models.User{Username: "admin", Password: "password", Role: "admin"})
+	if err != nil {
+		return fmt.Errorf("Failed to add/update admin user - %s", err)
+	}
+	return nil
 }

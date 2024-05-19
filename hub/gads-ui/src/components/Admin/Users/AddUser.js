@@ -16,7 +16,6 @@ export default function AddUser() {
     const [username, setUsername] = useState()
     const [password, setPassword] = useState()
     const [role, setRole] = useState('user')
-    const [email, setEmail] = useState()
 
     // Submission button
     const [buttonDisabled, setButtonDisabled] = useState(true)
@@ -27,11 +26,11 @@ export default function AddUser() {
     const [alertSeverity, setAlertSeverity] = useState('error')
 
     // Validations
-    const [emailValid, setEmailValid] = useState(false)
     const [passwordValid, setPasswordValid] = useState(false)
+    const [usernameValid, setUsernameValid] = useState(false)
 
     // Form styles
-    const [emailColor, setEmailColor] = useState('')
+    const [usernameColor, setUsernameColor] = useState('')
     const [passwordColor, setPasswordColor] = useState('')
 
     function showAlertWithTimeout(alertText, severity) {
@@ -44,23 +43,12 @@ export default function AddUser() {
         }, 3000);
     }
 
-    function validateEmail(email) {
-        if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,4})+$/.test(email)) {
-            setEmailColor('success')
-            setEmailValid(true)
-            setButtonDisabled(!passwordValid)
-        } else {
-            setEmailColor('error')
-            setEmailValid(false)
-            setButtonDisabled(true)
-        }
-    }
-
     function validatePassword(password) {
-        if (/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/.test(password)) {
+        if (/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{6,}$/.test(password)) {
             setPasswordColor('success')
             setPasswordValid(true)
-            setButtonDisabled(!emailValid)
+            setButtonDisabled(!usernameValid)
+
         } else {
             setPasswordColor('error')
             setPasswordValid(false)
@@ -68,10 +56,23 @@ export default function AddUser() {
         }
     }
 
+    function validateUsername(username) {
+        if (/^[a-zA-Z0-9._-]{4,}$/.test(username)) {
+            setUsernameColor('success')
+            setUsernameValid(true)
+            setButtonDisabled(!passwordValid)
+
+        } else {
+            setUsernameColor('error')
+            setUsernameValid(false)
+            setButtonDisabled(true)
+        }
+    }
+
     function handleAddUser(event) {
         event.preventDefault()
 
-        if (!emailValid || !passwordValid) {
+        if (!usernameValid || !passwordValid) {
             showAlertWithTimeout('Invalid input', 'error')
             return
         }
@@ -81,8 +82,7 @@ export default function AddUser() {
         const loginData = {
             username: username,
             password: password,
-            role: role,
-            email: email
+            role: role
         };
 
         fetch(url, {
@@ -118,18 +118,19 @@ export default function AddUser() {
                     spacing={2}
                 >
                     <h3>Add user</h3>
-                    <label style={{}}>
+                    <label style={{ width: "80%"}}>
                         <TextField
-                            onChange={e => setEmail(e.target.value)}
-                            label="Email"
-                            color={emailColor}
-                            required
-                            id="outlined-required"
+                            onChange={e => setUsername(e.target.value)}
+                            label="Username"
                             autoComplete='off'
-                            onKeyUp={e => validateEmail(e.target.value)}
+                            required
+                            color={usernameColor}
+                            id="outlined-required"
+                            onInput={e => validateUsername(e.target.value)}
+                            helperText='Username should be at least 4 characters'
                         />
                     </label>
-                    <label style={{}}>
+                    <label style={{ width: "80%"}}>
                         <TextField
                             onChange={e => setPassword(e.target.value)}
                             label="Password"
@@ -138,20 +139,14 @@ export default function AddUser() {
                             id="outlined-required"
                             autoComplete='off'
                             onKeyUp={e => validatePassword(e.target.value)}
-                        />
-                    </label>
-                    <label>
-                        <TextField
-                            onChange={e => setUsername(e.target.value)}
-                            label="Username"
-                            autoComplete='off'
+                            helperText='Password should be minimum 6 chars long, contain upper and lower case letter, digit and special char'
                         />
                     </label>
                     <Select
                         defaultValue='user'
                         value={role}
                         onChange={(event) => setRole(event.target.value)}
-                        style={{ width: '223px', marginTop: "20px" }}
+                        style={{width: '223px', marginTop: "20px"}}
                     >
                         <MenuItem value='user'>User</MenuItem>
                         <MenuItem value='admin'>Admin</MenuItem>
@@ -162,11 +157,16 @@ export default function AddUser() {
                             type="submit"
                             style={{}}
                             disabled={buttonDisabled}
+                            style={{
+                                backgroundColor: "#0c111e",
+                                color: "#78866B",
+                                fontWeight: "bold"
+                            }}
                         >Add user</Button>
                     </div>
                     {showAlert && <Alert id="add-user-alert" severity={alertSeverity}>{alertText}</Alert>}
-                </Stack >
-            </form >
+                </Stack>
+            </form>
         </div>
     )
 }
