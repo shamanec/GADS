@@ -73,7 +73,7 @@ export default function Login() {
                         <label>
                             <TextField
                                 onChange={e => setUsername(e.target.value)}
-                                label="Email"
+                                label="Username"
                                 required
                                 id="outlined-required"
                                 style={{ color: "#78866B" }}

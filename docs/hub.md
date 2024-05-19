@@ -12,9 +12,6 @@ Run `./GADS hub` with the following flags:
 - `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)  
 - `--port=` - port on which the UI and backend service will run  
 - `--mongo-db=` - IP address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`) - tested only on local network
-- `--admin-username=` - username of the default admin user (default is `admin`)  
-- `--admin-password=` - password of the default admin user (default is `password`)  
-- `--admin-email=` - email of the default admin user (default is `admin@gads.ui`)  
 - `--ui-files-dir=` - directory where the UI static files will be unpacked and served from. By default the app tries to use a temporary folder available on the host automatically. **NB** Use this flag only if you have issues with the default behaviour.
 
 Then access the hub UI and API on `http://{host-address}:{port}`

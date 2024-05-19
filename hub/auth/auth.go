@@ -58,7 +58,7 @@ func LoginHandler(c *gin.Context) {
 	}
 	sessionsMap[sessionID.String()] = session
 
-	c.JSON(http.StatusOK, gin.H{"sessionID": sessionID, "username": user.Username, "email": user.Email, "role": user.Role})
+	c.JSON(http.StatusOK, gin.H{"sessionID": sessionID, "username": user.Username, "role": user.Role})
 }
 
 func LogoutHandler(c *gin.Context) {
