@@ -36,6 +36,13 @@ type AppiumLog struct {
 	SessionID string `json:"session_id" bson:"session_id"`
 }
 
+type ProviderLog struct {
+	EventName string `json:"eventname" bson:"eventname"`
+	Level     string `json:"level" bson:"level"`
+	Message   string `json:"message" bson:"message"`
+	Timestamp int64  `json:"timestamp" bson:"timestamp"`
+}
+
 func GetAppiumLogs(c *gin.Context) {
 	logLimit, _ := strconv.Atoi(c.DefaultQuery("logLimit", "100"))
 	if logLimit > 1000 {
@@ -53,6 +60,41 @@ func GetAppiumLogs(c *gin.Context) {
 	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
+	findOptions.SetLimit(int64(logLimit))
+
+	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)
+	if err != nil {
+		InternalServerError(c, "Failed to get cursor for collection")
+	}
+	defer cursor.Close(db.MongoCtx())
+
+	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
+		InternalServerError(c, "Failed to read data from cursor")
+	}
+	if err := cursor.Err(); err != nil {
+		InternalServerError(c, "Cursor error")
+	}
+
+	c.JSON(200, logs)
+}
+
+func GetProviderLogs(c *gin.Context) {
+	logLimit, _ := strconv.Atoi(c.DefaultQuery("logLimit", "200"))
+	if logLimit > 1000 {
+		logLimit = 1000
+	}
+
+	collectionName := c.DefaultQuery("collection", "")
+	if collectionName == "" {
+		BadRequest(c, "Empty collection name provided")
+		return
+	}
+
+	var logs []ProviderLog
+
+	collection := db.MongoClient().Database("logs").Collection(collectionName)
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 	findOptions.SetLimit(int64(logLimit))
 
 	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)

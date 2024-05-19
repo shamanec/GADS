@@ -3,6 +3,7 @@ import ProviderConfig from "./ProviderConfig";
 import { useEffect, useState } from "react";
 import ProviderInfo from "./ProviderInfo";
 import ProviderDevice from "./ProviderDevice"
+import ProviderLogsTable from "./ProviderLogsTable/ProviderLogsTable";
 
 export default function Provider({ info }) {
     return (
@@ -27,6 +28,10 @@ export default function Provider({ info }) {
                     nickname={info.nickname}
                     os={info.os}
                 ></LiveProviderBox>
+                <ProviderLogsTable
+                    nickname={info.nickname}
+                >
+                </ProviderLogsTable>
             </Stack>
         </Stack>
     )
