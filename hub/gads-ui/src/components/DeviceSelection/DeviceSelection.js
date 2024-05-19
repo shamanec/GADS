@@ -169,7 +169,7 @@ function OSSelection({ devices, handleAlert }) {
                 ) : (
                     <TabPanel
                         value='{currentTabIndex}'
-                        style={{ height: "800px", overflowY: "scroll"}}
+                        style={{ height: "800px", overflowY: "auto"}}
                     >
                         <Grid
                             id='devices-container'
