@@ -2,7 +2,7 @@
     justify-content: center;
     align-items: center;
     display: flex;
-    background-color: #273616;
+    background-color: #0c111e;
     width: 100vw;
     /* 100% of the viewport width */
     height: 100vh;
@@ -19,14 +19,14 @@
 .fancy-wrapper {
     width: 30%;
     height: 500px;
-    background-color: #E0D8C0;
+    background-color: #78866B;
     display: flex;
     flex-direction: row;
     border-radius: 10px;
 }
 
 #funky-div {
-    background: rgb(210, 158, 94);
+    background: #78866B;
     background: linear-gradient(342deg, rgba(210, 158, 94, 1) 12%, rgba(130, 150, 11, 1) 55%, rgba(164, 255, 0, 1) 100%);
     width: 50%;
     border-top-left-radius: 10px;

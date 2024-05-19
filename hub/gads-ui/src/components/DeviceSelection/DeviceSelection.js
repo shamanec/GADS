@@ -65,8 +65,8 @@ export default function DeviceSelection() {
         CheckServerHealth()
 
         // Use specific full address for local development, proxy does not seem to work okay
-        // const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
-        const evtSource = new EventSource(`/available-devices`);
+        const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
+        // const evtSource = new EventSource(`/available-devices`);
 
         evtSource.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
@@ -134,7 +134,7 @@ function OSSelection({ devices, handleAlert }) {
                     className='filters-stack'
                     sx={{
                         height: '500px',
-                        backgroundColor: '#E0D8C0',
+                        backgroundColor: '#78866B',
                         borderRadius: '10px'
                     }}
                 >
@@ -149,7 +149,7 @@ function OSSelection({ devices, handleAlert }) {
                 {devices.length === 0 ? (
                     <Box
                         style={{
-                            backgroundColor: '#E0D8C0',
+                            backgroundColor: '#78866B',
                             width: '100%',
                             height: '800px',
                             borderRadius: '10px',
@@ -169,6 +169,7 @@ function OSSelection({ devices, handleAlert }) {
                 ) : (
                     <TabPanel
                         value='{currentTabIndex}'
+                        style={{ height: "800px", overflowY: "auto"}}
                     >
                         <Grid
                             id='devices-container'

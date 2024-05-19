@@ -34,12 +34,17 @@ export default function NavBar() {
                     to="/devices"
                     linkText='Devices'
                 />
-                {showAdmin && (<StyledNavLink to="/admin" linkText='Admin' />)}
+                {showAdmin && (
+                    <StyledNavLink
+                        to="/admin"
+                        linkText='Admin'
+                    />
+                )}
             </nav>
             <div
                 className="social-buttons-wrapper"
             >
-                <p>Welcome, {username}</p>
+                <p style={{ fontWeight: "bold"}}>Welcome, {username}</p>
                 <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
@@ -54,8 +59,9 @@ function StyledNavLink({ to, linkText }) {
     return (
         <NavLink className="nav-bar-link"
             style={({ isActive }) => ({
-                backgroundColor: isActive ? "#273616" : "",
-                color: "#E0D8C0"
+                backgroundColor: isActive ? "#0c111e" : "",
+                color: isActive ? "#78866B" : "#0c111e",
+                fontWeight: "bold"
             })}
             to={to}
         >
@@ -138,7 +144,11 @@ function LogoutButton() {
             onClick={handleLogout}
             style={{
                 marginLeft: "20px",
-                backgroundColor: "#914400"
+                backgroundColor: "#914400",
+                marginTop: "5px",
+                marginBottom: "5px",
+                color: "#0c111e",
+                fontWeight: "bold"
             }}
         >Logout</Button>
     )

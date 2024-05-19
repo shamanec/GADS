@@ -48,8 +48,8 @@ function LiveProviderBox({ nickname, os }) {
 
     useEffect(() => {
         // Use specific full address for local development, proxy does not seem to work okay
-        // const evtSource = new EventSource(`http://192.168.1.6:10000/admin/provider/${nickname}/info`);
-        const evtSource = new EventSource(`/admin/provider/${nickname}/info`);
+        const evtSource = new EventSource(`http://192.168.1.6:10000/admin/provider/${nickname}/info`);
+        // const evtSource = new EventSource(`/admin/provider/${nickname}/info`);
 
         evtSource.onmessage = (event) => {
             let providerJSON = JSON.parse(event.data)
@@ -110,7 +110,7 @@ function ProviderDevices({ devicesData, isOnline }) {
                 style={{
                     height: '600px',
                     width: '400px',
-                    backgroundColor: '#E0D8C0',
+                    backgroundColor: '#78866B',
                     borderRadius: '10px',
                     textAlign: 'center',
                     fontSize: '20px',
@@ -129,7 +129,7 @@ function ProviderDevices({ devicesData, isOnline }) {
                     style={{
                         height: '600px',
                         overflowY: 'scroll',
-                        backgroundColor: '#E0D8C0',
+                        backgroundColor: '#78866B',
                         borderRadius: '5px',
                         marginTop: '10px'
                     }}

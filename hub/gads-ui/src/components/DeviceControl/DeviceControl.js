@@ -82,7 +82,12 @@ export default function DeviceControl() {
                     <Button
                         variant="contained"
                         onClick={handleBackClick}
-                        style={{ marginLeft: "20px" }}
+                        style={{
+                            marginLeft: "20px",
+                            backgroundColor: "#78866B",
+                            color: "#0c111e",
+                            fontWeight: "bold"
+                        }}
                     >Back to devices</Button>
                 </div>
                 {

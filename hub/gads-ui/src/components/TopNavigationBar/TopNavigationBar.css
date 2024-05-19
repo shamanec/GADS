@@ -1,7 +1,7 @@
 .navbar-wrapper {
     height: 50px;
     display: flex;
-    background-color: #496612;
+    background-color: #78866B;
     align-items: center;
 }
 
@@ -16,7 +16,7 @@
 
 .navbar a {
     text-decoration: none;
-    color: black;
+    color: #0c111e;
 }
 
 .navbar li {
@@ -32,7 +32,7 @@
 }
 
 .selected {
-    background-color: #ddd;
+    background-color: #0c111e;
     /* or any style you like */
 }
 

@@ -39,7 +39,7 @@ export default function StreamCanvas({ deviceData }) {
         >
             <h3
                 style={{
-                    color: '#E0D8C0',
+                    color: '#0c111e',
                     display: 'flex',
                     fontFamily: 'Verdana',
                     justifyContent: 'center'

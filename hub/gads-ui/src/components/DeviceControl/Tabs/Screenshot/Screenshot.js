@@ -55,7 +55,10 @@ export default function Screenshot({ udid }) {
                     onClick={() => takeScreenshot(udid)}
                     variant="contained"
                     style={{
-                        marginBottom: "10px"
+                        marginBottom: "10px",
+                        backgroundColor: "#78866B",
+                        color: "#0c111e",
+                        fontWeight: "bold"
                     }}
                 >Screenshot</Button>
                 <div

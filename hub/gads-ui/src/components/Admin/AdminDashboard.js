@@ -26,13 +26,13 @@ export default function AdminDashboard() {
                 onChange={handleTabChange}
                 TabIndicatorProps={{
                     style: {
-                        background: "#496612",
+                        background: "#78866B",
                         height: "5px"
                     }
                 }}
-                textColor='#E0D8C0'
+                textColor="#0c111e"
                 sx={{
-                    color: "white",
+                    color: "#78866B",
                     fontFamily: "Verdana"
                 }}
             >
@@ -40,14 +40,16 @@ export default function AdminDashboard() {
                     label="User administration"
                     style={{
                         textTransform: 'none',
-                        fontSize: '16px'
+                        fontSize: '16px',
+                        fontWeight: "bold"
                     }}
                 />
                 <Tab
                     label="Providers administration"
                     style={{
                         textTransform: 'none',
-                        fontSize: '16px'
+                        fontSize: '16px',
+                        fontWeight: "bold"
                     }}
                 />
             </Tabs>

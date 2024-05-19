@@ -3,9 +3,9 @@
     font-size: 16px;
     margin-left: 10px;
     height: 40px;
-    border-bottom: 2px solid black;
-    background-color: #E0D8C0;
-    color: black;
+    border-bottom: 2px solid #0c111e;
+    background-color: #78866B;
+    color: #0c111e;
 }
 
 #search-input:focus {
@@ -23,4 +23,14 @@
 #image-wrapper {
     justify-content: center;
     align-items: center;
+}
+
+.custom-placeholder::placeholder {
+    color: #0c111e;
+    font-weight: bold;
+}
+
+.custom-placeholder::-ms-input-placeholder {
+    color: #0c111e;
+    font-weight: bold;
 }

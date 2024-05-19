@@ -1,5 +1,4 @@
 
-import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import LanIcon from '@mui/icons-material/Lan';
 import Tooltip from '@mui/material/Tooltip';
 import HomeIcon from '@mui/icons-material/Home';
@@ -14,7 +13,7 @@ export default function Info({ info, handleSelectProvider }) {
         <Box
             sx={{
                 maxWidth: '200px',
-                background: '#E0D8C0',
+                background: '#78866B',
                 borderRadius: '10px',
                 marginLeft: '10px',
                 alignItems: 'center',

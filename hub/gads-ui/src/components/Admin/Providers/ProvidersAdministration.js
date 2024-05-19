@@ -52,7 +52,7 @@ export default function ProvidersAdministration() {
                             variant="rounded"
                             style={{
                                 margin: '10px',
-                                background: '#496612',
+                                background: '#878a91',
                                 animationDuration: '1s',
                                 height: '100%',
                                 width: '100%'

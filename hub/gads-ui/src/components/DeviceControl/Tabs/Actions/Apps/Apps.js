@@ -10,7 +10,7 @@ export default function Apps({ deviceData }) {
         <Box
             style={{
                 width: '600px',
-                backgroundColor: '#E0D8C0',
+                backgroundColor: '#78866B',
                 borderRadius: '10px'
             }}
         >

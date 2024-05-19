@@ -21,9 +21,11 @@ export function DeviceBox({ device, handleAlert }) {
             </div>
             <div
                 className='filterable info'
+                style={{ fontSize: "16px"}}
             >{device.name}</div>
             <div
                 className='filterable info'
+                style={{ fontSize: "16px"}}
             >{device.os_version}</div>
             <div
                 className='device-buttons-container'

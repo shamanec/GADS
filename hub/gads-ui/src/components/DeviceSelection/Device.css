@@ -1,7 +1,7 @@
 .device-box {
-    background-color: #E0D8C0;
-    width: 300px;
-    height: 450px;
+    background-color: #78866B;
+    width: 220px;
+    height: 350px;
     margin: 10px;
     text-align: center;
     font-size: 30px;
@@ -9,7 +9,7 @@
 }
 
 .device-buttons .in-use {
-    background-color: #fcb103;
+    background-color: #878a91;
 }
 
 .device-box:hover {
@@ -23,7 +23,7 @@
 }
 
 .deviceImage {
-    height: 300px;
+    height: 200px;
     margin-top: 30px
 }
 
@@ -35,28 +35,31 @@
 
 .device-buttons {
     margin: 10px;
-    background: #273616;
-    color: #E0D8C0;
+    background: #0c111e;
+    color: #78866B;
     width: 30%;
     height: 50px;
     border-radius: 10px;
     font-size: 15px;
     position: relative;
-    border: 2px solid black;
+    border: 2px solid #0c111e;
+    font-weight: bold;
 }
 
 .device-buttons:disabled {
-    background: #a1add0;
+    background: #878a91;
+    color: #0c111e;
 }
 
 .device-buttons:disabled:hover {
-    background: #a1add0;
+    background: #878a91;
+    color: #0c111e;
 }
 
 .device-buttons:hover {
     cursor: pointer;
     background: #496612;
-    color: #E0D8C0;
+    color: #78866B;
 }
 
 .spinner {
@@ -70,7 +73,7 @@
     bottom: 0;
     margin: auto;
     border: 4px solid transparent;
-    border-top-color: #E0D8C0;
+    border-top-color: #78866B;
     border-radius: 50%;
     animation: button-loading-spinner 1s ease infinite;
 }

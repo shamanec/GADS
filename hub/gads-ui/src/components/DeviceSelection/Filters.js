@@ -11,13 +11,13 @@ export function OSFilterTabs({ currentTabIndex, handleTabChange }) {
             onChange={handleTabChange}
             TabIndicatorProps={{
                 style: {
-                    background: "#282c34",
+                    background: "#0c111e",
                     height: "5px"
                 }
             }}
-            textColor='#282c34'
+            textColor='#0c111e'
             sx={{
-                color: "#282c34",
+                color: "#0c111e",
                 fontFamily: "Verdana"
             }}
         >
@@ -32,13 +32,14 @@ export function DeviceSearch({ keyUpFilterFunc }) {
     return (
         <div id='search-wrapper'>
             <div id='image-wrapper'>
-                <FiSearch size={25} />
+                <FiSearch size={25}/>
             </div>
             <input
                 type="search"
                 id="search-input"
-                onKeyUp={() => keyUpFilterFunc()}
+                onInput={() => keyUpFilterFunc()}
                 placeholder="Search devices"
+                className="custom-placeholder"
             ></input>
         </div>
     )
