@@ -1,5 +1,4 @@
 
-import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import LanIcon from '@mui/icons-material/Lan';
 import Tooltip from '@mui/material/Tooltip';
 import HomeIcon from '@mui/icons-material/Home';
