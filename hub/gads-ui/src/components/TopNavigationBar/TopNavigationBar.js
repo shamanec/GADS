@@ -5,11 +5,13 @@ import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
 
 export default function NavBar() {
-    const [, username, role, ,] = useContext(Auth)
+    const [, username, , ,] = useContext(Auth)
 
     const [showAdmin, setShowAdmin] = useState(false)
 
-    if (role == 'admin') {
+    const roleFromStorage = localStorage.getItem('userRole')
+
+    if (roleFromStorage == 'admin') {
         if (!showAdmin) {
             setShowAdmin(true)
         }

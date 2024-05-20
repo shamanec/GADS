@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
         setUserName(name)
         setUserRole(role)
         localStorage.setItem('authToken', token);
+        localStorage.setItem('userRole', role)
     }
 
     function logout() {
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }) => {
         setUserName("")
         setUserRole("")
         localStorage.removeItem('authToken');
+        localStorage.removeItem('userRole')
     }
 
     useEffect(() => {
