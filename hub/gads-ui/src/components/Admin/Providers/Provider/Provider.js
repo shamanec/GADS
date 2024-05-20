@@ -3,10 +3,12 @@ import ProviderConfig from "./ProviderConfig";
 import { useEffect, useState } from "react";
 import ProviderInfo from "./ProviderInfo";
 import ProviderDevice from "./ProviderDevice"
+import ProviderLogsTable from "./ProviderLogsTable/ProviderLogsTable";
 
 export default function Provider({ info }) {
     return (
         <Stack
+            width="100%"
             style={{
                 marginTop: '10px',
                 marginBottom: '10px',
@@ -15,6 +17,7 @@ export default function Provider({ info }) {
             }}
         >
             <Stack
+                width="100%"
                 direction='row'
                 spacing={2}
             >
@@ -27,6 +30,10 @@ export default function Provider({ info }) {
                     nickname={info.nickname}
                     os={info.os}
                 ></LiveProviderBox>
+                <ProviderLogsTable
+                    nickname={info.nickname}
+                >
+                </ProviderLogsTable>
             </Stack>
         </Stack>
     )

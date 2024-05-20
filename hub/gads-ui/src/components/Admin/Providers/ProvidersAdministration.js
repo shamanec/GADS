@@ -40,6 +40,7 @@ export default function ProvidersAdministration() {
     return (
         <Box
             height='100%'
+            width="100%"
         >
             <Stack
                 direction='row'
