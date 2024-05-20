@@ -8,6 +8,7 @@ import ProviderLogsTable from "./ProviderLogsTable/ProviderLogsTable";
 export default function Provider({ info }) {
     return (
         <Stack
+            width="100%"
             style={{
                 marginTop: '10px',
                 marginBottom: '10px',
@@ -16,6 +17,7 @@ export default function Provider({ info }) {
             }}
         >
             <Stack
+                width="100%"
                 direction='row'
                 spacing={2}
             >

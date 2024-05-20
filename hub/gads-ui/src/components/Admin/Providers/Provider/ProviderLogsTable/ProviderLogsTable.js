@@ -109,7 +109,7 @@ export default function ProviderLogsTable({ nickname }) {
     }
 
     return (
-        <div style={{width: '1200px', marginTop: '10px'}}>
+        <div id="koleo" style={{width: "800px", marginTop: '10px'}}>
             <Button
                 onClick={getLogs}
                 variant='contained'
@@ -133,10 +133,10 @@ export default function ProviderLogsTable({ nickname }) {
                                 : logData
                         ).map((logEntry, index) => (
                             <TableRow key={index}>
-                                <TableCell style={{ width: 200, fontSize: "14px" }}>
+                                <TableCell style={{ width: "200px", maxWidth: "200px", fontSize: "14px" }}>
                                     {logEntry.eventname}
                                 </TableCell>
-                                <TableCell style={{ width: 660, maxWidth: 660, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
+                                <TableCell style={{ width: "600px", maxWidth: "600px", overflow: 'hidden', fontSize: "14px" }}>
                                     {logEntry.message}
                                 </TableCell>
                             </TableRow>
