@@ -46,8 +46,8 @@ type Device struct {
 	Model                string             `json:"model" bson:"model"`                                           // common value - device model
 	Host                 string             `json:"host" bson:"host"`                                             // common value - IP address of the device host(provider)
 	Provider             string             `json:"provider" bson:"provider"`                                     // common value - nickname of the device host(provider)
-	InUse                bool               `json:"in_use"`                                                       // UI value - if device is currently in use
-	InUseLastTS          int64              `json:"last_used_ts"`                                                 // UI value - timestamp corresponding to the last ping of /in-use endpoint for device
+	InUse                bool               `json:"in_use" bson:"-"`                                              // UI value - if device is currently in use
+	InUseLastTS          int64              `json:"last_used_ts" bson:"-"`                                        // UI value - timestamp corresponding to the last ping of /in-use endpoint for device
 	ScreenWidth          string             `json:"screen_width" bson:"screen_width"`                             // common value - screen width of device
 	ScreenHeight         string             `json:"screen_height" bson:"screen_height"`                           // common value - screen height of device
 	HardwareModel        string             `json:"hardware_model,omitempty" bson:"hardware_model,omitempty"`     // common value - hardware model of device

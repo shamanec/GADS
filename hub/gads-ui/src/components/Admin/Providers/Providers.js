@@ -11,7 +11,7 @@ export default function Providers({ providers, setProviders }) {
     }
 
     return (
-        <Box style={{ margin: '10px', width: '100%' }}>
+        <Box style={{margin: '10px', width: '100%'}}>
             <Tabs
                 value={currentTabIndex}
                 onChange={handleTabChange}
@@ -37,14 +37,15 @@ export default function Providers({ providers, setProviders }) {
                 ></Tab>
                 {providers.map((provider) => {
                     return (
-                        <Tab label={provider.nickname} style={{ textTransform: 'none', fontSize: '16px', fontWeight: "bold" }} />
+                        <Tab label={provider.nickname}
+                             style={{textTransform: 'none', fontSize: '16px', fontWeight: "bold"}}/>
                     )
                 })
                 }
             </Tabs>
-            {currentTabIndex === 0 && <ProviderConfig isNew={true} setProviders={setProviders} ></ProviderConfig>}
+            {currentTabIndex === 0 && <ProviderConfig isNew={true} setProviders={setProviders}></ProviderConfig>}
             {currentTabIndex !== 0 && <Provider isNew={false} info={providers[currentTabIndex - 1]}></Provider>}
-        </Box >
+        </Box>
 
     )
 }

@@ -109,7 +109,7 @@ export default function ProviderLogsTable({ nickname }) {
     }
 
     return (
-        <div id="koleo" style={{width: "800px", marginTop: '10px'}}>
+        <div style={{marginTop: '10px'}}>
             <Button
                 onClick={getLogs}
                 variant='contained'
