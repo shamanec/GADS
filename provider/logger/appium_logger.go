@@ -42,6 +42,9 @@ func (logger *AppiumLogger) Log(device *models.Device, logLine string) {
 	// The message is after the type of log in the string like [HTTP] so we just split
 	// Assuming every line has the log type formatted like this
 	messageSplit := strings.Split(logLine, "] ")
+	if len(messageSplit) < 2 {
+		return
+	}
 	if messageSplit[1] == "" {
 		return
 	}
@@ -61,7 +64,11 @@ func (logger *AppiumLogger) Log(device *models.Device, logLine string) {
 	re := regexp.MustCompile(`\[([^\[\]]*)]`)
 	match := re.FindStringSubmatch(logLine)
 	if match != nil {
-		logData.Type = match[1]
+		if len(match) < 2 {
+			logData.Type = "Unknown"
+		} else {
+			logData.Type = match[1]
+		}
 	} else {
 		logData.Type = "Unknown"
 	}
@@ -70,9 +77,12 @@ func (logger *AppiumLogger) Log(device *models.Device, logLine string) {
 	// Add it to the local device object
 	// This way we can keep a session in UI alive when a session from outside is created, e.g. Appium Inspector, test automation
 	if strings.Contains(logLine, "session created successfully") {
-		firstSplit := strings.Split(logLine, ", session ")[1]
-		sessionId := strings.Split(firstSplit, " ")[0]
-
+		sessionId := ""
+		firstSplit := strings.Split(logLine, ", session ")
+		if len(firstSplit) >= 2 {
+			firstSplitValue := firstSplit[1]
+			sessionId = strings.Split(firstSplitValue, " ")[0]
+		}
 		if len(sessionId) != 36 {
 			device.AppiumSessionID = ""
 		} else {
@@ -95,13 +105,13 @@ func (logger *AppiumLogger) Log(device *models.Device, logLine string) {
 	// Log to file
 	err := appiumLogToFile(logger, logData)
 	if err != nil {
-		fmt.Printf("Failed writing Appium log to file - %s\n", err)
+		fmt.Printf("Failed writing Appium log to file - %s \n Log data:\n%s\n", err, logData)
 	}
 
 	// Log to Mongo
 	err = appiumLogToMongo(logger, logData)
 	if err != nil {
-		fmt.Printf("Failed writing Appium log to Mongo - %s\n", err)
+		fmt.Printf("Failed writing Appium log to Mongo - %s \n Log data:\n%s\n", err, logData)
 	}
 }
 

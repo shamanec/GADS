@@ -163,6 +163,7 @@ func CheckGadsStreamAndDownload() error {
 	return nil
 }
 
+// Check if the gads-stream.apk file is located in the provider `conf` folder
 func isGadsStreamApkAvailable() bool {
 	_, err := os.Stat(fmt.Sprintf("%s/conf/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
 	if os.IsNotExist(err) {
@@ -171,6 +172,7 @@ func isGadsStreamApkAvailable() bool {
 	return err == nil
 }
 
+// Download the latest release of GADS-Android-stream and put the apk in the provider `conf` folder
 func downloadGadsStreamApk() error {
 	logger.ProviderLogger.LogInfo("provider", "Downloading latest GADS-stream release apk file")
 	outFile, err := os.Create(fmt.Sprintf("%s/conf/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))

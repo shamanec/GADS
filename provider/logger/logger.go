@@ -130,12 +130,12 @@ func (hook *MongoDBHook) Fire(entry *log.Entry) error {
 
 	document, err := bson.Marshal(logEntry)
 	if err != nil {
-		fmt.Println("Failed marshalling log entry inserting provider log through hook - " + err.Error())
+		fmt.Printf("Logrus MongoDB hook failed - %s\n", err)
 	}
 
 	_, err = hook.Client.Database(hook.DB).Collection(hook.Collection).InsertOne(hook.Ctx, document)
 	if err != nil {
-		fmt.Println("Failed inserting provider log through hook - " + err.Error())
+		fmt.Printf("Logrus MongoDB hook failed - %s, \nData: %s\n", err, document)
 	}
 
 	return err
