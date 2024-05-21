@@ -9,7 +9,6 @@ import (
 	"GADS/provider/providerutil"
 	"GADS/provider/router"
 	"context"
-	"flag"
 	"fmt"
 	"github.com/spf13/pflag"
 	"go.mongodb.org/mongo-driver/bson"
@@ -55,20 +54,24 @@ func StartProvider(flags *pflag.FlagSet) {
 	logger.SetupLogging(logLevel)
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.Config.EnvConfig.Port))
 
+	logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is installed and available on the host")
 	if !providerutil.AppiumAvailable() {
 		log.Fatal("Appium is not available, set it up on the host as explained in the readme")
 	}
 
 	// If running on macOS and iOS device provisioning is enabled
 	if config.Config.EnvConfig.OS == "darwin" && config.Config.EnvConfig.ProvideIOS {
+		logger.ProviderLogger.LogInfo("provider_setup", "Provider runs on macOS and is set up to provide iOS devices")
 		// Add a trailing slash to WDA repo folder if its missing
 		// To avoid issues with the configuration
+		logger.ProviderLogger.LogDebug("provider_setup", "Handling trailing slash of provided WebDriverAgent repo path if needed")
 		if !strings.HasSuffix(config.Config.EnvConfig.WdaRepoPath, "/") {
 			logger.ProviderLogger.LogDebug("provider_setup", "Provided WebDriverAgent repo path has no trailing slash, adding it")
 			config.Config.EnvConfig.WdaRepoPath = fmt.Sprintf("%s/", config.Config.EnvConfig.WdaRepoPath)
 		}
 
 		// Check if the provided WebDriverAgent repo path exists
+		logger.ProviderLogger.LogDebug("provider_setup", "Checking if provided WebDriverAgent repo path exists on the host")
 		_, err := os.Stat(config.Config.EnvConfig.WdaRepoPath)
 		if err != nil {
 			log.Fatalf("`%s` does not exist, you need to provide valid path to the WebDriverAgent repo in the provider configuration", config.Config.EnvConfig.WdaRepoPath)
@@ -79,11 +82,6 @@ func StartProvider(flags *pflag.FlagSet) {
 			log.Fatal("xcodebuild is not available, you need to set it up on the host as explained in the readme")
 		}
 
-		// Check if the `go-ios` binary is available on PATH as explained in the setup readme
-		if !providerutil.GoIOSAvailable() {
-			log.Fatal("go-ios is not available, you need to set it up on the host as explained in the readme")
-		}
-
 		// Build the WebDriverAgent using xcodebuild from the provided repo path
 		err = providerutil.BuildWebDriverAgent()
 		if err != nil {
@@ -91,11 +89,21 @@ func StartProvider(flags *pflag.FlagSet) {
 		}
 	}
 
-	// If on Linux or Windows and iOS devices provision enabled check for WebDriverAgent.ipa/app
-	if config.Config.EnvConfig.OS != "darwin" && config.Config.EnvConfig.ProvideIOS {
-		err := configureWebDriverBinary(providerFolder)
-		if err != nil {
-			log.Fatalf("You should put signed WebDriverAgent.ipa/app file in the `conf` folder in `%s`", providerFolder)
+	if config.Config.EnvConfig.ProvideIOS {
+		// Check if the `go-ios` binary is available on PATH as explained in the setup readme
+		if !providerutil.GoIOSAvailable() {
+			log.Fatal("`go-ios` is not available, you need to set it up on the host as explained in the readme")
+		}
+
+		// If on Linux or Windows and iOS devices provision enabled check for WebDriverAgent.ipa/app
+		if config.Config.EnvConfig.OS != "darwin" {
+			logger.ProviderLogger.LogInfo(
+				"provider_setup",
+				"Provider runs on Linux/Windows and is set up to provide iOS devices, checking if prepared WebDriverAgent binary exists in the `conf` folder as explained in the readme")
+			err := configureWebDriverBinary(providerFolder)
+			if err != nil {
+				log.Fatalf("You should put signed WebDriverAgent.ipa/app file in the `conf` folder in `%s` as explained in the readme", providerFolder)
+			}
 		}
 	}
 
@@ -106,10 +114,10 @@ func StartProvider(flags *pflag.FlagSet) {
 			fmt.Println("adb is not available, you need to set up the host as explained in the readme")
 			os.Exit(1)
 		}
-	}
 
-	// Try to remove potentially hanging ports forwarded by adb
-	providerutil.RemoveAdbForwardedPorts()
+		// Try to remove potentially hanging ports forwarded by adb
+		providerutil.RemoveAdbForwardedPorts()
+	}
 
 	// Finalize grid configuration if Selenium Grid usage enabled
 	if config.Config.EnvConfig.UseSeleniumGrid {
@@ -154,28 +162,6 @@ func createFolderIfNotExist(baseFolder, subFolder string) {
 	}
 }
 
-func parseFlags() (string, string, string, string) {
-	logLevel := flag.String("log-level", "info", "The log level of the provider app - debug, info, or error")
-	nickname := flag.String("nickname", "", "The nickname of the provider")
-	mongoDb := flag.String("mongo-db", "localhost:27017", "The address of the MongoDB instance")
-	providerFolder := flag.String("provider-folder", ".", "The folder where logs and apps are stored")
-	flag.Parse()
-
-	//Nickname is mandatory, this is what we use to get the configuration from the DB
-	if *nickname == "" {
-		log.Fatal("Please provide --nickname flag")
-	}
-
-	// Print out some info on startup, maybe a flag was missed
-	fmt.Printf("Current log level: %s, use the --log-level flag to change it\n", *logLevel)
-	fmt.Printf("MongoDB instance: %s, use the --mongo-db flag to change it\n", *mongoDb)
-	fmt.Printf("Provider folder: %s, use the --provider-folder flag to change it\n", *providerFolder)
-
-	// Remove trailing slash if provided, all code assumes it's not there
-	*providerFolder, _ = strings.CutSuffix(*providerFolder, "/")
-	return *logLevel, *nickname, *mongoDb, *providerFolder
-}
-
 // Check for and set up selenium jar file for creating Appium grid nodes in config
 func configureSeleniumSettings() {
 	seleniumJarFile := ""
@@ -193,7 +179,7 @@ func configureSeleniumSettings() {
 		return
 	}
 	if seleniumJarFile == "" {
-		log.Fatalf("You have enabled Selenium Grid connection but no selenium jar file was found in the `conf` folder in `%s`", config.Config.EnvConfig.ProviderFolder)
+		log.Fatalf("You have enabled Selenium Grid connection but no selenium jar file was found in the `conf` folder in `%s`, you need to set it up as explained in the readme", config.Config.EnvConfig.ProviderFolder)
 	}
 	config.Config.EnvConfig.SeleniumJarFile = seleniumJarFile
 }

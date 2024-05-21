@@ -230,6 +230,9 @@ func IOSStreamMJPEGWda(c *gin.Context) {
 			if err != nil {
 				break
 			}
+
+			// Flush the response writer to ensure the client receives the frame immediately
+			c.Writer.Flush()
 		}
 	}
 }
