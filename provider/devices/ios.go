@@ -194,7 +194,7 @@ func startWdaWithGoIOS(device *models.Device) {
 
 	err = cmd.Start()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startWdaWithGoIOS: Failed executing `%s` - %v", cmd.Path, err))
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startWdaWithGoIOS: Failed executing `%s` - %v", cmd.Args, err))
 		resetLocalDevice(device)
 		return
 	}
@@ -217,7 +217,7 @@ func startWdaWithGoIOS(device *models.Device) {
 
 	err = cmd.Wait()
 	if err != nil {
-		device.Logger.LogError("webdriveragent", fmt.Sprintf("startWdaWithGoIOS: Error waiting for `%s` to finish, it errored out or device `%v` was disconnected - %v", cmd.Path, device.UDID, err))
+		device.Logger.LogError("webdriveragent", fmt.Sprintf("startWdaWithGoIOS: Error waiting for `%s` to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, device.UDID, err))
 		resetLocalDevice(device)
 	}
 }
@@ -243,7 +243,7 @@ func startGadsIosBroadcastViaXCTestGoIOS(device *models.Device) error {
 
 	err = cmd.Start()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Failed executing `%s` - %v", cmd.Path, err))
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Failed executing `%s` - %v", cmd.Args, err))
 		resetLocalDevice(device)
 		return err
 	}
@@ -265,7 +265,7 @@ func startGadsIosBroadcastViaXCTestGoIOS(device *models.Device) error {
 
 	err = cmd.Wait()
 	if err != nil {
-		device.Logger.LogError("gads_broadcast_startup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Error waiting for `%s` to finish, it errored out or device `%v` was disconnected - %v", cmd.Path, device.UDID, err))
+		device.Logger.LogError("gads_broadcast_startup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Error waiting for `%s` to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, device.UDID, err))
 		resetLocalDevice(device)
 		return err
 	}
@@ -323,7 +323,7 @@ func getInstalledAppsIOS(device *models.Device) []string {
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
-		device.Logger.LogError("get_installed_apps", fmt.Sprintf("getInstalledAppsIOS: Failed executing `%s` to get installed apps - %v", cmd.Path, err))
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("getInstalledAppsIOS: Failed executing `%s` to get installed apps - %v", cmd.Args, err))
 		return installedApps
 	}
 
@@ -336,7 +336,7 @@ func getInstalledAppsIOS(device *models.Device) []string {
 
 	err := json.Unmarshal([]byte(jsonString), &appsData)
 	if err != nil {
-		device.Logger.LogError("get_installed_apps", fmt.Sprintf("getInstalledAppsIOS: Error unmarshalling `%s` output json - %v", cmd.Path, err))
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("getInstalledAppsIOS: Error unmarshalling `%s` output json - %v", cmd.Args, err))
 		return installedApps
 	}
 
@@ -355,7 +355,7 @@ func uninstallAppIOS(device *models.Device, bundleID string) error {
 	cmd := exec.CommandContext(device.Context, "ios", "uninstall", bundleID, "--udid="+device.UDID)
 	err := cmd.Run()
 	if err != nil {
-		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed executing `%s` - %v", cmd.Path, err))
+		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed executing `%s` - %v", cmd.Args, err))
 		return err
 	}
 
@@ -373,7 +373,7 @@ func installAppWithPathIOS(device *models.Device, path string) error {
 	cmd := exec.CommandContext(device.Context, "ios", "install", fmt.Sprintf("--path=%s", path), "--udid="+device.UDID)
 	logger.ProviderLogger.LogDebug("install_app", fmt.Sprintf("installAppWithPathIOS: Installing with command `%s`", cmd.Args))
 	if err := cmd.Run(); err != nil {
-		device.Logger.LogError("install_app", fmt.Sprintf("Failed executing `%s` - %v", cmd.Path, err))
+		device.Logger.LogError("install_app", fmt.Sprintf("Failed executing `%s` - %v", cmd.Args, err))
 		return err
 	}
 
@@ -383,7 +383,7 @@ func installAppWithPathIOS(device *models.Device, path string) error {
 func installAppIOS(device *models.Device, appName string) error {
 	cmd := exec.CommandContext(device.Context, "ios", "install", fmt.Sprintf("--path=%s/apps/%s", config.Config.EnvConfig.ProviderFolder, appName), "--udid="+device.UDID)
 	if err := cmd.Run(); err != nil {
-		device.Logger.LogError("uninstall_app", fmt.Sprintf("Failed executing `%s` - %v", cmd.Path, err))
+		device.Logger.LogError("uninstall_app", fmt.Sprintf("Failed executing `%s` - %v", cmd.Args, err))
 		return err
 	}
 

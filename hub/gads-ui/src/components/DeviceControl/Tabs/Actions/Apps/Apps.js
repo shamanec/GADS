@@ -1,11 +1,9 @@
 import { Box, Divider, Stack } from "@mui/material"
 import { useState } from "react"
 import UploadFile from "./UploadAppFile"
-import InstallApp from "./InstallApp"
+import UninstallApp from "./UninstallApp"
 
 export default function Apps({ deviceData }) {
-    const [installableApps, setInstallableApps] = useState(deviceData.installable_apps)
-
     return (
         <Box
             style={{
@@ -19,7 +17,6 @@ export default function Apps({ deviceData }) {
             >
                 <UploadFile
                     deviceData={deviceData}
-                    setInstallableApps={setInstallableApps}
                 >
 
                 </UploadFile>
@@ -27,12 +24,11 @@ export default function Apps({ deviceData }) {
                     orientation="vertical"
                     flexItem
                 />
-                <InstallApp
+                <UninstallApp
                     udid={deviceData.udid}
-                    installableApps={installableApps}
                     installedApps={deviceData.installed_apps}
                 >
-                </InstallApp>
+                </UninstallApp>
             </Stack>
         </Box>
     )

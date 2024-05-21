@@ -10,7 +10,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 
 
-export default function UploadAppFile({ deviceData, setInstallableApps }) {
+export default function UploadAppFile({ deviceData }) {
     // Upload file and file data
     const [file, setFile] = useState(null);
     const [fileName, setFileName] = useState('No data')
@@ -25,6 +25,7 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
     const [buttonDisabled, setButtonDisabled] = useState(true)
 
     function handleFileChange(e) {
+        setShowAlert(false)
         if (e.target.files) {
             const targetFile = e.target.files[0]
             const fileExtension = targetFile.name.split('.').pop();
@@ -56,7 +57,7 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
 
     return (
         <Box id='upload-wrapper'>
-            <h3>Upload app</h3>
+            <h3>Upload and install app</h3>
             <Button
                 component='label'
                 variant='contained'
@@ -112,24 +113,24 @@ export default function UploadAppFile({ deviceData, setInstallableApps }) {
                 setAlertSeverity={setAlertSeverity}
                 setAlertText={setAlertText}
                 setShowAlert={setShowAlert}
-                setInstallableApps={setInstallableApps}
             ></Uploader>
             {showAlert && <Alert id="add-user-alert" severity={alertSeverity}>{alertText}</Alert>}
         </Box>
     )
 }
 
-function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText, setInstallableApps }) {
+function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText }) {
     const [authToken, , , , logout] = useContext(Auth)
     const [isUploading, setIsUploading] = useState(false)
 
     function handleUpload() {
         setIsUploading(true)
-        const url = `/device/${deviceData.udid}/uploadFile`;
+        const url = `/device/${deviceData.udid}/uploadAndInstallApp`;
 
         const form = new FormData();
         form.append('file', file);
 
+        setShowAlert(false)
         axios.post(url, form, {
             headers: {
                 'X-Auth-Token': authToken,
@@ -141,7 +142,6 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 setAlertText(response.data.message)
                 setShowAlert(true)
                 setIsUploading(false)
-                setInstallableApps(response.data.apps)
             })
             .catch(error => {
                 if (error.response) {
@@ -156,9 +156,9 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 }
                 setIsUploading(false)
                 setAlertSeverity('error')
-                setAlertText('Failed uploading file')
+                setAlertText('Failed uploading/installing file')
                 setShowAlert(true)
-                console.log('Failed uploading file - ' + error)
+                console.log('Failed uploading/installing file - ' + error)
             });
     }
 
@@ -173,9 +173,10 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 style={{
                     backgroundColor: (isUploading || buttonDisabled) ? "rgba(51,71,110,0.47)" : "#0c111e",
                     color: "#78866B",
-                    fontWeight: "bold"
+                    fontWeight: "bold",
+                    width: "250px"
                 }}
-            >Upload</Button>
+            >Upload and install</Button>
             {isUploading &&
                 <CircularProgress id='progress-indicator' size={30} />
             }

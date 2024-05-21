@@ -60,7 +60,6 @@ type Device struct {
 	GoIOSDeviceEntry     ios.DeviceEntry    `json:"-" bson:"-"`                                                   // provider value - `go-ios` device entry object used for `go-ios` library interactions
 	IsResetting          bool               `json:"is_resetting" bson:"is_resetting"`                             // common value - if device setup is currently being reset
 	Logger               CustomLogger       `json:"-" bson:"-"`                                                   // provider value - CustomLogger object for the device
-	InstallableApps      []string           `json:"installable_apps" bson:"-"`                                    // provider value - list of installable apps available on the device provider instance
 	AppiumSessionID      string             `json:"appiumSessionID" bson:"-"`                                     // provider value - current Appium session ID
 	WDASessionID         string             `json:"wdaSessionID" bson:"-"`                                        // provider value - current WebDriverAgent session ID
 	AppiumPort           string             `json:"appium_port" bson:"-"`                                         // provider value - port assigned to the device for the Appium server

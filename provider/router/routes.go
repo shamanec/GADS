@@ -15,7 +15,6 @@ import (
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/devices"
-	"GADS/provider/providerutil"
 	"github.com/gin-gonic/gin"
 )
 
@@ -67,7 +66,11 @@ func newAppiumProxy(target string, path string) *httputil.ReverseProxy {
 	}
 }
 
-func UploadFile(c *gin.Context) {
+func UploadAndInstallApp(c *gin.Context) {
+	// Specify the upload directory
+	uploadDir := fmt.Sprintf("%s/apps/", config.Config.EnvConfig.ProviderFolder)
+
+	// Read the file from the form data
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -90,20 +93,40 @@ func UploadFile(c *gin.Context) {
 		return
 	}
 
-	// Specify the upload directory
-	uploadDir := fmt.Sprintf("%s/apps/", config.Config.EnvConfig.ProviderFolder)
-	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
-		os.Mkdir(uploadDir, os.ModePerm)
-	}
+	udid := c.Param("udid")
+	if dev, ok := devices.DeviceMap[udid]; ok {
+		// Save the uploaded file to the specified directory
+		dst := uploadDir + file.Filename
+		// First try to remove file if it already exists
+		err = os.Remove(dst)
+		if err != nil {
+			// TODO handle error properly
+		}
 
-	// Save the uploaded file to the specified directory
-	dst := uploadDir + file.Filename
-	if err := c.SaveUploadedFile(file, dst); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// Save the file
+		if err := c.SaveUploadedFile(file, dst); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Try to install the app after saving the file
+		err = devices.InstallApp(dev, file.Filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed installing app"})
+			return
+		}
+
+		err = os.Remove(dst)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "App installed but failed to delete it"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "App uploaded and installed successfully", "status": "success"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "status": "success", "apps": providerutil.GetAllAppFiles()})
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "Device currently not available"})
 }
 
 func GetProviderData(c *gin.Context) {
@@ -125,12 +148,6 @@ func DeviceInfo(c *gin.Context) {
 
 	if dev, ok := devices.DeviceMap[udid]; ok {
 		devices.UpdateInstalledApps(dev)
-		appFiles := providerutil.GetAllAppFiles()
-		if appFiles == nil {
-			dev.InstallableApps = []string{}
-		} else {
-			dev.InstallableApps = appFiles
-		}
 		c.JSON(http.StatusOK, dev)
 		return
 	}
