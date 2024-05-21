@@ -8,10 +8,6 @@ import (
 )
 
 func HandleRequests() *gin.Engine {
-	// Start sending live provider data
-	// to connected clients
-	go sendProviderLiveData()
-
 	r := gin.Default()
 	rConfig := cors.DefaultConfig()
 	rConfig.AllowAllOrigins = true
@@ -19,7 +15,6 @@ func HandleRequests() *gin.Engine {
 	r.Use(cors.New(rConfig))
 
 	r.GET("/info", GetProviderData)
-	r.GET("/info-ws", GetProviderDataWS)
 	r.GET("/devices", DevicesInfo)
 	r.POST("/uploadFile", UploadFile)
 
@@ -39,33 +34,33 @@ func HandleRequests() *gin.Engine {
 		pprofGroup.GET("/threadcreate", gin.WrapF(pprof.Handler("threadcreate").ServeHTTP))
 	}
 
-	deviceGroup := r.Group("/device")
-	deviceGroup.GET("/:udid/info", DeviceInfo)
-	deviceGroup.GET("/:udid/health", DeviceHealth)
-	deviceGroup.POST("/:udid/tap", DeviceTap)
-	deviceGroup.POST("/:udid/touchAndHold", DeviceTouchAndHold)
-	deviceGroup.POST("/:udid/home", DeviceHome)
-	deviceGroup.POST("/:udid/lock", DeviceLock)
-	deviceGroup.POST("/:udid/unlock", DeviceUnlock)
-	deviceGroup.POST("/:udid/screenshot", DeviceScreenshot)
-	deviceGroup.POST("/:udid/swipe", DeviceSwipe)
-	deviceGroup.GET("/:udid/appiumSource", DeviceAppiumSource)
-	deviceGroup.POST("/:udid/typeText", DeviceTypeText)
-	deviceGroup.POST("/:udid/clearText", DeviceClearText)
-	deviceGroup.Any("/:udid/appium/*proxyPath", AppiumReverseProxy)
-	deviceGroup.GET("/:udid/android-stream", AndroidStreamProxy)
-	deviceGroup.GET("/:udid/android-stream-mjpeg", AndroidStreamMJPEG)
+	deviceGroup := r.Group("/device/:udid")
+	deviceGroup.GET("/info", DeviceInfo)
+	deviceGroup.GET("/health", DeviceHealth)
+	deviceGroup.POST("/tap", DeviceTap)
+	deviceGroup.POST("/touchAndHold", DeviceTouchAndHold)
+	deviceGroup.POST("/home", DeviceHome)
+	deviceGroup.POST("/lock", DeviceLock)
+	deviceGroup.POST("/unlock", DeviceUnlock)
+	deviceGroup.POST("/screenshot", DeviceScreenshot)
+	deviceGroup.POST("/swipe", DeviceSwipe)
+	deviceGroup.GET("/appiumSource", DeviceAppiumSource)
+	deviceGroup.POST("/typeText", DeviceTypeText)
+	deviceGroup.POST("/clearText", DeviceClearText)
+	deviceGroup.Any("/appium/*proxyPath", AppiumReverseProxy)
+	deviceGroup.GET("/android-stream", AndroidStreamProxy)
+	deviceGroup.GET("/android-stream-mjpeg", AndroidStreamMJPEG)
 	if config.Config.EnvConfig.UseGadsIosStream {
-		deviceGroup.GET("/:udid/ios-stream", IosStreamProxyGADS)
-		deviceGroup.GET("/:udid/ios-stream-mjpeg", IOSStreamMJPEG)
+		deviceGroup.GET("/ios-stream", IosStreamProxyGADS)
+		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEG)
 	} else {
-		deviceGroup.GET("/:udid/ios-stream", IosStreamProxyWDA)
-		deviceGroup.GET("/:udid/ios-stream-mjpeg", IOSStreamMJPEGWda)
+		deviceGroup.GET("/ios-stream", IosStreamProxyWDA)
+		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEGWda)
 	}
-	deviceGroup.POST("/:udid/uninstallApp", UninstallApp)
-	deviceGroup.POST("/:udid/installApp", InstallApp)
-	deviceGroup.POST("/:udid/reset", ResetDevice)
-	deviceGroup.POST("/:udid/uploadFile", UploadFile)
+	deviceGroup.POST("/uninstallApp", UninstallApp)
+	deviceGroup.POST("/installApp", InstallApp)
+	deviceGroup.POST("/reset", ResetDevice)
+	deviceGroup.POST("/uploadFile", UploadFile)
 
 	return r
 }
