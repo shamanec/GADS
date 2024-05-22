@@ -109,6 +109,10 @@ func UploadAndInstallApp(c *gin.Context) {
 			return
 		}
 
+		defer func() {
+			os.Remove(dst)
+		}()
+
 		// Try to install the app after saving the file
 		err = devices.InstallApp(dev, file.Filename)
 		if err != nil {
