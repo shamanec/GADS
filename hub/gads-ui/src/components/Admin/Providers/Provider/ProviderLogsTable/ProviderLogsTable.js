@@ -136,7 +136,7 @@ export default function ProviderLogsTable({ nickname }) {
                                 <TableCell style={{ width: "200px", maxWidth: "200px", fontSize: "14px" }}>
                                     {logEntry.eventname}
                                 </TableCell>
-                                <TableCell style={{ width: "600px", maxWidth: "600px", overflow: 'hidden', fontSize: "14px" }}>
+                                <TableCell style={{ width: "600px", maxWidth: "600px", overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
                                     {logEntry.message}
                                 </TableCell>
                             </TableRow>

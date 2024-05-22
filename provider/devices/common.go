@@ -486,7 +486,7 @@ func getConnectedDevicesAndroid() []models.ConnectedDevice {
 
 	err = cmd.Start()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Error executing `%s` , returning empty slice - %s", cmd.Path, err))
+		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Error executing `%s` , returning empty slice - %s", cmd.Args, err))
 		return connectedDevices
 	}
 
@@ -502,7 +502,7 @@ func getConnectedDevicesAndroid() []models.ConnectedDevice {
 
 	err = cmd.Wait()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Waiting for `%s` command to finish failed, returning empty slice - %s", cmd.Path, err))
+		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Waiting for `%s` command to finish failed, returning empty slice - %s", cmd.Args, err))
 		return []models.ConnectedDevice{}
 	}
 
@@ -577,14 +577,14 @@ func startAppium(device *models.Device) {
 	// Create a pipe to capture the command's output
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stdoutpipe on `%s` for device `%v` - %v", cmd.Path, device.UDID, err))
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stdoutpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
 
 	err = cmd.Start()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error executing `%s` for device `%v` - %v", cmd.Path, device.UDID, err))
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
@@ -599,7 +599,7 @@ func startAppium(device *models.Device) {
 
 	err = cmd.Wait()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v", cmd.Path, device.UDID, err))
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, device.UDID, err))
 		resetLocalDevice(device)
 	}
 }
@@ -788,11 +788,13 @@ func InstallApp(device *models.Device, app string) error {
 	if device.OS == "ios" {
 		err := installAppIOS(device, app)
 		if err != nil {
+			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
 	} else {
 		err := installAppAndroid(device, app)
 		if err != nil {
+			device.Logger.LogError("install_app_android", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
 	}

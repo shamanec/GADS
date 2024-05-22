@@ -16,7 +16,7 @@ func HandleRequests() *gin.Engine {
 
 	r.GET("/info", GetProviderData)
 	r.GET("/devices", DevicesInfo)
-	r.POST("/uploadFile", UploadFile)
+	r.POST("/uploadFile", UploadAndInstallApp)
 
 	pprofGroup := r.Group("/debug/pprof")
 	{
@@ -58,9 +58,8 @@ func HandleRequests() *gin.Engine {
 		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEGWda)
 	}
 	deviceGroup.POST("/uninstallApp", UninstallApp)
-	deviceGroup.POST("/installApp", InstallApp)
 	deviceGroup.POST("/reset", ResetDevice)
-	deviceGroup.POST("/uploadFile", UploadFile)
+	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
 
 	return r
 }
