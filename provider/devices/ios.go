@@ -381,6 +381,7 @@ func installAppWithPathIOS(device *models.Device, path string) error {
 }
 
 func installAppIOS(device *models.Device, appName string) error {
+	appPath := fmt.Sprintf("%s/apps/%s", config.Config.EnvConfig.ProviderFolder, appName)
 	if config.Config.EnvConfig.OS == "darwin" {
 		cmd := exec.CommandContext(device.Context,
 			"xcrun",
@@ -390,20 +391,25 @@ func installAppIOS(device *models.Device, appName string) error {
 			"app",
 			"--device",
 			device.UDID,
-			fmt.Sprintf("%s/apps/%s", config.Config.EnvConfig.ProviderFolder, appName),
+			appPath,
 		)
+		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s` with command `%s`", appPath, device.UDID, cmd.Args))
 		if err := cmd.Run(); err != nil {
-			device.Logger.LogError("uninstall_app", fmt.Sprintf("Failed executing `%s` - %v", cmd.Args, err))
 			return err
 		}
 	} else {
-		cmd := exec.CommandContext(device.Context, "ios", "install", fmt.Sprintf("--path=%s/apps/%s", config.Config.EnvConfig.ProviderFolder, appName), "--udid="+device.UDID)
+		cmd := exec.CommandContext(device.Context,
+			"ios",
+			"install",
+			fmt.Sprintf("--path=%s", appPath),
+			fmt.Sprintf("--udid=%s", device.UDID),
+		)
+		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s` with command `%s`", appPath, device.UDID, cmd.Args))
 		if err := cmd.Run(); err != nil {
-			device.Logger.LogError("uninstall_app", fmt.Sprintf("Failed executing `%s` - %v", cmd.Args, err))
+			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed executing `%s` - %v", cmd.Args, err))
 			return err
 		}
 	}
-
 	return nil
 }
 

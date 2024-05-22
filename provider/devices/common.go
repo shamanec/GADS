@@ -788,11 +788,13 @@ func InstallApp(device *models.Device, app string) error {
 	if device.OS == "ios" {
 		err := installAppIOS(device, app)
 		if err != nil {
+			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
 	} else {
 		err := installAppAndroid(device, app)
 		if err != nil {
+			device.Logger.LogError("install_app_android", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
 	}

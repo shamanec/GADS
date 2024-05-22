@@ -58,7 +58,6 @@ func HandleRequests() *gin.Engine {
 		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEGWda)
 	}
 	deviceGroup.POST("/uninstallApp", UninstallApp)
-	deviceGroup.POST("/installApp", InstallApp)
 	deviceGroup.POST("/reset", ResetDevice)
 	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
 
