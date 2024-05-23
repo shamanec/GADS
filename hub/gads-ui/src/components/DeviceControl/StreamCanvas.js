@@ -188,13 +188,7 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
 
     let deviceURL = `/device/${streamData.udid}`
 
-    api(deviceURL + "/tap", {
-        method: 'POST',
-        body: jsonData,
-        headers: {
-            'Content-type': 'application/json'
-        }
-    })
+    api.post(deviceURL + "/tap", jsonData)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
@@ -205,7 +199,7 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
                 logout()
             }
         })
-        .catch(function (error) {
+        .catch(() => {
             setDialog(true)
         })
 }
@@ -228,13 +222,7 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
 
     let deviceURL = `/device/${streamData.udid}`
 
-    api(deviceURL + "/touchAndHold", {
-        method: 'POST',
-        body: jsonData,
-        headers: {
-            'Content-type': 'application/json'
-        }
-    })
+    api.post(deviceURL + "/touchAndHold", jsonData)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
@@ -245,7 +233,7 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
                 logout()
             }
         })
-        .catch(function (error) {
+        .catch(() => {
             setDialog(true)
         })
 }
@@ -273,13 +261,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 
     let deviceURL = `/device/${streamData.udid}`
 
-    api(deviceURL + "/swipe", {
-        method: 'POST',
-        body: jsonData,
-        headers: {
-            'Content-type': 'application/json'
-        }
-    })
+    api.post(deviceURL + "/swipe", jsonData)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
@@ -290,7 +272,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
                 logout()
             }
         })
-        .catch(function (error) {
+        .catch(() => {
             setDialog(true)
         })
 }
@@ -298,13 +280,10 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 function homeButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/home`
 
-    api(deviceURL, {
-        method: 'POST'
-    })
+    api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
-                return
             }
         })
         .catch(() => {
@@ -315,13 +294,10 @@ function homeButton(authToken, deviceData, setDialog) {
 function lockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/lock`
 
-    api(deviceURL, {
-        method: 'POST'
-    })
+    api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
-                return
             }
         })
         .catch(() => {
@@ -332,13 +308,10 @@ function lockButton(authToken, deviceData, setDialog) {
 function unlockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/unlock`
 
-    api(deviceURL, {
-        method: 'POST'
-    })
+    api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
-                return
             }
         })
         .catch(() => {

@@ -20,8 +20,8 @@ export default function DeviceControl() {
     let url = `/device/${id}/info`
     let in_use_socket = null
     useEffect(() => {
-        api.get(url, {})
-            .then((response) => {
+        api.get(url)
+            .then(response => {
                 setDeviceData(response.data)
             })
             .catch(error => {
@@ -33,12 +33,11 @@ export default function DeviceControl() {
                 }
                 console.log('Failed getting providers data' + error)
                 navigate('/devices');
-                return
             });
 
         const inUseInterval = setInterval(() => {
             let inUseUrl = `/devices/control/${id}/in-use`
-            api.post(inUseUrl, {})
+            api.post(inUseUrl)
                 .catch(error => {
                     if (error.response) {
                         if (error.response.status === 401) {
@@ -46,7 +45,6 @@ export default function DeviceControl() {
                             return
                         }
                     }
-                    console.log('Failed setting the device being in use' + error)
                     navigate('/devices');
                 });
         }, 1000);

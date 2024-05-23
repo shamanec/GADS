@@ -54,7 +54,7 @@ function TypeText({ deviceData }) {
         let json = `{"text": "${text}"}`
 
         let url = `/device/${deviceData.udid}/typeText`
-        api.post(url, json, {})
+        api.post(url, json)
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {

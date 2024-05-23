@@ -14,15 +14,13 @@ export default function Screenshot({ udid }) {
 
     function takeScreenshot() {
         const url = `/device/${udid}/screenshot`;
-        api(url, {
-            method: 'POST'
-        })
-            .then((response) => {
+        api.post(url)
+            .then(response => {
                 if (response.status === 404) {
                     setDialog(true)
                     return
                 }
-                return response.json()
+                return response.data
             })
             .then(screenshotJson => {
                 var imageBase64String = screenshotJson.value

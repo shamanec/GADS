@@ -12,19 +12,16 @@ export default function ProvidersAdministration() {
     let url = `/admin/providers`
 
     useEffect(() => {
-        api.get(url, {})
-            .then((response) => {
+        api.get(url)
+            .then(response => {
                 setProviders(response.data)
             })
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
                         logout()
-                        return
                     }
                 }
-                console.log('Failed getting providers data' + error)
-                return
             });
 
         setTimeout(() => {

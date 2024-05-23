@@ -49,22 +49,18 @@ function UseButton({ device, handleAlert }) {
         setLoading(true);
         const url = `/device/${device.udid}/health`;
         api.get(url)
-            .then((response) => {
-                console.log(response.status)
-                if (!response.ok) {
+            .then(response => {
+                if (response.status !== 200) {
                     if (response.status === 401) {
                         logout()
                         return
                     }
-                    throw new Error('Network response was not ok');
                 } else {
                     navigate('/devices/control/' + device.udid, device);
                 }
             })
             .catch((error) => {
                 handleAlert()
-                console.error('Error fetching data:', error);
-
             })
             .finally(() => {
                 setTimeout(() => {

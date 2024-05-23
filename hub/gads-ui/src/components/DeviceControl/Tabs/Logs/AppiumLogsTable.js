@@ -89,8 +89,8 @@ export default function AppiumLogsTable({ udid }) {
     function getLogs() {
         const url = `/appium-logs?collection=${udid}`
 
-        api.get(url, {})
-            .then((response) => {
+        api.get(url)
+            .then(response => {
                 setLogData(response.data)
             })
             .catch(error => {

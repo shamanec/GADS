@@ -79,17 +79,15 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
         let bodyString = buildPayload()
 
         api.post(url, bodyString, {})
-            .then((response) => {
+            .then(response => {
                 if (isNew) {
                     resetForm()
                 }
                 if (urlPath === 'add') {
-                    console.log(' is add')
-                    console.log(response.data)
                     setProviders(response.data)
                 }
             })
-            .catch((error) => {
+            .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
                         logout()

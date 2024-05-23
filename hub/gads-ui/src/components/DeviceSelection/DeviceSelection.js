@@ -38,7 +38,7 @@ export default function DeviceSelection() {
                     logout()
                 }
             })
-            .catch((e) => {
+            .catch(e => {
                 console.log("Got error on checking server health")
                 console.log(e)
                 logout()

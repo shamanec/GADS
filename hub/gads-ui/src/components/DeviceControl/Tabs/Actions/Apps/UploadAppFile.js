@@ -136,7 +136,7 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 'Content-Type': 'multipart/form-data'
             }
         })
-            .then((response) => {
+            .then(response => {
                 setAlertSeverity('success')
                 setAlertText(response.data.message)
                 setShowAlert(true)

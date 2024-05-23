@@ -86,20 +86,16 @@ export default function AddUser() {
             role: role
         };
 
-        api(url, {
-            method: 'POST',
-            body: JSON.stringify(loginData)
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    return response.json().then((json) => {
+        api.post(url, loginData)
+            .then(response => {
+                if (response.status !== 200) {
+                    return response.data.then(json => {
                         showAlertWithTimeout(json.error, 'error')
-                        throw new Error('Network response was not ok.');
                     });
                 }
                 showAlertWithTimeout('Successfully added user', 'success')
             })
-            .catch((e) => {
+            .catch(e => {
                 console.log(e)
             })
     }

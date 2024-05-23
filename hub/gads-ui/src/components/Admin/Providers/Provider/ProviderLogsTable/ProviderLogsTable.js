@@ -89,8 +89,8 @@ export default function ProviderLogsTable({ nickname }) {
     function getLogs() {
         const url = `/admin/providers/logs?collection=${nickname}`
 
-        api.get(url, {})
-            .then((response) => {
+        api.get(url)
+            .then(response => {
                 setLogData(response.data)
             })
             .catch(error => {
@@ -100,7 +100,6 @@ export default function ProviderLogsTable({ nickname }) {
                         return
                     }
                 }
-                console.log('Failed getting providers data' + error)
             });
     }
 

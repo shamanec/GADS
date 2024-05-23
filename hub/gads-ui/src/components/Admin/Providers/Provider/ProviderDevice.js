@@ -27,14 +27,15 @@ export default function ProviderDevice({ deviceInfo }) {
     function handleResetClick() {
         let url = `/device/${deviceInfo.udid}/reset`
 
-        api.post(url, null, {}).catch((error) => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    logout()
+        api.post(url)
+            .catch(error => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                    }
                 }
-            }
-        })
-    }
+            })
+        }
 
     return (
         <Box

@@ -18,8 +18,8 @@ function SessionAlert({ dialog, setDialog }) {
 
     function refreshSession() {
         let healthURL = `/health`
-        api.get(healthURL, {})
-            .catch((error) => {
+        api.get(healthURL)
+            .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
                         logout()

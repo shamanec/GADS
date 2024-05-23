@@ -123,17 +123,15 @@ function LogoutButton() {
     let url = `/logout`
 
     function handleLogout() {
-        api(url, {
-            method: 'POST'
-        })
-            .then((response) => {
-                if (!response.ok) {
+        api.post(url)
+            .then(response => {
+                if (response.status !== 200) {
                     logout()
                     throw new Error('Network response was not ok.');
                 }
                 logout()
             })
-            .catch((e) => {
+            .catch(e => {
                 console.log(e)
             })
     }

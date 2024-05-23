@@ -29,8 +29,8 @@ export default function UninstallApp({ udid, installedApps }) {
             "app": "` + selectedAppUninstall + `"
         } `
 
-        api.post(url, body, {})
-            .then((response) => {
+        api.post(url, body)
+            .then(() => {
                 setIsUninstalling(false)
             })
             .catch(error => {
@@ -42,7 +42,6 @@ export default function UninstallApp({ udid, installedApps }) {
                     setIsUninstalling(false)
                 }
                 setIsUninstalling(false)
-                console.log('Failed uploading file - ' + error)
             });
     }
 
