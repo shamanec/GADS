@@ -1,6 +1,5 @@
 import { useContext, useState } from "react";
 import {Auth} from "../../../../contexts/Auth";
-import axios from "axios";
 import {
     Box,
     Button,
@@ -17,6 +16,7 @@ import FirstPageIcon from '@mui/icons-material/FirstPage';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 import LastPageIcon from '@mui/icons-material/LastPage';
+import { api } from '../../../../services/api.js'
 
 function TablePaginationActions(props) {
     const theme = useTheme();
@@ -89,11 +89,7 @@ export default function AppiumLogsTable({ udid }) {
     function getLogs() {
         const url = `/appium-logs?collection=${udid}`
 
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
+        api.get(url, {})
             .then((response) => {
                 setLogData(response.data)
             })

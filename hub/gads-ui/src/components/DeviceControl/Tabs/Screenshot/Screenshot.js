@@ -4,6 +4,7 @@ import { Stack } from "@mui/material";
 import { useState, useContext } from "react";
 import { Auth } from "../../../../contexts/Auth";
 import { useDialog } from "../../SessionDialogContext";
+import { api } from '../../../../services/api.js'
 
 export default function Screenshot({ udid }) {
     const [authToken, , , , logout] = useContext(Auth)
@@ -13,11 +14,8 @@ export default function Screenshot({ udid }) {
 
     function takeScreenshot() {
         const url = `/device/${udid}/screenshot`;
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-Auth-Token': authToken
-            }
+        api(url, {
+            method: 'POST'
         })
             .then((response) => {
                 if (response.status === 404) {

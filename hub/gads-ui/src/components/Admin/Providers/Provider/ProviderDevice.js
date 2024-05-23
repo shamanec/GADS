@@ -1,7 +1,7 @@
 import { Box, Button, Stack } from "@mui/material";
-import axios from "axios";
 import { useContext, useEffect, useState } from "react";
 import { Auth } from "../../../../contexts/Auth";
+import { api } from '../../../../services/api.js'
 
 export default function ProviderDevice({ deviceInfo }) {
     let img_src = deviceInfo.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
@@ -27,11 +27,7 @@ export default function ProviderDevice({ deviceInfo }) {
     function handleResetClick() {
         let url = `/device/${deviceInfo.udid}/reset`
 
-        axios.post(url, null, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        }).catch((error) => {
+        api.post(url, null, {}).catch((error) => {
             if (error.response) {
                 if (error.response.status === 401) {
                     logout()

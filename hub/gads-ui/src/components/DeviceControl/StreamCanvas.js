@@ -6,6 +6,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
 import { useDialog } from "./SessionDialogContext"
+import { api } from '../../services/api.js'
 
 export default function StreamCanvas({ deviceData }) {
     const [authToken, , , , logout] = useContext(Auth)
@@ -187,12 +188,11 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
 
     let deviceURL = `/device/${streamData.udid}`
 
-    fetch(deviceURL + "/tap", {
+    api(deviceURL + "/tap", {
         method: 'POST',
         body: jsonData,
         headers: {
-            'Content-type': 'application/json',
-            'X-Auth-Token': authToken
+            'Content-type': 'application/json'
         }
     })
         .then(response => {
@@ -228,12 +228,11 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
 
     let deviceURL = `/device/${streamData.udid}`
 
-    fetch(deviceURL + "/touchAndHold", {
+    api(deviceURL + "/touchAndHold", {
         method: 'POST',
         body: jsonData,
         headers: {
-            'Content-type': 'application/json',
-            'X-Auth-Token': authToken
+            'Content-type': 'application/json'
         }
     })
         .then(response => {
@@ -274,12 +273,11 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 
     let deviceURL = `/device/${streamData.udid}`
 
-    fetch(deviceURL + "/swipe", {
+    api(deviceURL + "/swipe", {
         method: 'POST',
         body: jsonData,
         headers: {
-            'Content-type': 'application/json',
-            'X-Auth-Token': authToken
+            'Content-type': 'application/json'
         }
     })
         .then(response => {
@@ -300,11 +298,8 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 function homeButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/home`
 
-    fetch(deviceURL, {
-        method: 'POST',
-        headers: {
-            'X-Auth-Token': authToken
-        }
+    api(deviceURL, {
+        method: 'POST'
     })
         .then(response => {
             if (response.status === 404) {
@@ -320,11 +315,8 @@ function homeButton(authToken, deviceData, setDialog) {
 function lockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/lock`
 
-    fetch(deviceURL, {
-        method: 'POST',
-        headers: {
-            'X-Auth-Token': authToken
-        }
+    api(deviceURL, {
+        method: 'POST'
     })
         .then(response => {
             if (response.status === 404) {
@@ -340,11 +332,8 @@ function lockButton(authToken, deviceData, setDialog) {
 function unlockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/unlock`
 
-    fetch(deviceURL, {
-        method: 'POST',
-        headers: {
-            'X-Auth-Token': authToken
-        }
+    api(deviceURL, {
+        method: 'POST'
     })
         .then(response => {
             if (response.status === 404) {

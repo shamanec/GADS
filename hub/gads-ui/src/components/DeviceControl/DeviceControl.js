@@ -8,6 +8,7 @@ import { useContext, useEffect, useState } from 'react';
 import { Auth } from '../../contexts/Auth';
 import axios from 'axios'
 import { DialogProvider } from './SessionDialogContext';
+import { api } from '../../services/api.js'
 
 export default function DeviceControl() {
     const [authToken, , , , logout] = useContext(Auth)
@@ -19,11 +20,7 @@ export default function DeviceControl() {
     let url = `/device/${id}/info`
     let in_use_socket = null
     useEffect(() => {
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
+        api.get(url, {})
             .then((response) => {
                 setDeviceData(response.data)
             })
@@ -41,11 +38,7 @@ export default function DeviceControl() {
 
         const inUseInterval = setInterval(() => {
             let inUseUrl = `/devices/control/${id}/in-use`
-            axios.post(inUseUrl, {
-                headers: {
-                    'X-Auth-Token': authToken
-                }
-            })
+            api.post(inUseUrl, {})
                 .catch(error => {
                     if (error.response) {
                         if (error.response.status === 401) {

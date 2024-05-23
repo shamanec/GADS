@@ -1,7 +1,7 @@
 import { Alert, Button, MenuItem, Select, Stack, TextField } from '@mui/material'
-import axios from 'axios'
 import { useContext, useEffect, useState } from 'react'
 import { Auth } from '../../../../contexts/Auth'
+import { api } from '../../../../services/api.js'
 
 export default function ProviderConfig({ isNew, data, setProviders }) {
     useEffect(() => {
@@ -78,11 +78,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
         let url = `/admin/providers/${urlPath}`
         let bodyString = buildPayload()
 
-        axios.post(url, bodyString, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
+        api.post(url, bodyString, {})
             .then((response) => {
                 if (isNew) {
                     resetForm()

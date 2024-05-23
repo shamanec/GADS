@@ -2,8 +2,8 @@ import { Box, Button, CircularProgress, FormControl, MenuItem, Select, Stack } f
 import InstallMobileIcon from '@mui/icons-material/InstallMobile';
 import './InstallApp.css'
 import { useContext, useState } from "react";
-import axios from 'axios'
 import { Auth } from "../../../../../contexts/Auth";
+import { api } from '../../../../../services/api.js'
 
 export default function UninstallApp({ udid, installedApps }) {
     const [selectedAppUninstall, setSelectedAppUninstall] = useState('no-app')
@@ -29,11 +29,7 @@ export default function UninstallApp({ udid, installedApps }) {
             "app": "` + selectedAppUninstall + `"
         } `
 
-        axios.post(url, body, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
+        api.post(url, body, {})
             .then((response) => {
                 setIsUninstalling(false)
             })

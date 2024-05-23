@@ -11,6 +11,7 @@ import Divider from '@mui/material/Divider';
 import { OSFilterTabs, DeviceSearch } from './Filters'
 import { DeviceBox } from './Device'
 import { Auth } from '../../contexts/Auth';
+import { api } from '../../services/api.js'
 
 export default function DeviceSelection() {
     // States
@@ -25,25 +26,22 @@ export default function DeviceSelection() {
     const open = true
 
     // Authentication and session control
-    const [authToken, username, , , logout] = useContext(Auth)
+    const [, , , , logout] = useContext(Auth)
 
     function CheckServerHealth() {
         let url = `/health`
 
-        fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
-                if (!response.ok) {
+        api.get(url)
+            .then(response => {
+                if (response.status !== 200) {
+                    console.log("Got bad response on checking server health, logging out")
                     logout()
                 }
             })
             .catch((e) => {
-                logout()
+                console.log("Got error on checking server health")
                 console.log(e)
+                logout()
             })
     }
 

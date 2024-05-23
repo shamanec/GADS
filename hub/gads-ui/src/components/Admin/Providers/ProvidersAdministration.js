@@ -1,9 +1,9 @@
 import { Auth } from "../../../contexts/Auth"
 import { useContext, useState, useEffect } from "react"
 import Providers from "./Providers";
-import axios from "axios";
 import Skeleton from '@mui/material/Skeleton';
 import { Box, Stack } from "@mui/material";
+import { api } from '../../../services/api.js'
 
 export default function ProvidersAdministration() {
     const [authToken, , , , logout] = useContext(Auth)
@@ -12,11 +12,7 @@ export default function ProvidersAdministration() {
     let url = `/admin/providers`
 
     useEffect(() => {
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
+        api.get(url, {})
             .then((response) => {
                 setProviders(response.data)
             })

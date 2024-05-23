@@ -7,6 +7,7 @@ import MenuItem from '@mui/material/MenuItem';
 import './AddUser.css'
 import Select from '@mui/material/Select';
 import { Auth } from '../../../contexts/Auth';
+import { api } from '../../../services/api.js'
 
 
 export default function AddUser() {
@@ -85,12 +86,9 @@ export default function AddUser() {
             role: role
         };
 
-        fetch(url, {
+        api(url, {
             method: 'POST',
-            body: JSON.stringify(loginData),
-            headers: {
-                'X-Auth-Token': authToken
-            }
+            body: JSON.stringify(loginData)
         })
             .then((response) => {
                 if (!response.ok) {

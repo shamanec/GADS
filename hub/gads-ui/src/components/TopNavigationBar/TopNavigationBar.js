@@ -3,6 +3,7 @@ import './TopNavigationBar.css'
 import { NavLink } from 'react-router-dom'
 import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
+import { api } from '../../services/api.js'
 
 export default function NavBar() {
     const [, username, , ,] = useContext(Auth)
@@ -122,11 +123,8 @@ function LogoutButton() {
     let url = `/logout`
 
     function handleLogout() {
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-Auth-Token': authToken
-            }
+        api(url, {
+            method: 'POST'
         })
             .then((response) => {
                 if (!response.ok) {
