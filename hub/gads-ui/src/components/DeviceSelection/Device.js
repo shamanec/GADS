@@ -41,7 +41,7 @@ function UseButton({ device, handleAlert }) {
     // Difference between current time and last time the device was reported as healthy
     // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
     const [loading, setLoading] = useState(false);
-    const [, , , , logout] = useContext(Auth)
+    const {logout } = useContext(Auth)
 
     const navigate = useNavigate();
 
@@ -50,16 +50,11 @@ function UseButton({ device, handleAlert }) {
         const url = `/device/${device.udid}/health`;
         api.get(url)
             .then(response => {
-                if (response.status !== 200) {
-                    if (response.status === 401) {
-                        logout()
-                        return
-                    }
-                } else {
+                if (response.status === 200) {
                     navigate('/devices/control/' + device.udid, device);
                 }
             })
-            .catch((error) => {
+            .catch(() => {
                 handleAlert()
             })
             .finally(() => {

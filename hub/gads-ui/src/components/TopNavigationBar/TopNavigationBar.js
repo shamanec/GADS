@@ -6,7 +6,7 @@ import Button from '@mui/material/Button'
 import { api } from '../../services/api.js'
 
 export default function NavBar() {
-    const [, username, , ,] = useContext(Auth)
+    const {username} = useContext(Auth)
 
     const [showAdmin, setShowAdmin] = useState(false)
 
@@ -119,7 +119,7 @@ function KoFiButton() {
 }
 
 function LogoutButton() {
-    const [authToken, , , , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
     let url = `/logout`
 
     function handleLogout() {

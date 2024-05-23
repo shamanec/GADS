@@ -8,7 +8,7 @@ import { api } from '../../services/api.js'
 const DialogContext = createContext()
 
 function SessionAlert({ dialog, setDialog }) {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const navigate = useNavigate()
 

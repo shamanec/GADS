@@ -120,7 +120,7 @@ export default function UploadAppFile({ deviceData }) {
 }
 
 function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText }) {
-    const [authToken, , , , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
     const [isUploading, setIsUploading] = useState(false)
 
     function handleUpload() {

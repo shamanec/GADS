@@ -32,5 +32,5 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
 
-    return <Auth.Provider value={[authToken, userName, userRole, login, logout]}>{children}</Auth.Provider>;
+    return <Auth.Provider value={{ authToken, userName, userRole, login, logout }}>{children}</Auth.Provider>;
 }

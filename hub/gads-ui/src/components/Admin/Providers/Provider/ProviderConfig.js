@@ -23,7 +23,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
         }
     }, [data])
     // Main
-    const [authToken, , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
     // OS
     const [os, setOS] = useState('windows')
     // Host address

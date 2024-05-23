@@ -11,8 +11,6 @@ import { api } from '../../../services/api.js'
 
 
 export default function AddUser() {
-    const [authToken] = useContext(Auth)
-
     // Inputs
     const [username, setUsername] = useState()
     const [password, setPassword] = useState()

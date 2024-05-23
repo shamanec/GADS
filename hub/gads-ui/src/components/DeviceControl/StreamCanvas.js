@@ -9,7 +9,7 @@ import { useDialog } from "./SessionDialogContext"
 import { api } from '../../services/api.js'
 
 export default function StreamCanvas({ deviceData }) {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { authToken, logout } = useContext(Auth)
     const { setDialog } = useDialog()
 
     let deviceX = parseInt(deviceData.screen_width, 10)

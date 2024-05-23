@@ -10,7 +10,7 @@ import { api } from '../../services/api.js'
 export default function Login() {
     const [username, setUsername] = useState()
     const [password, setPassword] = useState()
-    const [, , , login,] = useContext(Auth)
+    const { login } = useContext(Auth)
     const [showAlert, setShowAlert] = useState(false)
     const [alertText, setAlertText] = useState()
     const navigate = useNavigate()

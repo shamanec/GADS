@@ -7,7 +7,7 @@ export default function ProviderDevice({ deviceInfo }) {
     let img_src = deviceInfo.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
     const [statusColor, setStatusColor] = useState('red')
     const [buttonDisabled, setButtonDisabled] = useState(false)
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
 
     useEffect(() => {
         if (deviceInfo.connected && deviceInfo.provider_state === 'live') {

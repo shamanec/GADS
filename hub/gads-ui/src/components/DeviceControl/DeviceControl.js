@@ -11,7 +11,7 @@ import { DialogProvider } from './SessionDialogContext';
 import { api } from '../../services/api.js'
 
 export default function DeviceControl() {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const { id } = useParams();
     const navigate = useNavigate();
     const [deviceData, setDeviceData] = useState(null)

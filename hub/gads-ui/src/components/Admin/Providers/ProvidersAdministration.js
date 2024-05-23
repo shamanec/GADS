@@ -6,7 +6,7 @@ import { Box, Stack } from "@mui/material";
 import { api } from '../../../services/api.js'
 
 export default function ProvidersAdministration() {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [providers, setProviders] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     let url = `/admin/providers`

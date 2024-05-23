@@ -1,15 +1,18 @@
-import './Gads.css';
-import DeviceSelection from './components/DeviceSelection/DeviceSelection';
-import { Routes, Route } from 'react-router-dom';
-import NavBar from './components/TopNavigationBar/TopNavigationBar';
+import './Gads.css'
+import DeviceSelection from './components/DeviceSelection/DeviceSelection'
+import { Routes, Route } from 'react-router-dom'
+import NavBar from './components/TopNavigationBar/TopNavigationBar'
 import DeviceControl from './components/DeviceControl/DeviceControl'
-import Login from './components/Login/Login';
-import { useContext } from 'react';
-import { Auth } from './contexts/Auth';
-import AdminDashboard from './components/Admin/AdminDashboard';
+import Login from './components/Login/Login'
+import { useContext } from 'react'
+import { Auth } from './contexts/Auth'
+import AdminDashboard from './components/Admin/AdminDashboard'
+import axiosInterceptor from './services/axiosInterceptor'
 
 function Gads() {
-  const [authToken] = useContext(Auth);
+  const {authToken, logout} = useContext(Auth)
+  // Set the logout function from the Auth context on the axiosInterceptor to automatically logout on each 401
+  axiosInterceptor(logout)
 
   if (!authToken) {
     return <Login />
@@ -27,4 +30,4 @@ function Gads() {
   );
 }
 
-export default Gads;
+export default Gads

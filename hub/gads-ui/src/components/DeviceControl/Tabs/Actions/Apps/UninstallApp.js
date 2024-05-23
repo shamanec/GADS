@@ -9,7 +9,7 @@ export default function UninstallApp({ udid, installedApps }) {
     const [selectedAppUninstall, setSelectedAppUninstall] = useState('no-app')
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isUninstalling, setIsUninstalling] = useState(false)
-    const [authToken, , , , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
 
     function handleUninstallChange(event) {
         const app = event.target.value

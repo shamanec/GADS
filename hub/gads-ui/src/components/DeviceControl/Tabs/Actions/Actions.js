@@ -17,7 +17,7 @@ export default function Actions({ deviceData }) {
 
 function TypeText({ deviceData }) {
     const [isTyping, setIsTyping] = useState(false)
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [showError, setShowError] = useState(false)
     const [alertTimeoutId, setAlertTimeoutId] = useState(null)
 

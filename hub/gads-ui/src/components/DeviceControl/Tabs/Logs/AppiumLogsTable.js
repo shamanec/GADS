@@ -74,7 +74,7 @@ function TablePaginationActions(props) {
 
 export default function AppiumLogsTable({ udid }) {
     const [page, setPage] = useState(0);
-    const [authToken, , , , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
     const [logData, setLogData] = useState([])
     const rowsPerPage = 15
 
