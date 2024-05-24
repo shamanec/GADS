@@ -34,7 +34,7 @@ func SetupLogging(level string) {
 	fmt.Println(fmt.Sprintf("%s/logs/provider.log", config.Config.EnvConfig.ProviderFolder))
 	ProviderLogger, err = CreateCustomLogger(fmt.Sprintf("%s/logs/provider.log", config.Config.EnvConfig.ProviderFolder), config.Config.EnvConfig.Nickname)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Failed to create custom logger for the provider instance - %s", err)
 	}
 }
 

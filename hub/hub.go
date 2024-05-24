@@ -19,7 +19,7 @@ func setLogging() {
 	// Create/open the log file and set it as logrus output
 	projectLogFile, err := os.OpenFile("./gads-project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
 	if err != nil {
-		panic(fmt.Sprintf("Could not create/open the gads-project log file for logrus - %s", err))
+		log.Fatalf("Could not create/open the gads-project log file for logrus - %s", err)
 	}
 	log.SetOutput(projectLogFile)
 }
