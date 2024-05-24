@@ -38,9 +38,6 @@ func StartHub(flags *pflag.FlagSet) {
 	mongoDB, _ := flags.GetString("mongo-db")
 	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", mongoDB)
 
-	auth, _ := flags.GetBool("auth")
-	fmt.Printf("Authentication enabled: %v\n", auth)
-
 	fmt.Println("Default admin username is `admin`")
 	fmt.Println("Default admin password is `password` unless you've changed it")
 
@@ -94,7 +91,7 @@ func StartHub(flags *pflag.FlagSet) {
 		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", uiFilesTempDir, err)
 	}
 
-	r := router.HandleRequests(auth)
+	r := router.HandleRequests()
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", devices.ConfigData.HostAddress, devices.ConfigData.Port)

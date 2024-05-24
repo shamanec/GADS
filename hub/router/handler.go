@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func HandleRequests(authentication bool) *gin.Engine {
+func HandleRequests() *gin.Engine {
 	// Create the router and allow all origins
 	// Allow particular headers as well
 	r := gin.Default()
@@ -34,12 +34,10 @@ func HandleRequests(authentication bool) *gin.Engine {
 	authGroup.POST("/authenticate", auth.LoginHandler)
 	// websockets - unauthenticated
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
-	authGroup.POST("/devices/control/:udid/in-use", DeviceInUse)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	// Enable authentication on the endpoints below
-	if authentication {
-		authGroup.Use(auth.AuthMiddleware())
-	}
+	authGroup.POST("/devices/control/:udid/in-use", DeviceInUse)
+	authGroup.Use(auth.AuthMiddleware())
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
