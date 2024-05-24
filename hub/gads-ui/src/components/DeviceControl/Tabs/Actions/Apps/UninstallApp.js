@@ -2,14 +2,14 @@ import { Box, Button, CircularProgress, FormControl, MenuItem, Select, Stack } f
 import InstallMobileIcon from '@mui/icons-material/InstallMobile';
 import './InstallApp.css'
 import { useContext, useState } from "react";
-import axios from 'axios'
 import { Auth } from "../../../../../contexts/Auth";
+import { api } from '../../../../../services/api.js'
 
 export default function UninstallApp({ udid, installedApps }) {
     const [selectedAppUninstall, setSelectedAppUninstall] = useState('no-app')
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isUninstalling, setIsUninstalling] = useState(false)
-    const [authToken, , , , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
 
     function handleUninstallChange(event) {
         const app = event.target.value
@@ -29,12 +29,8 @@ export default function UninstallApp({ udid, installedApps }) {
             "app": "` + selectedAppUninstall + `"
         } `
 
-        axios.post(url, body, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
+        api.post(url, body)
+            .then(() => {
                 setIsUninstalling(false)
             })
             .catch(error => {
@@ -46,7 +42,6 @@ export default function UninstallApp({ udid, installedApps }) {
                     setIsUninstalling(false)
                 }
                 setIsUninstalling(false)
-                console.log('Failed uploading file - ' + error)
             });
     }
 

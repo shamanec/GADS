@@ -1,6 +1,5 @@
 import { useContext, useState } from "react";
 import {Auth} from "../../../../../contexts/Auth";
-import axios from "axios";
 import {
     Box,
     Button,
@@ -17,6 +16,7 @@ import FirstPageIcon from '@mui/icons-material/FirstPage';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 import LastPageIcon from '@mui/icons-material/LastPage';
+import { api } from '../../../../../services/api.js'
 
 function TablePaginationActions(props) {
     const theme = useTheme();
@@ -74,7 +74,7 @@ function TablePaginationActions(props) {
 
 export default function ProviderLogsTable({ nickname }) {
     const [page, setPage] = useState(0);
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [logData, setLogData] = useState([])
     const rowsPerPage = 15
 
@@ -89,12 +89,8 @@ export default function ProviderLogsTable({ nickname }) {
     function getLogs() {
         const url = `/admin/providers/logs?collection=${nickname}`
 
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
+        api.get(url)
+            .then(response => {
                 setLogData(response.data)
             })
             .catch(error => {
@@ -104,7 +100,6 @@ export default function ProviderLogsTable({ nickname }) {
                         return
                     }
                 }
-                console.log('Failed getting providers data' + error)
             });
     }
 

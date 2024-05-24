@@ -7,11 +7,10 @@ import MenuItem from '@mui/material/MenuItem';
 import './AddUser.css'
 import Select from '@mui/material/Select';
 import { Auth } from '../../../contexts/Auth';
+import { api } from '../../../services/api.js'
 
 
 export default function AddUser() {
-    const [authToken] = useContext(Auth)
-
     // Inputs
     const [username, setUsername] = useState()
     const [password, setPassword] = useState()
@@ -85,23 +84,16 @@ export default function AddUser() {
             role: role
         };
 
-        fetch(url, {
-            method: 'POST',
-            body: JSON.stringify(loginData),
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    return response.json().then((json) => {
+        api.post(url, loginData)
+            .then(response => {
+                if (response.status !== 200) {
+                    return response.data.then(json => {
                         showAlertWithTimeout(json.error, 'error')
-                        throw new Error('Network response was not ok.');
                     });
                 }
                 showAlertWithTimeout('Successfully added user', 'success')
             })
-            .catch((e) => {
+            .catch(e => {
                 console.log(e)
             })
     }

@@ -8,9 +8,10 @@ import { useContext, useEffect, useState } from 'react';
 import { Auth } from '../../contexts/Auth';
 import axios from 'axios'
 import { DialogProvider } from './SessionDialogContext';
+import { api } from '../../services/api.js'
 
 export default function DeviceControl() {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const { id } = useParams();
     const navigate = useNavigate();
     const [deviceData, setDeviceData] = useState(null)
@@ -19,12 +20,8 @@ export default function DeviceControl() {
     let url = `/device/${id}/info`
     let in_use_socket = null
     useEffect(() => {
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
+        api.get(url)
+            .then(response => {
                 setDeviceData(response.data)
             })
             .catch(error => {
@@ -36,16 +33,11 @@ export default function DeviceControl() {
                 }
                 console.log('Failed getting providers data' + error)
                 navigate('/devices');
-                return
             });
 
         const inUseInterval = setInterval(() => {
             let inUseUrl = `/devices/control/${id}/in-use`
-            axios.post(inUseUrl, {
-                headers: {
-                    'X-Auth-Token': authToken
-                }
-            })
+            api.post(inUseUrl)
                 .catch(error => {
                     if (error.response) {
                         if (error.response.status === 401) {
@@ -53,7 +45,6 @@ export default function DeviceControl() {
                             return
                         }
                     }
-                    console.log('Failed setting the device being in use' + error)
                     navigate('/devices');
                 });
         }, 1000);

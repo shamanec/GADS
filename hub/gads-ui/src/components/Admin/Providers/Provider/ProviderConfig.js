@@ -1,7 +1,7 @@
 import { Alert, Button, MenuItem, Select, Stack, TextField } from '@mui/material'
-import axios from 'axios'
 import { useContext, useEffect, useState } from 'react'
 import { Auth } from '../../../../contexts/Auth'
+import { api } from '../../../../services/api.js'
 
 export default function ProviderConfig({ isNew, data, setProviders }) {
     useEffect(() => {
@@ -23,7 +23,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
         }
     }, [data])
     // Main
-    const [authToken, , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
     // OS
     const [os, setOS] = useState('windows')
     // Host address
@@ -78,22 +78,16 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
         let url = `/admin/providers/${urlPath}`
         let bodyString = buildPayload()
 
-        axios.post(url, bodyString, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
+        api.post(url, bodyString, {})
+            .then(response => {
                 if (isNew) {
                     resetForm()
                 }
                 if (urlPath === 'add') {
-                    console.log(' is add')
-                    console.log(response.data)
                     setProviders(response.data)
                 }
             })
-            .catch((error) => {
+            .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
                         logout()

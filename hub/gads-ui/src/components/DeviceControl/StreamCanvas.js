@@ -6,9 +6,10 @@ import HomeIcon from '@mui/icons-material/Home';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
 import { useDialog } from "./SessionDialogContext"
+import { api } from '../../services/api.js'
 
 export default function StreamCanvas({ deviceData }) {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { authToken, logout } = useContext(Auth)
     const { setDialog } = useDialog()
 
     let deviceX = parseInt(deviceData.screen_width, 10)
@@ -187,14 +188,7 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
 
     let deviceURL = `/device/${streamData.udid}`
 
-    fetch(deviceURL + "/tap", {
-        method: 'POST',
-        body: jsonData,
-        headers: {
-            'Content-type': 'application/json',
-            'X-Auth-Token': authToken
-        }
-    })
+    api.post(deviceURL + "/tap", jsonData)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
@@ -205,7 +199,7 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
                 logout()
             }
         })
-        .catch(function (error) {
+        .catch(() => {
             setDialog(true)
         })
 }
@@ -228,14 +222,7 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
 
     let deviceURL = `/device/${streamData.udid}`
 
-    fetch(deviceURL + "/touchAndHold", {
-        method: 'POST',
-        body: jsonData,
-        headers: {
-            'Content-type': 'application/json',
-            'X-Auth-Token': authToken
-        }
-    })
+    api.post(deviceURL + "/touchAndHold", jsonData)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
@@ -246,7 +233,7 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
                 logout()
             }
         })
-        .catch(function (error) {
+        .catch(() => {
             setDialog(true)
         })
 }
@@ -274,14 +261,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 
     let deviceURL = `/device/${streamData.udid}`
 
-    fetch(deviceURL + "/swipe", {
-        method: 'POST',
-        body: jsonData,
-        headers: {
-            'Content-type': 'application/json',
-            'X-Auth-Token': authToken
-        }
-    })
+    api.post(deviceURL + "/swipe", jsonData)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
@@ -292,7 +272,7 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
                 logout()
             }
         })
-        .catch(function (error) {
+        .catch(() => {
             setDialog(true)
         })
 }
@@ -300,16 +280,10 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 function homeButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/home`
 
-    fetch(deviceURL, {
-        method: 'POST',
-        headers: {
-            'X-Auth-Token': authToken
-        }
-    })
+    api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
-                return
             }
         })
         .catch(() => {
@@ -320,16 +294,10 @@ function homeButton(authToken, deviceData, setDialog) {
 function lockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/lock`
 
-    fetch(deviceURL, {
-        method: 'POST',
-        headers: {
-            'X-Auth-Token': authToken
-        }
-    })
+    api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
-                return
             }
         })
         .catch(() => {
@@ -340,16 +308,10 @@ function lockButton(authToken, deviceData, setDialog) {
 function unlockButton(authToken, deviceData, setDialog) {
     let deviceURL = `/device/${deviceData.udid}/unlock`
 
-    fetch(deviceURL, {
-        method: 'POST',
-        headers: {
-            'X-Auth-Token': authToken
-        }
-    })
+    api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
                 setDialog(true)
-                return
             }
         })
         .catch(() => {

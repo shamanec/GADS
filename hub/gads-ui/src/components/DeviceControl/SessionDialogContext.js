@@ -2,13 +2,13 @@ import { Button, Dialog, DialogContent, DialogContentText, DialogTitle } from "@
 import { createContext, useContext, useState } from "react";
 import DialogActions from '@mui/material/DialogActions';
 import { Auth } from "../../contexts/Auth";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { api } from '../../services/api.js'
 
 const DialogContext = createContext()
 
 function SessionAlert({ dialog, setDialog }) {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const navigate = useNavigate()
 
@@ -18,12 +18,8 @@ function SessionAlert({ dialog, setDialog }) {
 
     function refreshSession() {
         let healthURL = `/health`
-        axios.get(healthURL, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .catch((error) => {
+        api.get(healthURL)
+            .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
                         logout()

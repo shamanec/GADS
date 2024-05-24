@@ -1,5 +1,4 @@
 import React, { useState, useContext } from 'react'
-import axios from 'axios'
 import { Auth } from '../../../../../contexts/Auth';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Box, Alert, Button } from '@mui/material';
@@ -8,6 +7,7 @@ import FileUploadIcon from '@mui/icons-material/FileUpload';
 import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
+import { api } from '../../../../../services/api.js'
 
 
 export default function UploadAppFile({ deviceData }) {
@@ -120,7 +120,7 @@ export default function UploadAppFile({ deviceData }) {
 }
 
 function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText }) {
-    const [authToken, , , , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
     const [isUploading, setIsUploading] = useState(false)
 
     function handleUpload() {
@@ -131,13 +131,12 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
         form.append('file', file);
 
         setShowAlert(false)
-        axios.post(url, form, {
+        api.post(url, form, {
             headers: {
-                'X-Auth-Token': authToken,
                 'Content-Type': 'multipart/form-data'
             }
         })
-            .then((response) => {
+            .then(response => {
                 setAlertSeverity('success')
                 setAlertText(response.data.message)
                 setShowAlert(true)

@@ -5,11 +5,12 @@ import './Login.css'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
+import { api } from '../../services/api.js'
 
 export default function Login() {
     const [username, setUsername] = useState()
     const [password, setPassword] = useState()
-    const [, , , login,] = useContext(Auth)
+    const { login } = useContext(Auth)
     const [showAlert, setShowAlert] = useState(false)
     const [alertText, setAlertText] = useState()
     const navigate = useNavigate()
@@ -27,22 +28,15 @@ export default function Login() {
         const loginData = {
             username: username,
             password: password,
-        };
+        }
 
-        fetch(url, {
-            method: 'POST',
-            body: JSON.stringify(loginData)
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    return response.json().then((json) => {
-                        toggleAlert(json.error);
-                        throw new Error(json.error)
-                    });
+        api.post(url, loginData)
+            .then(response => {
+                if (response.status !== 200) {
+                    toggleAlert(response.data.error);
+                    throw new Error(response.data.error)
                 } else {
-                    return response.json().then((json) => {
-                        return json;
-                    });
+                    return response.data
                 }
             })
             .then(json => {
@@ -50,7 +44,8 @@ export default function Login() {
                 login(sessionID, json.username, json.role)
                 navigate("/devices")
             })
-            .catch((e) => {
+            .catch(e => {
+                console.log("Login failed")
                 console.log(e)
             })
     }

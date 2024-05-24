@@ -3,9 +3,10 @@ import './TopNavigationBar.css'
 import { NavLink } from 'react-router-dom'
 import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
+import { api } from '../../services/api.js'
 
 export default function NavBar() {
-    const [, username, , ,] = useContext(Auth)
+    const {username} = useContext(Auth)
 
     const [showAdmin, setShowAdmin] = useState(false)
 
@@ -118,24 +119,19 @@ function KoFiButton() {
 }
 
 function LogoutButton() {
-    const [authToken, , , , logout] = useContext(Auth)
+    const {logout} = useContext(Auth)
     let url = `/logout`
 
     function handleLogout() {
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
-                if (!response.ok) {
+        api.post(url)
+            .then(response => {
+                if (response.status !== 200) {
                     logout()
                     throw new Error('Network response was not ok.');
                 }
                 logout()
             })
-            .catch((e) => {
+            .catch(e => {
                 console.log(e)
             })
     }

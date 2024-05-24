@@ -1,13 +1,13 @@
 import { Box, Button, Stack } from "@mui/material";
-import axios from "axios";
 import { useContext, useEffect, useState } from "react";
 import { Auth } from "../../../../contexts/Auth";
+import { api } from '../../../../services/api.js'
 
 export default function ProviderDevice({ deviceInfo }) {
     let img_src = deviceInfo.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
     const [statusColor, setStatusColor] = useState('red')
     const [buttonDisabled, setButtonDisabled] = useState(false)
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
 
     useEffect(() => {
         if (deviceInfo.connected && deviceInfo.provider_state === 'live') {
@@ -27,18 +27,15 @@ export default function ProviderDevice({ deviceInfo }) {
     function handleResetClick() {
         let url = `/device/${deviceInfo.udid}/reset`
 
-        axios.post(url, null, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        }).catch((error) => {
-            if (error.response) {
-                if (error.response.status === 401) {
-                    logout()
+        api.post(url)
+            .catch(error => {
+                if (error.response) {
+                    if (error.response.status === 401) {
+                        logout()
+                    }
                 }
-            }
-        })
-    }
+            })
+        }
 
     return (
         <Box

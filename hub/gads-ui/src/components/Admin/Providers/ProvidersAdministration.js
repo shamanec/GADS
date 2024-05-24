@@ -1,34 +1,27 @@
 import { Auth } from "../../../contexts/Auth"
 import { useContext, useState, useEffect } from "react"
 import Providers from "./Providers";
-import axios from "axios";
 import Skeleton from '@mui/material/Skeleton';
 import { Box, Stack } from "@mui/material";
+import { api } from '../../../services/api.js'
 
 export default function ProvidersAdministration() {
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [providers, setProviders] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     let url = `/admin/providers`
 
     useEffect(() => {
-        axios.get(url, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
-            .then((response) => {
+        api.get(url)
+            .then(response => {
                 setProviders(response.data)
             })
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
                         logout()
-                        return
                     }
                 }
-                console.log('Failed getting providers data' + error)
-                return
             });
 
         setTimeout(() => {

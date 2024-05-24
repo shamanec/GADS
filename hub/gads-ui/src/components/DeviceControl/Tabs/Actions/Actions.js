@@ -1,8 +1,8 @@
 import { useContext, useState } from "react";
 import Apps from "./Apps/Apps";
 import { Alert, Box, CircularProgress, Stack, TextField } from "@mui/material";
-import axios from "axios";
 import { Auth } from "../../../../contexts/Auth";
+import { api } from '../../../../services/api.js'
 
 export default function Actions({ deviceData }) {
     return (
@@ -17,7 +17,7 @@ export default function Actions({ deviceData }) {
 
 function TypeText({ deviceData }) {
     const [isTyping, setIsTyping] = useState(false)
-    const [authToken, , , , logout] = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [showError, setShowError] = useState(false)
     const [alertTimeoutId, setAlertTimeoutId] = useState(null)
 
@@ -54,11 +54,7 @@ function TypeText({ deviceData }) {
         let json = `{"text": "${text}"}`
 
         let url = `/device/${deviceData.udid}/typeText`
-        axios.post(url, json, {
-            headers: {
-                'X-Auth-Token': authToken
-            }
-        })
+        api.post(url, json)
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 401) {
