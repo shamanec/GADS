@@ -3,7 +3,7 @@ import { createContext, useState, useEffect } from "react"
 export const Auth = createContext()
 
 export const AuthProvider = ({ children }) => {
-    const [authToken, setAuthToken] = useState(localStorage.getItem('authToken') || '')
+    const [authToken, setAuthToken] = useState('')
     const [userName, setUserName] = useState("")
     const [userRole, setUserRole] = useState("")
 
