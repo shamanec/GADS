@@ -32,7 +32,17 @@ func StartProvider(flags *pflag.FlagSet) {
 		log.Fatalf("Please provide valid provider instance nickname via the --nickname flag, e.g. --nickname=Provider1")
 	}
 
+	if providerFolder == "." {
+		providerFolder = fmt.Sprintf("./%s", nickname)
+	}
+
 	fmt.Println("Preparing...")
+
+	// Create the provider folder if needed
+	err := os.MkdirAll(providerFolder, os.ModePerm)
+	if err != nil {
+		log.Fatalf("Failed to create provider folder `%s` - %s", providerFolder, err)
+	}
 
 	// Create a connection to Mongo
 	db.InitMongoClient(mongoDb)
@@ -121,7 +131,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	go devices.Listener()
 
 	// Start the provider server
-	err := startHTTPServer()
+	err = startHTTPServer()
 	if err != nil {
 		log.Fatal("HTTP server stopped")
 	}

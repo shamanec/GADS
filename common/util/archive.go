@@ -1,6 +1,7 @@
 package util
 
 import (
+	"GADS/provider/logger"
 	"archive/zip"
 	"bytes"
 	"fmt"
@@ -49,7 +50,7 @@ func UnzipInMemory(zipData []byte, dest string) error {
 		}
 	} else {
 		for _, f := range r.File {
-			fmt.Printf("Unzipping %s:\n", f.Name)
+			logger.ProviderLogger.LogDebug("unzip_app", fmt.Sprintf("Unzipping %s:\n", f.Name))
 			rc, err := f.Open()
 			if err != nil {
 				return err
