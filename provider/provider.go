@@ -43,13 +43,6 @@ func StartProvider(flags *pflag.FlagSet) {
 	// Defer closing the Mongo connection on provider stopped
 	defer db.CloseMongoConn()
 
-	// Check if logs folder exists in given provider folder and attempt to create it if it doesn't exist
-	createFolderIfNotExist(providerFolder, "logs")
-	// Check if conf folder exists in given provider folder and attempt to create it if it doesn't exist
-	createFolderIfNotExist(providerFolder, "conf")
-	// Check if apps folder exists in given provider folder and attempt to create it if it doesn't exist
-	createFolderIfNotExist(providerFolder, "apps")
-
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.Config.EnvConfig.Port))
@@ -165,7 +158,7 @@ func createFolderIfNotExist(baseFolder, subFolder string) {
 // Check for and set up selenium jar file for creating Appium grid nodes in config
 func configureSeleniumSettings() {
 	seleniumJarFile := ""
-	err := filepath.Walk(fmt.Sprintf("%s/conf", config.Config.EnvConfig.ProviderFolder), func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(fmt.Sprintf("%s/", config.Config.EnvConfig.ProviderFolder), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -187,10 +180,10 @@ func configureSeleniumSettings() {
 // Check for and set up WebDriverAgent.ipa/app binary in config
 func configureWebDriverBinary(providerFolder string) error {
 	// Check for WDA ipa, then WDA app availability
-	ipaPath := fmt.Sprintf("%s/conf/WebDriverAgent.ipa", providerFolder)
+	ipaPath := fmt.Sprintf("%s/WebDriverAgent.ipa", providerFolder)
 	_, err := os.Stat(ipaPath)
 	if err != nil {
-		appPath := fmt.Sprintf("%s/conf/WebDriverAgent.app", providerFolder)
+		appPath := fmt.Sprintf("%s/WebDriverAgent.app", providerFolder)
 		_, err = os.Stat(appPath)
 		if os.IsNotExist(err) {
 			return err
