@@ -200,13 +200,6 @@ func setupAndroidDevice(device *models.Device) {
 		}
 	}
 
-	isStreamAvailable, err := isGadsStreamServiceRunning(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not check if GADS-stream is running on device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS-stream for device `%v` - %v", device.UDID, err))
@@ -215,44 +208,42 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	device.StreamPort = streamPort
 
-	if !isStreamAvailable {
-		apps := getInstalledAppsAndroid(device)
-		if slices.Contains(apps, "com.shamanec.stream") {
-			err = uninstallGadsStream(device)
-			if err != nil {
-				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
-				resetLocalDevice(device)
-				return
-			}
-			time.Sleep(1 * time.Second)
-		}
-
-		err = installGadsStream(device)
+	apps := getInstalledAppsAndroid(device)
+	if slices.Contains(apps, "com.shamanec.stream") {
+		err = uninstallGadsStream(device)
 		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
 			resetLocalDevice(device)
 			return
 		}
 		time.Sleep(1 * time.Second)
-
-		err = addGadsStreamRecordingPermissions(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS-stream recording permissions on Android device - %v:\n %v", device.UDID, err))
-			resetLocalDevice(device)
-			return
-		}
-		time.Sleep(1 * time.Second)
-
-		err = startGadsStreamApp(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS-stream app on Android device - %v:\n %v", device.UDID, err))
-			resetLocalDevice(device)
-			return
-		}
-		time.Sleep(1 * time.Second)
-
-		pressHomeButton(device)
 	}
+
+	err = installGadsStream(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	time.Sleep(1 * time.Second)
+
+	err = addGadsStreamRecordingPermissions(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS-stream recording permissions on Android device - %v:\n %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	time.Sleep(1 * time.Second)
+
+	err = startGadsStreamApp(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS-stream app on Android device - %v:\n %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	time.Sleep(1 * time.Second)
+
+	pressHomeButton(device)
 
 	err = forwardGadsStream(device)
 	if err != nil {
