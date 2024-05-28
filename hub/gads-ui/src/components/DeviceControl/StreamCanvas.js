@@ -1,5 +1,5 @@
 import { Auth } from "../../contexts/Auth"
-import { useContext } from "react"
+import {useContext, useEffect} from "react"
 import './StreamCanvas.css'
 import { Button, Divider, Grid, Stack } from "@mui/material"
 import HomeIcon from '@mui/icons-material/Home';
@@ -33,6 +33,12 @@ export default function StreamCanvas({ deviceData }) {
     } else {
         streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
+
+    useEffect(() => {
+        return () => {
+            window.stop()
+        }
+    }, []);
 
     return (
         <div

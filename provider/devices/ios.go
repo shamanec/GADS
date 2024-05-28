@@ -295,7 +295,7 @@ func mountDeveloperImageIOS(device *models.Device) error {
 func pairIOS(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", device.UDID))
 
-	p12, err := os.ReadFile(fmt.Sprintf("%s/conf/supervision.p12", config.Config.EnvConfig.ProviderFolder))
+	p12, err := os.ReadFile(fmt.Sprintf("%s/supervision.p12", config.Config.EnvConfig.ProviderFolder))
 	if err != nil {
 		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not read supervision.p12 file when pairing device with UDID: %s, falling back to unsupervised pairing - %s", device.UDID, err))
 		err = ios.Pair(device.GoIOSDeviceEntry)
@@ -381,7 +381,7 @@ func installAppWithPathIOS(device *models.Device, path string) error {
 }
 
 func installAppIOS(device *models.Device, appName string) error {
-	appPath := fmt.Sprintf("%s/apps/%s", config.Config.EnvConfig.ProviderFolder, appName)
+	appPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, appName)
 	if config.Config.EnvConfig.OS == "darwin" {
 		cmd := exec.CommandContext(device.Context,
 			"xcrun",

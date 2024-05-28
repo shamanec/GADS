@@ -102,8 +102,8 @@ func updateDevices() {
 				db.AddCollectionIndex("appium_logs", newDevice.UDID, appiumCollectionIndexModel)
 
 				// Create logs directory for the device if it doesn't already exist
-				if _, err := os.Stat(fmt.Sprintf("%s/logs/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID)); os.IsNotExist(err) {
-					err = os.Mkdir(fmt.Sprintf("%s/logs/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), os.ModePerm)
+				if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID)); os.IsNotExist(err) {
+					err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), os.ModePerm)
 					if err != nil {
 						logger.ProviderLogger.Errorf("updateDevices: Could not create logs folder for device `%s` - %s\n", newDevice.UDID, err)
 						continue
@@ -111,14 +111,14 @@ func updateDevices() {
 				}
 
 				// Create a custom logger and attach it to the local device
-				deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/logs/device_%s/device.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
+				deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
 				if err != nil {
 					logger.ProviderLogger.Errorf("updateDevices: Could not create custom logger for device `%s` - %s\n", newDevice.UDID, err)
 					continue
 				}
 				newDevice.Logger = *deviceLogger
 
-				appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/logs/device_%s/appium.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
+				appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
 				if err != nil {
 					logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", newDevice.UDID, err)
 					continue
@@ -200,13 +200,6 @@ func setupAndroidDevice(device *models.Device) {
 		}
 	}
 
-	isStreamAvailable, err := isGadsStreamServiceRunning(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not check if GADS-stream is running on device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS-stream for device `%v` - %v", device.UDID, err))
@@ -215,44 +208,42 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	device.StreamPort = streamPort
 
-	if !isStreamAvailable {
-		apps := getInstalledAppsAndroid(device)
-		if slices.Contains(apps, "com.shamanec.stream") {
-			err = uninstallGadsStream(device)
-			if err != nil {
-				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
-				resetLocalDevice(device)
-				return
-			}
-			time.Sleep(1 * time.Second)
-		}
-
-		err = installGadsStream(device)
+	apps := getInstalledAppsAndroid(device)
+	if slices.Contains(apps, "com.shamanec.stream") {
+		err = uninstallGadsStream(device)
 		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
 			resetLocalDevice(device)
 			return
 		}
-		time.Sleep(1 * time.Second)
-
-		err = addGadsStreamRecordingPermissions(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS-stream recording permissions on Android device - %v:\n %v", device.UDID, err))
-			resetLocalDevice(device)
-			return
-		}
-		time.Sleep(1 * time.Second)
-
-		err = startGadsStreamApp(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS-stream app on Android device - %v:\n %v", device.UDID, err))
-			resetLocalDevice(device)
-			return
-		}
-		time.Sleep(1 * time.Second)
-
-		pressHomeButton(device)
+		time.Sleep(3 * time.Second)
 	}
+
+	err = installGadsStream(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	time.Sleep(2 * time.Second)
+
+	err = addGadsStreamRecordingPermissions(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS-stream recording permissions on Android device - %v:\n %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	time.Sleep(1 * time.Second)
+
+	err = startGadsStreamApp(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS-stream app on Android device - %v:\n %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	time.Sleep(2 * time.Second)
+
+	pressHomeButton(device)
 
 	err = forwardGadsStream(device)
 	if err != nil {
@@ -394,7 +385,7 @@ func setupIOSDevice(device *models.Device) {
 
 	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
 	if config.Config.EnvConfig.OS != "darwin" {
-		wdaPath := fmt.Sprintf("%s/conf/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.WebDriverBinary)
+		wdaPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.WebDriverBinary)
 		err = installAppWithPathIOS(device, wdaPath)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
@@ -639,7 +630,7 @@ func createGridTOML(device *models.Device) error {
 		return fmt.Errorf("Failed marshalling TOML Appium config - %s", err)
 	}
 
-	file, err := os.Create(fmt.Sprintf("%s/conf/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID))
+	file, err := os.Create(fmt.Sprintf("%s/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID))
 	if err != nil {
 		return fmt.Errorf("Failed creating TOML Appium config file - %s", err)
 	}
@@ -658,12 +649,12 @@ func startGridNode(device *models.Device) {
 	cmd := exec.CommandContext(device.Context,
 		"java",
 		"-jar",
-		fmt.Sprintf("%s/conf/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.SeleniumJarFile),
+		fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.SeleniumJarFile),
 		"node",
 		"--host",
 		config.Config.EnvConfig.HostAddress,
 		"--config",
-		fmt.Sprintf("%s/conf/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID),
+		fmt.Sprintf("%s/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID),
 		"--grid-url",
 		config.Config.EnvConfig.SeleniumGrid,
 	)

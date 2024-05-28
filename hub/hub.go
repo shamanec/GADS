@@ -79,7 +79,6 @@ func StartHub(flags *pflag.FlagSet) {
 	defer db.MongoCtxCancel()
 
 	setLogging()
-	fmt.Println("")
 
 	err := db.AddAdminUserIfMissing()
 	if err != nil {

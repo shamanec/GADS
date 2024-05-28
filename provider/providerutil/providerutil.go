@@ -165,7 +165,7 @@ func CheckGadsStreamAndDownload() error {
 
 // Check if the gads-stream.apk file is located in the provider `conf` folder
 func isGadsStreamApkAvailable() bool {
-	_, err := os.Stat(fmt.Sprintf("%s/conf/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
+	_, err := os.Stat(fmt.Sprintf("%s/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -175,9 +175,9 @@ func isGadsStreamApkAvailable() bool {
 // Download the latest release of GADS-Android-stream and put the apk in the provider `conf` folder
 func downloadGadsStreamApk() error {
 	logger.ProviderLogger.LogInfo("provider", "Downloading latest GADS-stream release apk file")
-	outFile, err := os.Create(fmt.Sprintf("%s/conf/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
+	outFile, err := os.Create(fmt.Sprintf("%s/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
 	if err != nil {
-		return fmt.Errorf("Could not create file at %s/conf/gads-stream.apk - %s", config.Config.EnvConfig.ProviderFolder, err)
+		return fmt.Errorf("Could not create file at %s/gads-stream.apk - %s", config.Config.EnvConfig.ProviderFolder, err)
 	}
 	defer outFile.Close()
 
@@ -205,27 +205,4 @@ func downloadGadsStreamApk() error {
 	}
 
 	return nil
-}
-
-func GetAllAppFiles() []string {
-	file, err := os.Open(fmt.Sprintf("%s/apps", config.Config.EnvConfig.ProviderFolder))
-	if err != nil {
-		logger.ProviderLogger.LogError("provider", fmt.Sprintf("Could not os.Open() apps directory - %s", err))
-		return []string{}
-	}
-	defer file.Close()
-
-	fileList, err := file.Readdir(-1)
-	if err != nil {
-		logger.ProviderLogger.LogError("provider", fmt.Sprintf("Could not Readdir on the apps directory - %s", err))
-		return []string{}
-	}
-
-	var files []string
-	for _, file := range fileList {
-		files = append(files, file.Name())
-		fmt.Println(file.Size())
-	}
-
-	return files
 }

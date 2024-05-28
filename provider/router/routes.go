@@ -70,7 +70,7 @@ func newAppiumProxy(target string, path string) *httputil.ReverseProxy {
 
 func UploadAndInstallApp(c *gin.Context) {
 	// Specify the upload directory
-	uploadDir := fmt.Sprintf("%s/apps/", config.Config.EnvConfig.ProviderFolder)
+	uploadDir := fmt.Sprintf("%s/", config.Config.EnvConfig.ProviderFolder)
 
 	// Read the file from the form data
 	file, err := c.FormFile("file")

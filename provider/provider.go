@@ -32,7 +32,17 @@ func StartProvider(flags *pflag.FlagSet) {
 		log.Fatalf("Please provide valid provider instance nickname via the --nickname flag, e.g. --nickname=Provider1")
 	}
 
+	if providerFolder == "." {
+		providerFolder = fmt.Sprintf("./%s", nickname)
+	}
+
 	fmt.Println("Preparing...")
+
+	// Create the provider folder if needed
+	err := os.MkdirAll(providerFolder, os.ModePerm)
+	if err != nil {
+		log.Fatalf("Failed to create provider folder `%s` - %s", providerFolder, err)
+	}
 
 	// Create a connection to Mongo
 	db.InitMongoClient(mongoDb)
@@ -42,13 +52,6 @@ func StartProvider(flags *pflag.FlagSet) {
 	config.Config.EnvConfig.OS = runtime.GOOS
 	// Defer closing the Mongo connection on provider stopped
 	defer db.CloseMongoConn()
-
-	// Check if logs folder exists in given provider folder and attempt to create it if it doesn't exist
-	createFolderIfNotExist(providerFolder, "logs")
-	// Check if conf folder exists in given provider folder and attempt to create it if it doesn't exist
-	createFolderIfNotExist(providerFolder, "conf")
-	// Check if apps folder exists in given provider folder and attempt to create it if it doesn't exist
-	createFolderIfNotExist(providerFolder, "apps")
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
@@ -128,7 +131,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	go devices.Listener()
 
 	// Start the provider server
-	err := startHTTPServer()
+	err = startHTTPServer()
 	if err != nil {
 		log.Fatal("HTTP server stopped")
 	}
@@ -165,7 +168,7 @@ func createFolderIfNotExist(baseFolder, subFolder string) {
 // Check for and set up selenium jar file for creating Appium grid nodes in config
 func configureSeleniumSettings() {
 	seleniumJarFile := ""
-	err := filepath.Walk(fmt.Sprintf("%s/conf", config.Config.EnvConfig.ProviderFolder), func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(fmt.Sprintf("%s/", config.Config.EnvConfig.ProviderFolder), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -187,10 +190,10 @@ func configureSeleniumSettings() {
 // Check for and set up WebDriverAgent.ipa/app binary in config
 func configureWebDriverBinary(providerFolder string) error {
 	// Check for WDA ipa, then WDA app availability
-	ipaPath := fmt.Sprintf("%s/conf/WebDriverAgent.ipa", providerFolder)
+	ipaPath := fmt.Sprintf("%s/WebDriverAgent.ipa", providerFolder)
 	_, err := os.Stat(ipaPath)
 	if err != nil {
-		appPath := fmt.Sprintf("%s/conf/WebDriverAgent.app", providerFolder)
+		appPath := fmt.Sprintf("%s/WebDriverAgent.app", providerFolder)
 		_, err = os.Stat(appPath)
 		if os.IsNotExist(err) {
 			return err
