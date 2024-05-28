@@ -216,7 +216,7 @@ func setupAndroidDevice(device *models.Device) {
 			resetLocalDevice(device)
 			return
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 
 	err = installGadsStream(device)
@@ -225,7 +225,7 @@ func setupAndroidDevice(device *models.Device) {
 		resetLocalDevice(device)
 		return
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	err = addGadsStreamRecordingPermissions(device)
 	if err != nil {
@@ -241,7 +241,7 @@ func setupAndroidDevice(device *models.Device) {
 		resetLocalDevice(device)
 		return
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	pressHomeButton(device)
 

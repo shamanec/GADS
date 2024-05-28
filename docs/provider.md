@@ -25,14 +25,13 @@ Provider configuration is added through the GADS UI
 ## Provider data folder - optional
 The provider needs a persistent folder where logs, apps and other files might be stored.  
 
-You can skip this step and then starting the provider will look for `apps` and `logs` folders relative to the folder where the provider binary is located. 
-For example if you run the provider in `/Users/shamanec/Gads-provider` then it will look for `apps` and `logs` as `/Users/shamanec/Gads-provider/apps` and `/Users/shamanec/Gads-provider/logs` respectively.   
+You can skip this step and then starting the provider will create a folder named over the provider instance nickname relative to the folder where the provider binary is located. 
+For example if you run the provider in `/Users/shamanec/GADS` with nickname `Provider1` then it will create `/Users/shamanec/GADS/Provider1` folder respectively and store all related data there.  
 
 If you create a specific folder and provide it on startup - then the path will be relative to it.  
 Refer to the `--provider-folder` flag in [Running a provider instance](#running-a-provider-instance)
 
 1. Create a folder on your machine that will be accessible to the provider - name it any way you want.
-2. Open the newly created folder and inside create three more folders - `apps`, `logs`, `conf`
 
 ## Provider setup
 ### macOS
@@ -89,7 +88,7 @@ Refer to the `--provider-folder` flag in [Running a provider instance](#running-
 - Execute `./GADS provider` providing the following flags:  
   - `--nickname=` - mandatory, this is used to get the correct provider configuration from MongoDB
   - `--mongo-db=` - optional, IP address and port of the MongoDB instance (default is `localhost:27017`)
-  - `--provider-folder=` - optional, folder where provider should store logs and apps and get needed files for setup. Can be 1) relative path to the folder where provider binary is located or 2) full path on the host. Default is the folder where the binary is currently located, default is `.`
+  - `--provider-folder=` - optional, folder where provider should store logs and apps and other needed files. Can be relative path to the folder where provider binary is located or full path on the host - `./test`, `.`, `./test/test1`, `/Users/shamanec/Desktop/test` are all valid. Default is the folder where the binary is currently located - `.`
   - `--log-level=` - optional, how verbose should the provider logs be (default is `info`, use `debug` for more log output)
 
 ### Dependencies notes
@@ -138,7 +137,7 @@ This is an optional but a preferable step - it can make devices setup more auton
 - Set it up for supervision using a new(or existing) supervision identity. You can do that for free without having a paid MDM account.
 - Connect each consecutive device and supervise it using the same supervision identity.
 - Export your supervision identity file and choose a password.
-- Save your new supervision identity file in the `./conf` folder as `supervision.p12`.
+- Save your new supervision identity file in the provider folder as `supervision.p12`.
 
 **NB** You can skip supervising the devices and you should trust manually on first pair attempt by the provider but if devices are supervised in advance setup can be more autonomous.
 
@@ -182,17 +181,17 @@ You need a paid Apple Developer account to build and sign `WebDriverAgent` if yo
 Provider logs both to local files and to MongoDB.
 
 #### Provider logs
-Provider logs can be found in the `provider.log` file in the `/logs` folder relative to the supplied `provider-folder` flag on start.  
+Provider logs can be found in the `provider.log` file in the used provider folder - default or provided by the `--provider-folder` flag.  
 They will also be stored in MongoDB in DB `logs` and collection corresponding to the provider nickname.
 
 #### Device logs
-On start a log folder and file is created for each device in the `/logs` folder relative to the supplied `provider-folder` flag on start.  
+On start a log folder and file is created for each device relative to the used provider folder - default or provided by the `--provider-folder` flag.  
 They will also be stored in MongoDB in DB `logs` and collection corresponding to the device UDID.
 
 ### Additional notes
 #### Selenium Grid
 Devices can be automatically connected to Selenium Grid 4 instance. You need to create the Selenium Grid hub instance yourself and then setup the provider to connect to it.  
-To setup the provider download the Selenium server jar [release](https://github.com/SeleniumHQ/selenium/releases/tag/selenium-4.13.0) v4.13. Copy the downloaded jar and put it in the provider `./conf` folder.  
+To setup the provider download the Selenium server jar [release](https://github.com/SeleniumHQ/selenium/releases/tag/selenium-4.13.0) v4.13. Copy the downloaded jar and put it in the provider folder.  
 **NOTE** Currently versions above 4.13 don't work with Appium relay nodes and I haven't tested with lower versions. Use lower versions at your own risk.
 
 ### FAQ
@@ -211,6 +210,7 @@ To setup the provider download the Selenium server jar [release](https://github.
   - GADS uses `go-ios` to install and run WebDriverAgent on iOS < 17 devices on Linux/Windows
   - Make sure you've properly signed and created the [WebDriverAgent](#prepare-webdriveragent-file---linux-windows) ipa/app
   - Observe the provider logs - if installation is failing, you will see the full `go-ios` command used by GADS to install the prepared WebDriverAgent ipa/app. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
+    - You might have to unlock your keychain, I haven't observed the need for this but it was reported - `security unlock-keychain -p yourMacPassword ~/Library/Keychains/login.keychain`
   - Observe the provider logs - if running of WDA is failing, you will see the full `go-ios` command used by GADS to run the installed WebDriverAgent. Copy the command and run it from terminal without the provider. Observe and debug the output
 - *[Android] I can load the device in the UI but there is no video, why?*
   - First option is that `GADS-android-stream` just doesn't work on your device - unlikely
