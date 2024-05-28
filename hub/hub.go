@@ -14,16 +14,6 @@ import (
 	"path/filepath"
 )
 
-func setLogging() {
-	log.SetFormatter(&log.JSONFormatter{})
-	// Create/open the log file and set it as logrus output
-	projectLogFile, err := os.OpenFile("./gads-project.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
-	if err != nil {
-		log.Fatalf("Could not create/open the gads-project log file for logrus - %s", err)
-	}
-	log.SetOutput(projectLogFile)
-}
-
 //go:embed gads-ui/build
 var uiFiles embed.FS
 
@@ -77,8 +67,6 @@ func StartHub(flags *pflag.FlagSet) {
 	go devices.GetLatestDBDevices()
 
 	defer db.MongoCtxCancel()
-
-	setLogging()
 
 	err := db.AddAdminUserIfMissing()
 	if err != nil {
