@@ -29,8 +29,10 @@ export default function StreamCanvas({ deviceData }) {
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
+        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/ios-stream-mjpeg`
         streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
+        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/android-stream-mjpeg`
         streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
