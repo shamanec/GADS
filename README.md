@@ -12,6 +12,8 @@
 
 [![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
 
+<img src="/docs/gads-logo.png" width="256"/>
+
 ## Intro
 GADS is an application for remote control and Appium test execution on mobile devices  
 
