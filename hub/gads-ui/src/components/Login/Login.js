@@ -56,7 +56,12 @@ export default function Login() {
                 <div id="funky-div">
                 </div>
                 <div className="login-wrapper">
-                    <h1>GADS</h1>
+                    <img
+                        src="./images/gads.png"
+                        style={{
+                            width: '50%'
+                        }}
+                    ></img>
                     <h2>Please log in</h2>
                     <form
                         onSubmit={handleLogin}
