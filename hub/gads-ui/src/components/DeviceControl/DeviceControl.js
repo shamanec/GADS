@@ -35,18 +35,23 @@ export default function DeviceControl() {
                 navigate('/devices');
             });
 
-        const inUseInterval = setInterval(() => {
-            let inUseUrl = `/devices/control/${id}/in-use`
-            api.post(inUseUrl)
-                .catch(error => {
-                    if (error.response) {
-                        if (error.response.status === 401) {
-                            logout()
-                            return
-                        }
-                    }
-                    navigate('/devices');
-                });
+        if (in_use_socket) {
+            in_use_socket.close()
+        }
+        const protocol = window.location.protocol;
+        let wsType = "ws"
+        if (protocol === "https") {
+            wsType = "wss"
+        }
+        let socketUrl = `${wsType}://${window.location.host}/devices/control/${id}/in-use`
+        in_use_socket = new WebSocket(socketUrl);
+        if (in_use_socket.readyState === WebSocket.OPEN) {
+            in_use_socket.send('ping');
+        }
+        const pingInterval = setInterval(() => {
+            if (in_use_socket.readyState === WebSocket.OPEN) {
+                in_use_socket.send('ping');
+            }
         }, 1000);
 
         setInterval(() => {
@@ -54,7 +59,11 @@ export default function DeviceControl() {
         }, 2000);
 
         return () => {
-            clearInterval(inUseInterval)
+            if (in_use_socket) {
+                console.log('component unmounted, clearing itnerval and closing socket')
+                clearInterval(pingInterval)
+                in_use_socket.close()
+            }
         }
 
     }, [])

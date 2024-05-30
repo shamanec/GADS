@@ -4,8 +4,11 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/devices"
+	"GADS/provider/logger"
 	"encoding/json"
 	"fmt"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"html/template"
@@ -396,15 +399,52 @@ func getDBDevice(udid string) *models.Device {
 
 var inUseMap = make(map[string]int64)
 
-func DeviceInUse(c *gin.Context) {
+func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
+
 	var mu sync.Mutex
-	mu.Lock()
-	defer mu.Unlock()
+	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
+	if err != nil {
+		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
+		return
+	}
+	defer conn.Close()
 
-	inUseMap[udid] = time.Now().UnixMilli()
+	messageReceived := make(chan struct{})
+	defer close(messageReceived)
 
-	c.String(200, "")
+	go func() {
+		for {
+			data, code, err := wsutil.ReadClientData(conn)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			if code == 8 {
+				close(messageReceived)
+				return
+			}
+
+			if string(data) == "ping" {
+				messageReceived <- struct{}{}
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-messageReceived:
+			mu.Lock()
+			inUseMap[udid] = time.Now().UnixMilli()
+			mu.Unlock()
+		case <-time.After(2 * time.Second):
+			mu.Lock()
+			delete(inUseMap, udid)
+			mu.Unlock()
+			return
+		}
+	}
 }
 
 func GetDevicePage(c *gin.Context) {

@@ -32,11 +32,10 @@ func HandleRequests() *gin.Engine {
 	authGroup := r.Group("/")
 	// Unauthenticated endpoints
 	authGroup.POST("/authenticate", auth.LoginHandler)
-	// websockets - unauthenticated
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
+	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
 	// Enable authentication on the endpoints below
-	authGroup.POST("/devices/control/:udid/in-use", DeviceInUse)
 	authGroup.Use(auth.AuthMiddleware())
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
