@@ -93,7 +93,7 @@ function DiscordButton() {
         <a
             className='discord-button'
             target='_blank'
-            href='https://discordapp.com/users/365565274470088704'
+            href='https://discord.gg/5amWvknKQd'
         >
             <img
                 src='./images/discord.png'
