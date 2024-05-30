@@ -6,7 +6,6 @@ import { Button } from '@mui/material';
 import TabularControl from './Tabs/TabularControl';
 import { useContext, useEffect, useState } from 'react';
 import { Auth } from '../../contexts/Auth';
-import axios from 'axios'
 import { DialogProvider } from './SessionDialogContext';
 import { api } from '../../services/api.js'
 
