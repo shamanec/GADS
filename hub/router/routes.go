@@ -394,22 +394,16 @@ func getDBDevice(udid string) *models.Device {
 	return nil
 }
 
+var inUseMap = make(map[string]int64)
+
 func DeviceInUse(c *gin.Context) {
 	udid := c.Param("udid")
-	dbDevice := func() *models.Device {
-		for _, dbDevice := range devices.LatestDevices {
-			if dbDevice.UDID == udid {
-				return dbDevice
-			}
-		}
-		return nil
-	}()
-
 	var mu sync.Mutex
 	mu.Lock()
 	defer mu.Unlock()
 
-	dbDevice.InUseLastTS = time.Now().UnixMilli()
+	inUseMap[udid] = time.Now().UnixMilli()
+
 	c.String(200, "")
 }
 
@@ -476,12 +470,17 @@ func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
 		for _, device := range devices.LatestDevices {
 
-			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-5000) {
+			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
 				device.Available = true
-				if device.InUseLastTS <= (time.Now().UnixMilli() - 5000) {
-					device.InUse = false
+
+				deviceInUseTS, ok := inUseMap[device.UDID]
+				if ok {
+					if deviceInUseTS >= (time.Now().UnixMilli() - 3000) {
+						device.InUse = true
+					}
 				} else {
-					device.InUse = true
+					device.InUse = false
+					delete(inUseMap, device.UDID)
 				}
 				continue
 			}
