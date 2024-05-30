@@ -11,7 +11,6 @@ The provider component is what actually sets up the Appium servers and all other
 - [Logging](#logging)
 - [Additional notes](#additional-notes)
   - [Selenium Grid](#selenium-grid)
-- [FAQ](#FAQ)
 
 ## Provider configuration
 
@@ -193,33 +192,3 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 Devices can be automatically connected to Selenium Grid 4 instance. You need to create the Selenium Grid hub instance yourself and then setup the provider to connect to it.  
 To setup the provider download the Selenium server jar [release](https://github.com/SeleniumHQ/selenium/releases/tag/selenium-4.13.0) v4.13. Copy the downloaded jar and put it in the provider folder.  
 **NOTE** Currently versions above 4.13 don't work with Appium relay nodes and I haven't tested with lower versions. Use lower versions at your own risk.
-
-### FAQ
-- *I have connected Android devices but provider is not picking them up at all, why?*
-  - GADS uses `adb` to detect devices. First run `adb devices` in terminal to determine if you actually have devices discovered.
-  - Make sure you have enabled [USB Debugging](#usb-debugging) on each device
-  - Make sure you have accepted the popup for debugging after connecting the devices to the host
-- *I have connected device, it appears as live in UI but I cannot connect to it, why?*
-  - Could be a number of things, make sure you run the provider with `--log-level=debug` and observe the provider logs
-  - Observe the respective device `appium.log` file as well
-- *[macOS] I have a connected iOS device where WebDriverAgent installation consistently fails, why?*
-  - GADS uses `xcodebuild` to run WebDriverAgent on iOS 17+ devices on macOS
-  - Make sure that you have signed the WebDriverAgent project from `Xcode` and have attempted to `Product > Test` it successfully at least once
-  - Observe the provider logs - you will see the full `xcodebuild` command used by GADS to attempt and start it on the device. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
-- *[Linux/Windows] I have a connected iOS device where WebDriverAgent installation/start up consistently fails, why?*
-  - GADS uses `go-ios` to install and run WebDriverAgent on iOS < 17 devices on Linux/Windows
-  - Make sure you've properly signed and created the [WebDriverAgent](#prepare-webdriveragent-file---linux-windows) ipa/app
-  - Observe the provider logs - if installation is failing, you will see the full `go-ios` command used by GADS to install the prepared WebDriverAgent ipa/app. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
-    - You might have to unlock your keychain, I haven't observed the need for this but it was reported - `security unlock-keychain -p yourMacPassword ~/Library/Keychains/login.keychain`
-  - Observe the provider logs - if running of WDA is failing, you will see the full `go-ios` command used by GADS to run the installed WebDriverAgent. Copy the command and run it from terminal without the provider. Observe and debug the output
-- *[Android] I can load the device in the UI but there is no video, why?*
-  - First option is that `GADS-android-stream` just doesn't work on your device - unlikely
-  - Disconnect your device, find the `GADS-stream` app on it and uninstall it, reconnect the device - hopefully the new set up will be able to start it properly
-  - You can also do the above through the UI - load the device, find the `GADS-stream` package in the installed apps and uninstall it. Go to `Admin > Providers Administration` and reset the device from the provider interface.
-  - If above doesn't work - disconnect your device, tap on the `GADS-stream` app on it. If it asks for permissions - allow them and press the `Home` button on the device. Check in the notifications for something like `GADS-stream is recording the device screen`. Reconnect the device.
-- *I can load the devices but video is choppy/lags behind, is there something I can do?*
-  - No, it is what it is. The Android stream was written by me and is as good as I was able to make it, don't think I can improve on streaming as well. For iOS we use the WebDriverAgent video stream so same applies there - we got what we got.
-- *I can load the devices but interaction is slow/laggy, is there something I can do?*
-  - No, it is what it is. GADS uses Appium under the hood for the interactions so we are as fast as it allows us to be.
-- *I can load the device but interaction does not work at all/session expired popup appears, why?*
-  - There is probably an issue with Appium setup or dependencies. It is quite possible to start Appium server successfully but everything fails due to missing environment variable like `ANDROID_HOME` or something in that line. Observe the respective device Appium logs either in UI or file

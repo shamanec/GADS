@@ -7,6 +7,7 @@
     - [MongoDB](#mongodb)
   - [Hub setup](./docs/hub.md)
   - [Provider setup](./docs/provider.md)
+- [FAQ](./docs/faq.md)
 - [Thanks](#thanks)
 - [Demo video](#thanks)
 
