@@ -75,8 +75,8 @@ export default function DeviceControl() {
                         onClick={handleBackClick}
                         style={{
                             marginLeft: "20px",
-                            backgroundColor: "#78866B",
-                            color: "#0c111e",
+                            backgroundColor: "#2f3b26",
+                            color: "#9ba984",
                             fontWeight: "bold"
                         }}
                     >Back to devices</Button>

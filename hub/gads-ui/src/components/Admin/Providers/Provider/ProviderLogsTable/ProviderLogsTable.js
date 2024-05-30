@@ -109,8 +109,8 @@ export default function ProviderLogsTable({ nickname }) {
                 onClick={getLogs}
                 variant='contained'
                 style={{
-                    backgroundColor: "#78866B",
-                    color: "#0c111e",
+                    backgroundColor: "#9ba984",
+                    color: "#2f3b26",
                     fontWeight: "bold"
                 }}
             >Get Logs</Button>
@@ -118,7 +118,7 @@ export default function ProviderLogsTable({ nickname }) {
                 component={Paper}
                 style={{
                     marginTop: '10px',
-                    backgroundColor: "#78866B"
+                    backgroundColor: "#9ba984"
                 }}
             >
                 <Table sx={{ minWidth: 500 }} size='small' padding='checkbox'>

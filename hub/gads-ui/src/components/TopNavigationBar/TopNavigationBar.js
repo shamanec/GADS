@@ -62,8 +62,8 @@ function StyledNavLink({ to, linkText }) {
     return (
         <NavLink className="nav-bar-link"
             style={({ isActive }) => ({
-                backgroundColor: isActive ? "#0c111e" : "",
-                color: isActive ? "#78866B" : "#0c111e",
+                backgroundColor: isActive ? "#2f3b26" : "",
+                color: isActive ? "#9ba984" : "#2f3b26",
                 fontWeight: "bold"
             })}
             to={to}
@@ -142,10 +142,10 @@ function LogoutButton() {
             onClick={handleLogout}
             style={{
                 marginLeft: "20px",
-                backgroundColor: "#914400",
+                backgroundColor: "#dfbe82",
                 marginTop: "5px",
                 marginBottom: "5px",
-                color: "#0c111e",
+                color: "#2f3b26",
                 fontWeight: "bold"
             }}
         >Logout</Button>

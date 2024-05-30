@@ -51,8 +51,8 @@ export default function Screenshot({ udid }) {
                     variant="contained"
                     style={{
                         marginBottom: "10px",
-                        backgroundColor: "#78866B",
-                        color: "#0c111e",
+                        backgroundColor: "#2f3b26",
+                        color: "#9ba984",
                         fontWeight: "bold"
                     }}
                 >Screenshot</Button>

@@ -76,7 +76,7 @@ function TypeText({ deviceData }) {
     return (
         <Box
             style={{
-                backgroundColor: '#78866B',
+                backgroundColor: '#9ba984',
                 width: '600px',
                 marginTop: '5px',
                 height: '155px'
@@ -99,7 +99,7 @@ function TypeText({ deviceData }) {
                     variant="outlined"
                     onKeyUp={(event) => handleEnter(event)}
                     style={{
-                        backgroundColor: '#78866B',
+                        backgroundColor: '#9ba984',
                         marginTop: '15px',
                         width: '80%'
                     }}

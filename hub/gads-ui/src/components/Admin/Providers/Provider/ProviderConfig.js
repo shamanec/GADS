@@ -134,7 +134,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
             direction='column'
             spacing={2}
             style={{
-                backgroundColor: '#78866B',
+                backgroundColor: '#9ba984',
                 maxWidth: '500px',
                 height: '700px',
                 marginLeft: '10px',
@@ -322,8 +322,8 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                 variant='contained'
                 style={{
                     width: '100px',
-                    backgroundColor: "#0c111e",
-                    color: "#78866B",
+                    backgroundColor: "#2f3b26",
+                    color: "#9ba984",
                     fontWeight: "bold"
                 }}
                 onClick={handleAddClick}>{buttonText}</Button>

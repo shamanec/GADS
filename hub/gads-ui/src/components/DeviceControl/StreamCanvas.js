@@ -48,7 +48,7 @@ export default function StreamCanvas({ deviceData }) {
         >
             <h3
                 style={{
-                    color: '#0c111e',
+                    color: '#2f3b26',
                     display: 'flex',
                     fontFamily: 'Verdana',
                     justifyContent: 'center'
@@ -86,7 +86,10 @@ export default function StreamCanvas({ deviceData }) {
                     startIcon={<HomeIcon />}
                     variant='contained'
                     style={{
-                        borderBottomLeftRadius: '25px'
+                        fontWeight: "bold",
+                        color: "#9ba984",
+                        backgroundColor: "#2f3b26",
+                        borderBottomLeftRadius: '25px',
                     }}
                 >Home</Button>
                 <Button
@@ -94,6 +97,11 @@ export default function StreamCanvas({ deviceData }) {
                     className='canvas-buttons'
                     startIcon={<LockIcon />}
                     variant='contained'
+                    style={{
+                        fontWeight: "bold",
+                        color: "#9ba984",
+                        backgroundColor: "#2f3b26"
+                    }}
                 >Lock</Button>
                 <Button
                     onClick={() => unlockButton(authToken, deviceData, setDialog)}
@@ -101,6 +109,9 @@ export default function StreamCanvas({ deviceData }) {
                     startIcon={<LockOpenIcon />}
                     variant='contained'
                     style={{
+                        fontWeight: "bold",
+                        color: "#9ba984",
+                        backgroundColor: "#2f3b26",
                         borderBottomRightRadius: '25px'
                     }}
                 >Unlock</Button>

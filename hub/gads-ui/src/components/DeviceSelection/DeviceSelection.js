@@ -132,7 +132,7 @@ function OSSelection({ devices, handleAlert }) {
                     className='filters-stack'
                     sx={{
                         height: '500px',
-                        backgroundColor: '#78866B',
+                        backgroundColor: '#9ba984',
                         borderRadius: '10px'
                     }}
                 >
@@ -147,7 +147,7 @@ function OSSelection({ devices, handleAlert }) {
                 {devices.length === 0 ? (
                     <Box
                         style={{
-                            backgroundColor: '#78866B',
+                            backgroundColor: '#9ba984',
                             width: '100%',
                             height: '800px',
                             borderRadius: '10px',

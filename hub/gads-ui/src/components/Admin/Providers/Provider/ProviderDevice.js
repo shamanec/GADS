@@ -77,8 +77,8 @@ export default function ProviderDevice({ deviceInfo }) {
                 variant='contained'
                 style={{
                     margin: "2px" ,
-                    backgroundColor: "#0c111e",
-                    color: "#78866B",
+                    backgroundColor: "#f4e6cd",
+                    color: "#2f3b26",
                     fontWeight: "bold"
                 }}
             >Reset</Button>

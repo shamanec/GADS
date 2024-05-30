@@ -26,13 +26,13 @@ export default function AdminDashboard() {
                 onChange={handleTabChange}
                 TabIndicatorProps={{
                     style: {
-                        background: "#78866B",
+                        background: "#2f3b26",
                         height: "5px"
                     }
                 }}
-                textColor="#0c111e"
+                textColor="#f4e6cd"
                 sx={{
-                    color: "#78866B",
+                    color: "#2f3b26",
                     fontFamily: "Verdana"
                 }}
             >

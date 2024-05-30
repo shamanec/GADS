@@ -1,5 +1,5 @@
 .device-box {
-    background-color: #78866B;
+    background-color: #9ba984;
     width: 220px;
     height: 350px;
     margin: 10px;
@@ -35,31 +35,31 @@
 
 .device-buttons {
     margin: 10px;
-    background: #0c111e;
-    color: #78866B;
+    background: #f4e6cd;
+    color: #2f3b26;
     width: 30%;
     height: 50px;
     border-radius: 10px;
     font-size: 15px;
     position: relative;
-    border: 2px solid #0c111e;
+    border: 2px solid #2f3b26;
     font-weight: bold;
 }
 
 .device-buttons:disabled {
     background: #878a91;
-    color: #0c111e;
+    color: #f4e6cd;
 }
 
 .device-buttons:disabled:hover {
     background: #878a91;
-    color: #0c111e;
+    color: #f4e6cd;
 }
 
 .device-buttons:hover {
     cursor: pointer;
-    background: #496612;
-    color: #78866B;
+    background: #2f3b26;
+    color: #9ba984;
 }
 
 .spinner {
@@ -73,7 +73,7 @@
     bottom: 0;
     margin: auto;
     border: 4px solid transparent;
-    border-top-color: #78866B;
+    border-top-color: #9ba984;
     border-radius: 50%;
     animation: button-loading-spinner 1s ease infinite;
 }

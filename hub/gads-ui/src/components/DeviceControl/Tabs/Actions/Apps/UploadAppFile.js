@@ -63,8 +63,8 @@ export default function UploadAppFile({ deviceData }) {
                 variant='contained'
                 startIcon={<AttachFileIcon />}
                 style={{
-                    backgroundColor: "#0c111e",
-                    color: "#78866B",
+                    backgroundColor: "#2f3b26",
+                    color: "#9ba984",
                     fontWeight: "bold"
                 }}
             >
@@ -80,7 +80,7 @@ export default function UploadAppFile({ deviceData }) {
                     <ListSubheader
                         component="div"
                         style={{
-                            backgroundColor: '#78866B'
+                            backgroundColor: '#9ba984'
                         }}
                     >
                         File details
@@ -170,8 +170,8 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 onClick={handleUpload}
                 disabled={isUploading || buttonDisabled}
                 style={{
-                    backgroundColor: (isUploading || buttonDisabled) ? "rgba(51,71,110,0.47)" : "#0c111e",
-                    color: "#78866B",
+                    backgroundColor: (isUploading || buttonDisabled) ? "rgba(51,71,110,0.47)" : "#2f3b26",
+                    color: "#9ba984",
                     fontWeight: "bold",
                     width: "250px"
                 }}

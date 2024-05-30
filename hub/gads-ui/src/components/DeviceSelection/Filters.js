@@ -11,13 +11,13 @@ export function OSFilterTabs({ currentTabIndex, handleTabChange }) {
             onChange={handleTabChange}
             TabIndicatorProps={{
                 style: {
-                    background: "#0c111e",
+                    background: "#2f3b26",
                     height: "5px"
                 }
             }}
-            textColor='#0c111e'
+            textColor='#f4e6cd'
             sx={{
-                color: "#0c111e",
+                color: "#2f3b26",
                 fontFamily: "Verdana"
             }}
         >

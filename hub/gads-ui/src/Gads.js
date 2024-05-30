@@ -19,7 +19,7 @@ function Gads() {
   }
 
   return (
-    <div style={{ backgroundColor: "#0c111e", height: "100%" }}>
+    <div style={{ backgroundColor: "#f4e6cd", height: "100%" }}>
       <NavBar />
       <Routes>
         <Route path="/devices" element={<DeviceSelection />} />

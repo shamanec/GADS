@@ -150,8 +150,8 @@ export default function AddUser() {
                             style={{}}
                             disabled={buttonDisabled}
                             style={{
-                                backgroundColor: "#0c111e",
-                                color: "#78866B",
+                                backgroundColor: buttonDisabled ? "#ccc" : "#f4e6cd",
+                                color: buttonDisabled ? "#666" : "#2f3b26",
                                 fontWeight: "bold"
                             }}
                         >Add user</Button>

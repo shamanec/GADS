@@ -71,10 +71,10 @@ export default function Login() {
                                 label="Username"
                                 required
                                 id="outlined-required"
-                                style={{ color: "#78866B" }}
+                                style={{ color: "#9ba984" }}
                                 sx={{
                                     input: {
-                                        background: "#78866B"
+                                        background: "#9ba984"
                                     }
                                 }}
                             />
@@ -91,7 +91,7 @@ export default function Login() {
                                 label="Password"
                                 required
                                 id="outlined-required"
-                                style={{ color: "#78866B" }}
+                                style={{ color: "#9ba984" }}
                             />
                         </label>
                         <div>
@@ -100,8 +100,8 @@ export default function Login() {
                                 type="submit"
                                 style={{
                                     marginBottom: "5px",
-                                    backgroundColor: "#0c111e",
-                                    color: "#78866B",
+                                    backgroundColor: "#2f3b26",
+                                    color: "#9ba984",
                                     fontWeight: "bold"
                                 }}
                             >Log in</Button>

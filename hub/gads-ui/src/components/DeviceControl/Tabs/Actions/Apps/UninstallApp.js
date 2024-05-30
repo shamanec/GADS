@@ -89,8 +89,8 @@ export default function UninstallApp({ udid, installedApps }) {
                         variant='contained'
                         disabled={uninstallButtonDisabled}
                         style={{
-                            backgroundColor: "#0c111e",
-                            color: "#78866B",
+                            backgroundColor: "#2f3b26",
+                            color: "#9ba984",
                             fontWeight: "bold"
                         }}
                     >Uninstall</Button>

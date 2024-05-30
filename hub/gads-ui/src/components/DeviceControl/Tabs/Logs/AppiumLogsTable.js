@@ -111,8 +111,8 @@ export default function AppiumLogsTable({ udid }) {
                 id='install-button'
                 variant='contained'
                 style={{
-                    backgroundColor: "#78866B",
-                    color: "#0c111e",
+                    backgroundColor: "#2f3b26",
+                    color: "#9ba984",
                     fontWeight: "bold"
                 }}
             >Get Logs</Button>
@@ -120,7 +120,7 @@ export default function AppiumLogsTable({ udid }) {
                 component={Paper}
                 style={{
                     marginTop: '10px',
-                    backgroundColor: "#78866B"
+                    backgroundColor: "#9ba984"
                 }}
             >
                 <Table sx={{ minWidth: 500 }} size='small' padding='checkbox'>

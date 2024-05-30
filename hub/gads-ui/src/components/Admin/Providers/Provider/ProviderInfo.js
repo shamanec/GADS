@@ -22,7 +22,7 @@ export default function ProviderInfo({ os, isOnline }) {
             style={{
                 height: '50px',
                 width: "200px",
-                backgroundColor: '#78866B',
+                backgroundColor: '#9ba984',
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '10px'

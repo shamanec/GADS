@@ -3,9 +3,9 @@
     font-size: 16px;
     margin-left: 10px;
     height: 40px;
-    border-bottom: 2px solid #0c111e;
-    background-color: #78866B;
-    color: #0c111e;
+    border-bottom: 2px solid #2f3b26;
+    background-color: #9ba984;
+    color: #2f3b26;
 }
 
 #search-input:focus {
@@ -26,11 +26,11 @@
 }
 
 .custom-placeholder::placeholder {
-    color: #0c111e;
+    color: #2f3b26;
     font-weight: bold;
 }
 
 .custom-placeholder::-ms-input-placeholder {
-    color: #0c111e;
+    color: #2f3b26;
     font-weight: bold;
 }
