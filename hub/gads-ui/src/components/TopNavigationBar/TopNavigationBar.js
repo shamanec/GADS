@@ -6,7 +6,7 @@ import Button from '@mui/material/Button'
 import { api } from '../../services/api.js'
 
 export default function NavBar() {
-    const {username} = useContext(Auth)
+    const {userName} = useContext(Auth)
 
     const [showAdmin, setShowAdmin] = useState(false)
 
@@ -47,7 +47,7 @@ export default function NavBar() {
             <div
                 className="social-buttons-wrapper"
             >
-                <p style={{ fontWeight: "bold"}}>Welcome, {username}</p>
+                <p style={{ fontWeight: "bold"}}>Welcome, {userName}</p>
                 <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
