@@ -1,0 +1,89 @@
+.device-box {
+    background-color: #9ba984;
+    width: 220px;
+    height: 350px;
+    margin: 10px;
+    text-align: center;
+    font-size: 30px;
+    border-radius: 10px;
+}
+
+.device-buttons .in-use {
+    background-color: #878a91;
+}
+
+.device-box:hover {
+    background-color: #b1bfa5;
+}
+
+.devices-container {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 10px;
+}
+
+.deviceImage {
+    height: 200px;
+    margin-top: 30px
+}
+
+.device-buttons-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.device-buttons {
+    margin: 10px;
+    background: #f4e6cd;
+    color: #2f3b26;
+    width: 30%;
+    height: 50px;
+    border-radius: 10px;
+    font-size: 15px;
+    position: relative;
+    border: 2px solid #2f3b26;
+    font-weight: bold;
+}
+
+.device-buttons:disabled {
+    background: #878a91;
+    color: #f4e6cd;
+}
+
+.device-buttons:disabled:hover {
+    background: #878a91;
+    color: #f4e6cd;
+}
+
+.device-buttons:hover {
+    cursor: pointer;
+    background: #2f3b26;
+    color: #9ba984;
+}
+
+.spinner {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    border: 4px solid transparent;
+    border-top-color: #9ba984;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+}
+
+@keyframes button-loading-spinner {
+    from {
+        transform: rotate(0turn);
+    }
+
+    to {
+        transform: rotate(1turn);
+    }
+}

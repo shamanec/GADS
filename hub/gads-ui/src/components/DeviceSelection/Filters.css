@@ -1,0 +1,36 @@
+#search-input {
+    border: none;
+    font-size: 16px;
+    margin-left: 10px;
+    height: 40px;
+    border-bottom: 2px solid #2f3b26;
+    background-color: #9ba984;
+    color: #2f3b26;
+}
+
+#search-input:focus {
+    outline: none;
+}
+
+#search-wrapper {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+}
+
+#image-wrapper {
+    justify-content: center;
+    align-items: center;
+}
+
+.custom-placeholder::placeholder {
+    color: #2f3b26;
+    font-weight: bold;
+}
+
+.custom-placeholder::-ms-input-placeholder {
+    color: #2f3b26;
+    font-weight: bold;
+}

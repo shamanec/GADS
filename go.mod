@@ -3,17 +3,26 @@ module GADS
 go 1.21
 
 require (
+	github.com/danielpaulus/go-ios v1.0.121
 	github.com/gin-contrib/static v0.0.1
 	github.com/gin-gonic/gin v1.9.0
+	github.com/gobwas/ws v1.4.0
 	github.com/sirupsen/logrus v1.8.1
+	github.com/spf13/cobra v1.8.0
+	github.com/spf13/pflag v1.0.5
 )
 
 require (
+	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/fullsailor/pkcs7 v0.0.0-20190404230743-d7302db945fa // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -28,6 +37,7 @@ require (
 	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	howett.net/plist v0.0.0-20200419221736-3b63eb3a43b5 // indirect
 )
 
 require (
@@ -40,7 +50,7 @@ require (
 	github.com/leodido/go-urn v1.2.3 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.7
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	go.mongodb.org/mongo-driver v1.12.1
 	golang.org/x/arch v0.3.0 // indirect
