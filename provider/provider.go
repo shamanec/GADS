@@ -62,6 +62,11 @@ func StartProvider(flags *pflag.FlagSet) {
 		log.Fatal("Appium is not available, set it up on the host as explained in the readme")
 	}
 
+	// Finalize grid configuration if Selenium Grid usage enabled
+	if config.Config.EnvConfig.UseSeleniumGrid {
+		configureSeleniumSettings()
+	}
+
 	// If running on macOS and iOS device provisioning is enabled
 	if config.Config.EnvConfig.OS == "darwin" && config.Config.EnvConfig.ProvideIOS {
 		logger.ProviderLogger.LogInfo("provider_setup", "Provider runs on macOS and is set up to provide iOS devices")
@@ -122,11 +127,6 @@ func StartProvider(flags *pflag.FlagSet) {
 		providerutil.RemoveAdbForwardedPorts()
 	}
 
-	// Finalize grid configuration if Selenium Grid usage enabled
-	if config.Config.EnvConfig.UseSeleniumGrid {
-		configureSeleniumSettings()
-	}
-
 	// Start a goroutine that will start updating devices on provider start
 	go devices.Listener()
 
@@ -150,21 +150,6 @@ func startHTTPServer() error {
 	return fmt.Errorf("HTTP server stopped due to an unknown reason")
 }
 
-// Create a required provider folder if it doesn't exist
-func createFolderIfNotExist(baseFolder, subFolder string) {
-	folderPath := fmt.Sprintf("%s/%s", baseFolder, subFolder)
-	_, err := os.Stat(folderPath)
-	if os.IsNotExist(err) {
-		fmt.Printf("`%s` folder does not exist in `%s` provider folder, attempting to create it\n", subFolder, baseFolder)
-		err = os.Mkdir(folderPath, os.ModePerm)
-		if err != nil {
-			log.Fatalf("Could not create `%s` folder in `%s` provider folder - %s", subFolder, baseFolder, err)
-		}
-	} else if err != nil {
-		log.Fatalf("Could not stat `%s` folder in `%s` provider folder - %s", subFolder, baseFolder, err)
-	}
-}
-
 // Check for and set up selenium jar file for creating Appium grid nodes in config
 func configureSeleniumSettings() {
 	seleniumJarFile := ""
@@ -182,7 +167,7 @@ func configureSeleniumSettings() {
 		return
 	}
 	if seleniumJarFile == "" {
-		log.Fatalf("You have enabled Selenium Grid connection but no selenium jar file was found in the `conf` folder in `%s`, you need to set it up as explained in the readme", config.Config.EnvConfig.ProviderFolder)
+		log.Fatalf("You have enabled Selenium Grid connection but no Selenium jar file was found in `%s` folder, you need to set it up as explained in the readme", config.Config.EnvConfig.ProviderFolder)
 	}
 	config.Config.EnvConfig.SeleniumJarFile = seleniumJarFile
 }
