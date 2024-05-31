@@ -107,10 +107,10 @@ func StartProvider(flags *pflag.FlagSet) {
 		if config.Config.EnvConfig.OS != "darwin" {
 			logger.ProviderLogger.LogInfo(
 				"provider_setup",
-				"Provider runs on Linux/Windows and is set up to provide iOS devices, checking if prepared WebDriverAgent binary exists in the `conf` folder as explained in the readme")
+				"Provider runs on Linux/Windows and is set up to provide iOS devices, checking if prepared WebDriverAgent binary exists in the provider folder as explained in the readme")
 			err := configureWebDriverBinary(providerFolder)
 			if err != nil {
-				log.Fatalf("You should put signed WebDriverAgent.ipa/app file in the `conf` folder in `%s` as explained in the readme", providerFolder)
+				log.Fatalf("You should put signed WebDriverAgent.ipa/app file in the provider folder `%s` as explained in the readme", providerFolder)
 			}
 		}
 	}

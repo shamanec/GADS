@@ -28,6 +28,16 @@ func isGadsStreamServiceRunning(device *models.Device) (bool, error) {
 	return true, nil
 }
 
+func stopGadsStreamService(device *models.Device) {
+	logger.ProviderLogger.LogInfo("android_device_setup", "Stopping GADS-stream service")
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "stopservice", "com.shamanec.stream/.ScreenCaptureService")
+
+	err := cmd.Run()
+	if err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to stop GADS-stream service properly - %s", err))
+	}
+}
+
 // Install gads-stream.apk on the device
 func installGadsStream(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS-stream apk on device `%v`", device.UDID))

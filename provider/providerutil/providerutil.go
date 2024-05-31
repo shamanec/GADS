@@ -146,7 +146,7 @@ func RemoveAdbForwardedPorts() {
 // Check if gads-stream.apk is available and if not - download the latest release
 func CheckGadsStreamAndDownload() error {
 	if isGadsStreamApkAvailable() {
-		logger.ProviderLogger.LogInfo("provider_setup", "GADS-stream apk is available in the provider `conf` folder, it will not be downloaded. If you want to get the latest release, delete the file from conf folder and re-run the provider")
+		logger.ProviderLogger.LogInfo("provider_setup", "GADS-stream apk is available in the provider folder, it will not be downloaded. If you want to get the latest release, delete the file from conf folder and re-run the provider")
 		return nil
 	}
 
@@ -163,7 +163,7 @@ func CheckGadsStreamAndDownload() error {
 	return nil
 }
 
-// Check if the gads-stream.apk file is located in the provider `conf` folder
+// Check if the gads-stream.apk file is located in the provider folder
 func isGadsStreamApkAvailable() bool {
 	_, err := os.Stat(fmt.Sprintf("%s/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
 	if os.IsNotExist(err) {
@@ -172,7 +172,7 @@ func isGadsStreamApkAvailable() bool {
 	return err == nil
 }
 
-// Download the latest release of GADS-Android-stream and put the apk in the provider `conf` folder
+// Download the latest release of GADS-Android-stream and put the apk in the provider folder
 func downloadGadsStreamApk() error {
 	logger.ProviderLogger.LogInfo("provider", "Downloading latest GADS-stream release apk file")
 	outFile, err := os.Create(fmt.Sprintf("%s/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))

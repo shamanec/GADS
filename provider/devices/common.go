@@ -210,6 +210,8 @@ func setupAndroidDevice(device *models.Device) {
 
 	apps := getInstalledAppsAndroid(device)
 	if slices.Contains(apps, "com.shamanec.stream") {
+		stopGadsStreamService(device)
+		time.Sleep(3 * time.Second)
 		err = uninstallGadsStream(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
@@ -233,7 +235,7 @@ func setupAndroidDevice(device *models.Device) {
 		resetLocalDevice(device)
 		return
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	err = startGadsStreamApp(device)
 	if err != nil {
