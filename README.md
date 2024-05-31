@@ -9,7 +9,7 @@
   - [Provider setup](./docs/provider.md)
 - [FAQ](./docs/faq.md)
 - [Thanks](#thanks)
-- [Demo video](#thanks)
+- [Demo video](#demo-video)
 
 [![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
 
@@ -100,7 +100,8 @@ or
 |[Appium](https://github.com/appium)| It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                         |  
 
 ### Demo video  
-https://github.com/shamanec/GADS/assets/60219580/3142fb7b-74a6-49bd-83c9-7e8512dee5fc
+https://github.com/shamanec/GADS/assets/60219580/271c5025-7f2c-4d7c-a276-eb0e9cceb787
+
 
 
 
