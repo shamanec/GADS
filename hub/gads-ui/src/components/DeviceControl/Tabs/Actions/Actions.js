@@ -3,6 +3,7 @@ import Apps from "./Apps/Apps";
 import { Alert, Box, CircularProgress, Stack, TextField } from "@mui/material";
 import { Auth } from "../../../../contexts/Auth";
 import { api } from '../../../../services/api.js'
+import Clipboard from "./Clipboard";
 
 export default function Actions({ deviceData }) {
     return (
@@ -10,6 +11,7 @@ export default function Actions({ deviceData }) {
             <Stack>
                 <Apps deviceData={deviceData}></Apps>
                 <TypeText deviceData={deviceData}></TypeText>
+                <Clipboard deviceData={deviceData}></Clipboard>
             </Stack>
         </Box>
     )

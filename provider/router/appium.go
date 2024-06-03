@@ -18,6 +18,7 @@ var netClient = &http.Client{
 
 func appiumRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", device.AppiumPort, device.AppiumSessionID, endpoint)
+	fmt.Printf("Calling url - %s\n", url)
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -292,5 +293,73 @@ func appiumHome(device *models.Device) (*http.Response, error) {
 		return wdaRequest(device, http.MethodPost, "wda/homescreen", nil)
 	default:
 		return nil, fmt.Errorf("Unsupported device OS: %s", device.OS)
+	}
+}
+
+func appiumActivateApp(device *models.Device, appIdentifier string) (*http.Response, error) {
+	switch device.OS {
+	case "ios":
+		requestBody := struct {
+			BundleId string `json:"bundleId"`
+		}{
+			BundleId: appIdentifier,
+		}
+		reqJson, err := json.MarshalIndent(requestBody, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("Failed to marshal request body json - %s", err)
+		}
+		return appiumRequest(device, http.MethodPost, "appium/device/activate_app", bytes.NewReader(reqJson))
+	case "android":
+		requestBody := struct {
+			AppId string `json:"appId"`
+		}{
+			AppId: appIdentifier,
+		}
+		reqJson, err := json.MarshalIndent(requestBody, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("Failed to marshal request body json - %s", err)
+		}
+		return appiumRequest(device, http.MethodPost, "appium/device/activate_app", bytes.NewReader(reqJson))
+	default:
+		return nil, fmt.Errorf("Bad device OS - %s", device.OS)
+	}
+}
+
+func appiumGetClipboard(device *models.Device) (*http.Response, error) {
+	requestBody := struct {
+		ContentType string `json:"contentType"`
+	}{
+		ContentType: "plaintext",
+	}
+	reqJson, err := json.MarshalIndent(requestBody, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal request body json - %s", err)
+	}
+
+	switch device.OS {
+	case "ios":
+		activateAppResp, err := appiumActivateApp(device, config.Config.EnvConfig.WdaBundleID)
+		if err != nil {
+			return activateAppResp, err
+		}
+		defer activateAppResp.Body.Close()
+
+		// Read the response body
+		clipboardResponseBody, err := io.ReadAll(activateAppResp.Body)
+		fmt.Println("Got activateAppResponse body")
+		fmt.Println(string(clipboardResponseBody))
+
+		clipboardResp, err := appiumRequest(device, http.MethodPost, "appium/device/get_clipboard", bytes.NewReader(reqJson))
+		if err != nil {
+			return clipboardResp, err
+		}
+
+		appiumHome(device)
+
+		return clipboardResp, nil
+	case "android":
+		return appiumRequest(device, http.MethodPost, "appium/device/get_clipboard", bytes.NewReader(reqJson))
+	default:
+		return nil, fmt.Errorf("Bad device OS - %s", device.OS)
 	}
 }
