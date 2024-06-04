@@ -18,7 +18,7 @@ var netClient = &http.Client{
 
 func appiumRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", device.AppiumPort, device.AppiumSessionID, endpoint)
-	fmt.Printf("Calling url - %s\n", url)
+	device.Logger.LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -28,6 +28,7 @@ func appiumRequest(device *models.Device, method, endpoint string, requestBody i
 
 func wdaRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%v/%s", device.WDAPort, endpoint)
+	device.Logger.LogDebug("wda_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -37,6 +38,7 @@ func wdaRequest(device *models.Device, method, endpoint string, requestBody io.R
 
 func appiumRequestNoSession(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/%s", device.AppiumPort, endpoint)
+	device.Logger.LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -304,10 +306,12 @@ func appiumActivateApp(device *models.Device, appIdentifier string) (*http.Respo
 		}{
 			BundleId: appIdentifier,
 		}
+
 		reqJson, err := json.MarshalIndent(requestBody, "", "  ")
 		if err != nil {
-			return nil, fmt.Errorf("Failed to marshal request body json - %s", err)
+			return nil, fmt.Errorf("appiumActivateApp: Failed to marshal request body json when activating app for device `%s` - %s", device.UDID, err)
 		}
+
 		return appiumRequest(device, http.MethodPost, "appium/device/activate_app", bytes.NewReader(reqJson))
 	case "android":
 		requestBody := struct {
@@ -315,13 +319,15 @@ func appiumActivateApp(device *models.Device, appIdentifier string) (*http.Respo
 		}{
 			AppId: appIdentifier,
 		}
+
 		reqJson, err := json.MarshalIndent(requestBody, "", "  ")
 		if err != nil {
-			return nil, fmt.Errorf("Failed to marshal request body json - %s", err)
+			return nil, fmt.Errorf("appiumActivateApp: Failed to marshal request body json when activating app for device `%s` - %s", device.UDID, err)
 		}
+
 		return appiumRequest(device, http.MethodPost, "appium/device/activate_app", bytes.NewReader(reqJson))
 	default:
-		return nil, fmt.Errorf("Bad device OS - %s", device.OS)
+		return nil, fmt.Errorf("appiumActivateApp: Bad device OS for device `%s` - %s", device.UDID, device.OS)
 	}
 }
 
@@ -333,33 +339,31 @@ func appiumGetClipboard(device *models.Device) (*http.Response, error) {
 	}
 	reqJson, err := json.MarshalIndent(requestBody, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal request body json - %s", err)
+		return nil, fmt.Errorf("appiumGetClipboard: Failed to marshal request body json when getting clipboard for device `%s` - %s", device.UDID, err)
 	}
 
 	switch device.OS {
 	case "ios":
 		activateAppResp, err := appiumActivateApp(device, config.Config.EnvConfig.WdaBundleID)
 		if err != nil {
-			return activateAppResp, err
+			return activateAppResp, fmt.Errorf("appiumGetClipboard: Failed to activate app - %s", err)
 		}
 		defer activateAppResp.Body.Close()
 
-		// Read the response body
-		clipboardResponseBody, err := io.ReadAll(activateAppResp.Body)
-		fmt.Println("Got activateAppResponse body")
-		fmt.Println(string(clipboardResponseBody))
-
 		clipboardResp, err := appiumRequest(device, http.MethodPost, "appium/device/get_clipboard", bytes.NewReader(reqJson))
 		if err != nil {
-			return clipboardResp, err
+			return clipboardResp, fmt.Errorf("appiumGetClipboard: Failed to execute Appium request for device `%s` - %s", device.UDID, err)
 		}
 
-		appiumHome(device)
+		_, err = appiumHome(device)
+		if err != nil {
+			device.Logger.LogWarn("appium_interact", "appiumGetClipboard: Failed to navigate to Home/Springboard using Appium")
+		}
 
 		return clipboardResp, nil
 	case "android":
 		return appiumRequest(device, http.MethodPost, "appium/device/get_clipboard", bytes.NewReader(reqJson))
 	default:
-		return nil, fmt.Errorf("Bad device OS - %s", device.OS)
+		return nil, fmt.Errorf("appiumGetClipboard: Bad device OS for device `%s` - %s", device.UDID, device.OS)
 	}
 }
