@@ -1,6 +1,7 @@
 package router
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -67,6 +68,43 @@ func DeviceHome(c *gin.Context) {
 	c.Writer.WriteHeader(homeResponse.StatusCode)
 	copyHeaders(c.Writer.Header(), homeResponse.Header)
 	fmt.Fprintf(c.Writer, string(homeResponseBody))
+}
+
+func DeviceGetClipboard(c *gin.Context) {
+	udid := c.Param("udid")
+	device := devices.DeviceMap[udid]
+	device.Logger.LogInfo("appium_interact", "Getting device clipboard value")
+
+	// Send the request
+	clipboardResponse, err := appiumGetClipboard(device)
+	if err != nil {
+		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get device clipboard value - %s", err))
+		c.String(http.StatusInternalServerError, "")
+		return
+	}
+	defer clipboardResponse.Body.Close()
+
+	// Read the response body
+	clipboardResponseBody, err := io.ReadAll(clipboardResponse.Body)
+	if err != nil {
+		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err))
+		c.String(http.StatusInternalServerError, "")
+		return
+	}
+
+	// Unmarshal the response body to get the actual value returned
+	valueResp := struct {
+		Value string `json:"value"`
+	}{}
+	err = json.Unmarshal(clipboardResponseBody, &valueResp)
+	if err != nil {
+		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err))
+		c.String(http.StatusInternalServerError, "")
+	}
+
+	// Decode the value because Appium returns it as base64 encoded string
+	decoded, _ := base64.StdEncoding.DecodeString(valueResp.Value)
+	c.String(http.StatusOK, string(decoded))
 }
 
 // Call respective Appium/WDA endpoint to lock the device
