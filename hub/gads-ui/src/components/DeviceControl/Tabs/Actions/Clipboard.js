@@ -33,13 +33,17 @@ export default function Clipboard({ deviceData }) {
             <Stack
                 style={{
                     marginLeft: "10px",
-                    marginBottom: "10px"
+                    marginBottom: "10px",
+                    marginRight: "10px"
                 }}
             >
                 <h3>Get clipboard value</h3>
+                {deviceData.os === "ios" &&
+                    <h5 style={{marginTop: "1px"}}>On iOS devices WebDriverAgent has to be the active app to get the pasteboard value, it will be activated and then you'll be navigated to Springboard</h5>
+                }
                 <Button
                     onClick={handleGetClipboard}
-                    id='install-button'
+                    id='clipboard-button'
                     variant='contained'
                     disabled={isGettingCb}
                     style={{
@@ -58,7 +62,7 @@ export default function Clipboard({ deviceData }) {
                     style={{
                         backgroundColor: '#9ba984',
                         marginTop: '15px',
-                        width: '98%'
+                        width: '100%'
                     }}
                 />
             </Stack>
