@@ -186,9 +186,3 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 #### Device logs
 On start a log folder and file is created for each device relative to the used provider folder - default or provided by the `--provider-folder` flag.  
 They will also be stored in MongoDB in DB `logs` and collection corresponding to the device UDID.
-
-### Additional notes
-#### Selenium Grid
-Devices can be automatically connected to Selenium Grid 4 instance. You need to create the Selenium Grid hub instance yourself and then set it up in the provider configuration to connect to it.  
-To setup the file for the provider, download the Selenium server jar [release](https://github.com/SeleniumHQ/selenium/releases/tag/selenium-4.13.0) v4.13. Copy the downloaded jar and put it in the provider folder.  
-**NB** At the time support for Selenium Grid was implemented latest Selenium version was 4.15. The latest version that actually worked with Appium relay nodes was 4.13. I haven't tested with lower versions. Use lower versions at your own risk. Newer version might also work but it wasn't tested as well.

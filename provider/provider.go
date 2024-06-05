@@ -15,7 +15,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -64,7 +63,10 @@ func StartProvider(flags *pflag.FlagSet) {
 
 	// Finalize grid configuration if Selenium Grid usage enabled
 	if config.Config.EnvConfig.UseSeleniumGrid {
-		configureSeleniumSettings()
+		err = config.SetupSeleniumJar()
+		if err != nil {
+			log.Fatalf("Selenium Grid connection is enabled but there is something wrong with providing the selenium jar file from MongoDB - %s", err)
+		}
 	}
 
 	// If running on macOS and iOS device provisioning is enabled
@@ -143,33 +145,12 @@ func startHTTPServer() error {
 	// Start periodically updating the provider data in the DB
 	go updateProviderInDB()
 	// Start the provider
-	err := r.Run(fmt.Sprintf(":%v", config.Config.EnvConfig.Port))
+	address := fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
+	err := r.Run(address)
 	if err != nil {
 		return err
 	}
 	return fmt.Errorf("HTTP server stopped due to an unknown reason")
-}
-
-// Check for and set up selenium jar file for creating Appium grid nodes in config
-func configureSeleniumSettings() {
-	seleniumJarFile := ""
-	err := filepath.Walk(fmt.Sprintf("%s/", config.Config.EnvConfig.ProviderFolder), func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.Contains(info.Name(), "selenium") && filepath.Ext(path) == ".jar" {
-			seleniumJarFile = info.Name()
-			return nil
-		}
-		return nil
-	})
-	if err != nil {
-		return
-	}
-	if seleniumJarFile == "" {
-		log.Fatalf("You have enabled Selenium Grid connection but no Selenium jar file was found in `%s` folder, you need to set it up as explained in the readme", config.Config.EnvConfig.ProviderFolder)
-	}
-	config.Config.EnvConfig.SeleniumJarFile = seleniumJarFile
 }
 
 // Check for and set up WebDriverAgent.ipa/app binary in config

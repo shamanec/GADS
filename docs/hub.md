@@ -22,3 +22,14 @@ If you want to work on the React UI with hot reload you need to add a proxy in `
 2. Open the `package-json` file.
 3. Add a new field `"proxy": "http://192.168.1.28:10000/"` providing the host and port of the Go backend service.
 4. Run `npm start`
+
+### Additional notes
+#### Selenium Grid
+Devices can be automatically connected to Selenium Grid 4 instance. You need to create the Selenium Grid hub instance yourself and then set it up in the provider configuration to connect to it.  
+* Start your Selenium hub instance, e.g. `java -jar selenium.jar --host 192.168.1.6 --port 4444`
+* When adding/updating provider configuration from `Admin > Provider administration` you need to supply the Selenium hub address, e.g. `http://192.168.1.6:4444`
+* You also need to upload the respective Selenium jar file so the provider instances have access to it
+  * Log in to the hub with admin user, go to `Admin > Files administration` and upload the Selenium jar file - v4.13 is recommended.  
+  * The file will be stored in Mongo and providers will download it on start automatically.
+
+**NB** At the time support for Selenium Grid was implemented latest Selenium version was 4.15. The latest version that actually worked with Appium relay nodes was 4.13. I haven't tested with lower versions. Use lower versions at your own risk. Versions > 4.15 might also work but it wasn't tested as well.

@@ -14,8 +14,10 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -534,4 +536,34 @@ func AvailableDevicesSSE(c *gin.Context) {
 		time.Sleep(1 * time.Second)
 		return true
 	})
+}
+
+func UploadSeleniumJar(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No file provided in form data - %s", err)})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+
+	if ext != ".jar" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .jar files are accepted. Got - " + ext})
+		return
+	}
+
+	openedFile, err := file.Open()
+	defer openedFile.Close()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to open provided file - %s", err))})
+		return
+	}
+
+	err = db.UploadFileGridFS(openedFile, "selenium.jar", true)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Selenium jar uploaded successfully"})
 }

@@ -651,7 +651,7 @@ func startGridNode(device *models.Device) {
 	cmd := exec.CommandContext(device.Context,
 		"java",
 		"-jar",
-		fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.SeleniumJarFile),
+		fmt.Sprintf("%s/selenium.jar", config.Config.EnvConfig.ProviderFolder),
 		"node",
 		"--host",
 		config.Config.EnvConfig.HostAddress,
@@ -660,6 +660,8 @@ func startGridNode(device *models.Device) {
 		"--grid-url",
 		config.Config.EnvConfig.SeleniumGrid,
 	)
+
+	logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s` with command `%s`", device.UDID, cmd.Args))
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
