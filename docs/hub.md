@@ -22,3 +22,7 @@ If you want to work on the React UI with hot reload you need to add a proxy in `
 2. Open the `package-json` file.
 3. Add a new field `"proxy": "http://192.168.1.28:10000/"` providing the host and port of the Go backend service.
 4. Run `npm start`
+
+### Additional notes
+#### Selenium Grid
+If you want your providers to connect to a Selenium Grid instance, then you need to upload the respective Selenium jar file via the admin UI so the providers can easily access it.

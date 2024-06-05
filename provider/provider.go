@@ -67,7 +67,6 @@ func StartProvider(flags *pflag.FlagSet) {
 		if err != nil {
 			log.Fatalf("Selenium Grid connection is enabled but there is something wrong with providing the selenium jar file from MongoDB - %s", err)
 		}
-		config.Config.EnvConfig.SeleniumJarFile = "selenium.jar"
 	}
 
 	// If running on macOS and iOS device provisioning is enabled

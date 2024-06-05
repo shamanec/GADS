@@ -651,7 +651,7 @@ func startGridNode(device *models.Device) {
 	cmd := exec.CommandContext(device.Context,
 		"java",
 		"-jar",
-		fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.SeleniumJarFile),
+		fmt.Sprintf("%s/selenium.jar", config.Config.EnvConfig.ProviderFolder),
 		"node",
 		"--host",
 		config.Config.EnvConfig.HostAddress,

@@ -21,7 +21,6 @@ type ProviderDB struct {
 	ProvidedDevices      []Device          `json:"provided_devices" bson:"provided_devices"`
 	ConnectedDevices     []ConnectedDevice `json:"connected_devices" bson:"connected_devices"`
 	WebDriverBinary      string            `json:"-" bson:"-"`
-	SeleniumJarFile      string            `json:"-" bson:"-"`
 	UseGadsIosStream     bool              `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
 	UseCustomWDA         bool              `json:"use_custom_wda" bson:"use_custom_wda"`
 }
