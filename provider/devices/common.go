@@ -661,6 +661,8 @@ func startGridNode(device *models.Device) {
 		config.Config.EnvConfig.SeleniumGrid,
 	)
 
+	logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s` with command `%s`", device.UDID, cmd.Args))
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error creating stdoutpipe while starting Selenium Grid node for device `%v` - %v", device.UDID, err))
