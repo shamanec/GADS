@@ -51,7 +51,7 @@ func SetupSeleniumJar() error {
 
 	// If no found files
 	if len(foundFiles) == 0 {
-		return fmt.Errorf("Selenium jar file is not present in MongoDB, you have to upload it")
+		return fmt.Errorf("Selenium jar file is not present in MongoDB, you have to upload it via the hub admin UI")
 	}
 
 	// If more than 1 found file

@@ -10,7 +10,6 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"html/template"
 	"io"
@@ -553,9 +552,6 @@ func UploadSeleniumJar(c *gin.Context) {
 		return
 	}
 
-	mongoDb := db.MongoClient().Database("gads")
-	bucket, err := gridfs.NewBucket(mongoDb, nil)
-
 	openedFile, err := file.Open()
 	defer openedFile.Close()
 	if err != nil {
@@ -563,9 +559,10 @@ func UploadSeleniumJar(c *gin.Context) {
 		return
 	}
 
-	_, err = bucket.UploadFromStream("selenium.jar", openedFile, nil)
+	err = db.UploadFileGridFS(openedFile, "selenium.jar", true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Selenium jar uploaded successfully"})
