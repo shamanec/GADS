@@ -50,6 +50,8 @@ export default function Login() {
             })
     }
 
+    let gadsVersion = localStorage.getItem('gadsVersion') || 'unknown'
+
     return (
         <div className="top-wrapper">
             <div className="fancy-wrapper">
@@ -76,7 +78,7 @@ export default function Login() {
                                 label="Username"
                                 required
                                 id="outlined-required"
-                                style={{ color: "#9ba984" }}
+                                style={{color: "#9ba984"}}
                                 sx={{
                                     input: {
                                         background: "#9ba984"
@@ -96,7 +98,7 @@ export default function Login() {
                                 label="Password"
                                 required
                                 id="outlined-required"
-                                style={{ color: "#9ba984" }}
+                                style={{color: "#9ba984"}}
                             />
                         </label>
                         <div>
@@ -113,6 +115,16 @@ export default function Login() {
                         </div>
                         {showAlert && <Alert severity="error">{alertText}</Alert>}
                     </form>
+                    <p
+                        style={{
+                            width: '100%',
+                            marginRight: '20px',
+                            textAlign: 'right',
+                            fontWeight: 'bold',
+                            color: '#2f3b26'
+                        }}
+                    >{gadsVersion.startsWith('v') ? gadsVersion : "DEV"}
+                    </p>
                 </div>
             </div>
         </div>

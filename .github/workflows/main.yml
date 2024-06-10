@@ -27,7 +27,7 @@ jobs:
         env:
           CI: false
         run: |
-          cd hub/gads-ui && npm install && npm run build --verbose
+          cd hub/gads-ui && npm install && REACT_APP_VERSION=${{ github.ref_name }} npm run build --verbose
 
       - name: Build binaries
         run: |
