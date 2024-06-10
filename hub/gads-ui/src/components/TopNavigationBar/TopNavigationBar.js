@@ -4,7 +4,6 @@ import { NavLink } from 'react-router-dom'
 import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
 import { api } from '../../services/api.js'
-import versionData from "../../version.json";
 
 export default function NavBar() {
     const {userName} = useContext(Auth)
@@ -19,7 +18,7 @@ export default function NavBar() {
         }
     }
 
-    let appVersion = localStorage.getItem('gadsVersion')
+    let appVersion = localStorage.getItem('gadsVersion') || 'unknown'
 
     return (
         <div
@@ -47,11 +46,23 @@ export default function NavBar() {
                     />
                 )}
             </nav>
-            <div>V: {appVersion}</div>
+            <div
+                style={{
+                    backgroundColor: '#2f3b26'
+                }}
+            >
+                <div
+                    style={{
+                        fontWeight: 'bold',
+                        color: '#829476',
+                        padding: '5px',
+                    }}
+                >{appVersion.startsWith('v') ? appVersion : "DEV"}</div>
+            </div>
             <div
                 className="social-buttons-wrapper"
             >
-                <p style={{ fontWeight: "bold"}}>Welcome, {userName}</p>
+                <p style={{fontWeight: "bold"}}>Welcome, {userName}</p>
                 <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>

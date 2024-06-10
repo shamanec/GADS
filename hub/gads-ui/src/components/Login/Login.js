@@ -50,7 +50,7 @@ export default function Login() {
             })
     }
 
-    let gadsVersion = localStorage.getItem('gadsVersion')
+    let gadsVersion = localStorage.getItem('gadsVersion') || 'unknown'
 
     return (
         <div className="top-wrapper">

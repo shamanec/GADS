@@ -57,7 +57,6 @@ func StartHub(flags *pflag.FlagSet, appVersion string) {
 		MongoDB:        mongoDB,
 		OSTempDir:      osTempDir,
 		UIFilesTempDir: uiFilesTempDir,
-		CurrentVersion: appVersion,
 	}
 
 	devices.ConfigData = &config

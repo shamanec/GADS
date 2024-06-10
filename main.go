@@ -21,7 +21,7 @@ func main() {
 		Use:   "hub",
 		Short: "Run a hub component",
 		Run: func(cmd *cobra.Command, args []string) {
-			hub.StartHub(cmd.Flags(), AppVersion)
+			hub.StartHub(cmd.Flags())
 		},
 	}
 	hubCmd.Flags().String("ui-files-dir", "", "Directory where the UI static files will be unpacked and served from."+
