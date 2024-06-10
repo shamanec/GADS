@@ -17,12 +17,13 @@ import (
 //go:embed gads-ui/build
 var uiFiles embed.FS
 
-func StartHub(flags *pflag.FlagSet) {
+func StartHub(flags *pflag.FlagSet, appVersion string) {
 	port, _ := flags.GetString("port")
 	if port == "" {
 		log.Fatalf("Please provide a port on which the hub instance should run through the --port flag, e.g. --port=10000")
 	}
 	hostAddress, _ := flags.GetString("host-address")
+	fmt.Printf("Running hub version `%s`", appVersion)
 	fmt.Printf("UI accessible on http://%s:%v. You can change the address and port with the --host-address and --port flags\n", hostAddress, port)
 
 	mongoDB, _ := flags.GetString("mongo-db")
@@ -56,6 +57,7 @@ func StartHub(flags *pflag.FlagSet) {
 		MongoDB:        mongoDB,
 		OSTempDir:      osTempDir,
 		UIFilesTempDir: uiFilesTempDir,
+		CurrentVersion: appVersion,
 	}
 
 	devices.ConfigData = &config

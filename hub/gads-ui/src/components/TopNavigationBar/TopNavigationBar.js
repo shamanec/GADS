@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom'
 import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
 import { api } from '../../services/api.js'
+import versionData from "../../version.json";
 
 export default function NavBar() {
     const {userName} = useContext(Auth)
@@ -12,11 +13,13 @@ export default function NavBar() {
 
     const roleFromStorage = localStorage.getItem('userRole')
 
-    if (roleFromStorage == 'admin') {
+    if (roleFromStorage === 'admin') {
         if (!showAdmin) {
             setShowAdmin(true)
         }
     }
+
+    let appVersion = localStorage.getItem('gadsVersion')
 
     return (
         <div
@@ -44,6 +47,7 @@ export default function NavBar() {
                     />
                 )}
             </nav>
+            <div>V: {appVersion}</div>
             <div
                 className="social-buttons-wrapper"
             >

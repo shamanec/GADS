@@ -28,6 +28,7 @@ jobs:
           CI: false
         run: |
           cd hub/gads-ui && npm install && npm run build --verbose
+          echo "{\"version\": \"${{ github.ref_name }}\"}" > hub/gads-ui/build/version.json
 
       - name: Build binaries
         run: |
