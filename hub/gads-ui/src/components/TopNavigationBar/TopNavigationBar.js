@@ -1,9 +1,10 @@
-import { useContext, useState } from 'react'
+import {useContext, useState} from 'react'
 import './TopNavigationBar.css'
-import { NavLink } from 'react-router-dom'
-import { Auth } from '../../contexts/Auth'
+import {NavLink} from 'react-router-dom'
+import {Auth} from '../../contexts/Auth'
 import Button from '@mui/material/Button'
-import { api } from '../../services/api.js'
+import {api} from '../../services/api.js'
+import Divider from '@mui/material/Divider';
 
 export default function NavBar() {
     const {userName} = useContext(Auth)
@@ -46,19 +47,22 @@ export default function NavBar() {
                     />
                 )}
             </nav>
+            <Divider
+                orientation="vertical"
+                flexItem
+                style={{
+                    marginLeft: '10px',
+                    marginRight: '20px'
+                }}
+            />
             <div
                 style={{
-                    backgroundColor: '#2f3b26'
+                    fontWeight: 'bold',
+                    color: '#2f3b26',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
                 }}
-            >
-                <div
-                    style={{
-                        fontWeight: 'bold',
-                        color: '#829476',
-                        padding: '5px',
-                    }}
-                >{appVersion.startsWith('v') ? appVersion : "DEV"}</div>
-            </div>
+            >{appVersion.startsWith('v') ? appVersion : "DEV"}</div>
             <div
                 className="social-buttons-wrapper"
             >
@@ -73,15 +77,15 @@ export default function NavBar() {
     )
 }
 
-function StyledNavLink({ to, linkText }) {
+function StyledNavLink({to, linkText}) {
     return (
         <NavLink className="nav-bar-link"
-            style={({ isActive }) => ({
-                backgroundColor: isActive ? "#2f3b26" : "",
-                color: isActive ? "#9ba984" : "#2f3b26",
-                fontWeight: "bold"
-            })}
-            to={to}
+                 style={({isActive}) => ({
+                     backgroundColor: isActive ? "#2f3b26" : "",
+                     color: isActive ? "#9ba984" : "#2f3b26",
+                     fontWeight: "bold"
+                 })}
+                 to={to}
         >
             {linkText}
         </NavLink>
@@ -150,6 +154,7 @@ function LogoutButton() {
                 console.log(e)
             })
     }
+
     return (
         <Button
             variant="contained"
