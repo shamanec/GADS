@@ -575,12 +575,29 @@ func startAppium(device *models.Device) {
 		return
 	}
 
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stderrpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
 	err = cmd.Start()
 	if err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
+
+	// Buffer to collect stderr output
+	var stderrBuffer bytes.Buffer
+	stderrScanner := bufio.NewScanner(stderr)
+	go func() {
+		for stderrScanner.Scan() {
+			line := stderrScanner.Text()
+			stderrBuffer.WriteString(line + "\n")
+		}
+	}()
 
 	// Create a scanner to read the command's output line by line
 	scanner := bufio.NewScanner(stdout)
@@ -592,7 +609,7 @@ func startAppium(device *models.Device) {
 
 	err = cmd.Wait()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, device.UDID, err))
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v - %s", cmd.Args, device.UDID, err, stderrBuffer.String()))
 		resetLocalDevice(device)
 	}
 }
