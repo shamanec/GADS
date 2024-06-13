@@ -38,36 +38,37 @@ type User struct {
 }
 
 type Device struct {
-	Connected            bool               `json:"connected" bson:"connected"`                                   // common value - if device is currently connected
-	UDID                 string             `json:"udid" bson:"udid"`                                             // common value - device UDID
-	OS                   string             `json:"os" bson:"os"`                                                 // common value - device OS
-	Name                 string             `json:"name" bson:"name"`                                             // common value - name of the device
-	OSVersion            string             `json:"os_version" bson:"os_version"`                                 // common value - OS version of the device
-	Model                string             `json:"model" bson:"model"`                                           // common value - device model
-	Host                 string             `json:"host" bson:"host"`                                             // common value - IP address of the device host(provider)
-	Provider             string             `json:"provider" bson:"provider"`                                     // common value - nickname of the device host(provider)
-	InUse                bool               `json:"in_use" bson:"-"`                                              // UI value - if device is currently in use
-	ScreenWidth          string             `json:"screen_width" bson:"screen_width"`                             // common value - screen width of device
-	ScreenHeight         string             `json:"screen_height" bson:"screen_height"`                           // common value - screen height of device
-	HardwareModel        string             `json:"hardware_model,omitempty" bson:"hardware_model,omitempty"`     // common value - hardware model of device
-	InstalledApps        []string           `json:"installed_apps" bson:"-"`                                      // provider value - list of installed apps on device
-	IOSProductType       string             `json:"ios_product_type,omitempty" bson:"ios_product_type,omitempty"` // provider value - product type of iOS devices
-	LastUpdatedTimestamp int64              `json:"last_updated_timestamp" bson:"last_updated_timestamp"`         // common value - last time the device data was updated
-	WdaReadyChan         chan bool          `json:"-" bson:"-"`                                                   // provider value - channel for checking that WebDriverAgent is up after start
-	Context              context.Context    `json:"-" bson:"-"`                                                   // provider value - context used to control the device set up since we have multiple goroutines
-	CtxCancel            context.CancelFunc `json:"-" bson:"-"`                                                   // provider value - cancel func for the context above, can be used to stop all running device goroutines
-	GoIOSDeviceEntry     ios.DeviceEntry    `json:"-" bson:"-"`                                                   // provider value - `go-ios` device entry object used for `go-ios` library interactions
-	IsResetting          bool               `json:"is_resetting" bson:"is_resetting"`                             // common value - if device setup is currently being reset
-	Logger               CustomLogger       `json:"-" bson:"-"`                                                   // provider value - CustomLogger object for the device
-	AppiumSessionID      string             `json:"appiumSessionID" bson:"-"`                                     // provider value - current Appium session ID
-	WDASessionID         string             `json:"wdaSessionID" bson:"-"`                                        // provider value - current WebDriverAgent session ID
-	AppiumPort           string             `json:"appium_port" bson:"-"`                                         // provider value - port assigned to the device for the Appium server
-	StreamPort           string             `json:"stream_port" bson:"-"`                                         // provider value - port assigned to the device for the video stream
-	WDAStreamPort        string             `json:"wda_stream_port" bson:"-"`                                     // provider value - port assigned to iOS devices for the WebDriverAgent stream
-	WDAPort              string             `json:"wda_port" bson:"-"`                                            // provider value - port assigned to iOS devices for the WebDriverAgent instance
-	AppiumLogger         AppiumLogger       `json:"-" bson:"-"`                                                   // provider value - AppiumLogger object for logging appium actions
-	Available            bool               `json:"available" bson:"-"`                                           // provider value - if device is currently available - not only connected, but setup completed
-	ProviderState        string             `json:"provider_state" bson:"provider_state"`                         // common value - current state of the device on the provider - init, preparing, live
+	Connected             bool               `json:"connected" bson:"connected"`                                   // common value - if device is currently connected
+	UDID                  string             `json:"udid" bson:"udid"`                                             // common value - device UDID
+	OS                    string             `json:"os" bson:"os"`                                                 // common value - device OS
+	Name                  string             `json:"name" bson:"name"`                                             // common value - name of the device
+	OSVersion             string             `json:"os_version" bson:"os_version"`                                 // common value - OS version of the device
+	Model                 string             `json:"model" bson:"model"`                                           // common value - device model
+	Host                  string             `json:"host" bson:"host"`                                             // common value - IP address of the device host(provider)
+	Provider              string             `json:"provider" bson:"provider"`                                     // common value - nickname of the device host(provider)
+	InUse                 bool               `json:"in_use" bson:"-"`                                              // UI value - if device is currently in use
+	ScreenWidth           string             `json:"screen_width" bson:"screen_width"`                             // common value - screen width of device
+	ScreenHeight          string             `json:"screen_height" bson:"screen_height"`                           // common value - screen height of device
+	HardwareModel         string             `json:"hardware_model,omitempty" bson:"hardware_model,omitempty"`     // common value - hardware model of device
+	InstalledApps         []string           `json:"installed_apps" bson:"-"`                                      // provider value - list of installed apps on device
+	IOSProductType        string             `json:"ios_product_type,omitempty" bson:"ios_product_type,omitempty"` // provider value - product type of iOS devices
+	LastUpdatedTimestamp  int64              `json:"last_updated_timestamp" bson:"last_updated_timestamp"`         // common value - last time the device data was updated
+	WdaReadyChan          chan bool          `json:"-" bson:"-"`                                                   // provider value - channel for checking that WebDriverAgent is up after start
+	Context               context.Context    `json:"-" bson:"-"`                                                   // provider value - context used to control the device set up since we have multiple goroutines
+	CtxCancel             context.CancelFunc `json:"-" bson:"-"`                                                   // provider value - cancel func for the context above, can be used to stop all running device goroutines
+	GoIOSDeviceEntry      ios.DeviceEntry    `json:"-" bson:"-"`                                                   // provider value - `go-ios` device entry object used for `go-ios` library interactions
+	IsResetting           bool               `json:"is_resetting" bson:"is_resetting"`                             // common value - if device setup is currently being reset
+	Logger                CustomLogger       `json:"-" bson:"-"`                                                   // provider value - CustomLogger object for the device
+	AppiumSessionID       string             `json:"appiumSessionID" bson:"-"`                                     // provider value - current Appium session ID
+	WDASessionID          string             `json:"wdaSessionID" bson:"-"`                                        // provider value - current WebDriverAgent session ID
+	AppiumPort            string             `json:"appium_port" bson:"-"`                                         // provider value - port assigned to the device for the Appium server
+	StreamPort            string             `json:"stream_port" bson:"-"`                                         // provider value - port assigned to the device for the video stream
+	WDAStreamPort         string             `json:"wda_stream_port" bson:"-"`                                     // provider value - port assigned to iOS devices for the WebDriverAgent stream
+	WDAPort               string             `json:"wda_port" bson:"-"`                                            // provider value - port assigned to iOS devices for the WebDriverAgent instance
+	AppiumLogger          AppiumLogger       `json:"-" bson:"-"`                                                   // provider value - AppiumLogger object for logging appium actions
+	Available             bool               `json:"available" bson:"-"`                                           // provider value - if device is currently available - not only connected, but setup completed
+	ProviderState         string             `json:"provider_state" bson:"provider_state"`                         // common value - current state of the device on the provider - init, preparing, live
+	IsPreparingAutomation bool
 }
 
 type ConnectedDevice struct {
