@@ -5,6 +5,7 @@ import (
 	"GADS/common/models"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -39,12 +40,16 @@ func GetLatestDBDevices() {
 	}
 }
 
+var getDeviceMu sync.Mutex
+
 func GetDeviceByUDID(udid string) *models.Device {
+	getDeviceMu.Lock()
 	for _, device := range LatestDevices {
 		if device.UDID == udid {
 			return device
 		}
 	}
+	getDeviceMu.Unlock()
 
 	return nil
 }
