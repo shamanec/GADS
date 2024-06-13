@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 )
 
 type Capabilities struct {
@@ -46,11 +48,15 @@ type AppiumSessionResponse struct {
 	Value AppiumSessionValue `json:"value"`
 }
 
+var sessionMapMu sync.Mutex
+var devicesMap sync.Mutex
 var localDeviceSessionMap = make(map[string]*models.Device)
 
 func AppiumGridMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
+			fmt.Println("Creating session")
+			time.Sleep(1 * time.Second)
 			var foundDevice *models.Device
 
 			body, err := io.ReadAll(c.Request.Body)
@@ -70,25 +76,42 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				foundDevice = devices.GetDeviceByUDID(sessionBody.Capabilities.AlwaysMatch.DeviceUDID)
 			} else if strings.EqualFold(sessionBody.Capabilities.AlwaysMatch.PlatformName, "iOS") || strings.EqualFold(sessionBody.Capabilities.AlwaysMatch.AutomationName, "XCUITest") {
 				var iosDevices []*models.Device
+				devicesMap.Lock()
 				for _, device := range devices.LatestDevices {
-					if device.OS == "ios" && device.AppiumSessionID == "" {
+					if device.OS == "ios" {
+						fmt.Println("Device udid - " + device.UDID)
+						fmt.Println(device.IsPreparingAutomation)
+						fmt.Println(device.Available)
+					}
+
+					if device.OS == "ios" && !device.IsPreparingAutomation && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+						fmt.Printf("Appending  %s", device)
 						iosDevices = append(iosDevices, device)
 					}
 				}
+				devicesMap.Unlock()
 				if sessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
+					devicesMap.Lock()
 					for _, device := range iosDevices {
 						if device.OSVersion == sessionBody.Capabilities.AlwaysMatch.PlatformVersion {
 							foundDevice = device
 						}
 					}
+					devicesMap.Unlock()
 				} else {
+					devicesMap.Lock()
 					for _, device := range iosDevices {
 						if device.AppiumSessionID == "" {
 							foundDevice = device
 						}
 					}
+					devicesMap.Unlock()
 				}
 			}
+
+			devicesMap.Lock()
+			foundDevice.IsPreparingAutomation = true
+			devicesMap.Unlock()
 
 			// Create a new request to the target URL
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Host, foundDevice.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(body))
@@ -123,7 +146,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				c.String(http.StatusInternalServerError, "Failed unmarshaling session response")
 				return
 			}
+			sessionMapMu.Lock()
 			localDeviceSessionMap[sessionResponse.Value.SessionID] = foundDevice
+			sessionMapMu.Unlock()
 
 			// Copy the response back to the original client
 			for k, v := range resp.Header {
@@ -168,7 +193,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			defer c.Request.Body.Close()
 
+			sessionMapMu.Lock()
 			foundDevice, ok := localDeviceSessionMap[sessionID]
+			sessionMapMu.Unlock()
 			if !ok {
 				fmt.Println("Device not found in map error")
 				fmt.Println(sessionID)
@@ -185,11 +212,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			fmt.Printf("Calling on - %s\n", proxyReq.URL)
 
-			if c.Request.Method == http.MethodDelete {
-				fmt.Println("Deletting session id from map - " + sessionID)
-				delete(localDeviceSessionMap, sessionID)
-			}
-
 			// Copy headers
 			for k, v := range c.Request.Header {
 				proxyReq.Header[k] = v
@@ -204,6 +226,16 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			defer resp.Body.Close()
 
+			defer func() {
+				if c.Request.Method == http.MethodDelete {
+					fmt.Println("Deleting session id from map - " + sessionID)
+					sessionMapMu.Lock()
+					fmt.Println(localDeviceSessionMap)
+					delete(localDeviceSessionMap, sessionID)
+					sessionMapMu.Unlock()
+				}
+			}()
+
 			// Read the response body
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
@@ -214,7 +246,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var sessionResponse AppiumSessionResponse
 			err = json.Unmarshal(respBody, &sessionResponse)
 
+			devicesMap.Lock()
 			foundDevice.AppiumSessionID = sessionResponse.Value.SessionID
+			devicesMap.Unlock()
 
 			// Copy the response back to the original client
 			for k, v := range resp.Header {
