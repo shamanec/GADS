@@ -61,8 +61,6 @@ type LocalAutoDevice struct {
 func AppiumGridMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
-			var foundDevice *LocalAutoDevice
-			var err error
 
 			// Read the request sessionRequestBody
 			sessionRequestBody, err := readBody(c.Request.Body)
@@ -79,39 +77,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			// If the capabilities include `appium:udid` then we need to target this particular device ignoring other capabilities
-			// If no `appium:udid` capability provided, then check the platform name and automation name to find out what device OS is being targeted
-			if appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID != "" {
-				foundDevice, err = getDeviceByUDID(appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID)
-			} else if strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.PlatformName, "iOS") || strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.AutomationName, "XCUITest") {
-				var iosDevices []*LocalAutoDevice
-
-				// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
-				devicesMap.Lock()
-				copyLatestDevicesToLocalMap()
-				for _, localDevice := range localDevicesMap {
-					if localDevice.Device.OS == "ios" && !localDevice.IsPreparingAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
-						iosDevices = append(iosDevices, localDevice)
-					}
-				}
-				devicesMap.Unlock()
-
-				// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
-				// Loop through the accumulated available devices slice and get a device that matches the platform version
-				if appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
-					devicesMap.Lock()
-					for _, device := range iosDevices {
-						if device.Device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
-							foundDevice = device
-						}
-					}
-					devicesMap.Unlock()
-				} else {
-					// If no platform version capability is provided, get the first device from the available list
-					devicesMap.Lock()
-					foundDevice = iosDevices[0]
-					devicesMap.Unlock()
-				}
+			foundDevice, err := findAvailableDevice(appiumSessionBody)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to find available device - %s", err)})
+				return
 			}
 
 			// When a device is finally chosen, set the flag that is being prepared for automation
@@ -302,4 +271,47 @@ func getDeviceByUDID(udid string) (*LocalAutoDevice, error) {
 		}
 	}
 	return nil, fmt.Errorf("No device with udid `%s` was found in the local devices map", udid)
+}
+
+func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, error) {
+	var foundDevice *LocalAutoDevice
+
+	if appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID != "" {
+		return getDeviceByUDID(appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID)
+	} else if strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.PlatformName, "iOS") || strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.AutomationName, "XCUITest") {
+		var iosDevices []*LocalAutoDevice
+
+		// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
+		devicesMap.Lock()
+		copyLatestDevicesToLocalMap()
+		for _, localDevice := range localDevicesMap {
+			if localDevice.Device.OS == "ios" && !localDevice.IsPreparingAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+				iosDevices = append(iosDevices, localDevice)
+			}
+		}
+		devicesMap.Unlock()
+
+		// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
+		// Loop through the accumulated available devices slice and get a device that matches the platform version
+		if appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
+			devicesMap.Lock()
+			for _, device := range iosDevices {
+				if device.Device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
+					foundDevice = device
+				}
+			}
+			devicesMap.Unlock()
+		} else {
+			// If no platform version capability is provided, get the first device from the available list
+			devicesMap.Lock()
+			foundDevice = iosDevices[0]
+			devicesMap.Unlock()
+		}
+	}
+
+	if foundDevice != nil {
+		return foundDevice, nil
+	}
+
+	return nil, fmt.Errorf("No available device found")
 }
