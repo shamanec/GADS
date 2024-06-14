@@ -44,12 +44,12 @@ var getDeviceMu sync.Mutex
 
 func GetDeviceByUDID(udid string) *models.Device {
 	getDeviceMu.Lock()
+	defer getDeviceMu.Unlock()
 	for _, device := range LatestDevices {
 		if device.UDID == udid {
 			return device
 		}
 	}
-	getDeviceMu.Unlock()
 
 	return nil
 }

@@ -53,9 +53,9 @@ func HandleRequests() *gin.Engine {
 	authGroup.POST("/admin/upload-selenium-jar", UploadSeleniumJar)
 	authGroup.PUT("/admin/user")    // TODO Update user
 	authGroup.DELETE("/admin/user") // TODO Delete user
-	appiumGroup := r.Group("/")
+	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
-	appiumGroup.Any("/grid/*path")
+	appiumGroup.Any("/*path")
 
 	return r
 }
