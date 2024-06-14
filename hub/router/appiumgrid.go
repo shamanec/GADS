@@ -49,7 +49,7 @@ type AppiumSessionResponse struct {
 }
 
 var sessionMapMu sync.Mutex
-var devicesMap sync.Mutex
+var devicesMapMu sync.Mutex
 var localDevicesMap = make(map[string]*LocalAutoDevice)
 
 type LocalAutoDevice struct {
@@ -71,7 +71,6 @@ type SeleniumSessionErrorResponseValue struct {
 func AppiumGridMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
-
 			// Read the request sessionRequestBody
 			sessionRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
@@ -87,28 +86,28 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "", err.Error()))
 				return
 			}
+			//fmt.Printf(string(sessionRequestBody))
 
 			// Check for available device
 			var foundDevice *LocalAutoDevice
+
 			foundDevice, err = findAvailableDevice(appiumSessionBody)
 			// If no device is available start checking each second for 60 seconds
 			// If no device is available after 60 seconds - return error
 			if foundDevice == nil {
-				fmt.Println("Inside check")
-				ticker := time.NewTicker(1 * time.Second)
-				timeout := time.After(5 * time.Second)
+				ticker := time.NewTicker(100 * time.Millisecond)
+				timeout := time.After(60 * time.Second)
+				notify := c.Writer.CloseNotify()
+			FOR_LOOP:
 				for {
 					select {
 					case <-ticker.C:
 						foundDevice, err = findAvailableDevice(appiumSessionBody)
-						fmt.Println("Inside ticker")
-						fmt.Println(foundDevice)
 						if foundDevice != nil {
-							fmt.Println("Are we breaking")
-							break
+							break FOR_LOOP
 						}
 					case <-timeout:
-						fmt.Println("TIMEOUT")
+						ticker.Stop()
 						responseError := SeleniumSessionErrorResponse{
 							Value: SeleniumSessionErrorResponseValue{
 								Message: "No available device found",
@@ -116,20 +115,29 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 						}
 						c.JSON(http.StatusInternalServerError, responseError)
 						return
+					case <-notify:
+						ticker.Stop()
+						return
 					}
 				}
 			}
 
+			if foundDevice == nil {
+				return
+			}
+
 			// When a device is finally chosen, set the flag that is being prepared for automation
-			devicesMap.Lock()
+			devicesMapMu.Lock()
 			foundDevice.IsPreparingAutomation = true
-			devicesMap.Unlock()
+			devicesMapMu.Unlock()
 
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "", err.Error()))
+				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
+				devicesMapMu.Unlock()
 				return
 			}
 
@@ -143,7 +151,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			resp, err := client.Do(proxyReq)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint", "", err.Error()))
+				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
+				devicesMapMu.Unlock()
 				return
 			}
 			defer resp.Body.Close()
@@ -152,7 +162,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
+				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
+				devicesMapMu.Unlock()
 				return
 			}
 
@@ -161,7 +173,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
+				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
+				devicesMapMu.Unlock()
 				return
 			}
 
@@ -322,30 +336,34 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 		var iosDevices []*LocalAutoDevice
 
 		// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
-		devicesMap.Lock()
+		devicesMapMu.Lock()
 		copyLatestDevicesToLocalMap()
 		for _, localDevice := range localDevicesMap {
 			if localDevice.Device.OS == "ios" && !localDevice.IsPreparingAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
 				iosDevices = append(iosDevices, localDevice)
 			}
 		}
-		devicesMap.Unlock()
+		devicesMapMu.Unlock()
 
 		// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
 		// Loop through the accumulated available devices slice and get a device that matches the platform version
 		if appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
-			devicesMap.Lock()
-			for _, device := range iosDevices {
-				if device.Device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
-					foundDevice = device
+			devicesMapMu.Lock()
+			if len(iosDevices) != 0 {
+				for _, device := range iosDevices {
+					if device.Device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
+						foundDevice = device
+					}
 				}
 			}
-			devicesMap.Unlock()
+			devicesMapMu.Unlock()
 		} else {
 			// If no platform version capability is provided, get the first device from the available list
-			devicesMap.Lock()
-			foundDevice = iosDevices[0]
-			devicesMap.Unlock()
+			devicesMapMu.Lock()
+			if len(iosDevices) != 0 {
+				foundDevice = iosDevices[0]
+			}
+			devicesMapMu.Unlock()
 		}
 	}
 
