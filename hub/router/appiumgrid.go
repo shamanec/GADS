@@ -50,12 +50,19 @@ type AppiumSessionResponse struct {
 
 var sessionMapMu sync.Mutex
 var devicesMap sync.Mutex
-var localDeviceSessionMap = make(map[string]*models.Device)
+var localDevicesMap = make(map[string]*LocalAutoDevice)
+
+type LocalAutoDevice struct {
+	Device                *models.Device
+	IsPreparingAutomation bool
+	SessionID             string
+}
 
 func AppiumGridMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
-			var foundDevice *models.Device
+			var foundDevice *LocalAutoDevice
+			var err error
 
 			// Read the request sessionRequestBody
 			sessionRequestBody, err := readBody(c.Request.Body)
@@ -75,15 +82,16 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// If the capabilities include `appium:udid` then we need to target this particular device ignoring other capabilities
 			// If no `appium:udid` capability provided, then check the platform name and automation name to find out what device OS is being targeted
 			if appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID != "" {
-				foundDevice = devices.GetDeviceByUDID(appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID)
+				foundDevice, err = getDeviceByUDID(appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID)
 			} else if strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.PlatformName, "iOS") || strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.AutomationName, "XCUITest") {
-				var iosDevices []*models.Device
+				var iosDevices []*LocalAutoDevice
 
 				// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 				devicesMap.Lock()
-				for _, device := range devices.LatestDevices {
-					if device.OS == "ios" && !device.IsPreparingAutomation && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
-						iosDevices = append(iosDevices, device)
+				copyLatestDevicesToLocalMap()
+				for _, localDevice := range localDevicesMap {
+					if localDevice.Device.OS == "ios" && !localDevice.IsPreparingAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+						iosDevices = append(iosDevices, localDevice)
 					}
 				}
 				devicesMap.Unlock()
@@ -93,7 +101,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				if appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
 					devicesMap.Lock()
 					for _, device := range iosDevices {
-						if device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
+						if device.Device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
 							foundDevice = device
 						}
 					}
@@ -112,7 +120,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			devicesMap.Unlock()
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Host, foundDevice.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint - %s", err)})
 				return
@@ -147,9 +155,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			// Add the found device to the local device session map
 			sessionMapMu.Lock()
-			localDeviceSessionMap[proxySessionResponse.Value.SessionID] = foundDevice
+			foundDevice.SessionID = proxySessionResponse.Value.SessionID
 			sessionMapMu.Unlock()
 
 			// Copy the response back to the original client
@@ -202,15 +209,15 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			// Check if there is a device in the local session map for that session ID
 			sessionMapMu.Lock()
-			foundDevice, ok := localDeviceSessionMap[sessionID]
+			foundDevice, err := getDeviceBySessionID(sessionID)
 			sessionMapMu.Unlock()
-			if !ok {
+			if err != nil {
 				c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No device with session ID `%s` is available to GADS", sessionID)})
 				return
 			}
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Host, foundDevice.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(origRequestBody))
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(origRequestBody))
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to create proxy request for this call - %s", err)})
 				return
@@ -233,7 +240,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// If the request succeeded and was a delete request, remove the session ID from the map
 			if c.Request.Method == http.MethodDelete {
 				sessionMapMu.Lock()
-				delete(localDeviceSessionMap, sessionID)
+				foundDevice.SessionID = ""
+				foundDevice.IsPreparingAutomation = false
+
 				sessionMapMu.Unlock()
 			}
 
@@ -261,4 +270,36 @@ func readBody(r io.Reader) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func copyLatestDevicesToLocalMap() {
+	for _, device := range devices.LatestDevices {
+		mapDevice, ok := localDevicesMap[device.UDID]
+		if !ok {
+			localDevicesMap[device.UDID] = &LocalAutoDevice{
+				Device:                device,
+				IsPreparingAutomation: false,
+			}
+		} else {
+			mapDevice.Device = device
+		}
+	}
+}
+
+func getDeviceBySessionID(sessionID string) (*LocalAutoDevice, error) {
+	for _, localDevice := range localDevicesMap {
+		if localDevice.SessionID == sessionID {
+			return localDevice, nil
+		}
+	}
+	return nil, fmt.Errorf("No device with session ID `%s` was found in the local devices map", sessionID)
+}
+
+func getDeviceByUDID(udid string) (*LocalAutoDevice, error) {
+	for _, localDevice := range localDevicesMap {
+		if localDevice.Device.UDID == udid {
+			return localDevice, nil
+		}
+	}
+	return nil, fmt.Errorf("No device with udid `%s` was found in the local devices map", udid)
 }
