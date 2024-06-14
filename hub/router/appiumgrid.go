@@ -57,26 +57,26 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
 			var foundDevice *models.Device
 
-			// Read the request body to []byte
-			body, err := io.ReadAll(c.Request.Body)
+			// Read the request sessionRequestBody
+			sessionRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read session request body - %s", err)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read session request sessionRequestBody - %s", err)})
 			}
 			defer c.Request.Body.Close()
 
-			// Unmarshal the request body []byte to <AppiumSession>
-			var sessionBody AppiumSession
-			err = json.Unmarshal(body, &sessionBody)
+			// Unmarshal the request sessionRequestBody []byte to <AppiumSession>
+			var appiumSessionBody AppiumSession
+			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to unmarshal session request body - %s", err)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to unmarshal session request sessionRequestBody - %s", err)})
 				return
 			}
 
 			// If the capabilities include `appium:udid` then we need to target this particular device ignoring other capabilities
 			// If no `appium:udid` capability provided, then check the platform name and automation name to find out what device OS is being targeted
-			if sessionBody.Capabilities.AlwaysMatch.DeviceUDID != "" {
-				foundDevice = devices.GetDeviceByUDID(sessionBody.Capabilities.AlwaysMatch.DeviceUDID)
-			} else if strings.EqualFold(sessionBody.Capabilities.AlwaysMatch.PlatformName, "iOS") || strings.EqualFold(sessionBody.Capabilities.AlwaysMatch.AutomationName, "XCUITest") {
+			if appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID != "" {
+				foundDevice = devices.GetDeviceByUDID(appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID)
+			} else if strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.PlatformName, "iOS") || strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.AutomationName, "XCUITest") {
 				var iosDevices []*models.Device
 
 				// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
@@ -90,10 +90,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 				// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
 				// Loop through the accumulated available devices slice and get a device that matches the platform version
-				if sessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
+				if appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
 					devicesMap.Lock()
 					for _, device := range iosDevices {
-						if device.OSVersion == sessionBody.Capabilities.AlwaysMatch.PlatformVersion {
+						if device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
 							foundDevice = device
 						}
 					}
@@ -112,7 +112,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			devicesMap.Unlock()
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Host, foundDevice.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(body))
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Host, foundDevice.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint - %s", err)})
 				return
@@ -132,24 +132,24 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			defer resp.Body.Close()
 
-			// Read the response body from the proxied request
-			respBody, err := io.ReadAll(resp.Body)
+			// Read the response sessionRequestBody from the proxied request
+			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the response body of the proxied Appium session request - %s", err)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the response sessionRequestBody of the proxied Appium session request - %s", err)})
 				return
 			}
 
-			// Unmarshal the response body to AppiumSessionResponse
-			var sessionResponse AppiumSessionResponse
-			err = json.Unmarshal(respBody, &sessionResponse)
+			// Unmarshal the response sessionRequestBody to AppiumSessionResponse
+			var proxySessionResponse AppiumSessionResponse
+			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to unmarshal the response body of the proxied Appium session request - %s", err)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request - %s", err)})
 				return
 			}
 
 			// Add the found device to the local device session map
 			sessionMapMu.Lock()
-			localDeviceSessionMap[sessionResponse.Value.SessionID] = foundDevice
+			localDeviceSessionMap[proxySessionResponse.Value.SessionID] = foundDevice
 			sessionMapMu.Unlock()
 
 			// Copy the response back to the original client
@@ -157,7 +157,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				c.Writer.Header()[k] = v
 			}
 			c.Writer.WriteHeader(resp.StatusCode)
-			c.Writer.Write(respBody)
+			c.Writer.Write(proxiedSessionResponseBody)
 		} else {
 			// If this is not a request for a new session
 			var sessionID = ""
@@ -192,10 +192,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			// Read the request body
-			body, err := io.ReadAll(c.Request.Body)
+			// Read the request origRequestBody
+			origRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the proxied Appium request body - %s", err)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the proxied Appium request origRequestBody - %s", err)})
 				return
 			}
 			defer c.Request.Body.Close()
@@ -210,7 +210,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Host, foundDevice.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(body))
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Host, foundDevice.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(origRequestBody))
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to create proxy request for this call - %s", err)})
 				return
@@ -237,10 +237,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				sessionMapMu.Unlock()
 			}
 
-			// Read the response body of the proxied request
-			respBody, err := io.ReadAll(resp.Body)
+			// Read the response origRequestBody of the proxied request
+			proxiedRequestBody, err := readBody(resp.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the response body of the proxied Appium request - %s", err)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the response origRequestBody of the proxied Appium request - %s", err)})
 				return
 			}
 
@@ -249,7 +249,16 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				c.Writer.Header()[k] = v
 			}
 			c.Writer.WriteHeader(resp.StatusCode)
-			c.Writer.Write(respBody)
+			c.Writer.Write(proxiedRequestBody)
 		}
 	}
+}
+
+func readBody(r io.Reader) ([]byte, error) {
+	body, err := io.ReadAll(r)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return body, nil
 }
