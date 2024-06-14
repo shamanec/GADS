@@ -58,6 +58,16 @@ type LocalAutoDevice struct {
 	SessionID             string
 }
 
+type SeleniumSessionErrorResponse struct {
+	Value SeleniumSessionErrorResponseValue `json:"value"`
+}
+
+type SeleniumSessionErrorResponseValue struct {
+	Error      string `json:"error"`
+	Message    string `json:"message"`
+	StackTrace string `json:"stacktrace"`
+}
+
 func AppiumGridMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
@@ -65,7 +75,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Read the request sessionRequestBody
 			sessionRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read session request sessionRequestBody - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read session request sessionRequestBody", "", err.Error()))
+				return
 			}
 			defer c.Request.Body.Close()
 
@@ -73,14 +84,40 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var appiumSessionBody AppiumSession
 			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to unmarshal session request sessionRequestBody - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "", err.Error()))
 				return
 			}
 
-			foundDevice, err := findAvailableDevice(appiumSessionBody)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to find available device - %s", err)})
-				return
+			// Check for available device
+			var foundDevice *LocalAutoDevice
+			foundDevice, err = findAvailableDevice(appiumSessionBody)
+			// If no device is available start checking each second for 60 seconds
+			// If no device is available after 60 seconds - return error
+			if foundDevice == nil {
+				fmt.Println("Inside check")
+				ticker := time.NewTicker(1 * time.Second)
+				timeout := time.After(5 * time.Second)
+				for {
+					select {
+					case <-ticker.C:
+						foundDevice, err = findAvailableDevice(appiumSessionBody)
+						fmt.Println("Inside ticker")
+						fmt.Println(foundDevice)
+						if foundDevice != nil {
+							fmt.Println("Are we breaking")
+							break
+						}
+					case <-timeout:
+						fmt.Println("TIMEOUT")
+						responseError := SeleniumSessionErrorResponse{
+							Value: SeleniumSessionErrorResponseValue{
+								Message: "No available device found",
+							},
+						}
+						c.JSON(http.StatusInternalServerError, responseError)
+						return
+					}
+				}
 			}
 
 			// When a device is finally chosen, set the flag that is being prepared for automation
@@ -91,7 +128,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "", err.Error()))
+				foundDevice.IsPreparingAutomation = false
 				return
 			}
 
@@ -104,7 +142,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			client := &http.Client{}
 			resp, err := client.Do(proxyReq)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint", "", err.Error()))
+				foundDevice.IsPreparingAutomation = false
 				return
 			}
 			defer resp.Body.Close()
@@ -112,7 +151,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Read the response sessionRequestBody from the proxied request
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the response sessionRequestBody of the proxied Appium session request - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
+				foundDevice.IsPreparingAutomation = false
 				return
 			}
 
@@ -120,7 +160,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var proxySessionResponse AppiumSessionResponse
 			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
+				foundDevice.IsPreparingAutomation = false
 				return
 			}
 
@@ -155,7 +196,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				}
 
 				if startIndex == -1 || endIndex == -1 {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path)})
+					c.JSON(http.StatusInternalServerError, createErrorResponse(fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path), "", ""))
 					return
 				}
 
@@ -164,14 +205,14 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			// If no session ID could be parsed from the request
 			if sessionID == "" {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "No session ID could be extracted from the request"})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("No session ID could be extracted from the request", "", ""))
 				return
 			}
 
 			// Read the request origRequestBody
 			origRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the proxied Appium request origRequestBody - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the proxied Appium request origRequestBody", "", err.Error()))
 				return
 			}
 			defer c.Request.Body.Close()
@@ -181,14 +222,14 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			foundDevice, err := getDeviceBySessionID(sessionID)
 			sessionMapMu.Unlock()
 			if err != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("No device with session ID `%s` is available to GADS", sessionID)})
+				c.JSON(http.StatusNotFound, createErrorResponse(fmt.Sprintf("No device with session ID `%s` is available to GADS", sessionID), "", ""))
 				return
 			}
 
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(origRequestBody))
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to create proxy request for this call - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create proxy request for this call", "", err.Error()))
 				return
 			}
 
@@ -201,7 +242,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			client := &http.Client{}
 			resp, err := client.Do(proxyReq)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to failed to execute the proxy request to the device respective provider Appium endpoint - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium endpoint", "", err.Error()))
 				return
 			}
 			defer resp.Body.Close()
@@ -211,14 +252,13 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				sessionMapMu.Lock()
 				foundDevice.SessionID = ""
 				foundDevice.IsPreparingAutomation = false
-
 				sessionMapMu.Unlock()
 			}
 
 			// Read the response origRequestBody of the proxied request
 			proxiedRequestBody, err := readBody(resp.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("GADS failed to read the response origRequestBody of the proxied Appium request - %s", err)})
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response origRequestBody of the proxied Appium request", "", err.Error()))
 				return
 			}
 
@@ -314,4 +354,14 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 	}
 
 	return nil, fmt.Errorf("No available device found")
+}
+
+func createErrorResponse(msg string, err string, stacktrace string) SeleniumSessionErrorResponse {
+	return SeleniumSessionErrorResponse{
+		Value: SeleniumSessionErrorResponseValue{
+			Message:    msg,
+			Error:      err,
+			StackTrace: stacktrace,
+		},
+	}
 }
