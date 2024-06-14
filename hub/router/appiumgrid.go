@@ -15,8 +15,7 @@ import (
 )
 
 type Capabilities struct {
-	FirstMatch  []interface{} `json:"firstMatch"`
-	AlwaysMatch AlwaysMatch   `json:"alwaysMatch"`
+	FirstMatch []CapabilitiesFirstMatch `json:"firstMatch"`
 }
 
 type DesiredCapabilities struct {
@@ -27,7 +26,7 @@ type DesiredCapabilities struct {
 	DeviceUDID      string `json:"appium:udid"`
 }
 
-type AlwaysMatch struct {
+type CapabilitiesFirstMatch struct {
 	AutomationName  string `json:"appium:automationName"`
 	BundleID        string `json:"appium:bundleId"`
 	PlatformVersion string `json:"appium:platformVersion"`
@@ -296,6 +295,8 @@ func readBody(r io.Reader) ([]byte, error) {
 }
 
 func copyLatestDevicesToLocalMap() {
+	devicesMapMu.Lock()
+	defer devicesMapMu.Unlock()
 	for _, device := range devices.LatestDevices {
 		mapDevice, ok := localDevicesMap[device.UDID]
 		if !ok {
@@ -319,8 +320,10 @@ func getDeviceBySessionID(sessionID string) (*LocalAutoDevice, error) {
 }
 
 func getDeviceByUDID(udid string) (*LocalAutoDevice, error) {
+	devicesMapMu.Lock()
+	defer devicesMapMu.Unlock()
 	for _, localDevice := range localDevicesMap {
-		if localDevice.Device.UDID == udid {
+		if strings.EqualFold(localDevice.Device.UDID, udid) {
 			return localDevice, nil
 		}
 	}
@@ -330,16 +333,27 @@ func getDeviceByUDID(udid string) (*LocalAutoDevice, error) {
 func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, error) {
 	var foundDevice *LocalAutoDevice
 
-	if appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID != "" {
-		return getDeviceByUDID(appiumSessionBody.Capabilities.AlwaysMatch.DeviceUDID)
-	} else if strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.PlatformName, "iOS") || strings.EqualFold(appiumSessionBody.Capabilities.AlwaysMatch.AutomationName, "XCUITest") {
+	var deviceUDID = ""
+	if appiumSessionBody.Capabilities.FirstMatch[0].DeviceUDID != "" {
+		deviceUDID = appiumSessionBody.Capabilities.FirstMatch[0].DeviceUDID
+	}
+	if appiumSessionBody.DesiredCapabilities.DeviceUDID != "" {
+		deviceUDID = appiumSessionBody.DesiredCapabilities.DeviceUDID
+	}
+	if deviceUDID != "" {
+		copyLatestDevicesToLocalMap()
+		return getDeviceByUDID(deviceUDID)
+	} else if strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].PlatformName, "iOS") ||
+		strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "iOS") ||
+		strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "XCUITest") ||
+		strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "XCUITest") {
 		var iosDevices []*LocalAutoDevice
 
 		// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
-		devicesMapMu.Lock()
 		copyLatestDevicesToLocalMap()
+		devicesMapMu.Lock()
 		for _, localDevice := range localDevicesMap {
-			if localDevice.Device.OS == "ios" && !localDevice.IsPreparingAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
 				iosDevices = append(iosDevices, localDevice)
 			}
 		}
@@ -347,11 +361,11 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 
 		// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
 		// Loop through the accumulated available devices slice and get a device that matches the platform version
-		if appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion != "" {
+		if appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion != "" {
 			devicesMapMu.Lock()
 			if len(iosDevices) != 0 {
 				for _, device := range iosDevices {
-					if device.Device.OSVersion == appiumSessionBody.Capabilities.AlwaysMatch.PlatformVersion {
+					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
 						foundDevice = device
 					}
 				}
