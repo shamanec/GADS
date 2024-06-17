@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/Masterminds/semver"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
@@ -353,7 +354,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 		copyLatestDevicesToLocalMap()
 		devicesMapMu.Lock()
 		for _, localDevice := range localDevicesMap {
-			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation {
 				iosDevices = append(iosDevices, localDevice)
 			}
 		}
@@ -362,15 +363,34 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 		// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
 		// Loop through the accumulated available devices slice and get a device that matches the platform version
 		if appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion != "" {
+			// First check if device completely matches the required version
 			devicesMapMu.Lock()
 			if len(iosDevices) != 0 {
 				for _, device := range iosDevices {
 					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
 						foundDevice = device
+						break
 					}
 				}
 			}
 			devicesMapMu.Unlock()
+			// If no device completely matches the required version try a major version
+			if foundDevice == nil {
+				v, _ := semver.NewVersion(appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion)
+				requestedMajorVersion := fmt.Sprintf("%d", v.Major())
+				// Create a constraint for the requested version
+				constraint, _ := semver.NewConstraint(fmt.Sprintf("~%s.0.0", requestedMajorVersion))
+
+				if len(iosDevices) != 0 {
+					for _, device := range iosDevices {
+						deviceV, _ := semver.NewVersion(device.Device.OSVersion)
+						if constraint.Check(deviceV) {
+							foundDevice = device
+							break
+						}
+					}
+				}
+			}
 		} else {
 			// If no platform version capability is provided, get the first device from the available list
 			devicesMapMu.Lock()
