@@ -53,9 +53,11 @@ var devicesMapMu sync.Mutex
 var localDevicesMap = make(map[string]*LocalAutoDevice)
 
 type LocalAutoDevice struct {
-	Device                *models.Device
-	IsPreparingAutomation bool
-	SessionID             string
+	Device                 *models.Device
+	IsPreparingAutomation  bool
+	SessionID              string
+	IsRunningAutomation    bool
+	LastAutomationActionTS int64
 }
 
 type SeleniumSessionErrorResponse struct {
@@ -189,6 +191,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			c.Writer.WriteHeader(resp.StatusCode)
 			c.Writer.Write(proxiedSessionResponseBody)
+			foundDevice.IsRunningAutomation = true
+			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 		} else {
 			// If this is not a request for a new session
 			var sessionID = ""
@@ -266,6 +270,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				sessionMapMu.Lock()
 				foundDevice.SessionID = ""
 				foundDevice.IsPreparingAutomation = false
+				foundDevice.IsRunningAutomation = false
 				sessionMapMu.Unlock()
 			}
 
@@ -282,6 +287,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			c.Writer.WriteHeader(resp.StatusCode)
 			c.Writer.Write(proxiedRequestBody)
+			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 		}
 	}
 }
@@ -304,6 +310,7 @@ func copyLatestDevicesToLocalMap() {
 			localDevicesMap[device.UDID] = &LocalAutoDevice{
 				Device:                device,
 				IsPreparingAutomation: false,
+				IsRunningAutomation:   false,
 			}
 		} else {
 			mapDevice.Device = device
@@ -356,7 +363,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 		copyLatestDevicesToLocalMap()
 		devicesMapMu.Lock()
 		for _, localDevice := range localDevicesMap {
-			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation {
+			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation {
 				iosDevices = append(iosDevices, localDevice)
 			}
 		}
