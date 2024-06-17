@@ -343,7 +343,9 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 	}
 	if deviceUDID != "" {
 		copyLatestDevicesToLocalMap()
-		return getDeviceByUDID(deviceUDID)
+		foundDevice, _ := getDeviceByUDID(deviceUDID)
+		foundDevice.IsPreparingAutomation = true
+		return foundDevice, nil
 	} else if strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].PlatformName, "iOS") ||
 		strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "iOS") ||
 		strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "XCUITest") ||
@@ -369,6 +371,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 				for _, device := range iosDevices {
 					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
 						foundDevice = device
+						foundDevice.IsPreparingAutomation = true
 						break
 					}
 				}
@@ -379,7 +382,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 				v, _ := semver.NewVersion(appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion)
 				requestedMajorVersion := fmt.Sprintf("%d", v.Major())
 				// Create a constraint for the requested version
-				constraint, _ := semver.NewConstraint(fmt.Sprintf("~%s.0.0", requestedMajorVersion))
+				constraint, _ := semver.NewConstraint(fmt.Sprintf("^%s.0.0", requestedMajorVersion))
 
 				if len(iosDevices) != 0 {
 					for _, device := range iosDevices {
