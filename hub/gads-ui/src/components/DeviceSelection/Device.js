@@ -65,7 +65,11 @@ function UseButton({ device, handleAlert }) {
 
     const buttonDisabled = loading || !device.info.connected;
 
-    if (device.in_use === true) {
+    if (device.is_running_automation) {
+        return (
+            <button className='device-buttons in-use' disabled>Automation</button>
+        )
+    } else if (device.in_use === true) {
         return (
             <button className='device-buttons in-use' disabled>In Use</button>
         )

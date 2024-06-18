@@ -75,7 +75,9 @@ func UpdateExpiredGridSessions() {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsPreparingAutomation = false
 				hubDevice.SessionID = ""
-				hubDevice.InUseBy = ""
+				if hubDevice.InUseBy == "automation" {
+					hubDevice.InUseBy = ""
+				}
 			}
 		}
 		devicesMapMu.Unlock()
@@ -146,7 +148,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Update the session timeout values if none were provided
 			if appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout != 0 {
 				foundDevice.AppiumNewCommandTimeout = appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout * 1000
-			} else if appiumSessionBody.DesiredCapabilities.NewCommandTimeout == 0 {
+			} else if appiumSessionBody.DesiredCapabilities.NewCommandTimeout != 0 {
 				foundDevice.AppiumNewCommandTimeout = appiumSessionBody.DesiredCapabilities.NewCommandTimeout * 1000
 			} else {
 				foundDevice.AppiumNewCommandTimeout = 60000
@@ -214,6 +216,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			foundDevice.IsRunningAutomation = true
 			foundDevice.IsPreparingAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+			foundDevice.InUseBy = "automation"
 		} else {
 			// If this is not a request for a new session
 			var sessionID = ""
@@ -297,6 +300,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				foundDevice.SessionID = ""
 				foundDevice.IsPreparingAutomation = false
 				foundDevice.IsRunningAutomation = false
+				foundDevice.InUseBy = ""
 				sessionMapMu.Unlock()
 			}
 

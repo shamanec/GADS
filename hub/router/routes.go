@@ -401,7 +401,6 @@ func getDBDevice(udid string) *models.Device {
 
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
-	fmt.Println("CONNECTED " + udid)
 
 	var mu sync.Mutex
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
@@ -411,7 +410,7 @@ func DeviceInUseWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	messageReceived := make(chan struct{})
+	messageReceived := make(chan string)
 	defer close(messageReceived)
 
 	go func() {
@@ -427,8 +426,8 @@ func DeviceInUseWS(c *gin.Context) {
 				return
 			}
 
-			if string(data) == "ping" {
-				messageReceived <- struct{}{}
+			if string(data) != "" {
+				messageReceived <- string(data)
 			}
 		}
 	}()
@@ -436,13 +435,17 @@ func DeviceInUseWS(c *gin.Context) {
 	//var timeout = time.After(2 * time.Second)
 	for {
 		select {
-		case <-messageReceived:
+		case userName := <-messageReceived:
 			mu.Lock()
 			devices.HubDevicesMap[udid].InUseTS = time.Now().UnixMilli()
+			devices.HubDevicesMap[udid].InUseBy = userName
 			mu.Unlock()
 		case <-time.After(2 * time.Second):
 			mu.Lock()
 			devices.HubDevicesMap[udid].InUseTS = 0
+			if devices.HubDevicesMap[udid].InUseBy != "automation" {
+				devices.HubDevicesMap[udid].InUseBy = ""
+			}
 			mu.Unlock()
 			return
 		}
