@@ -320,20 +320,37 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 	if appiumSessionBody.DesiredCapabilities.DeviceUDID != "" {
 		deviceUDID = appiumSessionBody.DesiredCapabilities.DeviceUDID
 	}
+	
 	if deviceUDID != "" {
+		devicesMapMu.Lock()
 		foundDevice, _ := getDeviceByUDID(deviceUDID)
 		foundDevice.IsPreparingAutomation = true
+		devicesMapMu.Unlock()
 		return foundDevice, nil
-	} else if strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].PlatformName, "iOS") ||
-		strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "iOS") ||
-		strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "XCUITest") ||
-		strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "XCUITest") {
-		var iosDevices []*models.LocalHubDevice
+	} else {
+		var availableDevices []*models.LocalHubDevice
 
-		// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
-		for _, localDevice := range devices.HubDevicesMap {
-			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
-				iosDevices = append(iosDevices, localDevice)
+		if strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].PlatformName, "iOS") ||
+			strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "iOS") ||
+			strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "XCUITest") ||
+			strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "XCUITest") {
+
+			// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
+			for _, localDevice := range devices.HubDevicesMap {
+				if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+					availableDevices = append(availableDevices, localDevice)
+				}
+			}
+		} else if strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].PlatformName, "Android") ||
+			strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "Android") ||
+			strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "UiAutomator2") ||
+			strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "UiAutomator2") {
+
+			// Loop through all latest devices looking for an Android device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
+			for _, localDevice := range devices.HubDevicesMap {
+				if strings.EqualFold(localDevice.Device.OS, "android") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+					availableDevices = append(availableDevices, localDevice)
+				}
 			}
 		}
 
@@ -341,8 +358,8 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 		// Loop through the accumulated available devices slice and get a device that matches the platform version
 		if appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion != "" {
 			// First check if device completely matches the required version
-			if len(iosDevices) != 0 {
-				for _, device := range iosDevices {
+			if len(availableDevices) != 0 {
+				for _, device := range availableDevices {
 					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
 						foundDevice = device
 						foundDevice.IsPreparingAutomation = true
@@ -357,8 +374,8 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 				// Create a constraint for the requested version
 				constraint, _ := semver.NewConstraint(fmt.Sprintf("^%s.0.0", requestedMajorVersion))
 
-				if len(iosDevices) != 0 {
-					for _, device := range iosDevices {
+				if len(availableDevices) != 0 {
+					for _, device := range availableDevices {
 						deviceV, _ := semver.NewVersion(device.Device.OSVersion)
 						if constraint.Check(deviceV) {
 							foundDevice = device
@@ -370,8 +387,8 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			}
 		} else {
 			// If no platform version capability is provided, get the first device from the available list
-			if len(iosDevices) != 0 {
-				foundDevice = iosDevices[0]
+			if len(availableDevices) != 0 {
+				foundDevice = availableDevices[0]
 				foundDevice.IsPreparingAutomation = true
 			}
 		}
