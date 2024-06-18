@@ -6,12 +6,12 @@ import { Auth } from '../../contexts/Auth';
 import { api } from '../../services/api.js'
 
 export function DeviceBox({ device, handleAlert }) {
-    let img_src = device.os === 'android' ? './images/default-android.png' : './images/default-apple.png'
+    let img_src = device.info.os === 'android' ? './images/default-android.png' : './images/default-apple.png'
 
     return (
         <div
             className='device-box'
-            data-id={device.udid}
+            data-id={device.info.udid}
         >
             <div>
                 <img
@@ -23,11 +23,11 @@ export function DeviceBox({ device, handleAlert }) {
             <div
                 className='filterable info'
                 style={{ fontSize: "16px"}}
-            >{device.name}</div>
+            >{device.info.name}</div>
             <div
                 className='filterable info'
                 style={{ fontSize: "16px"}}
-            >{device.os_version}</div>
+            >{device.info.os_version}</div>
             <div
                 className='device-buttons-container'
             >
@@ -40,18 +40,17 @@ export function DeviceBox({ device, handleAlert }) {
 function UseButton({ device, handleAlert }) {
     // Difference between current time and last time the device was reported as healthy
     // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
-    const [loading, setLoading] = useState(false);
-    const {logout } = useContext(Auth)
+    const [loading, setLoading] = useState(false)
 
     const navigate = useNavigate();
 
     function handleUseButtonClick() {
         setLoading(true);
-        const url = `/device/${device.udid}/health`;
+        const url = `/device/${device.info.udid}/health`;
         api.get(url)
             .then(response => {
                 if (response.status === 200) {
-                    navigate('/devices/control/' + device.udid, device);
+                    navigate('/devices/control/' + device.info.udid, device);
                 }
             })
             .catch(() => {
@@ -64,13 +63,13 @@ function UseButton({ device, handleAlert }) {
             });
     }
 
-    const buttonDisabled = loading || !device.connected;
+    const buttonDisabled = loading || !device.info.connected;
 
     if (device.in_use === true) {
         return (
             <button className='device-buttons in-use' disabled>In Use</button>
         )
-    } else if (device.available === true) {
+    } else if (device.info.available === true) {
         return (
             <button className='device-buttons' onClick={handleUseButtonClick} disabled={buttonDisabled}>
                 {loading ? <span className="spinner"></span> : 'Use'}

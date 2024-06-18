@@ -50,15 +50,6 @@ type AppiumSessionResponse struct {
 
 var sessionMapMu sync.Mutex
 var devicesMapMu sync.Mutex
-var localDevicesMap = make(map[string]*LocalAutoDevice)
-
-type LocalAutoDevice struct {
-	Device                 *models.Device
-	IsPreparingAutomation  bool
-	SessionID              string
-	IsRunningAutomation    bool
-	LastAutomationActionTS int64
-}
 
 type SeleniumSessionErrorResponse struct {
 	Value SeleniumSessionErrorResponseValue `json:"value"`
@@ -91,7 +82,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			//fmt.Printf(string(sessionRequestBody))
 
 			// Check for available device
-			var foundDevice *LocalAutoDevice
+			var foundDevice *models.LocalHubDevice
 
 			foundDevice, err = findAvailableDevice(appiumSessionBody)
 			// If no device is available start checking each second for 60 seconds
@@ -301,25 +292,8 @@ func readBody(r io.Reader) ([]byte, error) {
 	return body, nil
 }
 
-func copyLatestDevicesToLocalMap() {
-	devicesMapMu.Lock()
-	defer devicesMapMu.Unlock()
-	for _, device := range devices.LatestDevices {
-		mapDevice, ok := localDevicesMap[device.UDID]
-		if !ok {
-			localDevicesMap[device.UDID] = &LocalAutoDevice{
-				Device:                device,
-				IsPreparingAutomation: false,
-				IsRunningAutomation:   false,
-			}
-		} else {
-			mapDevice.Device = device
-		}
-	}
-}
-
-func getDeviceBySessionID(sessionID string) (*LocalAutoDevice, error) {
-	for _, localDevice := range localDevicesMap {
+func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
+	for _, localDevice := range devices.HubDevicesMap {
 		if localDevice.SessionID == sessionID {
 			return localDevice, nil
 		}
@@ -327,10 +301,10 @@ func getDeviceBySessionID(sessionID string) (*LocalAutoDevice, error) {
 	return nil, fmt.Errorf("No device with session ID `%s` was found in the local devices map", sessionID)
 }
 
-func getDeviceByUDID(udid string) (*LocalAutoDevice, error) {
+func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
 	devicesMapMu.Lock()
 	defer devicesMapMu.Unlock()
-	for _, localDevice := range localDevicesMap {
+	for _, localDevice := range devices.HubDevicesMap {
 		if strings.EqualFold(localDevice.Device.UDID, udid) {
 			return localDevice, nil
 		}
@@ -338,8 +312,8 @@ func getDeviceByUDID(udid string) (*LocalAutoDevice, error) {
 	return nil, fmt.Errorf("No device with udid `%s` was found in the local devices map", udid)
 }
 
-func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, error) {
-	var foundDevice *LocalAutoDevice
+func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevice, error) {
+	var foundDevice *models.LocalHubDevice
 
 	var deviceUDID = ""
 	if appiumSessionBody.Capabilities.FirstMatch[0].DeviceUDID != "" {
@@ -349,7 +323,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 		deviceUDID = appiumSessionBody.DesiredCapabilities.DeviceUDID
 	}
 	if deviceUDID != "" {
-		copyLatestDevicesToLocalMap()
 		foundDevice, _ := getDeviceByUDID(deviceUDID)
 		foundDevice.IsPreparingAutomation = true
 		return foundDevice, nil
@@ -357,12 +330,11 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*LocalAutoDevice, err
 		strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "iOS") ||
 		strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "XCUITest") ||
 		strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "XCUITest") {
-		var iosDevices []*LocalAutoDevice
+		var iosDevices []*models.LocalHubDevice
 
 		// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
-		copyLatestDevicesToLocalMap()
 		devicesMapMu.Lock()
-		for _, localDevice := range localDevicesMap {
+		for _, localDevice := range devices.HubDevicesMap {
 			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation {
 				iosDevices = append(iosDevices, localDevice)
 			}

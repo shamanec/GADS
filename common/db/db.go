@@ -269,10 +269,10 @@ func UpsertDeviceDB(device models.Device) error {
 	return nil
 }
 
-func GetDevices() []*models.Device {
+func GetDevices() []models.Device {
 	// Access the database and collection
 	collection := MongoClient().Database("gads").Collection("devices")
-	latestDevices := []*models.Device{}
+	latestDevices := []models.Device{}
 
 	cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
 	if err != nil {

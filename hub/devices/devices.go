@@ -28,26 +28,40 @@ func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canva
 	return
 }
 
-var LatestDevices []*models.Device
+var LatestDevices []*models.LocalHubDevice
+var HubDevicesMap = make(map[string]*models.LocalHubDevice)
 
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
-	LatestDevices = []*models.Device{}
+	var latestDBDevices []models.Device
 
 	for {
-		LatestDevices = db.GetDevices()
+		latestDBDevices = db.GetDevices()
+		for _, dbDevice := range latestDBDevices {
+			hubDevice, ok := HubDevicesMap[dbDevice.UDID]
+			if ok {
+				hubDevice.Device = dbDevice
+			} else {
+				HubDevicesMap[dbDevice.UDID] = &models.LocalHubDevice{
+					Device:                 dbDevice,
+					IsPreparingAutomation:  false,
+					IsRunningAutomation:    false,
+					LastAutomationActionTS: 0,
+				}
+			}
+		}
 		time.Sleep(1 * time.Second)
 	}
 }
 
 var getDeviceMu sync.Mutex
 
-func GetDeviceByUDID(udid string) *models.Device {
+func GetHubDeviceByUDID(udid string) *models.LocalHubDevice {
 	getDeviceMu.Lock()
 	defer getDeviceMu.Unlock()
-	for _, device := range LatestDevices {
-		if device.UDID == udid {
-			return device
+	for _, hubDevice := range HubDevicesMap {
+		if hubDevice.Device.UDID == udid {
+			return hubDevice
 		}
 	}
 
