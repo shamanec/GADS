@@ -66,6 +66,8 @@ func StartHub(flags *pflag.FlagSet, appVersion string) {
 
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
 	go devices.GetLatestDBDevices()
+	// Start a goroutine to clean hanging grid sessions
+	go router.UpdateExpiredGridSessions()
 
 	defer db.MongoCtxCancel()
 
