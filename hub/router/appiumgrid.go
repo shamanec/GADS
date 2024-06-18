@@ -119,11 +119,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			// When a device is finally chosen, set the flag that is being prepared for automation
-			devicesMapMu.Lock()
-			foundDevice.IsPreparingAutomation = true
-			devicesMapMu.Unlock()
-
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
@@ -313,6 +308,9 @@ func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
 }
 
 func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevice, error) {
+	devicesMapMu.Lock()
+	defer devicesMapMu.Unlock()
+
 	var foundDevice *models.LocalHubDevice
 
 	var deviceUDID = ""
@@ -333,19 +331,16 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 		var iosDevices []*models.LocalHubDevice
 
 		// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
-		devicesMapMu.Lock()
 		for _, localDevice := range devices.HubDevicesMap {
-			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation {
+			if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
 				iosDevices = append(iosDevices, localDevice)
 			}
 		}
-		devicesMapMu.Unlock()
 
 		// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
 		// Loop through the accumulated available devices slice and get a device that matches the platform version
 		if appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion != "" {
 			// First check if device completely matches the required version
-			devicesMapMu.Lock()
 			if len(iosDevices) != 0 {
 				for _, device := range iosDevices {
 					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
@@ -355,7 +350,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 					}
 				}
 			}
-			devicesMapMu.Unlock()
 			// If no device completely matches the required version try a major version
 			if foundDevice == nil {
 				v, _ := semver.NewVersion(appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion)
@@ -368,6 +362,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 						deviceV, _ := semver.NewVersion(device.Device.OSVersion)
 						if constraint.Check(deviceV) {
 							foundDevice = device
+							foundDevice.IsPreparingAutomation = true
 							break
 						}
 					}
@@ -375,11 +370,10 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			}
 		} else {
 			// If no platform version capability is provided, get the first device from the available list
-			devicesMapMu.Lock()
 			if len(iosDevices) != 0 {
 				foundDevice = iosDevices[0]
+				foundDevice.IsPreparingAutomation = true
 			}
-			devicesMapMu.Unlock()
 		}
 	}
 
