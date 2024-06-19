@@ -72,7 +72,6 @@ func UpdateExpiredGridSessions() {
 		for _, hubDevice := range devices.HubDevicesMap {
 			if hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation {
 				hubDevice.IsRunningAutomation = false
-				hubDevice.IsPreparingAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
 				if hubDevice.InUseBy == "automation" {
@@ -159,7 +158,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
 				devicesMapMu.Lock()
-				foundDevice.IsPreparingAutomation = false
+				foundDevice.IsAvailableForAutomation = true
 				devicesMapMu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "", err.Error()))
 				return
@@ -175,7 +174,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			resp, err := client.Do(proxyReq)
 			if err != nil {
 				devicesMapMu.Lock()
-				foundDevice.IsPreparingAutomation = false
+				foundDevice.IsAvailableForAutomation = true
 				devicesMapMu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint", "", err.Error()))
 				return
@@ -186,7 +185,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
 				devicesMapMu.Lock()
-				foundDevice.IsPreparingAutomation = false
+				foundDevice.IsAvailableForAutomation = true
 				devicesMapMu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				return
@@ -197,7 +196,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
 			if err != nil {
 				devicesMapMu.Lock()
-				foundDevice.IsPreparingAutomation = false
+				foundDevice.IsAvailableForAutomation = true
 				devicesMapMu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				return
@@ -215,7 +214,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			c.Writer.Write(proxiedSessionResponseBody)
 			devicesMapMu.Lock()
 			foundDevice.IsRunningAutomation = true
-			foundDevice.IsPreparingAutomation = false
 			foundDevice.IsAvailableForAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			foundDevice.InUseBy = "automation"
@@ -300,7 +298,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// If the request succeeded and was a delete request, remove the session ID from the map
 			if c.Request.Method == http.MethodDelete {
 				devicesMapMu.Lock()
-				foundDevice.IsPreparingAutomation = false
 				foundDevice.IsAvailableForAutomation = true
 				devicesMapMu.Unlock()
 				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
@@ -378,7 +375,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 	if deviceUDID != "" {
 		foundDevice, _ := getDeviceByUDID(deviceUDID)
 		if foundDevice.IsAvailableForAutomation {
-			foundDevice.IsPreparingAutomation = true
 			foundDevice.IsAvailableForAutomation = false
 			return foundDevice, nil
 		} else {
@@ -396,7 +392,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			for _, localDevice := range devices.HubDevicesMap {
 				if strings.EqualFold(localDevice.Device.OS, "ios") &&
-					!localDevice.IsPreparingAutomation &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation {
 					availableDevices = append(availableDevices, localDevice)
@@ -410,7 +405,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			// Loop through all latest devices looking for an Android device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			for _, localDevice := range devices.HubDevicesMap {
 				if strings.EqualFold(localDevice.Device.OS, "android") &&
-					!localDevice.IsPreparingAutomation &&
 					!localDevice.IsRunningAutomation &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation {
@@ -427,7 +421,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 				for _, device := range availableDevices {
 					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
 						foundDevice = device
-						foundDevice.IsPreparingAutomation = true
 						foundDevice.IsAvailableForAutomation = false
 						break
 					}
@@ -445,7 +438,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 						deviceV, _ := semver.NewVersion(device.Device.OSVersion)
 						if constraint.Check(deviceV) {
 							foundDevice = device
-							foundDevice.IsPreparingAutomation = true
 							foundDevice.IsAvailableForAutomation = false
 							break
 						}
@@ -456,7 +448,6 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			// If no platform version capability is provided, get the first device from the available list
 			if len(availableDevices) != 0 {
 				foundDevice = availableDevices[0]
-				foundDevice.IsPreparingAutomation = true
 				foundDevice.IsAvailableForAutomation = false
 			}
 		}

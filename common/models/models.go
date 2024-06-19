@@ -79,7 +79,6 @@ type LocalHubDevice struct {
 	Device                   Device `json:"info"`
 	SessionID                string `json:"-"`
 	IsRunningAutomation      bool   `json:"is_running_automation"`
-	IsPreparingAutomation    bool   `json:"is_preparing_automation"`
 	LastAutomationActionTS   int64  `json:"last_automation_action_ts"`
 	InUse                    bool   `json:"in_use"`
 	InUseBy                  string `json:"in_use_by"`
