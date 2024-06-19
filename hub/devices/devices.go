@@ -43,10 +43,11 @@ func GetLatestDBDevices() {
 				hubDevice.Device = dbDevice
 			} else {
 				HubDevicesMap[dbDevice.UDID] = &models.LocalHubDevice{
-					Device:                 dbDevice,
-					IsPreparingAutomation:  false,
-					IsRunningAutomation:    false,
-					LastAutomationActionTS: 0,
+					Device:                   dbDevice,
+					IsPreparingAutomation:    false,
+					IsRunningAutomation:      false,
+					IsAvailableForAutomation: true,
+					LastAutomationActionTS:   0,
 				}
 			}
 		}

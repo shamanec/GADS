@@ -76,13 +76,14 @@ type ConnectedDevice struct {
 }
 
 type LocalHubDevice struct {
-	Device                  Device `json:"info"`
-	SessionID               string `json:"-"`
-	IsRunningAutomation     bool   `json:"is_running_automation"`
-	IsPreparingAutomation   bool   `json:"is_preparing_automation"`
-	LastAutomationActionTS  int64  `json:"last_automation_action_ts"`
-	InUse                   bool   `json:"in_use"`
-	InUseBy                 string `json:"in_use_by"`
-	InUseTS                 int64  `json:"in_use_ts"`
-	AppiumNewCommandTimeout int64  `json:"appium_new_command_timeout"`
+	Device                   Device `json:"info"`
+	SessionID                string `json:"-"`
+	IsRunningAutomation      bool   `json:"is_running_automation"`
+	IsPreparingAutomation    bool   `json:"is_preparing_automation"`
+	LastAutomationActionTS   int64  `json:"last_automation_action_ts"`
+	InUse                    bool   `json:"in_use"`
+	InUseBy                  string `json:"in_use_by"`
+	InUseTS                  int64  `json:"in_use_ts"`
+	AppiumNewCommandTimeout  int64  `json:"appium_new_command_timeout"`
+	IsAvailableForAutomation bool   `json:"is_available_for_automation"`
 }

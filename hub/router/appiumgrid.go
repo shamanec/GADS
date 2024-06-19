@@ -52,7 +52,6 @@ type AppiumSessionResponse struct {
 	Value AppiumSessionValue `json:"value"`
 }
 
-var sessionMapMu sync.Mutex
 var devicesMapMu sync.Mutex
 
 type SeleniumSessionErrorResponse struct {
@@ -74,6 +73,7 @@ func UpdateExpiredGridSessions() {
 			if hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsPreparingAutomation = false
+				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
 				if hubDevice.InUseBy == "automation" {
 					hubDevice.InUseBy = ""
@@ -158,10 +158,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "", err.Error()))
 				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
 				devicesMapMu.Unlock()
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "", err.Error()))
 				return
 			}
 
@@ -174,10 +174,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			client := &http.Client{}
 			resp, err := client.Do(proxyReq)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint", "", err.Error()))
 				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
 				devicesMapMu.Unlock()
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint", "", err.Error()))
 				return
 			}
 			defer resp.Body.Close()
@@ -185,10 +185,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Read the response sessionRequestBody from the proxied request
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
 				devicesMapMu.Unlock()
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				return
 			}
 
@@ -196,16 +196,16 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var proxySessionResponse AppiumSessionResponse
 			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
 				devicesMapMu.Unlock()
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				return
 			}
 
-			sessionMapMu.Lock()
+			devicesMapMu.Lock()
 			foundDevice.SessionID = proxySessionResponse.Value.SessionID
-			sessionMapMu.Unlock()
+			devicesMapMu.Unlock()
 
 			// Copy the response back to the original client
 			for k, v := range resp.Header {
@@ -213,10 +213,13 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			c.Writer.WriteHeader(resp.StatusCode)
 			c.Writer.Write(proxiedSessionResponseBody)
+			devicesMapMu.Lock()
 			foundDevice.IsRunningAutomation = true
 			foundDevice.IsPreparingAutomation = false
+			foundDevice.IsAvailableForAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			foundDevice.InUseBy = "automation"
+			devicesMapMu.Unlock()
 		} else {
 			// If this is not a request for a new session
 			var sessionID = ""
@@ -260,9 +263,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			defer c.Request.Body.Close()
 
 			// Check if there is a device in the local session map for that session ID
-			sessionMapMu.Lock()
+			devicesMapMu.Lock()
 			foundDevice, err := getDeviceBySessionID(sessionID)
-			sessionMapMu.Unlock()
+			devicesMapMu.Unlock()
 			if err != nil {
 				c.JSON(http.StatusNotFound, createErrorResponse(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID), "", ""))
 				return
@@ -296,12 +299,21 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			// If the request succeeded and was a delete request, remove the session ID from the map
 			if c.Request.Method == http.MethodDelete {
-				sessionMapMu.Lock()
-				foundDevice.SessionID = ""
+				devicesMapMu.Lock()
 				foundDevice.IsPreparingAutomation = false
-				foundDevice.IsRunningAutomation = false
-				foundDevice.InUseBy = ""
-				sessionMapMu.Unlock()
+				foundDevice.IsAvailableForAutomation = true
+				devicesMapMu.Unlock()
+				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
+				go func() {
+					time.Sleep(10 * time.Second)
+					devicesMapMu.Lock()
+					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
+						foundDevice.SessionID = ""
+						foundDevice.IsRunningAutomation = false
+						foundDevice.InUseBy = ""
+					}
+					devicesMapMu.Unlock()
+				}()
 			}
 
 			// Read the response origRequestBody of the proxied request
@@ -341,8 +353,6 @@ func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
 }
 
 func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
-	devicesMapMu.Lock()
-	defer devicesMapMu.Unlock()
 	for _, localDevice := range devices.HubDevicesMap {
 		if strings.EqualFold(localDevice.Device.UDID, udid) {
 			return localDevice, nil
@@ -367,8 +377,14 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 
 	if deviceUDID != "" {
 		foundDevice, _ := getDeviceByUDID(deviceUDID)
-		foundDevice.IsPreparingAutomation = true
-		return foundDevice, nil
+		if foundDevice.IsAvailableForAutomation {
+			foundDevice.IsPreparingAutomation = true
+			foundDevice.IsAvailableForAutomation = false
+			return foundDevice, nil
+		} else {
+			return nil, fmt.Errorf("Device is currently not available for automation")
+		}
+
 	} else {
 		var availableDevices []*models.LocalHubDevice
 
@@ -379,7 +395,10 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 
 			// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			for _, localDevice := range devices.HubDevicesMap {
-				if strings.EqualFold(localDevice.Device.OS, "ios") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+				if strings.EqualFold(localDevice.Device.OS, "ios") &&
+					!localDevice.IsPreparingAutomation &&
+					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
+					localDevice.IsAvailableForAutomation {
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
@@ -390,7 +409,11 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 
 			// Loop through all latest devices looking for an Android device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			for _, localDevice := range devices.HubDevicesMap {
-				if strings.EqualFold(localDevice.Device.OS, "android") && !localDevice.IsPreparingAutomation && !localDevice.IsRunningAutomation && localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+				if strings.EqualFold(localDevice.Device.OS, "android") &&
+					!localDevice.IsPreparingAutomation &&
+					!localDevice.IsRunningAutomation &&
+					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
+					localDevice.IsAvailableForAutomation {
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
@@ -405,6 +428,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
 						foundDevice = device
 						foundDevice.IsPreparingAutomation = true
+						foundDevice.IsAvailableForAutomation = false
 						break
 					}
 				}
@@ -422,6 +446,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 						if constraint.Check(deviceV) {
 							foundDevice = device
 							foundDevice.IsPreparingAutomation = true
+							foundDevice.IsAvailableForAutomation = false
 							break
 						}
 					}
@@ -432,6 +457,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			if len(availableDevices) != 0 {
 				foundDevice = availableDevices[0]
 				foundDevice.IsPreparingAutomation = true
+				foundDevice.IsAvailableForAutomation = false
 			}
 		}
 	}
