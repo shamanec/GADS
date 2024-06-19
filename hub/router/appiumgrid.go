@@ -366,10 +366,8 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 	}
 
 	if deviceUDID != "" {
-		devicesMapMu.Lock()
 		foundDevice, _ := getDeviceByUDID(deviceUDID)
 		foundDevice.IsPreparingAutomation = true
-		devicesMapMu.Unlock()
 		return foundDevice, nil
 	} else {
 		var availableDevices []*models.LocalHubDevice
