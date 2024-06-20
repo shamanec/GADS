@@ -125,12 +125,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 						}
 					case <-timeout:
 						ticker.Stop()
-						responseError := SeleniumSessionErrorResponse{
-							Value: SeleniumSessionErrorResponseValue{
-								Message: "No available device found",
-							},
-						}
-						c.JSON(http.StatusInternalServerError, responseError)
+						c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "", ""))
 						return
 					case <-notify:
 						ticker.Stop()

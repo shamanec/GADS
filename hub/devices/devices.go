@@ -28,7 +28,6 @@ func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canva
 	return
 }
 
-var LatestDevices []*models.LocalHubDevice
 var HubDevicesMap = make(map[string]*models.LocalHubDevice)
 
 // Get the latest devices information from MongoDB each second
@@ -44,7 +43,6 @@ func GetLatestDBDevices() {
 			} else {
 				HubDevicesMap[dbDevice.UDID] = &models.LocalHubDevice{
 					Device:                   dbDevice,
-					IsPreparingAutomation:    false,
 					IsRunningAutomation:      false,
 					IsAvailableForAutomation: true,
 					LastAutomationActionTS:   0,
