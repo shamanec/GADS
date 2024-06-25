@@ -40,7 +40,6 @@ func HandleRequests() *gin.Engine {
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
-	authGroup.POST("/devices/control/:udid", GetDevicePage)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
 	authGroup.Any("/provider/:name/*path", ProviderProxyHandler)
@@ -53,6 +52,9 @@ func HandleRequests() *gin.Engine {
 	authGroup.POST("/admin/upload-selenium-jar", UploadSeleniumJar)
 	authGroup.PUT("/admin/user")    // TODO Update user
 	authGroup.DELETE("/admin/user") // TODO Delete user
+	appiumGroup := r.Group("/grid")
+	appiumGroup.Use(AppiumGridMiddleware())
+	appiumGroup.Any("/*path")
 
 	return r
 }

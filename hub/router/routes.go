@@ -11,11 +11,11 @@ import (
 	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"html/template"
 	"io"
 	"net/http"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -391,15 +391,13 @@ func AddNewDevice(c *gin.Context) {
 }
 
 func getDBDevice(udid string) *models.Device {
-	for _, dbDevice := range devices.LatestDevices {
-		if dbDevice.UDID == udid {
-			return dbDevice
+	for _, dbDevice := range devices.HubDevicesMap {
+		if dbDevice.Device.UDID == udid {
+			return &dbDevice.Device
 		}
 	}
 	return nil
 }
-
-var inUseMap = make(map[string]int64)
 
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
@@ -412,7 +410,7 @@ func DeviceInUseWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	messageReceived := make(chan struct{})
+	messageReceived := make(chan string)
 	defer close(messageReceived)
 
 	go func() {
@@ -428,109 +426,68 @@ func DeviceInUseWS(c *gin.Context) {
 				return
 			}
 
-			if string(data) == "ping" {
-				messageReceived <- struct{}{}
+			if string(data) != "" {
+				messageReceived <- string(data)
 			}
 		}
 	}()
 
+	//var timeout = time.After(2 * time.Second)
 	for {
 		select {
-		case <-messageReceived:
+		case userName := <-messageReceived:
 			mu.Lock()
-			inUseMap[udid] = time.Now().UnixMilli()
+			devices.HubDevicesMap[udid].InUseTS = time.Now().UnixMilli()
+			devices.HubDevicesMap[udid].InUseBy = userName
 			mu.Unlock()
 		case <-time.After(2 * time.Second):
 			mu.Lock()
-			delete(inUseMap, udid)
+			devices.HubDevicesMap[udid].InUseTS = 0
+			if devices.HubDevicesMap[udid].InUseBy != "automation" {
+				devices.HubDevicesMap[udid].InUseBy = ""
+			}
 			mu.Unlock()
 			return
 		}
 	}
 }
 
-func GetDevicePage(c *gin.Context) {
-	udid := c.Param("udid")
-
-	reqDevice := getDBDevice(udid)
-	if reqDevice.InUse {
-		c.String(http.StatusInternalServerError, "Device is in use")
-		return
-	}
-	// If the reqDevice does not exist in the cached devices
-	if reqDevice == nil {
-		c.String(http.StatusInternalServerError, "Device not found")
-		return
-	}
-
-	// Create the reqDevice health URL
-	url := fmt.Sprintf("http://%s/device/%s/health", reqDevice.Host, reqDevice.UDID)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed creating http request to check reqDevice health from provider - %s", err.Error()))
-		return
-	}
-
-	response, err := netClient.Do(req)
-	if err != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Failed performing http request to check reqDevice health from provider - %s", err.Error()))
-		return
-	}
-
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		c.String(http.StatusInternalServerError, fmt.Sprintf("Device not healthy, health check response: %s", string(body)))
-		return
-	}
-
-	// Calculate the width and height for the canvas
-	canvasWidth, canvasHeight := devices.CalculateCanvasDimensions(reqDevice)
-
-	pageData := struct {
-		Device       models.Device
-		CanvasWidth  string
-		CanvasHeight string
-		ScreenHeight string
-		ScreenWidth  string
-	}{
-		Device:       *reqDevice,
-		CanvasWidth:  canvasWidth,
-		CanvasHeight: canvasHeight,
-		ScreenHeight: reqDevice.ScreenHeight,
-		ScreenWidth:  reqDevice.ScreenWidth,
-	}
-
-	var tmpl = template.Must(template.ParseFiles("static/device_control_new.html"))
-	err = tmpl.Execute(c.Writer, pageData)
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-	}
-}
+var availableMu sync.Mutex
 
 func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
-		for _, device := range devices.LatestDevices {
 
-			if device.Connected && device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
-				device.Available = true
+		availableMu.Lock()
+		for _, device := range devices.HubDevicesMap {
 
-				deviceInUseTS, ok := inUseMap[device.UDID]
-				if ok {
-					if deviceInUseTS >= (time.Now().UnixMilli() - 3000) {
-						device.InUse = true
-					}
+			if device.Device.Connected && device.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+				device.Device.Available = true
+
+				if device.InUseTS >= (time.Now().UnixMilli() - 3000) {
+					device.InUse = true
 				} else {
 					device.InUse = false
-					delete(inUseMap, device.UDID)
 				}
 				continue
 			}
 			device.InUse = false
-			device.Available = false
+			device.Device.Available = false
 		}
 
-		jsonData, _ := json.Marshal(&devices.LatestDevices)
+		// Extract the keys from the map and order them
+		var hubDeviceMapKeys []string
+		for key := range devices.HubDevicesMap {
+			hubDeviceMapKeys = append(hubDeviceMapKeys, key)
+		}
+		sort.Strings(hubDeviceMapKeys)
+
+		var deviceList = []*models.LocalHubDevice{}
+		for _, key := range hubDeviceMapKeys {
+			deviceList = append(deviceList, devices.HubDevicesMap[key])
+		}
+		availableMu.Unlock()
+
+		jsonData, _ := json.Marshal(deviceList)
 		c.SSEvent("", string(jsonData))
 		c.Writer.Flush()
 		time.Sleep(1 * time.Second)

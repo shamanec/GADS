@@ -40,6 +40,8 @@ Supports Linux, macOS and Windows - notes below
 - Backend
   - Serving the web interface
   - Proxy the communication to the provider instances
+  - Experimental Appium grid replacement for Selenium Grid
+    - Integrated with UI to reserve devices currently running Appium tests
 
 ### Provider features
 - Straightforward dependencies setup

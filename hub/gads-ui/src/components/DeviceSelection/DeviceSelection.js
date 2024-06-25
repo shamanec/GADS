@@ -9,9 +9,9 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import { OSFilterTabs, DeviceSearch } from './Filters'
-import { DeviceBox } from './Device'
 import { Auth } from '../../contexts/Auth';
 import { api } from '../../services/api.js'
+import NewDeviceBox from "./NewDeviceBox";
 
 export default function DeviceSelection() {
     // States
@@ -26,7 +26,7 @@ export default function DeviceSelection() {
     const open = true
 
     // Authentication and session control
-    const {logout} = useContext(Auth)
+    const { logout } = useContext(Auth)
 
     function CheckServerHealth() {
         let url = `/health`
@@ -68,13 +68,13 @@ export default function DeviceSelection() {
 
         evtSource.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
+            console.log(devicesJson)
             setDevices(devicesJson);
         }
 
         // If component unmounts close the websocket connection
         return () => {
             if (evtSource) {
-                console.log('component unmounted')
                 evtSource.close()
             }
         }
@@ -167,36 +167,45 @@ function OSSelection({ devices, handleAlert }) {
                 ) : (
                     <TabPanel
                         value='{currentTabIndex}'
-                        style={{ height: "800px", overflowY: "auto"}}
+                        style={{ height: "80vh", overflowY: "auto" }}
                     >
                         <Grid
                             id='devices-container'
                             container spacing={2}
+                            style={{
+                                marginBottom: '10px'
+                            }}
                         >
                             {
                                 devices.map((device) => {
                                     if (currentTabIndex === 0) {
                                         return (
-                                            <DeviceBox
-                                                device={device}
-                                                handleAlert={handleAlert}
-                                            />
+                                            <Grid item>
+                                                <NewDeviceBox
+                                                    device={device}
+                                                    handleAlert={handleAlert}
+                                                />
+                                            </Grid>
                                         )
 
-                                    } else if (currentTabIndex === 1 && device.os === 'android') {
+                                    } else if (currentTabIndex === 1 && device.info.os === 'android') {
                                         return (
-                                            <DeviceBox
-                                                device={device}
-                                                handleAlert={handleAlert}
-                                            />
+                                            <Grid item>
+                                                <NewDeviceBox
+                                                    device={device}
+                                                    handleAlert={handleAlert}
+                                                />
+                                            </Grid>
                                         )
 
-                                    } else if (currentTabIndex === 2 && device.os === 'ios') {
+                                    } else if (currentTabIndex === 2 && device.info.os === 'ios') {
                                         return (
-                                            <DeviceBox
-                                                device={device}
-                                                handleAlert={handleAlert}
-                                            />
+                                            <Grid item>
+                                                <NewDeviceBox
+                                                    device={device}
+                                                    handleAlert={handleAlert}
+                                                />
+                                            </Grid>
                                         )
                                     }
                                 })

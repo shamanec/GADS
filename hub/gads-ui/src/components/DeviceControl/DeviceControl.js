@@ -10,7 +10,7 @@ import { DialogProvider } from './SessionDialogContext';
 import { api } from '../../services/api.js'
 
 export default function DeviceControl() {
-    const { logout } = useContext(Auth)
+    const { logout, userName } = useContext(Auth)
     const { id } = useParams();
     const navigate = useNavigate();
     const [deviceData, setDeviceData] = useState(null)
@@ -43,13 +43,14 @@ export default function DeviceControl() {
             wsType = "wss"
         }
         let socketUrl = `${wsType}://${window.location.host}/devices/control/${id}/in-use`
+        // let socketUrl = `${wsType}://192.168.1.6:10000/devices/control/${id}/in-use`
         in_use_socket = new WebSocket(socketUrl);
         if (in_use_socket.readyState === WebSocket.OPEN) {
             in_use_socket.send('ping');
         }
         const pingInterval = setInterval(() => {
             if (in_use_socket.readyState === WebSocket.OPEN) {
-                in_use_socket.send('ping');
+                in_use_socket.send(userName);
             }
         }, 1000);
 

@@ -46,7 +46,6 @@ type Device struct {
 	Model                string             `json:"model" bson:"model"`                                           // common value - device model
 	Host                 string             `json:"host" bson:"host"`                                             // common value - IP address of the device host(provider)
 	Provider             string             `json:"provider" bson:"provider"`                                     // common value - nickname of the device host(provider)
-	InUse                bool               `json:"in_use" bson:"-"`                                              // UI value - if device is currently in use
 	ScreenWidth          string             `json:"screen_width" bson:"screen_width"`                             // common value - screen width of device
 	ScreenHeight         string             `json:"screen_height" bson:"screen_height"`                           // common value - screen height of device
 	HardwareModel        string             `json:"hardware_model,omitempty" bson:"hardware_model,omitempty"`     // common value - hardware model of device
@@ -74,4 +73,16 @@ type ConnectedDevice struct {
 	OS           string `json:"os" bson:"os"`
 	UDID         string `json:"udid" bson:"udid"`
 	IsConfigured bool   `json:"is_configured" bson:"-"`
+}
+
+type LocalHubDevice struct {
+	Device                   Device `json:"info"`
+	SessionID                string `json:"-"`
+	IsRunningAutomation      bool   `json:"is_running_automation"`
+	LastAutomationActionTS   int64  `json:"last_automation_action_ts"`
+	InUse                    bool   `json:"in_use"`
+	InUseBy                  string `json:"in_use_by"`
+	InUseTS                  int64  `json:"in_use_ts"`
+	AppiumNewCommandTimeout  int64  `json:"appium_new_command_timeout"`
+	IsAvailableForAutomation bool   `json:"is_available_for_automation"`
 }
