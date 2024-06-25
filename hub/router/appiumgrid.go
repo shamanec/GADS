@@ -6,13 +6,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/Masterminds/semver"
-	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Masterminds/semver"
+	"github.com/gin-gonic/gin"
 )
 
 type Capabilities struct {
@@ -102,8 +103,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "", err.Error()))
 				return
 			}
-
-			//fmt.Printf(string(sessionRequestBody))
 
 			// Check for available device
 			var foundDevice *models.LocalHubDevice

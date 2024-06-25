@@ -24,6 +24,14 @@ If you want to work on the React UI with hot reload you need to add a proxy in `
 4. Run `npm start`
 
 ### Additional notes
+#### Experimental Appium grid
+Using Selenium Grid 4 is a bit of a hassle and some versions do not work properly with Appium relay nodes. For this reason I created an experimental grid implementation into the hub itself. I haven't even read the Selenium Grid implementation and made up something myself - it might not work properly but could be the better alternative if it does work properly. The experimental grid was tested only using latest Appium and Selenium Java client versions and with TestNG. Tests can be executed sequentially or in parallel using TestNG with `methods` or `classes` with multiple threads. I assume it should support any type of session creation with any Appium language client  
+
+* The grid is accessible on your hub instance e.g. `http://192.168.1.6:10000/grid` and should be used as Appium/Selenium driver URL target. You just try to start a session as you usually do with Selenium Grid
+* The grid allows targeting devices by UDID
+* The grid allows targeting devices by `platformName`(iOS or Android) or `appium:automationName`(XCUITest or UiAutomator2) capabilities during session creation
+  * Additionally the grid allows filtering by `appium:platformVersion` capability which supports exact version e.g. `17.5.1` or a major version e.g. `17`, `11` etc
+
 #### Selenium Grid
 Devices can be automatically connected to Selenium Grid 4 instance. You need to create the Selenium Grid hub instance yourself and then set it up in the provider configuration to connect to it.  
 * Start your Selenium hub instance, e.g. `java -jar selenium.jar --host 192.168.1.6 --port 4444`
