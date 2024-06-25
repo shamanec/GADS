@@ -169,50 +169,48 @@ function OSSelection({ devices, handleAlert }) {
                         value='{currentTabIndex}'
                         style={{ height: "80vh", overflowY: "auto" }}
                     >
-                        <Box>
-                            <Grid
-                                id='devices-container'
-                                container spacing={2}
-                                style={{
-                                    marginBottom: '10px'
-                                }}
-                            >
-                                {
-                                    devices.map((device) => {
-                                        if (currentTabIndex === 0) {
-                                            return (
-                                                <Grid item>
-                                                    <NewDeviceBox
-                                                        device={device}
-                                                        handleAlert={handleAlert}
-                                                    />
-                                                </Grid>
-                                            )
+                        <Grid
+                            id='devices-container'
+                            container spacing={2}
+                            style={{
+                                marginBottom: '10px'
+                            }}
+                        >
+                            {
+                                devices.map((device) => {
+                                    if (currentTabIndex === 0) {
+                                        return (
+                                            <Grid item>
+                                                <NewDeviceBox
+                                                    device={device}
+                                                    handleAlert={handleAlert}
+                                                />
+                                            </Grid>
+                                        )
 
-                                        } else if (currentTabIndex === 1 && device.os === 'android') {
-                                            return (
-                                                <Grid item>
-                                                    <NewDeviceBox
-                                                        device={device}
-                                                        handleAlert={handleAlert}
-                                                    />
-                                                </Grid>
-                                            )
+                                    } else if (currentTabIndex === 1 && device.info.os === 'android') {
+                                        return (
+                                            <Grid item>
+                                                <NewDeviceBox
+                                                    device={device}
+                                                    handleAlert={handleAlert}
+                                                />
+                                            </Grid>
+                                        )
 
-                                        } else if (currentTabIndex === 2 && device.os === 'ios') {
-                                            return (
-                                                <Grid item>
-                                                    <NewDeviceBox
-                                                        device={device}
-                                                        handleAlert={handleAlert}
-                                                    />
-                                                </Grid>
-                                            )
-                                        }
-                                    })
-                                }
-                            </Grid>
-                        </Box>
+                                    } else if (currentTabIndex === 2 && device.info.os === 'ios') {
+                                        return (
+                                            <Grid item>
+                                                <NewDeviceBox
+                                                    device={device}
+                                                    handleAlert={handleAlert}
+                                                />
+                                            </Grid>
+                                        )
+                                    }
+                                })
+                            }
+                        </Grid>
                     </TabPanel>
                 )}
             </Box>
