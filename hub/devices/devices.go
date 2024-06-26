@@ -40,6 +40,18 @@ func GetLatestDBDevices() {
 			hubDevice, ok := HubDevicesMap[dbDevice.UDID]
 			if ok {
 				hubDevice.Device = dbDevice
+				if hubDevice.Device.Connected && hubDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
+					hubDevice.Device.Available = true
+
+					if hubDevice.InUseTS >= (time.Now().UnixMilli() - 3000) {
+						hubDevice.InUse = true
+					} else {
+						hubDevice.InUse = false
+					}
+				} else {
+					hubDevice.InUse = false
+					hubDevice.Device.Available = false
+				}
 			} else {
 				HubDevicesMap[dbDevice.UDID] = &models.LocalHubDevice{
 					Device:                   dbDevice,

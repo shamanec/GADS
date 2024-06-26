@@ -7,10 +7,6 @@ import (
 	"GADS/provider/logger"
 	"encoding/json"
 	"fmt"
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -20,6 +16,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -458,22 +459,6 @@ func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
 
 		availableMu.Lock()
-		for _, device := range devices.HubDevicesMap {
-
-			if device.Device.Connected && device.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
-				device.Device.Available = true
-
-				if device.InUseTS >= (time.Now().UnixMilli() - 3000) {
-					device.InUse = true
-				} else {
-					device.InUse = false
-				}
-				continue
-			}
-			device.InUse = false
-			device.Device.Available = false
-		}
-
 		// Extract the keys from the map and order them
 		var hubDeviceMapKeys []string
 		for key := range devices.HubDevicesMap {
