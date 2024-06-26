@@ -131,7 +131,7 @@ function OSSelection({ devices, handleAlert }) {
                     alignItems='center'
                     className='filters-stack'
                     sx={{
-                        height: '500px',
+                        height: '200px',
                         backgroundColor: '#9ba984',
                         borderRadius: '10px'
                     }}

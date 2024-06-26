@@ -1,5 +1,5 @@
 import { Auth } from "../../contexts/Auth"
-import {useContext, useEffect} from "react"
+import { useContext, useEffect, useState } from "react"
 import './StreamCanvas.css'
 import { Button, Divider, Grid, Stack } from "@mui/material"
 import HomeIcon from '@mui/icons-material/Home';
@@ -11,20 +11,24 @@ import { api } from '../../services/api.js'
 export default function StreamCanvas({ deviceData }) {
     const { authToken, logout } = useContext(Auth)
     const { setDialog } = useDialog()
+    const [canvasSize, setCanvasSize] = useState({
+        width: 0,
+        height: 0
+    });
 
     let deviceX = parseInt(deviceData.screen_width, 10)
     let deviceY = parseInt(deviceData.screen_height, 10)
     let screen_ratio = deviceX / deviceY
-    let canvasHeight = (window.innerHeight * 0.7)
-    let canvasWidth = (window.innerHeight * 0.7) * screen_ratio
+    // let canvasHeight = (window.innerHeight * 0.7)
+    // let canvasWidth = (window.innerHeight * 0.7) * screen_ratio
 
     const streamData = {
         udid: deviceData.udid,
         deviceX: deviceX,
         deviceY: deviceY,
         screen_ratio: screen_ratio,
-        canvasHeight: canvasHeight,
-        canvasWidth: canvasWidth
+        canvasHeight: canvasSize.height,
+        canvasWidth: canvasSize.width
     }
 
     let streamUrl = ""
@@ -37,8 +41,24 @@ export default function StreamCanvas({ deviceData }) {
     }
 
     useEffect(() => {
+        const updateCanvasSize = () => {
+            let canvasHeight = window.innerHeight * 0.7
+            let canvasWidth = canvasHeight * screen_ratio
+
+            setCanvasSize({
+                width: canvasWidth,
+                height: canvasHeight
+            })
+        }
+
+        updateCanvasSize()
+
+        // Set resize listener
+        window.addEventListener('resize', updateCanvasSize);
+
         return () => {
             window.stop()
+            window.removeEventListener('resize', updateCanvasSize);
         }
     }, []);
 
@@ -56,18 +76,22 @@ export default function StreamCanvas({ deviceData }) {
             >{deviceData.model}</h3>
             <div
                 id="stream-div"
+                style={{
+                    width: streamData.canvasWidth,
+                    height: streamData.canvasHeight
+                }}
             >
                 <Canvas
-                    canvasWidth={canvasWidth}
-                    canvasHeight={canvasHeight}
+                    canvasWidth={streamData.canvasWidth}
+                    canvasHeight={streamData.canvasHeight}
                     authToken={authToken}
                     logout={logout}
                     streamData={streamData}
                     setDialog={setDialog}
                 ></Canvas>
                 <Stream
-                    canvasWidth={canvasWidth}
-                    canvasHeight={canvasHeight}
+                    canvasWidth={streamData.canvasWidth}
+                    canvasHeight={streamData.canvasHeight}
                     streamUrl={streamUrl}
                 ></Stream>
             </div>
