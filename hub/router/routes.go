@@ -597,6 +597,10 @@ func GetDevices(c *gin.Context) {
 		providerNames = append(providerNames, provider.Nickname)
 	}
 
+	if len(dbDevices) == 0 {
+		dbDevices = []models.Device{}
+	}
+
 	var adminDeviceData = AdminDeviceData{
 		Devices:   dbDevices,
 		Providers: providerNames,

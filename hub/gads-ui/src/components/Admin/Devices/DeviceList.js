@@ -1,53 +1,36 @@
-import { useContext, useEffect, useState } from "react";
-import { api } from "../../../services/api";
-import { Auth } from "../../../contexts/Auth";
-import { Box, Button, Grid, MenuItem, Select, Stack, TextField } from "@mui/material";
+import { useState } from "react"
+import { api } from "../../../services/api"
+import { Box, Button, FormControl, Grid, MenuItem, Select, Stack, TextField } from "@mui/material"
 
-export default function DeviceList() {
-    const [devices, setDevices] = useState([])
-    const [providers, setProviders] = useState([])
-    const { logout } = useContext(Auth)
-
-    useEffect(() => {
-        let url = `/admin/devices`
-
-        api.get(url)
-            .then(response => {
-                setDevices(response.data.devices)
-                setProviders(response.data.providers)
-            })
-            .catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                    }
-                }
-            });
-    }, [])
-
+export default function DeviceList({ devices, providers }) {
     return (
-        <Box>
-            <Grid
-                container
-                spacing={2}
-                style={{
-                    marginBottom: '10px'
-                }}
-            >
-                {devices.map((device) => {
-                    return (
-                        <Grid item>
-                            <ExistingDevice
-                                deviceData={device}
-                                providersData={providers}
-                            >
-                            </ExistingDevice>
-                        </Grid>
-                    )
-                })
-                }
-            </Grid>
-        </Box>
+        <Grid
+            container
+            spacing={2}
+            style={{
+                marginBottom: '10px',
+                height: '80vh',
+                overflowY: 'scroll',
+                border: '2px solid black',
+                borderRadius: '10px',
+                boxShadow: 'inset 0 -10px 10px -10px #000000',
+                scrollbarWidth: 'none',
+                maxWidth: '1700px'
+            }}
+        >
+            {devices.map((device) => {
+                return (
+                    <Grid item>
+                        <ExistingDevice
+                            deviceData={device}
+                            providersData={providers}
+                        >
+                        </ExistingDevice>
+                    </Grid>
+                )
+            })
+            }
+        </Grid>
     )
 }
 
@@ -87,6 +70,9 @@ function ExistingDevice({ deviceData, providersData }) {
             style={{
                 border: '1px solid black',
                 width: '400px',
+                minWidth: '400px',
+                maxWidth: '400px',
+                height: '600px',
                 borderRadius: '5px'
             }}
         >
@@ -126,26 +112,38 @@ function ExistingDevice({ deviceData, providersData }) {
                         defaultValue={screenWidth}
                         onChange={(event) => setScreenWidth(event.target.value)}
                     />
-                    <Select
-                        value={os}
-                        onChange={(event) => setOS(event.target.value)}
-                        style={{ width: '223px', marginTop: "20px" }}
-                    >
-                        <MenuItem value='android'>Android</MenuItem>
-                        <MenuItem value='ios'>iOS</MenuItem>
-                    </Select>
-                    <Select
-                        value={provider}
-                        onChange={(event) => setProvider(event.target.value)}
-                        style={{ width: '223px', marginTop: "20px" }}
-                    >
-                        {providersData.map((providerName) => {
-                            return (
-                                <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
-                            )
-                        })
-                        }
-                    </Select>
+                    <FormControl fullWidth variant="outlined" required>
+                        <TextField
+                            style={{ width: "100%" }}
+                            variant="outlined"
+                            value={os}
+                            onChange={(e) => setOS(e.target.value)}
+                            select
+                            label="Device OS"
+                            required
+                        >
+                            <MenuItem value='android'>Android</MenuItem>
+                            <MenuItem value='ios'>iOS</MenuItem>
+                        </TextField>
+                    </FormControl>
+                    <FormControl fullWidth variant="outlined" required>
+                        <TextField
+                            style={{ width: "100%" }}
+                            variant="outlined"
+                            value={provider}
+                            onChange={(e) => setOS(e.target.value)}
+                            select
+                            label="Provider"
+                            required
+                        >
+                            {providersData.map((providerName) => {
+                                return (
+                                    <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
+                                )
+                            })
+                            }
+                        </TextField>
+                    </FormControl>
                     <Button
                         variant="contained"
                         type="submit"

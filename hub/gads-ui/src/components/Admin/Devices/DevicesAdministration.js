@@ -1,7 +1,7 @@
 import DeviceList from "./DeviceList";
 import { useContext, useState, useEffect } from "react";
 import { api } from "../../../services/api";
-import { Box, Button, Divider, MenuItem, Select, Stack, TextField } from "@mui/material";
+import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Stack, TextField } from "@mui/material";
 import { Auth } from "../../../contexts/Auth";
 
 export default function DevicesAdministration() {
@@ -9,11 +9,13 @@ export default function DevicesAdministration() {
     const [providers, setProviders] = useState([])
     const { logout } = useContext(Auth)
 
-    useEffect(() => {
+    function handleGetDeviceData() {
         let url = `/admin/devices`
 
         api.get(url)
             .then(response => {
+                console.log('lol')
+                console.log(response.data.devices)
                 setDevices(response.data.devices)
                 setProviders(response.data.providers)
             })
@@ -24,21 +26,27 @@ export default function DevicesAdministration() {
                     }
                 }
             });
+    }
+
+    useEffect(() => {
+        handleGetDeviceData()
     }, [])
 
     return (
-        <Stack direction='row' spacing={2} height='80vh' style={{ marginLeft: '10px', marginTop: '10px' }}>
-            <NewDevice providersData={providers}></NewDevice>
-            <Divider orientation="vertical" flexItem style={{ borderRightWidth: '5px' }}></Divider>
-            <DeviceList>
+        <Stack direction='row' spacing={2} style={{ marginLeft: '10px', marginTop: '10px' }}>
+            <NewDevice providers={providers} handleGetDeviceData={handleGetDeviceData}>
+            </NewDevice>
+            <Divider orientation="vertical" flexItem style={{ borderRightWidth: '5px', height: '80vh' }}>
+            </Divider>
+            <DeviceList devices={devices} providers={providers}>
             </DeviceList>
         </Stack>
     )
 }
 
-function NewDevice({ providersData }) {
+function NewDevice({ providers, handleGetDeviceData }) {
     const [udid, setUdid] = useState('')
-    const [provider, setProvider] = useState(providersData[0])
+    const [provider, setProvider] = useState('')
     const [os, setOS] = useState('')
     const [name, setName] = useState('')
     const [osVersion, setOSVersion] = useState('')
@@ -65,13 +73,27 @@ function NewDevice({ providersData }) {
                 console.log('wtf')
                 console.log(e)
             })
+            .finally(() => {
+                setUdid('')
+                setProvider('')
+                setOS('')
+                setName('')
+                setOSVersion('')
+                setScreenHeight('')
+                setScreenWidth('')
+                handleGetDeviceData()
+            })
     }
 
     return (
         <Box
+            id='some-box'
             style={{
                 border: '1px solid black',
                 width: '400px',
+                minWidth: '400px',
+                maxWidth: '400px',
+                height: '600px',
                 borderRadius: '5px'
             }}
         >
@@ -85,54 +107,71 @@ function NewDevice({ providersData }) {
                     <TextField
                         required
                         label="UDID"
+                        value={udid}
                         onChange={(event) => setUdid(event.target.value)}
                     />
                     <TextField
                         required
                         label="Name"
+                        value={name}
                         onChange={(event) => setName(event.target.value)}
                     />
                     <TextField
                         required
                         label="OS Version"
+                        value={osVersion}
                         onChange={(event) => setOSVersion(event.target.value)}
                     />
                     <TextField
                         required
                         label="Screen height"
+                        value={screenHeight}
                         onChange={(event) => setScreenHeight(event.target.value)}
                     />
                     <TextField
                         required
                         label="Screen width"
+                        value={screenWidth}
                         onChange={(event) => setScreenWidth(event.target.value)}
                     />
-                    <Select
-                        value='android'
-                        onChange={(event) => setOS(event.target.value)}
-                        style={{ width: '223px', marginTop: "20px" }}
-                    >
-                        <MenuItem value='android'>Android</MenuItem>
-                        <MenuItem value='ios'>iOS</MenuItem>
-                    </Select>
-                    <Select
-                        value={providersData[0]}
-                        onChange={(event) => setProvider(event.target.value)}
-                        style={{ width: '223px', marginTop: "20px" }}
-                    >
-                        {providersData.map((providerName) => {
-                            return (
-                                <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
-                            )
-                        })
-                        }
-                    </Select>
+                    <FormControl fullWidth variant="outlined" required>
+                        <TextField
+                            style={{ width: "100%" }}
+                            variant="outlined"
+                            value={os}
+                            onChange={(e) => setOS(e.target.value)}
+                            select
+                            label="Device OS"
+                            required
+                        >
+                            <MenuItem value='android'>Android</MenuItem>
+                            <MenuItem value='ios'>iOS</MenuItem>
+                        </TextField>
+                    </FormControl>
+                    <FormControl fullWidth variant="outlined" required>
+                        <TextField
+                            style={{ width: "100%" }}
+                            variant="outlined"
+                            value={provider}
+                            onChange={(e) => setProvider(e.target.value)}
+                            select
+                            label="Provider"
+                            required
+                        >
+                            {providers.map((providerName) => {
+                                return (
+                                    <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
+                                )
+                            })
+                            }
+                        </TextField>
+                    </FormControl>
                     <Button
                         variant="contained"
                         type="submit"
                     >Add device</Button>
                 </Stack>
             </form>
-        </Box>
+        </Box >
     )
 }
