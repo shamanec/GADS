@@ -5,10 +5,11 @@ import (
 	"GADS/common/models"
 	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"io"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/gridfs"
 
 	"slices"
 
@@ -244,6 +245,35 @@ func GetDBDevices() []models.Device {
 	return dbDevices
 }
 
+func GetDBDeviceNew() []models.Device {
+	var dbDevices []models.Device
+	// Access the database and collection
+	collection := MongoClient().Database("gads").Collection("new_devices")
+
+	cursor, err := collection.Find(context.Background(), bson.D{{}}, nil)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
+	}
+
+	if err := cursor.All(context.Background(), &dbDevices); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
+	}
+
+	cursor.Close(context.TODO())
+
+	return dbDevices
+}
+
 func GetDBDevicesUDIDs() []string {
 	dbDevices := GetDBDevices()
 	var udids []string
@@ -259,13 +289,25 @@ func UpsertDeviceDB(device models.Device) error {
 	update := bson.M{
 		"$set": device,
 	}
-	coll := mongoClient.Database("gads").Collection("devices")
+	coll := mongoClient.Database("gads").Collection("new_devices")
 	filter := bson.D{{Key: "udid", Value: device.UDID}}
 	opts := options.Update().SetUpsert(true)
 	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func DeleteDeviceDB(udid string) error {
+	coll := mongoClient.Database("gads").Collection("new_devices")
+	filter := bson.M{"udid": udid}
+
+	_, err := coll.DeleteOne(mongoClientCtx, filter)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -374,8 +416,4 @@ func UploadFileGridFS(file io.Reader, fileName string, force bool) error {
 		}
 		return nil
 	}
-}
-
-func DownloadFileGridFS(fileName string, filePath string) {
-
 }

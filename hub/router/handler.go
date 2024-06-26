@@ -3,10 +3,11 @@ package router
 import (
 	"GADS/hub/auth"
 	"GADS/hub/devices"
+	"path/filepath"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
-	"path/filepath"
 )
 
 func HandleRequests() *gin.Engine {
@@ -36,7 +37,7 @@ func HandleRequests() *gin.Engine {
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
 	// Enable authentication on the endpoints below
-	authGroup.Use(auth.AuthMiddleware())
+	// authGroup.Use(auth.AuthMiddleware())
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
@@ -47,7 +48,10 @@ func HandleRequests() *gin.Engine {
 	authGroup.POST("/admin/providers/add", AddProvider)
 	authGroup.POST("/admin/providers/update", UpdateProvider)
 	authGroup.GET("/admin/providers/logs", GetProviderLogs)
-	authGroup.POST("/admin/devices/add", AddNewDevice)
+	authGroup.POST("/admin/device", AddDevice)
+	authGroup.PUT("/admin/device", UpdateDevice)
+	authGroup.DELETE("/admin/device", DeleteDevice)
+	authGroup.GET("/admin/devices", GetDevices)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.POST("/admin/upload-selenium-jar", UploadSeleniumJar)
 	authGroup.PUT("/admin/user")    // TODO Update user

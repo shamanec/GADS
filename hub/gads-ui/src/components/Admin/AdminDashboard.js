@@ -5,6 +5,7 @@ import { Box } from "@mui/material";
 import UsersAdministration from "./Users/UsersAdministration";
 import ProvidersAdministration from "./Providers/ProvidersAdministration";
 import FilesAdministration from "./Files/FilesAdministration";
+import DevicesAdministration from './Devices/DevicesAdministration';
 
 
 export default function AdminDashboard() {
@@ -61,10 +62,19 @@ export default function AdminDashboard() {
                         fontWeight: "bold"
                     }}
                 />
+                <Tab
+                    label="Devices administration"
+                    style={{
+                        textTransform: 'none',
+                        fontSize: '16px',
+                        fontWeight: "bold"
+                    }}
+                />
             </Tabs>
             {currentTabIndex === 0 && <UsersAdministration></UsersAdministration>}
             {currentTabIndex === 1 && <ProvidersAdministration></ProvidersAdministration>}
             {currentTabIndex === 2 && <FilesAdministration></FilesAdministration>}
+            {currentTabIndex === 3 && <DevicesAdministration></DevicesAdministration>}
         </Box >
     )
 }

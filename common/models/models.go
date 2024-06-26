@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+
 	"github.com/danielpaulus/go-ios/ios"
 )
 
@@ -43,7 +44,6 @@ type Device struct {
 	OS                   string             `json:"os" bson:"os"`                                                 // common value - device OS
 	Name                 string             `json:"name" bson:"name"`                                             // common value - name of the device
 	OSVersion            string             `json:"os_version" bson:"os_version"`                                 // common value - OS version of the device
-	Model                string             `json:"model" bson:"model"`                                           // common value - device model
 	Host                 string             `json:"host" bson:"host"`                                             // common value - IP address of the device host(provider)
 	Provider             string             `json:"provider" bson:"provider"`                                     // common value - nickname of the device host(provider)
 	ScreenWidth          string             `json:"screen_width" bson:"screen_width"`                             // common value - screen width of device

@@ -171,7 +171,8 @@ function OSSelection({ devices, handleAlert }) {
                     >
                         <Grid
                             id='devices-container'
-                            container spacing={2}
+                            container
+                            spacing={2}
                             style={{
                                 marginBottom: '10px'
                             }}

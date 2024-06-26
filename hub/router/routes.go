@@ -367,39 +367,6 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
-func AddNewDevice(c *gin.Context) {
-	var device models.Device
-
-	payload, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
-		return
-	}
-
-	err = json.Unmarshal(payload, &device)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
-		return
-	}
-
-	err = db.UpsertDeviceDB(device)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB for the current provider"})
-}
-
-func getDBDevice(udid string) *models.Device {
-	for _, dbDevice := range devices.HubDevicesMap {
-		if dbDevice.Device.UDID == udid {
-			return &dbDevice.Device
-		}
-	}
-	return nil
-}
-
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -508,4 +475,132 @@ func UploadSeleniumJar(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Selenium jar uploaded successfully"})
+}
+
+func AddDevice(c *gin.Context) {
+	reqBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		return
+	}
+	defer c.Request.Body.Close()
+
+	var device models.Device
+	err = json.Unmarshal(reqBody, &device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		return
+	}
+
+	dbDevices := db.GetDBDeviceNew()
+	for _, dbDevice := range dbDevices {
+		if dbDevice.UDID == device.UDID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
+			return
+		}
+	}
+
+	err = db.UpsertDeviceDB(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB"})
+}
+
+func UpdateDevice(c *gin.Context) {
+	reqBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		return
+	}
+	defer c.Request.Body.Close()
+
+	var reqDevice models.Device
+	err = json.Unmarshal(reqBody, &reqDevice)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		return
+	}
+
+	dbDevices := db.GetDBDeviceNew()
+	for _, dbDevice := range dbDevices {
+		if dbDevice.UDID == reqDevice.UDID {
+			// Update only the relevant data and only if something has changed
+			if dbDevice.Provider != reqDevice.Provider {
+				dbDevice.Provider = reqDevice.Provider
+			}
+			if reqDevice.OS != "" && dbDevice.OS != reqDevice.OS {
+				dbDevice.OS = reqDevice.OS
+			}
+			if reqDevice.ScreenHeight != "" && dbDevice.ScreenHeight != reqDevice.ScreenHeight {
+				dbDevice.ScreenHeight = reqDevice.ScreenHeight
+			}
+			if reqDevice.ScreenWidth != "" && dbDevice.ScreenWidth != reqDevice.ScreenWidth {
+				dbDevice.ScreenWidth = reqDevice.ScreenWidth
+			}
+			if reqDevice.OSVersion != "" && dbDevice.OSVersion != reqDevice.OSVersion {
+				dbDevice.OSVersion = reqDevice.OSVersion
+			}
+			if reqDevice.Name != "" && reqDevice.Name != dbDevice.Name {
+				dbDevice.Name = reqDevice.Name
+			}
+			err = db.UpsertDeviceDB(dbDevice)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"message": "Successfully updated device in DB"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist in the DB", reqDevice.UDID)})
+}
+
+func DeleteDevice(c *gin.Context) {
+	reqBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		return
+	}
+	defer c.Request.Body.Close()
+
+	var device models.Device
+	err = json.Unmarshal(reqBody, &device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		return
+	}
+
+	err = db.DeleteDeviceDB(device.UDID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted device with udid `%s` from DB", device.UDID)})
+}
+
+type AdminDeviceData struct {
+	Devices   []models.Device `json:"devices"`
+	Providers []string        `json:"providers"`
+}
+
+func GetDevices(c *gin.Context) {
+	dbDevices := db.GetDBDeviceNew()
+	providers := db.GetProvidersFromDB()
+
+	var providerNames []string
+	for _, provider := range providers {
+		providerNames = append(providerNames, provider.Nickname)
+	}
+
+	var adminDeviceData = AdminDeviceData{
+		Devices:   dbDevices,
+		Providers: providerNames,
+	}
+
+	c.JSON(http.StatusOK, adminDeviceData)
 }

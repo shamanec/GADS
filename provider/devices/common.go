@@ -6,8 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/pelletier/go-toml/v2"
 	"io"
 	"log"
 	"net/http"
@@ -18,12 +16,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/pelletier/go-toml/v2"
+
 	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -70,9 +72,6 @@ func updateDevices() {
 
 				newDevice.Host = fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
 				newDevice.Provider = config.Config.EnvConfig.Nickname
-				// Set N/A for model and OS version because we will set those during the device set up
-				newDevice.Model = "N/A"
-				newDevice.OSVersion = "N/A"
 
 				// Check if a capped Appium logs collection already exists for the current device
 				exists, err := db.CollectionExists("appium_logs", newDevice.UDID)
@@ -181,15 +180,6 @@ func setupAndroidDevice(device *models.Device) {
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
-	err := updateScreenSize(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not update screen dimensions with adb for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-	getModel(device)
-	getAndroidOSVersion(device)
-
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
 	if config.Config.EnvConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
@@ -199,6 +189,7 @@ func setupAndroidDevice(device *models.Device) {
 			return
 		}
 	}
+	getAndroidDeviceHardwareModel(device)
 
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -336,15 +327,6 @@ func setupIOSDevice(device *models.Device) {
 			return
 		}
 	}
-
-	// Update the screen dimensions of the device using data from the IOSDeviceDimensions map
-	err = updateScreenSize(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not update screen dimensions for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-	getModel(device)
 
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -689,72 +671,6 @@ func startGridNode(device *models.Device) {
 	}
 }
 
-func updateScreenSize(device *models.Device) error {
-	if device.OS == "ios" {
-		if dimensions, ok := constants.IOSDeviceInfoMap[device.IOSProductType]; ok {
-			device.ScreenHeight = dimensions.Height
-			device.ScreenWidth = dimensions.Width
-		} else {
-			return fmt.Errorf("could not find `%s` hardware model in the IOSDeviceDimensions map, please update the map", device.HardwareModel)
-		}
-	} else {
-		err := updateAndroidScreenSizeADB(device)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func getModel(device *models.Device) {
-	if device.OS == "ios" {
-		if info, ok := constants.IOSDeviceInfoMap[device.IOSProductType]; ok {
-			device.Model = info.Model
-		} else {
-			device.Model = "Unknown iOS device"
-		}
-	} else {
-		brandCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.brand")
-		var outBuffer bytes.Buffer
-		brandCmd.Stdout = &outBuffer
-		if err := brandCmd.Run(); err != nil {
-			device.Model = "Unknown brand and model"
-		}
-		brand := outBuffer.String()
-		outBuffer.Reset()
-
-		modelCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.model")
-		modelCmd.Stdout = &outBuffer
-		if err := modelCmd.Run(); err != nil {
-			device.Model = "Unknown brand/model"
-			return
-		}
-		model := outBuffer.String()
-
-		device.Model = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
-	}
-}
-
-func getAndroidOSVersion(device *models.Device) {
-	if device.OS == "ios" {
-
-	} else {
-		sdkCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.build.version.sdk")
-		var outBuffer bytes.Buffer
-		sdkCmd.Stdout = &outBuffer
-		if err := sdkCmd.Run(); err != nil {
-			device.OSVersion = "N/A"
-		}
-		sdkVersion := strings.TrimSpace(outBuffer.String())
-		if osVersion, ok := constants.AndroidVersionToSDK[sdkVersion]; ok {
-			device.OSVersion = osVersion
-		} else {
-			device.OSVersion = "N/A"
-		}
-	}
-}
-
 func UpdateInstalledApps(device *models.Device) {
 	if device.OS == "ios" {
 		device.InstalledApps = getInstalledAppsIOS(device)
@@ -795,4 +711,25 @@ func InstallApp(device *models.Device, app string) error {
 	}
 
 	return nil
+}
+
+func getAndroidDeviceHardwareModel(device *models.Device) {
+	brandCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.brand")
+	var outBuffer bytes.Buffer
+	brandCmd.Stdout = &outBuffer
+	if err := brandCmd.Run(); err != nil {
+		device.HardwareModel = "Unknown brand and model"
+	}
+	brand := outBuffer.String()
+	outBuffer.Reset()
+
+	modelCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.model")
+	modelCmd.Stdout = &outBuffer
+	if err := modelCmd.Run(); err != nil {
+		device.HardwareModel = "Unknown brand/model"
+		return
+	}
+	model := outBuffer.String()
+
+	device.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
 }

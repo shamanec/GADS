@@ -110,7 +110,7 @@ export default function AddUser() {
                     spacing={2}
                 >
                     <h3>Add user</h3>
-                    <label style={{ width: "80%"}}>
+                    <label style={{ width: "80%" }}>
                         <TextField
                             onChange={e => setUsername(e.target.value)}
                             label="Username"
@@ -122,7 +122,7 @@ export default function AddUser() {
                             helperText='Username should be at least 4 characters'
                         />
                     </label>
-                    <label style={{ width: "80%"}}>
+                    <label style={{ width: "80%" }}>
                         <TextField
                             onChange={e => setPassword(e.target.value)}
                             label="Password"
@@ -138,7 +138,7 @@ export default function AddUser() {
                         defaultValue='user'
                         value={role}
                         onChange={(event) => setRole(event.target.value)}
-                        style={{width: '223px', marginTop: "20px"}}
+                        style={{ width: '223px', marginTop: "20px" }}
                     >
                         <MenuItem value='user'>User</MenuItem>
                         <MenuItem value='admin'>Admin</MenuItem>
@@ -147,7 +147,6 @@ export default function AddUser() {
                         <Button
                             variant="contained"
                             type="submit"
-                            style={{}}
                             disabled={buttonDisabled}
                             style={{
                                 backgroundColor: buttonDisabled ? "#ccc" : "#f4e6cd",
