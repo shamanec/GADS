@@ -386,6 +386,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			for _, localDevice := range devices.HubDevicesMap {
 				if strings.EqualFold(localDevice.Device.OS, "ios") &&
+					!localDevice.InUse &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation {
 					availableDevices = append(availableDevices, localDevice)
@@ -399,7 +400,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			// Loop through all latest devices looking for an Android device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			for _, localDevice := range devices.HubDevicesMap {
 				if strings.EqualFold(localDevice.Device.OS, "android") &&
-					!localDevice.IsRunningAutomation &&
+					!localDevice.InUse &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation {
 					availableDevices = append(availableDevices, localDevice)
