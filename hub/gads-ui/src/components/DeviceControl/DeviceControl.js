@@ -15,6 +15,7 @@ export default function DeviceControl() {
     const navigate = useNavigate();
     const [deviceData, setDeviceData] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
+    let screenRatio = window.innerHeight / window.innerWidth
 
     let url = `/device/${id}/info`
     let in_use_socket = null
@@ -104,8 +105,8 @@ export default function DeviceControl() {
                                 style={{
                                     backgroundColor: 'gray',
                                     animationDuration: '1s',
-                                    height: '950px',
-                                    width: '500px',
+                                    height: (window.innerHeight * 0.7),
+                                    width: (window.innerHeight * 0.7) * screenRatio,
                                     borderRadius: '30px'
                                 }}
                             />
@@ -114,7 +115,7 @@ export default function DeviceControl() {
                                 style={{
                                     backgroundColor: 'gray',
                                     animationDuration: '1s',
-                                    height: '850px',
+                                    height: (window.innerHeight * 0.7),
                                     width: '100%',
                                     marginRight: '10px'
                                 }}
