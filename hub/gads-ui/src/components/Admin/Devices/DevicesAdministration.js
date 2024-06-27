@@ -1,7 +1,7 @@
 import DeviceList from "./DeviceList";
 import { useContext, useState, useEffect } from "react";
 import { api } from "../../../services/api";
-import { Box, Button, Divider, FormControl, InputLabel, MenuItem, Select, Stack, TextField } from "@mui/material";
+import { Box, Button, Divider, FormControl, MenuItem, Stack, TextField } from "@mui/material";
 import { Auth } from "../../../contexts/Auth";
 
 export default function DevicesAdministration() {
@@ -94,7 +94,8 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 minWidth: '400px',
                 maxWidth: '400px',
                 height: '600px',
-                borderRadius: '5px'
+                borderRadius: '5px',
+                backgroundColor: '#9ba984'
             }}
         >
             <form onSubmit={handleUpdateDevice}>

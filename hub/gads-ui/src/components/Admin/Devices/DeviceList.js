@@ -1,12 +1,15 @@
-import { useState } from "react"
+import { useContext, useState } from "react"
 import { api } from "../../../services/api"
-import { Box, Button, FormControl, Grid, MenuItem, Select, Stack, TextField } from "@mui/material"
+import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField } from "@mui/material"
+import { Auth } from "../../../contexts/Auth"
 
 export default function DeviceList({ devices, providers }) {
+    const [devicesData, setDevicesData] = useState(devices)
+    const [providersData, setProvidersData] = useState(providers)
+    const { logout } = useContext(Auth)
+
     return (
-        <Grid
-            container
-            spacing={2}
+        <Box
             style={{
                 marginBottom: '10px',
                 height: '80vh',
@@ -18,19 +21,27 @@ export default function DeviceList({ devices, providers }) {
                 maxWidth: '1700px'
             }}
         >
-            {devices.map((device) => {
-                return (
-                    <Grid item>
-                        <ExistingDevice
-                            deviceData={device}
-                            providersData={providers}
-                        >
-                        </ExistingDevice>
-                    </Grid>
-                )
-            })
-            }
-        </Grid>
+            <Grid
+                container
+                spacing={2}
+                marginLeft='5px'
+                marginTop='5px'
+                marginBottom='20px'
+            >
+                {devices.map((device) => {
+                    return (
+                        <Grid item>
+                            <ExistingDevice
+                                deviceData={device}
+                                providersData={providers}
+                            >
+                            </ExistingDevice>
+                        </Grid>
+                    )
+                })
+                }
+            </Grid>
+        </Box>
     )
 }
 
@@ -60,8 +71,20 @@ function ExistingDevice({ deviceData, providersData }) {
 
         api.put(url, deviceData)
             .catch(e => {
-                console.log('wtf')
-                console.log(e)
+            })
+    }
+
+    function handleDeleteDevice(event) {
+        event.preventDefault()
+
+        let url = `/admin/device`
+
+        const deviceData = {
+            udid: udid
+        }
+
+        api.delete(url, deviceData)
+            .catch(e => {
             })
     }
 
@@ -73,7 +96,8 @@ function ExistingDevice({ deviceData, providersData }) {
                 minWidth: '400px',
                 maxWidth: '400px',
                 height: '600px',
-                borderRadius: '5px'
+                borderRadius: '5px',
+                backgroundColor: '#9ba984'
             }}
         >
             <form onSubmit={handleUpdateDevice}>
@@ -148,6 +172,7 @@ function ExistingDevice({ deviceData, providersData }) {
                         variant="contained"
                         type="submit"
                     >Update device</Button>
+                    <Button>Delete device</Button>
                 </Stack>
             </form>
         </Box>
