@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect } from "react"
 import { api } from "../../../services/api"
-import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField } from "@mui/material"
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField } from "@mui/material"
 import { Auth } from "../../../contexts/Auth"
 
 export default function DevicesAdministration() {
@@ -269,8 +269,11 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
             })
             .finally(() => {
                 handleGetDeviceData()
+                setOpenAlert(false)
             })
     }
+
+    const [openAlert, setOpenAlert] = useState(false)
 
     return (
         <Box
@@ -365,12 +368,33 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         }}
                     >Update device</Button>
                     <Button
-                        onClick={(event) => handleDeleteDevice(event)}
+                        onClick={() => setOpenAlert(true)}
                         style={{
                             backgroundColor: 'orange',
                             color: '#2f3b26'
                         }}
                     >Delete device</Button>
+                    <Dialog
+                        open={openAlert}
+                        onClose={() => setOpenAlert(false)}
+                        aria-labelledby="alert-dialog-title"
+                        aria-describedby="alert-dialog-description"
+                    >
+                        <DialogTitle id="alert-dialog-title">
+                            {"Delete device from DB?"}
+                        </DialogTitle>
+                        <DialogContent>
+                            <DialogContentText id="alert-dialog-description">
+                                Device with UDID `{udid}`, assigned to provider `{provider}`. Confirm deletion?
+                            </DialogContentText>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
+                            <Button onClick={handleDeleteDevice} autoFocus>
+                                Confirm
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
                 </Stack>
             </form>
         </Box>
