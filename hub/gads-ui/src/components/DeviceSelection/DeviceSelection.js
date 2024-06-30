@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react'
 import './DeviceSelection.css'
-import Alert from '@mui/material/Alert';
-import Snackbar from '@mui/material/Snackbar';
 import Box from '@mui/material/Box';
 import TabPanel from '@mui/lab/TabPanel';
 import TabContext from '@mui/lab/TabContext';
@@ -14,18 +12,8 @@ import { api } from '../../services/api.js'
 import NewDeviceBox from "./NewDeviceBox";
 
 export default function DeviceSelection() {
-    // States
-    const [devices, setDevices] = useState([]);
-    const [showAlert, setShowAlert] = useState(false);
-    const [timeoutId, setTimeoutId] = useState(null);
-
-    let devicesSocket = null;
-    let vertical = 'bottom'
-    let horizontal = 'center'
-
     const open = true
-
-    // Authentication and session control
+    const [devices, setDevices] = useState([]);
     const { logout } = useContext(Auth)
 
     function CheckServerHealth() {
@@ -45,26 +33,12 @@ export default function DeviceSelection() {
             })
     }
 
-    // Show a snackbar alert if device is unavailable
-    function presentDeviceUnavailableAlert() {
-        // Present the alert
-        setShowAlert(true);
-        // Clear the previous timeout if it exists
-        clearTimeout(timeoutId);
-        // Set a new timeout for the alert
-        setTimeoutId(
-            setTimeout(() => {
-                setShowAlert(false);
-            }, 3000)
-        );
-    }
-
     useEffect(() => {
         CheckServerHealth()
 
         // Use specific full address for local development, proxy does not seem to work okay
-        // const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
-        const evtSource = new EventSource(`/available-devices`);
+        const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
+        // const evtSource = new EventSource(`/available-devices`);
 
         evtSource.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
@@ -89,25 +63,13 @@ export default function DeviceSelection() {
             >
                 <OSSelection
                     devices={devices}
-                    handleAlert={presentDeviceUnavailableAlert}
                 />
-                {showAlert && (
-                    <Snackbar
-                        anchorOrigin={{ vertical, horizontal }}
-                        open={open}
-                        key='bottomcenter'
-                    >
-                        <Alert severity="error">
-                            Device is unavailable
-                        </Alert>
-                    </Snackbar>
-                )}
             </div>
         </div>
     )
 }
 
-function OSSelection({ devices, handleAlert }) {
+function OSSelection({ devices }) {
     const [currentTabIndex, setCurrentTabIndex] = useState(0);
 
     const handleTabChange = (e, tabIndex) => {
@@ -184,7 +146,6 @@ function OSSelection({ devices, handleAlert }) {
                                             <Grid item>
                                                 <NewDeviceBox
                                                     device={device}
-                                                    handleAlert={handleAlert}
                                                 />
                                             </Grid>
                                         )
@@ -194,7 +155,6 @@ function OSSelection({ devices, handleAlert }) {
                                             <Grid item>
                                                 <NewDeviceBox
                                                     device={device}
-                                                    handleAlert={handleAlert}
                                                 />
                                             </Grid>
                                         )
@@ -204,7 +164,6 @@ function OSSelection({ devices, handleAlert }) {
                                             <Grid item>
                                                 <NewDeviceBox
                                                     device={device}
-                                                    handleAlert={handleAlert}
                                                 />
                                             </Grid>
                                         )

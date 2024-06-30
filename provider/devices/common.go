@@ -48,6 +48,12 @@ func Listener() {
 
 func setupDevices() {
 	for _, dbDevice := range DBDeviceMap {
+		dbDevice.ProviderState = "init"
+		dbDevice.Connected = false
+		dbDevice.Available = false
+		dbDevice.LastUpdatedTimestamp = 0
+		dbDevice.IsResetting = false
+
 		dbDevice.Host = fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
 
 		// Check if a capped Appium logs collection already exists for the current device

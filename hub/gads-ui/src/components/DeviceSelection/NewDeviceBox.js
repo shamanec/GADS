@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import React, { useState } from 'react'
 import './NewDeviceBox.css'
 
-export default function NewDeviceBox({ device, handleAlert }) {
+export default function NewDeviceBox({ device }) {
     let img_src = device.info.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
 
     return (
@@ -133,7 +133,7 @@ function DeviceStatus({ device }) {
     }
 }
 
-function UseButton({ device, handleAlert }) {
+function UseButton({ device }) {
     // Difference between current time and last time the device was reported as healthy
     // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
     const [loading, setLoading] = useState(false)
@@ -150,7 +150,7 @@ function UseButton({ device, handleAlert }) {
                 }
             })
             .catch(() => {
-                handleAlert()
+
             })
             .finally(() => {
                 setTimeout(() => {

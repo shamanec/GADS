@@ -425,7 +425,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         </DialogTitle>
                         <DialogContent>
                             <DialogContentText id="alert-dialog-description">
-                                Device with UDID `{udid}`, assigned to provider `{provider}`. Confirm deletion?
+                                Device with UDID `{udid}`, assigned to provider `{provider}`.
                             </DialogContentText>
                         </DialogContent>
                         <DialogActions>
