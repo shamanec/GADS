@@ -269,8 +269,6 @@ func setupIOSDevice(device *models.Device) {
 	}
 	// Update hardware model got from plist, os version and product type
 	device.HardwareModel = plistValues["HardwareModel"].(string)
-	device.OSVersion = plistValues["ProductVersion"].(string)
-	device.IOSProductType = plistValues["ProductType"].(string)
 
 	isAboveIOS17, err := isAboveIOS17(device)
 	if err != nil {

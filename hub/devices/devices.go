@@ -36,6 +36,21 @@ func GetLatestDBDevices() {
 
 	for {
 		latestDBDevices = db.GetDevices()
+
+		var mapMu sync.Mutex
+		mapMu.Lock()
+		if len(latestDBDevices) < len(HubDevicesMap) {
+		HUB_DEVICES_LOOP:
+			for _, hubDevice := range HubDevicesMap {
+				for _, dbDevice := range latestDBDevices {
+					if dbDevice.UDID == hubDevice.Device.UDID {
+						continue HUB_DEVICES_LOOP
+					}
+				}
+				delete(HubDevicesMap, hubDevice.Device.UDID)
+			}
+		}
+
 		for _, dbDevice := range latestDBDevices {
 			hubDevice, ok := HubDevicesMap[dbDevice.UDID]
 			if ok {
@@ -61,6 +76,7 @@ func GetLatestDBDevices() {
 				}
 			}
 		}
+		mapMu.Unlock()
 		time.Sleep(1 * time.Second)
 	}
 }

@@ -354,20 +354,21 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                     />
                     <TextField
                         required
-                        label="Screen height"
-                        defaultValue={screenHeight}
-                        autoComplete="off"
-                        onChange={(event) => setScreenHeight(event.target.value)}
-                    />
-                    <TextField
-                        required
                         label="Screen width"
                         defaultValue={screenWidth}
                         autoComplete="off"
                         onChange={(event) => setScreenWidth(event.target.value)}
                     />
+                    <TextField
+                        required
+                        label="Screen height"
+                        defaultValue={screenHeight}
+                        autoComplete="off"
+                        onChange={(event) => setScreenHeight(event.target.value)}
+                    />
                     <FormControl fullWidth variant="outlined" required>
                         <TextField
+                            disabled
                             style={{ width: "100%" }}
                             variant="outlined"
                             value={os}
