@@ -69,12 +69,6 @@ type Device struct {
 	ProviderState        string             `json:"provider_state" bson:"provider_state"`                         // common value - current state of the device on the provider - init, preparing, live
 }
 
-type ConnectedDevice struct {
-	OS           string `json:"os" bson:"os"`
-	UDID         string `json:"udid" bson:"udid"`
-	IsConfigured bool   `json:"is_configured" bson:"-"`
-}
-
 type LocalHubDevice struct {
 	Device                   Device `json:"info"`
 	SessionID                string `json:"-"`

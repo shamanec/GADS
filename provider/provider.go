@@ -10,15 +10,16 @@ import (
 	"GADS/provider/router"
 	"context"
 	"fmt"
-	"github.com/spf13/pflag"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/spf13/pflag"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func StartProvider(flags *pflag.FlagSet) {
@@ -181,7 +182,7 @@ func updateProviderInDB() {
 		filter := bson.D{{Key: "nickname", Value: config.Config.EnvConfig.Nickname}}
 
 		var providedDevices []models.Device
-		for _, mapDevice := range devices.DeviceMap {
+		for _, mapDevice := range devices.DBDeviceMap {
 			providedDevices = append(providedDevices, *mapDevice)
 		}
 		sort.Sort(models.ByUDID(providedDevices))

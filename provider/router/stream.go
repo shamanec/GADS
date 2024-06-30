@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"GADS/provider/devices"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -22,7 +23,7 @@ import (
 
 func AndroidStreamProxy(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
@@ -62,7 +63,7 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 
 	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
 	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
@@ -112,7 +113,7 @@ func IOSStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 
 	// Read data from device
 	server := "localhost:" + device.StreamPort
@@ -167,7 +168,7 @@ func IOSStreamMJPEG(c *gin.Context) {
 
 func IOSStreamMJPEGWda(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 
 	// Set the necessary headers for MJPEG streaming
 	// Note: The "boundary" is arbitrary but must be unique and consistent.
@@ -239,7 +240,7 @@ func IOSStreamMJPEGWda(c *gin.Context) {
 
 func IosStreamProxyGADS(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 	jpegChannel := make(chan []byte, 15)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -326,7 +327,7 @@ func IosStreamProxyGADS(c *gin.Context) {
 
 func IosStreamProxyWDA(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {

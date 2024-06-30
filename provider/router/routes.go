@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -18,6 +17,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type JsonErrorResponse struct {
@@ -45,7 +46,7 @@ func AppiumReverseProxy(c *gin.Context) {
 	}()
 
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 
 	target := "http://localhost:" + device.AppiumPort
 	path := c.Param("proxyPath")
@@ -97,7 +98,7 @@ func UploadAndInstallApp(c *gin.Context) {
 
 	udid := c.Param("udid")
 	// Check if the target device is currently provisioned
-	if dev, ok := devices.DeviceMap[udid]; ok {
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		// If the uploaded file is not a zip archive
 		if ext != ".zip" {
 			// Create file destination based on the provider dir and file name
@@ -222,7 +223,7 @@ func GetProviderData(c *gin.Context) {
 	var providerData models.ProviderData
 
 	deviceData := []*models.Device{}
-	for _, device := range devices.DeviceMap {
+	for _, device := range devices.DBDeviceMap {
 		deviceData = append(deviceData, device)
 	}
 
@@ -235,7 +236,7 @@ func GetProviderData(c *gin.Context) {
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DeviceMap[udid]; ok {
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		devices.UpdateInstalledApps(dev)
 		c.JSON(http.StatusOK, dev)
 		return
@@ -247,7 +248,7 @@ func DeviceInfo(c *gin.Context) {
 func DevicesInfo(c *gin.Context) {
 	deviceList := []*models.Device{}
 
-	for _, device := range devices.DeviceMap {
+	for _, device := range devices.DBDeviceMap {
 		deviceList = append(deviceList, device)
 	}
 
@@ -261,7 +262,7 @@ type ProcessApp struct {
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DeviceMap[udid]; ok {
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
@@ -294,7 +295,7 @@ func UninstallApp(c *gin.Context) {
 func ResetDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if device, ok := devices.DeviceMap[udid]; ok {
+	if device, ok := devices.DBDeviceMap[udid]; ok {
 		device.IsResetting = true
 		device.CtxCancel()
 		device.ProviderState = "init"

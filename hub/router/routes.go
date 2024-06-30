@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -350,13 +349,6 @@ func ProviderInfoSSE(c *gin.Context) {
 
 	c.Stream(func(w io.Writer) bool {
 		providerData, _ := db.GetProviderFromDB(nickname)
-		dbDevices := db.GetDBDevicesUDIDs()
-
-		for i, connectedDevice := range providerData.ConnectedDevices {
-			if slices.Contains(dbDevices, connectedDevice.UDID) {
-				providerData.ConnectedDevices[i].IsConfigured = true
-			}
-		}
 
 		jsonData, _ := json.Marshal(&providerData)
 

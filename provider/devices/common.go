@@ -33,15 +33,74 @@ import (
 var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
-var DeviceMap = make(map[string]*models.Device)
+var DBDeviceMap = make(map[string]*models.Device)
 
 func Listener() {
 	Setup()
+	DBDeviceMap = getDBProviderDevices()
+	setupDevices()
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
 	// Start updating the local devices data to Mongo in a goroutine
 	go updateDevicesMongo()
+}
+
+func setupDevices() {
+	for _, dbDevice := range DBDeviceMap {
+		dbDevice.Host = fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
+
+		// Check if a capped Appium logs collection already exists for the current device
+		exists, err := db.CollectionExists("appium_logs", dbDevice.UDID)
+		if err != nil {
+			logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
+		}
+
+		// If it doesn't exist - attempt to create it
+		if !exists {
+			err = db.CreateCappedCollection("appium_logs", dbDevice.UDID, 30000, 30)
+			if err != nil {
+				logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
+				continue
+			}
+		}
+
+		// Create an index model and add it to the respective device Appium log collection
+		appiumCollectionIndexModel := mongo.IndexModel{
+			Keys: bson.D{
+				{
+					Key: "ts", Value: constants.SortAscending},
+				{
+					Key: "session_id", Value: constants.SortAscending,
+				},
+			},
+		}
+		db.AddCollectionIndex("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
+
+		// Create logs directory for the device if it doesn't already exist
+		if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
+			err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID), os.ModePerm)
+			if err != nil {
+				logger.ProviderLogger.Errorf("updateDevices: Could not create logs folder for device `%s` - %s\n", dbDevice.UDID, err)
+				continue
+			}
+		}
+
+		// Create a custom logger and attach it to the local device
+		deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
+		if err != nil {
+			logger.ProviderLogger.Errorf("updateDevices: Could not create custom logger for device `%s` - %s\n", dbDevice.UDID, err)
+			continue
+		}
+		dbDevice.Logger = *deviceLogger
+
+		appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
+		if err != nil {
+			logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", dbDevice.UDID, err)
+			continue
+		}
+		dbDevice.AppiumLogger = appiumLogger
+	}
 }
 
 func updateDevices() {
@@ -51,121 +110,29 @@ func updateDevices() {
 	for range ticker.C {
 		connectedDevices := GetConnectedDevicesCommon()
 
-		// Loop through the connected devices
-		for _, connectedDevice := range connectedDevices {
-			// If a connected device is not already in the local devices map
-			// Do the initial set up and add it
-			if _, ok := DeviceMap[connectedDevice.UDID]; !ok {
-				newDevice := &models.Device{}
-				newDevice.UDID = connectedDevice.UDID
-				newDevice.OS = connectedDevice.OS
-				newDevice.ProviderState = "init"
-				newDevice.IsResetting = false
-				newDevice.Connected = true
+		for dbDeviceUDID, dbDevice := range DBDeviceMap {
+			if slices.Contains(connectedDevices, dbDeviceUDID) {
+				dbDevice.Connected = true
+				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
+					setContext(dbDevice)
+					if dbDevice.OS == "ios" {
+						dbDevice.WdaReadyChan = make(chan bool, 1)
+						go setupIOSDevice(dbDevice)
+					}
 
-				// Add default name for the device
-				if connectedDevice.OS == "ios" {
-					newDevice.Name = "iPhone"
-				} else {
-					newDevice.Name = "Android"
-				}
-
-				newDevice.Host = fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
-				newDevice.Provider = config.Config.EnvConfig.Nickname
-
-				// Check if a capped Appium logs collection already exists for the current device
-				exists, err := db.CollectionExists("appium_logs", newDevice.UDID)
-				if err != nil {
-					logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
-				}
-
-				// If it doesn't exist - attempt to create it
-				if !exists {
-					err = db.CreateCappedCollection("appium_logs", newDevice.UDID, 30000, 30)
-					if err != nil {
-						logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", connectedDevice.UDID, err)
-						continue
+					if dbDevice.OS == "android" {
+						go setupAndroidDevice(dbDevice)
 					}
 				}
-
-				// Create an index model and add it to the respective device Appium log collection
-				appiumCollectionIndexModel := mongo.IndexModel{
-					Keys: bson.D{
-						{
-							Key: "ts", Value: constants.SortAscending},
-						{
-							Key: "session_id", Value: constants.SortAscending,
-						},
-					},
-				}
-				db.AddCollectionIndex("appium_logs", newDevice.UDID, appiumCollectionIndexModel)
-
-				// Create logs directory for the device if it doesn't already exist
-				if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID)); os.IsNotExist(err) {
-					err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), os.ModePerm)
-					if err != nil {
-						logger.ProviderLogger.Errorf("updateDevices: Could not create logs folder for device `%s` - %s\n", newDevice.UDID, err)
-						continue
-					}
-				}
-
-				// Create a custom logger and attach it to the local device
-				deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
-				if err != nil {
-					logger.ProviderLogger.Errorf("updateDevices: Could not create custom logger for device `%s` - %s\n", newDevice.UDID, err)
-					continue
-				}
-				newDevice.Logger = *deviceLogger
-
-				appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
-				if err != nil {
-					logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", newDevice.UDID, err)
-					continue
-				}
-				newDevice.AppiumLogger = appiumLogger
-
-				// Add the new local device to the map
-				DeviceMap[connectedDevice.UDID] = newDevice
-			}
-		}
-
-		// Loop through the local devices map to remove any no longer connected devices
-		for _, localDevice := range DeviceMap {
-			isConnected := false
-			for _, connectedDevice := range connectedDevices {
-				if connectedDevice.UDID == localDevice.UDID {
-					isConnected = true
-				}
-			}
-
-			// If the device is no longer connected
-			// Reset its set up in case something is lingering and delete it from the map
-			if !isConnected {
-				resetLocalDevice(localDevice)
-				delete(DeviceMap, localDevice.UDID)
-			}
-		}
-
-		// Loop through the final local device map and set up the devices if they are not already being set up or live
-		for _, device := range DeviceMap {
-			// If we are not already preparing the device, or it's not already prepared
-			if device.ProviderState != "preparing" && device.ProviderState != "live" {
-				setContext(device)
-				if device.OS == "ios" {
-					device.WdaReadyChan = make(chan bool, 1)
-					go setupIOSDevice(device)
-				}
-
-				if device.OS == "android" {
-					go setupAndroidDevice(device)
-				}
+			} else {
+				dbDevice.ProviderState = "init"
+				dbDevice.IsResetting = false
+				dbDevice.Connected = false
 			}
 		}
 	}
 }
 
-// Create Mongo collections for all devices for logging
-// Create a map of *device.LocalDevice for easier access across the code
 func Setup() {
 	if config.Config.EnvConfig.ProvideAndroid {
 		err := providerutil.CheckGadsStreamAndDownload()
@@ -411,11 +378,11 @@ func setupIOSDevice(device *models.Device) {
 }
 
 // Gets all connected iOS and Android devices to the host
-func GetConnectedDevicesCommon() []models.ConnectedDevice {
-	var connectedDevices []models.ConnectedDevice
+func GetConnectedDevicesCommon() []string {
+	var connectedDevices []string
 
-	var androidDevices []models.ConnectedDevice
-	var iosDevices []models.ConnectedDevice
+	var androidDevices []string
+	var iosDevices []string
 
 	if config.Config.EnvConfig.ProvideAndroid {
 		androidDevices = getConnectedDevicesAndroid()
@@ -432,8 +399,8 @@ func GetConnectedDevicesCommon() []models.ConnectedDevice {
 }
 
 // Gets the connected iOS devices using the `go-ios` library
-func getConnectedDevicesIOS() []models.ConnectedDevice {
-	var connectedDevices []models.ConnectedDevice
+func getConnectedDevicesIOS() []string {
+	var connectedDevices []string
 
 	deviceList, err := ios.ListDevices()
 	if err != nil {
@@ -442,14 +409,14 @@ func getConnectedDevicesIOS() []models.ConnectedDevice {
 	}
 
 	for _, connDevice := range deviceList.DeviceList {
-		connectedDevices = append(connectedDevices, models.ConnectedDevice{OS: "ios", UDID: connDevice.Properties.SerialNumber})
+		connectedDevices = append(connectedDevices, connDevice.Properties.SerialNumber)
 	}
 	return connectedDevices
 }
 
 // Gets the connected android devices using `adb`
-func getConnectedDevicesAndroid() []models.ConnectedDevice {
-	var connectedDevices []models.ConnectedDevice
+func getConnectedDevicesAndroid() []string {
+	var connectedDevices []string
 
 	cmd := exec.Command("adb", "devices")
 	// Create a pipe to capture the command's output
@@ -471,14 +438,14 @@ func getConnectedDevicesAndroid() []models.ConnectedDevice {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") && !strings.Contains(line, "emulator") {
-			connectedDevices = append(connectedDevices, models.ConnectedDevice{OS: "android", UDID: strings.Fields(line)[0]})
+			connectedDevices = append(connectedDevices, strings.Fields(line)[0])
 		}
 	}
 
 	err = cmd.Wait()
 	if err != nil {
 		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Waiting for `%s` command to finish failed, returning empty slice - %s", cmd.Args, err))
-		return []models.ConnectedDevice{}
+		return []string{}
 	}
 
 	return connectedDevices

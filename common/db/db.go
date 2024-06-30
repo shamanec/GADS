@@ -313,7 +313,7 @@ func DeleteDeviceDB(udid string) error {
 
 func GetDevices() []models.Device {
 	// Access the database and collection
-	collection := MongoClient().Database("gads").Collection("devices")
+	collection := MongoClient().Database("gads").Collection("new_devices")
 	latestDevices := []models.Device{}
 
 	cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())

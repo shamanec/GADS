@@ -6,7 +6,10 @@ import (
 	"time"
 
 	"GADS/common/db"
+	"GADS/common/models"
+	"GADS/provider/config"
 	"GADS/provider/logger"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -27,7 +30,7 @@ func upsertDevicesMongo() {
 	ctx, cancel := context.WithCancel(db.MongoCtx())
 	defer cancel()
 
-	for _, device := range DeviceMap {
+	for _, device := range DBDeviceMap {
 		filter := bson.M{"udid": device.UDID}
 		if device.Connected {
 			device.LastUpdatedTimestamp = time.Now().UnixMilli()
@@ -38,10 +41,44 @@ func upsertDevicesMongo() {
 		}
 		opts := options.Update().SetUpsert(true)
 
-		_, err := db.MongoClient().Database("gads").Collection("devices").UpdateOne(ctx, filter, update, opts)
+		_, err := db.MongoClient().Database("gads").Collection("new_devices").UpdateOne(ctx, filter, update, opts)
 
 		if err != nil {
 			logger.ProviderLogger.LogError("provider", fmt.Sprintf("upsertDevicesMongo: Failed upserting device data in Mongo - %s", err))
 		}
 	}
+}
+
+func getDBProviderDevices() map[string]*models.Device {
+	ctx, cancel := context.WithCancel(db.MongoCtx())
+	defer cancel()
+
+	var deviceDataMap = make(map[string]*models.Device)
+
+	filter := bson.M{"provider": config.Config.EnvConfig.Nickname}
+
+	collection := db.MongoClient().Database("gads").Collection("new_devices")
+
+	cursor, err := collection.Find(ctx, filter, nil)
+	if err != nil {
+		return nil
+	}
+
+	var deviceData []*models.Device
+
+	if err := cursor.All(context.Background(), &deviceData); err != nil {
+		return nil
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil
+	}
+
+	cursor.Close(context.TODO())
+
+	for _, dbDevice := range deviceData {
+		deviceDataMap[dbDevice.UDID] = dbDevice
+	}
+
+	return deviceDataMap
 }

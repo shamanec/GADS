@@ -48,6 +48,19 @@ export default function NewDeviceBox({ device, handleAlert }) {
                     >
                         <ListItem>
                             <ListItemIcon>
+                                {device.info.os === 'ios' ? (
+                                    <PhoneIphoneIcon></PhoneIphoneIcon>
+                                ) : (
+                                    <PhoneAndroidIcon></PhoneAndroidIcon>
+                                )}
+                            </ListItemIcon>
+                            <ListItemText
+                                className='filterable info-text'
+                                primary={device.info.name}
+                            />
+                        </ListItem>
+                        <ListItem>
+                            <ListItemIcon>
                                 <InfoIcon />
                             </ListItemIcon>
                             <ListItemText
@@ -71,19 +84,6 @@ export default function NewDeviceBox({ device, handleAlert }) {
                             <ListItemText
                                 className='filterable info-text'
                                 primary={device.info.os_version}
-                            />
-                        </ListItem>
-                        <ListItem>
-                            <ListItemIcon>
-                                {device.info.os === 'ios' ? (
-                                    <PhoneIphoneIcon></PhoneIphoneIcon>
-                                ) : (
-                                    <PhoneAndroidIcon></PhoneAndroidIcon>
-                                )}
-                            </ListItemIcon>
-                            <ListItemText
-                                className='filterable info-text'
-                                primary={device.info.model}
                             />
                         </ListItem>
                         <ListItem>
