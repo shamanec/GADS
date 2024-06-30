@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect } from "react"
 import { api } from "../../../services/api"
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField } from "@mui/material"
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from "@mui/material"
 import { Auth } from "../../../contexts/Auth"
 
 export default function DevicesAdministration() {
@@ -136,73 +136,112 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         padding: '10px'
                     }}
                 >
-                    <TextField
-                        required
-                        label="UDID"
-                        value={udid}
-                        autoComplete="off"
-                        onChange={(event) => setUdid(event.target.value)}
-                    />
-                    <TextField
-                        required
-                        label="Name"
-                        value={name}
-                        autoComplete="off"
-                        onChange={(event) => setName(event.target.value)}
-                    />
-                    <TextField
-                        required
-                        label="OS Version"
-                        value={osVersion}
-                        autoComplete="off"
-                        onChange={(event) => setOSVersion(event.target.value)}
-                    />
-                    <TextField
-                        required
-                        label="Screen height"
-                        value={screenHeight}
-                        autoComplete="off"
-                        onChange={(event) => setScreenHeight(event.target.value)}
-                    />
-                    <TextField
-                        required
-                        label="Screen width"
-                        value={screenWidth}
-                        autoComplete="off"
-                        onChange={(event) => setScreenWidth(event.target.value)}
-                    />
-                    <FormControl fullWidth variant="outlined" required>
+                    <Tooltip
+                        title={<div>Unique device identifier<br />Use `adb devices` to get Android device UDID<br />Use `ios list` to get iOS device UDID with `go-ios`</div>}
+                        arrow
+                    >
                         <TextField
-                            style={{ width: "100%" }}
-                            variant="outlined"
-                            value={os}
-                            onChange={(e) => setOS(e.target.value)}
-                            select
-                            label="Device OS"
                             required
-                        >
-                            <MenuItem value='android'>Android</MenuItem>
-                            <MenuItem value='ios'>iOS</MenuItem>
-                        </TextField>
-                    </FormControl>
-                    <FormControl fullWidth variant="outlined" required>
+                            label="UDID"
+                            value={udid}
+                            autoComplete="off"
+                            onChange={(event) => setUdid(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title="Unique name for the device, e.g. iPhone SE(2nd gen)"
+                        arrow
+                    >
                         <TextField
-                            style={{ width: "100%" }}
-                            variant="outlined"
-                            value={provider}
-                            onChange={(e) => setProvider(e.target.value)}
-                            select
-                            label="Provider"
                             required
-                        >
-                            {providers.map((providerName) => {
-                                return (
-                                    <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
-                                )
-                            })
-                            }
-                        </TextField>
-                    </FormControl>
+                            label="Name"
+                            value={name}
+                            autoComplete="off"
+                            onChange={(event) => setName(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title="Device OS version, major or exact e.g 17 or 17.5.1"
+                        arrow
+                    >
+                        <TextField
+                            required
+                            label="OS Version"
+                            value={osVersion}
+                            autoComplete="off"
+                            onChange={(event) => setOSVersion(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title={<div>Device screen width<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            required
+                            label="Screen width"
+                            value={screenWidth}
+                            autoComplete="off"
+                            onChange={(event) => setScreenWidth(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title={<div>Device screen height<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            required
+                            label="Screen height"
+                            value={screenHeight}
+                            autoComplete="off"
+                            onChange={(event) => setScreenHeight(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title="Operating system of the device"
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant="outlined" required>
+                            <TextField
+                                style={{ width: "100%" }}
+                                variant="outlined"
+                                value={os}
+                                onChange={(e) => setOS(e.target.value)}
+                                select
+                                label="Device OS"
+                                required
+                            >
+                                <MenuItem value='android'>Android</MenuItem>
+                                <MenuItem value='ios'>iOS</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title="The nickname of the provider to which the device is assigned"
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant="outlined" required>
+                            <TextField
+                                style={{ width: "100%" }}
+                                variant="outlined"
+                                value={provider}
+                                onChange={(e) => setProvider(e.target.value)}
+                                select
+                                label="Provider"
+                                required
+                            >
+                                {providers.map((providerName) => {
+                                    return (
+                                        <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
+                                    )
+                                })
+                                }
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
                     <Button
                         variant="contained"
                         type="submit"
