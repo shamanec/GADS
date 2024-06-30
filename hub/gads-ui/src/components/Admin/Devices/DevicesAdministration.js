@@ -1,7 +1,7 @@
-import { useContext, useState, useEffect } from "react";
-import { api } from "../../../services/api";
-import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField } from "@mui/material";
-import { Auth } from "../../../contexts/Auth";
+import { useContext, useState, useEffect } from "react"
+import { api } from "../../../services/api"
+import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField } from "@mui/material"
+import { Auth } from "../../../contexts/Auth"
 
 export default function DevicesAdministration() {
     const [devices, setDevices] = useState([])
@@ -10,6 +10,7 @@ export default function DevicesAdministration() {
 
     function handleGetDeviceData() {
         let url = `/admin/devices`
+        // setDevices([])
 
         api.get(url)
             .then(response => {
@@ -24,7 +25,7 @@ export default function DevicesAdministration() {
                         logout()
                     }
                 }
-            });
+            })
     }
 
     useEffect(() => {
@@ -225,6 +226,15 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
     const [screenWidth, setScreenWidth] = useState(deviceData.screen_width)
     const udid = deviceData.udid
 
+    useEffect(() => {
+        setProvider(deviceData.provider)
+        setOS(deviceData.os)
+        setName(deviceData.name)
+        setOSVersion(deviceData.os_version)
+        setScreenHeight(deviceData.screen_height)
+        setScreenWidth(deviceData.screen_width)
+    }, [deviceData])
+
     function handleUpdateDevice(event) {
         event.preventDefault()
 
@@ -242,13 +252,14 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
 
         api.put(url, reqData)
             .catch(e => {
+
+            })
+            .finally(() => {
                 handleGetDeviceData()
             })
     }
 
     function handleDeleteDevice(event) {
-        console.log('koleo')
-        console.log(event)
         event.preventDefault()
 
         let url = `/admin/device/${udid}`
