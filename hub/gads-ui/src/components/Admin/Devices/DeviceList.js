@@ -1,13 +1,8 @@
-import { useContext, useState } from "react"
+import { useState } from "react"
 import { api } from "../../../services/api"
 import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField } from "@mui/material"
-import { Auth } from "../../../contexts/Auth"
 
 export default function DeviceList({ devices, providers }) {
-    const [devicesData, setDevicesData] = useState(devices)
-    const [providersData, setProvidersData] = useState(providers)
-    const { logout } = useContext(Auth)
-
     return (
         <Box
             style={{
@@ -26,6 +21,7 @@ export default function DeviceList({ devices, providers }) {
                 spacing={2}
                 marginLeft='5px'
                 marginTop='5px'
+                marginRight='20px'
                 marginBottom='20px'
             >
                 {devices.map((device) => {
@@ -59,7 +55,7 @@ function ExistingDevice({ deviceData, providersData }) {
 
         let url = `/admin/device`
 
-        const deviceData = {
+        const reqData = {
             udid: udid,
             name: name,
             os_version: osVersion,
@@ -69,7 +65,7 @@ function ExistingDevice({ deviceData, providersData }) {
             os: os
         }
 
-        api.put(url, deviceData)
+        api.put(url, reqData)
             .catch(e => {
             })
     }
@@ -77,13 +73,9 @@ function ExistingDevice({ deviceData, providersData }) {
     function handleDeleteDevice(event) {
         event.preventDefault()
 
-        let url = `/admin/device`
+        let url = `/admin/device/${udid}`
 
-        const deviceData = {
-            udid: udid
-        }
-
-        api.delete(url, deviceData)
+        api.delete(url)
             .catch(e => {
             })
     }
@@ -172,7 +164,9 @@ function ExistingDevice({ deviceData, providersData }) {
                         variant="contained"
                         type="submit"
                     >Update device</Button>
-                    <Button>Delete device</Button>
+                    <Button
+                        onClick={handleDeleteDevice}
+                    >Delete device</Button>
                 </Stack>
             </form>
         </Box>

@@ -560,27 +560,15 @@ func UpdateDevice(c *gin.Context) {
 }
 
 func DeleteDevice(c *gin.Context) {
-	reqBody, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
-		return
-	}
-	defer c.Request.Body.Close()
+	udid := c.Param("udid")
 
-	var device models.Device
-	err = json.Unmarshal(reqBody, &device)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
-		return
-	}
-
-	err = db.DeleteDeviceDB(device.UDID)
+	err := db.DeleteDeviceDB(udid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted device with udid `%s` from DB", device.UDID)})
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted device with udid `%s` from DB", udid)})
 }
 
 type AdminDeviceData struct {
