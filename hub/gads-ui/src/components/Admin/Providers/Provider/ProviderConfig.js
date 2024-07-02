@@ -23,7 +23,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
         }
     }, [data])
     // Main
-    const {logout} = useContext(Auth)
+    const { logout } = useContext(Auth)
     // OS
     const [os, setOS] = useState('windows')
     // Host address
@@ -224,7 +224,6 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         defaultValue={false}
                         value={ios}
                         onChange={(event) => setIos(event.target.value)}
-                        disabled={os === 'windows'}
                         style={{
                             width: '100%',
                             height: '40px'
@@ -277,7 +276,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         size='small'
                         fullWidth
                     />
-                    <div style={{fontWeight: '500'}}>Use custom WebDriverAgent?</div>
+                    <div style={{ fontWeight: '500' }}>Use custom WebDriverAgent?</div>
                     <Select
                         defaultValue={false}
                         value={useCustomWda}
@@ -290,7 +289,7 @@ export default function ProviderConfig({ isNew, data, setProviders }) {
                         <MenuItem value={true}>Yes</MenuItem>
                         <MenuItem value={false}>No</MenuItem>
                     </Select>
-                    <div style={{fontWeight: '500'}}>Use Selenium Grid?</div>
+                    <div style={{ fontWeight: '500' }}>Use Selenium Grid?</div>
                     <Select
                         // defaultValue={useSeleniumGrid}
                         value={useSeleniumGrid}

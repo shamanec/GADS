@@ -386,7 +386,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                             style={{ width: "100%" }}
                             variant="outlined"
                             value={provider}
-                            onChange={(e) => setOS(e.target.value)}
+                            onChange={(e) => setProvider(e.target.value)}
                             select
                             label="Provider"
                             required
