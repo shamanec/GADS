@@ -283,8 +283,6 @@ func setupIOSDevice(device *models.Device) {
 		return
 	}
 
-	fmt.Printf("Device %s is %s\n", device.UDID, isAboveIOS17)
-
 	if isAboveIOS17 && config.Config.EnvConfig.OS != "darwin" {
 		logger.ProviderLogger.LogInfo("ios_device_setup", "Device `%s` is iOS 17+ which is not supported on Windows/Linux, setup will be skipped")
 		device.ProviderState = "init"
@@ -339,7 +337,7 @@ func setupIOSDevice(device *models.Device) {
 			resetLocalDevice(device)
 			return
 		}
-		go startWdaWithGoIOS(device)
+		go startXCTestWithGoIOS(device, config.Config.EnvConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 	} else {
 		if !isAboveIOS17 {
 			wdaRepoPath := strings.TrimSuffix(config.Config.EnvConfig.WdaRepoPath, "/")
@@ -350,7 +348,7 @@ func setupIOSDevice(device *models.Device) {
 				resetLocalDevice(device)
 				return
 			}
-			go startWdaWithGoIOS(device)
+			go startXCTestWithGoIOS(device, config.Config.EnvConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 		} else {
 			go startWdaWithXcodebuild(device)
 		}

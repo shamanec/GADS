@@ -169,9 +169,14 @@ func createWebDriverAgentSession(device *models.Device) error {
 	return nil
 }
 
-// Start WebDriverAgent with the go-ios binary
-func startWdaWithGoIOS(device *models.Device) {
-	cmd := exec.CommandContext(context.Background(), "ios", "runwda", "--bundleid="+config.Config.EnvConfig.WdaBundleID, "--testrunnerbundleid="+config.Config.EnvConfig.WdaBundleID, "--xctestconfig=WebDriverAgentRunner.xctest", "--udid="+device.UDID)
+func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig string) {
+	cmd := exec.CommandContext(context.Background(),
+		"ios",
+		"runtest",
+		fmt.Sprintf("--bundle-id=%s", bundleId),
+		fmt.Sprintf("--test-runner-bundle-id=%s", bundleId),
+		fmt.Sprintf("--xctest-config=%s", xctestConfig),
+		fmt.Sprintf("--udid=%s", device.UDID))
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("startWdaWithGoIOS: Starting with command `%v`", cmd.Args))
 	// Create a pipe to capture the command's output
 	stdout, err := cmd.StdoutPipe()
@@ -219,56 +224,7 @@ func startWdaWithGoIOS(device *models.Device) {
 	}
 }
 
-// Start an XCUITest(similar to WebDriverAgent) that will enable the broadcast stream if the GADS app is used
-func startGadsIosBroadcastViaXCTestGoIOS(device *models.Device) error {
-	cmd := exec.CommandContext(context.Background(), "ios", "runwda", "--bundleid=com.shamanec.iosstreamUITests.xctrunner", "--testrunnerbundleid=com.shamanec.iosstreamUITests.xctrunner", "--xctestconfig=iosstreamUITests.xctest", "--udid="+device.UDID)
-	// Create a pipe to capture the command's output
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Error creating stdoutpipe while starting GADS broadcast with XCUITest, xcodebuild and go-ios for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return err
-	}
-
-	// Create a pipe to capture the command's error output
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Error creating stderrpipe while starting GADS broadcast with XCUITest, xcodebuild and go-ios for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return err
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Failed executing `%s` - %v", cmd.Args, err))
-		resetLocalDevice(device)
-		return err
-	}
-
-	// Create a combined reader from stdout and stderr
-	combinedReader := io.MultiReader(stderr, stdout)
-	// Create a scanner to read the command's output line by line
-	scanner := bufio.NewScanner(combinedReader)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, "didFinishExecutingTestPlan received. Closing test.") {
-			if killErr := cmd.Process.Kill(); killErr != nil {
-				return killErr
-			}
-			return nil
-		}
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		device.Logger.LogError("gads_broadcast_startup", fmt.Sprintf("startGadsIosBroadcastViaXCTestGoIOS: Error waiting for `%s` to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, device.UDID, err))
-		resetLocalDevice(device)
-		return err
-	}
-
-	return nil
-}
+//	cmd := exec.CommandContext(context.Background(), "ios", "runwda", "--bundleid=com.shamanec.iosstreamUITests.xctrunner", "--testrunnerbundleid=com.shamanec.iosstreamUITests.xctrunner", "--xctestconfig=iosstreamUITests.xctest", "--udid="+device.UDID)
 
 // Mount a developer disk image on an iOS device with the go-ios library
 func mountDeveloperImageIOS(device *models.Device) error {
