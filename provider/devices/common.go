@@ -276,12 +276,14 @@ func setupIOSDevice(device *models.Device) {
 	// Update hardware model got from plist, os version and product type
 	device.HardwareModel = plistValues["HardwareModel"].(string)
 
-	isAboveIOS17, err := isAboveIOS17(device)
+	isAboveIOS17 := isAboveIOS17(device)
 	if err != nil {
 		device.Logger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%v` is above iOS 17 - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
+
+	fmt.Printf("Device %s is %s\n", device.UDID, isAboveIOS17)
 
 	if isAboveIOS17 && config.Config.EnvConfig.OS != "darwin" {
 		logger.ProviderLogger.LogInfo("ios_device_setup", "Device `%s` is iOS 17+ which is not supported on Windows/Linux, setup will be skipped")
@@ -328,16 +330,6 @@ func setupIOSDevice(device *models.Device) {
 	go goIOSForward(device, device.StreamPort, "9500")
 	go goIOSForward(device, device.WDAStreamPort, "9100")
 
-	// TODO - finalize this when we can use go-ios to start tests anywhere
-	//if config.Config.EnvConfig.UseGadsIosStream {
-	//	err = startGadsIosBroadcastViaXCTestGoIOS(device)
-	//	if err != nil {
-	//		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not start GADS broadcast with XCTest on device `%s` - %s", device.UDID, err))
-	//		resetLocalDevice(device)
-	//		return
-	//	}
-	//}
-
 	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
 	if config.Config.EnvConfig.OS != "darwin" {
 		wdaPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.WebDriverBinary)
@@ -349,8 +341,23 @@ func setupIOSDevice(device *models.Device) {
 		}
 		go startWdaWithGoIOS(device)
 	} else {
-		go startWdaWithXcodebuild(device)
+		if !isAboveIOS17 {
+			wdaRepoPath := strings.TrimSuffix(config.Config.EnvConfig.WdaRepoPath, "/")
+			wdaPath := fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
+			err = installAppWithPathIOS(device, wdaPath)
+			if err != nil {
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
+				resetLocalDevice(device)
+				return
+			}
+			go startWdaWithGoIOS(device)
+		} else {
+			go startWdaWithXcodebuild(device)
+		}
 	}
+
+	go checkWebDriverAgentUp(device)
+
 	// Wait until WebDriverAgent successfully starts
 	select {
 	case <-device.WdaReadyChan:

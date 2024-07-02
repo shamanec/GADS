@@ -6,15 +6,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/Masterminds/semver"
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
 
 	"GADS/common/models"
 	"GADS/provider/config"
@@ -79,11 +81,6 @@ func startWdaWithXcodebuild(device *models.Device) {
 		if strings.Contains(line, "Restarting after") {
 			resetLocalDevice(device)
 			return
-		}
-
-		if strings.Contains(line, "ServerURLHere") {
-			// device.DeviceIP = strings.Split(strings.Split(line, "//")[1], ":")[0]
-			device.WdaReadyChan <- true
 		}
 	}
 
@@ -350,6 +347,35 @@ func getInstalledAppsIOS(device *models.Device) []string {
 	return installedApps
 }
 
+// To use for iOS 17+ when stable
+func StartIOSTunnel() {
+	cmd := exec.CommandContext(context.Background(), "ios", "tunnel", "start")
+
+	// Create a pipe to capture the command's output
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+	}
+
+	// Create a pipe to capture the command's error output
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+	}
+
+	err = cmd.Start()
+	if err != nil {
+	}
+
+	// Create a combined reader from stdout and stderr
+	combinedReader := io.MultiReader(stderr, stdout)
+	// Create a scanner to read the command's output line by line
+	scanner := bufio.NewScanner(combinedReader)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		fmt.Println(line)
+	}
+}
+
 // Uninstall an app on an iOS device by bundle identifier
 func uninstallAppIOS(device *models.Device, bundleID string) error {
 	cmd := exec.CommandContext(device.Context, "ios", "uninstall", bundleID, "--udid="+device.UDID)
@@ -365,9 +391,7 @@ func uninstallAppIOS(device *models.Device, bundleID string) error {
 // Install app with the go-ios binary from provided path
 func installAppWithPathIOS(device *models.Device, path string) error {
 	if config.Config.EnvConfig.OS == "windows" {
-		if strings.HasPrefix(path, "./") {
-			path = strings.TrimPrefix(path, "./")
-		}
+		path = strings.TrimPrefix(path, "./")
 	}
 
 	cmd := exec.CommandContext(device.Context, "ios", "install", fmt.Sprintf("--path=%s", path), "--udid="+device.UDID)
@@ -414,14 +438,34 @@ func installAppIOS(device *models.Device, appName string) error {
 }
 
 // Check if a device is above iOS 17
-func isAboveIOS17(device *models.Device) (bool, error) {
-	majorVersion := strings.Split(device.OSVersion, ".")[0]
-	convertedVersion, err := strconv.Atoi(majorVersion)
-	if err != nil {
-		return false, fmt.Errorf("isAboveIOS17: Failed converting `%s` to int - %s", majorVersion, err)
+func isAboveIOS17(device *models.Device) bool {
+	deviceOSVersion, _ := semver.NewVersion(device.OSVersion)
+
+	return deviceOSVersion.Major() >= 17
+}
+
+func checkWebDriverAgentUp(device *models.Device) {
+	var netClient = &http.Client{
+		Timeout: time.Second * 120,
 	}
-	if convertedVersion >= 17 {
-		return true, nil
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.WDAPort), nil)
+
+	loops := 0
+	for {
+		if loops >= 30 {
+			return
+		}
+		resp, err := netClient.Do(req)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			fmt.Println("WDA not up yet")
+		} else {
+			if resp.StatusCode == http.StatusOK {
+				device.WdaReadyChan <- true
+				return
+			}
+		}
+		loops++
 	}
-	return false, nil
 }
