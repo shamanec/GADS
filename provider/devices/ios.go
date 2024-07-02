@@ -388,25 +388,18 @@ func uninstallAppIOS(device *models.Device, bundleID string) error {
 	return nil
 }
 
-// Install app with the go-ios binary from provided path
-func installAppWithPathIOS(device *models.Device, path string) error {
-	if config.Config.EnvConfig.OS == "windows" {
-		path = strings.TrimPrefix(path, "./")
-	}
+func installAppDefaultPath(device *models.Device, appName string) error {
+	appPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, appName)
 
-	cmd := exec.CommandContext(device.Context, "ios", "install", fmt.Sprintf("--path=%s", path), "--udid="+device.UDID)
-	logger.ProviderLogger.LogDebug("install_app", fmt.Sprintf("installAppWithPathIOS: Installing with command `%s`", cmd.Args))
-	if err := cmd.Run(); err != nil {
-		device.Logger.LogError("install_app", fmt.Sprintf("Failed executing `%s` - %v", cmd.Args, err))
-		return err
-	}
-
-	return nil
+	return installAppIOS(device, appPath)
 }
 
-func installAppIOS(device *models.Device, appName string) error {
-	appPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, appName)
-	if config.Config.EnvConfig.OS == "darwin" {
+func installAppIOS(device *models.Device, appPath string) error {
+	if config.Config.EnvConfig.OS == "windows" {
+		appPath = strings.TrimPrefix(appPath, "./")
+	}
+
+	if config.Config.EnvConfig.OS == "darwin" && isAboveIOS16(device) {
 		cmd := exec.CommandContext(device.Context,
 			"xcrun",
 			"devicectl",
@@ -444,6 +437,12 @@ func isAboveIOS17(device *models.Device) bool {
 	return deviceOSVersion.Major() >= 17
 }
 
+func isAboveIOS16(device *models.Device) bool {
+	deviceOSVersion, _ := semver.NewVersion(device.OSVersion)
+
+	return deviceOSVersion.Major() >= 16
+}
+
 func checkWebDriverAgentUp(device *models.Device) {
 	var netClient = &http.Client{
 		Timeout: time.Second * 120,
@@ -459,7 +458,6 @@ func checkWebDriverAgentUp(device *models.Device) {
 		resp, err := netClient.Do(req)
 		if err != nil {
 			time.Sleep(1 * time.Second)
-			fmt.Println("WDA not up yet")
 		} else {
 			if resp.StatusCode == http.StatusOK {
 				device.WdaReadyChan <- true

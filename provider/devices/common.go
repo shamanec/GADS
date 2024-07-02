@@ -333,7 +333,7 @@ func setupIOSDevice(device *models.Device) {
 	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
 	if config.Config.EnvConfig.OS != "darwin" {
 		wdaPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.WebDriverBinary)
-		err = installAppWithPathIOS(device, wdaPath)
+		err = installAppIOS(device, wdaPath)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
 			resetLocalDevice(device)
@@ -344,7 +344,7 @@ func setupIOSDevice(device *models.Device) {
 		if !isAboveIOS17 {
 			wdaRepoPath := strings.TrimSuffix(config.Config.EnvConfig.WdaRepoPath, "/")
 			wdaPath := fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
-			err = installAppWithPathIOS(device, wdaPath)
+			err = installAppIOS(device, wdaPath)
 			if err != nil {
 				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
 				resetLocalDevice(device)
@@ -675,7 +675,7 @@ func UninstallApp(device *models.Device, app string) error {
 
 func InstallApp(device *models.Device, app string) error {
 	if device.OS == "ios" {
-		err := installAppIOS(device, app)
+		err := installAppDefaultPath(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err

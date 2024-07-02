@@ -110,7 +110,7 @@ func BuildWebDriverAgent() error {
 		return err
 	}
 
-	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting WebDriverAgent using xcodebuild in path `%s` with command `%s` ", config.Config.EnvConfig.WdaRepoPath, cmd.String()))
+	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Building WebDriverAgent for testing using xcodebuild in path `%s` with command `%s` ", config.Config.EnvConfig.WdaRepoPath, cmd.String()))
 	if err := cmd.Start(); err != nil {
 		return err
 	}
