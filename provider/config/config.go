@@ -5,25 +5,27 @@ import (
 	"GADS/common/models"
 	"bytes"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/gridfs"
 	"io"
 	"log"
 	"os"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/gridfs"
 )
 
 var Config = &models.ConfigJsonData{}
 
-func SetupConfig(nickname, folder string) {
+func SetupConfig(nickname, folder, hubAddress string) {
 	provider, err := db.GetProviderFromDB(nickname)
 	if err != nil {
-		log.Fatalf("Failed to gte provider data from DB - %s", err)
+		log.Fatalf("Failed to get provider data from DB - %s", err)
 	}
 	if provider.Nickname == "" {
 		log.Fatal("Provider with this nickname is not registered in the DB")
 	}
 	provider.ProviderFolder = folder
+	provider.HubAddress = hubAddress
 	Config.EnvConfig = provider
 }
 

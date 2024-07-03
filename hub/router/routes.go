@@ -592,3 +592,33 @@ func GetDevices(c *gin.Context) {
 
 	c.JSON(http.StatusOK, adminDeviceData)
 }
+
+var someMu sync.Mutex
+
+func ProviderDeviceUpdate(c *gin.Context) {
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err != nil {
+		// handle error if needed
+	}
+
+	var providerDeviceData []models.Device
+
+	err = json.Unmarshal(bodyBytes, &providerDeviceData)
+	if err != nil {
+		// handle error if needed
+	}
+
+	for _, providerDevice := range providerDeviceData {
+		someMu.Lock()
+		hubDevice, ok := devices.HubDevicesMap[providerDevice.UDID]
+		if providerDevice.Connected {
+			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
+		}
+		providerDevice.Available = true
+		if ok {
+			hubDevice.Device = providerDevice
+		}
+		someMu.Unlock()
+	}
+}

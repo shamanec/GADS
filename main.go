@@ -4,8 +4,9 @@ import (
 	"GADS/hub"
 	"GADS/provider"
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 var AppVersion = "development"
@@ -40,6 +41,7 @@ func main() {
 	providerCmd.Flags().String("nickname", "", "Nickname of the provider")
 	providerCmd.Flags().String("provider-folder", ".", "The folder where logs and other data will be stored")
 	providerCmd.Flags().String("log-level", "info", "The verbosity of the logs of the provider instance")
+	providerCmd.Flags().String("hub", "", "The address of the GADS hub instance")
 	rootCmd.AddCommand(providerCmd)
 
 	var versionCmd = &cobra.Command{

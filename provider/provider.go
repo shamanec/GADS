@@ -27,9 +27,14 @@ func StartProvider(flags *pflag.FlagSet) {
 	nickname, _ := flags.GetString("nickname")
 	mongoDb, _ := flags.GetString("mongo-db")
 	providerFolder, _ := flags.GetString("provider-folder")
+	hubAddress, _ := flags.GetString("hub")
 
 	if nickname == "" {
 		log.Fatalf("Please provide valid provider instance nickname via the --nickname flag, e.g. --nickname=Provider1")
+	}
+
+	if hubAddress == "" {
+		log.Fatalf("Please provide valid GADS hub instance address via the --hub flag, e.g. --hub=http://192.168.1.6:10000")
 	}
 
 	if providerFolder == "." {
@@ -48,7 +53,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	db.InitMongoClient(mongoDb)
 	defer db.MongoCtxCancel()
 	// Set up the provider configuration
-	config.SetupConfig(nickname, providerFolder)
+	config.SetupConfig(nickname, providerFolder, hubAddress)
 	config.Config.EnvConfig.OS = runtime.GOOS
 	// Defer closing the Mongo connection on provider stopped
 	defer db.CloseMongoConn()

@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -42,8 +43,54 @@ func Listener() {
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
-	// Start updating the local devices data to Mongo in a goroutine
-	go updateDevicesMongo()
+	// Start updating the local devices data to the hub in a goroutine
+	go updateDevicesHub()
+}
+
+func updateDevicesHub() {
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	var updateFailureCounter = 1
+	var mu sync.Mutex
+
+	for {
+		if updateFailureCounter >= 10 {
+			log.Fatalf("Unsuccessfully attempted to update device data in hub for 10 times, killing provider")
+		}
+		time.Sleep(1 * time.Second)
+
+		mu.Lock()
+		var properJson []models.Device
+		for _, dbDevice := range DBDeviceMap {
+			properJson = append(properJson, *dbDevice)
+		}
+		mu.Unlock()
+		jsonData, err := json.Marshal(properJson)
+		if err != nil {
+			logger.ProviderLogger.LogError("update_devices_hub", "Failed marshaling device data to json - "+err.Error())
+			continue
+		}
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update-devices", config.Config.EnvConfig.HubAddress), bytes.NewBuffer(jsonData))
+		if err != nil {
+			logger.ProviderLogger.LogError("update_devices_hub", "Failed to create request to update device data in hub - "+err.Error())
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			updateFailureCounter++
+			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Failed to execute request to update device data in hub, hub is probably down, current retry counter is `%v` - %s", hubDownCounter, err))
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			updateFailureCounter++
+			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Executed request to update device data in hub but it was not successful, current retry counter is `%v` - %s", hubDownCounter, err))
+			continue
+		}
+		// Reset the counter if update went well
+		updateFailureCounter = 1
+	}
 }
 
 func setupDevices() {

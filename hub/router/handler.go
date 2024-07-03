@@ -52,6 +52,7 @@ func HandleRequests() *gin.Engine {
 	authGroup.PUT("/admin/device", UpdateDevice)
 	authGroup.DELETE("/admin/device/:udid", DeleteDevice)
 	authGroup.GET("/admin/devices", GetDevices)
+	authGroup.POST("/provider-update-devices", ProviderDeviceUpdate)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.POST("/admin/upload-selenium-jar", UploadSeleniumJar)
 	authGroup.PUT("/admin/user")    // TODO Update user

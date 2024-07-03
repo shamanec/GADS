@@ -22,6 +22,7 @@ type ProviderDB struct {
 	WebDriverBinary      string   `json:"-" bson:"-"`
 	UseGadsIosStream     bool     `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
 	UseCustomWDA         bool     `json:"use_custom_wda" bson:"use_custom_wda"`
+	HubAddress           string   `json:"hub_address" bson:"-"`
 }
 
 type ProviderData struct {
