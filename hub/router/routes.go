@@ -612,12 +612,12 @@ func ProviderDeviceUpdate(c *gin.Context) {
 	for _, providerDevice := range providerDeviceData {
 		someMu.Lock()
 		hubDevice, ok := devices.HubDevicesMap[providerDevice.UDID]
-		if providerDevice.Connected {
-			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
-		}
-		providerDevice.Available = true
 		if ok {
-			hubDevice.Device = providerDevice
+			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
+
+			if ok {
+				hubDevice.Device = providerDevice
+			}
 		}
 		someMu.Unlock()
 	}

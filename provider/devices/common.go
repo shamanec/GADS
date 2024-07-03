@@ -79,13 +79,13 @@ func updateDevicesHub() {
 		resp, err := client.Do(req)
 		if err != nil {
 			updateFailureCounter++
-			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Failed to execute request to update device data in hub, hub is probably down, current retry counter is `%v` - %s", hubDownCounter, err))
+			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Failed to execute request to update device data in hub, hub is probably down, current retry counter is `%v` - %s", updateFailureCounter, err))
 			continue
 		}
 
 		if resp.StatusCode != 200 {
 			updateFailureCounter++
-			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Executed request to update device data in hub but it was not successful, current retry counter is `%v` - %s", hubDownCounter, err))
+			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Executed request to update device data in hub but it was not successful, current retry counter is `%v` - %s", updateFailureCounter, err))
 			continue
 		}
 		// Reset the counter if update went well

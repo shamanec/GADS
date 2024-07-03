@@ -29,6 +29,7 @@ func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canva
 }
 
 var HubDevicesMap = make(map[string]*models.LocalHubDevice)
+var mapMu sync.Mutex
 
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
@@ -37,35 +38,41 @@ func GetLatestDBDevices() {
 	for {
 		latestDBDevices = db.GetDevices()
 
-		var mapMu sync.Mutex
 		mapMu.Lock()
-		if len(latestDBDevices) < len(HubDevicesMap) {
-		HUB_DEVICES_LOOP:
-			for _, hubDevice := range HubDevicesMap {
-				for _, dbDevice := range latestDBDevices {
-					if dbDevice.UDID == hubDevice.Device.UDID {
-						continue HUB_DEVICES_LOOP
-					}
+		for udid, _ := range HubDevicesMap {
+			found := false
+			for _, dbDevice := range latestDBDevices {
+				if dbDevice.UDID == udid {
+					found = true
+					break
 				}
-				delete(HubDevicesMap, hubDevice.Device.UDID)
+			}
+			if !found {
+				delete(HubDevicesMap, udid)
 			}
 		}
 
 		for _, dbDevice := range latestDBDevices {
 			hubDevice, ok := HubDevicesMap[dbDevice.UDID]
 			if ok {
-				hubDevice.Device = dbDevice
-				if hubDevice.Device.Connected && hubDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
-					hubDevice.Device.Available = true
-
-					if hubDevice.InUseTS >= (time.Now().UnixMilli() - 3000) {
-						hubDevice.InUse = true
-					} else {
-						hubDevice.InUse = false
-					}
-				} else {
-					hubDevice.InUse = false
-					hubDevice.Device.Available = false
+				// Update data only if needed
+				if hubDevice.Device.OSVersion != dbDevice.OSVersion {
+					hubDevice.Device.OSVersion = dbDevice.OSVersion
+				}
+				if hubDevice.Device.Name != dbDevice.Name {
+					hubDevice.Device.Name = dbDevice.Name
+				}
+				if hubDevice.Device.ScreenWidth != dbDevice.ScreenWidth {
+					hubDevice.Device.ScreenWidth = dbDevice.ScreenWidth
+				}
+				if hubDevice.Device.ScreenHeight != dbDevice.ScreenHeight {
+					hubDevice.Device.ScreenHeight = dbDevice.ScreenHeight
+				}
+				if hubDevice.Device.Usage != dbDevice.Usage {
+					hubDevice.Device.Usage = dbDevice.Usage
+				}
+				if hubDevice.Device.Provider != dbDevice.Provider {
+					hubDevice.Device.Provider = dbDevice.Provider
 				}
 			} else {
 				HubDevicesMap[dbDevice.UDID] = &models.LocalHubDevice{

@@ -103,6 +103,22 @@ export default function NewDeviceBox({ device }) {
 }
 
 function DeviceStatus({ device }) {
+    device = device.info
+    console.log(device.usage)
+    if (device.usage === "disabled") {
+        return (
+            <div
+                className='offline-status'
+            >Disabled</div>
+        )
+    }
+    if (device.usage === "automation") {
+        return (
+            <div
+                className='offline-status'
+            >Automation only</div>
+        )
+    }
     if (device.is_running_automation) {
         return (
             <div>
@@ -118,7 +134,7 @@ function DeviceStatus({ device }) {
                 <div style={{ marginTop: '5px' }}>{device.in_use_by}</div>
             </div>
         )
-    } else if (device.info.available === true) {
+    } else if (device.provider_state === "live") {
         return (
             <div
                 className='available-status'
@@ -134,19 +150,17 @@ function DeviceStatus({ device }) {
 }
 
 function UseButton({ device }) {
-    // Difference between current time and last time the device was reported as healthy
-    // let healthyDiff = (Date.now() - device.last_healthy_timestamp)
+    device = device.info
     const [loading, setLoading] = useState(false)
-
     const navigate = useNavigate();
 
     function handleUseButtonClick() {
         setLoading(true);
-        const url = `/device/${device.info.udid}/health`;
+        const url = `/device/${device.udid}/health`;
         api.get(url)
             .then(response => {
                 if (response.status === 200) {
-                    navigate('/devices/control/' + device.info.udid, device);
+                    navigate('/devices/control/' + device.udid, device);
                 }
             })
             .catch(() => {
@@ -159,7 +173,7 @@ function UseButton({ device }) {
             });
     }
 
-    const buttonDisabled = loading || !device.info.connected;
+    const buttonDisabled = loading || !device.connected;
 
     if (device.is_running_automation || device.in_use) {
         return (
@@ -168,7 +182,7 @@ function UseButton({ device }) {
                 disabled
             >In Use</button>
         )
-    } else if (device.info.available === true) {
+    } else if (device.provider_state === "live" && device.usage !== "disabled" && device.usage !== "automation") {
         return (
             <button
                 className='device-buttons'
