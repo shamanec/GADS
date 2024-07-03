@@ -83,8 +83,9 @@ function NewDevice({ providers, handleGetDeviceData }) {
     const [osVersion, setOSVersion] = useState('')
     const [screenHeight, setScreenHeight] = useState('')
     const [screenWidth, setScreenWidth] = useState('')
+    const [usage, setUsage] = useState('enabled')
 
-    function handleUpdateDevice(event) {
+    function handleAddDevice(event) {
         event.preventDefault()
 
         let url = `/admin/device`
@@ -96,7 +97,8 @@ function NewDevice({ providers, handleGetDeviceData }) {
             provider: provider,
             screen_height: screenHeight,
             screen_width: screenWidth,
-            os: os
+            os: os,
+            usage: usage
         }
 
         api.post(url, deviceData)
@@ -112,6 +114,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 setOSVersion('')
                 setScreenHeight('')
                 setScreenWidth('')
+                setUsage('enabled')
                 handleGetDeviceData()
             })
     }
@@ -124,12 +127,12 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '630px',
+                height: '700px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
         >
-            <form onSubmit={handleUpdateDevice}>
+            <form onSubmit={handleAddDevice}>
                 <Stack
                     spacing={2}
                     style={{
@@ -219,6 +222,28 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
+                        title={<div>Intended usage of the device <br />Enabled: Can be used for automation and remote control <br />Automation: can be used only as automation target <br />Remote control: can be used only for remote control testing <br />Disabled: Device will not be provided</div>}
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant="outlined" required>
+                            <TextField
+                                style={{ width: "100%" }}
+                                variant="outlined"
+                                value={usage}
+                                onChange={(e) => setUsage(e.target.value)}
+                                select
+                                label="Device usage"
+                                required
+                            >
+                                <MenuItem value='enabled'>Enabled</MenuItem>
+                                <MenuItem value='automation'>Automation</MenuItem>
+                                <MenuItem value='control'>Remote control</MenuItem>
+                                <MenuItem value='disabled'>Disabled</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
                         title="The nickname of the provider to which the device is assigned"
                         arrow
                         placement='top'
@@ -263,6 +288,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
     const [osVersion, setOSVersion] = useState(deviceData.os_version)
     const [screenHeight, setScreenHeight] = useState(deviceData.screen_height)
     const [screenWidth, setScreenWidth] = useState(deviceData.screen_width)
+    const [usage, setUsage] = useState(deviceData.usage)
     const udid = deviceData.udid
 
     useEffect(() => {
@@ -286,7 +312,8 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
             provider: provider,
             screen_height: screenHeight,
             screen_width: screenWidth,
-            os: os
+            os: os,
+            usage: usage
         }
 
         api.put(url, reqData)
@@ -321,7 +348,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '630px',
+                height: '700px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -333,72 +360,133 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         padding: '20px'
                     }}
                 >
-                    <TextField
-                        disabled
-                        label="UDID"
-                        defaultValue={udid}
-                    />
-                    <TextField
-                        required
-                        label="Name"
-                        defaultValue={name}
-                        autoComplete="off"
-                        onChange={(event) => setName(event.target.value)}
-                    />
-                    <TextField
-                        required
-                        label="OS Version"
-                        defaultValue={osVersion}
-                        autoComplete="off"
-                        onChange={(event) => setOSVersion(event.target.value)}
-                    />
-                    <TextField
-                        required
-                        label="Screen width"
-                        defaultValue={screenWidth}
-                        autoComplete="off"
-                        onChange={(event) => setScreenWidth(event.target.value)}
-                    />
-                    <TextField
-                        required
-                        label="Screen height"
-                        defaultValue={screenHeight}
-                        autoComplete="off"
-                        onChange={(event) => setScreenHeight(event.target.value)}
-                    />
-                    <FormControl fullWidth variant="outlined" required>
+                    <Tooltip
+                        title={<div>Unique device identifier<br />Use `adb devices` to get Android device UDID<br />Use `ios list` to get iOS device UDID with `go-ios`</div>}
+                        arrow
+                    >
                         <TextField
                             disabled
-                            style={{ width: "100%" }}
-                            variant="outlined"
-                            value={os}
-                            onChange={(e) => setOS(e.target.value)}
-                            select
-                            label="Device OS"
-                            required
-                        >
-                            <MenuItem value='android'>Android</MenuItem>
-                            <MenuItem value='ios'>iOS</MenuItem>
-                        </TextField>
-                    </FormControl>
-                    <FormControl fullWidth variant="outlined" required>
+                            label="UDID"
+                            defaultValue={udid}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title="Unique name for the device, e.g. iPhone SE(2nd gen)"
+                        arrow
+                    >
                         <TextField
-                            style={{ width: "100%" }}
-                            variant="outlined"
-                            value={provider}
-                            onChange={(e) => setProvider(e.target.value)}
-                            select
-                            label="Provider"
                             required
-                        >
-                            {providersData.map((providerName) => {
-                                return (
-                                    <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
-                                )
-                            })
-                            }
-                        </TextField>
-                    </FormControl>
+                            label="Name"
+                            defaultValue={name}
+                            autoComplete="off"
+                            onChange={(event) => setName(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title="Device OS version, major or exact e.g 17 or 17.5.1"
+                        arrow
+                    >
+                        <TextField
+                            required
+                            label="OS Version"
+                            defaultValue={osVersion}
+                            autoComplete="off"
+                            onChange={(event) => setOSVersion(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title={<div>Device screen width<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            required
+                            label="Screen width"
+                            defaultValue={screenWidth}
+                            autoComplete="off"
+                            onChange={(event) => setScreenWidth(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title={<div>Device screen height<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            required
+                            label="Screen height"
+                            defaultValue={screenHeight}
+                            autoComplete="off"
+                            onChange={(event) => setScreenHeight(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title="Operating system of the device"
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant="outlined" required>
+                            <TextField
+                                disabled
+                                style={{ width: "100%" }}
+                                variant="outlined"
+                                value={os}
+                                onChange={(e) => setOS(e.target.value)}
+                                select
+                                label="Device OS"
+                                required
+                            >
+                                <MenuItem value='android'>Android</MenuItem>
+                                <MenuItem value='ios'>iOS</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title={<div>Intended usage of the device <br />Enabled: Can be used for automation and remote control <br />Automation: can be used only as automation target <br />Remote control: can be used only for remote control testing <br />Disabled: Device will not be provided</div>}
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant="outlined" required>
+                            <TextField
+                                style={{ width: "100%" }}
+                                variant="outlined"
+                                value={usage}
+                                onChange={(e) => setUsage(e.target.value)}
+                                select
+                                label="Device usage"
+                                required
+                            >
+                                <MenuItem value='enabled'>Enabled</MenuItem>
+                                <MenuItem value='automation'>Automation</MenuItem>
+                                <MenuItem value='control'>Remote control</MenuItem>
+                                <MenuItem value='disabled'>Disabled</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title="The nickname of the provider to which the device is assigned"
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant="outlined" required>
+                            <TextField
+                                style={{ width: "100%" }}
+                                variant="outlined"
+                                value={provider}
+                                onChange={(e) => setProvider(e.target.value)}
+                                select
+                                label="Provider"
+                                required
+                            >
+                                {providersData.map((providerName) => {
+                                    return (
+                                        <MenuItem id={providerName} value={providerName}>{providerName}</MenuItem>
+                                    )
+                                })
+                                }
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
                     <Button
                         variant="contained"
                         type="submit"

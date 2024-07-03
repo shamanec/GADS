@@ -66,6 +66,7 @@ type Device struct {
 	AppiumLogger         AppiumLogger       `json:"-" bson:"-"`                                               // provider value - AppiumLogger object for logging appium actions
 	Available            bool               `json:"available" bson:"-"`                                       // provider value - if device is currently available - not only connected, but setup completed
 	ProviderState        string             `json:"provider_state" bson:"provider_state"`                     // common value - current state of the device on the provider - init, preparing, live
+	Usage                string             `json:"usage" bson:"usage"`
 }
 
 type LocalHubDevice struct {

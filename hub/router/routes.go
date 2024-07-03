@@ -538,6 +538,10 @@ func UpdateDevice(c *gin.Context) {
 			if reqDevice.Name != "" && reqDevice.Name != dbDevice.Name {
 				dbDevice.Name = reqDevice.Name
 			}
+
+			if reqDevice.Usage != "" && reqDevice.Usage != dbDevice.Usage {
+				dbDevice.Usage = reqDevice.Usage
+			}
 			err = db.UpsertDeviceDB(dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
