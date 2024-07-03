@@ -163,6 +163,9 @@ func setupAndroidDevice(device *models.Device) {
 		}
 	}
 	getAndroidDeviceHardwareModel(device)
+	if device.OSVersion == "" {
+		getAndroidOSVersion(device)
+	}
 
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -275,6 +278,9 @@ func setupIOSDevice(device *models.Device) {
 	}
 	// Update hardware model got from plist, os version and product type
 	device.HardwareModel = plistValues["HardwareModel"].(string)
+	if device.OSVersion == "" {
+		device.OSVersion = plistValues["ProductVersion"].(string)
+	}
 
 	isAboveIOS17 := isAboveIOS17(device)
 	if err != nil {
@@ -694,7 +700,7 @@ func getAndroidDeviceHardwareModel(device *models.Device) {
 	var outBuffer bytes.Buffer
 	brandCmd.Stdout = &outBuffer
 	if err := brandCmd.Run(); err != nil {
-		device.HardwareModel = "Unknown brand and model"
+		device.HardwareModel = "Unknown"
 	}
 	brand := outBuffer.String()
 	outBuffer.Reset()
@@ -702,10 +708,25 @@ func getAndroidDeviceHardwareModel(device *models.Device) {
 	modelCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.model")
 	modelCmd.Stdout = &outBuffer
 	if err := modelCmd.Run(); err != nil {
-		device.HardwareModel = "Unknown brand/model"
+		device.HardwareModel = "Unknown"
 		return
 	}
 	model := outBuffer.String()
 
 	device.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
+}
+
+func getAndroidOSVersion(device *models.Device) {
+	sdkCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.build.version.sdk")
+	var outBuffer bytes.Buffer
+	sdkCmd.Stdout = &outBuffer
+	if err := sdkCmd.Run(); err != nil {
+		device.OSVersion = "N/A"
+	}
+	sdkVersion := strings.TrimSpace(outBuffer.String())
+	if osVersion, ok := constants.AndroidVersionToSDK[sdkVersion]; ok {
+		device.OSVersion = osVersion
+	} else {
+		device.OSVersion = "N/A"
+	}
 }

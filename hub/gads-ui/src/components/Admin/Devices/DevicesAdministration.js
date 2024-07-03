@@ -164,11 +164,10 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Device OS version, major or exact e.g 17 or 17.5.1"
+                        title={<div>Device OS version, major or exact e.g 17 or 17.5.1 <br />If you leave it empty then the provider will attempt to update it automatically on start</div>}
                         arrow
                     >
                         <TextField
-                            required
                             label="OS Version"
                             value={osVersion}
                             autoComplete="off"
@@ -275,6 +274,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
                             color: '#f4e6cd'
                         }}
                     >Add device</Button>
+                    <div>All updates to existing devices require provider restart</div>
                 </Stack>
             </form>
         </Box >
@@ -383,11 +383,10 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Device OS version, major or exact e.g 17 or 17.5.1"
+                        title={<div>Device OS version, major or exact e.g 17 or 17.5.1 <br />Set to empty if you want provider to update it on start or change if provider did not set it properly</div>}
                         arrow
                     >
                         <TextField
-                            required
                             label="OS Version"
                             defaultValue={osVersion}
                             autoComplete="off"
