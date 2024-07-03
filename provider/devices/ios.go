@@ -293,7 +293,7 @@ func getInstalledAppsIOS(device *models.Device) []string {
 		return installedApps
 	}
 
-	var mu sync.Mutex
+	var mu sync.RWMutex
 	mu.Lock()
 	defer mu.Unlock()
 	for _, appData := range appsData {

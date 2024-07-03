@@ -52,7 +52,7 @@ func updateDevicesHub() {
 		Timeout: 5 * time.Second,
 	}
 	var updateFailureCounter = 1
-	var mu sync.Mutex
+	var mu sync.RWMutex
 
 	for {
 		if updateFailureCounter >= 10 {

@@ -16,7 +16,7 @@ import (
 	"GADS/provider/logger"
 )
 
-var mu sync.Mutex
+var mu sync.RWMutex
 var UsedPorts = make(map[string]bool)
 var gadsStreamURL = "https://github.com/shamanec/GADS-Android-stream/releases/latest/download/gads-stream.apk"
 

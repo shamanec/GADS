@@ -28,8 +28,18 @@ func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canva
 	return
 }
 
-var HubDevicesMap = make(map[string]*models.LocalHubDevice)
-var mapMu sync.Mutex
+type HubDevices struct {
+	Mu      sync.RWMutex
+	Devices map[string]*models.LocalHubDevice
+}
+
+var HubDevicesData HubDevices
+
+func InitHubDevicesData() {
+	HubDevicesData = HubDevices{
+		Devices: make(map[string]*models.LocalHubDevice),
+	}
+}
 
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
@@ -38,8 +48,8 @@ func GetLatestDBDevices() {
 	for {
 		latestDBDevices = db.GetDBDeviceNew()
 
-		mapMu.Lock()
-		for udid, _ := range HubDevicesMap {
+		HubDevicesData.Mu.RLock()
+		for udid, _ := range HubDevicesData.Devices {
 			found := false
 			for _, dbDevice := range latestDBDevices {
 				if dbDevice.UDID == udid {
@@ -48,12 +58,14 @@ func GetLatestDBDevices() {
 				}
 			}
 			if !found {
-				delete(HubDevicesMap, udid)
+				delete(HubDevicesData.Devices, udid)
 			}
 		}
+		HubDevicesData.Mu.RUnlock()
 
 		for _, dbDevice := range latestDBDevices {
-			hubDevice, ok := HubDevicesMap[dbDevice.UDID]
+			HubDevicesData.Mu.Lock()
+			hubDevice, ok := HubDevicesData.Devices[dbDevice.UDID]
 			if ok {
 				// Update data only if needed
 				if hubDevice.Device.OSVersion != dbDevice.OSVersion {
@@ -75,25 +87,25 @@ func GetLatestDBDevices() {
 					hubDevice.Device.Provider = dbDevice.Provider
 				}
 			} else {
-				HubDevicesMap[dbDevice.UDID] = &models.LocalHubDevice{
+				HubDevicesData.Devices[dbDevice.UDID] = &models.LocalHubDevice{
 					Device:                   dbDevice,
 					IsRunningAutomation:      false,
 					IsAvailableForAutomation: true,
 					LastAutomationActionTS:   0,
 				}
 			}
+			HubDevicesData.Mu.Unlock()
 		}
-		mapMu.Unlock()
 		time.Sleep(1 * time.Second)
 	}
 }
 
-var getDeviceMu sync.Mutex
+var getDeviceMu sync.RWMutex
 
 func GetHubDeviceByUDID(udid string) *models.LocalHubDevice {
 	getDeviceMu.Lock()
 	defer getDeviceMu.Unlock()
-	for _, hubDevice := range HubDevicesMap {
+	for _, hubDevice := range HubDevicesData.Devices {
 		if hubDevice.Device.UDID == udid {
 			return hubDevice
 		}

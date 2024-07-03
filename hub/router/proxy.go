@@ -34,7 +34,9 @@ func DeviceProxyHandler(c *gin.Context) {
 		Director: func(req *http.Request) {
 			udid := c.Param("udid")
 			req.URL.Scheme = "http"
-			req.URL.Host = devices.GetHubDeviceByUDID(udid).Device.Host
+			devices.HubDevicesData.Mu.RLock()
+			req.URL.Host = devices.HubDevicesData.Devices[udid].Device.Host
+			devices.HubDevicesData.Mu.RUnlock()
 			req.URL.Path = "/device/" + udid + path
 		},
 		Transport: proxyTransport,

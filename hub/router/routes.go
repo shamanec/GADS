@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -362,7 +361,6 @@ func ProviderInfoSSE(c *gin.Context) {
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
-	var mu sync.Mutex
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
@@ -396,54 +394,52 @@ func DeviceInUseWS(c *gin.Context) {
 	for {
 		select {
 		case userName := <-messageReceived:
-			mu.Lock()
-			devices.HubDevicesMap[udid].InUseTS = time.Now().UnixMilli()
-			devices.HubDevicesMap[udid].InUseBy = userName
-			mu.Unlock()
+			devices.HubDevicesData.Mu.Lock()
+			devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
+			devices.HubDevicesData.Devices[udid].InUseBy = userName
+			devices.HubDevicesData.Mu.Unlock()
 		case <-time.After(2 * time.Second):
-			mu.Lock()
-			devices.HubDevicesMap[udid].InUseTS = 0
-			if devices.HubDevicesMap[udid].InUseBy != "automation" {
-				devices.HubDevicesMap[udid].InUseBy = ""
+			devices.HubDevicesData.Mu.Lock()
+			devices.HubDevicesData.Devices[udid].InUseTS = 0
+			if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {
+				devices.HubDevicesData.Devices[udid].InUseBy = ""
 			}
-			mu.Unlock()
+			devices.HubDevicesData.Mu.Unlock()
 			return
 		}
 	}
 }
 
-var availableMu sync.Mutex
-
 func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
 
-		availableMu.Lock()
+		devices.HubDevicesData.Mu.RLock()
 		// Extract the keys from the map and order them
 		var hubDeviceMapKeys []string
-		for key := range devices.HubDevicesMap {
+		for key := range devices.HubDevicesData.Devices {
 			hubDeviceMapKeys = append(hubDeviceMapKeys, key)
 		}
 		sort.Strings(hubDeviceMapKeys)
 
 		var deviceList = []*models.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
-			if devices.HubDevicesMap[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli() - 3000) {
-				devices.HubDevicesMap[key].Available = false
+			if devices.HubDevicesData.Devices[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli() - 3000) {
+				devices.HubDevicesData.Devices[key].Available = false
 			} else {
-				devices.HubDevicesMap[key].Available = true
+				devices.HubDevicesData.Devices[key].Available = true
 			}
-			if devices.HubDevicesMap[key].InUseTS > (time.Now().UnixMilli() - 3000) {
-				if !devices.HubDevicesMap[key].InUse {
-					devices.HubDevicesMap[key].InUse = true
+			if devices.HubDevicesData.Devices[key].InUseTS > (time.Now().UnixMilli() - 3000) {
+				if !devices.HubDevicesData.Devices[key].InUse {
+					devices.HubDevicesData.Devices[key].InUse = true
 				}
 			} else {
-				if devices.HubDevicesMap[key].InUse {
-					devices.HubDevicesMap[key].InUse = false
+				if devices.HubDevicesData.Devices[key].InUse {
+					devices.HubDevicesData.Devices[key].InUse = false
 				}
 			}
-			deviceList = append(deviceList, devices.HubDevicesMap[key])
+			deviceList = append(deviceList, devices.HubDevicesData.Devices[key])
 		}
-		availableMu.Unlock()
+		devices.HubDevicesData.Mu.RUnlock()
 
 		jsonData, _ := json.Marshal(deviceList)
 		c.SSEvent("", string(jsonData))
@@ -607,8 +603,6 @@ func GetDevices(c *gin.Context) {
 	c.JSON(http.StatusOK, adminDeviceData)
 }
 
-var someMu sync.Mutex
-
 func ProviderDeviceUpdate(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	defer c.Request.Body.Close()
@@ -624,8 +618,8 @@ func ProviderDeviceUpdate(c *gin.Context) {
 	}
 
 	for _, providerDevice := range providerDeviceData {
-		someMu.Lock()
-		hubDevice, ok := devices.HubDevicesMap[providerDevice.UDID]
+		devices.HubDevicesData.Mu.Lock()
+		hubDevice, ok := devices.HubDevicesData.Devices[providerDevice.UDID]
 		if ok {
 			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
@@ -633,7 +627,7 @@ func ProviderDeviceUpdate(c *gin.Context) {
 				hubDevice.Device = providerDevice
 			}
 		}
-		someMu.Unlock()
+		devices.HubDevicesData.Mu.Unlock()
 	}
 
 	c.JSON(http.StatusOK, gin.H{})
