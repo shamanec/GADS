@@ -428,9 +428,9 @@ func AvailableDevicesSSE(c *gin.Context) {
 		var deviceList = []*models.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
 			if devices.HubDevicesMap[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli() - 3000) {
-				devices.HubDevicesMap[key].Device.Available = false
+				devices.HubDevicesMap[key].Available = false
 			} else {
-				devices.HubDevicesMap[key].Device.Available = true
+				devices.HubDevicesMap[key].Available = true
 			}
 			if devices.HubDevicesMap[key].InUseTS > (time.Now().UnixMilli() - 3000) {
 				if !devices.HubDevicesMap[key].InUse {
@@ -635,4 +635,6 @@ func ProviderDeviceUpdate(c *gin.Context) {
 		}
 		someMu.Unlock()
 	}
+
+	c.JSON(http.StatusOK, gin.H{})
 }

@@ -97,7 +97,6 @@ func setupDevices() {
 	for _, dbDevice := range DBDeviceMap {
 		dbDevice.ProviderState = "init"
 		dbDevice.Connected = false
-		dbDevice.Available = false
 		dbDevice.LastUpdatedTimestamp = 0
 		dbDevice.IsResetting = false
 

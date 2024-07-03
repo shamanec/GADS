@@ -53,7 +53,6 @@ type Device struct {
 	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES
 	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
-	Available     bool     `json:"available" bson:"-"`      // if device is currently available - not only connected, but setup completed
 	///// NON-RETURNABLE VALUES
 	AppiumSessionID  string             `json:"-" bson:"-"` // current Appium session ID
 	WDASessionID     string             `json:"-" bson:"-"` // current WebDriverAgent session ID
@@ -79,4 +78,5 @@ type LocalHubDevice struct {
 	InUseTS                  int64  `json:"in_use_ts"`
 	AppiumNewCommandTimeout  int64  `json:"appium_new_command_timeout"`
 	IsAvailableForAutomation bool   `json:"is_available_for_automation"`
+	Available                bool   `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
 }

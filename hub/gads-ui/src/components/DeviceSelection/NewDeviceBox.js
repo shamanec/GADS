@@ -103,7 +103,7 @@ export default function NewDeviceBox({ device }) {
 }
 
 function DeviceStatus({ device }) {
-    if (device.info.available) {
+    if (device.available) {
         if (device.usage === "disabled") {
             return (
                 <div
@@ -188,7 +188,7 @@ function UseButton({ device }) {
 
     const buttonDisabled = loading || !device.info.connected
 
-    if (device.info.available) {
+    if (device.available) {
         if (device.is_running_automation || device.in_use) {
             return (
                 <button
