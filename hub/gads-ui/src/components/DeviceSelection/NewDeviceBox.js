@@ -104,48 +104,54 @@ export default function NewDeviceBox({ device }) {
 
 function DeviceStatus({ device }) {
     device = device.info
-    console.log(device.usage)
-    if (device.usage === "disabled") {
-        return (
-            <div
-                className='offline-status'
-            >Disabled</div>
-        )
-    }
-    if (device.usage === "automation") {
-        return (
-            <div
-                className='offline-status'
-            >Automation only</div>
-        )
-    }
-    if (device.is_running_automation) {
-        return (
-            <div>
+    if (device.available) {
+        if (device.usage === "disabled") {
+            return (
                 <div
-                    className='automation-status'
-                >Running automation</div>
-            </div>
-        )
-    } else if (device.in_use === true) {
-        return (
-            <div className='in-use-status'>
-                <div style={{ textDecoration: 'underline' }}>Currently in use</div>
-                <div style={{ marginTop: '5px' }}>{device.in_use_by}</div>
-            </div>
-        )
-    } else if (device.provider_state === "live") {
-        return (
-            <div
-                className='available-status'
-            >Available</div>
-        );
+                    className='offline-status'
+                >Disabled</div>
+            )
+        }
+        if (device.usage === "automation") {
+            if (device.is_running_automation) {
+                return (
+                    <div>
+                        <div
+                            className='automation-status'
+                        >Running automation</div>
+                    </div>
+                )
+            } else {
+                return (
+                    <div
+                        className='offline-status'
+                    >Automation only</div>
+                )
+            }
+        }
+
+        if (device.usage === "enabled" || device.usage === "remote") {
+            if (device.in_use === true) {
+                return (
+                    <div className='in-use-status'>
+                        <div style={{ textDecoration: 'underline' }}>Currently in use</div>
+                        <div style={{ marginTop: '5px' }}>{device.in_use_by}</div>
+                    </div>
+                )
+            } else {
+                return (
+                    <div
+                        className='available-status'
+                    >Available</div>
+                )
+            }
+        }
     } else {
         return (
             <div
                 className='offline-status'
             >Offline</div>
-        );
+        )
     }
 }
 
@@ -173,16 +179,17 @@ function UseButton({ device }) {
             });
     }
 
-    const buttonDisabled = loading || !device.connected;
+    const buttonDisabled = loading || !device.connected
 
-    if (device.is_running_automation || device.in_use) {
-        return (
-            <button
-                className='device-buttons'
-                disabled
-            >In Use</button>
-        )
-    } else if (device.provider_state === "live" && device.usage !== "disabled" && device.usage !== "automation") {
+    if (device.available) {
+        if (device.is_running_automation || device.in_use) {
+            return (
+                <button
+                    className='device-buttons'
+                    disabled
+                >In Use</button>
+            )
+        }
         return (
             <button
                 className='device-buttons'
@@ -191,7 +198,7 @@ function UseButton({ device }) {
             >
                 {loading ? <span className="spinner"></span> : 'Use'}
             </button>
-        );
+        )
     } else {
         return (
             <button
@@ -199,6 +206,6 @@ function UseButton({ device }) {
                 variant="contained"
                 disabled
             >N/A</button>
-        );
+        )
     }
 }

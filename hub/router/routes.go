@@ -427,6 +427,11 @@ func AvailableDevicesSSE(c *gin.Context) {
 
 		var deviceList = []*models.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
+			if devices.HubDevicesMap[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli() - 3000) {
+				devices.HubDevicesMap[key].Device.Available = false
+			} else {
+				devices.HubDevicesMap[key].Device.Available = true
+			}
 			deviceList = append(deviceList, devices.HubDevicesMap[key])
 		}
 		availableMu.Unlock()
