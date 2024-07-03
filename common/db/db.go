@@ -274,17 +274,6 @@ func GetDBDeviceNew() []models.Device {
 	return dbDevices
 }
 
-func GetDBDevicesUDIDs() []string {
-	dbDevices := GetDBDevices()
-	var udids []string
-
-	for _, dbDevice := range dbDevices {
-		udids = append(udids, dbDevice.UDID)
-	}
-
-	return udids
-}
-
 func UpsertDeviceDB(device models.Device) error {
 	update := bson.M{
 		"$set": device,
@@ -309,41 +298,6 @@ func DeleteDeviceDB(udid string) error {
 	}
 
 	return nil
-}
-
-func GetDevices() []models.Device {
-	// Access the database and collection
-	collection := MongoClient().Database("gads").Collection("new_devices")
-	latestDevices := []models.Device{}
-
-	cursor, err := collection.Find(context.Background(), bson.D{{}}, options.Find())
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
-		return latestDevices
-	}
-
-	if err := cursor.All(context.Background(), &latestDevices); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
-		return latestDevices
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-		return latestDevices
-	}
-
-	err = cursor.Close(context.TODO())
-	if err != nil {
-		//stuff
-	}
-
-	return latestDevices
 }
 
 func AddAdminUserIfMissing() error {

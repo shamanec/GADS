@@ -36,7 +36,7 @@ func GetLatestDBDevices() {
 	var latestDBDevices []models.Device
 
 	for {
-		latestDBDevices = db.GetDevices()
+		latestDBDevices = db.GetDBDeviceNew()
 
 		mapMu.Lock()
 		for udid, _ := range HubDevicesMap {
