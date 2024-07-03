@@ -432,6 +432,15 @@ func AvailableDevicesSSE(c *gin.Context) {
 			} else {
 				devices.HubDevicesMap[key].Device.Available = true
 			}
+			if devices.HubDevicesMap[key].InUseTS > (time.Now().UnixMilli() - 3000) {
+				if !devices.HubDevicesMap[key].InUse {
+					devices.HubDevicesMap[key].InUse = true
+				}
+			} else {
+				if devices.HubDevicesMap[key].InUse {
+					devices.HubDevicesMap[key].InUse = false
+				}
+			}
 			deviceList = append(deviceList, devices.HubDevicesMap[key])
 		}
 		availableMu.Unlock()

@@ -38,17 +38,17 @@ export default function TabularControl({ deviceData }) {
                 <Tab
                     className='control-tabs'
                     label='Actions'
-                    style={{ fontWeight: "bold"}}
+                    style={{ fontWeight: "bold" }}
                 />
                 <Tab
                     className='control-tabs'
                     label='Screenshot'
-                    style={{ fontWeight: "bold"}}
+                    style={{ fontWeight: "bold" }}
                 />
                 <Tab
                     className='control-tabs'
                     label='Appium Logs'
-                    style={{ fontWeight: "bold"}}
+                    style={{ fontWeight: "bold" }}
                 />
             </Tabs>
             {currentTabIndex === 1 && <Screenshot udid={udid} />}

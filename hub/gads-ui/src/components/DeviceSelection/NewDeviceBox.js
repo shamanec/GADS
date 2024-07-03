@@ -103,8 +103,7 @@ export default function NewDeviceBox({ device }) {
 }
 
 function DeviceStatus({ device }) {
-    device = device.info
-    if (device.available) {
+    if (device.info.available) {
         if (device.usage === "disabled") {
             return (
                 <div
@@ -112,7 +111,7 @@ function DeviceStatus({ device }) {
                 >Disabled</div>
             )
         }
-        if (device.usage === "automation") {
+        if (device.info.usage === "automation") {
             if (device.is_running_automation) {
                 return (
                     <div>
@@ -130,7 +129,16 @@ function DeviceStatus({ device }) {
             }
         }
 
-        if (device.usage === "enabled" || device.usage === "remote") {
+        if (device.info.usage === "enabled" || device.info.usage === "remote") {
+            if (device.is_running_automation) {
+                return (
+                    <div>
+                        <div
+                            className='automation-status'
+                        >Running automation</div>
+                    </div>
+                )
+            }
             if (device.in_use === true) {
                 return (
                     <div className='in-use-status'>
@@ -156,17 +164,16 @@ function DeviceStatus({ device }) {
 }
 
 function UseButton({ device }) {
-    device = device.info
     const [loading, setLoading] = useState(false)
     const navigate = useNavigate();
 
     function handleUseButtonClick() {
         setLoading(true);
-        const url = `/device/${device.udid}/health`;
+        const url = `/device/${device.info.udid}/health`;
         api.get(url)
             .then(response => {
                 if (response.status === 200) {
-                    navigate('/devices/control/' + device.udid, device);
+                    navigate('/devices/control/' + device.info.udid, device);
                 }
             })
             .catch(() => {
@@ -179,9 +186,9 @@ function UseButton({ device }) {
             });
     }
 
-    const buttonDisabled = loading || !device.connected
+    const buttonDisabled = loading || !device.info.connected
 
-    if (device.available) {
+    if (device.info.available) {
         if (device.is_running_automation || device.in_use) {
             return (
                 <button
