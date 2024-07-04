@@ -137,8 +137,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			devices.HubDevicesData.Mu.Lock()
 			// Set device found as running automation and is not available for automation
 			// Before even starting the Appium session creation request
+			// Also set an automation action timestamp so that the goroutine does not reset it while session is being created
 			foundDevice.IsRunningAutomation = true
 			foundDevice.IsAvailableForAutomation = false
+			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			// Update the session timeout values if none were provided
 			if appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout != 0 {
 				foundDevice.AppiumNewCommandTimeout = appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout * 1000
