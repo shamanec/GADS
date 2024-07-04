@@ -1,11 +1,11 @@
-import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button } from "@mui/material";
-import HomeIcon from '@mui/icons-material/Home';
-import InfoIcon from '@mui/icons-material/Info';
-import AspectRatioIcon from '@mui/icons-material/AspectRatio';
-import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid';
-import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
+import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button } from "@mui/material"
+import HomeIcon from '@mui/icons-material/Home'
+import InfoIcon from '@mui/icons-material/Info'
+import AspectRatioIcon from '@mui/icons-material/AspectRatio'
+import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid'
+import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone'
 import { api } from '../../services/api.js'
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom'
 import React, { useState } from 'react'
 import './NewDeviceBox.css'
 
@@ -166,25 +166,13 @@ function DeviceStatus({ device }) {
 
 function UseButton({ device }) {
     const [loading, setLoading] = useState(false)
-    const navigate = useNavigate();
+    const navigate = useNavigate()
 
     function handleUseButtonClick() {
-        setLoading(true);
-        const url = `/device/${device.info.udid}/health`;
-        api.get(url)
-            .then(response => {
-                if (response.status === 200) {
-                    navigate('/devices/control/' + device.info.udid, device);
-                }
-            })
-            .catch(() => {
-
-            })
-            .finally(() => {
-                setTimeout(() => {
-                    setLoading(false);
-                }, 2000);
-            });
+        setLoading(true)
+        setTimeout(() => {
+            navigate('/devices/control/' + device.info.udid, device)
+        }, 1000)
     }
 
     const buttonDisabled = loading || !device.info.connected
