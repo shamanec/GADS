@@ -103,14 +103,15 @@ export default function NewDeviceBox({ device }) {
 }
 
 function DeviceStatus({ device }) {
+    if (device.info.usage === "disabled") {
+        return (
+            <div
+                className='offline-status'
+            >Disabled</div>
+        )
+    }
+
     if (device.available) {
-        if (device.usage === "disabled") {
-            return (
-                <div
-                    className='offline-status'
-                >Disabled</div>
-            )
-        }
         if (device.info.usage === "automation") {
             if (device.is_running_automation) {
                 return (
@@ -123,13 +124,13 @@ function DeviceStatus({ device }) {
             } else {
                 return (
                     <div
-                        className='offline-status'
+                        className='automation-status'
                     >Automation only</div>
                 )
             }
         }
 
-        if (device.info.usage === "enabled" || device.info.usage === "remote") {
+        if (device.info.usage === "enabled" || device.info.usage === "control") {
             if (device.is_running_automation) {
                 return (
                     <div>
@@ -188,7 +189,26 @@ function UseButton({ device }) {
 
     const buttonDisabled = loading || !device.info.connected
 
+    if (device.info.usage === "disabled") {
+        return (
+            <button
+                className='device-buttons'
+                variant="contained"
+                disabled
+            >N/A</button>
+        )
+    }
+
     if (device.available) {
+        if (device.info.usage === "automation") {
+            return (
+                <button
+                    className='device-buttons'
+                    variant="contained"
+                    disabled
+                >N/A</button>
+            )
+        }
         if (device.is_running_automation || device.in_use) {
             return (
                 <button
@@ -196,16 +216,18 @@ function UseButton({ device }) {
                     disabled
                 >In Use</button>
             )
+        } else {
+            return (
+                <button
+                    className='device-buttons'
+                    onClick={handleUseButtonClick}
+                    disabled={buttonDisabled}
+                >
+                    {loading ? <span className="spinner"></span> : 'Use'}
+                </button>
+            )
         }
-        return (
-            <button
-                className='device-buttons'
-                onClick={handleUseButtonClick}
-                disabled={buttonDisabled}
-            >
-                {loading ? <span className="spinner"></span> : 'Use'}
-            </button>
-        )
+
     } else {
         return (
             <button

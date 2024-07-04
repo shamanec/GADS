@@ -621,11 +621,31 @@ func ProviderDeviceUpdate(c *gin.Context) {
 		devices.HubDevicesData.Mu.Lock()
 		hubDevice, ok := devices.HubDevicesData.Devices[providerDevice.UDID]
 		if ok {
+			// Set a timestamp to indicate last time info about the device was updated from the provider
 			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
-			if ok {
-				hubDevice.Device = providerDevice
+			// Check all DB related values so if you make a change in the DB for a device
+			// The provider pushing updates will not overwrite with something wrong
+			if providerDevice.Usage != hubDevice.Device.Usage {
+				providerDevice.Usage = hubDevice.Device.Usage
 			}
+			if providerDevice.Name != hubDevice.Device.Name {
+				providerDevice.Name = hubDevice.Device.Name
+			}
+			if providerDevice.OSVersion != hubDevice.Device.OSVersion {
+				providerDevice.OSVersion = hubDevice.Device.OSVersion
+			}
+			if providerDevice.ScreenWidth != hubDevice.Device.ScreenWidth {
+				providerDevice.ScreenWidth = hubDevice.Device.ScreenWidth
+			}
+			if providerDevice.ScreenHeight != hubDevice.Device.ScreenHeight {
+				providerDevice.ScreenHeight = hubDevice.Device.ScreenHeight
+			}
+			if providerDevice.Provider != hubDevice.Device.Provider {
+				providerDevice.Provider = hubDevice.Device.Provider
+			}
+
+			hubDevice.Device = providerDevice
 		}
 		devices.HubDevicesData.Mu.Unlock()
 	}

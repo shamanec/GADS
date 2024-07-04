@@ -162,7 +162,11 @@ func updateDevices() {
 	for range ticker.C {
 		connectedDevices := GetConnectedDevicesCommon()
 
+	DEVICE_MAP_LOOP:
 		for dbDeviceUDID, dbDevice := range DBDeviceMap {
+			if dbDevice.Usage == "disabled" {
+				continue DEVICE_MAP_LOOP
+			}
 			if slices.Contains(connectedDevices, dbDeviceUDID) {
 				dbDevice.Connected = true
 				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {

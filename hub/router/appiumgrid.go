@@ -135,6 +135,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			devices.HubDevicesData.Mu.Lock()
+			// Set device found as running automation and is not available for automation
+			// Before even starting the Appium session creation request
+			foundDevice.IsRunningAutomation = true
+			foundDevice.IsAvailableForAutomation = false
 			// Update the session timeout values if none were provided
 			if appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout != 0 {
 				foundDevice.AppiumNewCommandTimeout = appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout * 1000
@@ -150,6 +154,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
+				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "", err.Error()))
 				return
@@ -166,6 +171,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
+				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint", "", err.Error()))
 				return
@@ -177,6 +183,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
+				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				return
@@ -188,6 +195,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
+				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				return
@@ -204,8 +212,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			c.Writer.WriteHeader(resp.StatusCode)
 			c.Writer.Write(proxiedSessionResponseBody)
 			devices.HubDevicesData.Mu.Lock()
-			foundDevice.IsRunningAutomation = true
-			foundDevice.IsAvailableForAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			foundDevice.InUseBy = "automation"
 			devices.HubDevicesData.Mu.Unlock()
@@ -381,11 +387,14 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "XCUITest") {
 
 			// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
+			// Also device should not be disabled or for remote control only
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "ios") &&
 					!localDevice.InUse &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
-					localDevice.IsAvailableForAutomation {
+					localDevice.IsAvailableForAutomation &&
+					localDevice.Device.Usage != "control" &&
+					localDevice.Device.Usage != "disabled" {
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
@@ -395,11 +404,14 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "UiAutomator2") {
 
 			// Loop through all latest devices looking for an Android device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
+			// Also device should not be disabled or for remote control only
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "android") &&
 					!localDevice.InUse &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
-					localDevice.IsAvailableForAutomation {
+					localDevice.IsAvailableForAutomation &&
+					localDevice.Device.Usage != "control" &&
+					localDevice.Device.Usage != "disabled" {
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
