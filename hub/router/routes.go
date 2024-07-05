@@ -413,7 +413,7 @@ func DeviceInUseWS(c *gin.Context) {
 func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
 
-		devices.HubDevicesData.Mu.RLock()
+		devices.HubDevicesData.Mu.Lock()
 		// Extract the keys from the map and order them
 		var hubDeviceMapKeys []string
 		for key := range devices.HubDevicesData.Devices {
@@ -439,7 +439,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 			}
 			deviceList = append(deviceList, devices.HubDevicesData.Devices[key])
 		}
-		devices.HubDevicesData.Mu.RUnlock()
+		devices.HubDevicesData.Mu.Unlock()
 
 		jsonData, _ := json.Marshal(deviceList)
 		c.SSEvent("", string(jsonData))

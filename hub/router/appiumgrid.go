@@ -104,7 +104,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Check for available device
 			var foundDevice *models.LocalHubDevice
 
-			foundDevice, err = findAvailableDevice(appiumSessionBody)
+			foundDevice, _ = findAvailableDevice(appiumSessionBody)
 			// If no device is available start checking each second for 60 seconds
 			// If no device is available after 60 seconds - return error
 			if foundDevice == nil {
@@ -115,7 +115,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, err = findAvailableDevice(appiumSessionBody)
+						foundDevice, _ = findAvailableDevice(appiumSessionBody)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
@@ -260,9 +260,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			defer c.Request.Body.Close()
 
 			// Check if there is a device in the local session map for that session ID
-			devices.HubDevicesData.Mu.RLock()
+			devices.HubDevicesData.Mu.Lock()
 			foundDevice, err := getDeviceBySessionID(sessionID)
-			devices.HubDevicesData.Mu.RUnlock()
+			devices.HubDevicesData.Mu.Unlock()
 			if err != nil {
 				c.JSON(http.StatusNotFound, createErrorResponse(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID), "", ""))
 				return

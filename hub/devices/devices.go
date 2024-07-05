@@ -29,7 +29,7 @@ func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canva
 }
 
 type HubDevices struct {
-	Mu      sync.RWMutex
+	Mu      sync.Mutex
 	Devices map[string]*models.LocalHubDevice
 }
 
@@ -48,7 +48,7 @@ func GetLatestDBDevices() {
 	for {
 		latestDBDevices = db.GetDBDeviceNew()
 
-		HubDevicesData.Mu.RLock()
+		HubDevicesData.Mu.Lock()
 		for udid, _ := range HubDevicesData.Devices {
 			found := false
 			for _, dbDevice := range latestDBDevices {
@@ -61,7 +61,7 @@ func GetLatestDBDevices() {
 				delete(HubDevicesData.Devices, udid)
 			}
 		}
-		HubDevicesData.Mu.RUnlock()
+		HubDevicesData.Mu.Unlock()
 
 		for _, dbDevice := range latestDBDevices {
 			HubDevicesData.Mu.Lock()
