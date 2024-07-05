@@ -10,12 +10,9 @@ export default function DevicesAdministration() {
 
     function handleGetDeviceData() {
         let url = `/admin/devices`
-        // setDevices([])
 
         api.get(url)
             .then(response => {
-                console.log('lol')
-                console.log(response.data.devices)
                 setDevices(response.data.devices)
                 setProviders(response.data.providers)
             })
@@ -103,8 +100,6 @@ function NewDevice({ providers, handleGetDeviceData }) {
 
         api.post(url, deviceData)
             .catch(e => {
-                console.log('wtf')
-                console.log(e)
             })
             .finally(() => {
                 setUdid('')
