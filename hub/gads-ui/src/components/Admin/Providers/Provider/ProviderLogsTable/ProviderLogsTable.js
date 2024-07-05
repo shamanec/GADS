@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import {Auth} from "../../../../../contexts/Auth";
+import { Auth } from "../../../../../contexts/Auth";
 import {
     Box,
     Button,
@@ -104,7 +104,7 @@ export default function ProviderLogsTable({ nickname }) {
     }
 
     return (
-        <div style={{marginTop: '10px'}}>
+        <div style={{ margin: '10px' }}>
             <Button
                 onClick={getLogs}
                 variant='contained'
@@ -121,23 +121,23 @@ export default function ProviderLogsTable({ nickname }) {
                     backgroundColor: "#9ba984"
                 }}
             >
-                <Table sx={{ minWidth: 500 }} size='small' padding='checkbox'>
-                    <TableBody>
+                <Table size='small' padding='checkbox' id='some-table'>
+                    <TableBody >
                         {(rowsPerPage > 0
-                                ? logData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                                : logData
+                            ? logData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                            : logData
                         ).map((logEntry, index) => (
-                            <TableRow key={index}>
-                                <TableCell style={{ width: "200px", maxWidth: "200px", fontSize: "14px" }}>
+                            <TableRow key={index} >
+                                <TableCell style={{ maxWidth: '200px', fontSize: "14px" }}>
                                     {logEntry.eventname}
                                 </TableCell>
-                                <TableCell style={{ width: "600px", maxWidth: "600px", overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
+                                <TableCell title={logEntry.message} style={{ maxWidth: '800px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
                                     {logEntry.message}
                                 </TableCell>
                             </TableRow>
                         ))}
                         {emptyRows > 0 && (
-                            <TableRow style={{ height: 40 * emptyRows }}>
+                            <TableRow style={{ height: 20 * emptyRows }}>
                                 <TableCell colSpan={6} />
                             </TableRow>
                         )}

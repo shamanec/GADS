@@ -2,6 +2,7 @@ import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, D
 import { useContext, useEffect, useState } from "react"
 import { api } from "../../../services/api"
 import { Auth } from "../../../contexts/Auth"
+import ProviderLogsTable from "./Provider/ProviderLogsTable/ProviderLogsTable"
 
 export default function NewProvidersAdministration() {
     const [providers, setProviders] = useState([])
@@ -368,6 +369,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
     const [seleniumGridInstance, setSeleniumGridInstance] = useState(providerData.selenium_grid)
 
     const [openAlert, setOpenAlert] = useState(false)
+    const [openLogsDialog, setOpenLogsDialog] = useState(false)
 
     function handleDeleteProvider(event) {
         event.preventDefault()
@@ -636,6 +638,14 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         }}
                     >Update provider</Button>
                     <Button
+                        variant="contained"
+                        onClick={() => setOpenLogsDialog(true)}
+                        style={{
+                            backgroundColor: '#2f3b26',
+                            color: '#f4e6cd'
+                        }}
+                    >Show logs</Button>
+                    <Button
                         onClick={() => setOpenAlert(true)}
                         style={{
                             backgroundColor: 'orange',
@@ -645,14 +655,12 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     <Dialog
                         open={openAlert}
                         onClose={() => setOpenAlert(false)}
-                        aria-labelledby="alert-dialog-title"
-                        aria-describedby="alert-dialog-description"
                     >
-                        <DialogTitle id="alert-dialog-title">
+                        <DialogTitle>
                             {"Delete provider from DB?"}
                         </DialogTitle>
                         <DialogContent>
-                            <DialogContentText id="alert-dialog-description">
+                            <DialogContentText>
                                 Nickname: {nickname}. Host address: {hostAddress}.
                             </DialogContentText>
                         </DialogContent>
@@ -662,6 +670,19 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                                 Confirm
                             </Button>
                         </DialogActions>
+                    </Dialog>
+                    <Dialog
+                        fullWidth
+                        maxWidth="xl"
+                        open={openLogsDialog}
+                        onClose={() => setOpenLogsDialog(false)}
+                    >
+                        <DialogContent id='dialog-content' style={{ overflow: 'hidden', height: '450px' }}>
+                            <ProviderLogsTable
+                                nickname={nickname}
+                            ></ProviderLogsTable>
+                        </DialogContent>
+
                     </Dialog>
                 </Stack>
             </form>
