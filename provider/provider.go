@@ -54,13 +54,13 @@ func StartProvider(flags *pflag.FlagSet) {
 	defer db.MongoCtxCancel()
 	// Set up the provider configuration
 	config.SetupConfig(nickname, providerFolder, hubAddress)
-	config.Config.EnvConfig.OS = runtime.GOOS
+	config.ProviderConfig.OS = runtime.GOOS
 	// Defer closing the Mongo connection on provider stopped
 	defer db.CloseMongoConn()
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
-	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.Config.EnvConfig.Port))
+	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
 
 	logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is installed and available on the host")
 	if !providerutil.AppiumAvailable() {
@@ -68,7 +68,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	}
 
 	// Finalize grid configuration if Selenium Grid usage enabled
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		err = config.SetupSeleniumJar()
 		if err != nil {
 			log.Fatalf("Selenium Grid connection is enabled but there is something wrong with providing the selenium jar file from MongoDB - %s", err)
@@ -76,21 +76,21 @@ func StartProvider(flags *pflag.FlagSet) {
 	}
 
 	// If running on macOS and iOS device provisioning is enabled
-	if config.Config.EnvConfig.OS == "darwin" && config.Config.EnvConfig.ProvideIOS {
+	if config.ProviderConfig.OS == "darwin" && config.ProviderConfig.ProvideIOS {
 		logger.ProviderLogger.LogInfo("provider_setup", "Provider runs on macOS and is set up to provide iOS devices")
 		// Add a trailing slash to WDA repo folder if its missing
 		// To avoid issues with the configuration
 		logger.ProviderLogger.LogDebug("provider_setup", "Handling trailing slash of provided WebDriverAgent repo path if needed")
-		if !strings.HasSuffix(config.Config.EnvConfig.WdaRepoPath, "/") {
+		if !strings.HasSuffix(config.ProviderConfig.WdaRepoPath, "/") {
 			logger.ProviderLogger.LogDebug("provider_setup", "Provided WebDriverAgent repo path has no trailing slash, adding it")
-			config.Config.EnvConfig.WdaRepoPath = fmt.Sprintf("%s/", config.Config.EnvConfig.WdaRepoPath)
+			config.ProviderConfig.WdaRepoPath = fmt.Sprintf("%s/", config.ProviderConfig.WdaRepoPath)
 		}
 
 		// Check if the provided WebDriverAgent repo path exists
 		logger.ProviderLogger.LogDebug("provider_setup", "Checking if provided WebDriverAgent repo path exists on the host")
-		_, err := os.Stat(config.Config.EnvConfig.WdaRepoPath)
+		_, err := os.Stat(config.ProviderConfig.WdaRepoPath)
 		if err != nil {
-			log.Fatalf("`%s` does not exist, you need to provide valid path to the WebDriverAgent repo in the provider configuration", config.Config.EnvConfig.WdaRepoPath)
+			log.Fatalf("`%s` does not exist, you need to provide valid path to the WebDriverAgent repo in the provider configuration", config.ProviderConfig.WdaRepoPath)
 		}
 
 		// Check if xcodebuild is available - Xcode and command line tools should be installed
@@ -105,14 +105,14 @@ func StartProvider(flags *pflag.FlagSet) {
 		}
 	}
 
-	if config.Config.EnvConfig.ProvideIOS {
+	if config.ProviderConfig.ProvideIOS {
 		// Check if the `go-ios` binary is available on PATH as explained in the setup readme
 		if !providerutil.GoIOSAvailable() {
 			log.Fatal("`go-ios` is not available, you need to set it up on the host as explained in the readme")
 		}
 
 		// If on Linux or Windows and iOS devices provision enabled check for WebDriverAgent.ipa/app
-		if config.Config.EnvConfig.OS != "darwin" {
+		if config.ProviderConfig.OS != "darwin" {
 			logger.ProviderLogger.LogInfo(
 				"provider_setup",
 				"Provider runs on Linux/Windows and is set up to provide iOS devices, checking if prepared WebDriverAgent binary exists in the provider folder as explained in the readme")
@@ -124,7 +124,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	}
 
 	// If we want to provide Android devices check if adb is available on PATH
-	if config.Config.EnvConfig.ProvideAndroid {
+	if config.ProviderConfig.ProvideAndroid {
 		if !providerutil.AdbAvailable() {
 			logger.ProviderLogger.LogError("provider", "adb is not available, you need to set up the host as explained in the readme")
 			fmt.Println("adb is not available, you need to set up the host as explained in the readme")
@@ -151,7 +151,7 @@ func startHTTPServer() error {
 	// Start periodically updating the provider data in the DB
 	go updateProviderInDB()
 	// Start the provider
-	address := fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
+	address := fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 	err := r.Run(address)
 	if err != nil {
 		return err
@@ -170,9 +170,9 @@ func configureWebDriverBinary(providerFolder string) error {
 		if os.IsNotExist(err) {
 			return err
 		}
-		config.Config.EnvConfig.WebDriverBinary = "WebDriverAgent.app"
+		config.ProviderConfig.WebDriverBinary = "WebDriverAgent.app"
 	} else {
-		config.Config.EnvConfig.WebDriverBinary = "WebDriverAgent.ipa"
+		config.ProviderConfig.WebDriverBinary = "WebDriverAgent.ipa"
 	}
 	return nil
 }
@@ -184,7 +184,7 @@ func updateProviderInDB() {
 
 	for {
 		coll := db.MongoClient().Database("gads").Collection("providers")
-		filter := bson.D{{Key: "nickname", Value: config.Config.EnvConfig.Nickname}}
+		filter := bson.D{{Key: "nickname", Value: config.ProviderConfig.Nickname}}
 
 		var providedDevices []models.Device
 		for _, mapDevice := range devices.DBDeviceMap {

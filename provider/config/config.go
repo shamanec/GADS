@@ -14,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
 )
 
-var Config = &models.ConfigJsonData{}
+var ProviderConfig = &models.Provider{}
 
 func SetupConfig(nickname, folder, hubAddress string) {
 	provider, err := db.GetProviderFromDB(nickname)
@@ -26,7 +26,8 @@ func SetupConfig(nickname, folder, hubAddress string) {
 	}
 	provider.ProviderFolder = folder
 	provider.HubAddress = hubAddress
-	Config.EnvConfig = provider
+
+	ProviderConfig = &provider
 }
 
 func SetupSeleniumJar() error {
@@ -62,7 +63,7 @@ func SetupSeleniumJar() error {
 	}
 
 	// Create the filepath and remove the selenium jar if present
-	filePath := fmt.Sprintf("%s/%s", Config.EnvConfig.ProviderFolder, "selenium.jar")
+	filePath := fmt.Sprintf("%s/%s", ProviderConfig.ProviderFolder, "selenium.jar")
 	err = os.Remove(filePath)
 	if err != nil {
 		fmt.Printf("There is no Selenium jar file located at `%s`, nothing to remove\n", filePath)

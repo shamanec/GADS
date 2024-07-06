@@ -16,7 +16,7 @@ func getDBProviderDevices() map[string]*models.Device {
 
 	var deviceDataMap = make(map[string]*models.Device)
 
-	filter := bson.M{"provider": config.Config.EnvConfig.Nickname}
+	filter := bson.M{"provider": config.ProviderConfig.Nickname}
 
 	collection := db.MongoClient().Database("gads").Collection("new_devices")
 

@@ -1,10 +1,10 @@
 package models
 
 type ConfigJsonData struct {
-	EnvConfig ProviderDB `json:"env-config" bson:"env-config"`
+	EnvConfig Provider `json:"env-config" bson:"env-config"`
 }
 
-type ProviderDB struct {
+type Provider struct {
 	OS                   string   `json:"os" bson:"os"`
 	Nickname             string   `json:"nickname" bson:"nickname"`
 	HostAddress          string   `json:"host_address" bson:"host_address"`
@@ -26,8 +26,8 @@ type ProviderDB struct {
 }
 
 type ProviderData struct {
-	ProviderData ProviderDB `json:"provider"`
-	DeviceData   []*Device  `json:"device_data"`
+	ProviderData Provider  `json:"provider"`
+	DeviceData   []*Device `json:"device_data"`
 }
 
 type HubConfig struct {

@@ -71,7 +71,7 @@ func updateDevicesHub() {
 			logger.ProviderLogger.LogError("update_devices_hub", "Failed marshaling device data to json - "+err.Error())
 			continue
 		}
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update-devices", config.Config.EnvConfig.HubAddress), bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update-devices", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
 		if err != nil {
 			logger.ProviderLogger.LogError("update_devices_hub", "Failed to create request to update device data in hub - "+err.Error())
 		}
@@ -100,7 +100,7 @@ func setupDevices() {
 		dbDevice.LastUpdatedTimestamp = 0
 		dbDevice.IsResetting = false
 
-		dbDevice.Host = fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
+		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 
 		// Check if a capped Appium logs collection already exists for the current device
 		exists, err := db.CollectionExists("appium_logs", dbDevice.UDID)
@@ -130,8 +130,8 @@ func setupDevices() {
 		db.AddCollectionIndex("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
 
 		// Create logs directory for the device if it doesn't already exist
-		if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
-			err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID), os.ModePerm)
+		if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
+			err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID), os.ModePerm)
 			if err != nil {
 				logger.ProviderLogger.Errorf("updateDevices: Could not create logs folder for device `%s` - %s\n", dbDevice.UDID, err)
 				continue
@@ -139,14 +139,14 @@ func setupDevices() {
 		}
 
 		// Create a custom logger and attach it to the local device
-		deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
+		deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
 		if err != nil {
 			logger.ProviderLogger.Errorf("updateDevices: Could not create custom logger for device `%s` - %s\n", dbDevice.UDID, err)
 			continue
 		}
 		dbDevice.Logger = *deviceLogger
 
-		appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.Config.EnvConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
+		appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
 		if err != nil {
 			logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", dbDevice.UDID, err)
 			continue
@@ -190,7 +190,7 @@ func updateDevices() {
 }
 
 func Setup() {
-	if config.Config.EnvConfig.ProvideAndroid {
+	if config.ProviderConfig.ProvideAndroid {
 		err := providerutil.CheckGadsStreamAndDownload()
 		if err != nil {
 			log.Fatalf("Setup: Could not check availability of and download GADS-stream latest release - %s", err)
@@ -204,7 +204,7 @@ func setupAndroidDevice(device *models.Device) {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
@@ -298,7 +298,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}
 
@@ -339,14 +339,14 @@ func setupIOSDevice(device *models.Device) {
 		return
 	}
 
-	if isAboveIOS17 && config.Config.EnvConfig.OS != "darwin" {
+	if isAboveIOS17 && config.ProviderConfig.OS != "darwin" {
 		logger.ProviderLogger.LogInfo("ios_device_setup", "Device `%s` is iOS 17+ which is not supported on Windows/Linux, setup will be skipped")
 		device.ProviderState = "init"
 		return
 	}
 
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
@@ -385,18 +385,18 @@ func setupIOSDevice(device *models.Device) {
 	go goIOSForward(device, device.WDAStreamPort, "9100")
 
 	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
-	if config.Config.EnvConfig.OS != "darwin" {
-		wdaPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.WebDriverBinary)
+	if config.ProviderConfig.OS != "darwin" {
+		wdaPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
 		err = installAppIOS(device, wdaPath)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
 			resetLocalDevice(device)
 			return
 		}
-		go startXCTestWithGoIOS(device, config.Config.EnvConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
+		go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 	} else {
 		if !isAboveIOS17 {
-			wdaRepoPath := strings.TrimSuffix(config.Config.EnvConfig.WdaRepoPath, "/")
+			wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
 			wdaPath := fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
 			err = installAppIOS(device, wdaPath)
 			if err != nil {
@@ -404,7 +404,7 @@ func setupIOSDevice(device *models.Device) {
 				resetLocalDevice(device)
 				return
 			}
-			go startXCTestWithGoIOS(device, config.Config.EnvConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
+			go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 		} else {
 			go startWdaWithXcodebuild(device)
 		}
@@ -432,7 +432,7 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}
 
@@ -449,11 +449,11 @@ func GetConnectedDevicesCommon() []string {
 	var androidDevices []string
 	var iosDevices []string
 
-	if config.Config.EnvConfig.ProvideAndroid {
+	if config.ProviderConfig.ProvideAndroid {
 		androidDevices = getConnectedDevicesAndroid()
 	}
 
-	if config.Config.EnvConfig.ProvideIOS {
+	if config.ProviderConfig.ProvideIOS {
 		iosDevices = getConnectedDevicesIOS()
 	}
 
@@ -619,7 +619,7 @@ func createGridTOML(device *models.Device) error {
 		automationName = "UiAutomator2"
 	}
 
-	url := fmt.Sprintf("http://%s:%v/device/%s/appium", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port, device.UDID)
+	url := fmt.Sprintf("http://%s:%v/device/%s/appium", config.ProviderConfig.HostAddress, config.ProviderConfig.Port, device.UDID)
 	configs := fmt.Sprintf(`{"appium:deviceName": "%s", "platformName": "%s", "appium:platformVersion": "%s", "appium:automationName": "%s", "appium:udid": "%s"}`, device.Name, device.OS, device.OSVersion, automationName, device.UDID)
 
 	port, _ := providerutil.GetFreePort()
@@ -646,7 +646,7 @@ func createGridTOML(device *models.Device) error {
 		return fmt.Errorf("Failed marshalling TOML Appium config - %s", err)
 	}
 
-	file, err := os.Create(fmt.Sprintf("%s/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID))
+	file, err := os.Create(fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, device.UDID))
 	if err != nil {
 		return fmt.Errorf("Failed creating TOML Appium config file - %s", err)
 	}
@@ -665,14 +665,14 @@ func startGridNode(device *models.Device) {
 	cmd := exec.CommandContext(device.Context,
 		"java",
 		"-jar",
-		fmt.Sprintf("%s/selenium.jar", config.Config.EnvConfig.ProviderFolder),
+		fmt.Sprintf("%s/selenium.jar", config.ProviderConfig.ProviderFolder),
 		"node",
 		"--host",
-		config.Config.EnvConfig.HostAddress,
+		config.ProviderConfig.HostAddress,
 		"--config",
-		fmt.Sprintf("%s/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID),
+		fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, device.UDID),
 		"--grid-url",
-		config.Config.EnvConfig.SeleniumGrid,
+		config.ProviderConfig.SeleniumGrid,
 	)
 
 	logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s` with command `%s`", device.UDID, cmd.Args))

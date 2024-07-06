@@ -80,20 +80,20 @@ func checkDBConnection() {
 	}
 }
 
-func GetProviderFromDB(nickname string) (models.ProviderDB, error) {
-	var provider models.ProviderDB
+func GetProviderFromDB(nickname string) (models.Provider, error) {
+	var provider models.Provider
 	coll := mongoClient.Database("gads").Collection("providers")
 	filter := bson.D{{Key: "nickname", Value: nickname}}
 
 	err := coll.FindOne(context.TODO(), filter).Decode(&provider)
 	if err != nil {
-		return models.ProviderDB{}, err
+		return models.Provider{}, err
 	}
 	return provider, nil
 }
 
-func GetProvidersFromDB() []models.ProviderDB {
-	var providers []models.ProviderDB
+func GetProvidersFromDB() []models.Provider {
+	var providers []models.Provider
 	ctx, cancel := context.WithTimeout(mongoClientCtx, 10*time.Second)
 	defer cancel()
 
@@ -202,7 +202,7 @@ func GetUserFromDB(username string) (models.User, error) {
 	return user, nil
 }
 
-func AddOrUpdateProvider(provider models.ProviderDB) error {
+func AddOrUpdateProvider(provider models.Provider) error {
 	update := bson.M{
 		"$set": provider,
 	}

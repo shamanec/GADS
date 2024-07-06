@@ -103,14 +103,14 @@ func GoIOSAvailable() bool {
 // Build WebDriverAgent for testing with `xcodebuild`
 func BuildWebDriverAgent() error {
 	cmd := exec.Command("xcodebuild", "-project", "WebDriverAgent.xcodeproj", "-scheme", "WebDriverAgentRunner", "-destination", "generic/platform=iOS", "build-for-testing", "-derivedDataPath", "./build")
-	cmd.Dir = config.Config.EnvConfig.WdaRepoPath
+	cmd.Dir = config.ProviderConfig.WdaRepoPath
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
 
-	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Building WebDriverAgent for testing using xcodebuild in path `%s` with command `%s` ", config.Config.EnvConfig.WdaRepoPath, cmd.String()))
+	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Building WebDriverAgent for testing using xcodebuild in path `%s` with command `%s` ", config.ProviderConfig.WdaRepoPath, cmd.String()))
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func CheckGadsStreamAndDownload() error {
 
 // Check if the gads-stream.apk file is located in the provider folder
 func isGadsStreamApkAvailable() bool {
-	_, err := os.Stat(fmt.Sprintf("%s/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
+	_, err := os.Stat(fmt.Sprintf("%s/gads-stream.apk", config.ProviderConfig.ProviderFolder))
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -175,9 +175,9 @@ func isGadsStreamApkAvailable() bool {
 // Download the latest release of GADS-Android-stream and put the apk in the provider folder
 func downloadGadsStreamApk() error {
 	logger.ProviderLogger.LogInfo("provider", "Downloading latest GADS-stream release apk file")
-	outFile, err := os.Create(fmt.Sprintf("%s/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
+	outFile, err := os.Create(fmt.Sprintf("%s/gads-stream.apk", config.ProviderConfig.ProviderFolder))
 	if err != nil {
-		return fmt.Errorf("Could not create file at %s/gads-stream.apk - %s", config.Config.EnvConfig.ProviderFolder, err)
+		return fmt.Errorf("Could not create file at %s/gads-stream.apk - %s", config.ProviderConfig.ProviderFolder, err)
 	}
 	defer outFile.Close()
 

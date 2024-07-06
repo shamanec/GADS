@@ -31,8 +31,8 @@ func SetupLogging(level string) {
 	logLevel = level
 
 	var err error
-	fmt.Println(fmt.Sprintf("Provider will be logging to `%s/provider.log`", config.Config.EnvConfig.ProviderFolder))
-	ProviderLogger, err = CreateCustomLogger(fmt.Sprintf("%s/provider.log", config.Config.EnvConfig.ProviderFolder), config.Config.EnvConfig.Nickname)
+	fmt.Println(fmt.Sprintf("Provider will be logging to `%s/provider.log`", config.ProviderConfig.ProviderFolder))
+	ProviderLogger, err = CreateCustomLogger(fmt.Sprintf("%s/provider.log", config.ProviderConfig.ProviderFolder), config.ProviderConfig.Nickname)
 	if err != nil {
 		log.Fatalf("Failed to create custom logger for the provider instance - %s", err)
 	}
@@ -124,7 +124,7 @@ func (hook *MongoDBHook) Fire(entry *log.Entry) error {
 		Level:     entry.Level.String(),
 		Message:   entry.Message,
 		Timestamp: time.Now().UnixMilli(),
-		Host:      config.Config.EnvConfig.Nickname,
+		Host:      config.ProviderConfig.Nickname,
 		EventName: fields["event"].(string),
 	}
 

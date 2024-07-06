@@ -42,7 +42,7 @@ func stopGadsStreamService(device *models.Device) {
 func installGadsStream(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS-stream apk on device `%v`", device.UDID))
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-stream.apk", config.Config.EnvConfig.ProviderFolder))
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-stream.apk", config.ProviderConfig.ProviderFolder))
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("installGadsStream: Error executing `%s` - %s", cmd.Args, err)
@@ -194,7 +194,7 @@ func uninstallAppAndroid(device *models.Device, packageName string) error {
 
 // Install app on Android device by apk name
 func installAppAndroid(device *models.Device, appName string) error {
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, appName))
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName))
 
 	if err := cmd.Run(); err != nil {
 		device.Logger.LogError("install_app", fmt.Sprintf("installAppAndroid: Error executing `%s` trying to install app - %v", cmd.Args, err))

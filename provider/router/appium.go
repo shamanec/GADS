@@ -52,7 +52,7 @@ func appiumLockUnlock(device *models.Device, lock string) (*http.Response, error
 }
 
 func appiumTap(device *models.Device, x float64, y float64) (*http.Response, error) {
-	if config.Config.EnvConfig.UseCustomWDA && device.OS == "ios" {
+	if config.ProviderConfig.UseCustomWDA && device.OS == "ios" {
 		requestBody := struct {
 			X float64 `json:"x"`
 			Y float64 `json:"y"`
@@ -150,7 +150,7 @@ func appiumTouchAndHold(device *models.Device, x float64, y float64) (*http.Resp
 }
 
 func appiumSwipe(device *models.Device, x, y, endX, endY float64) (*http.Response, error) {
-	if config.Config.EnvConfig.UseCustomWDA && device.OS == "ios" {
+	if config.ProviderConfig.UseCustomWDA && device.OS == "ios" {
 		requestBody := struct {
 			X     float64 `json:"startX"`
 			Y     float64 `json:"startY"`
@@ -344,7 +344,7 @@ func appiumGetClipboard(device *models.Device) (*http.Response, error) {
 
 	switch device.OS {
 	case "ios":
-		activateAppResp, err := appiumActivateApp(device, config.Config.EnvConfig.WdaBundleID)
+		activateAppResp, err := appiumActivateApp(device, config.ProviderConfig.WdaBundleID)
 		if err != nil {
 			return activateAppResp, fmt.Errorf("appiumGetClipboard: Failed to activate app - %s", err)
 		}

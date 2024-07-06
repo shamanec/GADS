@@ -71,7 +71,7 @@ func newAppiumProxy(target string, path string) *httputil.ReverseProxy {
 
 func UploadAndInstallApp(c *gin.Context) {
 	// Specify the upload directory
-	uploadDir := fmt.Sprintf("%s/", config.Config.EnvConfig.ProviderFolder)
+	uploadDir := fmt.Sprintf("%s/", config.ProviderConfig.ProviderFolder)
 
 	// Read the file from the form data
 	file, err := c.FormFile("file")
@@ -227,7 +227,7 @@ func GetProviderData(c *gin.Context) {
 		deviceData = append(deviceData, device)
 	}
 
-	providerData.ProviderData = config.Config.EnvConfig
+	providerData.ProviderData = *config.ProviderConfig
 	providerData.DeviceData = deviceData
 
 	c.JSON(http.StatusOK, providerData)

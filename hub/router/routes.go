@@ -283,7 +283,7 @@ func GetProviderInfo(c *gin.Context) {
 }
 
 func AddProvider(c *gin.Context) {
-	var provider models.ProviderDB
+	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("%s", err))
@@ -345,7 +345,7 @@ func AddProvider(c *gin.Context) {
 }
 
 func UpdateProvider(c *gin.Context) {
-	var provider models.ProviderDB
+	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("%s", err))

@@ -55,7 +55,7 @@ func startWdaWithXcodebuild(device *models.Device) {
 		"-destination", "platform=iOS,id="+device.UDID,
 		"-derivedDataPath", "./build",
 		"test-without-building")
-	cmd.Dir = config.Config.EnvConfig.WdaRepoPath
+	cmd.Dir = config.ProviderConfig.WdaRepoPath
 	logger.ProviderLogger.LogDebug("webdriveragent_xcodebuild", fmt.Sprintf("startWdaWithXcodebuild: Starting WebDriverAgent with command `%v`", cmd.Args))
 
 	stdout, err := cmd.StdoutPipe()
@@ -228,7 +228,7 @@ func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig s
 
 // Mount a developer disk image on an iOS device with the go-ios library
 func mountDeveloperImageIOS(device *models.Device) error {
-	basedir := fmt.Sprintf("%s/devimages", config.Config.EnvConfig.ProviderFolder)
+	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
 	var err error
 	path, err := imagemounter.DownloadImageFor(device.GoIOSDeviceEntry, basedir)
@@ -248,7 +248,7 @@ func mountDeveloperImageIOS(device *models.Device) error {
 func pairIOS(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", device.UDID))
 
-	p12, err := os.ReadFile(fmt.Sprintf("%s/supervision.p12", config.Config.EnvConfig.ProviderFolder))
+	p12, err := os.ReadFile(fmt.Sprintf("%s/supervision.p12", config.ProviderConfig.ProviderFolder))
 	if err != nil {
 		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not read supervision.p12 file when pairing device with UDID: %s, falling back to unsupervised pairing - %s", device.UDID, err))
 		err = ios.Pair(device.GoIOSDeviceEntry)
@@ -258,7 +258,7 @@ func pairIOS(device *models.Device) error {
 		return nil
 	}
 
-	err = ios.PairSupervised(device.GoIOSDeviceEntry, p12, config.Config.EnvConfig.SupervisionPassword)
+	err = ios.PairSupervised(device.GoIOSDeviceEntry, p12, config.ProviderConfig.SupervisionPassword)
 	if err != nil {
 		return fmt.Errorf("Could not perform supervised pairing successfully - %s", err)
 	}
@@ -345,17 +345,17 @@ func uninstallAppIOS(device *models.Device, bundleID string) error {
 }
 
 func installAppDefaultPath(device *models.Device, appName string) error {
-	appPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, appName)
+	appPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName)
 
 	return installAppIOS(device, appPath)
 }
 
 func installAppIOS(device *models.Device, appPath string) error {
-	if config.Config.EnvConfig.OS == "windows" {
+	if config.ProviderConfig.OS == "windows" {
 		appPath = strings.TrimPrefix(appPath, "./")
 	}
 
-	if config.Config.EnvConfig.OS == "darwin" && isAboveIOS16(device) {
+	if config.ProviderConfig.OS == "darwin" && isAboveIOS16(device) {
 		cmd := exec.CommandContext(device.Context,
 			"xcrun",
 			"devicectl",
