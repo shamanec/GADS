@@ -350,6 +350,7 @@ function NewProvider({ handleGetProvidersData }) {
                             color: '#f4e6cd'
                         }}
                     >Add provider</Button>
+                    <div>All updates to existing provider config require provider instance restart</div>
                 </Stack>
             </form>
         </Box>

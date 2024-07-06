@@ -269,7 +269,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
                             color: '#f4e6cd'
                         }}
                     >Add device</Button>
-                    <div>All updates to existing devices require provider restart</div>
+                    <div>All updates to existing devices require respective provider restart</div>
                 </Stack>
             </form>
         </Box >
