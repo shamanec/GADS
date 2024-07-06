@@ -10,6 +10,7 @@ import {
     TableBody, TableCell,
     TableContainer, TableFooter, TablePagination,
     TableRow,
+    Tooltip,
     useTheme
 } from "@mui/material";
 import FirstPageIcon from '@mui/icons-material/FirstPage';
@@ -92,6 +93,7 @@ export default function ProviderLogsTable({ nickname }) {
         api.get(url)
             .then(response => {
                 setLogData(response.data)
+                setPage(0)
             })
             .catch(error => {
                 if (error.response) {
@@ -131,9 +133,14 @@ export default function ProviderLogsTable({ nickname }) {
                                 <TableCell style={{ maxWidth: '200px', fontSize: "14px" }}>
                                     {logEntry.eventname}
                                 </TableCell>
-                                <TableCell title={logEntry.message} style={{ maxWidth: '800px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
-                                    {logEntry.message}
-                                </TableCell>
+                                <Tooltip
+                                    title={logEntry.message}
+                                    arrow
+                                >
+                                    <TableCell style={{ maxWidth: '800px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
+                                        {logEntry.message}
+                                    </TableCell>
+                                </Tooltip>
                             </TableRow>
                         ))}
                         {emptyRows > 0 && (
