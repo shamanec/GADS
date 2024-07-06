@@ -450,6 +450,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     >
                         <FormControl fullWidth variant="outlined" required>
                             <TextField
+                                disabled
                                 style={{ width: "100%" }}
                                 variant="outlined"
                                 value={os}
