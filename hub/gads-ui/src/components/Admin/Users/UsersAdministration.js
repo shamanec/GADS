@@ -1,4 +1,4 @@
-import { Box, Button, FormControl, Grid, MenuItem, TextField, Tooltip } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogTitle, FormControl, Grid, MenuItem, TextField, Tooltip } from "@mui/material";
 import Stack from '@mui/material/Stack';
 import { api } from "../../../services/api";
 import { useContext, useEffect, useState } from "react";
@@ -171,6 +171,7 @@ function ExistingUser({ user, handleGetUserData }) {
     const [username, setUsername] = useState(user.username)
     const [password, setPassword] = useState('')
     const [role, setRole] = useState(user.role)
+    const [openAlert, setOpenAlert] = useState(false)
 
     function handleUpdateUser(event) {
         event.preventDefault()
@@ -271,8 +272,22 @@ function ExistingUser({ user, handleGetUserData }) {
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd'
                         }}
-                        onClick={handleDeleteUser}
+                        onClick={() => setOpenAlert(true)}
                     >Delete user</Button>
+                    <Dialog
+                        open={openAlert}
+                        onClose={() => setOpenAlert(false)}
+                    >
+                        <DialogTitle id="alert-dialog-title">
+                            {"Delete user from DB?"}
+                        </DialogTitle>
+                        <DialogActions>
+                            <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
+                            <Button onClick={handleDeleteUser} autoFocus>
+                                Confirm
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
                 </Stack>
             </form>
         </Box>
