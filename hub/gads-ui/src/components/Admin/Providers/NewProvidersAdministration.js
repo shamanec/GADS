@@ -61,6 +61,7 @@ export default function NewProvidersAdministration() {
                             <Grid item>
                                 <ExistingProvider
                                     providerData={provider}
+                                    handleGetProvidersData={handleGetProvidersData}
                                 >
                                 </ExistingProvider>
                             </Grid>
@@ -142,7 +143,7 @@ function NewProvider({ handleGetProvidersData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '730px',
+                height: '780px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -430,7 +431,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '730px',
+                height: '780px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}

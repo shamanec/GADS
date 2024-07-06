@@ -300,6 +300,18 @@ func DeleteDeviceDB(udid string) error {
 	return nil
 }
 
+func DeleteProviderDB(nickname string) error {
+	coll := mongoClient.Database("gads").Collection("providers")
+	filter := bson.M{"nickname": nickname}
+
+	_, err := coll.DeleteOne(mongoClientCtx, filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func AddAdminUserIfMissing() error {
 	dbUser, err := GetUserFromDB("admin")
 	if err != nil && err != mongo.ErrNoDocuments {

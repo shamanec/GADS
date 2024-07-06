@@ -343,6 +343,18 @@ func UpdateProvider(c *gin.Context) {
 	OK(c, "Provider updated successfully")
 }
 
+func DeleteProvider(c *gin.Context) {
+	nickname := c.Param("nickname")
+
+	err := db.DeleteProviderDB(nickname)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete provider from DB - %s", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted provider with nickname `%s` from DB", nickname)})
+}
+
 func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
