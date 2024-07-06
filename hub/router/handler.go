@@ -36,8 +36,9 @@ func HandleRequests() *gin.Engine {
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
+	authGroup.POST("/provider-update-devices", ProviderDeviceUpdate)
 	// Enable authentication on the endpoints below
-	// authGroup.Use(auth.AuthMiddleware())
+	authGroup.Use(auth.AuthMiddleware())
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
@@ -53,11 +54,11 @@ func HandleRequests() *gin.Engine {
 	authGroup.PUT("/admin/device", UpdateDevice)
 	authGroup.DELETE("/admin/device/:udid", DeleteDevice)
 	authGroup.GET("/admin/devices", GetDevices)
-	authGroup.POST("/provider-update-devices", ProviderDeviceUpdate)
 	authGroup.POST("/admin/user", AddUser)
+	authGroup.GET("/admin/users", GetUsers)
 	authGroup.POST("/admin/upload-selenium-jar", UploadSeleniumJar)
-	authGroup.PUT("/admin/user")    // TODO Update user
-	authGroup.DELETE("/admin/user") // TODO Delete user
+	authGroup.PUT("/admin/user", UpdateUser)
+	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
 	appiumGroup.Any("/*path")

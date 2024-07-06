@@ -245,6 +245,44 @@ func GetDBDevices() []models.Device {
 	return dbDevices
 }
 
+func GetUsers() []models.User {
+	var users []models.User
+	collection := mongoClient.Database("gads").Collection("users")
+
+	cursor, err := collection.Find(mongoClientCtx, bson.D{{}}, nil)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_users",
+		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest user info from db - %s", err))
+		return users
+	}
+
+	if err := cursor.All(mongoClientCtx, &users); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_users",
+		}).Error(fmt.Sprintf("Could not get users latest info from db cursor - %s", err))
+		return users
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_devices",
+		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
+		return users
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_users",
+		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
+		return users
+	}
+
+	cursor.Close(mongoClientCtx)
+
+	return users
+}
+
 func GetDBDeviceNew() []models.Device {
 	var dbDevices []models.Device
 	// Access the database and collection
@@ -291,6 +329,18 @@ func UpsertDeviceDB(device models.Device) error {
 func DeleteDeviceDB(udid string) error {
 	coll := mongoClient.Database("gads").Collection("new_devices")
 	filter := bson.M{"udid": udid}
+
+	_, err := coll.DeleteOne(mongoClientCtx, filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DeleteUserDB(nickname string) error {
+	coll := mongoClient.Database("gads").Collection("users")
+	filter := bson.M{"username": nickname}
 
 	_, err := coll.DeleteOne(mongoClientCtx, filter)
 	if err != nil {

@@ -180,16 +180,17 @@ func AddUser(c *gin.Context) {
 	}
 
 	if user.Username == "" {
-		user.Username = "New user"
+		BadRequest(c, "Empty username provided")
+	}
+
+	if user.Password == "" {
+		BadRequest(c, "Empty password provided")
 	}
 
 	dbUser, err := db.GetUserFromDB(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
-	} else {
-		fmt.Println("User does not exist, creating")
-		// ADD LOGGER HERE
 	}
 
 	if dbUser != (models.User{}) {
@@ -204,6 +205,60 @@ func AddUser(c *gin.Context) {
 	}
 
 	OK(c, "Successfully added user")
+}
+
+func UpdateUser(c *gin.Context) {
+	var user models.User
+
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		InternalServerError(c, fmt.Sprintf("%s", err))
+		return
+	}
+
+	err = json.Unmarshal(body, &user)
+	if err != nil {
+		BadRequest(c, fmt.Sprintf("%s", err))
+		return
+	}
+
+	if user == (models.User{}) {
+		BadRequest(c, "Empty or invalid body")
+		return
+	}
+
+	dbUser, err := db.GetUserFromDB(user.Username)
+	if err != nil && err != mongo.ErrNoDocuments {
+		InternalServerError(c, "Failed checking for user in db - "+err.Error())
+		return
+	}
+
+	if dbUser == (models.User{}) {
+		BadRequest(c, "Cannot update non-existing user")
+		return
+	}
+
+	if user.Password == "" {
+		user.Password = dbUser.Password
+	}
+
+	err = db.AddOrUpdateUser(user)
+	if err != nil {
+		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
+		return
+	}
+}
+
+func DeleteUser(c *gin.Context) {
+	nickname := c.Param("nickname")
+
+	err := db.DeleteUserDB(nickname)
+	if err != nil {
+		InternalServerError(c, "Failed to delete user - "+err.Error())
+		return
+	}
+
+	OK(c, "Successfully deleted user")
 }
 
 func GetProviders(c *gin.Context) {
@@ -663,4 +718,11 @@ func ProviderDeviceUpdate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{})
+}
+
+func GetUsers(c *gin.Context) {
+	users := db.GetUsers()
+	fmt.Println(users)
+
+	c.JSON(http.StatusOK, users)
 }
