@@ -1,9 +1,5 @@
 package models
 
-type ConfigJsonData struct {
-	EnvConfig Provider `json:"env-config" bson:"env-config"`
-}
-
 type Provider struct {
 	OS                   string   `json:"os" bson:"os"`
 	Nickname             string   `json:"nickname" bson:"nickname"`
