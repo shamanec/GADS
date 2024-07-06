@@ -3,7 +3,6 @@ import Tab from '@mui/material/Tab';
 import { useState } from "react";
 import { Box } from "@mui/material";
 import UsersAdministration from "./Users/UsersAdministration";
-import ProvidersAdministration from "./Providers/ProvidersAdministration";
 import FilesAdministration from "./Files/FilesAdministration";
 import DevicesAdministration from './Devices/DevicesAdministration';
 import NewProvidersAdministration from './Providers/NewProvidersAdministration';

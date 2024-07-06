@@ -2,7 +2,7 @@ import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, D
 import { useContext, useEffect, useState } from "react"
 import { api } from "../../../services/api"
 import { Auth } from "../../../contexts/Auth"
-import ProviderLogsTable from "./Provider/ProviderLogsTable/ProviderLogsTable"
+import ProviderLogsTable from "./ProviderLogsTable"
 
 export default function NewProvidersAdministration() {
     const [providers, setProviders] = useState([])

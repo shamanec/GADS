@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { Auth } from "../../../../../contexts/Auth";
+import { Auth } from "../../../contexts/Auth.js";
 import {
     Box,
     Button,
@@ -17,7 +17,7 @@ import FirstPageIcon from '@mui/icons-material/FirstPage';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 import LastPageIcon from '@mui/icons-material/LastPage';
-import { api } from '../../../../../services/api.js'
+import { api } from '../../../services/api.js'
 
 function TablePaginationActions(props) {
     const theme = useTheme();
