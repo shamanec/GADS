@@ -180,6 +180,7 @@ function NewProvider({ handleGetProvidersData }) {
                     <Tooltip
                         title="Unique name for the provider"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -193,6 +194,7 @@ function NewProvider({ handleGetProvidersData }) {
                     <Tooltip
                         title="Host local network address, e.g. 192.168.1.6"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -206,6 +208,7 @@ function NewProvider({ handleGetProvidersData }) {
                     <Tooltip
                         title="Port for the provider instance, e.g. 10001"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -261,6 +264,7 @@ function NewProvider({ handleGetProvidersData }) {
                     <Tooltip
                         title="WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -275,6 +279,7 @@ function NewProvider({ handleGetProvidersData }) {
                     <Tooltip
                         title="WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -301,6 +306,7 @@ function NewProvider({ handleGetProvidersData }) {
                                 select
                                 label="Use custom WDA?"
                                 required
+                                disabled={!ios}
                             >
                                 <MenuItem value={true}>Yes</MenuItem>
                                 <MenuItem value={false}>No</MenuItem>
@@ -331,6 +337,7 @@ function NewProvider({ handleGetProvidersData }) {
                     <Tooltip
                         title="Selenium Grid instance address, e.g. http://192.168.1.6:4444"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -470,6 +477,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     <Tooltip
                         title="Unique name for the provider"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -483,6 +491,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     <Tooltip
                         title="Host local network address, e.g. 192.168.1.6"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -496,6 +505,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     <Tooltip
                         title="Port for the provider instance, e.g. 10001"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -551,6 +561,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     <Tooltip
                         title="WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -565,6 +576,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     <Tooltip
                         title="WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
@@ -591,6 +603,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                                 select
                                 label="Use custom WDA?"
                                 required
+                                disabled={!ios}
                             >
                                 <MenuItem value={true}>Yes</MenuItem>
                                 <MenuItem value={false}>No</MenuItem>
@@ -621,6 +634,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     <Tooltip
                         title="Selenium Grid instance address, e.g. http://192.168.1.6:4444"
                         arrow
+                        placement='top'
                     >
                         <TextField
                             required
