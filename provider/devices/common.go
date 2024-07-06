@@ -44,15 +44,15 @@ func Listener() {
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
 	// Start updating the local devices data to the hub in a goroutine
-	go updateDevicesHub()
+	go updateProviderHub()
 }
 
-func updateDevicesHub() {
+func updateProviderHub() {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
 	var updateFailureCounter = 1
-	var mu sync.RWMutex
+	var mu sync.Mutex
 
 	for {
 		if updateFailureCounter >= 10 {
@@ -61,31 +61,33 @@ func updateDevicesHub() {
 		time.Sleep(1 * time.Second)
 
 		mu.Lock()
-		var properJson []models.Device
+
+		var properJson models.ProviderData
 		for _, dbDevice := range DBDeviceMap {
-			properJson = append(properJson, *dbDevice)
+			properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
+			properJson.ProviderData = *config.ProviderConfig
 		}
 		mu.Unlock()
 		jsonData, err := json.Marshal(properJson)
 		if err != nil {
-			logger.ProviderLogger.LogError("update_devices_hub", "Failed marshaling device data to json - "+err.Error())
+			logger.ProviderLogger.LogError("update_provider_hub", "Failed marshaling provider data to json - "+err.Error())
 			continue
 		}
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update-devices", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
 		if err != nil {
-			logger.ProviderLogger.LogError("update_devices_hub", "Failed to create request to update device data in hub - "+err.Error())
+			logger.ProviderLogger.LogError("update_provider_hub", "Failed to create request to update provider data in hub - "+err.Error())
 		}
 
 		resp, err := client.Do(req)
 		if err != nil {
 			updateFailureCounter++
-			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Failed to execute request to update device data in hub, hub is probably down, current retry counter is `%v` - %s", updateFailureCounter, err))
+			logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", updateFailureCounter, err))
 			continue
 		}
 
 		if resp.StatusCode != 200 {
 			updateFailureCounter++
-			logger.ProviderLogger.LogError("updated_devices_hub", fmt.Sprintf("Executed request to update device data in hub but it was not successful, current retry counter is `%v` - %s", updateFailureCounter, err))
+			logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", updateFailureCounter, err))
 			continue
 		}
 		// Reset the counter if update went well

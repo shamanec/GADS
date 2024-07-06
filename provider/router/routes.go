@@ -222,9 +222,9 @@ func UploadAndInstallApp(c *gin.Context) {
 func GetProviderData(c *gin.Context) {
 	var providerData models.ProviderData
 
-	deviceData := []*models.Device{}
+	deviceData := []models.Device{}
 	for _, device := range devices.DBDeviceMap {
-		deviceData = append(deviceData, device)
+		deviceData = append(deviceData, *device)
 	}
 
 	providerData.ProviderData = *config.ProviderConfig

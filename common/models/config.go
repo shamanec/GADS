@@ -26,8 +26,8 @@ type Provider struct {
 }
 
 type ProviderData struct {
-	ProviderData Provider  `json:"provider"`
-	DeviceData   []*Device `json:"device_data"`
+	ProviderData Provider `json:"provider"`
+	DeviceData   []Device `json:"device_data"`
 }
 
 type HubConfig struct {

@@ -36,7 +36,7 @@ func HandleRequests() *gin.Engine {
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
-	authGroup.POST("/provider-update-devices", ProviderDeviceUpdate)
+	authGroup.POST("/provider-update", ProviderUpdate)
 	// Enable authentication on the endpoints below
 	authGroup.Use(auth.AuthMiddleware())
 	authGroup.GET("/appium-logs", GetAppiumLogs)

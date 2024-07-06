@@ -670,21 +670,21 @@ func GetDevices(c *gin.Context) {
 	c.JSON(http.StatusOK, adminDeviceData)
 }
 
-func ProviderDeviceUpdate(c *gin.Context) {
+func ProviderUpdate(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	defer c.Request.Body.Close()
 	if err != nil {
 		// handle error if needed
 	}
 
-	var providerDeviceData []models.Device
+	var providerDeviceData models.ProviderData
 
 	err = json.Unmarshal(bodyBytes, &providerDeviceData)
 	if err != nil {
 		// handle error if needed
 	}
 
-	for _, providerDevice := range providerDeviceData {
+	for _, providerDevice := range providerDeviceData.DeviceData {
 		devices.HubDevicesData.Mu.Lock()
 		hubDevice, ok := devices.HubDevicesData.Devices[providerDevice.UDID]
 		if ok {
