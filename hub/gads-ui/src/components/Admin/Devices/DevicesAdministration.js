@@ -266,7 +266,8 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         type="submit"
                         style={{
                             backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            color: '#f4e6cd',
+                            fontWeight: "bold"
                         }}
                     >Add device</Button>
                     <div>All updates to existing devices require respective provider restart</div>
@@ -486,14 +487,16 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         type="submit"
                         style={{
                             backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            color: '#f4e6cd',
+                            fontWeight: "bold"
                         }}
                     >Update device</Button>
                     <Button
                         onClick={() => setOpenAlert(true)}
                         style={{
                             backgroundColor: 'orange',
-                            color: '#2f3b26'
+                            color: '#2f3b26',
+                            fontWeight: "bold"
                         }}
                     >Delete device</Button>
                     <Dialog

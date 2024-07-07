@@ -55,8 +55,6 @@ export default function NewProvidersAdministration() {
                         </NewProvider>
                     </Grid>
                     {providers.map((provider) => {
-                        console.log('adding new provider')
-                        console.log(provider)
                         return (
                             <Grid item>
                                 <ExistingProvider
@@ -354,7 +352,8 @@ function NewProvider({ handleGetProvidersData }) {
                         type="submit"
                         style={{
                             backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            color: '#f4e6cd',
+                            fontWeight: "bold"
                         }}
                     >Add provider</Button>
                     <div>All updates to existing provider config require provider instance restart</div>
@@ -651,7 +650,8 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         type="submit"
                         style={{
                             backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            color: '#f4e6cd',
+                            fontWeight: "bold"
                         }}
                     >Update provider</Button>
                     <Button
@@ -659,14 +659,16 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         onClick={() => setOpenLogsDialog(true)}
                         style={{
                             backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            color: '#f4e6cd',
+                            fontWeight: "bold"
                         }}
                     >Show logs</Button>
                     <Button
                         onClick={() => setOpenAlert(true)}
                         style={{
                             backgroundColor: 'orange',
-                            color: '#2f3b26'
+                            color: '#2f3b26',
+                            fontWeight: "bold"
                         }}
                     >Delete provider</Button>
                     <Dialog

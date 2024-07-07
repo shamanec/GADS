@@ -108,7 +108,7 @@ function NewUser({ handleGetUserData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '350px',
+                height: '300px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -127,7 +127,6 @@ function NewUser({ handleGetUserData }) {
                         autoComplete="off"
                         size='small'
                         onChange={(event) => setUsername(event.target.value)}
-                        helperText='Username should be at least 4 characters'
                     />
                     <TextField
                         required
@@ -136,7 +135,6 @@ function NewUser({ handleGetUserData }) {
                         autoComplete="off"
                         size='small'
                         onChange={(event) => setPassword(event.target.value)}
-                        helperText='Password should be minimum 6 chars long, contain upper and lower case letter, digit and special char'
                     />
                     <FormControl fullWidth variant="outlined" required>
                         <TextField
@@ -158,7 +156,8 @@ function NewUser({ handleGetUserData }) {
                         type="submit"
                         style={{
                             backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            color: '#f4e6cd',
+                            fontWeight: "bold"
                         }}
                     >Add user</Button>
                 </Stack>
@@ -212,7 +211,7 @@ function ExistingUser({ user, handleGetUserData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '350px',
+                height: '300px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -231,7 +230,6 @@ function ExistingUser({ user, handleGetUserData }) {
                         autoComplete="off"
                         size='small'
                         onChange={(event) => setUsername(event.target.value)}
-                        helperText='Username should be at least 4 characters'
                     />
                     <TextField
                         label="Password"
@@ -239,7 +237,6 @@ function ExistingUser({ user, handleGetUserData }) {
                         autoComplete="off"
                         size='small'
                         onChange={(event) => setPassword(event.target.value)}
-                        helperText='Password should be minimum 6 chars long, contain upper and lower case letter, digit and special char'
                     />
                     <FormControl fullWidth variant="outlined" required>
                         <TextField
@@ -262,15 +259,17 @@ function ExistingUser({ user, handleGetUserData }) {
                         type="submit"
                         style={{
                             backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            color: '#f4e6cd',
+                            fontWeight: "bold"
                         }}
                     >Update user</Button>
                     <Button
                         disabled={username === "admin"}
                         variant="contained"
                         style={{
-                            backgroundColor: '#2f3b26',
-                            color: '#f4e6cd'
+                            backgroundColor: 'orange',
+                            color: '#2f3b26',
+                            fontWeight: "bold"
                         }}
                         onClick={() => setOpenAlert(true)}
                     >Delete user</Button>
@@ -279,7 +278,7 @@ function ExistingUser({ user, handleGetUserData }) {
                         onClose={() => setOpenAlert(false)}
                     >
                         <DialogTitle id="alert-dialog-title">
-                            {"Delete user from DB?"}
+                            Delete user from DB?
                         </DialogTitle>
                         <DialogActions>
                             <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
