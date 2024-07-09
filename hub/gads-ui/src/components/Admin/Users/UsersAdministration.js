@@ -1,4 +1,15 @@
-import { Box, Button, Dialog, DialogActions, DialogTitle, FormControl, Grid, MenuItem, TextField, Tooltip } from "@mui/material";
+import {
+    Box,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent, DialogContentText,
+    DialogTitle,
+    FormControl,
+    Grid,
+    MenuItem,
+    TextField
+} from "@mui/material";
 import Stack from '@mui/material/Stack';
 import { api } from "../../../services/api";
 import { useContext, useEffect, useState } from "react";
@@ -67,7 +78,7 @@ function NewUser({ handleGetUserData }) {
         };
 
         api.post(url, loginData)
-            .then(response => {
+            .then(() => {
                 handleGetUserData()
                 setUsername('')
                 setPassword('')
@@ -145,7 +156,7 @@ function ExistingUser({ user, handleGetUserData }) {
         };
 
         api.put(url, loginData)
-            .then(response => {
+            .then(() => {
                 handleGetUserData()
                 setPassword('')
             })
@@ -162,6 +173,9 @@ function ExistingUser({ user, handleGetUserData }) {
                 handleGetUserData()
             )
             .catch()
+            .finally(() => {
+                setOpenAlert(false)
+            })
     }
 
     return (
@@ -224,6 +238,11 @@ function ExistingUser({ user, handleGetUserData }) {
                         <DialogTitle>
                             Delete user from DB?
                         </DialogTitle>
+                        <DialogContent>
+                            <DialogContentText id="alert-dialog-description">
+                                Username: {username}
+                            </DialogContentText>
+                        </DialogContent>
                         <DialogActions>
                             <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
                             <Button onClick={handleDeleteUser} autoFocus>
