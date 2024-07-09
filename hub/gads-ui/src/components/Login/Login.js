@@ -39,8 +39,10 @@ export default function Login() {
                 navigate("/devices")
             })
             .catch((e) => {
-                if (e.response.status === 401) {
-                    toggleAlert('Invalid credentials');
+                if (e.response) {
+                    if (e.response.status === 401) {
+                        toggleAlert('Invalid credentials')
+                    }
                 } else {
                     toggleAlert('Something went wrong')
                 }
