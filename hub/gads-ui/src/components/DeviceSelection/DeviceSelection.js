@@ -9,7 +9,7 @@ import Divider from '@mui/material/Divider';
 import { OSFilterTabs, DeviceSearch } from './Filters'
 import { Auth } from '../../contexts/Auth';
 import { api } from '../../services/api.js'
-import NewDeviceBox from "./NewDeviceBox";
+import DeviceBox from "./DeviceBox";
 
 export default function DeviceSelection() {
     const open = true
@@ -37,7 +37,7 @@ export default function DeviceSelection() {
         CheckServerHealth()
 
         // Use specific full address for local development, proxy does not seem to work okay
-        const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
+        const evtSource = new EventSource(`http://192.168.68.109:10000/available-devices`);
         // const evtSource = new EventSource(`/available-devices`);
 
         evtSource.onmessage = (message) => {
@@ -144,7 +144,7 @@ function OSSelection({ devices }) {
                                     if (currentTabIndex === 0) {
                                         return (
                                             <Grid item>
-                                                <NewDeviceBox
+                                                <DeviceBox
                                                     device={device}
                                                 />
                                             </Grid>
@@ -153,7 +153,7 @@ function OSSelection({ devices }) {
                                     } else if (currentTabIndex === 1 && device.info.os === 'android') {
                                         return (
                                             <Grid item>
-                                                <NewDeviceBox
+                                                <DeviceBox
                                                     device={device}
                                                 />
                                             </Grid>
@@ -162,7 +162,7 @@ function OSSelection({ devices }) {
                                     } else if (currentTabIndex === 2 && device.info.os === 'ios') {
                                         return (
                                             <Grid item>
-                                                <NewDeviceBox
+                                                <DeviceBox
                                                     device={device}
                                                 />
                                             </Grid>

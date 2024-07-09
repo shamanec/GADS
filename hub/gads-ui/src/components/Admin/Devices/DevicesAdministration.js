@@ -2,6 +2,9 @@ import { useContext, useState, useEffect } from "react"
 import { api } from "../../../services/api"
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from "@mui/material"
 import { Auth } from "../../../contexts/Auth"
+import CircularProgress from "@mui/material/CircularProgress";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 
 export default function DevicesAdministration() {
     const [devices, setDevices] = useState([])
@@ -82,7 +85,12 @@ function NewDevice({ providers, handleGetDeviceData }) {
     const [screenWidth, setScreenWidth] = useState('')
     const [usage, setUsage] = useState('enabled')
 
+    const [loading, setLoading] = useState(false);
+    const [addDeviceStatus, setAddDeviceStatus] = useState(null)
+
     function handleAddDevice(event) {
+        setLoading(true)
+        setAddDeviceStatus(null)
         event.preventDefault()
 
         let url = `/admin/device`
@@ -99,18 +107,28 @@ function NewDevice({ providers, handleGetDeviceData }) {
         }
 
         api.post(url, deviceData)
-            .catch(e => {
+            .then(() => {
+                setAddDeviceStatus('success')
+            })
+            .catch(() => {
+                setAddDeviceStatus('error')
             })
             .finally(() => {
-                setUdid('')
-                setProvider('')
-                setOS('')
-                setName('')
-                setOSVersion('')
-                setScreenHeight('')
-                setScreenWidth('')
-                setUsage('enabled')
-                handleGetDeviceData()
+                setTimeout(() => {
+                    setLoading(false)
+                    setUdid('')
+                    setProvider('')
+                    setOS('')
+                    setName('')
+                    setOSVersion('')
+                    setScreenHeight('')
+                    setScreenWidth('')
+                    setUsage('enabled')
+                    handleGetDeviceData()
+                    setTimeout(() => {
+                        setAddDeviceStatus(null)
+                    }, 2000)
+                }, 1000)
             })
     }
 
@@ -267,9 +285,22 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold"
+                            fontWeight: "bold",
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
-                    >Add device</Button>
+                        disabled={loading || addDeviceStatus === 'success' || addDeviceStatus === 'error'}
+                    >
+                        {loading ? (
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : addDeviceStatus === 'success' ? (
+                            <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                        ) : addDeviceStatus === 'error' ? (
+                            <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                        ) : (
+                            'Add device'
+                        )}
+                    </Button>
                     <div>All updates to existing devices require respective provider restart</div>
                 </Stack>
             </form>
@@ -287,6 +318,9 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
     const [usage, setUsage] = useState(deviceData.usage)
     const udid = deviceData.udid
 
+    const [loading, setLoading] = useState(false);
+    const [updateDeviceStatus, setUpdateDeviceStatus] = useState(null)
+
     useEffect(() => {
         setProvider(deviceData.provider)
         setOS(deviceData.os)
@@ -297,6 +331,8 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
     }, [deviceData])
 
     function handleUpdateDevice(event) {
+        setLoading(true)
+        setUpdateDeviceStatus(null)
         event.preventDefault()
 
         let url = `/admin/device`
@@ -313,11 +349,20 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
         }
 
         api.put(url, reqData)
-            .catch(e => {
-
+            .then(() => {
+                setUpdateDeviceStatus('success')
+            })
+            .catch(() => {
+                setUpdateDeviceStatus('error')
             })
             .finally(() => {
-                handleGetDeviceData()
+                setTimeout(() => {
+                    setLoading(false)
+                    handleGetDeviceData()
+                    setTimeout(() => {
+                        setUpdateDeviceStatus(null)
+                    }, 2000)
+                }, 1000)
             })
     }
 
@@ -488,15 +533,30 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold"
+                            fontWeight: "bold",
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
-                    >Update device</Button>
+                        disabled={loading || updateDeviceStatus === 'success' || updateDeviceStatus === 'error'}
+                    >
+                        {loading ? (
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : updateDeviceStatus === 'success' ? (
+                            <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                        ) : updateDeviceStatus === 'error' ? (
+                            <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                        ) : (
+                            'Update device'
+                        )}
+                    </Button>
                     <Button
                         onClick={() => setOpenAlert(true)}
                         style={{
                             backgroundColor: 'orange',
                             color: '#2f3b26',
-                            fontWeight: "bold"
+                            fontWeight: "bold",
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
                     >Delete device</Button>
                     <Dialog

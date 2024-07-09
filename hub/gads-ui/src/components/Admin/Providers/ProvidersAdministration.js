@@ -6,9 +6,9 @@ import ProviderLogsTable from "./ProviderLogsTable"
 import CircularProgress from "@mui/material/CircularProgress";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import './NewProvidersAdministration.css'
+import './ProvidersAdministration.css'
 
-export default function NewProvidersAdministration() {
+export default function ProvidersAdministration() {
     const [providers, setProviders] = useState([])
     const { logout } = useContext(Auth)
 

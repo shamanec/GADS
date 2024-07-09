@@ -7,9 +7,9 @@ import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone'
 import { api } from '../../services/api.js'
 import { useNavigate } from 'react-router-dom'
 import React, { useState } from 'react'
-import './NewDeviceBox.css'
+import './DeviceBox.css'
 
-export default function NewDeviceBox({ device }) {
+export default function DeviceBox({ device }) {
     let img_src = device.info.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
 
     return (
