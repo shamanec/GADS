@@ -109,6 +109,14 @@ function NewDevice({ providers, handleGetDeviceData }) {
         api.post(url, deviceData)
             .then(() => {
                 setAddDeviceStatus('success')
+                setUdid('')
+                setProvider('')
+                setOS('')
+                setName('')
+                setOSVersion('')
+                setScreenHeight('')
+                setScreenWidth('')
+                setUsage('enabled')
             })
             .catch(() => {
                 setAddDeviceStatus('error')
@@ -116,14 +124,6 @@ function NewDevice({ providers, handleGetDeviceData }) {
             .finally(() => {
                 setTimeout(() => {
                     setLoading(false)
-                    setUdid('')
-                    setProvider('')
-                    setOS('')
-                    setName('')
-                    setOSVersion('')
-                    setScreenHeight('')
-                    setScreenWidth('')
-                    setUsage('enabled')
                     handleGetDeviceData()
                     setTimeout(() => {
                         setAddDeviceStatus(null)
