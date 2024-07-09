@@ -3,6 +3,7 @@ import Stack from '@mui/material/Stack';
 import { api } from "../../../services/api";
 import { useContext, useEffect, useState } from "react";
 import { Auth } from "../../../contexts/Auth";
+import './UsersAdministration.css'
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
@@ -12,8 +13,6 @@ export default function UsersAdministration() {
         let url = `/admin/users`
         api.get(url)
             .then(response => {
-                console.log('got response')
-                console.log(response.data)
                 setUserData(response.data)
             })
             .catch(error => {
@@ -31,37 +30,16 @@ export default function UsersAdministration() {
     }, [])
 
     return (
-        <Stack direction='row' spacing={2} style={{ width: '100%', marginLeft: '10px', marginTop: '10px' }}>
-            <Box
-                style={{
-                    marginBottom: '10px',
-                    height: '80vh',
-                    overflowY: 'scroll',
-                    border: '2px solid black',
-                    borderRadius: '10px',
-                    boxShadow: 'inset 0 -10px 10px -10px #000000',
-                    scrollbarWidth: 'none',
-                    marginRight: '10px',
-                    width: '100%'
-                }}
-            >
-                <Grid
-                    container
-                    spacing={2}
-                    margin='10px'
-                >
+        <Stack id='outer-stack' direction='row' spacing={2}>
+            <Box id='outer-box'>
+                <Grid id='user-grid' container spacing={2}>
                     <Grid item>
-                        <NewUser handleGetUserData={handleGetUserData}>
-                        </NewUser>
+                        <NewUser handleGetUserData={handleGetUserData}></NewUser>
                     </Grid>
                     {userData.map((user) => {
                         return (
                             <Grid item>
-                                <ExistingUser
-                                    user={user}
-                                    handleGetUserData={handleGetUserData}
-                                >
-                                </ExistingUser>
+                                <ExistingUser user={user} handleGetUserData={handleGetUserData}></ExistingUser>
                             </Grid>
                         )
                     })
@@ -101,49 +79,32 @@ function NewUser({ handleGetUserData }) {
     }
 
     return (
-        <Box
-            id='some-box'
-            style={{
-                border: '1px solid black',
-                width: '400px',
-                minWidth: '400px',
-                maxWidth: '400px',
-                height: '300px',
-                borderRadius: '5px',
-                backgroundColor: '#9ba984'
-            }}
-        >
+        <Box className='user-box'>
             <form onSubmit={handleAddUser}>
-                <Stack
-                    spacing={2}
-                    style={{
-                        padding: '10px'
-                    }}
-                >
+                <Stack id='user-box-stack' spacing={2}>
                     <TextField
                         required
-                        label="Username"
+                        label='Username'
                         value={username}
-                        autoComplete="off"
-                        size='small'
                         onChange={(event) => setUsername(event.target.value)}
+                        autoComplete='off'
+                        size='small'
+                        helperText='Case-sensitive'
                     />
                     <TextField
                         required
-                        label="Password"
+                        label='Password'
                         value={password}
-                        autoComplete="off"
-                        size='small'
                         onChange={(event) => setPassword(event.target.value)}
+                        autoComplete='off'
+                        size='small'
                     />
-                    <FormControl fullWidth variant="outlined" required>
+                    <FormControl fullWidth required>
                         <TextField
-                            style={{ width: "100%" }}
-                            variant="outlined"
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
                             select
-                            label="User role"
+                            label='User role'
                             required
                             size='small'
                         >
@@ -152,12 +113,12 @@ function NewUser({ handleGetUserData }) {
                         </TextField>
                     </FormControl>
                     <Button
-                        variant="contained"
-                        type="submit"
+                        variant='contained'
+                        type='submit'
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold"
+                            fontWeight: 'bold'
                         }}
                     >Add user</Button>
                 </Stack>
@@ -204,30 +165,15 @@ function ExistingUser({ user, handleGetUserData }) {
     }
 
     return (
-        <Box
-            id='some-box'
-            style={{
-                border: '1px solid black',
-                width: '400px',
-                minWidth: '400px',
-                maxWidth: '400px',
-                height: '300px',
-                borderRadius: '5px',
-                backgroundColor: '#9ba984'
-            }}
-        >
+        <Box className='user-box'>
             <form onSubmit={handleUpdateUser}>
-                <Stack
-                    spacing={2}
-                    style={{
-                        padding: '10px'
-                    }}
+                <Stack id='user-box-stack' spacing={2}
                 >
                     <TextField
                         disabled
-                        label="Username"
+                        label='Username'
                         value={username}
-                        autoComplete="off"
+                        autoComplete='off'
                         size='small'
                         onChange={(event) => setUsername(event.target.value)}
                     />
@@ -238,38 +184,36 @@ function ExistingUser({ user, handleGetUserData }) {
                         size='small'
                         onChange={(event) => setPassword(event.target.value)}
                     />
-                    <FormControl fullWidth variant="outlined" required>
+                    <FormControl fullWidth required>
                         <TextField
-                            style={{ width: "100%" }}
-                            variant="outlined"
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
                             select
-                            label="User role"
+                            label='User role'
                             required
                             size='small'
-                            disabled={username === "admin"}
+                            disabled={username === 'admin'}
                         >
                             <MenuItem value='user'>User</MenuItem>
                             <MenuItem value='admin'>Admin</MenuItem>
                         </TextField>
                     </FormControl>
                     <Button
-                        variant="contained"
-                        type="submit"
+                        variant='contained'
+                        type='submit'
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold"
+                            fontWeight: 'bold'
                         }}
                     >Update user</Button>
                     <Button
-                        disabled={username === "admin"}
-                        variant="contained"
+                        disabled={username === 'admin'}
+                        variant='contained'
                         style={{
-                            backgroundColor: 'orange',
+                            backgroundColor: username === 'admin' ? 'gray' : 'orange',
                             color: '#2f3b26',
-                            fontWeight: "bold"
+                            fontWeight: 'bold'
                         }}
                         onClick={() => setOpenAlert(true)}
                     >Delete user</Button>
@@ -277,7 +221,7 @@ function ExistingUser({ user, handleGetUserData }) {
                         open={openAlert}
                         onClose={() => setOpenAlert(false)}
                     >
-                        <DialogTitle id="alert-dialog-title">
+                        <DialogTitle>
                             Delete user from DB?
                         </DialogTitle>
                         <DialogActions>
