@@ -722,6 +722,10 @@ func ProviderUpdate(c *gin.Context) {
 
 func GetUsers(c *gin.Context) {
 	users := db.GetUsers()
+	// Clean up the passwords, not that the project is very secure but let's not send them
+	for i := range users {
+		users[i].Password = ""
+	}
 	fmt.Println(users)
 
 	c.JSON(http.StatusOK, users)

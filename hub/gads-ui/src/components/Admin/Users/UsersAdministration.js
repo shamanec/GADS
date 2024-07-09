@@ -8,13 +8,16 @@ import {
     FormControl,
     Grid,
     MenuItem,
-    TextField
+    TextField, Tooltip
 } from "@mui/material";
 import Stack from '@mui/material/Stack';
 import { api } from "../../../services/api";
 import { useContext, useEffect, useState } from "react";
 import { Auth } from "../../../contexts/Auth";
 import './UsersAdministration.css'
+import CircularProgress from '@mui/material/CircularProgress';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
@@ -65,8 +68,12 @@ function NewUser({ handleGetUserData }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [role, setRole] = useState('user')
+    const [loading, setLoading] = useState(false);
+    const [addUserStatus, setAddUserStatus] = useState(null)
 
     function handleAddUser(event) {
+        setLoading(true)
+        setAddUserStatus(null)
         event.preventDefault()
 
         let url = `/admin/user`
@@ -79,13 +86,22 @@ function NewUser({ handleGetUserData }) {
 
         api.post(url, loginData)
             .then(() => {
-                handleGetUserData()
+                setAddUserStatus('success')
                 setUsername('')
                 setPassword('')
                 setRole('user')
             })
             .catch(e => {
-                console.log(e)
+                setAddUserStatus('error')
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setLoading(false)
+                    handleGetUserData()
+                    setTimeout(() => {
+                        setAddUserStatus(null)
+                    }, 2000)
+                }, 1000)
             })
     }
 
@@ -93,15 +109,20 @@ function NewUser({ handleGetUserData }) {
         <Box className='user-box'>
             <form onSubmit={handleAddUser}>
                 <Stack id='user-box-stack' spacing={2}>
-                    <TextField
-                        required
-                        label='Username'
-                        value={username}
-                        onChange={(event) => setUsername(event.target.value)}
-                        autoComplete='off'
-                        size='small'
-                        helperText='Case-sensitive'
-                    />
+                    <Tooltip
+                        title='Case-sensitive'
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            required
+                            label='Username'
+                            value={username}
+                            onChange={(event) => setUsername(event.target.value)}
+                            autoComplete='off'
+                            size='small'
+                        />
+                    </Tooltip>
                     <TextField
                         required
                         label='Password'
@@ -129,9 +150,22 @@ function NewUser({ handleGetUserData }) {
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
-                    >Add user</Button>
+                        disabled={loading || addUserStatus === 'success' || addUserStatus === 'error'}
+                    >
+                        {loading ? (
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : addUserStatus === 'success' ? (
+                            <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                        ) : addUserStatus === 'error' ? (
+                            <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                        ) : (
+                            'Add user'
+                        )}
+                    </Button>
                 </Stack>
             </form>
         </Box>
@@ -143,8 +177,12 @@ function ExistingUser({ user, handleGetUserData }) {
     const [password, setPassword] = useState('')
     const [role, setRole] = useState(user.role)
     const [openAlert, setOpenAlert] = useState(false)
+    const [updateLoading, setUpdateLoading] = useState(false);
+    const [updateUserStatus, setUpdateUserStatus] = useState(null)
 
     function handleUpdateUser(event) {
+        setUpdateLoading(true)
+        setUpdateUserStatus(null)
         event.preventDefault()
 
         let url = `/admin/user`
@@ -157,11 +195,20 @@ function ExistingUser({ user, handleGetUserData }) {
 
         api.put(url, loginData)
             .then(() => {
-                handleGetUserData()
+                setUpdateUserStatus('success')
                 setPassword('')
             })
-            .catch(e => {
-                console.log(e)
+            .catch(() => {
+                setUpdateUserStatus('error')
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setUpdateLoading(false)
+                    handleGetUserData()
+                    setTimeout(() => {
+                        setUpdateUserStatus(null)
+                    }, 2000)
+                }, 1000)
             })
     }
 
@@ -192,9 +239,9 @@ function ExistingUser({ user, handleGetUserData }) {
                         onChange={(event) => setUsername(event.target.value)}
                     />
                     <TextField
-                        label="Password"
+                        label='Password'
                         value={password}
-                        autoComplete="off"
+                        autoComplete='off'
                         size='small'
                         onChange={(event) => setPassword(event.target.value)}
                     />
@@ -218,16 +265,31 @@ function ExistingUser({ user, handleGetUserData }) {
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
+                            height: '40px',
+                            boxShadow: 'none'
                         }}
-                    >Update user</Button>
+                        disabled={updateLoading || updateUserStatus === 'success' || updateUserStatus === 'error'}
+                    >
+                        {updateLoading ? (
+                        <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                    ) : updateUserStatus === 'success' ? (
+                        <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                    ) : updateUserStatus === 'error' ? (
+                        <CloseIcon style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                    ) : (
+                        'Update user'
+                    )}
+                    </Button>
                     <Button
                         disabled={username === 'admin'}
                         variant='contained'
                         style={{
                             backgroundColor: username === 'admin' ? 'gray' : 'orange',
                             color: '#2f3b26',
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
+                            height: '40px',
+                            boxShadow: 'none'
                         }}
                         onClick={() => setOpenAlert(true)}
                     >Delete user</Button>
@@ -239,7 +301,7 @@ function ExistingUser({ user, handleGetUserData }) {
                             Delete user from DB?
                         </DialogTitle>
                         <DialogContent>
-                            <DialogContentText id="alert-dialog-description">
+                            <DialogContentText>
                                 Username: {username}
                             </DialogContentText>
                         </DialogContent>
