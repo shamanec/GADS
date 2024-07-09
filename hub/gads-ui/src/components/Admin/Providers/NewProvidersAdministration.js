@@ -3,6 +3,10 @@ import { useContext, useEffect, useState } from "react"
 import { api } from "../../../services/api"
 import { Auth } from "../../../contexts/Auth"
 import ProviderLogsTable from "./ProviderLogsTable"
+import CircularProgress from "@mui/material/CircularProgress";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
+import './NewProvidersAdministration.css'
 
 export default function NewProvidersAdministration() {
     const [providers, setProviders] = useState([])
@@ -13,8 +17,6 @@ export default function NewProvidersAdministration() {
 
         api.get(url)
             .then(response => {
-                console.log('meh')
-                console.log(response.data)
                 setProviders(response.data)
             })
             .catch(error => {
@@ -31,20 +33,8 @@ export default function NewProvidersAdministration() {
     }, [])
 
     return (
-        <Stack direction='row' spacing={2} style={{ width: '100%', marginLeft: '10px', marginTop: '10px' }}>
-            <Box
-                style={{
-                    marginBottom: '10px',
-                    height: '80vh',
-                    overflowY: 'scroll',
-                    border: '2px solid black',
-                    borderRadius: '10px',
-                    boxShadow: 'inset 0 -10px 10px -10px #000000',
-                    scrollbarWidth: 'none',
-                    marginRight: '10px',
-                    width: '100%'
-                }}
-            >
+        <Stack id='outer-stack' direction='row' spacing={2}>
+            <Box id='outer-box'>
                 <Grid
                     container
                     spacing={2}
@@ -84,6 +74,8 @@ function NewProvider({ handleGetProvidersData }) {
     const [useCustomWda, setUseCustomWda] = useState(false)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(false)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState('')
+    const [loading, setLoading] = useState(false);
+    const [addProviderStatus, setAddProviderStatus] = useState(null)
 
     function buildPayload() {
         let body = {}
@@ -108,6 +100,8 @@ function NewProvider({ handleGetProvidersData }) {
     }
 
     function handleAddProvider(event) {
+        setLoading(true)
+        setAddProviderStatus(null)
         event.preventDefault()
 
         let url = `/admin/providers/add`
@@ -115,6 +109,7 @@ function NewProvider({ handleGetProvidersData }) {
 
         api.post(url, bodyString, {})
             .then(() => {
+                setAddProviderStatus('success')
                 setOS('windows')
                 setNickname('')
                 setHostAddress('')
@@ -126,46 +121,36 @@ function NewProvider({ handleGetProvidersData }) {
                 setUseCustomWda(false)
                 setUseSeleniumGrid(false)
                 setSeleniumGridInstance('')
-                handleGetProvidersData()
             })
             .catch(() => {
-
+                setAddProviderStatus('error')
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setLoading(false)
+                    handleGetProvidersData()
+                    setTimeout(() => {
+                        setAddProviderStatus(null)
+                    }, 2000)
+                }, 1000)
             })
     }
 
     return (
-        <Box
-            id='some-box'
-            style={{
-                border: '1px solid black',
-                width: '400px',
-                minWidth: '400px',
-                maxWidth: '400px',
-                height: '780px',
-                borderRadius: '5px',
-                backgroundColor: '#9ba984'
-            }}
-        >
+        <Box className='provider-box'>
             <form onSubmit={handleAddProvider}>
-                <Stack
-                    spacing={2}
-                    style={{
-                        padding: '10px'
-                    }}
-                >
+                <Stack spacing={2} className='provider-box-stack'>
                     <Tooltip
-                        title="Provider OS"
+                        title='Provider OS'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
                                 value={os}
                                 onChange={(e) => setOS(e.target.value)}
                                 select
-                                label="OS"
+                                label='OS'
                                 required
                                 size='small'
                             >
@@ -176,61 +161,60 @@ function NewProvider({ handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Unique name for the provider"
+                        title='Unique name for the provider'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Nickname"
+                            label='Nickname'
                             value={nickname}
-                            autoComplete="off"
+                            autoComplete='off'
                             size='small'
                             onChange={(event) => setNickname(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Host local network address, e.g. 192.168.1.6"
+                        title='Host local network address, e.g. 192.168.1.6'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Host address"
+                            label='Host address'
                             value={hostAddress}
-                            autoComplete="off"
+                            autoComplete='off'
                             size='small'
                             onChange={(event) => setHostAddress(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Port for the provider instance, e.g. 10001"
+                        title='Port for the provider instance, e.g. 10001'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Port"
+                            label='Port'
                             value={port}
-                            autoComplete="off"
+                            autoComplete='off'
                             size='small'
                             onChange={(event) => setPort(Number(event.target.value))}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Should the provider set up iOS devices?"
+                        title='Should the provider set up iOS devices?'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                variant='outlined'
                                 value={ios}
                                 onChange={(e) => setIos(e.target.value)}
                                 select
                                 size='small'
-                                label="Provide iOS?"
+                                label='Provide iOS?'
                                 required
                             >
                                 <MenuItem value={true}>Yes</MenuItem>
@@ -239,18 +223,16 @@ function NewProvider({ handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Should the provider set up Android devices?"
+                        title='Should the provider set up Android devices?'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
                                 value={android}
                                 onChange={(e) => setAndroid(e.target.value)}
                                 select
-                                label="Provide Android?"
+                                label='Provide Android?'
                                 required
                                 size='small'
                             >
@@ -260,49 +242,47 @@ function NewProvider({ handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner"
+                        title='WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
                             size='small'
-                            label="WDA bundle ID"
+                            label='WDA bundle ID'
                             value={wdaBundleId}
                             disabled={!ios}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setWdaBundleId(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent"
+                        title='WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
                             size='small'
-                            label="WDA repo path"
+                            label='WDA repo path'
                             value={wdaRepoPath}
                             disabled={!ios || (ios && os !== 'darwin')}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setWdaRepoPath(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!"
+                        title='Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
                                 size='small'
                                 value={useCustomWda}
                                 onChange={(e) => setUseCustomWda(e.target.value)}
                                 select
-                                label="Use custom WDA?"
+                                label='Use custom WDA?'
                                 required
                                 disabled={!ios}
                             >
@@ -312,19 +292,17 @@ function NewProvider({ handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Select `Yes` if you want the provider to register the devices Appium servers as Selenium Grid nodes. You need to have the Selenium Grid instance running separately from the provider!"
+                        title='Select `Yes` if you want the provider to register the devices Appium servers as Selenium Grid nodes. You need to have the Selenium Grid instance running separately from the provider!'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
                                 size='small'
                                 value={useSeleniumGrid}
                                 onChange={(e) => setUseSeleniumGrid(e.target.value)}
                                 select
-                                label="Use Selenium Grid?"
+                                label='Use Selenium Grid?'
                                 required
                             >
                                 <MenuItem value={true}>Yes</MenuItem>
@@ -333,29 +311,42 @@ function NewProvider({ handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Selenium Grid instance address, e.g. http://192.168.1.6:4444"
+                        title='Selenium Grid instance address, e.g. http://192.168.1.6:4444'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
                             size='small'
-                            label="Selenium Grid instance"
+                            label='Selenium Grid instance'
                             value={seleniumGridInstance}
-                            autoComplete="off"
+                            autoComplete='off'
                             disabled={!useSeleniumGrid}
                             onChange={(event) => setSeleniumGridInstance(event.target.value)}
                         />
                     </Tooltip>
                     <Button
-                        variant="contained"
-                        type="submit"
+                        variant='contained'
+                        type='submit'
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold"
+                            fontWeight: 'bold',
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
-                    >Add provider</Button>
+                        disabled={loading || addProviderStatus === 'success' || addProviderStatus === 'error'}
+                    >
+                        {loading ? (
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : addProviderStatus === 'success' ? (
+                            <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                        ) : addProviderStatus === 'error' ? (
+                            <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                        ) : (
+                            'Add provider'
+                        )}
+                    </Button>
                     <div>All updates to existing provider config require provider instance restart</div>
                 </Stack>
             </form>
@@ -378,6 +369,9 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
 
     const [openAlert, setOpenAlert] = useState(false)
     const [openLogsDialog, setOpenLogsDialog] = useState(false)
+
+    const [loading, setLoading] = useState(false);
+    const [updateProviderStatus, setUpdateProviderStatus] = useState(null)
 
     function handleDeleteProvider(event) {
         event.preventDefault()
@@ -416,6 +410,8 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
     }
 
     function handleUpdateProvider(event) {
+        setLoading(true)
+        setUpdateProviderStatus(null)
         event.preventDefault()
 
         let url = `/admin/providers/update`
@@ -423,47 +419,39 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
 
         api.post(url, bodyString, {})
             .then(() => {
-
+                setUpdateProviderStatus('success')
             })
             .catch(() => {
-
+                setUpdateProviderStatus('error')
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setLoading(false)
+                    handleGetProvidersData()
+                    setTimeout(() => {
+                        setUpdateProviderStatus(null)
+                    }, 2000)
+                }, 1000)
             })
     }
 
     return (
-        <Box
-            id='some-box'
-            style={{
-                border: '1px solid black',
-                width: '400px',
-                minWidth: '400px',
-                maxWidth: '400px',
-                height: '780px',
-                borderRadius: '5px',
-                backgroundColor: '#9ba984'
-            }}
-        >
+        <Box className='provider-box'>
             <form onSubmit={handleUpdateProvider}>
-                <Stack
-                    spacing={2}
-                    style={{
-                        padding: '10px'
-                    }}
-                >
+                <Stack spacing={2} className='provider-box-stack'>
                     <Tooltip
-                        title="Provider OS"
+                        title='Provider OS'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
                                 disabled
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                variant='outlined'
                                 value={os}
                                 onChange={(e) => setOS(e.target.value)}
                                 select
-                                label="OS"
+                                label='OS'
                                 required
                                 size='small'
                             >
@@ -474,61 +462,60 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Unique name for the provider"
+                        title='Unique name for the provider'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Nickname"
+                            label='Nickname'
                             value={nickname}
-                            autoComplete="off"
+                            autoComplete='off'
                             size='small'
                             onChange={(event) => setNickname(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Host local network address, e.g. 192.168.1.6"
+                        title='Host local network address, e.g. 192.168.1.6'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Host address"
+                            label='Host address'
                             value={hostAddress}
-                            autoComplete="off"
+                            autoComplete='off'
                             size='small'
                             onChange={(event) => setHostAddress(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Port for the provider instance, e.g. 10001"
+                        title='Port for the provider instance, e.g. 10001'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Port"
+                            label='Port'
                             value={port}
-                            autoComplete="off"
+                            autoComplete='off'
                             size='small'
                             onChange={(event) => setPort(Number(event.target.value))}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Should the provider set up iOS devices?"
+                        title='Should the provider set up iOS devices?'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                variant='outlined'
                                 value={ios}
                                 onChange={(e) => setIos(e.target.value)}
                                 select
                                 size='small'
-                                label="Provide iOS?"
+                                label='Provide iOS?'
                                 required
                             >
                                 <MenuItem value={true}>Yes</MenuItem>
@@ -537,18 +524,16 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Should the provider set up Android devices?"
+                        title='Should the provider set up Android devices?'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
                                 value={android}
                                 onChange={(e) => setAndroid(e.target.value)}
                                 select
-                                label="Provide Android?"
+                                label='Provide Android?'
                                 required
                                 size='small'
                             >
@@ -558,49 +543,47 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner"
+                        title='WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
                             size='small'
-                            label="WDA bundle ID"
+                            label='WDA bundle ID'
                             value={wdaBundleId}
                             disabled={!ios}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setWdaBundleId(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent"
+                        title='WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
                             size='small'
-                            label="WDA repo path"
+                            label='WDA repo path'
                             value={wdaRepoPath}
                             disabled={!ios || (ios && os !== 'darwin')}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setWdaRepoPath(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!"
+                        title='Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
                                 size='small'
                                 value={useCustomWda}
                                 onChange={(e) => setUseCustomWda(e.target.value)}
                                 select
-                                label="Use custom WDA?"
+                                label='Use custom WDA?'
                                 required
                                 disabled={!ios}
                             >
@@ -610,19 +593,17 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Select `Yes` if you want the provider to register the devices Appium servers as Selenium Grid nodes. You need to have the Selenium Grid instance running separately from the provider!"
+                        title='Select `Yes` if you want the provider to register the devices Appium servers as Selenium Grid nodes. You need to have the Selenium Grid instance running separately from the provider!'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
                                 size='small'
                                 value={useSeleniumGrid}
                                 onChange={(e) => setUseSeleniumGrid(e.target.value)}
                                 select
-                                label="Use Selenium Grid?"
+                                label='Use Selenium Grid?'
                                 required
                             >
                                 <MenuItem value={true}>Yes</MenuItem>
@@ -631,36 +612,51 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="Selenium Grid instance address, e.g. http://192.168.1.6:4444"
+                        title='Selenium Grid instance address, e.g. http://192.168.1.6:4444'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
                             size='small'
-                            label="Selenium Grid instance"
+                            label='Selenium Grid instance'
                             value={seleniumGridInstance}
-                            autoComplete="off"
+                            autoComplete='off'
                             disabled={!useSeleniumGrid}
                             onChange={(event) => setSeleniumGridInstance(event.target.value)}
                         />
                     </Tooltip>
                     <Button
-                        variant="contained"
-                        type="submit"
+                        variant='contained'
+                        type='submit'
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold"
+                            fontWeight: 'bold',
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
-                    >Update provider</Button>
+                        disabled={loading || updateProviderStatus === 'success' || updateProviderStatus === 'error'}
+                    >
+                        {loading ? (
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : updateProviderStatus === 'success' ? (
+                            <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                        ) : updateProviderStatus === 'error' ? (
+                            <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                        ) : (
+                            'Update provider'
+                        )}
+                    </Button>
                     <Button
-                        variant="contained"
+                        variant='contained'
                         onClick={() => setOpenLogsDialog(true)}
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold"
+                            fontWeight: 'bold',
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
                     >Show logs</Button>
                     <Button
@@ -668,7 +664,9 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         style={{
                             backgroundColor: 'orange',
                             color: '#2f3b26',
-                            fontWeight: "bold"
+                            fontWeight: 'bold',
+                            boxShadow: 'none',
+                            height: '40px'
                         }}
                     >Delete provider</Button>
                     <Dialog
@@ -676,7 +674,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         onClose={() => setOpenAlert(false)}
                     >
                         <DialogTitle>
-                            {"Delete provider from DB?"}
+                            Delete provider from DB?
                         </DialogTitle>
                         <DialogContent>
                             <DialogContentText>
@@ -692,7 +690,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     </Dialog>
                     <Dialog
                         fullWidth
-                        maxWidth="xl"
+                        maxWidth='xl'
                         open={openLogsDialog}
                         onClose={() => setOpenLogsDialog(false)}
                     >

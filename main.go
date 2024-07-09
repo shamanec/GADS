@@ -13,8 +13,6 @@ var AppVersion = "development"
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "GADS"}
-	rootCmd.PersistentFlags().String("host-address", "localhost", "The IP address of the host machine")
-	rootCmd.PersistentFlags().String("port", "", "The port on which the component should run")
 	rootCmd.PersistentFlags().String("mongo-db", "localhost:27017", "The address of the MongoDB instance")
 
 	// Hub Command
@@ -25,6 +23,8 @@ func main() {
 			hub.StartHub(cmd.Flags(), AppVersion)
 		},
 	}
+	hubCmd.Flags().String("host-address", "localhost", "The IP address of the host machine")
+	hubCmd.Flags().String("port", "", "The port on which the component should run")
 	hubCmd.Flags().String("ui-files-dir", "", "Directory where the UI static files will be unpacked and served from."+
 		"\nBy default app will try to use a temp dir on the host, use this flag only if you encounter issues with the temp folder."+
 		"\nAlso you need to have created the folder in advance!")
