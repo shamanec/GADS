@@ -88,7 +88,10 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             <Dialog
                 open={open}
                 onClose={handleClose}
-                maxWidth="lg"
+                maxWidth="sm"
+                style={{
+                    overflowY: 'hidden'
+                }}
             >
                 <DialogContent>
                     <img
