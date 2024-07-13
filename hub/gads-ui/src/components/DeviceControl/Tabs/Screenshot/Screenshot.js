@@ -22,10 +22,30 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             })
             .then(screenshotJson => {
                 const imageBase64String = screenshotJson.value
-                setScreenshots(prevScreenshots => [...prevScreenshots, imageBase64String])
+                createThumbnail(imageBase64String, (thumbnailBase64) => {
+                    setScreenshots(prevScreenshots => [...prevScreenshots, { full: imageBase64String, thumbnail: thumbnailBase64 }])
+                })
             })
             .catch(() => {
             })
+    }
+
+    function createThumbnail(base64Image, callback) {
+        const img = new Image()
+        img.src = `data:image/png;base64,${base64Image}`
+        img.onload = () => {
+            const canvas = document.createElement('canvas')
+            const ctx = canvas.getContext('2d')
+
+            const height = 400
+            const width = (img.width * height) / img.height
+
+            canvas.width = width
+            canvas.height = height
+            ctx.drawImage(img, 0, 0, width, height)
+            const thumbnailBase64 = canvas.toDataURL('image/png').split(',')[1]
+            callback(thumbnailBase64)
+        }
     }
 
     const handleClickOpen = (image) => {
@@ -69,16 +89,15 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                     }}
                 >
                     <Grid container spacing={2}>
-                        {screenshots.map((imageBase64String, index) => (
+                        {screenshots.map((screenshot, index) => (
                             <Grid item key={index}>
                                 <img
-                                    src={`data:image/png;base64,${imageBase64String}`}
+                                    src={`data:image/png;base64,${screenshot.thumbnail}`}
                                     alt={`Screenshot ${index + 1}`}
                                     style={{
-                                        maxHeight: '300px',
                                         cursor: 'pointer'
                                     }}
-                                    onClick={() => handleClickOpen(`data:image/png;base64,${imageBase64String}`)}
+                                    onClick={() => handleClickOpen(`data:image/png;base64,${screenshot.full}`)}
                                 />
                             </Grid>
                         ))}
