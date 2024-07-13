@@ -9,6 +9,7 @@ export default function TabularControl({ deviceData }) {
     const udid = deviceData.udid
 
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
+    const [screenshots, setScreenshots] = useState([]);
 
     const handleTabChange = (e, tabIndex) => {
         setCurrentTabIndex(tabIndex)
@@ -51,7 +52,7 @@ export default function TabularControl({ deviceData }) {
                     style={{ fontWeight: "bold" }}
                 />
             </Tabs>
-            {currentTabIndex === 1 && <Screenshot udid={udid} />}
+            {currentTabIndex === 1 && <Screenshot udid={udid} screenshots={screenshots} setScreenshots={setScreenshots} />}
             {currentTabIndex === 0 && <Actions deviceData={deviceData} />}
             {currentTabIndex === 2 && <AppiumLogsTable udid={udid} />}
         </Box >

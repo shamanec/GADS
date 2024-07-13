@@ -3,11 +3,10 @@ import { Button } from "@mui/material";
 import { Stack } from "@mui/material";
 import { useDialog } from "../../SessionDialogContext";
 import { api } from '../../../../services/api.js'
-import { useState } from 'react';
+import React, { useState, memo } from 'react';
 
-export default function Screenshot({ udid }) {
+function Screenshot({ udid, screenshots, setScreenshots }) {
     const { setDialog } = useDialog()
-    const [screenshots, setScreenshots] = useState([])
     const [open, setOpen] = useState(false)
     const [selectedImage, setSelectedImage] = useState(null)
 
@@ -105,4 +104,5 @@ export default function Screenshot({ udid }) {
         </Box>
     );
 }
+export default React.memo(Screenshot)
 
