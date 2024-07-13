@@ -70,12 +70,15 @@ func updateProviderHub() {
 		mu.Unlock()
 		jsonData, err := json.Marshal(properJson)
 		if err != nil {
+			updateFailureCounter++
 			logger.ProviderLogger.LogError("update_provider_hub", "Failed marshaling provider data to json - "+err.Error())
 			continue
 		}
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
 		if err != nil {
+			updateFailureCounter++
 			logger.ProviderLogger.LogError("update_provider_hub", "Failed to create request to update provider data in hub - "+err.Error())
+			continue
 		}
 
 		resp, err := client.Do(req)
