@@ -4,13 +4,22 @@ import { Stack } from "@mui/material";
 import { useDialog } from "../../SessionDialogContext";
 import { api } from '../../../../services/api.js'
 import React, { useState, memo } from 'react';
+import CircularProgress from "@mui/material/CircularProgress";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 
 function Screenshot({ udid, screenshots, setScreenshots }) {
     const { setDialog } = useDialog()
     const [open, setOpen] = useState(false)
     const [selectedImage, setSelectedImage] = useState(null)
+    const [isTakingScreenshot, setIsTakingScreenshot] = useState(false)
+    const [takeScreenshotStatus, setTakeScreenshotStatus] = useState(null)
 
     function takeScreenshot() {
+        setIsTakingScreenshot(true)
+        setTakeScreenshotStatus(null)
+
+        let imageBase64String = null
         const url = `/device/${udid}/screenshot`
         api.post(url)
             .then(response => {
@@ -21,12 +30,23 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                 return response.data
             })
             .then(screenshotJson => {
-                const imageBase64String = screenshotJson.value
-                createThumbnail(imageBase64String, (thumbnailBase64) => {
-                    setScreenshots(prevScreenshots => [...prevScreenshots, { full: imageBase64String, thumbnail: thumbnailBase64 }])
-                })
+                imageBase64String = screenshotJson.value
             })
             .catch(() => {
+                setTakeScreenshotStatus('error')
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setIsTakingScreenshot(false)
+                    if (imageBase64String) {
+                        createThumbnail(imageBase64String, (thumbnailBase64) => {
+                            setScreenshots(prevScreenshots => [...prevScreenshots, { full: imageBase64String, thumbnail: thumbnailBase64 }])
+                        })
+                    }
+                    setTimeout(() => {
+                        setTakeScreenshotStatus(null)
+                    }, 1000)
+                }, 500)
             })
     }
 
@@ -77,10 +97,18 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                         backgroundColor: '#2f3b26',
                         color: '#9ba984',
                         fontWeight: 'bold',
-                        width: '200px'
+                        width: '200px',
+                        height: '40px'
                     }}
+                    disabled={isTakingScreenshot || takeScreenshotStatus === 'error'}
                 >
-                    Take Screenshot
+                    {isTakingScreenshot ? (
+                        <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                    ) : takeScreenshotStatus === 'error' ? (
+                        <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                    ) : (
+                        'Take screenshot'
+                    )}
                 </Button>
                 <Box
                     style={{
