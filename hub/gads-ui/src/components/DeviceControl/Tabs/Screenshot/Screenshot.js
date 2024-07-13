@@ -5,7 +5,6 @@ import { useDialog } from "../../SessionDialogContext";
 import { api } from '../../../../services/api.js'
 import React, { useState, memo } from 'react';
 import CircularProgress from "@mui/material/CircularProgress";
-import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 
 function Screenshot({ udid, screenshots, setScreenshots }) {
@@ -68,13 +67,17 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
         }
     }
 
-    const handleClickOpen = (image) => {
+    const handlShowImageDialog = (image) => {
         setSelectedImage(image)
         setOpen(true)
     }
 
-    const handleClose = () => {
+    const handleCloseImageDialog = () => {
         setOpen(false)
+    }
+
+    const handleDeleteImage = (index) => {
+        setScreenshots(prevScreenshots => prevScreenshots.filter((_, i) => i !== index));
     }
 
     return (
@@ -84,6 +87,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             }}
         >
             <Stack
+                spacing={1}
                 style={{
                     height: '800px',
                     width: '100%'
@@ -93,17 +97,17 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                     onClick={() => takeScreenshot()}
                     variant="contained"
                     style={{
-                        marginBottom: '10px',
                         backgroundColor: '#2f3b26',
                         color: '#9ba984',
                         fontWeight: 'bold',
                         width: '200px',
-                        height: '40px'
+                        height: '40px',
+                        boxShadow: 'none'
                     }}
                     disabled={isTakingScreenshot || takeScreenshotStatus === 'error'}
                 >
                     {isTakingScreenshot ? (
-                        <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        <CircularProgress size={24} style={{ color: '#f4e6cd' }} />
                     ) : takeScreenshotStatus === 'error' ? (
                         <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
                     ) : (
@@ -119,14 +123,26 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                     <Grid container spacing={2}>
                         {screenshots.map((screenshot, index) => (
                             <Grid item key={index}>
-                                <img
-                                    src={`data:image/png;base64,${screenshot.thumbnail}`}
-                                    alt={`Screenshot ${index + 1}`}
-                                    style={{
-                                        cursor: 'pointer'
-                                    }}
-                                    onClick={() => handleClickOpen(`data:image/png;base64,${screenshot.full}`)}
-                                />
+                                <Stack spacing={1}>
+                                    <img
+                                        src={`data:image/png;base64,${screenshot.thumbnail}`}
+                                        alt={`Screenshot ${index + 1}`}
+                                        style={{
+                                            cursor: 'pointer'
+                                        }}
+                                        onClick={() => handlShowImageDialog(`data:image/png;base64,${screenshot.full}`)}
+                                    />
+                                    <Button
+                                        variant='contained'
+                                        onClick={() => handleDeleteImage(index)}
+                                        style={{
+                                            backgroundColor: '#2f3b26',
+                                            color: '#9ba984',
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                </Stack>
                             </Grid>
                         ))}
                     </Grid>
@@ -134,7 +150,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             </Stack>
             <Dialog
                 open={open}
-                onClose={handleClose}
+                onClose={handleCloseImageDialog}
                 maxWidth="sm"
                 style={{
                     overflowY: 'hidden'
