@@ -1,18 +1,18 @@
-import { Box } from "@mui/material";
+import {Box, Dialog, DialogContent, Grid} from "@mui/material";
 import { Button } from "@mui/material";
 import { Stack } from "@mui/material";
-import { useState, useContext } from "react";
-import { Auth } from "../../../../contexts/Auth";
 import { useDialog } from "../../SessionDialogContext";
 import { api } from '../../../../services/api.js'
+import { useState } from 'react';
 
 export default function Screenshot({ udid }) {
-    const [width, setWidth] = useState(0)
-    const [height, setHeight] = useState(0)
     const { setDialog } = useDialog()
+    const [screenshots, setScreenshots] = useState([])
+    const [open, setOpen] = useState(false)
+    const [selectedImage, setSelectedImage] = useState(null)
 
     function takeScreenshot() {
-        const url = `/device/${udid}/screenshot`;
+        const url = `/device/${udid}/screenshot`
         api.post(url)
             .then(response => {
                 if (response.status === 404) {
@@ -22,58 +22,87 @@ export default function Screenshot({ udid }) {
                 return response.data
             })
             .then(screenshotJson => {
-                var imageBase64String = screenshotJson.value
-                let image = document.getElementById('screenshot-image')
-                image.src = "data:image/png;base64," + imageBase64String
-                image = document.getElementById('screenshot-image')
-                setWidth(image.width)
-                setHeight(image.height)
+                const imageBase64String = screenshotJson.value
+                setScreenshots(prevScreenshots => [...prevScreenshots, imageBase64String])
             })
-            .catch(error => {
-                console.log('could not take screenshot - ' + error)
+            .catch(() => {
             })
+    }
+
+    const handleClickOpen = (image) => {
+        setSelectedImage(image)
+        setOpen(true)
+    }
+
+    const handleClose = () => {
+        setOpen(false)
     }
 
     return (
         <Box
             style={{
-                marginTop: "20px"
+                marginTop: '20px'
             }}
         >
             <Stack
                 style={{
-                    height: "800px",
-                    width: "650px"
+                    height: '800px',
+                    width: '100%'
                 }}
             >
                 <Button
-                    onClick={() => takeScreenshot(udid)}
+                    onClick={() => takeScreenshot()}
                     variant="contained"
                     style={{
-                        marginBottom: "10px",
-                        backgroundColor: "#2f3b26",
-                        color: "#9ba984",
-                        fontWeight: "bold"
-                    }}
-                >Screenshot</Button>
-                <div
-                    style={{
-                        overflowY: 'auto',
-                        height: "auto",
-                        position: "relative"
+                        marginBottom: '10px',
+                        backgroundColor: '#2f3b26',
+                        color: '#9ba984',
+                        fontWeight: 'bold',
+                        width: '200px'
                     }}
                 >
-                    <img id="screenshot-image"
+                    Take Screenshot
+                </Button>
+                <Box
+                    style={{
+                        maxHeight: '800px',
+                        overflowY: 'auto'
+                    }}
+                >
+                    <Grid container spacing={2}>
+                        {screenshots.map((imageBase64String, index) => (
+                            <Grid item key={index}>
+                                <img
+                                    src={`data:image/png;base64,${imageBase64String}`}
+                                    alt={`Screenshot ${index + 1}`}
+                                    style={{
+                                        maxHeight: '300px',
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={() => handleClickOpen(`data:image/png;base64,${imageBase64String}`)}
+                                />
+                            </Grid>
+                        ))}
+                    </Grid>
+                </Box>
+            </Stack>
+            <Dialog
+                open={open}
+                onClose={handleClose}
+                maxWidth="lg"
+            >
+                <DialogContent>
+                    <img
+                        src={selectedImage}
+                        alt='Selected Screenshot'
                         style={{
-                            maxWidth: "100%",
-                            width: "auto",
-                            height: "auto"
+                            width: '100%',
+                            height: 'auto'
                         }}
                     />
-                </div>
-
-            </Stack>
+                </DialogContent>
+            </Dialog>
         </Box>
-    )
+    );
 }
 
