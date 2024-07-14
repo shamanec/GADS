@@ -51,21 +51,28 @@ export default function DeviceControl() {
             wsType = "wss"
         }
         // let socketUrl = `${wsType}://${window.location.host}/devices/control/${id}/in-use`
-        let socketUrl = `${wsType}://192.168.1.6:10000/devices/control/${udid}/in-use`
+        let socketUrl = `${wsType}://192.168.68.109:10000/devices/control/${udid}/in-use`
         in_use_socket = new WebSocket(socketUrl)
-        if (in_use_socket.readyState === WebSocket.OPEN) {
-            in_use_socket.send('ping')
-        }
-        const pingInterval = setInterval(() => {
+        in_use_socket.onopen = () => {
+            console.log('In Use WebSocket connection opened');
+        };
+
+        in_use_socket.onclose = () => {
+            console.log('In Use WebSocket connection closed');
+        };
+
+        in_use_socket.onerror = (error) => {
+            console.error('In Use WebSocket error:', error);
+        };
+
+        in_use_socket.onmessage = (message) => {
             if (in_use_socket.readyState === WebSocket.OPEN) {
                 in_use_socket.send(userName)
             }
-        }, 1000)
+        }
 
         return () => {
             if (in_use_socket) {
-                console.log('component unmounted, clearing itnerval and closing socket')
-                clearInterval(pingInterval)
                 in_use_socket.close()
             }
         }

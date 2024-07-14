@@ -438,16 +438,16 @@ func DeviceInUseWS(c *gin.Context) {
 	messageReceived := make(chan string)
 	defer close(messageReceived)
 
+	// Loop getting messages from the client
+	// To keep device in use
 	go func() {
 		for {
 			data, code, err := wsutil.ReadClientData(conn)
 			if err != nil {
-				fmt.Println(err)
 				return
 			}
 
 			if code == 8 {
-				close(messageReceived)
 				return
 			}
 
@@ -457,7 +457,19 @@ func DeviceInUseWS(c *gin.Context) {
 		}
 	}()
 
-	//var timeout = time.After(2 * time.Second)
+	// Loop sending messages to client to keep the connection and avoid using setInterval in the UI
+	go func() {
+		for {
+			err := wsutil.WriteServerText(conn, []byte("ping"))
+			if err != nil {
+				fmt.Println("Write error " + err.Error())
+				return
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	timer := time.NewTimer(2 * time.Second)
 	for {
 		select {
 		case userName := <-messageReceived:
@@ -465,7 +477,11 @@ func DeviceInUseWS(c *gin.Context) {
 			devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
 			devices.HubDevicesData.Devices[udid].InUseBy = userName
 			devices.HubDevicesData.Mu.Unlock()
-		case <-time.After(2 * time.Second):
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(2 * time.Second)
+		case <-timer.C:
 			devices.HubDevicesData.Mu.Lock()
 			devices.HubDevicesData.Devices[udid].InUseTS = 0
 			if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {

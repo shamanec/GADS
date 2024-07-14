@@ -42,7 +42,6 @@ export default function DeviceSelection() {
 
         evtSource.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
-            console.log(devicesJson)
             setDevices(devicesJson);
         }
 
