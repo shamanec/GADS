@@ -14,13 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/imagemounter"
-
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
+	"github.com/Masterminds/semver"
+	"github.com/danielpaulus/go-ios/ios"
 )
 
 // Forward iOS device ports using `go-ios` CLI, for some reason using the library doesn't work properly
@@ -230,15 +228,38 @@ func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig s
 func mountDeveloperImageIOS(device *models.Device) error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
-	var err error
-	path, err := imagemounter.DownloadImageFor(device.GoIOSDeviceEntry, basedir)
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Mounting DDI on device `%s`, image will be stored/found in `%s`", device.UDID, basedir))
+	cmd := exec.CommandContext(device.Context, "ios", "image", "auto", fmt.Sprintf("--basedir=%s", basedir))
+
+	// Create a pipe to capture the command's output
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("Could not download developer disk image with go-ios - %s", err)
 	}
 
-	err = imagemounter.MountImage(device.GoIOSDeviceEntry, path)
+	// Create a pipe to capture the command's error output
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("Could not mount developer disk image with go-ios - %s", err)
+	}
+
+	err = cmd.Start()
+	if err != nil {
+	}
+
+	// Create a combined reader from stdout and stderr
+	combinedReader := io.MultiReader(stderr, stdout)
+	// Create a scanner to read the command's output line by line
+	scanner := bufio.NewScanner(combinedReader)
+
+	if device.UDID != "ccec159ba0219c9fa0d0fc3d85451ab0dcfebd16" {
+		for scanner.Scan() {
+			line := scanner.Text()
+			fmt.Println(line)
+		}
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("mountDeveloperImageIOS: Failed to run command to mount DDI - %s", err)
 	}
 
 	return nil

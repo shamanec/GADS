@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"sync"
 
 	"github.com/danielpaulus/go-ios/ios"
 )
@@ -67,6 +68,7 @@ type Device struct {
 	GoIOSDeviceEntry ios.DeviceEntry    `json:"-" bson:"-"` // `go-ios` device entry object used for `go-ios` library interactions
 	Logger           CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
 	AppiumLogger     AppiumLogger       `json:"-" bson:"-"` // AppiumLogger object for logging appium actions
+	Mutex            sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
 }
 
 type LocalHubDevice struct {

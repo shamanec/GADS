@@ -337,9 +337,17 @@ func setupIOSDevice(device *models.Device) {
 		device.OSVersion = plistValues["ProductVersion"].(string)
 	}
 
+	// Mount the DDI on the device
+	err = mountDeveloperImageIOS(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not mount DDI on device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
 	isAboveIOS17 := isAboveIOS17(device)
 	if err != nil {
-		device.Logger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%v` is above iOS 17 - %v", device.UDID, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%s` is above iOS 17 - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
@@ -522,6 +530,8 @@ func getConnectedDevicesAndroid() []string {
 }
 
 func resetLocalDevice(device *models.Device) {
+	device.Mutex.Lock()
+	defer device.Mutex.Unlock()
 	if !device.IsResetting && device.ProviderState != "init" {
 		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` after error. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", device.UDID))
 
