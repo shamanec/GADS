@@ -508,6 +508,8 @@ func AvailableDevicesSSE(c *gin.Context) {
 		for _, key := range hubDeviceMapKeys {
 			if devices.HubDevicesData.Devices[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && devices.HubDevicesData.Devices[key].Device.Connected {
 				devices.HubDevicesData.Devices[key].Available = false
+			} else if devices.HubDevicesData.Devices[key].Device.ProviderState != "live" {
+				devices.HubDevicesData.Devices[key].Available = false
 			} else {
 				devices.HubDevicesData.Devices[key].Available = true
 			}
