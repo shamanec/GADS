@@ -42,6 +42,7 @@ type Device struct {
 	Usage        string `json:"usage" bson:"usage"`                 // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
 	ScreenWidth  string `json:"screen_width" bson:"screen_width"`   // screen width of device
 	ScreenHeight string `json:"screen_height" bson:"screen_height"` // screen height of device
+	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string `json:"host" bson:"-"`                   // IP address of the device host(provider)
