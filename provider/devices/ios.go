@@ -209,10 +209,10 @@ func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig s
 
 		device.Logger.LogDebug("webdriveragent", strings.TrimSpace(line))
 
-		if strings.Contains(line, "ServerURLHere") {
-			// device.DeviceIP = strings.Split(strings.Split(line, "//")[1], ":")[0]
-			device.WdaReadyChan <- true
-		}
+		//if strings.Contains(line, "ServerURLHere") {
+		//	// device.DeviceIP = strings.Split(strings.Split(line, "//")[1], ":")[0]
+		//	device.WdaReadyChan <- true
+		//}
 	}
 
 	err = cmd.Wait()
@@ -228,21 +228,24 @@ func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig s
 func mountDeveloperImageIOS(device *models.Device) error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
-	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Mounting DDI on device `%s`, image will be stored/found in `%s`", device.UDID, basedir))
 	cmd := exec.CommandContext(device.Context, "ios", "image", "auto", fmt.Sprintf("--basedir=%s", basedir))
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Mounting DDI on device `%s` with command `%s`, image will be stored/found in `%s`", device.UDID, cmd.Args, basedir))
 
 	// Create a pipe to capture the command's output
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		return fmt.Errorf("mountDeveloperImageIOS: Failed creating stdout pipe - %s", err)
 	}
 
 	// Create a pipe to capture the command's error output
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		return fmt.Errorf("mountDeveloperImageIOS: Failed creating stderr pipe - %s", err)
 	}
 
 	err = cmd.Start()
 	if err != nil {
+		return fmt.Errorf("mountDeveloperImageIOS: Failed starting command `%s` - %s", cmd.Args, err)
 	}
 
 	// Create a combined reader from stdout and stderr
@@ -250,11 +253,9 @@ func mountDeveloperImageIOS(device *models.Device) error {
 	// Create a scanner to read the command's output line by line
 	scanner := bufio.NewScanner(combinedReader)
 
-	if device.UDID != "ccec159ba0219c9fa0d0fc3d85451ab0dcfebd16" {
-		for scanner.Scan() {
-			line := scanner.Text()
-			fmt.Println(line)
-		}
+	for scanner.Scan() {
+		//line := scanner.Text()
+		//fmt.Println(line)
 	}
 
 	err = cmd.Wait()

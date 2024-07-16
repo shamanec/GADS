@@ -430,7 +430,7 @@ func setupIOSDevice(device *models.Device) {
 	case <-device.WdaReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", device.UDID, device.WDAPort))
 		break
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 30 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
