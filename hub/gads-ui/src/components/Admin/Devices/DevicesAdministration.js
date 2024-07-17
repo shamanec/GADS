@@ -104,7 +104,8 @@ function NewDevice({ providers, handleGetDeviceData }) {
             screen_height: screenHeight,
             screen_width: screenWidth,
             os: os,
-            usage: usage
+            usage: usage,
+            device_type: type
         }
 
         api.post(url, deviceData)
@@ -370,7 +371,8 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
             screen_height: screenHeight,
             screen_width: screenWidth,
             os: os,
-            usage: usage
+            usage: usage,
+            device_type: type
         }
 
         api.put(url, reqData)
