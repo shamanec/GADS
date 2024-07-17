@@ -150,14 +150,14 @@ func updateAndroidScreenSizeADB(device *models.Device) error {
 }
 
 // Get all installed apps on an Android device
-func getInstalledAppsAndroid(device *models.Device) []string {
+func GetInstalledAppsAndroid(device *models.Device) []string {
 	var installedApps []string
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "cmd", "package", "list", "packages", "-3")
 
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
-		device.Logger.LogError("get_installed_apps", fmt.Sprintf("getInstalledAppsAndroid: Error executing `%s` trying to get installed apps - %v", cmd.Args, err))
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsAndroid: Error executing `%s` trying to get installed apps - %v", cmd.Args, err))
 		return installedApps
 	}
 

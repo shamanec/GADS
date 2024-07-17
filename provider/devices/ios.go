@@ -289,7 +289,7 @@ func pairIOS(device *models.Device) error {
 }
 
 // Get all installed apps on an iOS device
-func getInstalledAppsIOS(device *models.Device) []string {
+func GetInstalledAppsIOS(device *models.Device) []string {
 	var installedApps []string
 	cmd := exec.CommandContext(device.Context, "ios", "apps", "--udid="+device.UDID)
 
@@ -298,7 +298,7 @@ func getInstalledAppsIOS(device *models.Device) []string {
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
-		device.Logger.LogError("get_installed_apps", fmt.Sprintf("getInstalledAppsIOS: Failed executing `%s` to get installed apps - %v", cmd.Args, err))
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsIOS: Failed executing `%s` to get installed apps - %v", cmd.Args, err))
 		return installedApps
 	}
 
@@ -311,7 +311,7 @@ func getInstalledAppsIOS(device *models.Device) []string {
 
 	err := json.Unmarshal([]byte(jsonString), &appsData)
 	if err != nil {
-		device.Logger.LogError("get_installed_apps", fmt.Sprintf("getInstalledAppsIOS: Error unmarshalling `%s` output json - %v", cmd.Args, err))
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsIOS: Error unmarshalling `%s` output json - %v", cmd.Args, err))
 		return installedApps
 	}
 

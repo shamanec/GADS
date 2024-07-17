@@ -230,7 +230,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	device.StreamPort = streamPort
 
-	apps := getInstalledAppsAndroid(device)
+	apps := GetInstalledAppsAndroid(device)
 	if slices.Contains(apps, "com.shamanec.stream") {
 		stopGadsStreamService(device)
 		time.Sleep(3 * time.Second)
@@ -276,7 +276,7 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 
-	device.InstalledApps = getInstalledAppsAndroid(device)
+	device.InstalledApps = GetInstalledAppsAndroid(device)
 
 	if slices.Contains(device.InstalledApps, "io.appium.settings") {
 		logger.ProviderLogger.LogInfo("android_device_setup", "Appium settings found on device, attempting to uninstall")
@@ -449,7 +449,7 @@ func setupIOSDevice(device *models.Device) {
 		go startGridNode(device)
 	}
 
-	device.InstalledApps = getInstalledAppsIOS(device)
+	device.InstalledApps = GetInstalledAppsIOS(device)
 
 	// Mark the device as 'live'
 	device.ProviderState = "live"
@@ -720,9 +720,9 @@ func startGridNode(device *models.Device) {
 
 func UpdateInstalledApps(device *models.Device) {
 	if device.OS == "ios" {
-		device.InstalledApps = getInstalledAppsIOS(device)
+		device.InstalledApps = GetInstalledAppsIOS(device)
 	} else {
-		device.InstalledApps = getInstalledAppsAndroid(device)
+		device.InstalledApps = GetInstalledAppsAndroid(device)
 	}
 }
 

@@ -245,6 +245,22 @@ func DeviceInfo(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Did not find device with udid `%s`", udid)})
 }
 
+func DeviceInstalledApps(c *gin.Context) {
+	udid := c.Param("udid")
+	var installedApps []string
+
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
+		if dev.OS == "ios" {
+			installedApps = devices.GetInstalledAppsIOS(dev)
+		} else {
+			installedApps = devices.GetInstalledAppsAndroid(dev)
+		}
+		c.JSON(http.StatusOK, installedApps)
+		return
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Did not find device with udid `%s`", udid)})
+}
+
 func DevicesInfo(c *gin.Context) {
 	deviceList := []*models.Device{}
 
@@ -276,7 +292,14 @@ func UninstallApp(c *gin.Context) {
 			return
 		}
 
-		if slices.Contains(dev.InstalledApps, payloadJson.App) {
+		var installedApps []string
+		if dev.OS == "ios" {
+			installedApps = devices.GetInstalledAppsIOS(dev)
+		} else {
+			installedApps = devices.GetInstalledAppsAndroid(dev)
+		}
+
+		if slices.Contains(installedApps, payloadJson.App) {
 			err = devices.UninstallApp(dev, payloadJson.App)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App)})

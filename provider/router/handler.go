@@ -36,6 +36,7 @@ func HandleRequests() *gin.Engine {
 
 	deviceGroup := r.Group("/device/:udid")
 	deviceGroup.GET("/info", DeviceInfo)
+	deviceGroup.GET("/apps", DeviceInstalledApps)
 	deviceGroup.GET("/health", DeviceHealth)
 	deviceGroup.POST("/tap", DeviceTap)
 	deviceGroup.POST("/touchAndHold", DeviceTouchAndHold)
