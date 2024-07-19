@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import {Auth} from "../../../../../contexts/Auth";
+import { Auth } from "../../../contexts/Auth.js";
 import {
     Box,
     Button,
@@ -10,13 +10,14 @@ import {
     TableBody, TableCell,
     TableContainer, TableFooter, TablePagination,
     TableRow,
+    Tooltip,
     useTheme
 } from "@mui/material";
 import FirstPageIcon from '@mui/icons-material/FirstPage';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 import LastPageIcon from '@mui/icons-material/LastPage';
-import { api } from '../../../../../services/api.js'
+import { api } from '../../../services/api.js'
 
 function TablePaginationActions(props) {
     const theme = useTheme();
@@ -92,6 +93,7 @@ export default function ProviderLogsTable({ nickname }) {
         api.get(url)
             .then(response => {
                 setLogData(response.data)
+                setPage(0)
             })
             .catch(error => {
                 if (error.response) {
@@ -104,7 +106,7 @@ export default function ProviderLogsTable({ nickname }) {
     }
 
     return (
-        <div style={{marginTop: '10px'}}>
+        <div style={{ margin: '10px' }}>
             <Button
                 onClick={getLogs}
                 variant='contained'
@@ -121,23 +123,28 @@ export default function ProviderLogsTable({ nickname }) {
                     backgroundColor: "#9ba984"
                 }}
             >
-                <Table sx={{ minWidth: 500 }} size='small' padding='checkbox'>
-                    <TableBody>
+                <Table size='small' padding='checkbox' id='some-table'>
+                    <TableBody >
                         {(rowsPerPage > 0
-                                ? logData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                                : logData
+                            ? logData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                            : logData
                         ).map((logEntry, index) => (
-                            <TableRow key={index}>
-                                <TableCell style={{ width: "200px", maxWidth: "200px", fontSize: "14px" }}>
+                            <TableRow key={index} >
+                                <TableCell style={{ maxWidth: '200px', fontSize: "14px" }}>
                                     {logEntry.eventname}
                                 </TableCell>
-                                <TableCell style={{ width: "600px", maxWidth: "600px", overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
-                                    {logEntry.message}
-                                </TableCell>
+                                <Tooltip
+                                    title={logEntry.message}
+                                    arrow
+                                >
+                                    <TableCell style={{ maxWidth: '800px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: "14px" }}>
+                                        {logEntry.message}
+                                    </TableCell>
+                                </Tooltip>
                             </TableRow>
                         ))}
                         {emptyRows > 0 && (
-                            <TableRow style={{ height: 40 * emptyRows }}>
+                            <TableRow style={{ height: 20 * emptyRows }}>
                                 <TableCell colSpan={6} />
                             </TableRow>
                         )}

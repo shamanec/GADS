@@ -6,8 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/pelletier/go-toml/v2"
 	"io"
 	"log"
 	"net/http"
@@ -16,7 +14,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/pelletier/go-toml/v2"
 
 	"GADS/common/constants"
 	"GADS/common/db"
@@ -24,6 +26,7 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -31,15 +34,130 @@ import (
 var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
-var DeviceMap = make(map[string]*models.Device)
+var DBDeviceMap = make(map[string]*models.Device)
 
 func Listener() {
 	Setup()
+	DBDeviceMap = getDBProviderDevices()
+	setupDevices()
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
-	// Start updating the local devices data to Mongo in a goroutine
-	go updateDevicesMongo()
+	// Start updating the local devices data to the hub in a goroutine
+	go updateProviderHub()
+}
+
+func updateProviderHub() {
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	var updateFailureCounter = 1
+	var mu sync.Mutex
+
+	for {
+		if updateFailureCounter >= 10 {
+			log.Fatalf("Unsuccessfully attempted to update device data in hub for 10 times, killing provider")
+		}
+		time.Sleep(1 * time.Second)
+
+		mu.Lock()
+
+		var properJson models.ProviderData
+		for _, dbDevice := range DBDeviceMap {
+			properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
+			properJson.ProviderData = *config.ProviderConfig
+		}
+		mu.Unlock()
+		jsonData, err := json.Marshal(properJson)
+		if err != nil {
+			updateFailureCounter++
+			logger.ProviderLogger.LogError("update_provider_hub", "Failed marshaling provider data to json - "+err.Error())
+			continue
+		}
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
+		if err != nil {
+			updateFailureCounter++
+			logger.ProviderLogger.LogError("update_provider_hub", "Failed to create request to update provider data in hub - "+err.Error())
+			continue
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			updateFailureCounter++
+			logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", updateFailureCounter, err))
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			updateFailureCounter++
+			logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", updateFailureCounter, err))
+			continue
+		}
+		// Reset the counter if update went well
+		updateFailureCounter = 1
+	}
+}
+
+func setupDevices() {
+	for _, dbDevice := range DBDeviceMap {
+		dbDevice.ProviderState = "init"
+		dbDevice.Connected = false
+		dbDevice.LastUpdatedTimestamp = 0
+		dbDevice.IsResetting = false
+
+		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
+
+		// Check if a capped Appium logs collection already exists for the current device
+		exists, err := db.CollectionExists("appium_logs", dbDevice.UDID)
+		if err != nil {
+			logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
+		}
+
+		// If it doesn't exist - attempt to create it
+		if !exists {
+			err = db.CreateCappedCollection("appium_logs", dbDevice.UDID, 30000, 30)
+			if err != nil {
+				logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
+				continue
+			}
+		}
+
+		// Create an index model and add it to the respective device Appium log collection
+		appiumCollectionIndexModel := mongo.IndexModel{
+			Keys: bson.D{
+				{
+					Key: "ts", Value: constants.SortAscending},
+				{
+					Key: "session_id", Value: constants.SortAscending,
+				},
+			},
+		}
+		db.AddCollectionIndex("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
+
+		// Create logs directory for the device if it doesn't already exist
+		if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
+			err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID), os.ModePerm)
+			if err != nil {
+				logger.ProviderLogger.Errorf("updateDevices: Could not create logs folder for device `%s` - %s\n", dbDevice.UDID, err)
+				continue
+			}
+		}
+
+		// Create a custom logger and attach it to the local device
+		deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
+		if err != nil {
+			logger.ProviderLogger.Errorf("updateDevices: Could not create custom logger for device `%s` - %s\n", dbDevice.UDID, err)
+			continue
+		}
+		dbDevice.Logger = *deviceLogger
+
+		appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
+		if err != nil {
+			logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", dbDevice.UDID, err)
+			continue
+		}
+		dbDevice.AppiumLogger = appiumLogger
+	}
 }
 
 func updateDevices() {
@@ -49,126 +167,35 @@ func updateDevices() {
 	for range ticker.C {
 		connectedDevices := GetConnectedDevicesCommon()
 
-		// Loop through the connected devices
-		for _, connectedDevice := range connectedDevices {
-			// If a connected device is not already in the local devices map
-			// Do the initial set up and add it
-			if _, ok := DeviceMap[connectedDevice.UDID]; !ok {
-				newDevice := &models.Device{}
-				newDevice.UDID = connectedDevice.UDID
-				newDevice.OS = connectedDevice.OS
-				newDevice.ProviderState = "init"
-				newDevice.IsResetting = false
-				newDevice.Connected = true
+	DEVICE_MAP_LOOP:
+		for dbDeviceUDID, dbDevice := range DBDeviceMap {
+			if dbDevice.Usage == "disabled" {
+				continue DEVICE_MAP_LOOP
+			}
+			if slices.Contains(connectedDevices, dbDeviceUDID) {
+				dbDevice.Connected = true
+				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
+					setContext(dbDevice)
+					if dbDevice.OS == "ios" {
+						dbDevice.WdaReadyChan = make(chan bool, 1)
+						go setupIOSDevice(dbDevice)
+					}
 
-				// Add default name for the device
-				if connectedDevice.OS == "ios" {
-					newDevice.Name = "iPhone"
-				} else {
-					newDevice.Name = "Android"
-				}
-
-				newDevice.Host = fmt.Sprintf("%s:%v", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port)
-				newDevice.Provider = config.Config.EnvConfig.Nickname
-				// Set N/A for model and OS version because we will set those during the device set up
-				newDevice.Model = "N/A"
-				newDevice.OSVersion = "N/A"
-
-				// Check if a capped Appium logs collection already exists for the current device
-				exists, err := db.CollectionExists("appium_logs", newDevice.UDID)
-				if err != nil {
-					logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
-				}
-
-				// If it doesn't exist - attempt to create it
-				if !exists {
-					err = db.CreateCappedCollection("appium_logs", newDevice.UDID, 30000, 30)
-					if err != nil {
-						logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", connectedDevice.UDID, err)
-						continue
+					if dbDevice.OS == "android" {
+						go setupAndroidDevice(dbDevice)
 					}
 				}
-
-				// Create an index model and add it to the respective device Appium log collection
-				appiumCollectionIndexModel := mongo.IndexModel{
-					Keys: bson.D{
-						{
-							Key: "ts", Value: constants.SortAscending},
-						{
-							Key: "session_id", Value: constants.SortAscending,
-						},
-					},
-				}
-				db.AddCollectionIndex("appium_logs", newDevice.UDID, appiumCollectionIndexModel)
-
-				// Create logs directory for the device if it doesn't already exist
-				if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID)); os.IsNotExist(err) {
-					err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), os.ModePerm)
-					if err != nil {
-						logger.ProviderLogger.Errorf("updateDevices: Could not create logs folder for device `%s` - %s\n", newDevice.UDID, err)
-						continue
-					}
-				}
-
-				// Create a custom logger and attach it to the local device
-				deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
-				if err != nil {
-					logger.ProviderLogger.Errorf("updateDevices: Could not create custom logger for device `%s` - %s\n", newDevice.UDID, err)
-					continue
-				}
-				newDevice.Logger = *deviceLogger
-
-				appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.Config.EnvConfig.ProviderFolder, newDevice.UDID), newDevice.UDID)
-				if err != nil {
-					logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", newDevice.UDID, err)
-					continue
-				}
-				newDevice.AppiumLogger = appiumLogger
-
-				// Add the new local device to the map
-				DeviceMap[connectedDevice.UDID] = newDevice
-			}
-		}
-
-		// Loop through the local devices map to remove any no longer connected devices
-		for _, localDevice := range DeviceMap {
-			isConnected := false
-			for _, connectedDevice := range connectedDevices {
-				if connectedDevice.UDID == localDevice.UDID {
-					isConnected = true
-				}
-			}
-
-			// If the device is no longer connected
-			// Reset its set up in case something is lingering and delete it from the map
-			if !isConnected {
-				resetLocalDevice(localDevice)
-				delete(DeviceMap, localDevice.UDID)
-			}
-		}
-
-		// Loop through the final local device map and set up the devices if they are not already being set up or live
-		for _, device := range DeviceMap {
-			// If we are not already preparing the device, or it's not already prepared
-			if device.ProviderState != "preparing" && device.ProviderState != "live" {
-				setContext(device)
-				if device.OS == "ios" {
-					device.WdaReadyChan = make(chan bool, 1)
-					go setupIOSDevice(device)
-				}
-
-				if device.OS == "android" {
-					go setupAndroidDevice(device)
-				}
+			} else {
+				dbDevice.ProviderState = "init"
+				dbDevice.IsResetting = false
+				dbDevice.Connected = false
 			}
 		}
 	}
 }
 
-// Create Mongo collections for all devices for logging
-// Create a map of *device.LocalDevice for easier access across the code
 func Setup() {
-	if config.Config.EnvConfig.ProvideAndroid {
+	if config.ProviderConfig.ProvideAndroid {
 		err := providerutil.CheckGadsStreamAndDownload()
 		if err != nil {
 			log.Fatalf("Setup: Could not check availability of and download GADS-stream latest release - %s", err)
@@ -181,17 +208,8 @@ func setupAndroidDevice(device *models.Device) {
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
-	err := updateScreenSize(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not update screen dimensions with adb for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-	getModel(device)
-	getAndroidOSVersion(device)
-
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
@@ -199,6 +217,7 @@ func setupAndroidDevice(device *models.Device) {
 			return
 		}
 	}
+	getAndroidDeviceHardwareModel(device)
 
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -208,7 +227,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	device.StreamPort = streamPort
 
-	apps := getInstalledAppsAndroid(device)
+	apps := GetInstalledAppsAndroid(device)
 	if slices.Contains(apps, "com.shamanec.stream") {
 		stopGadsStreamService(device)
 		time.Sleep(3 * time.Second)
@@ -254,7 +273,7 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 
-	device.InstalledApps = getInstalledAppsAndroid(device)
+	device.InstalledApps = GetInstalledAppsAndroid(device)
 
 	if slices.Contains(device.InstalledApps, "io.appium.settings") {
 		logger.ProviderLogger.LogInfo("android_device_setup", "Appium settings found on device, attempting to uninstall")
@@ -281,7 +300,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}
 
@@ -309,26 +328,32 @@ func setupIOSDevice(device *models.Device) {
 		resetLocalDevice(device)
 		return
 	}
-	// Update hardware model got from plist, os version and product type
+	// Update hardware model got from plist
 	device.HardwareModel = plistValues["HardwareModel"].(string)
-	device.OSVersion = plistValues["ProductVersion"].(string)
-	device.IOSProductType = plistValues["ProductType"].(string)
 
-	isAboveIOS17, err := isAboveIOS17(device)
+	// Mount the DDI on the device
+	err = mountDeveloperImageIOS(device)
 	if err != nil {
-		device.Logger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%v` is above iOS 17 - %v", device.UDID, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not mount DDI on device `%s` - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
 
-	if isAboveIOS17 && config.Config.EnvConfig.OS != "darwin" {
+	isAboveIOS17 := isAboveIOS17(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%s` is above iOS 17 - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
+	if isAboveIOS17 && config.ProviderConfig.OS != "darwin" {
 		logger.ProviderLogger.LogInfo("ios_device_setup", "Device `%s` is iOS 17+ which is not supported on Windows/Linux, setup will be skipped")
 		device.ProviderState = "init"
 		return
 	}
 
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
@@ -336,15 +361,6 @@ func setupIOSDevice(device *models.Device) {
 			return
 		}
 	}
-
-	// Update the screen dimensions of the device using data from the IOSDeviceDimensions map
-	err = updateScreenSize(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not update screen dimensions for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-	getModel(device)
 
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -375,35 +391,40 @@ func setupIOSDevice(device *models.Device) {
 	go goIOSForward(device, device.StreamPort, "9500")
 	go goIOSForward(device, device.WDAStreamPort, "9100")
 
-	// TODO - finalize this when we can use go-ios to start tests anywhere
-	//if config.Config.EnvConfig.UseGadsIosStream {
-	//	err = startGadsIosBroadcastViaXCTestGoIOS(device)
-	//	if err != nil {
-	//		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not start GADS broadcast with XCTest on device `%s` - %s", device.UDID, err))
-	//		resetLocalDevice(device)
-	//		return
-	//	}
-	//}
-
 	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
-	if config.Config.EnvConfig.OS != "darwin" {
-		wdaPath := fmt.Sprintf("%s/%s", config.Config.EnvConfig.ProviderFolder, config.Config.EnvConfig.WebDriverBinary)
-		err = installAppWithPathIOS(device, wdaPath)
+	if config.ProviderConfig.OS != "darwin" {
+		wdaPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
+		err = installAppIOS(device, wdaPath)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
 			resetLocalDevice(device)
 			return
 		}
-		go startWdaWithGoIOS(device)
+		go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 	} else {
-		go startWdaWithXcodebuild(device)
+		if !isAboveIOS17 {
+			wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
+			wdaPath := fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
+			err = installAppIOS(device, wdaPath)
+			if err != nil {
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
+				resetLocalDevice(device)
+				return
+			}
+			go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
+		} else {
+			go startWdaWithXcodebuild(device)
+		}
 	}
+
+	go checkWebDriverAgentUp(device)
+
 	// Wait until WebDriverAgent successfully starts
 	select {
 	case <-device.WdaReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", device.UDID, device.WDAPort))
 		break
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 30 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
@@ -418,28 +439,28 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
-	if config.Config.EnvConfig.UseSeleniumGrid {
+	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}
 
-	device.InstalledApps = getInstalledAppsIOS(device)
+	device.InstalledApps = GetInstalledAppsIOS(device)
 
 	// Mark the device as 'live'
 	device.ProviderState = "live"
 }
 
 // Gets all connected iOS and Android devices to the host
-func GetConnectedDevicesCommon() []models.ConnectedDevice {
-	var connectedDevices []models.ConnectedDevice
+func GetConnectedDevicesCommon() []string {
+	var connectedDevices []string
 
-	var androidDevices []models.ConnectedDevice
-	var iosDevices []models.ConnectedDevice
+	var androidDevices []string
+	var iosDevices []string
 
-	if config.Config.EnvConfig.ProvideAndroid {
+	if config.ProviderConfig.ProvideAndroid {
 		androidDevices = getConnectedDevicesAndroid()
 	}
 
-	if config.Config.EnvConfig.ProvideIOS {
+	if config.ProviderConfig.ProvideIOS {
 		iosDevices = getConnectedDevicesIOS()
 	}
 
@@ -450,8 +471,8 @@ func GetConnectedDevicesCommon() []models.ConnectedDevice {
 }
 
 // Gets the connected iOS devices using the `go-ios` library
-func getConnectedDevicesIOS() []models.ConnectedDevice {
-	var connectedDevices []models.ConnectedDevice
+func getConnectedDevicesIOS() []string {
+	var connectedDevices []string
 
 	deviceList, err := ios.ListDevices()
 	if err != nil {
@@ -460,14 +481,14 @@ func getConnectedDevicesIOS() []models.ConnectedDevice {
 	}
 
 	for _, connDevice := range deviceList.DeviceList {
-		connectedDevices = append(connectedDevices, models.ConnectedDevice{OS: "ios", UDID: connDevice.Properties.SerialNumber})
+		connectedDevices = append(connectedDevices, connDevice.Properties.SerialNumber)
 	}
 	return connectedDevices
 }
 
 // Gets the connected android devices using `adb`
-func getConnectedDevicesAndroid() []models.ConnectedDevice {
-	var connectedDevices []models.ConnectedDevice
+func getConnectedDevicesAndroid() []string {
+	var connectedDevices []string
 
 	cmd := exec.Command("adb", "devices")
 	// Create a pipe to capture the command's output
@@ -489,20 +510,22 @@ func getConnectedDevicesAndroid() []models.ConnectedDevice {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") && !strings.Contains(line, "emulator") {
-			connectedDevices = append(connectedDevices, models.ConnectedDevice{OS: "android", UDID: strings.Fields(line)[0]})
+			connectedDevices = append(connectedDevices, strings.Fields(line)[0])
 		}
 	}
 
 	err = cmd.Wait()
 	if err != nil {
 		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Waiting for `%s` command to finish failed, returning empty slice - %s", cmd.Args, err))
-		return []models.ConnectedDevice{}
+		return []string{}
 	}
 
 	return connectedDevices
 }
 
 func resetLocalDevice(device *models.Device) {
+	device.Mutex.Lock()
+	defer device.Mutex.Unlock()
 	if !device.IsResetting && device.ProviderState != "init" {
 		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` after error. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", device.UDID))
 
@@ -605,7 +628,7 @@ func createGridTOML(device *models.Device) error {
 		automationName = "UiAutomator2"
 	}
 
-	url := fmt.Sprintf("http://%s:%v/device/%s/appium", config.Config.EnvConfig.HostAddress, config.Config.EnvConfig.Port, device.UDID)
+	url := fmt.Sprintf("http://%s:%v/device/%s/appium", config.ProviderConfig.HostAddress, config.ProviderConfig.Port, device.UDID)
 	configs := fmt.Sprintf(`{"appium:deviceName": "%s", "platformName": "%s", "appium:platformVersion": "%s", "appium:automationName": "%s", "appium:udid": "%s"}`, device.Name, device.OS, device.OSVersion, automationName, device.UDID)
 
 	port, _ := providerutil.GetFreePort()
@@ -632,7 +655,7 @@ func createGridTOML(device *models.Device) error {
 		return fmt.Errorf("Failed marshalling TOML Appium config - %s", err)
 	}
 
-	file, err := os.Create(fmt.Sprintf("%s/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID))
+	file, err := os.Create(fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, device.UDID))
 	if err != nil {
 		return fmt.Errorf("Failed creating TOML Appium config file - %s", err)
 	}
@@ -651,14 +674,14 @@ func startGridNode(device *models.Device) {
 	cmd := exec.CommandContext(device.Context,
 		"java",
 		"-jar",
-		fmt.Sprintf("%s/selenium.jar", config.Config.EnvConfig.ProviderFolder),
+		fmt.Sprintf("%s/selenium.jar", config.ProviderConfig.ProviderFolder),
 		"node",
 		"--host",
-		config.Config.EnvConfig.HostAddress,
+		config.ProviderConfig.HostAddress,
 		"--config",
-		fmt.Sprintf("%s/%s.toml", config.Config.EnvConfig.ProviderFolder, device.UDID),
+		fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, device.UDID),
 		"--grid-url",
-		config.Config.EnvConfig.SeleniumGrid,
+		config.ProviderConfig.SeleniumGrid,
 	)
 
 	logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s` with command `%s`", device.UDID, cmd.Args))
@@ -689,77 +712,11 @@ func startGridNode(device *models.Device) {
 	}
 }
 
-func updateScreenSize(device *models.Device) error {
-	if device.OS == "ios" {
-		if dimensions, ok := constants.IOSDeviceInfoMap[device.IOSProductType]; ok {
-			device.ScreenHeight = dimensions.Height
-			device.ScreenWidth = dimensions.Width
-		} else {
-			return fmt.Errorf("could not find `%s` hardware model in the IOSDeviceDimensions map, please update the map", device.HardwareModel)
-		}
-	} else {
-		err := updateAndroidScreenSizeADB(device)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func getModel(device *models.Device) {
-	if device.OS == "ios" {
-		if info, ok := constants.IOSDeviceInfoMap[device.IOSProductType]; ok {
-			device.Model = info.Model
-		} else {
-			device.Model = "Unknown iOS device"
-		}
-	} else {
-		brandCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.brand")
-		var outBuffer bytes.Buffer
-		brandCmd.Stdout = &outBuffer
-		if err := brandCmd.Run(); err != nil {
-			device.Model = "Unknown brand and model"
-		}
-		brand := outBuffer.String()
-		outBuffer.Reset()
-
-		modelCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.model")
-		modelCmd.Stdout = &outBuffer
-		if err := modelCmd.Run(); err != nil {
-			device.Model = "Unknown brand/model"
-			return
-		}
-		model := outBuffer.String()
-
-		device.Model = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
-	}
-}
-
-func getAndroidOSVersion(device *models.Device) {
-	if device.OS == "ios" {
-
-	} else {
-		sdkCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.build.version.sdk")
-		var outBuffer bytes.Buffer
-		sdkCmd.Stdout = &outBuffer
-		if err := sdkCmd.Run(); err != nil {
-			device.OSVersion = "N/A"
-		}
-		sdkVersion := strings.TrimSpace(outBuffer.String())
-		if osVersion, ok := constants.AndroidVersionToSDK[sdkVersion]; ok {
-			device.OSVersion = osVersion
-		} else {
-			device.OSVersion = "N/A"
-		}
-	}
-}
-
 func UpdateInstalledApps(device *models.Device) {
 	if device.OS == "ios" {
-		device.InstalledApps = getInstalledAppsIOS(device)
+		device.InstalledApps = GetInstalledAppsIOS(device)
 	} else {
-		device.InstalledApps = getInstalledAppsAndroid(device)
+		device.InstalledApps = GetInstalledAppsAndroid(device)
 	}
 }
 
@@ -781,7 +738,7 @@ func UninstallApp(device *models.Device, app string) error {
 
 func InstallApp(device *models.Device, app string) error {
 	if device.OS == "ios" {
-		err := installAppIOS(device, app)
+		err := installAppDefaultPath(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
@@ -795,4 +752,25 @@ func InstallApp(device *models.Device, app string) error {
 	}
 
 	return nil
+}
+
+func getAndroidDeviceHardwareModel(device *models.Device) {
+	brandCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.brand")
+	var outBuffer bytes.Buffer
+	brandCmd.Stdout = &outBuffer
+	if err := brandCmd.Run(); err != nil {
+		device.HardwareModel = "Unknown"
+	}
+	brand := outBuffer.String()
+	outBuffer.Reset()
+
+	modelCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.product.model")
+	modelCmd.Stdout = &outBuffer
+	if err := modelCmd.Run(); err != nil {
+		device.HardwareModel = "Unknown"
+		return
+	}
+	model := outBuffer.String()
+
+	device.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
 }

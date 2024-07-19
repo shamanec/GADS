@@ -58,7 +58,12 @@ export default function UploadSeleniumJar() {
                     setAlertSeverity('error')
                     setAlertText('Failed uploading Selenium jar file')
                     setShowAlert(true)
-                });
+                })
+                .finally(() => {
+                    setTimeout(() => {
+                        setShowAlert(false)
+                    }, 5000)
+                })
         }
     }
 
@@ -66,7 +71,12 @@ export default function UploadSeleniumJar() {
         <Box
             id='upload-wrapper'
             style={{
-                borderRadius: '10px'
+                borderRadius: '10px',
+                height: '280px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignContent: 'center',
+                justifyContent: 'flex-start'
             }}
         >
             <h3>Upload Selenium jar</h3>
@@ -78,7 +88,7 @@ export default function UploadSeleniumJar() {
             <Button
                 component='label'
                 variant='contained'
-                startIcon={<AttachFileIcon />}
+                startIcon={isUploading ? null : <AttachFileIcon />}
                 style={{
                     backgroundColor: "#2f3b26",
                     color: "#9ba984",
@@ -90,12 +100,13 @@ export default function UploadSeleniumJar() {
                     type="file"
                     onChange={(event) => handleUpload(event)}
                 />
-                Select and upload
+                {isUploading ? (
+                    <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                ) :  (
+                    'Select and upload'
+                )}
             </Button>
-            {isUploading &&
-                <CircularProgress id='progress-indicator' size={30} />
-            }
-            {showAlert && <Alert severity={alertSeverity}>{alertText}</Alert>}
+            {showAlert && <Alert size='small' severity={alertSeverity} style={{marginTop: '5px', padding: '2px 4px'}}>{alertText}</Alert>}
         </Box>
     )
 }

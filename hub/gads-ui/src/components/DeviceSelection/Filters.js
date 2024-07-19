@@ -12,18 +12,18 @@ export function OSFilterTabs({ currentTabIndex, handleTabChange }) {
             TabIndicatorProps={{
                 style: {
                     background: "#2f3b26",
-                    height: "5px"
+                    height: '5px'
                 }
             }}
             textColor='#f4e6cd'
             sx={{
                 color: "#2f3b26",
-                fontFamily: "Verdana"
+                fontFamily: 'Verdana'
             }}
         >
-            <Tab label="All" />
-            <Tab label="Android" />
-            <Tab label="iOS" />
+            <Tab label='All' />
+            <Tab label='Android' />
+            <Tab label='iOS' />
         </Tabs>
     )
 }
@@ -35,11 +35,12 @@ export function DeviceSearch({ keyUpFilterFunc }) {
                 <FiSearch size={25}/>
             </div>
             <input
-                type="search"
-                id="search-input"
+                type='search'
+                id='search-input'
                 onInput={() => keyUpFilterFunc()}
-                placeholder="Search devices"
-                className="custom-placeholder"
+                placeholder='Search devices'
+                className='custom-placeholder'
+                autoComplete='off'
             ></input>
         </div>
     )

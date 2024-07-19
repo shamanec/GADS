@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react'
 import './DeviceSelection.css'
-import Alert from '@mui/material/Alert';
-import Snackbar from '@mui/material/Snackbar';
 import Box from '@mui/material/Box';
 import TabPanel from '@mui/lab/TabPanel';
 import TabContext from '@mui/lab/TabContext';
@@ -11,21 +9,11 @@ import Divider from '@mui/material/Divider';
 import { OSFilterTabs, DeviceSearch } from './Filters'
 import { Auth } from '../../contexts/Auth';
 import { api } from '../../services/api.js'
-import NewDeviceBox from "./NewDeviceBox";
+import DeviceBox from "./DeviceBox";
 
 export default function DeviceSelection() {
-    // States
-    const [devices, setDevices] = useState([]);
-    const [showAlert, setShowAlert] = useState(false);
-    const [timeoutId, setTimeoutId] = useState(null);
-
-    let devicesSocket = null;
-    let vertical = 'bottom'
-    let horizontal = 'center'
-
     const open = true
-
-    // Authentication and session control
+    const [devices, setDevices] = useState([]);
     const { logout } = useContext(Auth)
 
     function CheckServerHealth() {
@@ -45,30 +33,15 @@ export default function DeviceSelection() {
             })
     }
 
-    // Show a snackbar alert if device is unavailable
-    function presentDeviceUnavailableAlert() {
-        // Present the alert
-        setShowAlert(true);
-        // Clear the previous timeout if it exists
-        clearTimeout(timeoutId);
-        // Set a new timeout for the alert
-        setTimeoutId(
-            setTimeout(() => {
-                setShowAlert(false);
-            }, 3000)
-        );
-    }
-
     useEffect(() => {
         CheckServerHealth()
 
         // Use specific full address for local development, proxy does not seem to work okay
-        // const evtSource = new EventSource(`http://192.168.1.6:10000/available-devices`);
+        // const evtSource = new EventSource(`http://192.168.68.109:10000/available-devices`);
         const evtSource = new EventSource(`/available-devices`);
 
         evtSource.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)
-            console.log(devicesJson)
             setDevices(devicesJson);
         }
 
@@ -89,25 +62,13 @@ export default function DeviceSelection() {
             >
                 <OSSelection
                     devices={devices}
-                    handleAlert={presentDeviceUnavailableAlert}
                 />
-                {showAlert && (
-                    <Snackbar
-                        anchorOrigin={{ vertical, horizontal }}
-                        open={open}
-                        key='bottomcenter'
-                    >
-                        <Alert severity="error">
-                            Device is unavailable
-                        </Alert>
-                    </Snackbar>
-                )}
             </div>
         </div>
     )
 }
 
-function OSSelection({ devices, handleAlert }) {
+function OSSelection({ devices }) {
     const [currentTabIndex, setCurrentTabIndex] = useState(0);
 
     const handleTabChange = (e, tabIndex) => {
@@ -131,7 +92,7 @@ function OSSelection({ devices, handleAlert }) {
                     alignItems='center'
                     className='filters-stack'
                     sx={{
-                        height: '500px',
+                        height: '200px',
                         backgroundColor: '#9ba984',
                         borderRadius: '10px'
                     }}
@@ -171,7 +132,8 @@ function OSSelection({ devices, handleAlert }) {
                     >
                         <Grid
                             id='devices-container'
-                            container spacing={2}
+                            container
+                            spacing={2}
                             style={{
                                 marginBottom: '10px'
                             }}
@@ -181,9 +143,8 @@ function OSSelection({ devices, handleAlert }) {
                                     if (currentTabIndex === 0) {
                                         return (
                                             <Grid item>
-                                                <NewDeviceBox
+                                                <DeviceBox
                                                     device={device}
-                                                    handleAlert={handleAlert}
                                                 />
                                             </Grid>
                                         )
@@ -191,9 +152,8 @@ function OSSelection({ devices, handleAlert }) {
                                     } else if (currentTabIndex === 1 && device.info.os === 'android') {
                                         return (
                                             <Grid item>
-                                                <NewDeviceBox
+                                                <DeviceBox
                                                     device={device}
-                                                    handleAlert={handleAlert}
                                                 />
                                             </Grid>
                                         )
@@ -201,9 +161,8 @@ function OSSelection({ devices, handleAlert }) {
                                     } else if (currentTabIndex === 2 && device.info.os === 'ios') {
                                         return (
                                             <Grid item>
-                                                <NewDeviceBox
+                                                <DeviceBox
                                                     device={device}
-                                                    handleAlert={handleAlert}
                                                 />
                                             </Grid>
                                         )

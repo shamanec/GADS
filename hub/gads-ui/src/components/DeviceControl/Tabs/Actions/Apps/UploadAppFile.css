@@ -1,17 +1,10 @@
 #upload-wrapper {
     display: flex;
     flex-direction: column;
-    /* border-radius: 10px; */
-    /* border: 1px solid black; */
-    align-items: left;
     justify-content: center;
     width: 300px;
     padding: 10px;
     background-color: #9ba984;
-}
-
-#upload-button {
-    width: 50%;
 }
 
 #progress-indicator {

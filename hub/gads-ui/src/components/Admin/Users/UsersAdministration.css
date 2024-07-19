@@ -1,0 +1,35 @@
+#outer-stack {
+    width: 100%;
+    margin-left: 10px;
+    margin-top: 10px;
+}
+
+#outer-box {
+    margin-bottom: 10px;
+    height: 80vh;
+    overflow-y: scroll;
+    border: 2px solid black;
+    border-radius: 10px;
+    box-shadow: inset 0 -10px 10px -10px #000000;
+    scrollbar-width: none;
+    margin-right: 10px;
+    width: 100%;
+}
+
+#user-grid {
+    margin: 10px;
+}
+
+.user-box {
+    border: 1px solid black;
+    width: 400px;
+    min-width: 400px;
+    max-width: 400px;
+    height: 300px;
+    border-radius: 5px;
+    background-color: #9ba984;
+}
+
+#user-box-stack {
+    padding: 10px;
+}

@@ -3,8 +3,9 @@ import Tab from '@mui/material/Tab';
 import { useState } from "react";
 import { Box } from "@mui/material";
 import UsersAdministration from "./Users/UsersAdministration";
-import ProvidersAdministration from "./Providers/ProvidersAdministration";
 import FilesAdministration from "./Files/FilesAdministration";
+import DevicesAdministration from './Devices/DevicesAdministration';
+import ProvidersAdministration from './Providers/ProvidersAdministration';
 
 
 export default function AdminDashboard() {
@@ -38,7 +39,7 @@ export default function AdminDashboard() {
                 }}
             >
                 <Tab
-                    label="User administration"
+                    label="Providers"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',
@@ -46,7 +47,7 @@ export default function AdminDashboard() {
                     }}
                 />
                 <Tab
-                    label="Providers administration"
+                    label="Devices"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',
@@ -54,7 +55,15 @@ export default function AdminDashboard() {
                     }}
                 />
                 <Tab
-                    label="Files administration"
+                    label="Users"
+                    style={{
+                        textTransform: 'none',
+                        fontSize: '16px',
+                        fontWeight: "bold"
+                    }}
+                />
+                <Tab
+                    label="Files"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',
@@ -62,9 +71,10 @@ export default function AdminDashboard() {
                     }}
                 />
             </Tabs>
-            {currentTabIndex === 0 && <UsersAdministration></UsersAdministration>}
-            {currentTabIndex === 1 && <ProvidersAdministration></ProvidersAdministration>}
-            {currentTabIndex === 2 && <FilesAdministration></FilesAdministration>}
+            {currentTabIndex === 0 && <ProvidersAdministration></ProvidersAdministration>}
+            {currentTabIndex === 1 && <DevicesAdministration></DevicesAdministration>}
+            {currentTabIndex === 2 && <UsersAdministration></UsersAdministration>}
+            {currentTabIndex === 3 && <FilesAdministration></FilesAdministration>}
         </Box >
     )
 }

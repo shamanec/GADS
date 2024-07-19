@@ -1,27 +1,36 @@
-import { useParams } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import StreamCanvas from './StreamCanvas'
-import { Skeleton, Stack } from '@mui/material';
-import { Button } from '@mui/material';
-import TabularControl from './Tabs/TabularControl';
-import { useContext, useEffect, useState } from 'react';
-import { Auth } from '../../contexts/Auth';
-import { DialogProvider } from './SessionDialogContext';
+import { Skeleton, Stack } from '@mui/material'
+import { Button } from '@mui/material'
+import TabularControl from './Tabs/TabularControl'
+import { useContext, useEffect, useState } from 'react'
+import { Auth } from '../../contexts/Auth'
+import { DialogProvider } from './SessionDialogContext'
 import { api } from '../../services/api.js'
 
 export default function DeviceControl() {
     const { logout, userName } = useContext(Auth)
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { udid } = useParams()
+    const navigate = useNavigate()
     const [deviceData, setDeviceData] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
+    let screenRatio = window.innerHeight / window.innerWidth
 
-    let url = `/device/${id}/info`
+    const healthUrl = `/device/${udid}/health`
+    let infoUrl = `/device/${udid}/info`
+
     let in_use_socket = null
     useEffect(() => {
-        api.get(url)
+        api.get(healthUrl)
+            .then((response) => {
+                return api.get(infoUrl)
+            })
             .then(response => {
                 setDeviceData(response.data)
+                setInterval(() => {
+                    setIsLoading(false)
+                }, 1000);
             })
             .catch(error => {
                 if (error.response) {
@@ -30,9 +39,8 @@ export default function DeviceControl() {
                         return
                     }
                 }
-                console.log('Failed getting providers data' + error)
-                navigate('/devices');
-            });
+                // navigate('/devices')
+            })
 
         if (in_use_socket) {
             in_use_socket.close()
@@ -42,26 +50,29 @@ export default function DeviceControl() {
         if (protocol === "https") {
             wsType = "wss"
         }
-        let socketUrl = `${wsType}://${window.location.host}/devices/control/${id}/in-use`
-        // let socketUrl = `${wsType}://192.168.1.6:10000/devices/control/${id}/in-use`
-        in_use_socket = new WebSocket(socketUrl);
-        if (in_use_socket.readyState === WebSocket.OPEN) {
-            in_use_socket.send('ping');
-        }
-        const pingInterval = setInterval(() => {
-            if (in_use_socket.readyState === WebSocket.OPEN) {
-                in_use_socket.send(userName);
-            }
-        }, 1000);
+        let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/in-use`
+        // let socketUrl = `${wsType}://192.168.68.109:10000/devices/control/${udid}/in-use`
+        in_use_socket = new WebSocket(socketUrl)
+        in_use_socket.onopen = () => {
+            console.log('In Use WebSocket connection opened');
+        };
 
-        setInterval(() => {
-            setIsLoading(false)
-        }, 2000);
+        in_use_socket.onclose = () => {
+            console.log('In Use WebSocket connection closed');
+        };
+
+        in_use_socket.onerror = (error) => {
+            console.error('In Use WebSocket error:', error);
+        };
+
+        in_use_socket.onmessage = (message) => {
+            if (in_use_socket.readyState === WebSocket.OPEN) {
+                in_use_socket.send(userName)
+            }
+        }
 
         return () => {
             if (in_use_socket) {
-                console.log('component unmounted, clearing itnerval and closing socket')
-                clearInterval(pingInterval)
                 in_use_socket.close()
             }
         }
@@ -69,7 +80,7 @@ export default function DeviceControl() {
     }, [])
 
     const handleBackClick = () => {
-        navigate('/devices');
+        navigate('/devices')
     };
 
     return (
@@ -104,8 +115,8 @@ export default function DeviceControl() {
                                 style={{
                                     backgroundColor: 'gray',
                                     animationDuration: '1s',
-                                    height: '950px',
-                                    width: '500px',
+                                    height: (window.innerHeight * 0.7),
+                                    width: (window.innerHeight * 0.7) * screenRatio,
                                     borderRadius: '30px'
                                 }}
                             />
@@ -114,7 +125,7 @@ export default function DeviceControl() {
                                 style={{
                                     backgroundColor: 'gray',
                                     animationDuration: '1s',
-                                    height: '850px',
+                                    height: (window.innerHeight * 0.7),
                                     width: '100%',
                                     marginRight: '10px'
                                 }}

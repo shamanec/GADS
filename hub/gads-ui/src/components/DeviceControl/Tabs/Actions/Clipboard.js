@@ -51,10 +51,13 @@ export default function Clipboard({ deviceData }) {
                         color: "#9ba984",
                         fontWeight: "bold"
                     }}
-                >Get clipboard</Button>
-                {isGettingCb &&
-                    <CircularProgress id='progress-indicator' size={30} />
-                }
+                >
+                    {isGettingCb ? (
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : (
+                        'Get clipboard'
+                    )}
+                </Button>
                 <TextField
                     id="outlined-basic"
                     variant="outlined"

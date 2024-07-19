@@ -36,6 +36,7 @@ func HandleRequests() *gin.Engine {
 
 	deviceGroup := r.Group("/device/:udid")
 	deviceGroup.GET("/info", DeviceInfo)
+	deviceGroup.GET("/apps", DeviceInstalledApps)
 	deviceGroup.GET("/health", DeviceHealth)
 	deviceGroup.POST("/tap", DeviceTap)
 	deviceGroup.POST("/touchAndHold", DeviceTouchAndHold)
@@ -51,7 +52,7 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.Any("/appium/*proxyPath", AppiumReverseProxy)
 	deviceGroup.GET("/android-stream", AndroidStreamProxy)
 	deviceGroup.GET("/android-stream-mjpeg", AndroidStreamMJPEG)
-	if config.Config.EnvConfig.UseGadsIosStream {
+	if config.ProviderConfig.UseGadsIosStream {
 		deviceGroup.GET("/ios-stream", IosStreamProxyGADS)
 		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEG)
 	} else {

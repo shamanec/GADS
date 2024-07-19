@@ -1,4 +1,4 @@
-import {useContext, useState} from 'react'
+import {useContext, useEffect, useState} from 'react'
 import './TopNavigationBar.css'
 import {NavLink} from 'react-router-dom'
 import {Auth} from '../../contexts/Auth'
@@ -11,13 +11,12 @@ export default function NavBar() {
 
     const [showAdmin, setShowAdmin] = useState(false)
 
-    const roleFromStorage = localStorage.getItem('userRole')
-
-    if (roleFromStorage === 'admin') {
-        if (!showAdmin) {
+    useEffect(() => {
+        const roleFromStorage = localStorage.getItem('userRole')
+        if (roleFromStorage === 'admin') {
             setShowAdmin(true)
         }
-    }
+    }, [])
 
     let appVersion = localStorage.getItem('gadsVersion') || 'unknown'
 

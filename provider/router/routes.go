@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -18,6 +17,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type JsonErrorResponse struct {
@@ -45,7 +46,7 @@ func AppiumReverseProxy(c *gin.Context) {
 	}()
 
 	udid := c.Param("udid")
-	device := devices.DeviceMap[udid]
+	device := devices.DBDeviceMap[udid]
 
 	target := "http://localhost:" + device.AppiumPort
 	path := c.Param("proxyPath")
@@ -70,7 +71,7 @@ func newAppiumProxy(target string, path string) *httputil.ReverseProxy {
 
 func UploadAndInstallApp(c *gin.Context) {
 	// Specify the upload directory
-	uploadDir := fmt.Sprintf("%s/", config.Config.EnvConfig.ProviderFolder)
+	uploadDir := fmt.Sprintf("%s/", config.ProviderConfig.ProviderFolder)
 
 	// Read the file from the form data
 	file, err := c.FormFile("file")
@@ -97,7 +98,7 @@ func UploadAndInstallApp(c *gin.Context) {
 
 	udid := c.Param("udid")
 	// Check if the target device is currently provisioned
-	if dev, ok := devices.DeviceMap[udid]; ok {
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		// If the uploaded file is not a zip archive
 		if ext != ".zip" {
 			// Create file destination based on the provider dir and file name
@@ -221,12 +222,12 @@ func UploadAndInstallApp(c *gin.Context) {
 func GetProviderData(c *gin.Context) {
 	var providerData models.ProviderData
 
-	deviceData := []*models.Device{}
-	for _, device := range devices.DeviceMap {
-		deviceData = append(deviceData, device)
+	deviceData := []models.Device{}
+	for _, device := range devices.DBDeviceMap {
+		deviceData = append(deviceData, *device)
 	}
 
-	providerData.ProviderData = config.Config.EnvConfig
+	providerData.ProviderData = *config.ProviderConfig
 	providerData.DeviceData = deviceData
 
 	c.JSON(http.StatusOK, providerData)
@@ -235,7 +236,7 @@ func GetProviderData(c *gin.Context) {
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DeviceMap[udid]; ok {
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		devices.UpdateInstalledApps(dev)
 		c.JSON(http.StatusOK, dev)
 		return
@@ -244,10 +245,26 @@ func DeviceInfo(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Did not find device with udid `%s`", udid)})
 }
 
+func DeviceInstalledApps(c *gin.Context) {
+	udid := c.Param("udid")
+	var installedApps []string
+
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
+		if dev.OS == "ios" {
+			installedApps = devices.GetInstalledAppsIOS(dev)
+		} else {
+			installedApps = devices.GetInstalledAppsAndroid(dev)
+		}
+		c.JSON(http.StatusOK, installedApps)
+		return
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Did not find device with udid `%s`", udid)})
+}
+
 func DevicesInfo(c *gin.Context) {
 	deviceList := []*models.Device{}
 
-	for _, device := range devices.DeviceMap {
+	for _, device := range devices.DBDeviceMap {
 		deviceList = append(deviceList, device)
 	}
 
@@ -261,7 +278,7 @@ type ProcessApp struct {
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DeviceMap[udid]; ok {
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
@@ -275,7 +292,14 @@ func UninstallApp(c *gin.Context) {
 			return
 		}
 
-		if slices.Contains(dev.InstalledApps, payloadJson.App) {
+		var installedApps []string
+		if dev.OS == "ios" {
+			installedApps = devices.GetInstalledAppsIOS(dev)
+		} else {
+			installedApps = devices.GetInstalledAppsAndroid(dev)
+		}
+
+		if slices.Contains(installedApps, payloadJson.App) {
 			err = devices.UninstallApp(dev, payloadJson.App)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App)})
@@ -294,7 +318,7 @@ func UninstallApp(c *gin.Context) {
 func ResetDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if device, ok := devices.DeviceMap[udid]; ok {
+	if device, ok := devices.DBDeviceMap[udid]; ok {
 		device.IsResetting = true
 		device.CtxCancel()
 		device.ProviderState = "init"

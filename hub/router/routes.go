@@ -7,19 +7,18 @@ import (
 	"GADS/provider/logger"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"io"
-	"net/http"
-	"path/filepath"
-	"slices"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -181,16 +180,17 @@ func AddUser(c *gin.Context) {
 	}
 
 	if user.Username == "" {
-		user.Username = "New user"
+		BadRequest(c, "Empty username provided")
+	}
+
+	if user.Password == "" {
+		BadRequest(c, "Empty password provided")
 	}
 
 	dbUser, err := db.GetUserFromDB(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
-	} else {
-		fmt.Println("User does not exist, creating")
-		// ADD LOGGER HERE
 	}
 
 	if dbUser != (models.User{}) {
@@ -205,6 +205,60 @@ func AddUser(c *gin.Context) {
 	}
 
 	OK(c, "Successfully added user")
+}
+
+func UpdateUser(c *gin.Context) {
+	var user models.User
+
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		InternalServerError(c, fmt.Sprintf("%s", err))
+		return
+	}
+
+	err = json.Unmarshal(body, &user)
+	if err != nil {
+		BadRequest(c, fmt.Sprintf("%s", err))
+		return
+	}
+
+	if user == (models.User{}) {
+		BadRequest(c, "Empty or invalid body")
+		return
+	}
+
+	dbUser, err := db.GetUserFromDB(user.Username)
+	if err != nil && err != mongo.ErrNoDocuments {
+		InternalServerError(c, "Failed checking for user in db - "+err.Error())
+		return
+	}
+
+	if dbUser == (models.User{}) {
+		BadRequest(c, "Cannot update non-existing user")
+		return
+	}
+
+	if user.Password == "" {
+		user.Password = dbUser.Password
+	}
+
+	err = db.AddOrUpdateUser(user)
+	if err != nil {
+		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
+		return
+	}
+}
+
+func DeleteUser(c *gin.Context) {
+	nickname := c.Param("nickname")
+
+	err := db.DeleteUserDB(nickname)
+	if err != nil {
+		InternalServerError(c, "Failed to delete user - "+err.Error())
+		return
+	}
+
+	OK(c, "Successfully deleted user")
 }
 
 func GetProviders(c *gin.Context) {
@@ -229,7 +283,7 @@ func GetProviderInfo(c *gin.Context) {
 }
 
 func AddProvider(c *gin.Context) {
-	var provider models.ProviderDB
+	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("%s", err))
@@ -291,7 +345,7 @@ func AddProvider(c *gin.Context) {
 }
 
 func UpdateProvider(c *gin.Context) {
-	var provider models.ProviderDB
+	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("%s", err))
@@ -344,18 +398,23 @@ func UpdateProvider(c *gin.Context) {
 	OK(c, "Provider updated successfully")
 }
 
+func DeleteProvider(c *gin.Context) {
+	nickname := c.Param("nickname")
+
+	err := db.DeleteProviderDB(nickname)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete provider from DB - %s", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted provider with nickname `%s` from DB", nickname)})
+}
+
 func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
 	c.Stream(func(w io.Writer) bool {
 		providerData, _ := db.GetProviderFromDB(nickname)
-		dbDevices := db.GetDBDevicesUDIDs()
-
-		for i, connectedDevice := range providerData.ConnectedDevices {
-			if slices.Contains(dbDevices, connectedDevice.UDID) {
-				providerData.ConnectedDevices[i].IsConfigured = true
-			}
-		}
 
 		jsonData, _ := json.Marshal(&providerData)
 
@@ -366,43 +425,9 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
-func AddNewDevice(c *gin.Context) {
-	var device models.Device
-
-	payload, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
-		return
-	}
-
-	err = json.Unmarshal(payload, &device)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
-		return
-	}
-
-	err = db.UpsertDeviceDB(device)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB for the current provider"})
-}
-
-func getDBDevice(udid string) *models.Device {
-	for _, dbDevice := range devices.HubDevicesMap {
-		if dbDevice.Device.UDID == udid {
-			return &dbDevice.Device
-		}
-	}
-	return nil
-}
-
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
-	var mu sync.Mutex
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
@@ -413,16 +438,16 @@ func DeviceInUseWS(c *gin.Context) {
 	messageReceived := make(chan string)
 	defer close(messageReceived)
 
+	// Loop getting messages from the client
+	// To keep device in use
 	go func() {
 		for {
 			data, code, err := wsutil.ReadClientData(conn)
 			if err != nil {
-				fmt.Println(err)
 				return
 			}
 
 			if code == 8 {
-				close(messageReceived)
 				return
 			}
 
@@ -432,60 +457,74 @@ func DeviceInUseWS(c *gin.Context) {
 		}
 	}()
 
-	//var timeout = time.After(2 * time.Second)
+	// Loop sending messages to client to keep the connection and avoid using setInterval in the UI
+	go func() {
+		for {
+			err := wsutil.WriteServerText(conn, []byte("ping"))
+			if err != nil {
+				fmt.Println("Write error " + err.Error())
+				return
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	timer := time.NewTimer(2 * time.Second)
 	for {
 		select {
 		case userName := <-messageReceived:
-			mu.Lock()
-			devices.HubDevicesMap[udid].InUseTS = time.Now().UnixMilli()
-			devices.HubDevicesMap[udid].InUseBy = userName
-			mu.Unlock()
-		case <-time.After(2 * time.Second):
-			mu.Lock()
-			devices.HubDevicesMap[udid].InUseTS = 0
-			if devices.HubDevicesMap[udid].InUseBy != "automation" {
-				devices.HubDevicesMap[udid].InUseBy = ""
+			devices.HubDevicesData.Mu.Lock()
+			devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
+			devices.HubDevicesData.Devices[udid].InUseBy = userName
+			devices.HubDevicesData.Mu.Unlock()
+			if !timer.Stop() {
+				<-timer.C
 			}
-			mu.Unlock()
+			timer.Reset(2 * time.Second)
+		case <-timer.C:
+			devices.HubDevicesData.Mu.Lock()
+			devices.HubDevicesData.Devices[udid].InUseTS = 0
+			if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {
+				devices.HubDevicesData.Devices[udid].InUseBy = ""
+			}
+			devices.HubDevicesData.Mu.Unlock()
 			return
 		}
 	}
 }
 
-var availableMu sync.Mutex
-
 func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
 
-		availableMu.Lock()
-		for _, device := range devices.HubDevicesMap {
-
-			if device.Device.Connected && device.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) {
-				device.Device.Available = true
-
-				if device.InUseTS >= (time.Now().UnixMilli() - 3000) {
-					device.InUse = true
-				} else {
-					device.InUse = false
-				}
-				continue
-			}
-			device.InUse = false
-			device.Device.Available = false
-		}
-
+		devices.HubDevicesData.Mu.Lock()
 		// Extract the keys from the map and order them
 		var hubDeviceMapKeys []string
-		for key := range devices.HubDevicesMap {
+		for key := range devices.HubDevicesData.Devices {
 			hubDeviceMapKeys = append(hubDeviceMapKeys, key)
 		}
 		sort.Strings(hubDeviceMapKeys)
 
 		var deviceList = []*models.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
-			deviceList = append(deviceList, devices.HubDevicesMap[key])
+			if devices.HubDevicesData.Devices[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && devices.HubDevicesData.Devices[key].Device.Connected {
+				devices.HubDevicesData.Devices[key].Available = false
+			} else if devices.HubDevicesData.Devices[key].Device.ProviderState != "live" {
+				devices.HubDevicesData.Devices[key].Available = false
+			} else {
+				devices.HubDevicesData.Devices[key].Available = true
+			}
+			if devices.HubDevicesData.Devices[key].InUseTS > (time.Now().UnixMilli() - 3000) {
+				if !devices.HubDevicesData.Devices[key].InUse {
+					devices.HubDevicesData.Devices[key].InUse = true
+				}
+			} else {
+				if devices.HubDevicesData.Devices[key].InUse {
+					devices.HubDevicesData.Devices[key].InUse = false
+				}
+			}
+			deviceList = append(deviceList, devices.HubDevicesData.Devices[key])
 		}
-		availableMu.Unlock()
+		devices.HubDevicesData.Mu.Unlock()
 
 		jsonData, _ := json.Marshal(deviceList)
 		c.SSEvent("", string(jsonData))
@@ -523,4 +562,189 @@ func UploadSeleniumJar(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Selenium jar uploaded successfully"})
+}
+
+func AddDevice(c *gin.Context) {
+	reqBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		return
+	}
+	defer c.Request.Body.Close()
+
+	var device models.Device
+	err = json.Unmarshal(reqBody, &device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		return
+	}
+
+	dbDevices := db.GetDBDeviceNew()
+	for _, dbDevice := range dbDevices {
+		if dbDevice.UDID == device.UDID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
+			return
+		}
+	}
+
+	err = db.UpsertDeviceDB(device)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB"})
+}
+
+func UpdateDevice(c *gin.Context) {
+	reqBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		return
+	}
+	defer c.Request.Body.Close()
+
+	var reqDevice models.Device
+	err = json.Unmarshal(reqBody, &reqDevice)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		return
+	}
+
+	dbDevices := db.GetDBDeviceNew()
+	for _, dbDevice := range dbDevices {
+		if dbDevice.UDID == reqDevice.UDID {
+			// Update only the relevant data and only if something has changed
+			if dbDevice.Provider != reqDevice.Provider {
+				dbDevice.Provider = reqDevice.Provider
+			}
+			if reqDevice.OS != "" && dbDevice.OS != reqDevice.OS {
+				dbDevice.OS = reqDevice.OS
+			}
+			if reqDevice.ScreenHeight != "" && dbDevice.ScreenHeight != reqDevice.ScreenHeight {
+				dbDevice.ScreenHeight = reqDevice.ScreenHeight
+			}
+			if reqDevice.ScreenWidth != "" && dbDevice.ScreenWidth != reqDevice.ScreenWidth {
+				dbDevice.ScreenWidth = reqDevice.ScreenWidth
+			}
+			if reqDevice.OSVersion != "" && dbDevice.OSVersion != reqDevice.OSVersion {
+				dbDevice.OSVersion = reqDevice.OSVersion
+			}
+			if reqDevice.Name != "" && reqDevice.Name != dbDevice.Name {
+				dbDevice.Name = reqDevice.Name
+			}
+
+			if reqDevice.Usage != "" && reqDevice.Usage != dbDevice.Usage {
+				dbDevice.Usage = reqDevice.Usage
+			}
+			err = db.UpsertDeviceDB(dbDevice)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"message": "Successfully updated device in DB"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist in the DB", reqDevice.UDID)})
+}
+
+func DeleteDevice(c *gin.Context) {
+	udid := c.Param("udid")
+
+	err := db.DeleteDeviceDB(udid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted device with udid `%s` from DB", udid)})
+}
+
+type AdminDeviceData struct {
+	Devices   []models.Device `json:"devices"`
+	Providers []string        `json:"providers"`
+}
+
+func GetDevices(c *gin.Context) {
+	dbDevices := db.GetDBDeviceNew()
+	providers := db.GetProvidersFromDB()
+
+	var providerNames []string
+	for _, provider := range providers {
+		providerNames = append(providerNames, provider.Nickname)
+	}
+
+	if len(dbDevices) == 0 {
+		dbDevices = []models.Device{}
+	}
+
+	var adminDeviceData = AdminDeviceData{
+		Devices:   dbDevices,
+		Providers: providerNames,
+	}
+
+	c.JSON(http.StatusOK, adminDeviceData)
+}
+
+func ProviderUpdate(c *gin.Context) {
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err != nil {
+		// handle error if needed
+	}
+
+	var providerDeviceData models.ProviderData
+
+	err = json.Unmarshal(bodyBytes, &providerDeviceData)
+	if err != nil {
+		// handle error if needed
+	}
+
+	for _, providerDevice := range providerDeviceData.DeviceData {
+		devices.HubDevicesData.Mu.Lock()
+		hubDevice, ok := devices.HubDevicesData.Devices[providerDevice.UDID]
+		if ok {
+			// Set a timestamp to indicate last time info about the device was updated from the provider
+			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
+
+			// Check all DB related values so if you make a change in the DB for a device
+			// The provider pushing updates will not overwrite with something wrong
+			if providerDevice.Usage != hubDevice.Device.Usage {
+				providerDevice.Usage = hubDevice.Device.Usage
+			}
+			if providerDevice.Name != hubDevice.Device.Name {
+				providerDevice.Name = hubDevice.Device.Name
+			}
+			if providerDevice.OSVersion != hubDevice.Device.OSVersion {
+				providerDevice.OSVersion = hubDevice.Device.OSVersion
+			}
+			if providerDevice.ScreenWidth != hubDevice.Device.ScreenWidth {
+				providerDevice.ScreenWidth = hubDevice.Device.ScreenWidth
+			}
+			if providerDevice.ScreenHeight != hubDevice.Device.ScreenHeight {
+				providerDevice.ScreenHeight = hubDevice.Device.ScreenHeight
+			}
+			if providerDevice.Provider != hubDevice.Device.Provider {
+				providerDevice.Provider = hubDevice.Device.Provider
+			}
+
+			hubDevice.Device = providerDevice
+		}
+		devices.HubDevicesData.Mu.Unlock()
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func GetUsers(c *gin.Context) {
+	users := db.GetUsers()
+	// Clean up the passwords, not that the project is very secure but let's not send them
+	for i := range users {
+		users[i].Password = ""
+	}
+	fmt.Println(users)
+
+	c.JSON(http.StatusOK, users)
 }

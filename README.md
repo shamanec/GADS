@@ -32,10 +32,10 @@ Supports Linux, macOS and Windows - notes below
     - Add users (for admins)
   - Devices control (most of interaction is wrapped around Appium APIs)
     - Live video
-    - Basic remote control - tap, swipe, touch&hold
-    - Basic functionalities - Home, Lock, Unlock, Type text
-    - Take high quality screenshots
+      - **NB** Videos are essentially MJPEG streams so they are very bandwidth hungry
+    - Basic remote control - tap, swipe, touch&hold, home, lock, unlock, type text to active element, get clipboard
     - Install/Uninstall apps
+    - Take high quality screenshots
     - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
 - Backend
   - Serving the web interface
@@ -45,15 +45,16 @@ Supports Linux, macOS and Windows - notes below
 
 ### Provider features
 - Straightforward dependencies setup
-- Automatic provisioning when devices are connected
+- Devices administration via the hub UI
+- Automatic provisioning when registered devices are connected
   - Dependencies automatically installed on devices 
-  - Appium server set up and started for each device 
-  - Optionally Selenium Grid 4 node can be registered for each device Appium server
+  - Appium server set up and started for each device
 - Remote control APIs for the hub
-  - iOS video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
-  - Android video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
-  - Limited interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device
+  - iOS MJPEG video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
+  - Android MJPEG video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
+  - Interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device, get clipboard
 - Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
+- Optionally Selenium Grid 4 nodes can be registered for each device Appium server
 - macOS
   - Supports both Android and iOS
 - Linux
@@ -101,8 +102,21 @@ or
 |[go-ios](https://github.com/danielpaulus/go-ios)| Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
 |[Appium](https://github.com/appium)| It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                         |  
 
-### Demo video  
-https://github.com/shamanec/GADS/assets/60219580/271c5025-7f2c-4d7c-a276-eb0e9cceb787
+### Videos
+#### Start hub
+https://github.com/user-attachments/assets/7a6dab5a-52d1-4c48-882d-48b67e180c89
+
+#### Add provider configuration
+https://github.com/user-attachments/assets/07c94ecf-217e-4185-9465-8b8054ddef7e
+
+#### Add devices and start provider
+https://github.com/user-attachments/assets/a1b323da-0169-463e-9a37-b0364fc52480
+
+#### Run Appium tests in parallel with TestNG
+https://github.com/user-attachments/assets/cb2da413-6a72-4ead-9433-c4d2b41d5f4b
+
+#### Remote control
+https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 
 
 

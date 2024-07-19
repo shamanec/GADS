@@ -7,11 +7,12 @@ import (
 	"GADS/hub/router"
 	"embed"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
 
 //go:embed gads-ui/build
@@ -64,6 +65,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string) {
 	// Create a new connection to MongoDB
 	db.InitMongoClient(mongoDB)
 
+	devices.InitHubDevicesData()
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
 	go devices.GetLatestDBDevices()
 	// Start a goroutine to clean hanging grid sessions
