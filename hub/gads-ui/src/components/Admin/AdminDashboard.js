@@ -39,7 +39,7 @@ export default function AdminDashboard() {
                 }}
             >
                 <Tab
-                    label="Providers administration"
+                    label="Providers"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',
@@ -47,7 +47,7 @@ export default function AdminDashboard() {
                     }}
                 />
                 <Tab
-                    label="Devices administration"
+                    label="Devices"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
                     }}
                 />
                 <Tab
-                    label="Users administration"
+                    label="Users"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',
@@ -63,7 +63,7 @@ export default function AdminDashboard() {
                     }}
                 />
                 <Tab
-                    label="Files administration"
+                    label="Files"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',

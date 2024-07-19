@@ -218,9 +218,6 @@ func setupAndroidDevice(device *models.Device) {
 		}
 	}
 	getAndroidDeviceHardwareModel(device)
-	if device.OSVersion == "" {
-		getAndroidOSVersion(device)
-	}
 
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -331,11 +328,8 @@ func setupIOSDevice(device *models.Device) {
 		resetLocalDevice(device)
 		return
 	}
-	// Update hardware model got from plist, os version and product type
+	// Update hardware model got from plist
 	device.HardwareModel = plistValues["HardwareModel"].(string)
-	if device.OSVersion == "" {
-		device.OSVersion = plistValues["ProductVersion"].(string)
-	}
 
 	// Mount the DDI on the device
 	err = mountDeveloperImageIOS(device)
@@ -779,19 +773,4 @@ func getAndroidDeviceHardwareModel(device *models.Device) {
 	model := outBuffer.String()
 
 	device.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
-}
-
-func getAndroidOSVersion(device *models.Device) {
-	sdkCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.build.version.sdk")
-	var outBuffer bytes.Buffer
-	sdkCmd.Stdout = &outBuffer
-	if err := sdkCmd.Run(); err != nil {
-		device.OSVersion = "N/A"
-	}
-	sdkVersion := strings.TrimSpace(outBuffer.String())
-	if osVersion, ok := constants.AndroidVersionToSDK[sdkVersion]; ok {
-		device.OSVersion = osVersion
-	} else {
-		device.OSVersion = "N/A"
-	}
 }

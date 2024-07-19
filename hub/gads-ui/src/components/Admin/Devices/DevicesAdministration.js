@@ -221,11 +221,12 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title={<div>Device OS version, major or exact e.g 17 or 17.5.1 <br />If you leave it empty then the provider will attempt to update it automatically on start</div>}
+                        title='Device OS version, major or exact e.g 17 or 17.5.1'
                         arrow
                         placement='top'
                     >
                         <TextField
+                            required
                             label="OS Version"
                             value={osVersion}
                             autoComplete="off"
@@ -470,7 +471,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title={<div>Unique device identifier<br />Use `adb devices` to get Android device UDID<br />Use `ios list` to get iOS device UDID with `go-ios`</div>}
+                        title={udid}
                         arrow
                         placement='top'
                     >
@@ -494,11 +495,12 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title={<div>Device OS version, major or exact e.g 17 or 17.5.1 <br />Set to empty if you want provider to update it on start or change if provider did not set it properly</div>}
+                        title='Device OS version, major or exact e.g 17 or 17.5.1'
                         arrow
                         placement='top'
                     >
                         <TextField
+                            required
                             label="OS Version"
                             defaultValue={osVersion}
                             autoComplete="off"

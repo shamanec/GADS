@@ -33,10 +33,9 @@ Supports Linux, macOS and Windows - notes below
   - Devices control (most of interaction is wrapped around Appium APIs)
     - Live video
       - **NB** Videos are essentially MJPEG streams so they are very bandwidth hungry
-    - Basic remote control - tap, swipe, touch&hold
-    - Basic functionalities - Home, Lock, Unlock, Type text
-    - Take high quality screenshots
+    - Basic remote control - tap, swipe, touch&hold, home, lock, unlock, type text to active element, get clipboard
     - Install/Uninstall apps
+    - Take high quality screenshots
     - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
 - Backend
   - Serving the web interface
@@ -47,15 +46,15 @@ Supports Linux, macOS and Windows - notes below
 ### Provider features
 - Straightforward dependencies setup
 - Devices administration via the hub UI
-- Automatic provisioning when devices are connected
+- Automatic provisioning when registered devices are connected
   - Dependencies automatically installed on devices 
-  - Appium server set up and started for each device 
-  - Optionally Selenium Grid 4 node can be registered for each device Appium server
+  - Appium server set up and started for each device
 - Remote control APIs for the hub
   - iOS MJPEG video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
   - Android MJPEG video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
-  - Limited interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device
+  - Interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device, get clipboard
 - Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
+- Optionally Selenium Grid 4 nodes can be registered for each device Appium server
 - macOS
   - Supports both Android and iOS
 - Linux
