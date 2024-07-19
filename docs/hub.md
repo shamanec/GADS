@@ -7,8 +7,7 @@ Follow the setup steps to create and run a provider instance.
 You can have multiple provider instances on different hosts providing devices.  
 
 ### Starting hub instance
-Run `./GADS hub` with the following flags:  
-- `--auth=` - `true/false` to enable actual user authentication (default is `false`)  
+Run `./GADS hub` with the following flags:
 - `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)  
 - `--port=` - port on which the UI and backend service will run  
 - `--mongo-db=` - IP address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`) - tested only on local network
@@ -24,6 +23,15 @@ If you want to work on the React UI with hot reload you need to add a proxy in `
 4. Run `npm start`
 
 ### Additional notes
+#### Users administration
+You can add/delete users and change their roles/passwords via the `Admin` panel. There are no limitations on usernames and passwords - only the default `admin` user cannot be deleted and its role changed(you can change its password though)
+
+#### Providers administration
+For each provider instance you need to create a provider configuration via the `Admin` panel. All fields have tooltips to navigate you about the required information.
+
+#### Devices administration
+Device configurations are added via the `Admin` panel. You have to provide all the required information and assign each device to a provider. Changes to the device configuration require the respective provider instance restarted.
+
 #### Experimental Appium grid
 Using Selenium Grid 4 is a bit of a hassle and some versions do not work properly with Appium relay nodes. For this reason I created an experimental grid implementation into the hub itself. I haven't even read the Selenium Grid implementation and made up something myself - it might not work properly but could be the better alternative if it does work properly. The experimental grid was tested only using latest Appium and Selenium Java client versions and with TestNG. Tests can be executed sequentially or in parallel using TestNG with `methods` or `classes` with multiple threads. I assume it should support any type of session creation with any Appium language client  
 

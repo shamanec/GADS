@@ -17,9 +17,9 @@ The provider component is what actually sets up the Appium servers and all other
 Provider configuration is added through the GADS UI
 - Log in the hub UI with an admin user.
 - Go to the `Admin` section.
-- Open `Providers administration`
+- Open `Providers`
 - On the `New provider` tab fill in all needed data and save.
-- You should see a new provider tab with the nickname you provided. You can now start up a provider instance using the newly added configuration.
+- You should see a new provider component with the configuration you provided. You can now start up a provider instance using the newly added configuration.
 
 ## Provider data folder - optional
 The provider needs a persistent folder where logs, apps and other files might be stored.  
@@ -89,6 +89,7 @@ Refer to the `--provider-folder` flag in [Running a provider instance](#running-
   - `--mongo-db=` - optional, IP address and port of the MongoDB instance (default is `localhost:27017`)
   - `--provider-folder=` - optional, folder where provider should store logs and apps and other needed files. Can be relative path to the folder where provider binary is located or full path on the host - `./test`, `.`, `./test/test1`, `/Users/shamanec/Desktop/test` are all valid. Default is the folder where the binary is currently located - `.`
   - `--log-level=` - optional, how verbose should the provider logs be (default is `info`, use `debug` for more log output)
+  - `--hub=` - mandatory, the address of the hub instance so the provider can push data to it automatically, e.g `http://192.168.68.109:10000`
 
 ### Dependencies notes
 #### Appium
