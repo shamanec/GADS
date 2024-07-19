@@ -161,7 +161,7 @@ function NewProvider({ handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='Unique name for the provider'
+                        title='Unique name for the provider, used when starting provider instance'
                         arrow
                         placement='top'
                     >
@@ -462,7 +462,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='Unique name for the provider'
+                        title='Unique name for the provider, used when starting provider instance'
                         arrow
                         placement='top'
                     >
