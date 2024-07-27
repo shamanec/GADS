@@ -55,7 +55,7 @@ func updateProviderHub() {
 	var mu sync.Mutex
 
 	for {
-		if updateFailureCounter >= 10 {
+		if updateFailureCounter >= 30 {
 			log.Fatalf("Unsuccessfully attempted to update device data in hub for 10 times, killing provider")
 		}
 		time.Sleep(1 * time.Second)
