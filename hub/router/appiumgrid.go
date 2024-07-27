@@ -16,20 +16,11 @@ import (
 )
 
 type Capabilities struct {
-	FirstMatch []CapabilitiesFirstMatch `json:"firstMatch"`
+	FirstMatch  []CommonCapabilities `json:"firstMatch"`
+	AlwaysMatch CommonCapabilities   `json:"alwaysMatch"`
 }
 
-type DesiredCapabilities struct {
-	AutomationName    string `json:"appium:automationName"`
-	BundleID          string `json:"appium:bundleId"`
-	PlatformVersion   string `json:"appium:platformVersion"`
-	PlatformName      string `json:"platformName"`
-	DeviceUDID        string `json:"appium:udid"`
-	NewCommandTimeout int64  `json:"appium:newCommandTimeout"`
-	SessionTimeout    int64  `json:"appium:sessionTimeout"`
-}
-
-type CapabilitiesFirstMatch struct {
+type CommonCapabilities struct {
 	AutomationName    string `json:"appium:automationName"`
 	BundleID          string `json:"appium:bundleId"`
 	PlatformVersion   string `json:"appium:platformVersion"`
@@ -40,8 +31,8 @@ type CapabilitiesFirstMatch struct {
 }
 
 type AppiumSession struct {
-	Capabilities        Capabilities        `json:"capabilities"`
-	DesiredCapabilities DesiredCapabilities `json:"desiredCapabilities"`
+	Capabilities        Capabilities       `json:"capabilities"`
+	DesiredCapabilities CommonCapabilities `json:"desiredCapabilities"`
 }
 
 type AppiumSessionValue struct {
@@ -101,10 +92,23 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
+			var capsToUse CommonCapabilities
+
+			if appiumSessionBody.DesiredCapabilities.PlatformName != "" && appiumSessionBody.DesiredCapabilities.AutomationName != "" {
+				capsToUse = appiumSessionBody.DesiredCapabilities
+			} else if appiumSessionBody.Capabilities.FirstMatch[0].PlatformName != "" && appiumSessionBody.Capabilities.FirstMatch[0].AutomationName != "" {
+				capsToUse = appiumSessionBody.Capabilities.FirstMatch[0]
+			} else if appiumSessionBody.Capabilities.AlwaysMatch.PlatformName != "" && appiumSessionBody.Capabilities.AlwaysMatch.AutomationName != "" {
+				capsToUse = appiumSessionBody.Capabilities.AlwaysMatch
+			} else {
+				c.JSON(http.StatusBadRequest, createErrorResponse("GADS did not find any suitable capabilities object in the session request, check your setup or open an issues on the project Github page", "", ""))
+				return
+			}
+
 			// Check for available device
 			var foundDevice *models.LocalHubDevice
 
-			foundDevice, _ = findAvailableDevice(appiumSessionBody)
+			foundDevice, _ = findAvailableDevice(capsToUse)
 			// If no device is available start checking each second for 60 seconds
 			// If no device is available after 60 seconds - return error
 			if foundDevice == nil {
@@ -115,7 +119,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, _ = findAvailableDevice(appiumSessionBody)
+						foundDevice, _ = findAvailableDevice(capsToUse)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
@@ -142,10 +146,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			foundDevice.IsAvailableForAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			// Update the session timeout values if none were provided
-			if appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout != 0 {
-				foundDevice.AppiumNewCommandTimeout = appiumSessionBody.Capabilities.FirstMatch[0].NewCommandTimeout * 1000
-			} else if appiumSessionBody.DesiredCapabilities.NewCommandTimeout != 0 {
-				foundDevice.AppiumNewCommandTimeout = appiumSessionBody.DesiredCapabilities.NewCommandTimeout * 1000
+			if capsToUse.NewCommandTimeout != 0 {
+				foundDevice.AppiumNewCommandTimeout = capsToUse.NewCommandTimeout * 1000
 			} else {
 				foundDevice.AppiumNewCommandTimeout = 60000
 			}
@@ -357,18 +359,15 @@ func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
 	return nil, fmt.Errorf("No device with udid `%s` was found in the local devices map", udid)
 }
 
-func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevice, error) {
+func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
 
 	var foundDevice *models.LocalHubDevice
 
 	var deviceUDID = ""
-	if appiumSessionBody.Capabilities.FirstMatch[0].DeviceUDID != "" {
-		deviceUDID = appiumSessionBody.Capabilities.FirstMatch[0].DeviceUDID
-	}
-	if appiumSessionBody.DesiredCapabilities.DeviceUDID != "" {
-		deviceUDID = appiumSessionBody.DesiredCapabilities.DeviceUDID
+	if caps.DeviceUDID != "" {
+		deviceUDID = caps.DeviceUDID
 	}
 
 	if deviceUDID != "" {
@@ -383,10 +382,8 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 	} else {
 		var availableDevices []*models.LocalHubDevice
 
-		if strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].PlatformName, "iOS") ||
-			strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "iOS") ||
-			strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "XCUITest") ||
-			strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "XCUITest") {
+		if strings.EqualFold(caps.PlatformName, "iOS") ||
+			strings.EqualFold(caps.AutomationName, "XCUITest") {
 
 			// Loop through all latest devices looking for an iOS device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			// Also device should not be disabled or for remote control only
@@ -400,10 +397,8 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
-		} else if strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].PlatformName, "Android") ||
-			strings.EqualFold(appiumSessionBody.DesiredCapabilities.PlatformName, "Android") ||
-			strings.EqualFold(appiumSessionBody.Capabilities.FirstMatch[0].AutomationName, "UiAutomator2") ||
-			strings.EqualFold(appiumSessionBody.DesiredCapabilities.AutomationName, "UiAutomator2") {
+		} else if strings.EqualFold(caps.PlatformName, "Android") ||
+			strings.EqualFold(caps.AutomationName, "UiAutomator2") {
 
 			// Loop through all latest devices looking for an Android device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
 			// Also device should not be disabled or for remote control only
@@ -421,11 +416,11 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 
 		// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
 		// Loop through the accumulated available devices slice and get a device that matches the platform version
-		if appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion != "" {
+		if caps.PlatformVersion != "" {
 			// First check if device completely matches the required version
 			if len(availableDevices) != 0 {
 				for _, device := range availableDevices {
-					if device.Device.OSVersion == appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion {
+					if device.Device.OSVersion == caps.PlatformVersion {
 						foundDevice = device
 						foundDevice.IsAvailableForAutomation = false
 						break
@@ -434,7 +429,7 @@ func findAvailableDevice(appiumSessionBody AppiumSession) (*models.LocalHubDevic
 			}
 			// If no device completely matches the required version try a major version
 			if foundDevice == nil {
-				v, _ := semver.NewVersion(appiumSessionBody.Capabilities.FirstMatch[0].PlatformVersion)
+				v, _ := semver.NewVersion(caps.PlatformVersion)
 				requestedMajorVersion := fmt.Sprintf("%d", v.Major())
 				// Create a constraint for the requested version
 				constraint, _ := semver.NewConstraint(fmt.Sprintf("^%s.0.0", requestedMajorVersion))
