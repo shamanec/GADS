@@ -88,9 +88,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var appiumSessionBody AppiumSession
 			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
 			if err != nil {
-				fmt.Println("TEST")
-				fmt.Println(err.Error())
-				fmt.Println(string(sessionRequestBody))
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "", err.Error()))
 				return
 			}
@@ -204,14 +201,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				fmt.Println("WTF")
-				fmt.Println(err.Error())
-				fmt.Println(proxiedSessionResponseBody)
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
 				return
 			}
-			fmt.Println("SESSION RESP")
-			fmt.Println(proxySessionResponse)
 
 			devices.HubDevicesData.Mu.Lock()
 			foundDevice.SessionID = proxySessionResponse.Value.SessionID
