@@ -331,14 +331,6 @@ func setupIOSDevice(device *models.Device) {
 	// Update hardware model got from plist
 	device.HardwareModel = plistValues["HardwareModel"].(string)
 
-	// Mount the DDI on the device
-	err = mountDeveloperImageIOS(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not mount DDI on device `%s` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
 	isAboveIOS17 := isAboveIOS17(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%s` is above iOS 17 - %v", device.UDID, err))
@@ -360,6 +352,14 @@ func setupIOSDevice(device *models.Device) {
 			resetLocalDevice(device)
 			return
 		}
+	}
+
+	// Mount the DDI on the device
+	err = mountDeveloperImageIOS(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not mount DDI on device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
 	}
 
 	wdaPort, err := providerutil.GetFreePort()
@@ -391,31 +391,28 @@ func setupIOSDevice(device *models.Device) {
 	go goIosForward(device, device.StreamPort, "9500")
 	go goIosForward(device, device.WDAStreamPort, "9100")
 
-	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
+	wdaPath := ""
 	if config.ProviderConfig.OS != "darwin" {
-		wdaPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
-		err = installAppIOS(device, wdaPath)
-		if err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
-			resetLocalDevice(device)
-			return
-		}
-		go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
+		wdaPath = fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
 	} else {
-		if !isAboveIOS17 {
-			wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
-			wdaPath := fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
-			err = installAppIOS(device, wdaPath)
-			if err != nil {
-				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
-				resetLocalDevice(device)
-				return
-			}
-			go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
-		} else {
-			go startWdaWithXcodebuild(device)
-		}
+		wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
+		wdaPath = fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
 	}
+
+	err = UninstallApp(device, config.ProviderConfig.WdaBundleID)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not uninstall WebDriverAgent from device `%s` - %s", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
+	err = installAppIOS(device, wdaPath)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 
 	go checkWebDriverAgentUp(device)
 
