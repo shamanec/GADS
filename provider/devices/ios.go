@@ -6,10 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/forward"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,31 +21,8 @@ import (
 	"GADS/provider/logger"
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	log "github.com/sirupsen/logrus"
 )
-
-// Forward iOS device ports using `go-ios` CLI, for some reason using the library doesn't work properly
-func goIOSForward(device *models.Device, hostPort string, devicePort string) {
-	cmd := exec.CommandContext(device.Context, "ios",
-		"forward",
-		hostPort,
-		devicePort,
-		fmt.Sprintf("--udid=%s", device.UDID))
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("goIOSForward: Forwarding port with command `%s`", cmd.Args))
-
-	// Start the port forward command
-	err := cmd.Start()
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("goIOSForward: Error executing `ios forward` for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
-	if err := cmd.Wait(); err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("goIOSForward: Error waiting `ios forward` to finish for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-}
 
 // Start the prebuilt WebDriverAgent with `xcodebuild`
 func startWdaWithXcodebuild(device *models.Device) {
@@ -228,7 +207,7 @@ func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig s
 func mountDeveloperImageIOS(device *models.Device) error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
-	cmd := exec.CommandContext(device.Context, "ios", "image", "auto", fmt.Sprintf("--basedir=%s", basedir))
+	cmd := exec.CommandContext(device.Context, "ios", "image", "auto", fmt.Sprintf("--udid=%s", device.UDID), fmt.Sprintf("--basedir=%s", basedir))
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Mounting DDI on device `%s` with command `%s`, image will be stored/found in `%s`", device.UDID, cmd.Args, basedir))
 
 	// Create a pipe to capture the command's output
@@ -327,7 +306,7 @@ func GetInstalledAppsIOS(device *models.Device) []string {
 
 // To use for iOS 17+ when stable
 func StartIOSTunnel() {
-	cmd := exec.CommandContext(context.Background(), "ios", "tunnel", "start")
+	cmd := exec.CommandContext(context.Background(), "ios", "tunnel", "start", "--userspace")
 
 	// Create a pipe to capture the command's output
 	stdout, err := cmd.StdoutPipe()
@@ -349,9 +328,43 @@ func StartIOSTunnel() {
 	scanner := bufio.NewScanner(combinedReader)
 
 	for scanner.Scan() {
-		line := scanner.Text()
-		fmt.Println(line)
+		//line := scanner.Text()
+		//fmt.Println(line)
 	}
+
+	err = cmd.Wait()
+	if err != nil {
+		log.Fatalf("IOS tunnel died, killing provider")
+	}
+}
+
+type CustomWriter struct {
+	Logger    *logger.CustomLogger
+	EventName string
+}
+
+func (w *CustomWriter) Write(p []byte) (n int, err error) {
+	message := string(p)
+	w.Logger.LogDebug(w.EventName, message)
+	return len(p), nil
+}
+
+func goIosForward(device *models.Device, hostPort string, devicePort string) {
+	hostPortInt, _ := strconv.Atoi(hostPort)
+	devicePortInt, _ := strconv.Atoi(devicePort)
+	customLogger := logger.ProviderLogger
+
+	log.SetOutput(&CustomWriter{Logger: customLogger, EventName: "ios_device_setup"})
+
+	cl, err := forward.Forward(device.GoIOSDeviceEntry, uint16(hostPortInt), uint16(devicePortInt))
+	defer cl.Close()
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to forward port for device `%s` - %s", device.UDID, err))
+		resetLocalDevice(device)
+	}
+
+	// Wait for the context to be canceled
+	<-device.Context.Done()
 }
 
 // Uninstall an app on an iOS device by bundle identifier

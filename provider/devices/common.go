@@ -387,9 +387,9 @@ func setupIOSDevice(device *models.Device) {
 	device.WDAStreamPort = wdaStreamPort
 
 	// Forward the WebDriverAgent server and stream to the host
-	go goIOSForward(device, device.WDAPort, "8100")
-	go goIOSForward(device, device.StreamPort, "9500")
-	go goIOSForward(device, device.WDAStreamPort, "9100")
+	go goIosForward(device, device.WDAPort, "8100")
+	go goIosForward(device, device.StreamPort, "9500")
+	go goIosForward(device, device.WDAStreamPort, "9100")
 
 	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
 	if config.ProviderConfig.OS != "darwin" {
