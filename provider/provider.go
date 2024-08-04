@@ -10,6 +10,7 @@ import (
 	"GADS/provider/router"
 	"context"
 	"fmt"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"log"
 	"os"
 	"runtime"
@@ -111,7 +112,14 @@ func StartProvider(flags *pflag.FlagSet) {
 			log.Fatal("`go-ios` is not available, you need to set it up on the host as explained in the readme")
 		}
 
-		go devices.StartIOSTunnel()
+		pm, err := tunnel.NewPairRecordManager(config.ProviderConfig.ProviderFolder)
+		if err != nil {
+			log.Fatalf("Failed to create new pair record manager for go-ios tunnel")
+		}
+		tm := tunnel.NewTunnelManager(pm, true)
+		config.ProviderConfig.GoIOSTunnelManager = tm
+
+		//go devices.StartIOSTunnel2()
 
 		// If on Linux or Windows and iOS devices provision enabled check for WebDriverAgent.ipa/app
 		if config.ProviderConfig.OS != "darwin" {

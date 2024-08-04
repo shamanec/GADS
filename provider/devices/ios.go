@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/danielpaulus/go-ios/ios/forward"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"io"
 	"net/http"
 	"os"
@@ -147,13 +148,30 @@ func createWebDriverAgentSession(device *models.Device) error {
 }
 
 func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig string) {
-	cmd := exec.CommandContext(context.Background(),
-		"ios",
-		"runtest",
-		fmt.Sprintf("--bundle-id=%s", bundleId),
-		fmt.Sprintf("--test-runner-bundle-id=%s", bundleId),
-		fmt.Sprintf("--xctest-config=%s", xctestConfig),
-		fmt.Sprintf("--udid=%s", device.UDID))
+	var cmd *exec.Cmd
+	if strings.HasPrefix(device.OSVersion, "17") {
+		cmd = exec.CommandContext(context.Background(),
+			"ios",
+			"runtest",
+			fmt.Sprintf("--bundle-id=%s", bundleId),
+			fmt.Sprintf("--test-runner-bundle-id=%s", bundleId),
+			fmt.Sprintf("--xctest-config=%s", xctestConfig),
+			fmt.Sprintf("--udid=%s", device.UDID),
+			fmt.Sprintf("--address=%s", device.GoIOSTunnel.Address),
+			fmt.Sprintf("--rsd-port=%v", device.GoIOSTunnel.RsdPort))
+	} else {
+		cmd = exec.CommandContext(context.Background(),
+			"ios",
+			"runtest",
+			fmt.Sprintf("--bundle-id=%s", bundleId),
+			fmt.Sprintf("--test-runner-bundle-id=%s", bundleId),
+			fmt.Sprintf("--xctest-config=%s", xctestConfig),
+			fmt.Sprintf("--udid=%s", device.UDID))
+	}
+	fmt.Println("CMD ARGS")
+	fmt.Println(cmd.Args)
+	time.Sleep(120 * time.Second)
+
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("startWdaWithGoIOS: Starting with command `%v`", cmd.Args))
 	// Create a pipe to capture the command's output
 	stdout, err := cmd.StdoutPipe()
@@ -186,6 +204,10 @@ func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig s
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		if device.UDID == "00008030-000418C136FB802E" {
+			fmt.Println("startup")
+			fmt.Println(line)
+		}
 		device.Logger.LogDebug("webdriveragent", strings.TrimSpace(line))
 
 		//if strings.Contains(line, "ServerURLHere") {
@@ -336,6 +358,41 @@ func StartIOSTunnel() {
 	if err != nil {
 		log.Fatalf("IOS tunnel died, killing provider")
 	}
+}
+
+func StartIOSTunnel2() {
+	ctx := context.Background()
+
+	//pm, err := tunnel.NewPairRecordManager(config.ProviderConfig.ProviderFolder)
+	//if err != nil {
+	//	log.Fatalf("Could not create pair record manager - %s", err)
+	//}
+	//tm := tunnel.NewTunnelManager(pm, true)
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				err := config.ProviderConfig.GoIOSTunnelManager.UpdateTunnels(ctx)
+				if err != nil {
+					log.WithError(err).Warn("failed to update tunnels")
+				}
+			}
+		}
+	}()
+
+	go func() {
+		err := tunnel.ServeTunnelInfo(config.ProviderConfig.GoIOSTunnelManager, 60105)
+		if err != nil {
+			log.Fatalf("Failed to start tunnel server - %s", err)
+		}
+	}()
+	log.Info("Tunnel server started")
+	<-ctx.Done()
 }
 
 type CustomWriter struct {

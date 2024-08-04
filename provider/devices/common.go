@@ -6,6 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Masterminds/semver"
+	"github.com/danielpaulus/go-ios/ios/testmanagerd"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"io"
 	"log"
 	"net/http"
@@ -40,11 +43,17 @@ func Listener() {
 	Setup()
 	DBDeviceMap = getDBProviderDevices()
 	setupDevices()
+	pm, err := tunnel.NewPairRecordManager(config.ProviderConfig.ProviderFolder)
+	if err != nil {
+		os.Exit(1)
+	}
+	config.ProviderConfig.GoIOSPairRecordManager = pm
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
 	// Start updating the local devices data to the hub in a goroutine
 	go updateProviderHub()
+
 }
 
 func updateProviderHub() {
@@ -308,9 +317,48 @@ func setupAndroidDevice(device *models.Device) {
 	device.ProviderState = "live"
 }
 
+func deviceWithRsdProvider(device ios.DeviceEntry, udid string, address string, rsdPort int) (ios.DeviceEntry, error) {
+	rsdService, err := ios.NewWithAddrPort(address, rsdPort, device)
+	if err != nil {
+		return ios.DeviceEntry{}, err
+	}
+	defer rsdService.Close()
+	rsdProvider, err := rsdService.Handshake()
+	device1, err := ios.GetDeviceWithAddress(udid, address, rsdProvider)
+	device1.UserspaceTUN = device.UserspaceTUN
+	device1.UserspaceTUNPort = device.UserspaceTUNPort
+	if err != nil {
+		return ios.DeviceEntry{}, err
+	}
+
+	return device1, nil
+}
+
+type manualPairingTunnelStart struct {
+}
+
+func StartTunnel(ctx context.Context, device ios.DeviceEntry, p tunnel.PairRecordManager, version *semver.Version, userspaceTUN bool) (tunnel.Tunnel, error) {
+	if version.Major() >= 17 && version.Minor() >= 4 {
+		if userspaceTUN {
+			device.UserspaceTUNPort = ios.HttpApiPort() + 1
+			tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
+			tun.UserspaceTUN = true
+
+			tun.UserspaceTUNPort = device.UserspaceTUNPort
+			return tun, err
+		}
+		return tunnel.ConnectTunnelLockdown(device)
+	}
+	if version.Major() >= 17 {
+		return tunnel.ManualPairAndConnectToTunnel(ctx, device, p)
+	}
+	return tunnel.Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
+}
+
 func setupIOSDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
+	var err error
 
 	goIosDeviceEntry, err := ios.GetDevice(device.UDID)
 	if err != nil {
@@ -318,8 +366,47 @@ func setupIOSDevice(device *models.Device) {
 		resetLocalDevice(device)
 		return
 	}
-
 	device.GoIOSDeviceEntry = goIosDeviceEntry
+
+	isAboveIOS17 := isAboveIOS17(device)
+
+	ver, _ := semver.NewVersion(device.OSVersion)
+
+	if isAboveIOS17 {
+		deviceTunnel, err := StartTunnel(device.Context, device.GoIOSDeviceEntry, config.ProviderConfig.GoIOSPairRecordManager, ver, true)
+		if err != nil {
+			fmt.Println("BIG ERROR " + err.Error())
+			resetLocalDevice(device)
+			return
+		}
+		device.GoIOSTunnel = deviceTunnel
+	}
+
+	err = pairIOS(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair with device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	time.Sleep(3 * time.Second)
+	fmt.Println(device.GoIOSTunnel)
+
+	if isAboveIOS17 {
+		//info, err := tunnel.TunnelInfoForDevice(device.UDID, 60105)
+		//if err != nil {
+		//	logger.ProviderLogger.LogError("ios_device_setup", "No tunnel info "+err.Error())
+		//	resetLocalDevice(device)
+		//	return
+		//}
+		device.GoIOSDeviceEntry.UserspaceTUNPort = device.GoIOSTunnel.UserspaceTUNPort
+		device.GoIOSDeviceEntry.UserspaceTUN = device.GoIOSTunnel.UserspaceTUN
+		device.GoIOSDeviceEntry, err = deviceWithRsdProvider(device.GoIOSDeviceEntry, device.UDID, device.GoIOSTunnel.Address, device.GoIOSTunnel.RsdPort)
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get `go-ios` DeviceEntry with RSD port for device - %v, err - %v", device.UDID, err))
+			resetLocalDevice(device)
+			return
+		}
+	}
 
 	// Get device info with go-ios to get the hardware model
 	plistValues, err := ios.GetValuesPlist(device.GoIOSDeviceEntry)
@@ -330,13 +417,6 @@ func setupIOSDevice(device *models.Device) {
 	}
 	// Update hardware model got from plist
 	device.HardwareModel = plistValues["HardwareModel"].(string)
-
-	isAboveIOS17 := isAboveIOS17(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%s` is above iOS 17 - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
 
 	if isAboveIOS17 && config.ProviderConfig.OS != "darwin" {
 		logger.ProviderLogger.LogInfo("ios_device_setup", "Device `%s` is iOS 17+ which is not supported on Windows/Linux, setup will be skipped")
@@ -362,6 +442,8 @@ func setupIOSDevice(device *models.Device) {
 		return
 	}
 
+	time.Sleep(1 * time.Second)
+
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent port for device `%v` - %v", device.UDID, err))
@@ -386,11 +468,6 @@ func setupIOSDevice(device *models.Device) {
 	}
 	device.WDAStreamPort = wdaStreamPort
 
-	// Forward the WebDriverAgent server and stream to the host
-	go goIosForward(device, device.WDAPort, "8100")
-	go goIosForward(device, device.StreamPort, "9500")
-	go goIosForward(device, device.WDAStreamPort, "9100")
-
 	wdaPath := ""
 	if config.ProviderConfig.OS != "darwin" {
 		wdaPath = fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
@@ -412,7 +489,17 @@ func setupIOSDevice(device *models.Device) {
 		resetLocalDevice(device)
 		return
 	}
-	go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
+	_, err = testmanagerd.RunXCUITest(config.ProviderConfig.WdaBundleID, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest", device.GoIOSDeviceEntry, []string{}, []string{}, []string{}, testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
+
+	// Forward the WebDriverAgent server and stream to the host
+	//go goIosForward(device, device.WDAPort, "8100")
+	//go goIosForward(device, device.StreamPort, "9500")
+	//go goIosForward(device, device.WDAStreamPort, "9100")
+
+	//go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 
 	go checkWebDriverAgentUp(device)
 
@@ -421,7 +508,7 @@ func setupIOSDevice(device *models.Device) {
 	case <-device.WdaReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", device.UDID, device.WDAPort))
 		break
-	case <-time.After(60 * time.Second):
+	case <-time.After(30 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 30 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
@@ -530,6 +617,11 @@ func resetLocalDevice(device *models.Device) {
 		device.CtxCancel()
 		device.ProviderState = "init"
 		device.IsResetting = false
+
+		if device.GoIOSTunnel.RsdPort != 0 {
+			fmt.Println("CLOSING TUNNEL")
+			device.GoIOSTunnel.Close()
+		}
 
 		// Free any used ports from the map where we keep them
 		delete(providerutil.UsedPorts, device.WDAPort)
