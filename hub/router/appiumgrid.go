@@ -302,11 +302,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 			defer resp.Body.Close()
-			fmt.Println("KOLEO")
-			fmt.Println(resp.StatusCode)
-			if resp.StatusCode == 404 {
-				fmt.Println("OMG")
-			}
 
 			// If the request succeeded and was a delete request, remove the session ID from the map
 			if c.Request.Method == http.MethodDelete {

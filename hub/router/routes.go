@@ -708,7 +708,6 @@ func ProviderUpdate(c *gin.Context) {
 		if ok {
 			// Do not update anything if device is not connected
 			if !providerDevice.Connected {
-				fmt.Printf("DEVICE %v is not connected\n", providerDevice.UDID)
 				devices.HubDevicesData.Mu.Unlock()
 				continue
 			}
@@ -737,8 +736,6 @@ func ProviderUpdate(c *gin.Context) {
 			}
 
 			hubDevice.Device = providerDevice
-			// fmt.Println("DAMN")
-			// fmt.Println(hubDevice.Device.Connected)
 		}
 		devices.HubDevicesData.Mu.Unlock()
 	}
