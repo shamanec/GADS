@@ -201,7 +201,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request "+err.Error(), "", err.Error()))
 				return
 			}
 
@@ -276,7 +276,14 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}()
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(origRequestBody))
+			proxyReq, err := http.NewRequest(
+				c.Request.Method,
+				fmt.Sprintf("http://%s/device/%s/appium%s",
+					foundDevice.Device.Host,
+					foundDevice.Device.UDID,
+					strings.Replace(c.Request.URL.Path, "/grid", "", -1)),
+				bytes.NewBuffer(origRequestBody),
+			)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create proxy request for this call", "", err.Error()))
 				return
@@ -295,6 +302,11 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 			defer resp.Body.Close()
+			fmt.Println("KOLEO")
+			fmt.Println(resp.StatusCode)
+			if resp.StatusCode == 404 {
+				fmt.Println("OMG")
+			}
 
 			// If the request succeeded and was a delete request, remove the session ID from the map
 			if c.Request.Method == http.MethodDelete {
@@ -390,6 +402,7 @@ func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "ios") &&
 					!localDevice.InUse &&
+					localDevice.Device.Connected &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&
@@ -405,6 +418,7 @@ func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "android") &&
 					!localDevice.InUse &&
+					localDevice.Device.Connected &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&

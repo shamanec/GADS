@@ -706,6 +706,12 @@ func ProviderUpdate(c *gin.Context) {
 		devices.HubDevicesData.Mu.Lock()
 		hubDevice, ok := devices.HubDevicesData.Devices[providerDevice.UDID]
 		if ok {
+			// Do not update anything if device is not connected
+			if !providerDevice.Connected {
+				fmt.Printf("DEVICE %v is not connected\n", providerDevice.UDID)
+				devices.HubDevicesData.Mu.Unlock()
+				continue
+			}
 			// Set a timestamp to indicate last time info about the device was updated from the provider
 			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
@@ -731,6 +737,8 @@ func ProviderUpdate(c *gin.Context) {
 			}
 
 			hubDevice.Device = providerDevice
+			// fmt.Println("DAMN")
+			// fmt.Println(hubDevice.Device.Connected)
 		}
 		devices.HubDevicesData.Mu.Unlock()
 	}
