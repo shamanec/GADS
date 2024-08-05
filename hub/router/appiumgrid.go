@@ -398,6 +398,7 @@ func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error
 				if strings.EqualFold(localDevice.Device.OS, "ios") &&
 					!localDevice.InUse &&
 					localDevice.Device.Connected &&
+					localDevice.Device.ProviderState == "live" &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&
@@ -414,6 +415,7 @@ func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error
 				if strings.EqualFold(localDevice.Device.OS, "android") &&
 					!localDevice.InUse &&
 					localDevice.Device.Connected &&
+					localDevice.Device.ProviderState == "live" &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&
