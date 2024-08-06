@@ -59,7 +59,12 @@ func UpdateExpiredGridSessions() {
 	for {
 		devices.HubDevicesData.Mu.Lock()
 		for _, hubDevice := range devices.HubDevicesData.Devices {
-			if !hubDevice.Device.Connected || (hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation) {
+			// Reset device if its not connected
+			// Or it hasn't received any Appium requests in the command timeout and is running automation
+			// Or if its provider state is not "live" - device was re-provisioned for example
+			if !hubDevice.Device.Connected ||
+				(hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation) ||
+				hubDevice.Device.ProviderState != "live" {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
