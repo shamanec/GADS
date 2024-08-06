@@ -447,7 +447,7 @@ func checkWebDriverAgentUp(device *models.Device) {
 	}
 }
 
-func checkAppiumtUp(device *models.Device) {
+func checkAppiumUp(device *models.Device) {
 	var netClient = &http.Client{
 		Timeout: time.Second * 120,
 	}

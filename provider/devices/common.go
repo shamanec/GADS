@@ -309,7 +309,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
-	go checkAppiumtUp(device)
+	go checkAppiumUp(device)
 
 	select {
 	case <-device.AppiumReadyChan:
@@ -468,7 +468,7 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
-	go checkAppiumtUp(device)
+	go checkAppiumUp(device)
 
 	// Wait until WebDriverAgent successfully starts
 	select {
