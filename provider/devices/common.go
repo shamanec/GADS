@@ -161,7 +161,7 @@ func setupDevices() {
 }
 
 func updateDevices() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -300,6 +300,18 @@ func setupAndroidDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
+	go checkAppiumtUp(device)
+
+	select {
+	case <-device.AppiumReadyChan:
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+		break
+	case <-time.After(60 * time.Second):
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+		resetLocalDevice(device)
+		return
+	}
+
 	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}
@@ -425,7 +437,7 @@ func setupIOSDevice(device *models.Device) {
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", device.UDID, device.WDAPort))
 		break
 	case <-time.After(60 * time.Second):
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 30 seconds", device.UDID))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 60 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
 	}
@@ -439,6 +451,19 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
+	go checkAppiumtUp(device)
+
+	// Wait until WebDriverAgent successfully starts
+	select {
+	case <-device.AppiumReadyChan:
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+		break
+	case <-time.After(60 * time.Second):
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+		resetLocalDevice(device)
+		return
+	}
+
 	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}

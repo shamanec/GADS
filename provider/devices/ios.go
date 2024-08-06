@@ -17,6 +17,7 @@ import (
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
+
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 )
@@ -439,6 +440,31 @@ func checkWebDriverAgentUp(device *models.Device) {
 		} else {
 			if resp.StatusCode == http.StatusOK {
 				device.WdaReadyChan <- true
+				return
+			}
+		}
+		loops++
+	}
+}
+
+func checkAppiumtUp(device *models.Device) {
+	var netClient = &http.Client{
+		Timeout: time.Second * 120,
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.AppiumPort), nil)
+
+	loops := 0
+	for {
+		if loops >= 30 {
+			return
+		}
+		resp, err := netClient.Do(req)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+		} else {
+			if resp.StatusCode == http.StatusOK {
+				device.AppiumReadyChan <- true
 				return
 			}
 		}

@@ -63,6 +63,7 @@ type Device struct {
 	WDAStreamPort    string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
 	WDAPort          string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
 	WdaReadyChan     chan bool          `json:"-" bson:"-"` // channel for checking that WebDriverAgent is up after start
+	AppiumReadyChan  chan bool          `json:"-" bson:"-"` // channel for checking that Appium is up after start
 	Context          context.Context    `json:"-" bson:"-"` // context used to control the device set up since we have multiple goroutines
 	CtxCancel        context.CancelFunc `json:"-" bson:"-"` // cancel func for the context above, can be used to stop all running device goroutines
 	GoIOSDeviceEntry ios.DeviceEntry    `json:"-" bson:"-"` // `go-ios` device entry object used for `go-ios` library interactions

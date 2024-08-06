@@ -59,7 +59,7 @@ func UpdateExpiredGridSessions() {
 	for {
 		devices.HubDevicesData.Mu.Lock()
 		for _, hubDevice := range devices.HubDevicesData.Devices {
-			if hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation {
+			if !hubDevice.Device.Connected || (hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation) {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
@@ -69,7 +69,7 @@ func UpdateExpiredGridSessions() {
 			}
 		}
 		devices.HubDevicesData.Mu.Unlock()
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
