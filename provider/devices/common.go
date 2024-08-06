@@ -178,6 +178,7 @@ func updateDevices() {
 					setContext(dbDevice)
 					if dbDevice.OS == "ios" {
 						dbDevice.WdaReadyChan = make(chan bool, 1)
+						dbDevice.AppiumReadyChan = make(chan bool, 1)
 						go setupIOSDevice(dbDevice)
 					}
 
@@ -226,6 +227,14 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 	device.StreamPort = streamPort
+
+	appiumPort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	device.AppiumPort = appiumPort
 
 	apps := GetInstalledAppsAndroid(device)
 	if slices.Contains(apps, "com.shamanec.stream") {
@@ -397,6 +406,14 @@ func setupIOSDevice(device *models.Device) {
 		return
 	}
 	device.WDAStreamPort = wdaStreamPort
+
+	appiumPort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	device.AppiumPort = appiumPort
 
 	// Forward the WebDriverAgent server and stream to the host
 	go goIOSForward(device, device.WDAPort, "8100")
@@ -602,16 +619,6 @@ func startAppium(device *models.Device) {
 	}
 
 	capabilitiesJson, _ := json.Marshal(capabilities)
-
-	// Get a free port on the host for Appium server
-	appiumPort, err := providerutil.GetFreePort()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Could not allocate free Appium host port for device - %v, err - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-	device.AppiumPort = appiumPort
-
 	cmd := exec.CommandContext(
 		device.Context,
 		"appium",
