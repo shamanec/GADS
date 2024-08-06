@@ -319,6 +319,14 @@ func ResetDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
 	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.IsResetting {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Device setup is already being reset"})
+			return
+		}
+		if device.ProviderState != "live" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Only devices in `live` state can be reset, current state is `" + device.ProviderState + "`"})
+			return
+		}
 		device.IsResetting = true
 		device.CtxCancel()
 		device.ProviderState = "init"

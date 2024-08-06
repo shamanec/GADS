@@ -142,7 +142,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '780px',
+                height: '830px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -345,8 +345,10 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
     const [type, setType] = useState(deviceData.device_type)
     const udid = deviceData.udid
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false)
+    const [reprovisionLoading, setReprovisionLoading] = useState(false)
     const [updateDeviceStatus, setUpdateDeviceStatus] = useState(null)
+    const [reprovisionDeviceStatus, setReprovisionDeviceStatus] = useState(null)
 
     useEffect(() => {
         setProvider(deviceData.provider)
@@ -394,6 +396,30 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
             })
     }
 
+    function handleReprovisionDevice(event) {
+        setReprovisionLoading(true)
+        setReprovisionDeviceStatus(null)
+        event.preventDefault()
+
+        let url = `/device/${udid}/reset`
+
+        api.post(url)
+            .then(() => {
+                setReprovisionDeviceStatus('success')
+            })
+            .catch(() => {
+                setReprovisionDeviceStatus('error')
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setReprovisionLoading(false)
+                    setTimeout(() => {
+                        setReprovisionDeviceStatus(null)
+                    }, 2000)
+                }, 1000)
+            })
+    }
+
     function handleDeleteDevice(event) {
         event.preventDefault()
 
@@ -417,7 +443,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '780px',
+                height: '830px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -599,6 +625,28 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                             <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
                         ) : (
                             'Update device'
+                        )}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        style={{
+                            backgroundColor: '#2f3b26',
+                            color: '#f4e6cd',
+                            fontWeight: "bold",
+                            boxShadow: 'none',
+                            height: '40px'
+                        }}
+                        onClick={handleReprovisionDevice}
+                        disabled={reprovisionLoading || reprovisionDeviceStatus === 'success' || reprovisionDeviceStatus === 'error'}
+                    >
+                        {reprovisionLoading ? (
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : reprovisionDeviceStatus === 'success' ? (
+                            <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                        ) : reprovisionDeviceStatus === 'error' ? (
+                            <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                        ) : (
+                            'Re-provision device'
                         )}
                     </Button>
                     <Button

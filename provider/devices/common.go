@@ -161,7 +161,7 @@ func setupDevices() {
 }
 
 func updateDevices() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -178,6 +178,7 @@ func updateDevices() {
 					setContext(dbDevice)
 					if dbDevice.OS == "ios" {
 						dbDevice.WdaReadyChan = make(chan bool, 1)
+						dbDevice.AppiumReadyChan = make(chan bool, 1)
 						go setupIOSDevice(dbDevice)
 					}
 
@@ -226,6 +227,14 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 	device.StreamPort = streamPort
+
+	appiumPort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	device.AppiumPort = appiumPort
 
 	apps := GetInstalledAppsAndroid(device)
 	if slices.Contains(apps, "com.shamanec.stream") {
@@ -300,6 +309,18 @@ func setupAndroidDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
+	go checkAppiumUp(device)
+
+	select {
+	case <-device.AppiumReadyChan:
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+		break
+	case <-time.After(60 * time.Second):
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+		resetLocalDevice(device)
+		return
+	}
+
 	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}
@@ -386,6 +407,14 @@ func setupIOSDevice(device *models.Device) {
 	}
 	device.WDAStreamPort = wdaStreamPort
 
+	appiumPort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	device.AppiumPort = appiumPort
+
 	// Forward the WebDriverAgent server and stream to the host
 	go goIOSForward(device, device.WDAPort, "8100")
 	go goIOSForward(device, device.StreamPort, "9500")
@@ -425,7 +454,7 @@ func setupIOSDevice(device *models.Device) {
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", device.UDID, device.WDAPort))
 		break
 	case <-time.After(60 * time.Second):
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 30 seconds", device.UDID))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 60 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
 	}
@@ -439,6 +468,19 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	go startAppium(device)
+	go checkAppiumUp(device)
+
+	// Wait until WebDriverAgent successfully starts
+	select {
+	case <-device.AppiumReadyChan:
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+		break
+	case <-time.After(60 * time.Second):
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+		resetLocalDevice(device)
+		return
+	}
+
 	if config.ProviderConfig.UseSeleniumGrid {
 		go startGridNode(device)
 	}
@@ -577,16 +619,6 @@ func startAppium(device *models.Device) {
 	}
 
 	capabilitiesJson, _ := json.Marshal(capabilities)
-
-	// Get a free port on the host for Appium server
-	appiumPort, err := providerutil.GetFreePort()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Could not allocate free Appium host port for device - %v, err - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-	device.AppiumPort = appiumPort
-
 	cmd := exec.CommandContext(
 		device.Context,
 		"appium",

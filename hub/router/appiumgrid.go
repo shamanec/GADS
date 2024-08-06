@@ -59,7 +59,12 @@ func UpdateExpiredGridSessions() {
 	for {
 		devices.HubDevicesData.Mu.Lock()
 		for _, hubDevice := range devices.HubDevicesData.Devices {
-			if hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation {
+			// Reset device if its not connected
+			// Or it hasn't received any Appium requests in the command timeout and is running automation
+			// Or if its provider state is not "live" - device was re-provisioned for example
+			if !hubDevice.Device.Connected ||
+				(hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation) ||
+				hubDevice.Device.ProviderState != "live" {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
@@ -69,7 +74,7 @@ func UpdateExpiredGridSessions() {
 			}
 		}
 		devices.HubDevicesData.Mu.Unlock()
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -182,6 +187,23 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			defer resp.Body.Close()
 
+			if resp.StatusCode == http.StatusInternalServerError {
+				// Start a goroutine that will release the device after 5 seconds if no other actions were taken
+				go func() {
+					time.Sleep(10 * time.Second)
+					devices.HubDevicesData.Mu.Lock()
+					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 5000) {
+						foundDevice.IsAvailableForAutomation = true
+						foundDevice.SessionID = ""
+						foundDevice.IsRunningAutomation = false
+						foundDevice.InUseBy = ""
+					}
+					devices.HubDevicesData.Mu.Unlock()
+				}()
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS got an internal server error from the proxy session request to the device respective provider Appium endpoint", "", ""))
+				return
+			}
+
 			// Read the response sessionRequestBody from the proxied request
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
@@ -201,7 +223,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request "+err.Error(), "", err.Error()))
 				return
 			}
 
@@ -276,7 +298,14 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}()
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(origRequestBody))
+			proxyReq, err := http.NewRequest(
+				c.Request.Method,
+				fmt.Sprintf("http://%s/device/%s/appium%s",
+					foundDevice.Device.Host,
+					foundDevice.Device.UDID,
+					strings.Replace(c.Request.URL.Path, "/grid", "", -1)),
+				bytes.NewBuffer(origRequestBody),
+			)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create proxy request for this call", "", err.Error()))
 				return
@@ -312,6 +341,23 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 					}
 					devices.HubDevicesData.Mu.Unlock()
 				}()
+			}
+
+			if resp.StatusCode == http.StatusInternalServerError {
+				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
+				go func() {
+					time.Sleep(10 * time.Second)
+					devices.HubDevicesData.Mu.Lock()
+					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
+						foundDevice.SessionID = ""
+						foundDevice.IsAvailableForAutomation = true
+						foundDevice.IsRunningAutomation = false
+						foundDevice.InUseBy = ""
+					}
+					devices.HubDevicesData.Mu.Unlock()
+				}()
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS got an internal server error from the proxy request to the device respective provider Appium endpoint", "", ""))
+				return
 			}
 
 			// Read the response origRequestBody of the proxied request
@@ -390,6 +436,8 @@ func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "ios") &&
 					!localDevice.InUse &&
+					localDevice.Device.Connected &&
+					localDevice.Device.ProviderState == "live" &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&
@@ -405,6 +453,8 @@ func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "android") &&
 					!localDevice.InUse &&
+					localDevice.Device.Connected &&
+					localDevice.Device.ProviderState == "live" &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&

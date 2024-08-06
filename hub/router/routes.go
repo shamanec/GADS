@@ -706,6 +706,16 @@ func ProviderUpdate(c *gin.Context) {
 		devices.HubDevicesData.Mu.Lock()
 		hubDevice, ok := devices.HubDevicesData.Devices[providerDevice.UDID]
 		if ok {
+			// If device is not connected reset all fields that might allow it to get stuck in Running automation state
+			// If its not connected, then its not running automation or is available for automation
+			if !providerDevice.Connected {
+				hubDevice.IsAvailableForAutomation = false
+				hubDevice.IsRunningAutomation = false
+				hubDevice.InUseBy = ""
+				hubDevice.SessionID = ""
+				devices.HubDevicesData.Mu.Unlock()
+				continue
+			}
 			// Set a timestamp to indicate last time info about the device was updated from the provider
 			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
