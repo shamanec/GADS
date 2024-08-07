@@ -603,7 +603,7 @@ func recordSessionVideoNoCTX(device *models.LocalHubDevice) {
 	cmd := exec.Command("ffmpeg",
 		"-y",               // Overwrite output files without asking
 		"-f", "image2pipe", // Input format
-		"-framerate", "30", // Frame rate
+		"-framerate", "20", // Frame rate
 		"-i", "-", // Read from stdin
 		"-c:v", "libx264", // Codec
 		"-pix_fmt", "yuv420p", // Pixel format
@@ -622,14 +622,14 @@ func recordSessionVideoNoCTX(device *models.LocalHubDevice) {
 	}
 
 	// Create a ticker to maintain the frame rate
-	ticker := time.NewTicker(time.Second / 30)
+	ticker := time.NewTicker(time.Second / 20)
 	defer ticker.Stop()
 
 	// Channel to signal the end of recording
 	done := make(chan struct{})
 
 	var lastFrame []byte
-	frameTime := time.Second / 30
+	frameTime := time.Second / 20
 
 	// Start a goroutine to read JPEG frames from the WebSocket and write them to ffmpeg stdin
 	go func() {
@@ -654,6 +654,8 @@ func recordSessionVideoNoCTX(device *models.LocalHubDevice) {
 						continue // Read timeout, continue to maintain frame rate
 					}
 					log.Println("Failed to read from WebSocket:", err)
+					log.Println(op)
+					log.Println(op)
 					return
 				}
 				if op == ws.OpBinary {
@@ -661,7 +663,7 @@ func recordSessionVideoNoCTX(device *models.LocalHubDevice) {
 				}
 			}
 		}
-		log.Println("5 seconds have passed, stopping ffmpeg input...")
+		log.Println("10 seconds have passed, stopping ffmpeg input...")
 	}()
 
 	// Wait for the goroutine to finish
