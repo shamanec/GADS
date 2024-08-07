@@ -4,15 +4,21 @@ import (
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
+	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/gin-gonic/gin"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 type Capabilities struct {
@@ -241,6 +247,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			foundDevice.InUseBy = "automation"
 			devices.HubDevicesData.Mu.Unlock()
+
+			recordSessionVideoNoCTX(foundDevice)
 		} else {
 			// If this is not a request for a new session
 			var sessionID = ""
@@ -519,4 +527,264 @@ func createErrorResponse(msg string, err string, stacktrace string) SeleniumSess
 			StackTrace: stacktrace,
 		},
 	}
+}
+
+func recordSessionVideo(ctx *gin.Context, device *models.LocalHubDevice) {
+	// Parse the URL and establish a connection
+	conn, _, _, err := ws.Dial(ctx, fmt.Sprintf("ws://%s/device/%s/ios-stream"))
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// Prepare the ffmpeg command
+	cmd := exec.Command("ffmpeg",
+		"-f", "image2pipe", // Input format
+		"-framerate", "30", // Frame rate
+		"-i", "-", // Read from stdin
+		"-c:v", "libx264", // Codec
+		"-pix_fmt", "yuv420p", // Pixel format
+		device.SessionID)
+
+	ffmpegStdin, err := cmd.StdinPipe()
+	if err != nil {
+		return
+	}
+
+	// Start the ffmpeg process
+	if err := cmd.Start(); err != nil {
+		return
+	}
+
+	// Start a goroutine to read JPEG frames from the WebSocket and write them to ffmpeg stdin
+	go func() {
+		defer ffmpegStdin.Close()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Context cancelled, stopping ffmpeg input...")
+				return
+			default:
+				msg, op, err := wsutil.ReadServerData(conn)
+				if err != nil {
+					log.Println("read:", err)
+					return
+				}
+				if op == ws.OpBinary {
+					_, err = ffmpegStdin.Write(msg)
+					if err != nil {
+						log.Println("write to ffmpeg stdin:", err)
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	// Wait for ffmpeg to finish
+	if err := cmd.Wait(); err != nil {
+		return
+	}
+
+	log.Println("Video file created:", device.SessionID)
+}
+
+func recordSessionVideoNoCTX(device *models.LocalHubDevice) {
+	// u := url.URL{Scheme: "ws", Host: device.Device.Host, Path: "/device/" + device.Device.UDID + "/android-stream"}
+	// conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+	// if err != nil {
+	// 	fmt.Println("WTF")
+	// 	return
+	// }
+	// defer conn.Close()
+
+	// // Prepare the ffmpeg command
+	// cmd := exec.Command("ffmpeg",
+	// 	"-f", "image2pipe", // Input format
+	// 	"-framerate", "30", // Frame rate
+	// 	"-i", "-", // Read from stdin
+	// 	"-c:v", "libx264", // Codec
+	// 	"-pix_fmt", "yuv420p", // Pixel format
+	// 	device.SessionID)
+
+	// ffmpegStdin, err := cmd.StdinPipe()
+	// if err != nil {
+	// 	fmt.Println("FAILED STDINPIPE " + err.Error())
+	// 	return
+	// }
+
+	// // Start the ffmpeg process
+	// if err := cmd.Start(); err != nil {
+	// 	fmt.Println("FAILED STARTING FFMPEG " + err.Error())
+	// 	return
+	// }
+
+	// fmt.Println("Will try to save video")
+	// fmt.Println(device.SessionID)
+
+	// // Start a goroutine to read JPEG frames from the WebSocket and write them to ffmpeg stdin
+	// go func() {
+	// 	defer ffmpegStdin.Close()
+	// 	stopTime := time.Now().Add(5 * time.Second)
+	// 	for time.Now().Before(stopTime) {
+	// 		msg, op, err := wsutil.ReadServerData(conn)
+	// 		if err != nil {
+	// 			log.Println("read:", err)
+	// 			return
+	// 		}
+	// 		fmt.Println("GOT MESSAGE")
+	// 		if op == ws.OpBinary {
+	// 			fmt.Println("MESSAGE IS BINARY, WRITING TO STDIN")
+	// 			_, err = ffmpegStdin.Write(msg)
+	// 			if err != nil {
+	// 				log.Println("write to ffmpeg stdin:", err)
+	// 				return
+	// 			}
+	// 		}
+	// 	}
+	// 	log.Println("5 seconds have passed, stopping ffmpeg input...")
+	// }()
+
+	// // Wait for ffmpeg to finish
+	// if err := cmd.Wait(); err != nil {
+	// 	fmt.Println("CMD WAIT FAILED")
+	// 	return
+	// }
+
+	// log.Println("Video file created:", device.SessionID)
+
+	// u := url.URL{Scheme: "ws", Host: device.Device.Host, Path: "/device/" + device.Device.UDID + "/android-stream"}
+	// conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+	// if err != nil {
+	// 	fmt.Println("Failed to connect to WebSocket:", err)
+	// 	return
+	// }
+	// defer conn.Close()
+
+	// // Prepare the ffmpeg command
+	// cmd := exec.Command("ffmpeg",
+	// 	"-y",               // Overwrite output files without asking
+	// 	"-f", "image2pipe", // Input format
+	// 	"-framerate", "30", // Frame rate
+	// 	"-i", "-", // Read from stdin
+	// 	"-c:v", "libx264", // Codec
+	// 	"-pix_fmt", "yuv420p", // Pixel format
+	// 	device.SessionID+".mp4") // Output file name
+
+	// ffmpegStdin, err := cmd.StdinPipe()
+	// if err != nil {
+	// 	fmt.Println("Failed to get ffmpeg stdin pipe:", err)
+	// 	return
+	// }
+
+	// // Start the ffmpeg process
+	// if err := cmd.Start(); err != nil {
+	// 	fmt.Println("Failed to start ffmpeg:", err)
+	// 	return
+	// }
+
+	// // Start a goroutine to read JPEG frames from the WebSocket and write them to ffmpeg stdin
+	// go func() {
+	// 	defer ffmpegStdin.Close()
+	// 	stopTime := time.Now().Add(5 * time.Second)
+	// 	for time.Now().Before(stopTime) {
+	// 		msg, op, err := wsutil.ReadServerData(conn)
+	// 		if err != nil {
+	// 			log.Println("Failed to read from WebSocket:", err)
+	// 			return
+	// 		}
+	// 		if op == ws.OpBinary {
+	// 			if _, err = ffmpegStdin.Write(msg); err != nil {
+	// 				log.Println("Failed to write to ffmpeg stdin:", err)
+	// 				return
+	// 			}
+	// 		}
+	// 	}
+	// 	log.Println("5 seconds have passed, stopping ffmpeg input...")
+	// }()
+
+	// // Wait for ffmpeg to finish
+	// if err := cmd.Wait(); err != nil {
+	// 	fmt.Println("ffmpeg finished with error:", err)
+	// 	output, _ := cmd.CombinedOutput()
+	// 	fmt.Println("ffmpeg output:", string(output))
+	// 	return
+	// }
+
+	// log.Println("Video file created:", device.SessionID+".mp4")
+	u := url.URL{Scheme: "ws", Host: device.Device.Host, Path: "/device/" + device.Device.UDID + "/android-stream"}
+	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+	if err != nil {
+		fmt.Println("Failed to connect to WebSocket:", err)
+		return
+	}
+	defer conn.Close()
+
+	// Prepare the ffmpeg command
+	cmd := exec.Command("ffmpeg",
+		"-y",               // Overwrite output files without asking
+		"-f", "image2pipe", // Input format
+		"-framerate", "30", // Frame rate
+		"-i", "-", // Read from stdin
+		"-c:v", "libx264", // Codec
+		"-pix_fmt", "yuv420p", // Pixel format
+		device.SessionID+".mp4") // Output file name
+
+	ffmpegStdin, err := cmd.StdinPipe()
+	if err != nil {
+		fmt.Println("Failed to get ffmpeg stdin pipe:", err)
+		return
+	}
+
+	// Start the ffmpeg process
+	if err := cmd.Start(); err != nil {
+		fmt.Println("Failed to start ffmpeg:", err)
+		return
+	}
+
+	// Create a timer to stop the recording after 5 seconds
+	timer := time.NewTimer(5 * time.Second)
+
+	// Channel to signal the end of recording
+	done := make(chan struct{})
+
+	// Start a goroutine to read JPEG frames from the WebSocket and write them to ffmpeg stdin
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-timer.C:
+				log.Println("5 seconds have passed, stopping ffmpeg input...")
+				return
+			default:
+				msg, op, err := wsutil.ReadServerData(conn)
+				if err != nil {
+					log.Println("Failed to read from WebSocket:", err)
+					return
+				}
+				if op == ws.OpBinary {
+					if _, err = ffmpegStdin.Write(msg); err != nil {
+						log.Println("Failed to write to ffmpeg stdin:", err)
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	// Wait for the goroutine to finish
+	<-done
+
+	// Close ffmpeg stdin to signal the end of input
+	ffmpegStdin.Close()
+
+	// Wait for ffmpeg to finish
+	if err := cmd.Wait(); err != nil {
+		fmt.Println("ffmpeg finished with error:", err)
+		output, _ := cmd.CombinedOutput()
+		fmt.Println("ffmpeg output:", string(output))
+		return
+	}
+
+	log.Println("Video file created:", device.SessionID+".mp4")
 }
