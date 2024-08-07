@@ -176,9 +176,9 @@ func updateDevices() {
 				dbDevice.Connected = true
 				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
 					setContext(dbDevice)
+					dbDevice.AppiumReadyChan = make(chan bool, 1)
 					if dbDevice.OS == "ios" {
 						dbDevice.WdaReadyChan = make(chan bool, 1)
-						dbDevice.AppiumReadyChan = make(chan bool, 1)
 						go setupIOSDevice(dbDevice)
 					}
 
