@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -620,34 +621,47 @@ func recordSessionVideoNoCTX(device *models.LocalHubDevice) {
 		return
 	}
 
-	// Create a timer to stop the recording after 5 seconds
-	timer := time.NewTimer(5 * time.Second)
+	// Create a ticker to maintain the frame rate
+	ticker := time.NewTicker(time.Second / 30)
+	defer ticker.Stop()
 
 	// Channel to signal the end of recording
 	done := make(chan struct{})
 
+	var lastFrame []byte
+	frameTime := time.Second / 30
+
 	// Start a goroutine to read JPEG frames from the WebSocket and write them to ffmpeg stdin
 	go func() {
 		defer close(done)
-		for {
+		stopTime := time.Now().Add(10 * time.Second)
+		for time.Now().Before(stopTime) {
 			select {
-			case <-timer.C:
-				log.Println("5 seconds have passed, stopping ffmpeg input...")
-				return
-			default:
-				msg, op, err := wsutil.ReadServerData(conn)
-				if err != nil {
-					log.Println("Failed to read from WebSocket:", err)
-					return
-				}
-				if op == ws.OpBinary {
-					if _, err = ffmpegStdin.Write(msg); err != nil {
+			case <-ticker.C:
+				// Write the last received frame or a placeholder if none
+				if lastFrame != nil {
+					if _, err := ffmpegStdin.Write(lastFrame); err != nil {
 						log.Println("Failed to write to ffmpeg stdin:", err)
 						return
 					}
 				}
+			default:
+				// Read frames from WebSocket
+				conn.SetReadDeadline(time.Now().Add(frameTime)) // Ensure we don't block too long
+				msg, op, err := wsutil.ReadServerData(conn)
+				if err != nil {
+					if e, ok := err.(net.Error); ok && e.Timeout() {
+						continue // Read timeout, continue to maintain frame rate
+					}
+					log.Println("Failed to read from WebSocket:", err)
+					return
+				}
+				if op == ws.OpBinary {
+					lastFrame = msg
+				}
 			}
 		}
+		log.Println("5 seconds have passed, stopping ffmpeg input...")
 	}()
 
 	// Wait for the goroutine to finish
