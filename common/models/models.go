@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 )
 
 type CustomLogger interface {
@@ -70,6 +71,7 @@ type Device struct {
 	Logger           CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
 	AppiumLogger     AppiumLogger       `json:"-" bson:"-"` // AppiumLogger object for logging appium actions
 	Mutex            sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
+	GoIOSTunnel      tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
 }
 
 type LocalHubDevice struct {

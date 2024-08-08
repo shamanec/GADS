@@ -17,7 +17,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/pelletier/go-toml/v2"
 
 	"GADS/common/constants"
@@ -40,6 +42,13 @@ func Listener() {
 	Setup()
 	DBDeviceMap = getDBProviderDevices()
 	setupDevices()
+
+	// Create pair record manager for go-ios tunnel handling of iOS 17.4+
+	pm, err := tunnel.NewPairRecordManager(config.ProviderConfig.ProviderFolder)
+	if err != nil {
+		os.Exit(1)
+	}
+	config.ProviderConfig.GoIOSPairRecordManager = pm
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
@@ -333,6 +342,13 @@ func setupIOSDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
+	deviceSemver, err := semver.NewVersion(device.OSVersion)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get semver for device - %v, err - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
 	goIosDeviceEntry, err := ios.GetDevice(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get `go-ios` DeviceEntry for device - %v, err - %v", device.UDID, err))
@@ -341,6 +357,24 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	device.GoIOSDeviceEntry = goIosDeviceEntry
+
+	// Pair the device with go-ios
+	err = pairIOS(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
+	// Mount the DDI on the device
+	err = mountDeveloperImageIOS(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not mount DDI on device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
+	time.Sleep(1 * time.Second)
 
 	// Get device info with go-ios to get the hardware model
 	plistValues, err := ios.GetValuesPlist(device.GoIOSDeviceEntry)
@@ -360,14 +394,7 @@ func setupIOSDevice(device *models.Device) {
 		return
 	}
 
-	isAboveIOS17 := isAboveIOS17(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%s` is above iOS 17 - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
-	if isAboveIOS17 && config.ProviderConfig.OS != "darwin" {
+	if deviceSemver.Major() >= 17 && config.ProviderConfig.OS != "darwin" {
 		logger.ProviderLogger.LogInfo("ios_device_setup", "Device `%s` is iOS 17+ which is not supported on Windows/Linux, setup will be skipped")
 		device.ProviderState = "init"
 		return
@@ -431,7 +458,7 @@ func setupIOSDevice(device *models.Device) {
 		}
 		go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
 	} else {
-		if !isAboveIOS17 {
+		if deviceSemver.Major() < 17 {
 			wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
 			wdaPath := fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
 			err = installAppIOS(device, wdaPath)

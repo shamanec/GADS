@@ -20,6 +20,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 )
 
 // Forward iOS device ports using `go-ios` CLI, for some reason using the library doesn't work properly
@@ -326,35 +327,6 @@ func GetInstalledAppsIOS(device *models.Device) []string {
 	return installedApps
 }
 
-// To use for iOS 17+ when stable
-func StartIOSTunnel() {
-	cmd := exec.CommandContext(context.Background(), "ios", "tunnel", "start")
-
-	// Create a pipe to capture the command's output
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-	}
-
-	// Create a pipe to capture the command's error output
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-	}
-
-	err = cmd.Start()
-	if err != nil {
-	}
-
-	// Create a combined reader from stdout and stderr
-	combinedReader := io.MultiReader(stderr, stdout)
-	// Create a scanner to read the command's output line by line
-	scanner := bufio.NewScanner(combinedReader)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		fmt.Println(line)
-	}
-}
-
 // Uninstall an app on an iOS device by bundle identifier
 func uninstallAppIOS(device *models.Device, bundleID string) error {
 	cmd := exec.CommandContext(device.Context, "ios", "uninstall", bundleID, "--udid="+device.UDID)
@@ -407,13 +379,6 @@ func installAppIOS(device *models.Device, appPath string) error {
 		}
 	}
 	return nil
-}
-
-// Check if a device is above iOS 17
-func isAboveIOS17(device *models.Device) bool {
-	deviceOSVersion, _ := semver.NewVersion(device.OSVersion)
-
-	return deviceOSVersion.Major() >= 17
 }
 
 func isAboveIOS16(device *models.Device) bool {
@@ -470,4 +435,23 @@ func checkAppiumUp(device *models.Device) {
 		}
 		loops++
 	}
+}
+
+// Only for iOS 17.4+
+func createGoIOSTunnel(ctx context.Context, device ios.DeviceEntry, p tunnel.PairRecordManager, version *semver.Version, userspaceTUN bool) (tunnel.Tunnel, error) {
+	if version.Major() >= 17 && version.Minor() >= 4 {
+		if userspaceTUN {
+			device.UserspaceTUNPort = ios.HttpApiPort() + 1
+			tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
+			tun.UserspaceTUN = true
+
+			tun.UserspaceTUNPort = device.UserspaceTUNPort
+			return tun, err
+		}
+		return tunnel.ConnectTunnelLockdown(device)
+	}
+	if version.Major() >= 17 {
+		return tunnel.ManualPairAndConnectToTunnel(ctx, device, p)
+	}
+	return tunnel.Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
 }
