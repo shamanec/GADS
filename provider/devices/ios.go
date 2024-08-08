@@ -170,13 +170,28 @@ func createWebDriverAgentSession(device *models.Device) error {
 }
 
 func startXCTestWithGoIOS(device *models.Device, bundleId string, xctestConfig string) {
-	cmd := exec.CommandContext(context.Background(),
-		"ios",
-		"runtest",
-		fmt.Sprintf("--bundle-id=%s", bundleId),
-		fmt.Sprintf("--test-runner-bundle-id=%s", bundleId),
-		fmt.Sprintf("--xctest-config=%s", xctestConfig),
-		fmt.Sprintf("--udid=%s", device.UDID))
+	var cmd *exec.Cmd
+	if strings.HasPrefix(device.OSVersion, "17") {
+		cmd = exec.CommandContext(context.Background(),
+			"ios",
+			"runtest",
+			fmt.Sprintf("--bundle-id=%s", bundleId),
+			fmt.Sprintf("--test-runner-bundle-id=%s", bundleId),
+			fmt.Sprintf("--xctest-config=%s", xctestConfig),
+			fmt.Sprintf("--udid=%s", device.UDID),
+			fmt.Sprintf("--address=%s", device.GoIOSTunnel.Address),
+			fmt.Sprintf("--rsd-port=%v", device.GoIOSTunnel.RsdPort),
+			fmt.Sprintf("--userspace-port=%v", device.GoIOSTunnel.UserspaceTUNPort))
+	} else {
+		cmd = exec.CommandContext(context.Background(),
+			"ios",
+			"runtest",
+			fmt.Sprintf("--bundle-id=%s", bundleId),
+			fmt.Sprintf("--test-runner-bundle-id=%s", bundleId),
+			fmt.Sprintf("--xctest-config=%s", xctestConfig),
+			fmt.Sprintf("--udid=%s", device.UDID))
+	}
+
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("startWdaWithGoIOS: Starting with command `%v`", cmd.Args))
 	// Create a pipe to capture the command's output
 	stdout, err := cmd.StdoutPipe()
@@ -441,7 +456,6 @@ func checkAppiumUp(device *models.Device) {
 func createGoIOSTunnel(ctx context.Context, device ios.DeviceEntry, p tunnel.PairRecordManager, version *semver.Version, userspaceTUN bool) (tunnel.Tunnel, error) {
 	if version.Major() >= 17 && version.Minor() >= 4 {
 		if userspaceTUN {
-			device.UserspaceTUNPort = ios.HttpApiPort() + 1
 			tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
 			tun.UserspaceTUN = true
 
@@ -454,4 +468,26 @@ func createGoIOSTunnel(ctx context.Context, device ios.DeviceEntry, p tunnel.Pai
 		return tunnel.ManualPairAndConnectToTunnel(ctx, device, p)
 	}
 	return tunnel.Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
+}
+
+func goIosDeviceWithRsdProvider(device *models.Device) error {
+	var err error
+	rsdService, err := ios.NewWithAddrPort(device.GoIOSTunnel.Address, device.GoIOSTunnel.RsdPort, device.GoIOSDeviceEntry)
+	if err != nil {
+		return err
+	}
+	defer rsdService.Close()
+	rsdProvider, err := rsdService.Handshake()
+	if err != nil {
+		return err
+	}
+	newEntry, err := ios.GetDeviceWithAddress(device.UDID, device.GoIOSTunnel.Address, rsdProvider)
+	newEntry.UserspaceTUN = device.GoIOSDeviceEntry.UserspaceTUN
+	newEntry.UserspaceTUNPort = device.GoIOSDeviceEntry.UserspaceTUNPort
+	device.GoIOSDeviceEntry = newEntry
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
