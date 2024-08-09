@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -20,30 +21,26 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 )
 
-// Forward iOS device ports using `go-ios` CLI, for some reason using the library doesn't work properly
-func goIOSForward(device *models.Device, hostPort string, devicePort string) {
-	cmd := exec.CommandContext(device.Context, "ios",
-		"forward",
-		hostPort,
-		devicePort,
-		fmt.Sprintf("--udid=%s", device.UDID))
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("goIOSForward: Forwarding port with command `%s`", cmd.Args))
+func goIosForward(device *models.Device, hostPort string, devicePort string) {
+	hostPortInt, _ := strconv.Atoi(hostPort)
+	devicePortInt, _ := strconv.Atoi(devicePort)
 
-	// Start the port forward command
-	err := cmd.Start()
+	cl, err := forward.Forward(device.GoIOSDeviceEntry, uint16(hostPortInt), uint16(devicePortInt))
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("goIOSForward: Error executing `ios forward` for device `%v` - %v", device.UDID, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to forward device port %s to host port %s for device `%s` - %s", devicePort, hostPort, device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
 
-	if err := cmd.Wait(); err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("goIOSForward: Error waiting `ios forward` to finish for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+	// Close the forward connection if device context is done
+	select {
+	case <-device.Context.Done():
+		cl.Close()
 		return
 	}
 }

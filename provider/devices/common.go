@@ -472,9 +472,9 @@ func setupIOSDevice(device *models.Device) {
 	device.AppiumPort = appiumPort
 
 	// Forward the WebDriverAgent server and stream to the host
-	go goIOSForward(device, device.WDAPort, "8100")
-	go goIOSForward(device, device.StreamPort, "9500")
-	go goIOSForward(device, device.WDAStreamPort, "9100")
+	go goIosForward(device, device.WDAPort, "8100")
+	go goIosForward(device, device.StreamPort, "9500")
+	go goIosForward(device, device.WDAStreamPort, "9100")
 
 	wdaPath := ""
 	if config.ProviderConfig.OS != "darwin" {
