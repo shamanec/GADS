@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 )
@@ -72,6 +73,8 @@ type Device struct {
 	AppiumLogger     AppiumLogger       `json:"-" bson:"-"` // AppiumLogger object for logging appium actions
 	Mutex            sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
 	GoIOSTunnel      tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
+	SemVer           *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
+	InitialSetupDone bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
 }
 
 type LocalHubDevice struct {

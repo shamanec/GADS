@@ -114,8 +114,16 @@ func setupDevices() {
 		dbDevice.Connected = false
 		dbDevice.LastUpdatedTimestamp = 0
 		dbDevice.IsResetting = false
+		dbDevice.InitialSetupDone = false
 
 		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
+
+		semver, err := semver.NewVersion(dbDevice.OSVersion)
+		if err != nil {
+			logger.ProviderLogger.Errorf("updateDevices: Failed to get semver for device `%s` - %s", dbDevice, err)
+			continue
+		}
+		dbDevice.SemVer = semver
 
 		// Check if a capped Appium logs collection already exists for the current device
 		exists, err := db.CollectionExists("appium_logs", dbDevice.UDID)
@@ -167,6 +175,7 @@ func setupDevices() {
 			continue
 		}
 		dbDevice.AppiumLogger = appiumLogger
+		dbDevice.InitialSetupDone = true
 	}
 }
 
@@ -346,14 +355,7 @@ func setupIOSDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
-	deviceSemver, err := semver.NewVersion(device.OSVersion)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get semver for device - %v, err - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
-	if deviceSemver.Major() >= 17 && deviceSemver.Minor() < 4 && config.ProviderConfig.OS != "darwin" {
+	if device.SemVer.Major() >= 17 && device.SemVer.Minor() < 4 && config.ProviderConfig.OS != "darwin" {
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Windows/Linux support only iOS < 17 and iOS >= 17.4, setup for device `%s` will be skipped", device.UDID))
 		device.ProviderState = "init"
 		return
@@ -414,8 +416,8 @@ func setupIOSDevice(device *models.Device) {
 	device.GoIOSDeviceEntry.UserspaceTUNPort = intTunnelPort
 
 	// Create userspace tunnel for devices iOS 17.4+
-	if deviceSemver.Major() >= 17 && deviceSemver.Minor() >= 4 {
-		deviceTunnel, err := createGoIOSTunnel(device.Context, device.GoIOSDeviceEntry, config.ProviderConfig.GoIOSPairRecordManager, deviceSemver, true)
+	if device.SemVer.Major() >= 17 && device.SemVer.Minor() >= 4 {
+		deviceTunnel, err := createGoIOSTunnel(device.Context, device.GoIOSDeviceEntry)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", device.UDID, err))
 			resetLocalDevice(device)
@@ -482,7 +484,7 @@ func setupIOSDevice(device *models.Device) {
 		wdaPath = fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
 	}
 
-	if deviceSemver.Major() < 17 || (deviceSemver.Major() >= 17 && deviceSemver.Minor() >= 4) {
+	if device.SemVer.Major() < 17 || (device.SemVer.Major() >= 17 && device.SemVer.Minor() >= 4) {
 		err = installAppIOS(device, wdaPath)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))

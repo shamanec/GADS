@@ -429,21 +429,12 @@ func checkWebDriverAgentUp(device *models.Device) {
 }
 
 // Only for iOS 17.4+
-func createGoIOSTunnel(ctx context.Context, device ios.DeviceEntry, p tunnel.PairRecordManager, version *semver.Version, userspaceTUN bool) (tunnel.Tunnel, error) {
-	if version.Major() >= 17 && version.Minor() >= 4 {
-		if userspaceTUN {
-			tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
-			tun.UserspaceTUN = true
+func createGoIOSTunnel(ctx context.Context, device ios.DeviceEntry) (tunnel.Tunnel, error) {
+	tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
+	tun.UserspaceTUN = true
 
-			tun.UserspaceTUNPort = device.UserspaceTUNPort
-			return tun, err
-		}
-		return tunnel.ConnectTunnelLockdown(device)
-	}
-	if version.Major() >= 17 {
-		return tunnel.ManualPairAndConnectToTunnel(ctx, device, p)
-	}
-	return tunnel.Tunnel{}, fmt.Errorf("manualPairingTunnelStart: unsupported iOS version %s", version.String())
+	tun.UserspaceTUNPort = device.UserspaceTUNPort
+	return tun, err
 }
 
 func goIosDeviceWithRsdProvider(device *models.Device) error {
