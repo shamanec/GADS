@@ -489,7 +489,7 @@ func setupIOSDevice(device *models.Device) {
 			resetLocalDevice(device)
 			return
 		}
-		go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
+		go runWDAGoIOS(device)
 	} else {
 		go startWdaWithXcodebuild(device)
 	}

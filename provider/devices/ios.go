@@ -20,6 +20,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 )
 
@@ -465,4 +466,19 @@ func goIosDeviceWithRsdProvider(device *models.Device) error {
 	}
 
 	return nil
+}
+
+func runWDAGoIOS(device *models.Device) {
+	_, err := testmanagerd.RunXCUITest(
+		config.ProviderConfig.WdaBundleID,
+		config.ProviderConfig.WdaBundleID,
+		"WebDriverAgentRunner.xctest",
+		device.GoIOSDeviceEntry,
+		nil,
+		nil,
+		nil,
+		testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+	if err != nil {
+		resetLocalDevice(device)
+	}
 }
