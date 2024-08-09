@@ -404,7 +404,7 @@ func isAboveIOS16(device *models.Device) bool {
 
 func checkWebDriverAgentUp(device *models.Device) {
 	var netClient = &http.Client{
-		Timeout: time.Second * 120,
+		Timeout: time.Second * 30,
 	}
 
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.WDAPort), nil)
@@ -420,31 +420,6 @@ func checkWebDriverAgentUp(device *models.Device) {
 		} else {
 			if resp.StatusCode == http.StatusOK {
 				device.WdaReadyChan <- true
-				return
-			}
-		}
-		loops++
-	}
-}
-
-func checkAppiumUp(device *models.Device) {
-	var netClient = &http.Client{
-		Timeout: time.Second * 120,
-	}
-
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.AppiumPort), nil)
-
-	loops := 0
-	for {
-		if loops >= 30 {
-			return
-		}
-		resp, err := netClient.Do(req)
-		if err != nil {
-			time.Sleep(1 * time.Second)
-		} else {
-			if resp.StatusCode == http.StatusOK {
-				device.AppiumReadyChan <- true
 				return
 			}
 		}

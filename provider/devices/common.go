@@ -107,6 +107,7 @@ func updateProviderHub() {
 	}
 }
 
+// When provider is started and respective devices are taken from the DB, we do the initial device data setup here
 func setupDevices() {
 	for _, dbDevice := range DBDeviceMap {
 		dbDevice.ProviderState = "init"
@@ -327,7 +328,7 @@ func setupAndroidDevice(device *models.Device) {
 	case <-device.AppiumReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
 		break
-	case <-time.After(60 * time.Second):
+	case <-time.After(30 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
@@ -522,7 +523,7 @@ func setupIOSDevice(device *models.Device) {
 	case <-device.AppiumReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
 		break
-	case <-time.After(60 * time.Second):
+	case <-time.After(30 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
@@ -864,4 +865,29 @@ func getAndroidDeviceHardwareModel(device *models.Device) {
 	model := outBuffer.String()
 
 	device.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
+}
+
+func checkAppiumUp(device *models.Device) {
+	var netClient = &http.Client{
+		Timeout: time.Second * 30,
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.AppiumPort), nil)
+
+	loops := 0
+	for {
+		if loops >= 30 {
+			return
+		}
+		resp, err := netClient.Do(req)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+		} else {
+			if resp.StatusCode == http.StatusOK {
+				device.AppiumReadyChan <- true
+				return
+			}
+		}
+		loops++
+	}
 }
