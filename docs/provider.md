@@ -42,8 +42,6 @@ Refer to the `--provider-folder` flag in [Running a provider instance](#running-
 - Enable [USB Debugging](#usb-debugging) on each Android device
 
 #### iOS
-- Install [go-ios](#go-ios) if providing iOS devices
-- Install [usbmuxd](#usbmuxd) if providing iOS devices
 - Prepare [WebDriverAgent](#prepare-webdriveragent-on-macos)
 - [Optional] [Supervise](#supervise-devices) your iOS devices
 
@@ -56,7 +54,6 @@ Refer to the `--provider-folder` flag in [Running a provider instance](#running-
 - Enabled [USB Debugging](#usb-debugging) on each Android device
 
 #### iOS
-- Install [go-ios](#go-ios) if providing iOS devices
 - Install [usbmuxd](#usbmuxd) if providing iOS devices
 - Prepare [WebDriverAgent](#prepare-webdriveragent-file---linux-windows) file
 - [Optional] [Supervise](#supervise-devices) your iOS devices
@@ -74,7 +71,6 @@ Refer to the `--provider-folder` flag in [Running a provider instance](#running-
 - Enabled [USB Debugging](#usb-debugging) on each Android device
 
 #### iOS
-- Install [go-ios](#go-ios) if providing iOS devices
 - Install [iTunes](#itunes) if providing iOS devices
 - Prepare [WebDriverAgent](#prepare-webdriveragent-file---linux-windows) file
 - [Optional] [Supervise](#supervise-devices) your iOS devices
@@ -106,13 +102,6 @@ Installation is pretty similar for all operating systems, you just have to find 
 #### adb - Android Debug Bridge
 `adb` (Android Debug Bridge) is mandatory when providing Android devices. You can skip installing it if no Android devices will be provided. 
 - Install `adb` in a valid way for the provider OS. It should be available in PATH so it can be directly accessed via terminal
-
-#### go-ios
-`go-ios` is mandatory when providing iOS devices on any host OS
-- Download the latest release of [go-ios](https://github.com/danielpaulus/go-ios) for the provider host OS and unzip it
-- On macOS - Add it to `/usr/local/bin` with `sudo cp ios /usr/local/bin` or to PATH
-- On Linux - Add it to `/usr/local/bin` with `sudo cp ios /usr/local/bin` or to PATH
-- On Windows - add it to system PATH so that it is available in terminal
 
 #### iTunes
 `iTunes` is needed only on Windows and mandatory when providing iOS devices. Install it through an installation package or Microsoft Store, shouldn't really matter
