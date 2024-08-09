@@ -19,12 +19,13 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/logger"
 
-	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
+	"github.com/danielpaulus/go-ios/ios/installationproxy"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
+	"github.com/danielpaulus/go-ios/ios/zipconduit"
 )
 
 func goIosForward(device *models.Device, hostPort string, devicePort string) {
@@ -244,12 +245,15 @@ func GetInstalledAppsIOS(device *models.Device) []string {
 	return installedApps
 }
 
-// Uninstall an app on an iOS device by bundle identifier
 func uninstallAppIOS(device *models.Device, bundleID string) error {
-	cmd := exec.CommandContext(device.Context, "ios", "uninstall", bundleID, "--udid="+device.UDID)
-	err := cmd.Run()
+	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
 	if err != nil {
-		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed executing `%s` - %v", cmd.Args, err))
+		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed creating installation proxy connection - %v", bundleID, err))
+		return err
+	}
+	err = svc.Uninstall(bundleID)
+	if err != nil {
+		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed uninstalling app with bundleID `%s` - %v", bundleID, err))
 		return err
 	}
 
@@ -267,41 +271,15 @@ func installAppIOS(device *models.Device, appPath string) error {
 		appPath = strings.TrimPrefix(appPath, "./")
 	}
 
-	if config.ProviderConfig.OS == "darwin" && isAboveIOS16(device) {
-		cmd := exec.CommandContext(device.Context,
-			"xcrun",
-			"devicectl",
-			"device",
-			"install",
-			"app",
-			"--device",
-			device.UDID,
-			appPath,
-		)
-		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s` with command `%s`", appPath, device.UDID, cmd.Args))
-		if err := cmd.Run(); err != nil {
-			return err
-		}
-	} else {
-		cmd := exec.CommandContext(device.Context,
-			"ios",
-			"install",
-			fmt.Sprintf("--path=%s", appPath),
-			fmt.Sprintf("--udid=%s", device.UDID),
-		)
-		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s` with command `%s`", appPath, device.UDID, cmd.Args))
-		if err := cmd.Run(); err != nil {
-			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed executing `%s` - %v", cmd.Args, err))
-			return err
-		}
+	logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s`", appPath, device.UDID))
+	conn, err := zipconduit.New(device.GoIOSDeviceEntry)
+	if err != nil {
+		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to create zipconduit connection when installing app `%s` on device `%s`", appPath, device.UDID))
+		return err
 	}
+	err = conn.SendFile(appPath)
+
 	return nil
-}
-
-func isAboveIOS16(device *models.Device) bool {
-	deviceOSVersion, _ := semver.NewVersion(device.OSVersion)
-
-	return deviceOSVersion.Major() >= 16
 }
 
 func checkWebDriverAgentUp(device *models.Device) {
