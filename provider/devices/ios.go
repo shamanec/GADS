@@ -2,7 +2,6 @@ package devices
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"GADS/common/models"
@@ -208,38 +206,22 @@ func pairIOS(device *models.Device) error {
 	return nil
 }
 
-// Get all installed apps on an iOS device
 func GetInstalledAppsIOS(device *models.Device) []string {
 	var installedApps []string
-	cmd := exec.CommandContext(device.Context, "ios", "apps", "--udid="+device.UDID)
-
-	device.InstalledApps = []string{}
-
-	var outBuffer bytes.Buffer
-	cmd.Stdout = &outBuffer
-	if err := cmd.Run(); err != nil {
-		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsIOS: Failed executing `%s` to get installed apps - %v", cmd.Args, err))
-		return installedApps
-	}
-
-	// Get the command output json string
-	jsonString := strings.TrimSpace(outBuffer.String())
-
-	var appsData []struct {
-		BundleID string `json:"CFBundleIdentifier"`
-	}
-
-	err := json.Unmarshal([]byte(jsonString), &appsData)
+	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
 	if err != nil {
-		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsIOS: Error unmarshalling `%s` output json - %v", cmd.Args, err))
+		logger.ProviderLogger.LogError("get_installed_apps", fmt.Sprintf("Failed to create installation proxy connection for device `%s` when getting installed apps - %s", device.UDID, err))
 		return installedApps
 	}
 
-	var mu sync.RWMutex
-	mu.Lock()
-	defer mu.Unlock()
-	for _, appData := range appsData {
-		installedApps = append(installedApps, appData.BundleID)
+	response, err := svc.BrowseUserApps()
+	if err != nil {
+		logger.ProviderLogger.LogError("get_installed_apps", fmt.Sprintf("Failed to get installed apsp for device `%s` - %s", device.UDID, err))
+		return installedApps
+	}
+
+	for _, appInfo := range response {
+		installedApps = append(installedApps, appInfo.CFBundleIdentifier)
 	}
 
 	return installedApps

@@ -106,11 +106,6 @@ func StartProvider(flags *pflag.FlagSet) {
 	}
 
 	if config.ProviderConfig.ProvideIOS {
-		// Check if the `go-ios` binary is available on PATH as explained in the setup readme
-		if !providerutil.GoIOSAvailable() {
-			log.Fatal("`go-ios` is not available, you need to set it up on the host as explained in the readme")
-		}
-
 		// If on Linux or Windows and iOS devices provision enabled check for WebDriverAgent.ipa/app
 		if config.ProviderConfig.OS != "darwin" {
 			logger.ProviderLogger.LogInfo(
