@@ -22,6 +22,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/forward"
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 )
@@ -167,46 +168,21 @@ func createWebDriverAgentSession(device *models.Device) error {
 	return nil
 }
 
-// Mount a developer disk image on an iOS device with the go-ios library
-func mountDeveloperImageIOS(device *models.Device) error {
+func mountDeveloperImageIOS(device *models.Device) {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
-	cmd := exec.CommandContext(device.Context, "ios", "image", "auto", fmt.Sprintf("--basedir=%s", basedir))
-	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Mounting DDI on device `%s` with command `%s`, image will be stored/found in `%s`", device.UDID, cmd.Args, basedir))
-
-	// Create a pipe to capture the command's output
-	stdout, err := cmd.StdoutPipe()
+	path, err := imagemounter.DownloadImageFor(device.GoIOSDeviceEntry, basedir)
 	if err != nil {
-		return fmt.Errorf("mountDeveloperImageIOS: Failed creating stdout pipe - %s", err)
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` to path `%s` - %s", device.UDID, basedir, err))
+		resetLocalDevice(device)
+		return
 	}
 
-	// Create a pipe to capture the command's error output
-	stderr, err := cmd.StderrPipe()
+	err = imagemounter.MountImage(device.GoIOSDeviceEntry, path)
 	if err != nil {
-		return fmt.Errorf("mountDeveloperImageIOS: Failed creating stderr pipe - %s", err)
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to mount DDI on device `%s` from path `%s` - %s", device.UDID, path, err))
+		resetLocalDevice(device)
 	}
-
-	err = cmd.Start()
-	if err != nil {
-		return fmt.Errorf("mountDeveloperImageIOS: Failed starting command `%s` - %s", cmd.Args, err)
-	}
-
-	// Create a combined reader from stdout and stderr
-	combinedReader := io.MultiReader(stderr, stdout)
-	// Create a scanner to read the command's output line by line
-	scanner := bufio.NewScanner(combinedReader)
-
-	for scanner.Scan() {
-		//line := scanner.Text()
-		//fmt.Println(line)
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		return fmt.Errorf("mountDeveloperImageIOS: Failed to run command to mount DDI - %s", err)
-	}
-
-	return nil
 }
 
 // Pair an iOS device with host with/without supervision

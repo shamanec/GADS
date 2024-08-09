@@ -379,12 +379,7 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	// Mount the DDI on the device
-	err = mountDeveloperImageIOS(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not mount DDI on device `%s` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
+	mountDeveloperImageIOS(device)
 
 	// Get device info with go-ios to get the hardware model
 	plistValues, err := ios.GetValuesPlist(device.GoIOSDeviceEntry)
