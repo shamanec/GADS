@@ -17,7 +17,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/pelletier/go-toml/v2"
 
 	"GADS/common/constants"
@@ -40,6 +42,13 @@ func Listener() {
 	Setup()
 	DBDeviceMap = getDBProviderDevices()
 	setupDevices()
+
+	// Create pair record manager for go-ios tunnel handling of iOS 17.4+
+	pm, err := tunnel.NewPairRecordManager(config.ProviderConfig.ProviderFolder)
+	if err != nil {
+		os.Exit(1)
+	}
+	config.ProviderConfig.GoIOSPairRecordManager = pm
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
@@ -98,14 +107,23 @@ func updateProviderHub() {
 	}
 }
 
+// When provider is started and respective devices are taken from the DB, we do the initial device data setup here
 func setupDevices() {
 	for _, dbDevice := range DBDeviceMap {
 		dbDevice.ProviderState = "init"
 		dbDevice.Connected = false
 		dbDevice.LastUpdatedTimestamp = 0
 		dbDevice.IsResetting = false
+		dbDevice.InitialSetupDone = false
 
 		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
+
+		semver, err := semver.NewVersion(dbDevice.OSVersion)
+		if err != nil {
+			logger.ProviderLogger.Errorf("updateDevices: Failed to get semver for device `%s` - %s", dbDevice, err)
+			continue
+		}
+		dbDevice.SemVer = semver
 
 		// Check if a capped Appium logs collection already exists for the current device
 		exists, err := db.CollectionExists("appium_logs", dbDevice.UDID)
@@ -157,6 +175,7 @@ func setupDevices() {
 			continue
 		}
 		dbDevice.AppiumLogger = appiumLogger
+		dbDevice.InitialSetupDone = true
 	}
 }
 
@@ -190,6 +209,9 @@ func updateDevices() {
 				dbDevice.ProviderState = "init"
 				dbDevice.IsResetting = false
 				dbDevice.Connected = false
+				if dbDevice.GoIOSTunnel.Address != "" {
+					dbDevice.GoIOSTunnel.Close()
+				}
 			}
 		}
 	}
@@ -315,7 +337,7 @@ func setupAndroidDevice(device *models.Device) {
 	case <-device.AppiumReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
 		break
-	case <-time.After(60 * time.Second):
+	case <-time.After(30 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
@@ -333,6 +355,12 @@ func setupIOSDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
+	if device.SemVer.Major() >= 17 && device.SemVer.Minor() < 4 && config.ProviderConfig.OS != "darwin" {
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Windows/Linux support only iOS < 17 and iOS >= 17.4, setup for device `%s` will be skipped", device.UDID))
+		device.ProviderState = "init"
+		return
+	}
+
 	goIosDeviceEntry, err := ios.GetDevice(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get `go-ios` DeviceEntry for device - %v, err - %v", device.UDID, err))
@@ -341,6 +369,17 @@ func setupIOSDevice(device *models.Device) {
 	}
 
 	device.GoIOSDeviceEntry = goIosDeviceEntry
+
+	// Pair the device with go-ios
+	err = pairIOS(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
+	// Mount the DDI on the device
+	mountDeveloperImageIOS(device)
 
 	// Get device info with go-ios to get the hardware model
 	plistValues, err := ios.GetValuesPlist(device.GoIOSDeviceEntry)
@@ -352,27 +391,6 @@ func setupIOSDevice(device *models.Device) {
 	// Update hardware model got from plist
 	device.HardwareModel = plistValues["HardwareModel"].(string)
 
-	// Mount the DDI on the device
-	err = mountDeveloperImageIOS(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not mount DDI on device `%s` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
-	isAboveIOS17 := isAboveIOS17(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not determine if device `%s` is above iOS 17 - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
-	if isAboveIOS17 && config.ProviderConfig.OS != "darwin" {
-		logger.ProviderLogger.LogInfo("ios_device_setup", "Device `%s` is iOS 17+ which is not supported on Windows/Linux, setup will be skipped")
-		device.ProviderState = "init"
-		return
-	}
-
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
 	if config.ProviderConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
@@ -382,6 +400,39 @@ func setupIOSDevice(device *models.Device) {
 			return
 		}
 	}
+
+	tunnelPort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent port for device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+	intTunnelPort, _ := strconv.Atoi(tunnelPort)
+	device.GoIOSDeviceEntry.UserspaceTUNPort = intTunnelPort
+
+	// Create userspace tunnel for devices iOS 17.4+
+	if device.SemVer.Major() >= 17 && device.SemVer.Minor() >= 4 {
+		deviceTunnel, err := createGoIOSTunnel(device.Context, device)
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", device.UDID, err))
+			resetLocalDevice(device)
+			return
+		}
+		device.GoIOSTunnel = deviceTunnel
+
+		// Set the ports from the tunnel on the GoIOSDeviceEntry
+		device.GoIOSDeviceEntry.UserspaceTUNPort = device.GoIOSTunnel.UserspaceTUNPort
+		device.GoIOSDeviceEntry.UserspaceTUN = device.GoIOSTunnel.UserspaceTUN
+
+		err = goIosDeviceWithRsdProvider(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create go-ios device entry with rsd provider for device `%s` - %v", device.UDID, err))
+			resetLocalDevice(device)
+			return
+		}
+	}
+
+	time.Sleep(1 * time.Second)
 
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -416,34 +467,28 @@ func setupIOSDevice(device *models.Device) {
 	device.AppiumPort = appiumPort
 
 	// Forward the WebDriverAgent server and stream to the host
-	go goIOSForward(device, device.WDAPort, "8100")
-	go goIOSForward(device, device.StreamPort, "9500")
-	go goIOSForward(device, device.WDAStreamPort, "9100")
+	go goIosForward(device, device.WDAPort, "8100")
+	go goIosForward(device, device.StreamPort, "9500")
+	go goIosForward(device, device.WDAStreamPort, "9100")
 
-	// If on Linux or Windows use the prebuilt and provided WebDriverAgent.ipa/app file
+	wdaPath := ""
 	if config.ProviderConfig.OS != "darwin" {
-		wdaPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
+		wdaPath = fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
+	} else {
+		wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
+		wdaPath = fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
+	}
+
+	if device.SemVer.Major() < 17 || (device.SemVer.Major() >= 17 && device.SemVer.Minor() >= 4) {
 		err = installAppIOS(device, wdaPath)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
 			resetLocalDevice(device)
 			return
 		}
-		go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
+		go runWDAGoIOS(device)
 	} else {
-		if !isAboveIOS17 {
-			wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
-			wdaPath := fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
-			err = installAppIOS(device, wdaPath)
-			if err != nil {
-				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
-				resetLocalDevice(device)
-				return
-			}
-			go startXCTestWithGoIOS(device, config.ProviderConfig.WdaBundleID, "WebDriverAgentRunner.xctest")
-		} else {
-			go startWdaWithXcodebuild(device)
-		}
+		go startWdaWithXcodebuild(device)
 	}
 
 	go checkWebDriverAgentUp(device)
@@ -475,7 +520,7 @@ func setupIOSDevice(device *models.Device) {
 	case <-device.AppiumReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
 		break
-	case <-time.After(60 * time.Second):
+	case <-time.After(30 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
 		resetLocalDevice(device)
 		return
@@ -575,6 +620,9 @@ func resetLocalDevice(device *models.Device) {
 		device.CtxCancel()
 		device.ProviderState = "init"
 		device.IsResetting = false
+		if device.GoIOSTunnel.Address != "" {
+			device.GoIOSTunnel.Close()
+		}
 
 		// Free any used ports from the map where we keep them
 		delete(providerutil.UsedPorts, device.WDAPort)
@@ -814,4 +862,29 @@ func getAndroidDeviceHardwareModel(device *models.Device) {
 	model := outBuffer.String()
 
 	device.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
+}
+
+func checkAppiumUp(device *models.Device) {
+	var netClient = &http.Client{
+		Timeout: time.Second * 30,
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.AppiumPort), nil)
+
+	loops := 0
+	for {
+		if loops >= 30 {
+			return
+		}
+		resp, err := netClient.Do(req)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+		} else {
+			if resp.StatusCode == http.StatusOK {
+				device.AppiumReadyChan <- true
+				return
+			}
+		}
+		loops++
+	}
 }

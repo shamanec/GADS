@@ -87,19 +87,6 @@ func AppiumAvailable() bool {
 	return true
 }
 
-// Check if go-ios binary is available
-func GoIOSAvailable() bool {
-	logger.ProviderLogger.LogInfo("provider_setup", "Checking if go-ios binary is set up and available on the host PATH")
-
-	cmd := exec.Command("ios", "-h")
-	err := cmd.Run()
-	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("goIOSAvailable: go-ios is not available on host or command failed - %s", err))
-		return false
-	}
-	return true
-}
-
 // Build WebDriverAgent for testing with `xcodebuild`
 func BuildWebDriverAgent() error {
 	cmd := exec.Command("xcodebuild", "-project", "WebDriverAgent.xcodeproj", "-scheme", "WebDriverAgentRunner", "-destination", "generic/platform=iOS", "build-for-testing", "-derivedDataPath", "./build")

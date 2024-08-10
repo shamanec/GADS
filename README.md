@@ -56,12 +56,12 @@ Supports Linux, macOS and Windows - notes below
 - Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
 - Optionally Selenium Grid 4 nodes can be registered for each device Appium server
 - macOS
-  - Supports both Android and iOS
+  - Supports both Android / iOS
 - Linux
-  - Supports both Android and iOS < 17
+  - Supports both Android / iOS < 17 && iOS >= 17.4
   - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Linux
 - Windows 10
-  - Supports Android and iOS < 17
+  - Supports Android / iOS < 17 && ios >= 17.4
   - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Windows
 
 Developed and tested on Ubuntu 18.04 LTS, Ubuntu 20.04 LTS, Windows 10, macOS Ventura 13.5.1
