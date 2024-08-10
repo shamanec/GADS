@@ -290,11 +290,11 @@ func checkWebDriverAgentUp(device *models.Device) {
 }
 
 // Only for iOS 17.4+
-func createGoIOSTunnel(ctx context.Context, device ios.DeviceEntry) (tunnel.Tunnel, error) {
-	tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device, device.UserspaceTUNPort)
+func createGoIOSTunnel(ctx context.Context, device *models.Device) (tunnel.Tunnel, error) {
+	tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device.GoIOSDeviceEntry, device.GoIOSDeviceEntry.UserspaceTUNPort)
 	tun.UserspaceTUN = true
 
-	tun.UserspaceTUNPort = device.UserspaceTUNPort
+	tun.UserspaceTUNPort = device.GoIOSDeviceEntry.UserspaceTUNPort
 	return tun, err
 }
 

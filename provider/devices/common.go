@@ -412,7 +412,7 @@ func setupIOSDevice(device *models.Device) {
 
 	// Create userspace tunnel for devices iOS 17.4+
 	if device.SemVer.Major() >= 17 && device.SemVer.Minor() >= 4 {
-		deviceTunnel, err := createGoIOSTunnel(device.Context, device.GoIOSDeviceEntry)
+		deviceTunnel, err := createGoIOSTunnel(device.Context, device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", device.UDID, err))
 			resetLocalDevice(device)
