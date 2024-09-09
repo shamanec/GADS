@@ -350,10 +350,22 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 
     // if the stream height 
     if (streamData.canvasHeight != streamData.deviceY) {
-        firstCoordX = (firstCoordX / streamData.canvasWidth) * streamData.deviceX
-        firstCoordY = (firstCoordY / streamData.canvasHeight) * streamData.deviceY
-        secondCoordX = (secondCoordX / streamData.canvasWidth) * streamData.deviceX
-        secondCoordY = (secondCoordY / streamData.canvasHeight) * streamData.deviceY
+        // If the device is landscape and is android
+        // We need to switch the coordinate calculation
+        // Divide by height for X and divide by width for Y
+        if (streamData.device_os === 'android' && !streamData.isPortrait) {
+            firstCoordX = (firstCoordX / streamData.canvasHeight) * streamData.deviceX
+            firstCoordY = (firstCoordY / streamData.canvasWidth) * streamData.deviceY
+            secondCoordX = (secondCoordX / streamData.canvasHeight) * streamData.deviceX
+            secondCoordY = (secondCoordY / streamData.canvasWidth) * streamData.deviceY
+        } else {
+            // If the device is not in landscape and is not android
+            // Divide as usual - X by width and Y by height
+            firstCoordX = (firstCoordX / streamData.canvasWidth) * streamData.deviceX
+            firstCoordY = (firstCoordY / streamData.canvasHeight) * streamData.deviceY
+            secondCoordX = (secondCoordX / streamData.canvasWidth) * streamData.deviceX
+            secondCoordY = (secondCoordY / streamData.canvasHeight) * streamData.deviceY
+        }
     }
 
     let jsonData = JSON.stringify({
