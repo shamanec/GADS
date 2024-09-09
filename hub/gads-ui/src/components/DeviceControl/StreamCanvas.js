@@ -32,7 +32,9 @@ export default function StreamCanvas({ deviceData }) {
         screen_ratio: screen_ratio,
         canvasHeight: canvasSize.height,
         canvasWidth: canvasSize.width,
-        isPortrait: isPortrait
+        isPortrait: isPortrait,
+        device_os: deviceData.os,
+        uses_custom_wda: deviceData.uses_custom_wda
     }
 
     let streamUrl = ""
@@ -188,18 +190,26 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
 
     function getCursorCoordinates(event) {
         const rect = event.currentTarget.getBoundingClientRect()
+        // If its portrait use the usual calculation for tap coordinates
         if (streamData.isPortrait) {
             const x = event.clientX - rect.left
             const y = event.clientY - rect.top
             return [x, y]
         }
-        console.log('client stuff')
-        console.log(event.clientX)
-        console.log(event.clientY)
+        // If its landscape and the provider uses custom wda for tapping/swiping
+        if (streamData.device_os === 'ios' && streamData.uses_custom_wda) {
+            // Have to subtract the tap coordinate from the canvas height
+            // Because the custom wda tap uses coordinates where in landscape
+            // x starts from the bottom(being essentially reversed y)
+            // and y starts from the left(being essentially x)
+            const x = streamData.canvasHeight - (event.clientY - rect.top)
+            const y = event.clientX - rect.left
+            return [x, y]
+        }
+        // If its landscape and provider does not use custom wda for tapping/swiping
+        // just reverse x and y
         const x = event.clientY - rect.top
         const y = event.clientX - rect.left
-        console.log(x)
-        console.log(y)
         return [y, x];
     }
 
