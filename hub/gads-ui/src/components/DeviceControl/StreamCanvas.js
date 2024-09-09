@@ -15,10 +15,15 @@ export default function StreamCanvas({ deviceData }) {
         width: 0,
         height: 0
     });
+    const [isPortrait, setIsPortrait] = useState(true)
+    const handleOrientationButtonClick = (isPortrait) => {
+        setIsPortrait(isPortrait);
+    }
 
     let deviceX = parseInt(deviceData.screen_width, 10)
     let deviceY = parseInt(deviceData.screen_height, 10)
     let screen_ratio = deviceX / deviceY
+    let landscapeScreenRatio = deviceY / deviceX
 
     const streamData = {
         udid: deviceData.udid,
@@ -26,22 +31,29 @@ export default function StreamCanvas({ deviceData }) {
         deviceY: deviceY,
         screen_ratio: screen_ratio,
         canvasHeight: canvasSize.height,
-        canvasWidth: canvasSize.width
+        canvasWidth: canvasSize.width,
+        isPortrait: isPortrait
     }
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
-        // streamUrl = `http://192.168.68.109:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        // streamUrl = `http://192.168.68.109:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     useEffect(() => {
         const updateCanvasSize = () => {
-            let canvasHeight = window.innerHeight * 0.7
-            let canvasWidth = canvasHeight * screen_ratio
+            let canvasWidth, canvasHeight
+            if (isPortrait) {
+                canvasHeight = window.innerHeight * 0.7
+                canvasWidth = canvasHeight * screen_ratio
+            } else {
+                canvasWidth = window.innerWidth * 0.4
+                canvasHeight = canvasWidth / landscapeScreenRatio
+            }
 
             setCanvasSize({
                 width: canvasWidth,
@@ -49,7 +61,15 @@ export default function StreamCanvas({ deviceData }) {
             })
         }
 
+        const imgElement = document.getElementById('image-stream');
+
+        // Temporarily remove the stream source
+        imgElement.src = '';
+
         updateCanvasSize()
+
+        // Reapply the stream URL after the resize is complete
+        imgElement.src = streamUrl;
 
         // Set resize listener
         window.addEventListener('resize', updateCanvasSize);
@@ -58,7 +78,7 @@ export default function StreamCanvas({ deviceData }) {
             window.stop()
             window.removeEventListener('resize', updateCanvasSize);
         }
-    }, []);
+    }, [isPortrait]);
 
     return (
         <div
@@ -138,6 +158,24 @@ export default function StreamCanvas({ deviceData }) {
                     }}
                 >Unlock</Button>
             </Grid>
+            <Grid>
+                <Button
+                    variant={isPortrait ? "contained" : "outlined"}
+                    color={isPortrait ? "primary" : "secondary"}
+                    onClick={() => handleOrientationButtonClick(true)}
+                    disabled={isPortrait}
+                >
+                    Portrait
+                </Button>
+                <Button
+                    variant={isPortrait ? "contained" : "outlined"}
+                    color={isPortrait ? "primary" : "secondary"}
+                    onClick={() => handleOrientationButtonClick(false)}
+                    disabled={!isPortrait}
+                >
+                    Landscape
+                </Button>
+            </Grid>
         </div >
 
     )
@@ -150,9 +188,19 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
 
     function getCursorCoordinates(event) {
         const rect = event.currentTarget.getBoundingClientRect()
-        const x = event.clientX - rect.left
-        const y = event.clientY - rect.top
-        return [x, y];
+        if (streamData.isPortrait) {
+            const x = event.clientX - rect.left
+            const y = event.clientY - rect.top
+            return [x, y]
+        }
+        console.log('client stuff')
+        console.log(event.clientX)
+        console.log(event.clientY)
+        const x = event.clientY - rect.top
+        const y = event.clientX - rect.left
+        console.log(x)
+        console.log(y)
+        return [y, x];
     }
 
     function handleMouseDown(event) {
@@ -218,8 +266,13 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
 
     // if the stream height 
     if (streamData.canvasHeight != streamData.deviceY) {
-        x = (x / streamData.canvasWidth) * streamData.deviceX
-        y = (y / streamData.canvasHeight) * streamData.deviceY
+        if (streamData.isPortrait) {
+            x = (x / streamData.canvasWidth) * streamData.deviceX
+            y = (y / streamData.canvasHeight) * streamData.deviceY
+        } else {
+            x = (x / streamData.canvasHeight) * streamData.deviceX
+            y = (y / streamData.canvasWidth) * streamData.deviceY
+        }
     }
 
     let jsonData = JSON.stringify({
