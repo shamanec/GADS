@@ -83,41 +83,86 @@ export default function StreamCanvas({ deviceData }) {
     }, [isPortrait]);
 
     return (
-        <div
-            id='phone-imitation'
-        >
-            <h3
-                style={{
-                    color: '#2f3b26',
-                    display: 'flex',
-                    fontFamily: 'Verdana',
-                    justifyContent: 'center'
-                }}
-            >{deviceData.model}</h3>
+        <Grid>
             <div
-                id="stream-div"
-                style={{
-                    width: streamData.canvasWidth,
-                    height: streamData.canvasHeight
-                }}
+                id='phone-imitation'
             >
-                <Canvas
-                    canvasWidth={streamData.canvasWidth}
-                    canvasHeight={streamData.canvasHeight}
-                    authToken={authToken}
-                    logout={logout}
-                    streamData={streamData}
-                    setDialog={setDialog}
-                ></Canvas>
-                <Stream
-                    canvasWidth={streamData.canvasWidth}
-                    canvasHeight={streamData.canvasHeight}
-                    streamUrl={streamUrl}
-                ></Stream>
-            </div>
-            <Divider></Divider>
+                <h3
+                    style={{
+                        color: '#2f3b26',
+                        display: 'flex',
+                        fontFamily: 'Verdana',
+                        justifyContent: 'center'
+                    }}
+                >{deviceData.model}</h3>
+                <div
+                    id="stream-div"
+                    style={{
+                        width: streamData.canvasWidth,
+                        height: streamData.canvasHeight
+                    }}
+                >
+                    <Canvas
+                        canvasWidth={streamData.canvasWidth}
+                        canvasHeight={streamData.canvasHeight}
+                        authToken={authToken}
+                        logout={logout}
+                        streamData={streamData}
+                        setDialog={setDialog}
+                    ></Canvas>
+                    <Stream
+                        canvasWidth={streamData.canvasWidth}
+                        canvasHeight={streamData.canvasHeight}
+                        streamUrl={streamUrl}
+                    ></Stream>
+                </div>
+                <Divider></Divider>
+                <Grid
+                    height='50px'
+                    display='flex'
+                    justifyContent='center'
+                    style={{
+                        marginTop: '10px'
+                    }}
+                >
+                    <Button
+                        onClick={() => homeButton(authToken, deviceData, setDialog)}
+                        className='canvas-buttons'
+                        startIcon={<HomeIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            borderBottomLeftRadius: '25px',
+                        }}
+                    >Home</Button>
+                    <Button
+                        onClick={() => lockButton(authToken, deviceData, setDialog)}
+                        className='canvas-buttons'
+                        startIcon={<LockIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26"
+                        }}
+                    >Lock</Button>
+                    <Button
+                        onClick={() => unlockButton(authToken, deviceData, setDialog)}
+                        className='canvas-buttons'
+                        startIcon={<LockOpenIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            borderBottomRightRadius: '25px'
+                        }}
+                    >Unlock</Button>
+                </Grid>
+            </div >
             <Grid
-                height='50px'
                 display='flex'
                 justifyContent='center'
                 style={{
@@ -125,61 +170,23 @@ export default function StreamCanvas({ deviceData }) {
                 }}
             >
                 <Button
-                    onClick={() => homeButton(authToken, deviceData, setDialog)}
-                    className='canvas-buttons'
-                    startIcon={<HomeIcon />}
-                    variant='contained'
-                    style={{
-                        fontWeight: "bold",
-                        color: "#9ba984",
-                        backgroundColor: "#2f3b26",
-                        borderBottomLeftRadius: '25px',
-                    }}
-                >Home</Button>
-                <Button
-                    onClick={() => lockButton(authToken, deviceData, setDialog)}
-                    className='canvas-buttons'
-                    startIcon={<LockIcon />}
-                    variant='contained'
-                    style={{
-                        fontWeight: "bold",
-                        color: "#9ba984",
-                        backgroundColor: "#2f3b26"
-                    }}
-                >Lock</Button>
-                <Button
-                    onClick={() => unlockButton(authToken, deviceData, setDialog)}
-                    className='canvas-buttons'
-                    startIcon={<LockOpenIcon />}
-                    variant='contained'
-                    style={{
-                        fontWeight: "bold",
-                        color: "#9ba984",
-                        backgroundColor: "#2f3b26",
-                        borderBottomRightRadius: '25px'
-                    }}
-                >Unlock</Button>
-            </Grid>
-            <Grid>
-                <Button
-                    variant={isPortrait ? "contained" : "outlined"}
-                    color={isPortrait ? "primary" : "secondary"}
+                    variant={"contained"}
+                    color={"secondary"}
                     onClick={() => handleOrientationButtonClick(true)}
                     disabled={isPortrait}
                 >
                     Portrait
                 </Button>
                 <Button
-                    variant={isPortrait ? "contained" : "outlined"}
-                    color={isPortrait ? "primary" : "secondary"}
+                    variant={"contained"}
+                    color={"secondary"}
                     onClick={() => handleOrientationButtonClick(false)}
                     disabled={!isPortrait}
                 >
                     Landscape
                 </Button>
             </Grid>
-        </div >
-
+        </Grid>
     )
 }
 
