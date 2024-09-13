@@ -1,7 +1,7 @@
 import { Auth } from "../../contexts/Auth"
 import { useContext, useEffect, useState } from "react"
 import './StreamCanvas.css'
-import { Button, Divider, Grid, Stack } from "@mui/material"
+import { Button, Divider, Grid, Stack, Tooltip } from "@mui/material"
 import HomeIcon from '@mui/icons-material/Home';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
@@ -15,10 +15,15 @@ export default function StreamCanvas({ deviceData }) {
         width: 0,
         height: 0
     });
+    const [isPortrait, setIsPortrait] = useState(true)
+    const handleOrientationButtonClick = (isPortrait) => {
+        setIsPortrait(isPortrait);
+    }
 
     let deviceX = parseInt(deviceData.screen_width, 10)
     let deviceY = parseInt(deviceData.screen_height, 10)
     let screen_ratio = deviceX / deviceY
+    let landscapeScreenRatio = deviceY / deviceX
 
     const streamData = {
         udid: deviceData.udid,
@@ -26,22 +31,31 @@ export default function StreamCanvas({ deviceData }) {
         deviceY: deviceY,
         screen_ratio: screen_ratio,
         canvasHeight: canvasSize.height,
-        canvasWidth: canvasSize.width
+        canvasWidth: canvasSize.width,
+        isPortrait: isPortrait,
+        device_os: deviceData.os,
+        uses_custom_wda: deviceData.uses_custom_wda
     }
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
-        // streamUrl = `http://192.168.68.109:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/ios-stream-mjpeg`
         streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        // streamUrl = `http://192.168.68.109:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/android-stream-mjpeg`
         streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     useEffect(() => {
         const updateCanvasSize = () => {
-            let canvasHeight = window.innerHeight * 0.7
-            let canvasWidth = canvasHeight * screen_ratio
+            let canvasWidth, canvasHeight
+            if (isPortrait) {
+                canvasHeight = window.innerHeight * 0.7
+                canvasWidth = canvasHeight * screen_ratio
+            } else {
+                canvasWidth = window.innerWidth * 0.4
+                canvasHeight = canvasWidth / landscapeScreenRatio
+            }
 
             setCanvasSize({
                 width: canvasWidth,
@@ -49,7 +63,15 @@ export default function StreamCanvas({ deviceData }) {
             })
         }
 
+        const imgElement = document.getElementById('image-stream');
+
+        // Temporarily remove the stream source
+        imgElement.src = '';
+
         updateCanvasSize()
+
+        // Reapply the stream URL after the resize is complete
+        imgElement.src = streamUrl;
 
         // Set resize listener
         window.addEventListener('resize', updateCanvasSize);
@@ -58,88 +80,119 @@ export default function StreamCanvas({ deviceData }) {
             window.stop()
             window.removeEventListener('resize', updateCanvasSize);
         }
-    }, []);
+    }, [isPortrait]);
 
     return (
-        <div
-            id='phone-imitation'
-        >
-            <h3
-                style={{
-                    color: '#2f3b26',
-                    display: 'flex',
-                    fontFamily: 'Verdana',
-                    justifyContent: 'center'
-                }}
-            >{deviceData.model}</h3>
+        <Grid>
             <div
-                id="stream-div"
-                style={{
-                    width: streamData.canvasWidth,
-                    height: streamData.canvasHeight
-                }}
+                id='phone-imitation'
             >
-                <Canvas
-                    canvasWidth={streamData.canvasWidth}
-                    canvasHeight={streamData.canvasHeight}
-                    authToken={authToken}
-                    logout={logout}
-                    streamData={streamData}
-                    setDialog={setDialog}
-                ></Canvas>
-                <Stream
-                    canvasWidth={streamData.canvasWidth}
-                    canvasHeight={streamData.canvasHeight}
-                    streamUrl={streamUrl}
-                ></Stream>
-            </div>
-            <Divider></Divider>
-            <Grid
-                height='50px'
-                display='flex'
-                justifyContent='center'
-                style={{
-                    marginTop: '10px'
-                }}
+                <h3
+                    style={{
+                        color: '#2f3b26',
+                        display: 'flex',
+                        fontFamily: 'Verdana',
+                        justifyContent: 'center'
+                    }}
+                >{deviceData.model}</h3>
+                <div
+                    id="stream-div"
+                    style={{
+                        width: streamData.canvasWidth,
+                        height: streamData.canvasHeight
+                    }}
+                >
+                    <Canvas
+                        canvasWidth={streamData.canvasWidth}
+                        canvasHeight={streamData.canvasHeight}
+                        authToken={authToken}
+                        logout={logout}
+                        streamData={streamData}
+                        setDialog={setDialog}
+                    ></Canvas>
+                    <Stream
+                        canvasWidth={streamData.canvasWidth}
+                        canvasHeight={streamData.canvasHeight}
+                        streamUrl={streamUrl}
+                    ></Stream>
+                </div>
+                <Divider></Divider>
+                <Grid
+                    height='50px'
+                    display='flex'
+                    justifyContent='center'
+                    style={{
+                        marginTop: '10px'
+                    }}
+                >
+                    <Button
+                        onClick={() => homeButton(authToken, deviceData, setDialog)}
+                        className='canvas-buttons'
+                        startIcon={<HomeIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            borderBottomLeftRadius: '25px',
+                        }}
+                    >Home</Button>
+                    <Button
+                        onClick={() => lockButton(authToken, deviceData, setDialog)}
+                        className='canvas-buttons'
+                        startIcon={<LockIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26"
+                        }}
+                    >Lock</Button>
+                    <Button
+                        onClick={() => unlockButton(authToken, deviceData, setDialog)}
+                        className='canvas-buttons'
+                        startIcon={<LockOpenIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            borderBottomRightRadius: '25px'
+                        }}
+                    >Unlock</Button>
+                </Grid>
+            </div >
+            <Tooltip
+                title="This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed"
+                arrow
+                placement='bottom'
             >
-                <Button
-                    onClick={() => homeButton(authToken, deviceData, setDialog)}
-                    className='canvas-buttons'
-                    startIcon={<HomeIcon />}
-                    variant='contained'
+                <Grid
+                    display='flex'
+                    justifyContent='center'
                     style={{
-                        fontWeight: "bold",
-                        color: "#9ba984",
-                        backgroundColor: "#2f3b26",
-                        borderBottomLeftRadius: '25px',
+                        marginTop: '10px'
                     }}
-                >Home</Button>
-                <Button
-                    onClick={() => lockButton(authToken, deviceData, setDialog)}
-                    className='canvas-buttons'
-                    startIcon={<LockIcon />}
-                    variant='contained'
-                    style={{
-                        fontWeight: "bold",
-                        color: "#9ba984",
-                        backgroundColor: "#2f3b26"
-                    }}
-                >Lock</Button>
-                <Button
-                    onClick={() => unlockButton(authToken, deviceData, setDialog)}
-                    className='canvas-buttons'
-                    startIcon={<LockOpenIcon />}
-                    variant='contained'
-                    style={{
-                        fontWeight: "bold",
-                        color: "#9ba984",
-                        backgroundColor: "#2f3b26",
-                        borderBottomRightRadius: '25px'
-                    }}
-                >Unlock</Button>
-            </Grid>
-        </div >
-
+                >
+                    <Button
+                        variant={"contained"}
+                        color={"secondary"}
+                        onClick={() => handleOrientationButtonClick(true)}
+                        disabled={isPortrait}
+                    >
+                        Portrait
+                    </Button>
+                    <Button
+                        variant={"contained"}
+                        color={"secondary"}
+                        onClick={() => handleOrientationButtonClick(false)}
+                        disabled={!isPortrait}
+                    >
+                        Landscape
+                    </Button>
+                </Grid>
+            </Tooltip>
+        </Grid>
     )
 }
 
@@ -150,9 +203,28 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
 
     function getCursorCoordinates(event) {
         const rect = event.currentTarget.getBoundingClientRect()
-        const x = event.clientX - rect.left
-        const y = event.clientY - rect.top
-        return [x, y];
+        // If its portrait use the usual calculation for tap coordinates
+        if (streamData.isPortrait) {
+            const x = event.clientX - rect.left
+            const y = event.clientY - rect.top
+            return [x, y]
+        }
+        // If its landscape and the provider uses custom wda for tapping/swiping
+        if (streamData.device_os === 'ios' && streamData.uses_custom_wda) {
+            // Have to subtract the tap coordinate from the canvas height
+            // Because the custom wda tap uses coordinates where in landscape
+            // x starts from the bottom(being essentially reversed y)
+            // and y starts from the left(being essentially x)
+            const x = streamData.canvasHeight - (event.clientY - rect.top)
+            const y = event.clientX - rect.left
+            return [x, y]
+        }
+        // If its landscape and provider does not use custom wda for tapping/swiping
+        // just reverse x and y
+        const x = event.clientY - rect.top
+        const y = event.clientX - rect.left
+        console.log("Returning " + x + " " + y)
+        return [y, x];
     }
 
     function handleMouseDown(event) {
@@ -218,8 +290,13 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
 
     // if the stream height 
     if (streamData.canvasHeight != streamData.deviceY) {
-        x = (x / streamData.canvasWidth) * streamData.deviceX
-        y = (y / streamData.canvasHeight) * streamData.deviceY
+        if (streamData.isPortrait) {
+            x = (x / streamData.canvasWidth) * streamData.deviceX
+            y = (y / streamData.canvasHeight) * streamData.deviceY
+        } else {
+            x = (x / streamData.canvasHeight) * streamData.deviceX
+            y = (y / streamData.canvasWidth) * streamData.deviceY
+        }
     }
 
     let jsonData = JSON.stringify({
@@ -287,10 +364,22 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
 
     // if the stream height 
     if (streamData.canvasHeight != streamData.deviceY) {
-        firstCoordX = (firstCoordX / streamData.canvasWidth) * streamData.deviceX
-        firstCoordY = (firstCoordY / streamData.canvasHeight) * streamData.deviceY
-        secondCoordX = (secondCoordX / streamData.canvasWidth) * streamData.deviceX
-        secondCoordY = (secondCoordY / streamData.canvasHeight) * streamData.deviceY
+        // If the device is landscape and is android
+        // We need to switch the coordinate calculation
+        // Divide by height for X and divide by width for Y
+        if (streamData.device_os === 'android' && !streamData.isPortrait) {
+            firstCoordX = (firstCoordX / streamData.canvasHeight) * streamData.deviceX
+            firstCoordY = (firstCoordY / streamData.canvasWidth) * streamData.deviceY
+            secondCoordX = (secondCoordX / streamData.canvasHeight) * streamData.deviceX
+            secondCoordY = (secondCoordY / streamData.canvasWidth) * streamData.deviceY
+        } else {
+            // If the device is not in landscape and is not android
+            // Divide as usual - X by width and Y by height
+            firstCoordX = (firstCoordX / streamData.canvasWidth) * streamData.deviceX
+            firstCoordY = (firstCoordY / streamData.canvasHeight) * streamData.deviceY
+            secondCoordX = (secondCoordX / streamData.canvasWidth) * streamData.deviceX
+            secondCoordY = (secondCoordY / streamData.canvasHeight) * streamData.deviceY
+        }
     }
 
     let jsonData = JSON.stringify({

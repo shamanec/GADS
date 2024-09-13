@@ -238,6 +238,7 @@ func DeviceInfo(c *gin.Context) {
 
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		devices.UpdateInstalledApps(dev)
+		dev.UsesCustomWDA = config.ProviderConfig.UseCustomWDA
 		c.JSON(http.StatusOK, dev)
 		return
 	}

@@ -56,7 +56,8 @@ type Device struct {
 	ProviderState        string `json:"provider_state" bson:"-"`         // current state of the device on the provider - init, preparing, live
 	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES
-	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
+	InstalledApps []string `json:"installed_apps" bson:"-"`  // list of installed apps on device
+	UsesCustomWDA bool     `json:"uses_custom_wda" bson:"-"` // Flag for iOS device if provider sets up custom WDA
 	///// NON-RETURNABLE VALUES
 	AppiumSessionID  string             `json:"-" bson:"-"` // current Appium session ID
 	WDASessionID     string             `json:"-" bson:"-"` // current WebDriverAgent session ID
