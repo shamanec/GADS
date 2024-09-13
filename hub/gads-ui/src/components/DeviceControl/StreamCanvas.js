@@ -1,7 +1,7 @@
 import { Auth } from "../../contexts/Auth"
 import { useContext, useEffect, useState } from "react"
 import './StreamCanvas.css'
-import { Button, Divider, Grid, Stack } from "@mui/material"
+import { Button, Divider, Grid, Stack, Tooltip } from "@mui/material"
 import HomeIcon from '@mui/icons-material/Home';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
@@ -39,11 +39,11 @@ export default function StreamCanvas({ deviceData }) {
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
-        streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     useEffect(() => {
@@ -162,30 +162,36 @@ export default function StreamCanvas({ deviceData }) {
                     >Unlock</Button>
                 </Grid>
             </div >
-            <Grid
-                display='flex'
-                justifyContent='center'
-                style={{
-                    marginTop: '10px'
-                }}
+            <Tooltip
+                title="This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed"
+                arrow
+                placement='bottom'
             >
-                <Button
-                    variant={"contained"}
-                    color={"secondary"}
-                    onClick={() => handleOrientationButtonClick(true)}
-                    disabled={isPortrait}
+                <Grid
+                    display='flex'
+                    justifyContent='center'
+                    style={{
+                        marginTop: '10px'
+                    }}
                 >
-                    Portrait
-                </Button>
-                <Button
-                    variant={"contained"}
-                    color={"secondary"}
-                    onClick={() => handleOrientationButtonClick(false)}
-                    disabled={!isPortrait}
-                >
-                    Landscape
-                </Button>
-            </Grid>
+                    <Button
+                        variant={"contained"}
+                        color={"secondary"}
+                        onClick={() => handleOrientationButtonClick(true)}
+                        disabled={isPortrait}
+                    >
+                        Portrait
+                    </Button>
+                    <Button
+                        variant={"contained"}
+                        color={"secondary"}
+                        onClick={() => handleOrientationButtonClick(false)}
+                        disabled={!isPortrait}
+                    >
+                        Landscape
+                    </Button>
+                </Grid>
+            </Tooltip>
         </Grid>
     )
 }
@@ -217,6 +223,7 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
         // just reverse x and y
         const x = event.clientY - rect.top
         const y = event.clientX - rect.left
+        console.log("Returning " + x + " " + y)
         return [y, x];
     }
 
