@@ -90,3 +90,9 @@ type LocalHubDevice struct {
 	IsAvailableForAutomation bool   `json:"is_available_for_automation"`
 	Available                bool   `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
 }
+
+type IOSModelData struct {
+	Width  string
+	Height string
+	Model  string
+}

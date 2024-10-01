@@ -242,6 +242,15 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	getAndroidDeviceHardwareModel(device)
 
+	if device.ScreenHeight == "" || device.ScreenWidth == "" {
+		err := updateAndroidScreenSizeADB(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to update screen dimensions with adb for device `%v` - %v", device.UDID, err))
+			resetLocalDevice(device)
+			return
+		}
+	}
+
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS-stream for device `%v` - %v", device.UDID, err))
@@ -390,6 +399,15 @@ func setupIOSDevice(device *models.Device) {
 	}
 	// Update hardware model got from plist
 	device.HardwareModel = plistValues["HardwareModel"].(string)
+
+	if device.ScreenHeight == "" || device.ScreenWidth == "" {
+		err = updateIOSScreenSize(device, plistValues["ProductType"].(string))
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to update screen dimensions for device `%s` - %s", device.UDID, err))
+			resetLocalDevice(device)
+			return
+		}
+	}
 
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
 	if config.ProviderConfig.UseSeleniumGrid {

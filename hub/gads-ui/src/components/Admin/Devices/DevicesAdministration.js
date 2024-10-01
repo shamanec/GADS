@@ -234,12 +234,11 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title={<div>Device screen width<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
+                        title={<div>Device screen width - Optional. Set manually if you find a problem with the automatic values.<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
                         arrow
                         placement='top'
                     >
                         <TextField
-                            required
                             label="Screen width"
                             value={screenWidth}
                             autoComplete="off"
@@ -247,12 +246,11 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title={<div>Device screen height<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
+                        title={<div>Device screen height - Optional. Set manually if you find a problem with the automatic values.<br />For Android - go to `https://whatismyandroidversion.com` and use the displayed `Screen size`, not `Viewport size`<br />For iOS - you can get it on https://whatismyviewport.com (ScreenSize: at the bottom)</div>}
                         arrow
                         placement='top'
                     >
                         <TextField
-                            required
                             label="Screen height"
                             value={screenHeight}
                             autoComplete="off"
@@ -539,7 +537,6 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
-                            required
                             label="Screen width"
                             defaultValue={screenWidth}
                             autoComplete="off"
@@ -552,7 +549,6 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
-                            required
                             label="Screen height"
                             defaultValue={screenHeight}
                             autoComplete="off"

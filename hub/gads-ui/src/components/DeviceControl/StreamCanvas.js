@@ -1,7 +1,7 @@
 import { Auth } from "../../contexts/Auth"
 import { useContext, useEffect, useState } from "react"
 import './StreamCanvas.css'
-import { Button, Divider, Grid, Stack, Tooltip } from "@mui/material"
+import { Box, Button, Divider, Grid, Stack, Tooltip } from "@mui/material"
 import HomeIcon from '@mui/icons-material/Home';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
@@ -83,7 +83,14 @@ export default function StreamCanvas({ deviceData }) {
     }, [isPortrait]);
 
     return (
-        <Grid>
+        <Grid
+            spacing={1}
+            direction="row"
+            display="flex"
+            justifyContent='center'
+            alignItems='flex-start'
+        >
+
             <div
                 id='phone-imitation'
             >
@@ -116,15 +123,59 @@ export default function StreamCanvas({ deviceData }) {
                         streamUrl={streamUrl}
                     ></Stream>
                 </div>
-                <Divider></Divider>
                 <Grid
-                    height='50px'
+                    height='30px'
                     display='flex'
                     justifyContent='center'
-                    style={{
-                        marginTop: '10px'
-                    }}
                 >
+                </Grid>
+            </div >
+
+            <Grid
+                direction="column"
+                width="150px"
+                marginLeft="10px"
+                spacing={1}
+                container
+            >
+                <Grid item>
+                    <Tooltip
+                        title="This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed"
+                        arrow
+                        placement='top'
+                    >
+                        <Button
+                            variant={"contained"}
+                            color={"secondary"}
+                            onClick={() => handleOrientationButtonClick(true)}
+                            disabled={isPortrait}
+                            sx={{ width: '100%' }}
+                        >
+                            Portrait
+                        </Button>
+                    </Tooltip>
+                </Grid>
+                <Grid item>
+                    <Tooltip
+                        title="This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed"
+                        arrow
+                        placement='top'
+                    >
+                        <Button
+                            variant={"contained"}
+                            color={"secondary"}
+                            onClick={() => handleOrientationButtonClick(false)}
+                            disabled={!isPortrait}
+                            sx={{ width: '100%' }}
+                        >
+                            Landscape
+                        </Button>
+                    </Tooltip>
+                </Grid>
+                <Grid item>
+                    <Divider></Divider>
+                </Grid>
+                <Grid item>
                     <Button
                         onClick={() => homeButton(authToken, deviceData, setDialog)}
                         className='canvas-buttons'
@@ -134,9 +185,11 @@ export default function StreamCanvas({ deviceData }) {
                             fontWeight: "bold",
                             color: "#9ba984",
                             backgroundColor: "#2f3b26",
-                            borderBottomLeftRadius: '25px',
+                            width: '100%'
                         }}
                     >Home</Button>
+                </Grid>
+                <Grid item>
                     <Button
                         onClick={() => lockButton(authToken, deviceData, setDialog)}
                         className='canvas-buttons'
@@ -145,9 +198,12 @@ export default function StreamCanvas({ deviceData }) {
                         style={{
                             fontWeight: "bold",
                             color: "#9ba984",
-                            backgroundColor: "#2f3b26"
+                            backgroundColor: "#2f3b26",
+                            width: '100%'
                         }}
                     >Lock</Button>
+                </Grid>
+                <Grid item>
                     <Button
                         onClick={() => unlockButton(authToken, deviceData, setDialog)}
                         className='canvas-buttons'
@@ -157,42 +213,12 @@ export default function StreamCanvas({ deviceData }) {
                             fontWeight: "bold",
                             color: "#9ba984",
                             backgroundColor: "#2f3b26",
-                            borderBottomRightRadius: '25px'
+                            width: '100%'
                         }}
                     >Unlock</Button>
                 </Grid>
-            </div >
-            <Tooltip
-                title="This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed"
-                arrow
-                placement='bottom'
-            >
-                <Grid
-                    display='flex'
-                    justifyContent='center'
-                    style={{
-                        marginTop: '10px'
-                    }}
-                >
-                    <Button
-                        variant={"contained"}
-                        color={"secondary"}
-                        onClick={() => handleOrientationButtonClick(true)}
-                        disabled={isPortrait}
-                    >
-                        Portrait
-                    </Button>
-                    <Button
-                        variant={"contained"}
-                        color={"secondary"}
-                        onClick={() => handleOrientationButtonClick(false)}
-                        disabled={!isPortrait}
-                    >
-                        Landscape
-                    </Button>
-                </Grid>
-            </Tooltip>
-        </Grid>
+            </Grid>
+        </Grid >
     )
 }
 

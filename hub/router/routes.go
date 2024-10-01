@@ -587,7 +587,7 @@ func AddDevice(c *gin.Context) {
 		}
 	}
 
-	err = db.UpsertDeviceDB(device)
+	err = db.UpsertDeviceDB(&device)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 		return
@@ -621,10 +621,11 @@ func UpdateDevice(c *gin.Context) {
 			if reqDevice.OS != "" && dbDevice.OS != reqDevice.OS {
 				dbDevice.OS = reqDevice.OS
 			}
-			if reqDevice.ScreenHeight != "" && dbDevice.ScreenHeight != reqDevice.ScreenHeight {
+			if dbDevice.ScreenHeight != reqDevice.ScreenHeight {
 				dbDevice.ScreenHeight = reqDevice.ScreenHeight
 			}
-			if reqDevice.ScreenWidth != "" && dbDevice.ScreenWidth != reqDevice.ScreenWidth {
+
+			if dbDevice.ScreenWidth != reqDevice.ScreenWidth {
 				dbDevice.ScreenWidth = reqDevice.ScreenWidth
 			}
 			if reqDevice.OSVersion != "" && dbDevice.OSVersion != reqDevice.OSVersion {
@@ -637,7 +638,7 @@ func UpdateDevice(c *gin.Context) {
 			if reqDevice.Usage != "" && reqDevice.Usage != dbDevice.Usage {
 				dbDevice.Usage = reqDevice.Usage
 			}
-			err = db.UpsertDeviceDB(dbDevice)
+			err = db.UpsertDeviceDB(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 				return
