@@ -621,10 +621,11 @@ func UpdateDevice(c *gin.Context) {
 			if reqDevice.OS != "" && dbDevice.OS != reqDevice.OS {
 				dbDevice.OS = reqDevice.OS
 			}
-			if reqDevice.ScreenHeight != "" && dbDevice.ScreenHeight != reqDevice.ScreenHeight {
+			if dbDevice.ScreenHeight != reqDevice.ScreenHeight {
 				dbDevice.ScreenHeight = reqDevice.ScreenHeight
 			}
-			if reqDevice.ScreenWidth != "" && dbDevice.ScreenWidth != reqDevice.ScreenWidth {
+
+			if dbDevice.ScreenWidth != reqDevice.ScreenWidth {
 				dbDevice.ScreenWidth = reqDevice.ScreenWidth
 			}
 			if reqDevice.OSVersion != "" && dbDevice.OSVersion != reqDevice.OSVersion {
