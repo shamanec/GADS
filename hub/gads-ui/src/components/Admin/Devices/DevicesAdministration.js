@@ -524,6 +524,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
+                            required
                             label="OS Version"
                             defaultValue={osVersion}
                             autoComplete="off"
@@ -548,7 +549,6 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
-                            required
                             label="Screen height"
                             defaultValue={screenHeight}
                             autoComplete="off"
