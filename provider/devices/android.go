@@ -1,6 +1,7 @@
 package devices
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
@@ -144,6 +145,11 @@ func updateAndroidScreenSizeADB(device *models.Device) error {
 
 		device.ScreenWidth = strings.TrimSpace(screenDimensions[0])
 		device.ScreenHeight = strings.TrimSpace(screenDimensions[1])
+	}
+
+	err := db.UpsertDeviceDB(device)
+	if err != nil {
+		return fmt.Errorf("Failed to uspert new device screen dimensions to DB - %s", err)
 	}
 
 	return nil

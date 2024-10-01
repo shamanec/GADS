@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"GADS/common/constants"
+	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
@@ -333,4 +335,21 @@ func runWDAGoIOS(device *models.Device) {
 	if err != nil {
 		resetLocalDevice(device)
 	}
+}
+
+func updateIOSScreenSize(device *models.Device, deviceMachineCode string) error {
+	if dimensions, ok := constants.IOSDeviceInfoMap[deviceMachineCode]; ok {
+		device.ScreenHeight = dimensions.Height
+		device.ScreenWidth = dimensions.Width
+	} else {
+		return fmt.Errorf("Could not find `%s` device machine code in the IOSDeviceInfoMap map, please update the map", deviceMachineCode)
+	}
+
+	// Update the device with the new dimensions in the DB
+	err := db.UpsertDeviceDB(device)
+	if err != nil {
+		return fmt.Errorf("Failed to update DB with new device dimensions - %s", err)
+	}
+
+	return nil
 }

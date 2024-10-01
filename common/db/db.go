@@ -312,7 +312,7 @@ func GetDBDeviceNew() []models.Device {
 	return dbDevices
 }
 
-func UpsertDeviceDB(device models.Device) error {
+func UpsertDeviceDB(device *models.Device) error {
 	update := bson.M{
 		"$set": device,
 	}
