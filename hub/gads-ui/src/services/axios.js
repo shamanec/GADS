@@ -2,7 +2,7 @@ import axios from 'axios'
 
 export function GetAPIClient() {
     const api = axios.create({
-        // baseURL: `http://192.168.68.109:10000`
+        // baseURL: `http://192.168.1.41:10000`
         baseURL: ``
     })
 
@@ -10,7 +10,7 @@ export function GetAPIClient() {
         async (config) => {
             const storedToken = localStorage.getItem('authToken')
 
-            if(storedToken) {
+            if (storedToken) {
                 config.headers['X-Auth-Token'] = `${storedToken}`
             }
 
