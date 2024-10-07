@@ -39,10 +39,10 @@ export default function StreamCanvas({ deviceData }) {
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
-        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
         streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        // streamUrl = `http://192.168.1.6:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
         streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
@@ -224,46 +224,27 @@ export default function StreamCanvas({ deviceData }) {
 
 function Canvas({ authToken, logout, streamData, setDialog }) {
     var tapStartAt = 0
-    var coord1;
-    var coord2;
+    var coord1
+    var coord2
 
     function getCursorCoordinates(event) {
         const rect = event.currentTarget.getBoundingClientRect()
-        // If its portrait use the usual calculation for tap coordinates
-        if (streamData.isPortrait) {
-            const x = event.clientX - rect.left
-            const y = event.clientY - rect.top
-            return [x, y]
-        }
-        // If its landscape and the provider uses custom wda for tapping/swiping
-        if (streamData.device_os === 'ios' && streamData.uses_custom_wda) {
-            // Have to subtract the tap coordinate from the canvas height
-            // Because the custom wda tap uses coordinates where in landscape
-            // x starts from the bottom(being essentially reversed y)
-            // and y starts from the left(being essentially x)
-            const x = streamData.canvasHeight - (event.clientY - rect.top)
-            const y = event.clientX - rect.left
-            return [x, y]
-        }
-        // If its landscape and provider does not use custom wda for tapping/swiping
-        // just reverse x and y
-        const x = event.clientY - rect.top
-        const y = event.clientX - rect.left
-        console.log("Returning " + x + " " + y)
-        return [y, x];
+        const x = event.clientX - rect.left
+        const y = event.clientY - rect.top
+        return [x, y];
     }
 
     function handleMouseDown(event) {
         tapStartAt = (new Date()).getTime()
         coord1 = getCursorCoordinates(event)
-        console.log('Tapped on ' + coord1)
     }
 
     function handleMouseUp(event) {
         coord2 = getCursorCoordinates(event)
-        console.log('Released on' + coord2)
         // get the time of finishing the click on the canvas
         var tapEndAt = (new Date()).getTime()
+
+        console.log('Tap on ' + coord1[0] + 'x' + coord1[1] + ', released on ' + coord2[0] + 'x' + coord2[1])
 
         var mouseEventsTimeDiff = tapEndAt - tapStartAt
 
@@ -275,7 +256,7 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
         // if x2 < x1*0.9 - it is probably a swipe right to left
         // if y2 < y1*0.9 - it is probably a swipe bottom to top
         // if y2 > y1*1.1 - it is probably a swipe top to bottom
-        if (mouseEventsTimeDiff > 500 || coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
+        if (mouseEventsTimeDiff > 500 && coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
             swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
         } else if (mouseEventsTimeDiff < 500) {
             tapCoordinates(authToken, logout, coord1, streamData, setDialog)
@@ -314,20 +295,33 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
     let x = pos[0]
     let y = pos[1]
 
-    // if the stream height 
-    if (streamData.canvasHeight != streamData.deviceY) {
-        if (streamData.isPortrait) {
-            x = (x / streamData.canvasWidth) * streamData.deviceX
-            y = (y / streamData.canvasHeight) * streamData.deviceY
-        } else {
-            x = (x / streamData.canvasHeight) * streamData.deviceX
-            y = (y / streamData.canvasWidth) * streamData.deviceY
+    let finalX = (x / streamData.canvasWidth) * streamData.deviceX
+    let finalY = (y / streamData.canvasHeight) * streamData.deviceY
+    // If its portrait we keep the x and y as is
+    if (!streamData.isPortrait) {
+        // If its landscape
+        // And its Android we still keep the x and y as is because for Android Appium does the coordinates are actually corresponding to the view
+        // If we are in portrait X is X and Y is Y and when we are in landscape its the same
+        if (streamData.device_os === 'android') {
+            finalX = (x / streamData.canvasHeight) * streamData.deviceX
+            finalY = (y / streamData.canvasWidth) * streamData.deviceY
+        }
+        if (streamData.device_os === 'ios') {
+            if (streamData.uses_custom_wda) {
+                finalX = streamData.deviceX - ((y / streamData.canvasHeight) * streamData.deviceX)
+                finalY = (x / streamData.canvasWidth) * streamData.deviceY
+            } else {
+                // On normal WDA in landscape X corresponds to the canvas width but it is actually the device's height
+                finalX = (x / streamData.canvasWidth) * streamData.deviceY
+                // Y corresponds to the canvas height but it is actually the device's width
+                finalY = (y / streamData.canvasHeight) * streamData.deviceX
+            }
         }
     }
 
     let jsonData = JSON.stringify({
-        "x": x,
-        "y": y
+        "x": finalX,
+        "y": finalY
     })
 
     let deviceURL = `/device/${streamData.udid}`
@@ -353,15 +347,34 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
     let x = pos[0]
     let y = pos[1]
 
-    // if the stream height 
-    if (streamData.canvasHeight != streamData.deviceY) {
-        x = (x / streamData.canvasWidth) * streamData.deviceX
-        y = (y / streamData.canvasHeight) * streamData.deviceY
+    let finalX = (x / streamData.canvasWidth) * streamData.deviceX
+    let finalY = (y / streamData.canvasHeight) * streamData.deviceY
+
+    // If its portrait we keep the x and y as is
+    if (!streamData.isPortrait) {
+        // If its landscape
+        // And its Android we still keep the x and y as is because for Android Appium does the coordinates are actually corresponding to the view
+        // If we are in portrait X is X and Y is Y and when we are in landscape its the same
+        if (streamData.device_os === 'android') {
+            finalX = (x / streamData.canvasHeight) * streamData.deviceX
+            finalY = (y / streamData.canvasWidth) * streamData.deviceY
+        }
+        if (streamData.device_os === 'ios') {
+            if (streamData.uses_custom_wda) {
+                finalX = streamData.deviceX - ((y / streamData.canvasHeight) * streamData.deviceX)
+                finalY = (x / streamData.canvasWidth) * streamData.deviceY
+            } else {
+                // On normal WDA in landscape X corresponds to the canvas width but it is actually the device's height
+                finalX = (x / streamData.canvasWidth) * streamData.deviceY
+                // Y corresponds to the canvas height but it is actually the device's width
+                finalY = (y / streamData.canvasHeight) * streamData.deviceX
+            }
+        }
     }
 
     let jsonData = JSON.stringify({
-        "x": x,
-        "y": y
+        "x": finalX,
+        "y": finalY
     })
 
     let deviceURL = `/device/${streamData.udid}`
@@ -388,31 +401,66 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
     var secondCoordX = coord2[0]
     var secondCoordY = coord2[1]
 
-    // if the stream height 
-    if (streamData.canvasHeight != streamData.deviceY) {
-        // If the device is landscape and is android
-        // We need to switch the coordinate calculation
-        // Divide by height for X and divide by width for Y
-        if (streamData.device_os === 'android' && !streamData.isPortrait) {
-            firstCoordX = (firstCoordX / streamData.canvasHeight) * streamData.deviceX
-            firstCoordY = (firstCoordY / streamData.canvasWidth) * streamData.deviceY
-            secondCoordX = (secondCoordX / streamData.canvasHeight) * streamData.deviceX
-            secondCoordY = (secondCoordY / streamData.canvasWidth) * streamData.deviceY
+    // Set up the portrait tap coordinates
+    // We divide the current coordinate by the canvas size to get the ratio
+    // Then we multiply by the actual device width or height to get the actual coordinates on the device that we should send
+    let firstXFinal = (firstCoordX / streamData.canvasWidth) * streamData.deviceX
+    let firstYFinal = (firstCoordY / streamData.canvasHeight) * streamData.deviceY
+    let secondXFinal = (secondCoordX / streamData.canvasWidth) * streamData.deviceX
+    let secondYFinal = (secondCoordY / streamData.canvasHeight) * streamData.deviceY
+
+    // If in landscape we need to do different recalculations
+    if (!streamData.isPortrait) {
+        // If the device is android we just reverse the calculations
+        // For X we divide the coordinate by the canvas height to get the correct ratio
+        // And for Y we divide the coordinate by the canvas width to get the correct ratio
+        // Multiplication is the same as for portrait because Appium for Android follows some actual logic
+        if (streamData.device_os === 'android') {
+            firstXFinal = (firstCoordX / streamData.canvasHeight) * streamData.deviceX
+            firstYFinal = (firstCoordY / streamData.canvasWidth) * streamData.deviceY
+            secondXFinal = (secondCoordX / streamData.canvasHeight) * streamData.deviceX
+            secondYFinal = (secondCoordY / streamData.canvasWidth) * streamData.deviceY
         } else {
-            // If the device is not in landscape and is not android
-            // Divide as usual - X by width and Y by height
-            firstCoordX = (firstCoordX / streamData.canvasWidth) * streamData.deviceX
-            firstCoordY = (firstCoordY / streamData.canvasHeight) * streamData.deviceY
-            secondCoordX = (secondCoordX / streamData.canvasWidth) * streamData.deviceX
-            secondCoordY = (secondCoordY / streamData.canvasHeight) * streamData.deviceY
+            // For iOS its complete sh*t
+            if (streamData.uses_custom_wda) {
+                // NB: All calculations below are when the device is on its right side landscape(your left)
+                // For custom WDA the 0 X coordinate is at the bottom of the canvas
+                // And the 0 Y coordinate is at the left end of the canvas
+                // This means that they kinda follow the portrait logic but inverted based on the side it is in landscape
+                // Imagine a device that is X:Y=100:200
+                // If you swipe vertically from bottom to the middle you are essentially swiping coordinates on the device X:0 and X: 50
+                // And if you swipe horizontally from left to middle you are essentially swiping coordinates on the device Y: 0 and Y: 100
+                // But on the canvas those are Y coordinates
+                // And this is where it gets funky
+                // For X we get the ratio from the canvas Y coordinate and the canvas height
+                // And we multiply it by the device width because that is what it corresponds to
+                // Then we subtract the value from the actual deviceX because the device width starts from the bottom of the canvas height
+                firstXFinal = streamData.deviceX - ((firstCoordY / streamData.canvasHeight) * streamData.deviceX)
+                // For Y we get the ratio from the canvas X coordinate and the canvas width
+                // And we multiply it by the device height because that is what it corresponds to
+                firstYFinal = (firstCoordX / streamData.canvasWidth) * streamData.deviceY
+                // Same goes for the other two coordinates when the mouse is released
+                secondXFinal = streamData.deviceX - ((secondCoordY / streamData.canvasHeight) * streamData.deviceX)
+                secondYFinal = (secondCoordX / streamData.canvasWidth) * streamData.deviceY
+            } else {
+                // On normal WDA the X coordinates correspond to the device height
+                // and the Y coordinates correspond to the device width
+                // So we calculate ratio based on canvas dimensions and coordinates
+                // But multiply by device height for X swipe coordinates and by device width for Y swipe coordinates
+                firstXFinal = (firstCoordX / streamData.canvasWidth) * streamData.deviceY
+                firstYFinal = (firstCoordY / streamData.canvasHeight) * streamData.deviceX
+                secondXFinal = (secondCoordX / streamData.canvasWidth) * streamData.deviceY
+                secondYFinal = (secondCoordY / streamData.canvasHeight) * streamData.deviceX
+            }
         }
     }
+    console.log('Swipe is ' + firstXFinal + ':' + firstYFinal + '-' + secondXFinal + ':' + secondYFinal)
 
     let jsonData = JSON.stringify({
-        "x": firstCoordX,
-        "y": firstCoordY,
-        "endX": secondCoordX,
-        "endY": secondCoordY
+        "x": firstXFinal,
+        "y": firstYFinal,
+        "endX": secondXFinal,
+        "endY": secondYFinal
     })
 
     let deviceURL = `/device/${streamData.udid}`
