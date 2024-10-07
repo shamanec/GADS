@@ -109,44 +109,61 @@ func appiumTap(device *models.Device, x float64, y float64) (*http.Response, err
 
 func appiumTouchAndHold(device *models.Device, x float64, y float64) (*http.Response, error) {
 	// Generate the struct object for the Appium actions JSON request
-	action := models.DevicePointerActions{
-		Actions: []models.DevicePointerAction{
-			{
-				Type: "pointer",
-				ID:   "finger1",
-				Parameters: models.DeviceActionParameters{
-					PointerType: "touch",
-				},
-				Actions: []models.DeviceAction{
-					{
-						Type:     "pointerMove",
-						Duration: 0,
-						X:        x,
-						Y:        y,
+	if config.ProviderConfig.UseCustomWDA && device.OS == "ios" {
+		requestBody := struct {
+			X     float64 `json:"x"`
+			Y     float64 `json:"y"`
+			Delay float64 `json:"delay"`
+		}{
+			X:     x,
+			Y:     y,
+			Delay: 1,
+		}
+		actionJSON, err := json.MarshalIndent(requestBody, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+		return wdaRequest(device, http.MethodPost, "wda/touchAndHold", bytes.NewReader(actionJSON))
+	} else {
+		action := models.DevicePointerActions{
+			Actions: []models.DevicePointerAction{
+				{
+					Type: "pointer",
+					ID:   "finger1",
+					Parameters: models.DeviceActionParameters{
+						PointerType: "touch",
 					},
-					{
-						Type:   "pointerDown",
-						Button: 0,
-					},
-					{
-						Type:     "pause",
-						Duration: 2000,
-					},
-					{
-						Type:     "pointerUp",
-						Duration: 0,
+					Actions: []models.DeviceAction{
+						{
+							Type:     "pointerMove",
+							Duration: 0,
+							X:        x,
+							Y:        y,
+						},
+						{
+							Type:   "pointerDown",
+							Button: 0,
+						},
+						{
+							Type:     "pause",
+							Duration: 2000,
+						},
+						{
+							Type:     "pointerUp",
+							Duration: 0,
+						},
 					},
 				},
 			},
-		},
-	}
+		}
 
-	actionJSON, err := json.MarshalIndent(action, "", "  ")
-	if err != nil {
-		return nil, err
-	}
+		actionJSON, err := json.MarshalIndent(action, "", "  ")
+		if err != nil {
+			return nil, err
+		}
 
-	return appiumRequest(device, http.MethodPost, "actions", bytes.NewReader(actionJSON))
+		return appiumRequest(device, http.MethodPost, "actions", bytes.NewReader(actionJSON))
+	}
 }
 
 func appiumSwipe(device *models.Device, x, y, endX, endY float64) (*http.Response, error) {
@@ -187,8 +204,9 @@ func appiumSwipe(device *models.Device, x, y, endX, endY float64) (*http.Respons
 							Y:        y,
 						},
 						{
-							Type:   "pointerDown",
-							Button: 0,
+							Type:     "pointerDown",
+							Button:   0,
+							Duration: 10,
 						},
 						{
 							Type:     "pointerMove",
