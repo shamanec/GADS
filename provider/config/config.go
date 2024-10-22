@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -26,6 +27,9 @@ func SetupConfig(nickname, folder, hubAddress string) {
 	}
 	provider.ProviderFolder = folder
 	provider.HubAddress = hubAddress
+	if !strings.HasSuffix(provider.WdaBundleID, ".xctrunner") {
+		provider.WdaBundleID = fmt.Sprintf("%s.xctrunner", provider.WdaBundleID)
+	}
 
 	ProviderConfig = &provider
 }
