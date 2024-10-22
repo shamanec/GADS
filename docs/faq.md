@@ -28,3 +28,9 @@
     - No, it is what it is. GADS uses Appium under the hood for the interactions so we are as fast as it allows us to be.
 - *I can load the device but interaction does not work at all/session expired popup appears, why?*
     - There is probably an issue with Appium setup or dependencies. It is quite possible to start Appium server successfully but everything fails due to missing environment variable like `ANDROID_HOME` or something in that line. Observe the respective device Appium logs either in UI or file
+- When I want to unlock my phone a session expired popup appears, why?
+  - Make sure your phone is not passcode protected since appium is only unlocking the device and it fails if it lands on the passcode screen 
+- When i start my provider WDA is in a install loop and i get the error: `Error accepting new connection accept tcp [::]:56505: use of closed network connection`
+  -   this is probably caused by inproper signing of WDA. Make sure that in xcode you sign it with something looking like this: `com.facebook.WebDriverAgentRunner`
+  -   In your provider config in GADS UI make sure you append .xctrunner to it so it looks like this: `com.facebook.WebDriverAgentRunner.xctrunner`
+
