@@ -5,6 +5,10 @@ import { Box, Button, Divider, Grid, Stack, Tooltip } from "@mui/material"
 import HomeIcon from '@mui/icons-material/Home';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import LockIcon from '@mui/icons-material/Lock';
+import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useDialog } from "./SessionDialogContext"
 import { api } from '../../services/api.js'
 
@@ -217,6 +221,62 @@ export default function StreamCanvas({ deviceData }) {
                         }}
                     >Unlock</Button>
                 </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeLeft(authToken, logout, streamData, setDialog)}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowLeftIcon />}
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeRight(authToken, logout, streamData, setDialog)}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowRightIcon />}
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeUp(authToken, logout, streamData, setDialog)}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowUpIcon />}
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeDown(authToken, logout, streamData, setDialog)}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowDownIcon />}
+                        style={{
+                            fontWeight: "bold",
+                            color: "#9ba984",
+                            backgroundColor: "#2f3b26",
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
             </Grid>
         </Grid >
     )
@@ -287,6 +347,46 @@ function Stream({ canvasWidth, canvasHeight, streamUrl }) {
             src={streamUrl}
         ></img>
     )
+}
+
+function swipeUp(authToken, logout, streamData, setDialog) {
+    let startX = streamData.canvasWidth / 2
+    let endX = streamData.canvasWidth / 2
+    let startY = streamData.canvasHeight - (streamData.canvasHeight * 0.75)
+    let endY = streamData.canvasHeight - (streamData.canvasHeight * 0.25)
+    let coord1 = [startX, startY]
+    let coord2 = [endX, endY]
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+}
+
+function swipeDown(authToken, logout, streamData, setDialog) {
+    let startX = streamData.canvasWidth / 2
+    let endX = streamData.canvasWidth / 2
+    let startY = streamData.canvasHeight - (streamData.canvasHeight * 0.25)
+    let endY = streamData.canvasHeight - (streamData.canvasHeight * 0.75)
+    let coord1 = [startX, startY]
+    let coord2 = [endX, endY]
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+}
+
+function swipeLeft(authToken, logout, streamData, setDialog) {
+    let startX = streamData.canvasWidth - (streamData.canvasWidth * 0.20)
+    let endX = streamData.canvasWidth - (streamData.canvasWidth * 0.80)
+    let startY = streamData.canvasHeight / 2
+    let endY = streamData.canvasHeight / 2
+    let coord1 = [startX, startY]
+    let coord2 = [endX, endY]
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+}
+
+function swipeRight(authToken, logout, streamData, setDialog) {
+    let startX = streamData.canvasWidth - (streamData.canvasWidth * 0.80)
+    let endX = streamData.canvasWidth - (streamData.canvasWidth * 0.20)
+    let startY = streamData.canvasHeight / 2
+    let endY = streamData.canvasHeight / 2
+    let coord1 = [startX, startY]
+    let coord2 = [endX, endY]
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
 }
 
 // tap using coordinates
