@@ -96,3 +96,9 @@ type IOSModelData struct {
 	Height string
 	Model  string
 }
+
+type UpdateStreamSettings struct {
+	TargetFPS     int `json:"target_fps,omitempty"`
+	JpegQuality   int `json:"jpeg_quality,omitempty"`
+	ScalingFactor int `json:"scaling_factor,omitempty"`
+}

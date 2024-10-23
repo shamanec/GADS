@@ -2,6 +2,7 @@ package devices
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -100,7 +101,7 @@ func updateWebDriverAgent(device *models.Device) error {
 		return err
 	}
 
-	err = updateWebDriverAgentStreamSettings(device)
+	err = UpdateWebDriverAgentStreamSettings(device, 15, 75, 100, true)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("updateWebDriverAgent: Could not update WebDriverAgent stream settings for device %v - %v", device.UDID, err))
 		return err
@@ -109,13 +110,39 @@ func updateWebDriverAgent(device *models.Device) error {
 	return nil
 }
 
-func updateWebDriverAgentStreamSettings(device *models.Device) error {
-	// Set 30 frames per second, without any scaling, half the original screenshot quality
-	// TODO should make this configurable in some way, although can be easily updated the same way
-	requestString := `{"settings": {"mjpegServerFramerate": 30, "mjpegServerScreenshotQuality": 75, "mjpegScalingFactor": 100}}`
+func UpdateWebDriverAgentStreamSettings(device *models.Device, targetFramerate int, screenshotQuality int, scalingFactor int, useWDA bool) error {
+	var mjpegProperties models.WDAMjpegProperties
+	if targetFramerate != 0 {
+		mjpegProperties.MjpegServerFramerate = targetFramerate
+	}
+	if screenshotQuality != 0 {
+		mjpegProperties.MjpegServerScreenshotQuality = screenshotQuality
+	}
+	if scalingFactor != 0 {
+		mjpegProperties.MjpegServerScalingFactor = scalingFactor
+	}
+	mjpegSettings := models.WDAMjpegSettings{
+		Settings: mjpegProperties,
+	}
+
+	// Marshal the struct to JSON
+	requestBody, err := json.Marshal(mjpegSettings)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Sending to http://localhost:" + device.AppiumPort + "/session/" + device.AppiumSessionID + "/appium/settings")
+	fmt.Println(bytes.NewBuffer(requestBody))
+
+	var url string
+	if useWDA {
+		url = "http://localhost:" + device.WDAPort + "/session/" + device.WDASessionID + "/appium/settings"
+	} else {
+		url = "http://localhost:" + device.AppiumPort + "/session/" + device.AppiumSessionID + "/appium/settings"
+	}
 
 	// Post the mjpeg server settings
-	response, err := http.Post("http://localhost:"+device.WDAPort+"/session/"+device.WDASessionID+"/appium/settings", "application/json", strings.NewReader(requestString))
+	response, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
 		return err
 	}

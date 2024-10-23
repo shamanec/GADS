@@ -4,6 +4,7 @@ import { Alert, Box, CircularProgress, Stack, TextField } from "@mui/material";
 import { Auth } from "../../../../contexts/Auth";
 import { api } from '../../../../services/api.js'
 import Clipboard from "./Clipboard";
+import StreamSettings from "./StreamSettings.js";
 
 export default function Actions({ deviceData }) {
     return (
@@ -12,6 +13,7 @@ export default function Actions({ deviceData }) {
                 <Apps deviceData={deviceData}></Apps>
                 <TypeText deviceData={deviceData}></TypeText>
                 <Clipboard deviceData={deviceData}></Clipboard>
+                <StreamSettings deviceData={deviceData}></StreamSettings>
             </Stack>
         </Box>
     )

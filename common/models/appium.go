@@ -89,3 +89,13 @@ type AppiumTomlConfig struct {
 	Node   AppiumTomlNode   `toml:"node"`
 	Relay  AppiumTomlRelay  `toml:"relay"`
 }
+
+type WDAMjpegSettings struct {
+	Settings WDAMjpegProperties `json:"settings"`
+}
+
+type WDAMjpegProperties struct {
+	MjpegServerFramerate         int `json:"mjpegServerFramerate,omitempty"`
+	MjpegServerScreenshotQuality int `json:"mjpegServerScreenshotQuality,omitempty"`
+	MjpegServerScalingFactor     int `json:"mjpegScalingFactor,omitempty"`
+}

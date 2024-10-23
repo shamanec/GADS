@@ -339,3 +339,36 @@ func ResetDevice(c *gin.Context) {
 
 	c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist", udid)})
 }
+
+func UpdateStreamSettings(c *gin.Context) {
+	udid := c.Param("udid")
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		payload, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+			return
+		}
+
+		var streamSettings models.UpdateStreamSettings
+		err = json.Unmarshal(payload, &streamSettings)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+			return
+		}
+
+		if device.OS == "ios" {
+			err = devices.UpdateWebDriverAgentStreamSettings(device, streamSettings.TargetFPS, streamSettings.JpegQuality, streamSettings.ScalingFactor, false)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update stream settings " + err.Error()})
+				return
+			}
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unimplemented for Android"})
+			return
+		}
+		return
+	}
+
+	c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist", udid)})
+}
