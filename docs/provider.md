@@ -6,7 +6,7 @@ The provider component is responsible for setting up the Appium servers and mana
 - [Provider Configuration](#provider-configuration)
 - [Provider Data Folder](#provider-data-folder---optional)
 - [Provider Setup](#provider-setup)
-  - [macOS](#macos-🍏)
+  - [macOS](#macos)
   - [Linux](#linux)
   - [Windows](#windows)
 - [Dependencies Notes](#dependencies-notes)
@@ -33,7 +33,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 ## Provider Setup
 
-### macOS 🍏
+### macOS
 
 #### Common
 - **Install** [Appium](#appium)
@@ -50,7 +50,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 ---
 
-### Linux 🐧 
+### Linux
 #### Common
 - **Install** [Appium](#appium)
 
@@ -71,7 +71,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 ---
 
-### Windows 💻 
+### Windows
 
 #### Common
 - **Install** [Appium](#appium)
