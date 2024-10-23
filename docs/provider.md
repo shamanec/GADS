@@ -7,8 +7,8 @@ The provider component is responsible for setting up the Appium servers and mana
 - [Provider Data Folder](#provider-data-folder---optional)
 - [Provider Setup](#provider-setup)
   - [macOS](#macos-🍏)
-  - [Linux](#linux-🐧)
-  - [Windows](#windows-💻)
+  - [Linux](#linux)
+  - [Windows](#windows)
 - [Dependencies Notes](#dependencies-notes)
 - [Devices Notes](#ios-phones)
 - [Starting Provider Instance](#starting-a-provider-instance)
@@ -33,7 +33,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 ## Provider Setup
 
-### macOS 🍏 
+### macOS 🍏
 
 #### Common
 - **Install** [Appium](#appium)
@@ -172,10 +172,6 @@ The provider configuration should be set to use the custom WebDriverAgent in Mon
 
 - Run the WebDriverAgentRunner with `Build > Test` on a device at least once to validate it builds and runs as expected.
 
-> [!IMPORTANT]  
-> - **Be aware that in GADS UI you will need to append .xctrunner to your WDA bundle ID**
-> - (**Important!!!** do not append `.xctrunner` to your singing Profile in Xcode. Your Xcode bundle ID should look something like `com.facebook.WebDriverAgent`)
-
 ## Prepare WebDriverAgent file - Linux, Windows
   
 > [!NOTE]  
@@ -193,10 +189,6 @@ The provider configuration should be set to use the custom WebDriverAgent in Mon
 - Open `iOS App Signer`
 - Select `WebDriverAgentRunner-Runner.app`.
 - Generate the WebDriverAgent *.ipa file.
-
-> [!IMPORTANT]  
-> - **Be aware that in GADS UI you will need to append .xctrunner to your WDA bundle ID**
-> - (**Important!!!** do not append `.xctrunner` to your singing Profile in Xcode. Your Xcode bundle ID should look something like `com.facebook.WebDriverAgent`)
 
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  
