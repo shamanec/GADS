@@ -672,12 +672,12 @@ func GetDevices(c *gin.Context) {
 	dbDevices := db.GetDBDeviceNew()
 	providers := db.GetProvidersFromDB()
 
-	var providerNames []string
+	var providerNames []string = []string{}
 	for _, provider := range providers {
 		providerNames = append(providerNames, provider.Nickname)
 	}
 
-	if len(dbDevices) == 0 {
+	if len(dbDevices) == 0 || len(providerNames) == 0 {
 		dbDevices = []models.Device{}
 	}
 
