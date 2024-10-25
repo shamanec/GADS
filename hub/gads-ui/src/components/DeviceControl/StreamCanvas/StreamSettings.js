@@ -13,7 +13,10 @@ export default function StreamSettings({ deviceData }) {
 
     const fpsOptions = [5, 10, 15, 20, 30, 45, 60];
     const jpegQualityOptions = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90]
-    const scalingFactorOptions = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+    const scalingFactorOptionsiOS = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+    const scalingFactorOptionsAndroid = [25, 50]
+
+    const scalingFactorOptions = deviceData.os === 'ios' ? scalingFactorOptionsiOS : scalingFactorOptionsAndroid
 
     function buildPayload() {
         let body = {}
