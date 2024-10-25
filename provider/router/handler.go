@@ -2,9 +2,10 @@ package router
 
 import (
 	"GADS/provider/config"
+	"net/http/pprof"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"net/http/pprof"
 )
 
 func HandleRequests() *gin.Engine {
@@ -52,6 +53,7 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.Any("/appium/*proxyPath", AppiumReverseProxy)
 	deviceGroup.GET("/android-stream", AndroidStreamProxy)
 	deviceGroup.GET("/android-stream-mjpeg", AndroidStreamMJPEG)
+	deviceGroup.POST("/update-stream-settings", UpdateStreamSettings)
 	if config.ProviderConfig.UseGadsIosStream {
 		deviceGroup.GET("/ios-stream", IosStreamProxyGADS)
 		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEG)

@@ -242,7 +242,7 @@ function NewProvider({ handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner'
+                        title='WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner'
                         arrow
                         placement='top'
                     >
@@ -543,7 +543,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner.xctrunner'
+                        title='WebDriverAgent bundle identifier, e.g. com.facebook.WebDriverAgentRunner'
                         arrow
                         placement='top'
                     >

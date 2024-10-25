@@ -48,12 +48,15 @@ type Device struct {
 	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
 	// NON-DB DATA
 	/// COMMON VALUES
-	Host                 string `json:"host" bson:"-"`                   // IP address of the device host(provider)
-	HardwareModel        string `json:"hardware_model" bson:"-"`         // hardware model of device
-	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"-"` // last time the device data was updated
-	Connected            bool   `json:"connected" bson:"-"`              // if device is currently connected
-	IsResetting          bool   `json:"is_resetting" bson:"-"`           // if device setup is currently being reset
-	ProviderState        string `json:"provider_state" bson:"-"`         // current state of the device on the provider - init, preparing, live
+	Host                 string `json:"host" bson:"-"`                            // IP address of the device host(provider)
+	HardwareModel        string `json:"hardware_model" bson:"-"`                  // hardware model of device
+	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"-"`          // last time the device data was updated
+	Connected            bool   `json:"connected" bson:"-"`                       // if device is currently connected
+	IsResetting          bool   `json:"is_resetting" bson:"-"`                    // if device setup is currently being reset
+	ProviderState        string `json:"provider_state" bson:"-"`                  // current state of the device on the provider - init, preparing, live
+	StreamTargetFPS      int    `json:"stream_target_fps,omitempty" bson:"-"`     // The target FPS for the MJPEG video streams
+	StreamJpegQuality    int    `json:"stream_jpeg_quality,omitempty" bson:"-"`   // The target JPEG quality for the MJPEG video streams
+	StreamScalingFactor  int    `json:"stream_scaling_factor,omitempty" bson:"-"` // The target scaling factor for the MJPEG video streams
 	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES
 	InstalledApps []string `json:"installed_apps" bson:"-"`  // list of installed apps on device
@@ -95,4 +98,10 @@ type IOSModelData struct {
 	Width  string
 	Height string
 	Model  string
+}
+
+type UpdateStreamSettings struct {
+	TargetFPS     int `json:"target_fps,omitempty"`
+	JpegQuality   int `json:"jpeg_quality,omitempty"`
+	ScalingFactor int `json:"scaling_factor,omitempty"`
 }

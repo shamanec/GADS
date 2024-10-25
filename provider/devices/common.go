@@ -115,6 +115,9 @@ func setupDevices() {
 		dbDevice.LastUpdatedTimestamp = 0
 		dbDevice.IsResetting = false
 		dbDevice.InitialSetupDone = false
+		dbDevice.StreamTargetFPS = 15
+		dbDevice.StreamJpegQuality = 75
+		dbDevice.StreamScalingFactor = 50
 
 		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 

@@ -7,6 +7,7 @@ import (
 	"GADS/provider/devices"
 	"GADS/provider/logger"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,8 +18,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 type JsonErrorResponse struct {
@@ -334,6 +338,87 @@ func ResetDevice(c *gin.Context) {
 		device.IsResetting = false
 
 		c.JSON(http.StatusOK, gin.H{"message": "Initiate setup reset on device"})
+		return
+	}
+
+	c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist", udid)})
+}
+
+func UpdateStreamSettings(c *gin.Context) {
+	udid := c.Param("udid")
+
+	var mu sync.Mutex
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		payload, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+			return
+		}
+
+		var streamSettings models.UpdateStreamSettings
+		err = json.Unmarshal(payload, &streamSettings)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+			return
+		}
+
+		if device.OS == "ios" {
+			mu.Lock()
+			if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
+				device.StreamTargetFPS = streamSettings.TargetFPS
+			}
+			if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != device.StreamJpegQuality {
+				device.StreamJpegQuality = streamSettings.JpegQuality
+			}
+			if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
+				device.StreamScalingFactor = streamSettings.ScalingFactor
+			}
+			mu.Unlock()
+			err = devices.UpdateWebDriverAgentStreamSettings(device, false)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update stream settings on iOS device " + err.Error()})
+				return
+			}
+		} else {
+			u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
+			destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+			if err != nil {
+				logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed connecting to device `%s` stream port - %s", device.UDID, err))
+				return
+			}
+			defer destConn.Close()
+
+			socketMsg := ""
+			if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
+				device.StreamTargetFPS = streamSettings.TargetFPS
+				socketMsg = fmt.Sprintf("targetFPS=%v", streamSettings.TargetFPS)
+			}
+			if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != device.StreamJpegQuality {
+				device.StreamJpegQuality = streamSettings.JpegQuality
+				if socketMsg != "" {
+					socketMsg = fmt.Sprintf("%s:jpegQuality=%v", socketMsg, streamSettings.JpegQuality)
+				} else {
+					socketMsg = fmt.Sprintf("jpegQuality=%v", streamSettings.JpegQuality)
+				}
+			}
+			if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
+				device.StreamScalingFactor = streamSettings.ScalingFactor
+				if socketMsg != "" {
+					socketMsg = fmt.Sprintf("%s:scalingFactor=%v", socketMsg, streamSettings.ScalingFactor)
+				} else {
+					socketMsg = fmt.Sprintf("scalingFactor=%v", streamSettings.ScalingFactor)
+				}
+			}
+
+			err = wsutil.WriteServerMessage(destConn, ws.OpText, []byte(socketMsg))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed sending Android stream settings to stream websocket - " + err.Error()})
+				return
+			}
+
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Stream settings updated"})
 		return
 	}
 
