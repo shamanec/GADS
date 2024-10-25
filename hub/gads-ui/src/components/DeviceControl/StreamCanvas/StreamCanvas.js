@@ -241,7 +241,7 @@ export default function StreamCanvas({ deviceData }) {
                         onClick={() => swipeRight(authToken, logout, streamData, setDialog)}
                         className='canvas-buttons'
                         variant='contained'
-                        startIcon={<KeyboardArrowLefIcon />}
+                        startIcon={<KeyboardArrowLeftIcon />}
                         style={{
                             fontWeight: "bold",
                             color: "#9ba984",
