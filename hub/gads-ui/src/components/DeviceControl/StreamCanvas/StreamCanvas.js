@@ -44,11 +44,11 @@ export default function StreamCanvas({ deviceData }) {
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
-        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     useEffect(() => {
@@ -227,7 +227,7 @@ export default function StreamCanvas({ deviceData }) {
                         onClick={() => swipeLeft(authToken, logout, streamData, setDialog)}
                         className='canvas-buttons'
                         variant='contained'
-                        startIcon={<KeyboardArrowLeftIcon />}
+                        startIcon={<KeyboardArrowRightIcon />}
                         style={{
                             fontWeight: "bold",
                             color: "#9ba984",
@@ -241,7 +241,7 @@ export default function StreamCanvas({ deviceData }) {
                         onClick={() => swipeRight(authToken, logout, streamData, setDialog)}
                         className='canvas-buttons'
                         variant='contained'
-                        startIcon={<KeyboardArrowRightIcon />}
+                        startIcon={<KeyboardArrowLefIcon />}
                         style={{
                             fontWeight: "bold",
                             color: "#9ba984",
@@ -255,7 +255,7 @@ export default function StreamCanvas({ deviceData }) {
                         onClick={() => swipeUp(authToken, logout, streamData, setDialog)}
                         className='canvas-buttons'
                         variant='contained'
-                        startIcon={<KeyboardArrowUpIcon />}
+                        startIcon={<KeyboardArrowDownIcon />}
                         style={{
                             fontWeight: "bold",
                             color: "#9ba984",
@@ -269,7 +269,7 @@ export default function StreamCanvas({ deviceData }) {
                         onClick={() => swipeDown(authToken, logout, streamData, setDialog)}
                         className='canvas-buttons'
                         variant='contained'
-                        startIcon={<KeyboardArrowDownIcon />}
+                        startIcon={<KeyboardArrowUpIcon />}
                         style={{
                             fontWeight: "bold",
                             color: "#9ba984",
