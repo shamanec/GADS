@@ -101,7 +101,7 @@ func updateWebDriverAgent(device *models.Device) error {
 		return err
 	}
 
-	err = UpdateWebDriverAgentStreamSettings(device, 15, 75, 100, true)
+	err = UpdateWebDriverAgentStreamSettings(device, true)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("updateWebDriverAgent: Could not update WebDriverAgent stream settings for device %v - %v", device.UDID, err))
 		return err
@@ -110,17 +110,12 @@ func updateWebDriverAgent(device *models.Device) error {
 	return nil
 }
 
-func UpdateWebDriverAgentStreamSettings(device *models.Device, targetFramerate int, screenshotQuality int, scalingFactor int, useWDA bool) error {
+func UpdateWebDriverAgentStreamSettings(device *models.Device, useWDA bool) error {
 	var mjpegProperties models.WDAMjpegProperties
-	if targetFramerate != 0 {
-		mjpegProperties.MjpegServerFramerate = targetFramerate
-	}
-	if screenshotQuality != 0 {
-		mjpegProperties.MjpegServerScreenshotQuality = screenshotQuality
-	}
-	if scalingFactor != 0 {
-		mjpegProperties.MjpegServerScalingFactor = scalingFactor
-	}
+	mjpegProperties.MjpegServerFramerate = device.StreamTargetFPS
+	mjpegProperties.MjpegServerScreenshotQuality = device.StreamJpegQuality
+	mjpegProperties.MjpegServerScalingFactor = device.StreamScalingFactor
+
 	mjpegSettings := models.WDAMjpegSettings{
 		Settings: mjpegProperties,
 	}

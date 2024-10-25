@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
-import StreamCanvas from './StreamCanvas'
+import StreamCanvas from './StreamCanvas/StreamCanvas.js'
 import { Skeleton, Stack } from '@mui/material'
 import { Button } from '@mui/material'
 import TabularControl from './Tabs/TabularControl'

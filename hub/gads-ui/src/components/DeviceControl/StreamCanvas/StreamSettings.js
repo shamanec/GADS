@@ -1,14 +1,14 @@
 import { Box, Button, CircularProgress, MenuItem, Select, Stack, TextField } from "@mui/material"
 import { useState } from "react"
-import { api } from "../../../../services/api"
+import { api } from "../../../services/api"
 import CheckIcon from "@mui/icons-material/Check"
 import CloseIcon from "@mui/icons-material/Close"
 
 export default function StreamSettings({ deviceData }) {
-    const [fps, setFps] = useState(0)
-    const [jpegQuality, setJpegQuality] = useState(0)
-    const [scalingFactor, setScalingFactor] = useState(0)
-    const [loading, setLoading] = useState(false)
+    const [fps, setFps] = useState(deviceData.stream_target_fps)
+    const [jpegQuality, setJpegQuality] = useState(deviceData.stream_jpeg_quality)
+    const [scalingFactor, setScalingFactor] = useState(deviceData.stream_scaling_factor)
+    const [isLoading, setIsLoading] = useState(false)
     const [updateSettingsStatus, setUpdateSettingsStatus] = useState(null)
 
     const fpsOptions = [5, 10, 15, 20, 30, 45, 60];
@@ -27,7 +27,7 @@ export default function StreamSettings({ deviceData }) {
     }
 
     function updateStreamSettings(event) {
-        setLoading(true)
+        setIsLoading(true)
         setUpdateSettingsStatus(null)
         event.preventDefault()
 
@@ -43,18 +43,22 @@ export default function StreamSettings({ deviceData }) {
             })
             .finally(() => {
                 setTimeout(() => {
-                    setLoading(false)
-                    setUpdateSettingsStatus(null)
+                    setIsLoading(false)
+                    setTimeout(() => {
+                        setUpdateSettingsStatus(null)
+                    }, 2000)
                 }, 1000)
             })
     }
 
     return (
         <Box
-            marginTop='10px'
             style={{
                 backgroundColor: "#9ba984",
-                width: "250px"
+                width: "100%",
+                height: "250px",
+                alignContent: 'center',
+                borderRadius: '5px'
             }}
         >
             <Stack
@@ -136,22 +140,22 @@ export default function StreamSettings({ deviceData }) {
                     ))}
                 </TextField>
                 <Button
-                    id='clipboard-button'
                     variant='contained'
                     style={{
+                        backgroundColor: isLoading ? "rgba(51,71,110,0.47)" : "#2f3b26",
                         color: "#9ba984",
                         fontWeight: "bold"
                     }}
                     onClick={updateStreamSettings}
                 >
-                    {loading ? (
+                    {isLoading ? (
                         <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
                     ) : updateSettingsStatus === 'success' ? (
                         <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
                     ) : updateSettingsStatus === 'error' ? (
                         <CloseIcon size={25} style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
                     ) : (
-                        'Update settings'
+                        'Update'
                     )}</Button>
             </Stack>
         </Box>

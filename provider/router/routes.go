@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -343,6 +344,7 @@ func ResetDevice(c *gin.Context) {
 func UpdateStreamSettings(c *gin.Context) {
 	udid := c.Param("udid")
 
+	var mu sync.Mutex
 	if device, ok := devices.DBDeviceMap[udid]; ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -358,7 +360,18 @@ func UpdateStreamSettings(c *gin.Context) {
 		}
 
 		if device.OS == "ios" {
-			err = devices.UpdateWebDriverAgentStreamSettings(device, streamSettings.TargetFPS, streamSettings.JpegQuality, streamSettings.ScalingFactor, false)
+			mu.Lock()
+			if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
+				device.StreamTargetFPS = streamSettings.TargetFPS
+			}
+			if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != device.StreamJpegQuality {
+				device.StreamJpegQuality = streamSettings.JpegQuality
+			}
+			if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
+				device.StreamScalingFactor = streamSettings.ScalingFactor
+			}
+			mu.Unlock()
+			err = devices.UpdateWebDriverAgentStreamSettings(device, false)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update stream settings " + err.Error()})
 				return

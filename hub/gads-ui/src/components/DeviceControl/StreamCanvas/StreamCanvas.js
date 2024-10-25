@@ -1,4 +1,4 @@
-import { Auth } from "../../contexts/Auth"
+import { Auth } from "../../../contexts/Auth"
 import { useContext, useEffect, useState } from "react"
 import './StreamCanvas.css'
 import { Box, Button, Divider, Grid, Stack, Tooltip } from "@mui/material"
@@ -9,8 +9,9 @@ import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { useDialog } from "./SessionDialogContext"
-import { api } from '../../services/api.js'
+import { useDialog } from "../SessionDialogContext"
+import { api } from '../../../services/api.js'
+import StreamSettings from "./StreamSettings.js";
 
 export default function StreamCanvas({ deviceData }) {
     const { authToken, logout } = useContext(Auth)
@@ -43,11 +44,11 @@ export default function StreamCanvas({ deviceData }) {
 
     let streamUrl = ""
     if (deviceData.os === 'ios') {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     useEffect(() => {
@@ -276,6 +277,9 @@ export default function StreamCanvas({ deviceData }) {
                             width: '100%'
                         }}
                     >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <StreamSettings deviceData={deviceData}></StreamSettings>
                 </Grid>
             </Grid>
         </Grid >
