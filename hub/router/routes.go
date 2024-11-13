@@ -5,6 +5,7 @@ import (
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -425,6 +426,8 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
+// This websocket connection is used to both set the device in use when remotely controlled
+// As well as send live updates when needed - device info, release device, etc
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -433,8 +436,28 @@ func DeviceInUseWS(c *gin.Context) {
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
 		return
 	}
-	defer conn.Close()
 
+	// Add the created connection to the respective device in the map
+	// So we can send different messages to it from other sources
+	devices.HubDevicesData.Mu.Lock()
+	devices.HubDevicesData.Devices[udid].InUseWSConnection = conn
+	devices.HubDevicesData.Mu.Unlock()
+
+	// If this function returns then we close the connection
+	// And also set it to nil for the respective device in the map
+	defer func() {
+		conn.Close()
+		devices.HubDevicesData.Mu.Lock()
+		devices.HubDevicesData.Devices[udid].InUseWSConnection = nil
+		devices.HubDevicesData.Mu.Unlock()
+	}()
+
+	// Create a context with cancel to use in the goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create a channel to send data from the goroutine listening for messages coming from the client(UI)
+	// And then we receive from the channel in the for loop that sets the device in-use status
 	messageReceived := make(chan string)
 	defer close(messageReceived)
 
@@ -442,36 +465,58 @@ func DeviceInUseWS(c *gin.Context) {
 	// To keep device in use
 	go func() {
 		for {
-			data, code, err := wsutil.ReadClientData(conn)
-			if err != nil {
+			select {
+			case <-ctx.Done(): // If context was cancelled in the other goroutine or the for loop we return to stop the current goroutine
 				return
-			}
+			default:
+				data, code, err := wsutil.ReadClientData(conn)
+				if err != nil || code == 8 { // 8 is close code
+					cancel() // Trigger context cancellation for all goroutines and the for loop if we got an error from the websocket/client and return to stop the current goroutine
+					return
+				}
 
-			if code == 8 {
-				return
-			}
-
-			if string(data) != "" {
-				messageReceived <- string(data)
+				// If we got any data from the client that is not an empty string - this is the nickname of the person using the device
+				// So we send it to the messageReceived channel
+				if string(data) != "" {
+					messageReceived <- string(data)
+				}
 			}
 		}
 	}()
 
-	// Loop sending messages to client to keep the connection and avoid using setInterval in the UI
+	// Loop sending messages to client to keep the connection - like ping/pong
 	go func() {
 		for {
-			err := wsutil.WriteServerText(conn, []byte("ping"))
-			if err != nil {
-				fmt.Println("Write error " + err.Error())
+			select {
+			case <-ctx.Done(): // If context was cancelled in the other goroutine or the for loop we return to stop the current goroutine
 				return
+			default:
+				// Send a ping message to the client(UI) using the DeviceInUseMessage struct as json string
+				deviceInUseMessage := models.DeviceInUseMessage{
+					Type: "ping",
+				}
+				deviceInUseMessageJson, _ := json.Marshal(deviceInUseMessage)
+				err := wsutil.WriteServerText(conn, deviceInUseMessageJson)
+				if err != nil {
+					cancel() // Trigger context cancellation for all goroutines and the for loop if we got an error from the websocket/client and return to stop the current goroutine
+					return
+				}
+				// Wait 1 second between pings
+				time.Sleep(1 * time.Second)
 			}
-			time.Sleep(1 * time.Second)
 		}
 	}()
 
+	// Create a new timer for the loop below
 	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+
+	// We loop over the messageReceived channel, timer and the context cancellation signal
 	for {
 		select {
+		// If a message is received over the channel with the username of the user occupying the device
+		// We set the last timestamp for in use and set the name of the person using it
+		// We reset the timer each time a message was received
 		case userName := <-messageReceived:
 			devices.HubDevicesData.Mu.Lock()
 			devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
@@ -481,6 +526,9 @@ func DeviceInUseWS(c *gin.Context) {
 				<-timer.C
 			}
 			timer.Reset(2 * time.Second)
+		// If the timer limit is reached and the device is not in use by automation but a person
+		// We reset the in use timestamp
+		// And remove the name of the person that was using it
 		case <-timer.C:
 			devices.HubDevicesData.Mu.Lock()
 			devices.HubDevicesData.Devices[udid].InUseTS = 0
@@ -488,6 +536,10 @@ func DeviceInUseWS(c *gin.Context) {
 				devices.HubDevicesData.Devices[udid].InUseBy = ""
 			}
 			devices.HubDevicesData.Mu.Unlock()
+			return
+		// If the context was cancelled from the read/write goroutines
+		// We return to exit the loop
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -687,6 +739,30 @@ func GetDevices(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, adminDeviceData)
+}
+
+func ReleaseUsedDevice(c *gin.Context) {
+	udid := c.Param("udid")
+
+	// Send a release device message on the device in use websocket connection
+	deviceInUseMessage := models.DeviceInUseMessage{
+		Type: "releaseDevice",
+	}
+	deviceInUseMessageJson, _ := json.Marshal(deviceInUseMessage)
+
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	err := wsutil.WriteServerText(devices.HubDevicesData.Devices[udid].InUseWSConnection, deviceInUseMessageJson)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to send release device message - " + err.Error()})
+		return
+	}
+
+	devices.HubDevicesData.Devices[udid].InUseWSConnection.Close()
+	devices.HubDevicesData.Devices[udid].InUseTS = 0
+	devices.HubDevicesData.Devices[udid].InUseBy = ""
+
+	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
 }
 
 func ProviderUpdate(c *gin.Context) {
