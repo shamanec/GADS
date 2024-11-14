@@ -1,10 +1,9 @@
-import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button } from "@mui/material"
+import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import InfoIcon from '@mui/icons-material/Info'
 import AspectRatioIcon from '@mui/icons-material/AspectRatio'
 import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid'
 import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone'
-import { api } from '../../services/api.js'
 import { useNavigate } from 'react-router-dom'
 import React, { useState } from 'react'
 import './DeviceBox.css'
@@ -17,7 +16,7 @@ export default function DeviceBox({ device }) {
             className='device-box'
         >
             <Stack
-                divider={<Divider orientation="horizontal" flexItem />}
+                divider={<Divider orientation='horizontal' flexItem />}
             >
                 <Box
                     className='status-box'
@@ -103,7 +102,7 @@ export default function DeviceBox({ device }) {
 }
 
 function DeviceStatus({ device }) {
-    if (device.info.usage === "disabled") {
+    if (device.info.usage === 'disabled') {
         return (
             <div
                 className='offline-status'
@@ -112,7 +111,7 @@ function DeviceStatus({ device }) {
     }
 
     if (device.available) {
-        if (device.info.usage === "automation") {
+        if (device.info.usage === 'automation') {
             if (device.is_running_automation) {
                 return (
                     <div>
@@ -130,7 +129,7 @@ function DeviceStatus({ device }) {
             }
         }
 
-        if (device.info.usage === "enabled" || device.info.usage === "control") {
+        if (device.info.usage === 'enabled' || device.info.usage === 'control') {
             if (device.is_running_automation) {
                 return (
                     <div>
@@ -177,22 +176,22 @@ function UseButton({ device }) {
 
     const buttonDisabled = loading || !device.info.connected
 
-    if (device.info.usage === "disabled") {
+    if (device.info.usage === 'disabled') {
         return (
             <button
                 className='device-buttons'
-                variant="contained"
+                variant='contained'
                 disabled
             >N/A</button>
         )
     }
 
     if (device.available) {
-        if (device.info.usage === "automation") {
+        if (device.info.usage === 'automation') {
             return (
                 <button
                     className='device-buttons'
-                    variant="contained"
+                    variant='contained'
                     disabled
                 >N/A</button>
             )
@@ -211,7 +210,7 @@ function UseButton({ device }) {
                     onClick={handleUseButtonClick}
                     disabled={buttonDisabled}
                 >
-                    {loading ? <span className="spinner"></span> : 'Use'}
+                    {loading ? <span className='spinner'></span> : 'Use'}
                 </button>
             )
         }
@@ -220,7 +219,7 @@ function UseButton({ device }) {
         return (
             <button
                 className='device-buttons'
-                variant="contained"
+                variant='contained'
                 disabled
             >N/A</button>
         )

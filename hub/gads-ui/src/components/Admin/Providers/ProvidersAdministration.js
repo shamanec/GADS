@@ -1,12 +1,13 @@
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from "@mui/material"
-import { useContext, useEffect, useState } from "react"
-import { api } from "../../../services/api"
-import { Auth } from "../../../contexts/Auth"
-import ProviderLogsTable from "./ProviderLogsTable"
-import CircularProgress from "@mui/material/CircularProgress";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
+import { Box, Button, Dialog, DialogContent, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
+import { useContext, useEffect, useState } from 'react'
+import { api } from '../../../services/api'
+import { Auth } from '../../../contexts/Auth'
+import ProviderLogsTable from './ProviderLogsTable'
+import CircularProgress from '@mui/material/CircularProgress'
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
 import './ProvidersAdministration.css'
+import { useDialog } from '../../../contexts/DialogContext'
 
 export default function ProvidersAdministration() {
     const [providers, setProviders] = useState([])
@@ -74,7 +75,7 @@ function NewProvider({ handleGetProvidersData }) {
     const [useCustomWda, setUseCustomWda] = useState(false)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(false)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState('')
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false)
     const [addProviderStatus, setAddProviderStatus] = useState(null)
 
     function buildPayload() {
@@ -367,10 +368,9 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(providerData.use_selenium_grid)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState(providerData.selenium_grid)
 
-    const [openAlert, setOpenAlert] = useState(false)
     const [openLogsDialog, setOpenLogsDialog] = useState(false)
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false)
     const [updateProviderStatus, setUpdateProviderStatus] = useState(null)
 
     function handleDeleteProvider(event) {
@@ -383,7 +383,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
             })
             .finally(() => {
                 handleGetProvidersData()
-                setOpenAlert(false)
             })
     }
 
@@ -433,6 +432,20 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     }, 2000)
                 }, 1000)
             })
+    }
+
+    const { showDialog, hideDialog } = useDialog()
+    const showDeleteProviderAlert = (event) => {
+
+        showDialog('deleteProviderAlert', {
+            title: 'Delete provider from DB?',
+            content: `Nickname: ${nickname}. Host address: ${hostAddress}.`,
+            actions: [
+                { label: 'Cancel', onClick: () => hideDialog() },
+                { label: 'Confirm', onClick: () => handleDeleteProvider(event) }
+            ],
+            isCloseable: false
+        })
     }
 
     return (
@@ -660,7 +673,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         }}
                     >Show logs</Button>
                     <Button
-                        onClick={() => setOpenAlert(true)}
+                        onClick={(event) => showDeleteProviderAlert(event)}
                         style={{
                             backgroundColor: 'orange',
                             color: '#2f3b26',
@@ -669,25 +682,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                             height: '40px'
                         }}
                     >Delete provider</Button>
-                    <Dialog
-                        open={openAlert}
-                        onClose={() => setOpenAlert(false)}
-                    >
-                        <DialogTitle>
-                            Delete provider from DB?
-                        </DialogTitle>
-                        <DialogContent>
-                            <DialogContentText>
-                                Nickname: {nickname}. Host address: {hostAddress}.
-                            </DialogContentText>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
-                            <Button onClick={handleDeleteProvider} autoFocus>
-                                Confirm
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
                     <Dialog
                         fullWidth
                         maxWidth='xl'

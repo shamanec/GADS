@@ -8,6 +8,7 @@ import { useContext, useEffect } from 'react'
 import { Auth } from './contexts/Auth'
 import AdminDashboard from './components/Admin/AdminDashboard'
 import axiosInterceptor from './services/axiosInterceptor'
+import { DialogProvider } from './contexts/DialogContext'
 
 function Gads() {
     const { authToken, logout } = useContext(Auth)
@@ -27,12 +28,16 @@ function Gads() {
     return (
         <div style={{ backgroundColor: "#f4e6cd", height: "100%" }}>
             <NavBar />
-            <Routes>
-                <Route path="/" element={<Navigate to="/devices" />} />
-                <Route path="/devices" element={<DeviceSelection />} />
-                <Route path="/devices/control/:udid" element={<DeviceControl />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-            </Routes>
+            <DialogProvider>
+                <Routes>
+                    <Route path="/" element={<Navigate to="/devices" />} />
+                    <Route path="/devices" element={<DeviceSelection />} />
+                    <Route path="/devices/control/:udid" element={
+                        <DeviceControl />
+                    } />
+                    <Route path="/admin" element={<AdminDashboard />} />
+                </Routes>
+            </DialogProvider>
         </div>
     )
 }

@@ -1,11 +1,11 @@
-import { useState, useContext } from "react"
-import { useNavigate } from "react-router-dom"
-import { Auth } from "../../contexts/Auth"
+import { useState, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Auth } from '../../contexts/Auth'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import { api } from '../../services/api.js'
-import {Box, Stack} from "@mui/material";
+import { Box, Stack } from '@mui/material'
 
 export default function Login() {
     const [username, setUsername] = useState('')
@@ -36,7 +36,7 @@ export default function Login() {
             .then(json => {
                 const sessionID = json.sessionID
                 login(sessionID, json.username, json.role)
-                navigate("/devices")
+                navigate('/devices')
             })
             .catch((e) => {
                 if (e.response) {
@@ -57,7 +57,7 @@ export default function Login() {
     let gadsVersion = localStorage.getItem('gadsVersion') || 'unknown'
 
     return (
-        <Box style={{ height: '100vh', width: '100vw', justifyContent: 'center', alignItems: 'center', display: 'flex', backgroundColor: '#f4e6cd'}}>
+        <Box style={{ height: '100vh', width: '100vw', justifyContent: 'center', alignItems: 'center', display: 'flex', backgroundColor: '#f4e6cd' }}>
             <Box
                 style={{
                     width: '30%',
@@ -86,7 +86,7 @@ export default function Login() {
                     }}
                 >
                     <img
-                        src="./images/gads.png"
+                        src='./images/gads.png'
                         style={{
                             width: '50%',
                             marginBottom: '20px'
@@ -128,9 +128,9 @@ export default function Login() {
                                     fontWeight: 'bold',
                                     color: '#2f3b26',
                                 }}
-                            >{gadsVersion.startsWith('v') ? gadsVersion : "DEV"}
+                            >{gadsVersion.startsWith('v') ? gadsVersion : 'DEV'}
                             </p>
-                            <Alert severity="error" style={{padding: '2px 4px', visibility: showAlert ? 'visible' : 'hidden',}}>{alertText}</Alert>
+                            <Alert severity='error' style={{ padding: '2px 4px', visibility: showAlert ? 'visible' : 'hidden', }}>{alertText}</Alert>
                         </Stack>
                     </form>
                 </Box>

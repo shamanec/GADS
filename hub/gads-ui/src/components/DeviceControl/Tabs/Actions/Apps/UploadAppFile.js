@@ -1,18 +1,18 @@
 import React, { useState, useContext } from 'react'
-import { Auth } from '../../../../../contexts/Auth';
-import CircularProgress from '@mui/material/CircularProgress';
-import { Box, Alert, Button } from '@mui/material';
+import { Auth } from '../../../../../contexts/Auth'
+import CircularProgress from '@mui/material/CircularProgress'
+import { Box, Alert, Button } from '@mui/material'
 import './UploadAppFile.css'
-import FileUploadIcon from '@mui/icons-material/FileUpload';
-import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from '@mui/material';
-import DescriptionIcon from '@mui/icons-material/Description';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
+import FileUploadIcon from '@mui/icons-material/FileUpload'
+import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from '@mui/material'
+import DescriptionIcon from '@mui/icons-material/Description'
+import AttachFileIcon from '@mui/icons-material/AttachFile'
 import { api } from '../../../../../services/api.js'
 
 
 export default function UploadAppFile({ deviceData }) {
     // Upload file and file data
-    const [file, setFile] = useState(null);
+    const [file, setFile] = useState(null)
     const [fileName, setFileName] = useState('No data')
     const [fileSize, setFileSize] = useState('No data')
 
@@ -28,7 +28,7 @@ export default function UploadAppFile({ deviceData }) {
         setShowAlert(false)
         if (e.target.files) {
             const targetFile = e.target.files[0]
-            const fileExtension = targetFile.name.split('.').pop();
+            const fileExtension = targetFile.name.split('.').pop()
 
             // If the provided file does not have valid extension
             if (fileExtension != 'apk' && fileExtension != 'ipa' && fileExtension != 'zip') {
@@ -49,7 +49,7 @@ export default function UploadAppFile({ deviceData }) {
             setShowAlert(false)
             setFileName(targetFile.name)
             setFileSize((targetFile.size / (1024 * 1024)).toFixed(2) + ' mb')
-            setFile(targetFile);
+            setFile(targetFile)
         } else {
             return
         }
@@ -63,14 +63,14 @@ export default function UploadAppFile({ deviceData }) {
                 variant='contained'
                 startIcon={<AttachFileIcon />}
                 style={{
-                    backgroundColor: "#2f3b26",
-                    color: "#9ba984",
-                    fontWeight: "bold"
+                    backgroundColor: '#2f3b26',
+                    color: '#9ba984',
+                    fontWeight: 'bold'
                 }}
             >
                 <input
                     id='input-file'
-                    type="file"
+                    type='file'
                     onChange={(event) => handleFileChange(event)}
                 />
                 Select file
@@ -78,7 +78,7 @@ export default function UploadAppFile({ deviceData }) {
             <List
                 subheader={
                     <ListSubheader
-                        component="div"
+                        component='div'
                         style={{
                             backgroundColor: '#9ba984'
                         }}
@@ -114,21 +114,21 @@ export default function UploadAppFile({ deviceData }) {
                 setAlertText={setAlertText}
                 setShowAlert={setShowAlert}
             ></Uploader>
-            {showAlert && <Alert id="add-user-alert" severity={alertSeverity}>{alertText}</Alert>}
+            {showAlert && <Alert id='add-user-alert' severity={alertSeverity}>{alertText}</Alert>}
         </Box>
     )
 }
 
 function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText }) {
-    const {logout} = useContext(Auth)
+    const { logout } = useContext(Auth)
     const [isUploading, setIsUploading] = useState(false)
 
     function handleUpload() {
         setIsUploading(true)
-        const url = `/device/${deviceData.udid}/uploadAndInstallApp`;
+        const url = `/device/${deviceData.udid}/uploadAndInstallApp`
 
-        const form = new FormData();
-        form.append('file', file);
+        const form = new FormData()
+        form.append('file', file)
 
         setShowAlert(false)
         api.post(url, form, {
@@ -158,7 +158,7 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 setAlertText('Failed uploading/installing file')
                 setShowAlert(true)
                 console.log('Failed uploading/installing file - ' + error)
-            });
+            })
     }
 
     return (
@@ -170,10 +170,10 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
                 onClick={handleUpload}
                 disabled={isUploading || buttonDisabled}
                 style={{
-                    backgroundColor: (isUploading || buttonDisabled) ? "rgba(51,71,110,0.47)" : "#2f3b26",
-                    color: "#9ba984",
-                    fontWeight: "bold",
-                    width: "250px"
+                    backgroundColor: (isUploading || buttonDisabled) ? 'rgba(51,71,110,0.47)' : '#2f3b26',
+                    color: '#9ba984',
+                    fontWeight: 'bold',
+                    width: '250px'
                 }}
             >Upload and install</Button>
             {isUploading &&

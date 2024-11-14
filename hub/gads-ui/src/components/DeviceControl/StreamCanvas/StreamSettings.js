@@ -1,8 +1,8 @@
-import { Box, Button, CircularProgress, MenuItem, Select, Stack, TextField } from "@mui/material"
-import { useState } from "react"
-import { api } from "../../../services/api"
-import CheckIcon from "@mui/icons-material/Check"
-import CloseIcon from "@mui/icons-material/Close"
+import { Box, Button, CircularProgress, MenuItem, Stack, TextField } from '@mui/material'
+import { useState } from 'react'
+import { api } from '../../../services/api'
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
 
 export default function StreamSettings({ deviceData }) {
     const [fps, setFps] = useState(deviceData.stream_target_fps)
@@ -11,7 +11,7 @@ export default function StreamSettings({ deviceData }) {
     const [isLoading, setIsLoading] = useState(false)
     const [updateSettingsStatus, setUpdateSettingsStatus] = useState(null)
 
-    const fpsOptions = [5, 10, 15, 20, 30, 45, 60];
+    const fpsOptions = [5, 10, 15, 20, 30, 45, 60]
     const jpegQualityOptions = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90]
     const scalingFactorOptionsiOS = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
     const scalingFactorOptionsAndroid = [25, 50]
@@ -57,9 +57,9 @@ export default function StreamSettings({ deviceData }) {
     return (
         <Box
             style={{
-                backgroundColor: "#9ba984",
-                width: "100%",
-                height: "250px",
+                backgroundColor: '#9ba984',
+                width: '100%',
+                height: '250px',
                 alignContent: 'center',
                 borderRadius: '5px'
             }}
@@ -68,9 +68,9 @@ export default function StreamSettings({ deviceData }) {
                 spacing={2}
                 style={{
                     marginTop: '10px',
-                    marginLeft: "10px",
-                    marginBottom: "10px",
-                    marginRight: "10px"
+                    marginLeft: '10px',
+                    marginBottom: '10px',
+                    marginRight: '10px'
                 }}
             >
                 <TextField
@@ -145,9 +145,9 @@ export default function StreamSettings({ deviceData }) {
                 <Button
                     variant='contained'
                     style={{
-                        backgroundColor: isLoading ? "rgba(51,71,110,0.47)" : "#2f3b26",
-                        color: "#9ba984",
-                        fontWeight: "bold"
+                        backgroundColor: isLoading ? 'rgba(51,71,110,0.47)' : '#2f3b26',
+                        color: '#9ba984',
+                        fontWeight: 'bold'
                     }}
                     onClick={updateStreamSettings}
                 >

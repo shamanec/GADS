@@ -1,8 +1,8 @@
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 import React, { useEffect, useState } from 'react'
 import './Filters.css'
-import { FiSearch } from "react-icons/fi";
+import { FiSearch } from 'react-icons/fi'
 
 export function OSFilterTabs({ currentTabIndex, handleTabChange }) {
     return (
@@ -11,13 +11,13 @@ export function OSFilterTabs({ currentTabIndex, handleTabChange }) {
             onChange={handleTabChange}
             TabIndicatorProps={{
                 style: {
-                    background: "#2f3b26",
+                    background: '#2f3b26',
                     height: '5px'
                 }
             }}
             textColor='#f4e6cd'
             sx={{
-                color: "#2f3b26",
+                color: '#2f3b26',
                 fontFamily: 'Verdana'
             }}
         >
@@ -32,7 +32,7 @@ export function DeviceSearch({ keyUpFilterFunc }) {
     return (
         <div id='search-wrapper'>
             <div id='image-wrapper'>
-                <FiSearch size={25}/>
+                <FiSearch size={25} />
             </div>
             <input
                 type='search'

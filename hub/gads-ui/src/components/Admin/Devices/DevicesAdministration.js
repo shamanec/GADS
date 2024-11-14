@@ -1,10 +1,11 @@
-import { useContext, useState, useEffect } from "react"
-import { api } from "../../../services/api"
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from "@mui/material"
-import { Auth } from "../../../contexts/Auth"
-import CircularProgress from "@mui/material/CircularProgress";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
+import { useContext, useState, useEffect } from 'react'
+import { api } from '../../../services/api'
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
+import { Auth } from '../../../contexts/Auth'
+import CircularProgress from '@mui/material/CircularProgress'
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
+import { useDialog } from '../../../contexts/DialogContext'
 
 export default function DevicesAdministration() {
     const [devices, setDevices] = useState([])
@@ -86,7 +87,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
     const [usage, setUsage] = useState('enabled')
     const [type, setType] = useState('real')
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false)
     const [addDeviceStatus, setAddDeviceStatus] = useState(null)
 
     function handleAddDevice(event) {
@@ -155,18 +156,18 @@ function NewDevice({ providers, handleGetDeviceData }) {
                     }}
                 >
                     <Tooltip
-                        title="Operating system of the device"
+                        title='Operating system of the device'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={os}
                                 onChange={(e) => setOS(e.target.value)}
                                 select
-                                label="Device OS"
+                                label='Device OS'
                                 required
                             >
                                 <MenuItem value='android'>Android</MenuItem>
@@ -179,14 +180,14 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={type}
                                 onChange={(e) => setType(e.target.value)}
                                 select
-                                label="Device type"
+                                label='Device type'
                                 required
                             >
                                 <MenuItem value='real'>Real device</MenuItem>
@@ -201,22 +202,22 @@ function NewDevice({ providers, handleGetDeviceData }) {
                     >
                         <TextField
                             required
-                            label="UDID"
+                            label='UDID'
                             value={udid}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setUdid(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Unique name for the device, e.g. iPhone SE(2nd gen)"
+                        title='Unique name for the device, e.g. iPhone SE(2nd gen)'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Name"
+                            label='Name'
                             value={name}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setName(event.target.value)}
                         />
                     </Tooltip>
@@ -227,9 +228,9 @@ function NewDevice({ providers, handleGetDeviceData }) {
                     >
                         <TextField
                             required
-                            label="OS Version"
+                            label='OS Version'
                             value={osVersion}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setOSVersion(event.target.value)}
                         />
                     </Tooltip>
@@ -239,9 +240,9 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
-                            label="Screen width"
+                            label='Screen width'
                             value={screenWidth}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setScreenWidth(event.target.value)}
                         />
                     </Tooltip>
@@ -251,9 +252,9 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
-                            label="Screen height"
+                            label='Screen height'
                             value={screenHeight}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setScreenHeight(event.target.value)}
                         />
                     </Tooltip>
@@ -262,14 +263,14 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={usage}
                                 onChange={(e) => setUsage(e.target.value)}
                                 select
-                                label="Device usage"
+                                label='Device usage'
                                 required
                             >
                                 <MenuItem value='enabled'>Enabled</MenuItem>
@@ -280,18 +281,18 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="The nickname of the provider to which the device is assigned"
+                        title='The nickname of the provider to which the device is assigned'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={provider}
                                 onChange={(e) => setProvider(e.target.value)}
                                 select
-                                label="Provider"
+                                label='Provider'
                                 required
                             >
                                 {providers.map((providerName) => {
@@ -304,12 +305,12 @@ function NewDevice({ providers, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Button
-                        variant="contained"
-                        type="submit"
+                        variant='contained'
+                        type='submit'
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold",
+                            fontWeight: 'bold',
                             boxShadow: 'none',
                             height: '40px'
                         }}
@@ -428,11 +429,22 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
             })
             .finally(() => {
                 handleGetDeviceData()
-                setOpenAlert(false)
             })
     }
 
-    const [openAlert, setOpenAlert] = useState(false)
+    const { showDialog, hideDialog } = useDialog()
+    const showDeleteDeviceAlert = (event) => {
+
+        showDialog('deleteDeviceAlert', {
+            title: 'Delete device from DB?',
+            content: `Device with UDID '${udid}', assigned to provider '${provider}'.`,
+            actions: [
+                { label: 'Cancel', onClick: () => hideDialog() },
+                { label: 'Confirm', onClick: () => handleDeleteDevice(event) }
+            ],
+            isCloseable: false
+        })
+    }
 
     return (
         <Box
@@ -454,19 +466,19 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                     }}
                 >
                     <Tooltip
-                        title="Operating system of the device"
+                        title='Operating system of the device'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
                                 disabled
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={os}
                                 onChange={(e) => setOS(e.target.value)}
                                 select
-                                label="Device OS"
+                                label='Device OS'
                                 required
                             >
                                 <MenuItem value='android'>Android</MenuItem>
@@ -479,13 +491,13 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={type}
                                 select
-                                label="Device type"
+                                label='Device type'
                                 required
                                 disabled
                             >
@@ -501,20 +513,20 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                     >
                         <TextField
                             disabled
-                            label="UDID"
+                            label='UDID'
                             defaultValue={udid}
                         />
                     </Tooltip>
                     <Tooltip
-                        title="Unique name for the device, e.g. iPhone SE(2nd gen)"
+                        title='Unique name for the device, e.g. iPhone SE(2nd gen)'
                         arrow
                         placement='top'
                     >
                         <TextField
                             required
-                            label="Name"
+                            label='Name'
                             defaultValue={name}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setName(event.target.value)}
                         />
                     </Tooltip>
@@ -525,9 +537,9 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                     >
                         <TextField
                             required
-                            label="OS Version"
+                            label='OS Version'
                             defaultValue={osVersion}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setOSVersion(event.target.value)}
                         />
                     </Tooltip>
@@ -537,9 +549,9 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
-                            label="Screen width"
+                            label='Screen width'
                             defaultValue={screenWidth}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setScreenWidth(event.target.value)}
                         />
                     </Tooltip>
@@ -549,9 +561,9 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         placement='top'
                     >
                         <TextField
-                            label="Screen height"
+                            label='Screen height'
                             defaultValue={screenHeight}
-                            autoComplete="off"
+                            autoComplete='off'
                             onChange={(event) => setScreenHeight(event.target.value)}
                         />
                     </Tooltip>
@@ -560,14 +572,14 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={usage}
                                 onChange={(e) => setUsage(e.target.value)}
                                 select
-                                label="Device usage"
+                                label='Device usage'
                                 required
                             >
                                 <MenuItem value='enabled'>Enabled</MenuItem>
@@ -578,18 +590,18 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title="The nickname of the provider to which the device is assigned"
+                        title='The nickname of the provider to which the device is assigned'
                         arrow
                         placement='top'
                     >
-                        <FormControl fullWidth variant="outlined" required>
+                        <FormControl fullWidth variant='outlined' required>
                             <TextField
-                                style={{ width: "100%" }}
-                                variant="outlined"
+                                style={{ width: '100%' }}
+                                variant='outlined'
                                 value={provider}
                                 onChange={(e) => setProvider(e.target.value)}
                                 select
-                                label="Provider"
+                                label='Provider'
                                 required
                             >
                                 {providersData.map((providerName) => {
@@ -602,12 +614,12 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Button
-                        variant="contained"
-                        type="submit"
+                        variant='contained'
+                        type='submit'
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold",
+                            fontWeight: 'bold',
                             boxShadow: 'none',
                             height: '40px'
                         }}
@@ -624,11 +636,11 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         )}
                     </Button>
                     <Button
-                        variant="contained"
+                        variant='contained'
                         style={{
                             backgroundColor: '#2f3b26',
                             color: '#f4e6cd',
-                            fontWeight: "bold",
+                            fontWeight: 'bold',
                             boxShadow: 'none',
                             height: '40px'
                         }}
@@ -646,36 +658,15 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                         )}
                     </Button>
                     <Button
-                        onClick={() => setOpenAlert(true)}
+                        onClick={(event) => showDeleteDeviceAlert(event)}
                         style={{
                             backgroundColor: 'orange',
                             color: '#2f3b26',
-                            fontWeight: "bold",
+                            fontWeight: 'bold',
                             boxShadow: 'none',
                             height: '40px'
                         }}
                     >Delete device</Button>
-                    <Dialog
-                        open={openAlert}
-                        onClose={() => setOpenAlert(false)}
-                        aria-labelledby="alert-dialog-title"
-                        aria-describedby="alert-dialog-description"
-                    >
-                        <DialogTitle id="alert-dialog-title">
-                            {"Delete device from DB?"}
-                        </DialogTitle>
-                        <DialogContent>
-                            <DialogContentText id="alert-dialog-description">
-                                Device with UDID `{udid}`, assigned to provider `{provider}`.
-                            </DialogContentText>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
-                            <Button onClick={handleDeleteDevice} autoFocus>
-                                Confirm
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
                 </Stack>
             </form>
         </Box>

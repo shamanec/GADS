@@ -1,28 +1,26 @@
-import { Auth } from "../../../contexts/Auth"
-import { useContext, useEffect, useState } from "react"
+import { Auth } from '../../../contexts/Auth'
+import { useContext, useEffect, useState } from 'react'
 import './StreamCanvas.css'
-import { Box, Button, Divider, Grid, Stack, Tooltip } from "@mui/material"
-import HomeIcon from '@mui/icons-material/Home';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
-import LockIcon from '@mui/icons-material/Lock';
-import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { useDialog } from "../SessionDialogContext"
+import { Button, Divider, Grid, Tooltip } from '@mui/material'
+import HomeIcon from '@mui/icons-material/Home'
+import LockOpenIcon from '@mui/icons-material/LockOpen'
+import LockIcon from '@mui/icons-material/Lock'
+import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft'
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight'
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import { api } from '../../../services/api.js'
-import StreamSettings from "./StreamSettings.js";
+import StreamSettings from './StreamSettings.js'
 
 export default function StreamCanvas({ deviceData }) {
     const { authToken, logout } = useContext(Auth)
-    const { setDialog } = useDialog()
     const [canvasSize, setCanvasSize] = useState({
         width: 0,
         height: 0
-    });
+    })
     const [isPortrait, setIsPortrait] = useState(true)
     const handleOrientationButtonClick = (isPortrait) => {
-        setIsPortrait(isPortrait);
+        setIsPortrait(isPortrait)
     }
 
     let deviceX = parseInt(deviceData.screen_width, 10)
@@ -42,13 +40,13 @@ export default function StreamCanvas({ deviceData }) {
         uses_custom_wda: deviceData.uses_custom_wda
     }
 
-    let streamUrl = ""
+    let streamUrl = ''
     if (deviceData.os === 'ios') {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     useEffect(() => {
@@ -68,30 +66,30 @@ export default function StreamCanvas({ deviceData }) {
             })
         }
 
-        const imgElement = document.getElementById('image-stream');
+        const imgElement = document.getElementById('image-stream')
 
         // Temporarily remove the stream source
-        imgElement.src = '';
+        imgElement.src = ''
 
         updateCanvasSize()
 
         // Reapply the stream URL after the resize is complete
-        imgElement.src = streamUrl;
+        imgElement.src = streamUrl
 
         // Set resize listener
-        window.addEventListener('resize', updateCanvasSize);
+        window.addEventListener('resize', updateCanvasSize)
 
         return () => {
             window.stop()
-            window.removeEventListener('resize', updateCanvasSize);
+            window.removeEventListener('resize', updateCanvasSize)
         }
-    }, [isPortrait]);
+    }, [isPortrait])
 
     return (
         <Grid
             spacing={1}
-            direction="row"
-            display="flex"
+            direction='row'
+            display='flex'
             justifyContent='center'
             alignItems='flex-start'
         >
@@ -108,7 +106,7 @@ export default function StreamCanvas({ deviceData }) {
                     }}
                 >{deviceData.model}</h3>
                 <div
-                    id="stream-div"
+                    id='stream-div'
                     style={{
                         width: streamData.canvasWidth,
                         height: streamData.canvasHeight
@@ -120,7 +118,6 @@ export default function StreamCanvas({ deviceData }) {
                         authToken={authToken}
                         logout={logout}
                         streamData={streamData}
-                        setDialog={setDialog}
                     ></Canvas>
                     <Stream
                         canvasWidth={streamData.canvasWidth}
@@ -137,21 +134,21 @@ export default function StreamCanvas({ deviceData }) {
             </div >
 
             <Grid
-                direction="column"
-                width="150px"
-                marginLeft="10px"
+                direction='column'
+                width='150px'
+                marginLeft='10px'
                 spacing={1}
                 container
             >
                 <Grid item>
                     <Tooltip
-                        title="This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed"
+                        title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
                         arrow
                         placement='top'
                     >
                         <Button
-                            variant={"contained"}
-                            color={"secondary"}
+                            variant={'contained'}
+                            color={'secondary'}
                             onClick={() => handleOrientationButtonClick(true)}
                             disabled={isPortrait}
                             sx={{ width: '100%' }}
@@ -162,13 +159,13 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Tooltip
-                        title="This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed"
+                        title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
                         arrow
                         placement='top'
                     >
                         <Button
-                            variant={"contained"}
-                            color={"secondary"}
+                            variant={'contained'}
+                            color={'secondary'}
                             onClick={() => handleOrientationButtonClick(false)}
                             disabled={!isPortrait}
                             sx={{ width: '100%' }}
@@ -182,98 +179,98 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => homeButton(authToken, deviceData, setDialog)}
+                        onClick={() => homeButton(authToken, deviceData)}
                         className='canvas-buttons'
                         startIcon={<HomeIcon />}
                         variant='contained'
                         style={{
-                            fontWeight: "bold",
-                            color: "#9ba984",
-                            backgroundColor: "#2f3b26",
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
                             width: '100%'
                         }}
                     >Home</Button>
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => lockButton(authToken, deviceData, setDialog)}
+                        onClick={() => lockButton(authToken, deviceData)}
                         className='canvas-buttons'
                         startIcon={<LockIcon />}
                         variant='contained'
                         style={{
-                            fontWeight: "bold",
-                            color: "#9ba984",
-                            backgroundColor: "#2f3b26",
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
                             width: '100%'
                         }}
                     >Lock</Button>
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => unlockButton(authToken, deviceData, setDialog)}
+                        onClick={() => unlockButton(authToken, deviceData)}
                         className='canvas-buttons'
                         startIcon={<LockOpenIcon />}
                         variant='contained'
                         style={{
-                            fontWeight: "bold",
-                            color: "#9ba984",
-                            backgroundColor: "#2f3b26",
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
                             width: '100%'
                         }}
                     >Unlock</Button>
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeLeft(authToken, logout, streamData, setDialog)}
+                        onClick={() => swipeLeft(authToken, logout, streamData)}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowRightIcon />}
                         style={{
-                            fontWeight: "bold",
-                            color: "#9ba984",
-                            backgroundColor: "#2f3b26",
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
                             width: '100%'
                         }}
                     >Swipe</Button>
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeRight(authToken, logout, streamData, setDialog)}
+                        onClick={() => swipeRight(authToken, logout, streamData)}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowLeftIcon />}
                         style={{
-                            fontWeight: "bold",
-                            color: "#9ba984",
-                            backgroundColor: "#2f3b26",
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
                             width: '100%'
                         }}
                     >Swipe</Button>
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeUp(authToken, logout, streamData, setDialog)}
+                        onClick={() => swipeUp(authToken, logout, streamData)}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowDownIcon />}
                         style={{
-                            fontWeight: "bold",
-                            color: "#9ba984",
-                            backgroundColor: "#2f3b26",
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
                             width: '100%'
                         }}
                     >Swipe</Button>
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeDown(authToken, logout, streamData, setDialog)}
+                        onClick={() => swipeDown(authToken, logout, streamData)}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowUpIcon />}
                         style={{
-                            fontWeight: "bold",
-                            color: "#9ba984",
-                            backgroundColor: "#2f3b26",
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
                             width: '100%'
                         }}
                     >Swipe</Button>
@@ -286,7 +283,7 @@ export default function StreamCanvas({ deviceData }) {
     )
 }
 
-function Canvas({ authToken, logout, streamData, setDialog }) {
+function Canvas({ authToken, logout, streamData }) {
     var tapStartAt = 0
     var coord1
     var coord2
@@ -295,7 +292,7 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
         const rect = event.currentTarget.getBoundingClientRect()
         const x = event.clientX - rect.left
         const y = event.clientY - rect.top
-        return [x, y];
+        return [x, y]
     }
 
     function handleMouseDown(event) {
@@ -321,22 +318,22 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
         // if y2 < y1*0.9 - it is probably a swipe bottom to top
         // if y2 > y1*1.1 - it is probably a swipe top to bottom
         if (mouseEventsTimeDiff > 500 && coord2[0] > coord1[0] * 1.1 || coord2[0] < coord1[0] * 0.9 || coord2[1] < coord1[1] * 0.9 || coord2[1] > coord1[1] * 1.1) {
-            swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+            swipeCoordinates(authToken, logout, coord1, coord2, streamData)
         } else if (mouseEventsTimeDiff < 500) {
-            tapCoordinates(authToken, logout, coord1, streamData, setDialog)
+            tapCoordinates(authToken, logout, coord1, streamData)
         } else {
-            touchAndHoldCoordinates(authToken, logout, coord1, streamData, setDialog)
+            touchAndHoldCoordinates(authToken, logout, coord1, streamData)
         }
     }
 
     return (
         <canvas
-            id="actions-canvas"
+            id='actions-canvas'
             width={streamData.canvasWidth + 'px'}
             height={streamData.canvasHeight + 'px'}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
-            style={{ position: "absolute" }}
+            style={{ position: 'absolute' }}
         ></canvas>
     )
 }
@@ -344,7 +341,7 @@ function Canvas({ authToken, logout, streamData, setDialog }) {
 function Stream({ canvasWidth, canvasHeight, streamUrl }) {
     return (
         <img
-            id="image-stream"
+            id='image-stream'
             width={canvasWidth + 'px'}
             height={canvasHeight + 'px'}
             style={{ display: 'block' }}
@@ -353,48 +350,48 @@ function Stream({ canvasWidth, canvasHeight, streamUrl }) {
     )
 }
 
-function swipeUp(authToken, logout, streamData, setDialog) {
+function swipeUp(authToken, logout, streamData) {
     let startX = streamData.canvasWidth / 2
     let endX = streamData.canvasWidth / 2
     let startY = streamData.canvasHeight - (streamData.canvasHeight * 0.75)
     let endY = streamData.canvasHeight - (streamData.canvasHeight * 0.25)
     let coord1 = [startX, startY]
     let coord2 = [endX, endY]
-    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData)
 }
 
-function swipeDown(authToken, logout, streamData, setDialog) {
+function swipeDown(authToken, logout, streamData) {
     let startX = streamData.canvasWidth / 2
     let endX = streamData.canvasWidth / 2
     let startY = streamData.canvasHeight - (streamData.canvasHeight * 0.25)
     let endY = streamData.canvasHeight - (streamData.canvasHeight * 0.75)
     let coord1 = [startX, startY]
     let coord2 = [endX, endY]
-    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData)
 }
 
-function swipeLeft(authToken, logout, streamData, setDialog) {
+function swipeLeft(authToken, logout, streamData) {
     let startX = streamData.canvasWidth - (streamData.canvasWidth * 0.20)
     let endX = streamData.canvasWidth - (streamData.canvasWidth * 0.80)
     let startY = streamData.canvasHeight / 2
     let endY = streamData.canvasHeight / 2
     let coord1 = [startX, startY]
     let coord2 = [endX, endY]
-    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData)
 }
 
-function swipeRight(authToken, logout, streamData, setDialog) {
+function swipeRight(authToken, logout, streamData) {
     let startX = streamData.canvasWidth - (streamData.canvasWidth * 0.80)
     let endX = streamData.canvasWidth - (streamData.canvasWidth * 0.20)
     let startY = streamData.canvasHeight / 2
     let endY = streamData.canvasHeight / 2
     let coord1 = [startX, startY]
     let coord2 = [endX, endY]
-    swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog)
+    swipeCoordinates(authToken, logout, coord1, coord2, streamData)
 }
 
 // tap using coordinates
-function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
+function tapCoordinates(authToken, logout, pos, streamData) {
     // set initial x and y tap coordinates
     let x = pos[0]
     let y = pos[1]
@@ -424,16 +421,15 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
     }
 
     let jsonData = JSON.stringify({
-        "x": finalX,
-        "y": finalY
+        'x': finalX,
+        'y': finalY
     })
 
     let deviceURL = `/device/${streamData.udid}`
 
-    api.post(deviceURL + "/tap", jsonData)
+    api.post(deviceURL + '/tap', jsonData)
         .then(response => {
             if (response.status === 404) {
-                setDialog(true)
                 return
             }
 
@@ -442,11 +438,10 @@ function tapCoordinates(authToken, logout, pos, streamData, setDialog) {
             }
         })
         .catch(() => {
-            setDialog(true)
         })
 }
 
-function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) {
+function touchAndHoldCoordinates(authToken, logout, pos, streamData) {
     // set initial x and y tap coordinates
     let x = pos[0]
     let y = pos[1]
@@ -477,16 +472,15 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
     }
 
     let jsonData = JSON.stringify({
-        "x": finalX,
-        "y": finalY
+        'x': finalX,
+        'y': finalY
     })
 
     let deviceURL = `/device/${streamData.udid}`
 
-    api.post(deviceURL + "/touchAndHold", jsonData)
+    api.post(deviceURL + '/touchAndHold', jsonData)
         .then(response => {
             if (response.status === 404) {
-                setDialog(true)
                 return
             }
 
@@ -495,11 +489,10 @@ function touchAndHoldCoordinates(authToken, logout, pos, streamData, setDialog) 
             }
         })
         .catch(() => {
-            setDialog(true)
         })
 }
 
-function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDialog) {
+function swipeCoordinates(authToken, logout, coord1, coord2, streamData) {
     var firstCoordX = coord1[0]
     var firstCoordY = coord1[1]
     var secondCoordX = coord2[0]
@@ -561,18 +554,17 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
     console.log('Swipe is ' + firstXFinal + ':' + firstYFinal + '-' + secondXFinal + ':' + secondYFinal)
 
     let jsonData = JSON.stringify({
-        "x": firstXFinal,
-        "y": firstYFinal,
-        "endX": secondXFinal,
-        "endY": secondYFinal
+        'x': firstXFinal,
+        'y': firstYFinal,
+        'endX': secondXFinal,
+        'endY': secondYFinal
     })
 
     let deviceURL = `/device/${streamData.udid}`
 
-    api.post(deviceURL + "/swipe", jsonData)
+    api.post(deviceURL + '/swipe', jsonData)
         .then(response => {
             if (response.status === 404) {
-                setDialog(true)
                 return
             }
 
@@ -581,48 +573,41 @@ function swipeCoordinates(authToken, logout, coord1, coord2, streamData, setDial
             }
         })
         .catch(() => {
-            setDialog(true)
         })
 }
 
-function homeButton(authToken, deviceData, setDialog) {
+function homeButton(authToken, deviceData) {
     let deviceURL = `/device/${deviceData.udid}/home`
 
     api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
-                setDialog(true)
             }
         })
         .catch(() => {
-            setDialog(true)
         })
 }
 
-function lockButton(authToken, deviceData, setDialog) {
+function lockButton(authToken, deviceData) {
     let deviceURL = `/device/${deviceData.udid}/lock`
 
     api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
-                setDialog(true)
             }
         })
         .catch(() => {
-            setDialog(true)
         })
 }
 
-function unlockButton(authToken, deviceData, setDialog) {
+function unlockButton(authToken, deviceData) {
     let deviceURL = `/device/${deviceData.udid}/unlock`
 
     api.post(deviceURL)
         .then(response => {
             if (response.status === 404) {
-                setDialog(true)
             }
         })
         .catch(() => {
-            setDialog(true)
         })
 }

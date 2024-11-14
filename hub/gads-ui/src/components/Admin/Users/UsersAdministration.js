@@ -1,23 +1,20 @@
 import {
     Box,
     Button,
-    Dialog,
-    DialogActions,
-    DialogContent, DialogContentText,
-    DialogTitle,
     FormControl,
     Grid,
     MenuItem,
     TextField, Tooltip
-} from "@mui/material";
-import Stack from '@mui/material/Stack';
-import { api } from "../../../services/api";
-import { useContext, useEffect, useState } from "react";
-import { Auth } from "../../../contexts/Auth";
+} from '@mui/material'
+import Stack from '@mui/material/Stack'
+import { api } from '../../../services/api'
+import { useContext, useEffect, useState } from 'react'
+import { Auth } from '../../../contexts/Auth'
 import './UsersAdministration.css'
-import CircularProgress from '@mui/material/CircularProgress';
-import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
+import CircularProgress from '@mui/material/CircularProgress'
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
+import { useDialog } from '../../../contexts/DialogContext'
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
@@ -68,7 +65,7 @@ function NewUser({ handleGetUserData }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [role, setRole] = useState('user')
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false)
     const [addUserStatus, setAddUserStatus] = useState(null)
 
     function handleAddUser(event) {
@@ -82,7 +79,7 @@ function NewUser({ handleGetUserData }) {
             username: username,
             password: password,
             role: role
-        };
+        }
 
         api.post(url, loginData)
             .then(() => {
@@ -177,7 +174,7 @@ function ExistingUser({ user, handleGetUserData }) {
     const [password, setPassword] = useState('')
     const [role, setRole] = useState(user.role)
     const [openAlert, setOpenAlert] = useState(false)
-    const [updateLoading, setUpdateLoading] = useState(false);
+    const [updateLoading, setUpdateLoading] = useState(false)
     const [updateUserStatus, setUpdateUserStatus] = useState(null)
 
     function handleUpdateUser(event) {
@@ -191,7 +188,7 @@ function ExistingUser({ user, handleGetUserData }) {
             username: username,
             password: password,
             role: role
-        };
+        }
 
         api.put(url, loginData)
             .then(() => {
@@ -223,6 +220,20 @@ function ExistingUser({ user, handleGetUserData }) {
             .finally(() => {
                 setOpenAlert(false)
             })
+    }
+
+    const { showDialog, hideDialog } = useDialog()
+    const showDeleteUserAlert = () => {
+
+        showDialog('deleteUserAlert', {
+            title: 'Delete user from DB?',
+            content: `Username: ${username}`,
+            actions: [
+                { label: 'Cancel', onClick: () => hideDialog() },
+                { label: 'Confirm', onClick: () => handleDeleteUser() }
+            ],
+            isCloseable: false
+        })
     }
 
     return (
@@ -272,14 +283,14 @@ function ExistingUser({ user, handleGetUserData }) {
                         disabled={updateLoading || updateUserStatus === 'success' || updateUserStatus === 'error'}
                     >
                         {updateLoading ? (
-                        <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
-                    ) : updateUserStatus === 'success' ? (
-                        <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
-                    ) : updateUserStatus === 'error' ? (
-                        <CloseIcon style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
-                    ) : (
-                        'Update user'
-                    )}
+                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+                        ) : updateUserStatus === 'success' ? (
+                            <CheckIcon size={25} style={{ color: '#f4e6cd', stroke: '#f4e6cd', strokeWidth: 2 }} />
+                        ) : updateUserStatus === 'error' ? (
+                            <CloseIcon style={{ color: 'red', stroke: 'red', strokeWidth: 2 }} />
+                        ) : (
+                            'Update user'
+                        )}
                     </Button>
                     <Button
                         disabled={username === 'admin'}
@@ -291,27 +302,8 @@ function ExistingUser({ user, handleGetUserData }) {
                             height: '40px',
                             boxShadow: 'none'
                         }}
-                        onClick={() => setOpenAlert(true)}
+                        onClick={() => showDeleteUserAlert()}
                     >Delete user</Button>
-                    <Dialog
-                        open={openAlert}
-                        onClose={() => setOpenAlert(false)}
-                    >
-                        <DialogTitle>
-                            Delete user from DB?
-                        </DialogTitle>
-                        <DialogContent>
-                            <DialogContentText>
-                                Username: {username}
-                            </DialogContentText>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
-                            <Button onClick={handleDeleteUser} autoFocus>
-                                Confirm
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
                 </Stack>
             </form>
         </Box>

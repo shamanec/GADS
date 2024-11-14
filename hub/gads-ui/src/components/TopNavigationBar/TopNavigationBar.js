@@ -1,13 +1,13 @@
-import {useContext, useEffect, useState} from 'react'
+import { useContext, useEffect, useState } from 'react'
 import './TopNavigationBar.css'
-import {NavLink} from 'react-router-dom'
-import {Auth} from '../../contexts/Auth'
+import { NavLink } from 'react-router-dom'
+import { Auth } from '../../contexts/Auth'
 import Button from '@mui/material/Button'
-import {api} from '../../services/api.js'
-import Divider from '@mui/material/Divider';
+import { api } from '../../services/api.js'
+import Divider from '@mui/material/Divider'
 
 export default function NavBar() {
-    const {userName} = useContext(Auth)
+    const { userName } = useContext(Auth)
 
     const [showAdmin, setShowAdmin] = useState(false)
 
@@ -33,21 +33,21 @@ export default function NavBar() {
                 }}
             ></img>
             <nav
-                className="navbar"
+                className='navbar'
             >
                 <StyledNavLink
-                    to="/devices"
+                    to='/devices'
                     linkText='Devices'
                 />
                 {showAdmin && (
                     <StyledNavLink
-                        to="/admin"
+                        to='/admin'
                         linkText='Admin'
                     />
                 )}
             </nav>
             <Divider
-                orientation="vertical"
+                orientation='vertical'
                 flexItem
                 style={{
                     marginLeft: '10px',
@@ -61,11 +61,11 @@ export default function NavBar() {
                     pointerEvents: 'none',
                     userSelect: 'none',
                 }}
-            >{appVersion.startsWith('v') ? appVersion : "DEV"}</div>
+            >{appVersion.startsWith('v') ? appVersion : 'DEV'}</div>
             <div
-                className="social-buttons-wrapper"
+                className='social-buttons-wrapper'
             >
-                <p style={{fontWeight: "bold"}}>Welcome, {userName}</p>
+                <p style={{ fontWeight: 'bold' }}>Welcome, {userName}</p>
                 <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>
@@ -76,15 +76,15 @@ export default function NavBar() {
     )
 }
 
-function StyledNavLink({to, linkText}) {
+function StyledNavLink({ to, linkText }) {
     return (
-        <NavLink className="nav-bar-link"
-                 style={({isActive}) => ({
-                     backgroundColor: isActive ? "#2f3b26" : "",
-                     color: isActive ? "#9ba984" : "#2f3b26",
-                     fontWeight: "bold"
-                 })}
-                 to={to}
+        <NavLink className='nav-bar-link'
+            style={({ isActive }) => ({
+                backgroundColor: isActive ? '#2f3b26' : '',
+                color: isActive ? '#9ba984' : '#2f3b26',
+                fontWeight: 'bold'
+            })}
+            to={to}
         >
             {linkText}
         </NavLink>
@@ -137,7 +137,7 @@ function KoFiButton() {
 }
 
 function LogoutButton() {
-    const {logout} = useContext(Auth)
+    const { logout } = useContext(Auth)
     let url = `/logout`
 
     function handleLogout() {
@@ -145,7 +145,7 @@ function LogoutButton() {
             .then(response => {
                 if (response.status !== 200) {
                     logout()
-                    throw new Error('Network response was not ok.');
+                    throw new Error('Network response was not ok.')
                 }
                 logout()
             })
@@ -156,16 +156,16 @@ function LogoutButton() {
 
     return (
         <Button
-            variant="contained"
-            type="submit"
+            variant='contained'
+            type='submit'
             onClick={handleLogout}
             style={{
-                marginLeft: "20px",
-                backgroundColor: "#dfbe82",
-                marginTop: "5px",
-                marginBottom: "5px",
-                color: "#2f3b26",
-                fontWeight: "bold"
+                marginLeft: '20px',
+                backgroundColor: '#dfbe82',
+                marginTop: '5px',
+                marginBottom: '5px',
+                color: '#2f3b26',
+                fontWeight: 'bold'
             }}
         >Logout</Button>
     )
