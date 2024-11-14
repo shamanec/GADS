@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSnackbar } from './SnackBarContext'
 
 export const Auth = createContext()
 
@@ -25,6 +26,16 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('authToken')
         localStorage.removeItem('userRole')
         localStorage.removeItem('username')
+        showLogoutError()
+    }
+
+    const { showSnackbar } = useSnackbar()
+    const showLogoutError = () => {
+        showSnackbar({
+            message: 'You are logged out!',
+            severity: 'warning',
+            duration: 5000,
+        })
     }
 
     useEffect(() => {
@@ -48,5 +59,6 @@ export const AuthProvider = ({ children }) => {
     }, [])
 
 
-    return <Auth.Provider value={{ authToken, userName, userRole, login, logout }}>{children}</Auth.Provider>
+    return <Auth.Provider value={{ authToken, userName, userRole, login, logout }}>{children}
+    </Auth.Provider>
 }

@@ -6,6 +6,7 @@ import reportWebVitals from './reportWebVitals';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider } from './contexts/Auth';
 import { api } from "./services/api";
+import { SnackbarProvider } from './contexts/SnackBarContext';
 
 function checkServerHealth() {
   let url = `/health`
@@ -22,9 +23,11 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
 
   <Router>
-    <AuthProvider>
-      <Gads />
-    </AuthProvider>
+    <SnackbarProvider>
+      <AuthProvider>
+        <Gads />
+      </AuthProvider>
+    </SnackbarProvider>
   </Router>
 );
 

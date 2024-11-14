@@ -5,7 +5,6 @@ import { api } from '../../../../services/api.js'
 import React, { useState, memo } from 'react'
 import CircularProgress from '@mui/material/CircularProgress'
 import CloseIcon from '@mui/icons-material/Close'
-import { useNavigate } from 'react-router-dom'
 import { useSnackbar } from '../../../../contexts/SnackBarContext.js'
 
 function Screenshot({ udid, screenshots, setScreenshots }) {
@@ -13,7 +12,6 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
     const [selectedImage, setSelectedImage] = useState(null)
     const [isTakingScreenshot, setIsTakingScreenshot] = useState(false)
     const [takeScreenshotStatus, setTakeScreenshotStatus] = useState(null)
-    const navigate = useNavigate()
 
     function takeScreenshot() {
         setIsTakingScreenshot(true)
