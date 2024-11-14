@@ -7,6 +7,7 @@ import TabularControl from './Tabs/TabularControl'
 import { useContext, useEffect, useState } from 'react'
 import { Auth } from '../../contexts/Auth'
 import { api } from '../../services/api.js'
+import { useDialog } from '../../contexts/DialogContext.js'
 
 export default function DeviceControl() {
     const { logout, userName } = useContext(Auth)
@@ -71,6 +72,7 @@ export default function DeviceControl() {
                         in_use_socket.send(userName)
                         break
                     case 'releaseDevice':
+                        openDeviceForciblyReleasedAlert()
                         console.log('releasing device')
                         break
                 }
@@ -87,6 +89,22 @@ export default function DeviceControl() {
 
     const handleBackClick = () => {
         navigate('/devices')
+    }
+
+    const { showDialog } = useDialog()
+    const openDeviceForciblyReleasedAlert = () => {
+        function backToDevices() {
+            navigate('/devices')
+        }
+
+        showDialog('deviceReleasedAlert', {
+            title: 'Session terminated!',
+            content: `You've been kicked out by admin.`,
+            actions: [
+                { label: 'Back to devices', onClick: () => backToDevices() },
+            ],
+            isCloseable: false
+        })
     }
 
     return (

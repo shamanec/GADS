@@ -86,8 +86,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
         setScreenshots(prevScreenshots => prevScreenshots.filter((_, i) => i !== index))
     }
 
-    const { showDialog, hideDialog } = useDialog()
-
+    const { showDialog } = useDialog()
     const openSessionAlert = () => {
         function backToDevices() {
             navigate('/devices')
