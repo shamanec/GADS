@@ -1,8 +1,8 @@
-import {Alert, Box, Button} from "@mui/material";
+import { Alert, Box, Button } from "@mui/material";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
-import React, {useContext, useState} from "react";
-import {api} from "../../../services/api";
-import {Auth} from "../../../contexts/Auth";
+import React, { useContext, useState } from "react";
+import { api } from "../../../services/api";
+import { Auth } from "../../../contexts/Auth";
 import CircularProgress from "@mui/material/CircularProgress";
 
 export default function UploadSeleniumJar() {
@@ -10,7 +10,7 @@ export default function UploadSeleniumJar() {
     const [alertText, setAlertText] = useState()
     const [alertSeverity, setAlertSeverity] = useState()
     const [isUploading, setIsUploading] = useState(false)
-    const {logout} = useContext(Auth)
+    const { logout } = useContext(Auth)
 
     function handleUpload(e) {
         if (e.target.files) {
@@ -45,10 +45,6 @@ export default function UploadSeleniumJar() {
                 })
                 .catch(error => {
                     if (error.response) {
-                        if (error.response.status === 401) {
-                            logout()
-                            return
-                        }
                         setAlertSeverity('error')
                         setAlertText(error.response.data.message)
                         setShowAlert(true)
@@ -102,11 +98,11 @@ export default function UploadSeleniumJar() {
                 />
                 {isUploading ? (
                     <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
-                ) :  (
+                ) : (
                     'Select and upload'
                 )}
             </Button>
-            {showAlert && <Alert size='small' severity={alertSeverity} style={{marginTop: '5px', padding: '2px 4px'}}>{alertText}</Alert>}
+            {showAlert && <Alert size='small' severity={alertSeverity} style={{ marginTop: '5px', padding: '2px 4px' }}>{alertText}</Alert>}
         </Box>
     )
 }

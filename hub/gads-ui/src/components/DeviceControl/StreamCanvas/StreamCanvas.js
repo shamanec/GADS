@@ -14,31 +14,19 @@ import StreamSettings from './StreamSettings.js'
 
 export default function StreamCanvas({ deviceData }) {
     const { authToken, logout } = useContext(Auth)
-    const [canvasSize, setCanvasSize] = useState({
+    const [isPortrait, setIsPortrait] = useState(true)
+    const [canvasDimensions, setCanvasDimensions] = useState({
         width: 0,
         height: 0
     })
-    const [isPortrait, setIsPortrait] = useState(true)
-    const handleOrientationButtonClick = (isPortrait) => {
-        setIsPortrait(isPortrait)
-    }
 
     let deviceX = parseInt(deviceData.screen_width, 10)
     let deviceY = parseInt(deviceData.screen_height, 10)
-    let screen_ratio = deviceX / deviceY
-    let landscapeScreenRatio = deviceY / deviceX
-
-    const streamData = {
-        udid: deviceData.udid,
-        deviceX: deviceX,
-        deviceY: deviceY,
-        screen_ratio: screen_ratio,
-        canvasHeight: canvasSize.height,
-        canvasWidth: canvasSize.width,
-        isPortrait: isPortrait,
-        device_os: deviceData.os,
-        uses_custom_wda: deviceData.uses_custom_wda
-    }
+    let deviceScreenRatio = deviceX / deviceY
+    let deviceLandscapeScreenRatio = deviceY / deviceX
+    let deviceOS = deviceData.os
+    let usesCustomWda = deviceData.usesCustomWda
+    let udid = deviceData.udid
 
     let streamUrl = ''
     if (deviceData.os === 'ios') {
@@ -49,20 +37,24 @@ export default function StreamCanvas({ deviceData }) {
         // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
+    const handleOrientationButtonClick = (isPortrait) => {
+        setIsPortrait(isPortrait)
+    }
+
     useEffect(() => {
-        const updateCanvasSize = () => {
-            let canvasWidth, canvasHeight
+        const updateCanvasDimensions = () => {
+            let calculatedWidth, calculatedHeight
             if (isPortrait) {
-                canvasHeight = window.innerHeight * 0.7
-                canvasWidth = canvasHeight * screen_ratio
+                calculatedHeight = window.innerHeight * 0.7
+                calculatedWidth = calculatedHeight * deviceScreenRatio
             } else {
-                canvasWidth = window.innerWidth * 0.4
-                canvasHeight = canvasWidth / landscapeScreenRatio
+                calculatedWidth = window.innerWidth * 0.4
+                calculatedHeight = calculatedWidth / deviceLandscapeScreenRatio
             }
 
-            setCanvasSize({
-                width: canvasWidth,
-                height: canvasHeight
+            setCanvasDimensions({
+                width: calculatedWidth,
+                height: calculatedHeight
             })
         }
 
@@ -71,17 +63,17 @@ export default function StreamCanvas({ deviceData }) {
         // Temporarily remove the stream source
         imgElement.src = ''
 
-        updateCanvasSize()
+        updateCanvasDimensions()
 
         // Reapply the stream URL after the resize is complete
         imgElement.src = streamUrl
 
         // Set resize listener
-        window.addEventListener('resize', updateCanvasSize)
+        window.addEventListener('resize', updateCanvasDimensions)
 
         return () => {
             window.stop()
-            window.removeEventListener('resize', updateCanvasSize)
+            window.removeEventListener('resize', updateCanvasDimensions)
         }
     }, [isPortrait])
 
@@ -131,8 +123,8 @@ export default function StreamCanvas({ deviceData }) {
         return (
             <canvas
                 id='actions-canvas'
-                width={streamData.canvasWidth + 'px'}
-                height={streamData.canvasHeight + 'px'}
+                width={canvasDimensions.width + 'px'}
+                height={canvasDimensions.height + 'px'}
                 onMouseDown={handleMouseDown}
                 onMouseUp={handleMouseUp}
                 style={{ position: 'absolute' }}
@@ -144,8 +136,8 @@ export default function StreamCanvas({ deviceData }) {
         return (
             <img
                 id='image-stream'
-                width={streamData.canvasWidth + 'px'}
-                height={streamData.canvasHeight + 'px'}
+                width={canvasDimensions.width + 'px'}
+                height={canvasDimensions.height + 'px'}
                 style={{ display: 'block' }}
                 src={streamUrl}
             ></img>
@@ -153,40 +145,40 @@ export default function StreamCanvas({ deviceData }) {
     }
 
     function swipeUp() {
-        let startX = streamData.canvasWidth / 2
-        let endX = streamData.canvasWidth / 2
-        let startY = streamData.canvasHeight - (streamData.canvasHeight * 0.75)
-        let endY = streamData.canvasHeight - (streamData.canvasHeight * 0.25)
+        let startX = canvasDimensions.width / 2
+        let endX = canvasDimensions.width / 2
+        let startY = canvasDimensions.height - (canvasDimensions.height * 0.75)
+        let endY = canvasDimensions.height - (canvasDimensions.height * 0.25)
         let coord1 = [startX, startY]
         let coord2 = [endX, endY]
         swipeCoordinates(coord1, coord2)
     }
 
     function swipeDown() {
-        let startX = streamData.canvasWidth / 2
-        let endX = streamData.canvasWidth / 2
-        let startY = streamData.canvasHeight - (streamData.canvasHeight * 0.25)
-        let endY = streamData.canvasHeight - (streamData.canvasHeight * 0.75)
+        let startX = canvasDimensions.width / 2
+        let endX = canvasDimensions.width / 2
+        let startY = canvasDimensions.height - (canvasDimensions.height * 0.25)
+        let endY = canvasDimensions.height - (canvasDimensions.height * 0.75)
         let coord1 = [startX, startY]
         let coord2 = [endX, endY]
         swipeCoordinates(coord1, coord2)
     }
 
     function swipeLeft() {
-        let startX = streamData.canvasWidth - (streamData.canvasWidth * 0.20)
-        let endX = streamData.canvasWidth - (streamData.canvasWidth * 0.80)
-        let startY = streamData.canvasHeight / 2
-        let endY = streamData.canvasHeight / 2
+        let startX = canvasDimensions.width - (canvasDimensions.width * 0.20)
+        let endX = canvasDimensions.width - (canvasDimensions.width * 0.80)
+        let startY = canvasDimensions.height / 2
+        let endY = canvasDimensions.height / 2
         let coord1 = [startX, startY]
         let coord2 = [endX, endY]
         swipeCoordinates(coord1, coord2)
     }
 
     function swipeRight() {
-        let startX = streamData.canvasWidth - (streamData.canvasWidth * 0.80)
-        let endX = streamData.canvasWidth - (streamData.canvasWidth * 0.20)
-        let startY = streamData.canvasHeight / 2
-        let endY = streamData.canvasHeight / 2
+        let startX = canvasDimensions.width - (canvasDimensions.width * 0.80)
+        let endX = canvasDimensions.width - (canvasDimensions.width * 0.20)
+        let startY = canvasDimensions.height / 2
+        let endY = canvasDimensions.height / 2
         let coord1 = [startX, startY]
         let coord2 = [endX, endY]
         swipeCoordinates(coord1, coord2)
@@ -198,26 +190,26 @@ export default function StreamCanvas({ deviceData }) {
         let x = pos[0]
         let y = pos[1]
 
-        let finalX = (x / streamData.canvasWidth) * streamData.deviceX
-        let finalY = (y / streamData.canvasHeight) * streamData.deviceY
+        let finalX = (x / canvasDimensions.width) * deviceX
+        let finalY = (y / canvasDimensions.height) * deviceY
         // If its portrait we keep the x and y as is
-        if (!streamData.isPortrait) {
+        if (!isPortrait) {
             // If its landscape
             // And its Android we still keep the x and y as is because for Android Appium does the coordinates are actually corresponding to the view
             // If we are in portrait X is X and Y is Y and when we are in landscape its the same
-            if (streamData.device_os === 'android') {
-                finalX = (x / streamData.canvasHeight) * streamData.deviceX
-                finalY = (y / streamData.canvasWidth) * streamData.deviceY
+            if (deviceOS === 'android') {
+                finalX = (x / canvasDimensions.height) * deviceX
+                finalY = (y / canvasDimensions.width) * deviceY
             }
-            if (streamData.device_os === 'ios') {
-                if (streamData.uses_custom_wda) {
-                    finalX = streamData.deviceX - ((y / streamData.canvasHeight) * streamData.deviceX)
-                    finalY = (x / streamData.canvasWidth) * streamData.deviceY
+            if (deviceOS === 'ios') {
+                if (usesCustomWda) {
+                    finalX = deviceX - ((y / canvasDimensions.height) * deviceX)
+                    finalY = (x / canvasDimensions.width) * deviceY
                 } else {
                     // On normal WDA in landscape X corresponds to the canvas width but it is actually the device's height
-                    finalX = (x / streamData.canvasWidth) * streamData.deviceY
+                    finalX = (x / canvasDimensions.width) * deviceY
                     // Y corresponds to the canvas height but it is actually the device's width
-                    finalY = (y / streamData.canvasHeight) * streamData.deviceX
+                    finalY = (y / canvasDimensions.height) * deviceX
                 }
             }
         }
@@ -227,16 +219,12 @@ export default function StreamCanvas({ deviceData }) {
             'y': finalY
         })
 
-        let deviceURL = `/device/${streamData.udid}`
+        let deviceURL = `/device/${udid}`
 
         api.post(deviceURL + '/tap', jsonData)
             .then(response => {
                 if (response.status === 404) {
                     return
-                }
-
-                if (response.status === 401) {
-                    logout()
                 }
             })
             .catch(() => {
@@ -248,27 +236,27 @@ export default function StreamCanvas({ deviceData }) {
         let x = pos[0]
         let y = pos[1]
 
-        let finalX = (x / streamData.canvasWidth) * streamData.deviceX
-        let finalY = (y / streamData.canvasHeight) * streamData.deviceY
+        let finalX = (x / canvasDimensions.width) * deviceX
+        let finalY = (y / canvasDimensions.height) * deviceY
 
         // If its portrait we keep the x and y as is
-        if (!streamData.isPortrait) {
+        if (!isPortrait) {
             // If its landscape
             // And its Android we still keep the x and y as is because for Android Appium does the coordinates are actually corresponding to the view
             // If we are in portrait X is X and Y is Y and when we are in landscape its the same
-            if (streamData.device_os === 'android') {
-                finalX = (x / streamData.canvasHeight) * streamData.deviceX
-                finalY = (y / streamData.canvasWidth) * streamData.deviceY
+            if (deviceOS === 'android') {
+                finalX = (x / canvasDimensions.height) * deviceX
+                finalY = (y / canvasDimensions.width) * deviceY
             }
-            if (streamData.device_os === 'ios') {
-                if (streamData.uses_custom_wda) {
-                    finalX = streamData.deviceX - ((y / streamData.canvasHeight) * streamData.deviceX)
-                    finalY = (x / streamData.canvasWidth) * streamData.deviceY
+            if (deviceOS === 'ios') {
+                if (usesCustomWda) {
+                    finalX = deviceX - ((y / canvasDimensions.height) * deviceX)
+                    finalY = (x / canvasDimensions.width) * deviceY
                 } else {
                     // On normal WDA in landscape X corresponds to the canvas width but it is actually the device's height
-                    finalX = (x / streamData.canvasWidth) * streamData.deviceY
+                    finalX = (x / canvasDimensions.width) * deviceY
                     // Y corresponds to the canvas height but it is actually the device's width
-                    finalY = (y / streamData.canvasHeight) * streamData.deviceX
+                    finalY = (y / canvasDimensions.height) * deviceX
                 }
             }
         }
@@ -278,16 +266,12 @@ export default function StreamCanvas({ deviceData }) {
             'y': finalY
         })
 
-        let deviceURL = `/device/${streamData.udid}`
+        let deviceURL = `/device/${udid}`
 
         api.post(deviceURL + '/touchAndHold', jsonData)
             .then(response => {
                 if (response.status === 404) {
                     return
-                }
-
-                if (response.status === 401) {
-                    logout()
                 }
             })
             .catch(() => {
@@ -303,25 +287,25 @@ export default function StreamCanvas({ deviceData }) {
         // Set up the portrait tap coordinates
         // We divide the current coordinate by the canvas size to get the ratio
         // Then we multiply by the actual device width or height to get the actual coordinates on the device that we should send
-        let firstXFinal = (firstCoordX / streamData.canvasWidth) * streamData.deviceX
-        let firstYFinal = (firstCoordY / streamData.canvasHeight) * streamData.deviceY
-        let secondXFinal = (secondCoordX / streamData.canvasWidth) * streamData.deviceX
-        let secondYFinal = (secondCoordY / streamData.canvasHeight) * streamData.deviceY
+        let firstXFinal = (firstCoordX / canvasDimensions.width) * deviceX
+        let firstYFinal = (firstCoordY / canvasDimensions.height) * deviceY
+        let secondXFinal = (secondCoordX / canvasDimensions.width) * deviceX
+        let secondYFinal = (secondCoordY / canvasDimensions.height) * deviceY
 
         // If in landscape we need to do different recalculations
-        if (!streamData.isPortrait) {
+        if (!isPortrait) {
             // If the device is android we just reverse the calculations
             // For X we divide the coordinate by the canvas height to get the correct ratio
             // And for Y we divide the coordinate by the canvas width to get the correct ratio
             // Multiplication is the same as for portrait because Appium for Android follows some actual logic
-            if (streamData.device_os === 'android') {
-                firstXFinal = (firstCoordX / streamData.canvasHeight) * streamData.deviceX
-                firstYFinal = (firstCoordY / streamData.canvasWidth) * streamData.deviceY
-                secondXFinal = (secondCoordX / streamData.canvasHeight) * streamData.deviceX
-                secondYFinal = (secondCoordY / streamData.canvasWidth) * streamData.deviceY
+            if (deviceOS === 'android') {
+                firstXFinal = (firstCoordX / canvasDimensions.height) * deviceX
+                firstYFinal = (firstCoordY / canvasDimensions.width) * deviceY
+                secondXFinal = (secondCoordX / canvasDimensions.height) * deviceX
+                secondYFinal = (secondCoordY / canvasDimensions.width) * deviceY
             } else {
                 // For iOS its complete sh*t
-                if (streamData.uses_custom_wda) {
+                if (usesCustomWda) {
                     // NB: All calculations below are when the device is on its right side landscape(your left)
                     // For custom WDA the 0 X coordinate is at the bottom of the canvas
                     // And the 0 Y coordinate is at the left end of the canvas
@@ -334,22 +318,22 @@ export default function StreamCanvas({ deviceData }) {
                     // For X we get the ratio from the canvas Y coordinate and the canvas height
                     // And we multiply it by the device width because that is what it corresponds to
                     // Then we subtract the value from the actual deviceX because the device width starts from the bottom of the canvas height
-                    firstXFinal = streamData.deviceX - ((firstCoordY / streamData.canvasHeight) * streamData.deviceX)
+                    firstXFinal = deviceX - ((firstCoordY / canvasDimensions.height) * deviceX)
                     // For Y we get the ratio from the canvas X coordinate and the canvas width
                     // And we multiply it by the device height because that is what it corresponds to
-                    firstYFinal = (firstCoordX / streamData.canvasWidth) * streamData.deviceY
+                    firstYFinal = (firstCoordX / canvasDimensions.width) * deviceY
                     // Same goes for the other two coordinates when the mouse is released
-                    secondXFinal = streamData.deviceX - ((secondCoordY / streamData.canvasHeight) * streamData.deviceX)
-                    secondYFinal = (secondCoordX / streamData.canvasWidth) * streamData.deviceY
+                    secondXFinal = deviceX - ((secondCoordY / canvasDimensions.height) * deviceX)
+                    secondYFinal = (secondCoordX / canvasDimensions.width) * deviceY
                 } else {
                     // On normal WDA the X coordinates correspond to the device height
                     // and the Y coordinates correspond to the device width
                     // So we calculate ratio based on canvas dimensions and coordinates
                     // But multiply by device height for X swipe coordinates and by device width for Y swipe coordinates
-                    firstXFinal = (firstCoordX / streamData.canvasWidth) * streamData.deviceY
-                    firstYFinal = (firstCoordY / streamData.canvasHeight) * streamData.deviceX
-                    secondXFinal = (secondCoordX / streamData.canvasWidth) * streamData.deviceY
-                    secondYFinal = (secondCoordY / streamData.canvasHeight) * streamData.deviceX
+                    firstXFinal = (firstCoordX / canvasDimensions.width) * deviceY
+                    firstYFinal = (firstCoordY / canvasDimensions.height) * deviceX
+                    secondXFinal = (secondCoordX / canvasDimensions.width) * deviceY
+                    secondYFinal = (secondCoordY / canvasDimensions.height) * deviceX
                 }
             }
         }
@@ -362,16 +346,12 @@ export default function StreamCanvas({ deviceData }) {
             'endY': secondYFinal
         })
 
-        let deviceURL = `/device/${streamData.udid}`
+        let deviceURL = `/device/${udid}`
 
         api.post(deviceURL + '/swipe', jsonData)
             .then(response => {
                 if (response.status === 404) {
                     return
-                }
-
-                if (response.status === 401) {
-                    logout()
                 }
             })
             .catch(() => {
@@ -437,8 +417,8 @@ export default function StreamCanvas({ deviceData }) {
                 <div
                     id='stream-div'
                     style={{
-                        width: streamData.canvasWidth,
-                        height: streamData.canvasHeight
+                        width: canvasDimensions.width,
+                        height: canvasDimensions.height
                     }}
                 >
                     <Canvas></Canvas>
@@ -498,7 +478,7 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => homeButton(authToken, deviceData)}
+                        onClick={() => homeButton()}
                         className='canvas-buttons'
                         startIcon={<HomeIcon />}
                         variant='contained'
@@ -512,7 +492,7 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => lockButton(authToken, deviceData)}
+                        onClick={() => lockButton()}
                         className='canvas-buttons'
                         startIcon={<LockIcon />}
                         variant='contained'
@@ -526,7 +506,7 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => unlockButton(authToken, deviceData)}
+                        onClick={() => unlockButton()}
                         className='canvas-buttons'
                         startIcon={<LockOpenIcon />}
                         variant='contained'
@@ -540,7 +520,7 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeLeft(authToken, logout, streamData)}
+                        onClick={() => swipeLeft()}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowRightIcon />}
@@ -554,7 +534,7 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeRight(authToken, logout, streamData)}
+                        onClick={() => swipeRight()}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowLeftIcon />}
@@ -568,7 +548,7 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeUp(authToken, logout, streamData)}
+                        onClick={() => swipeUp()}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowDownIcon />}
@@ -582,7 +562,7 @@ export default function StreamCanvas({ deviceData }) {
                 </Grid>
                 <Grid item>
                     <Button
-                        onClick={() => swipeDown(authToken, logout, streamData)}
+                        onClick={() => swipeDown()}
                         className='canvas-buttons'
                         variant='contained'
                         startIcon={<KeyboardArrowUpIcon />}

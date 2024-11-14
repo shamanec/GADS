@@ -35,10 +35,6 @@ export default function UninstallApp({ udid, installedApps }) {
             })
             .catch(error => {
                 if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
                     setIsUninstalling(false)
                 }
                 setIsUninstalling(false)

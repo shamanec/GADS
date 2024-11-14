@@ -96,12 +96,6 @@ export default function ProviderLogsTable({ nickname }) {
                 setPage(0)
             })
             .catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
-                }
             });
     }
 

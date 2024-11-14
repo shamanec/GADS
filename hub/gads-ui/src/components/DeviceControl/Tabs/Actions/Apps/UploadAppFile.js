@@ -144,10 +144,6 @@ function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeve
             })
             .catch(error => {
                 if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
                     setAlertSeverity('error')
                     setAlertText(error.response.data.message)
                     setShowAlert(true)

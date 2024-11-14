@@ -33,12 +33,6 @@ export default function DeviceControl() {
                 }, 1000)
             })
             .catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
-                }
             })
 
         if (in_use_socket) {

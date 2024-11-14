@@ -59,10 +59,6 @@ function TypeText({ deviceData }) {
         api.post(url, json)
             .catch(error => {
                 if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
                     if (error.response.status === 404) {
                     }
                     handleShowError()

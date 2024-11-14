@@ -21,11 +21,6 @@ export default function DevicesAdministration() {
                 setProviders(response.data.providers)
             })
             .catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                    }
-                }
             })
     }
 
