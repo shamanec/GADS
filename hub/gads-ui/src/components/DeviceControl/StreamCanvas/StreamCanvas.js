@@ -13,7 +13,6 @@ import { api } from '../../../services/api.js'
 import StreamSettings from './StreamSettings.js'
 
 export default function StreamCanvas({ deviceData }) {
-    const { authToken, logout } = useContext(Auth)
     const [isPortrait, setIsPortrait] = useState(true)
     const [canvasDimensions, setCanvasDimensions] = useState({
         width: 0,

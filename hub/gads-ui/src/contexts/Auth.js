@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export const Auth = createContext()
 
@@ -6,6 +7,7 @@ export const AuthProvider = ({ children }) => {
     const [authToken, setAuthToken] = useState('')
     const [userName, setUserName] = useState('')
     const [userRole, setUserRole] = useState('')
+    const navigate = useNavigate()
 
     function login(token, name, role) {
         setAuthToken(token)
@@ -24,6 +26,14 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('userRole')
         localStorage.removeItem('username')
     }
+
+    useEffect(() => {
+        // Redirect to "/" on logout (when authToken becomes null)
+        // We have to do it in useEffect because AuthProvider is not a component so we need a hook
+        if (authToken === null) {
+            navigate('/')
+        }
+    }, [authToken, navigate])
 
     useEffect(() => {
         // Check if the auth token exists in localStorage on initial load
