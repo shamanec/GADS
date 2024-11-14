@@ -53,7 +53,7 @@ func HandleRequests() *gin.Engine {
 	authGroup.POST("/admin/device", AddDevice)
 	authGroup.PUT("/admin/device", UpdateDevice)
 	authGroup.DELETE("/admin/device/:udid", DeleteDevice)
-	authGroup.PUT("/admin/device/release", ReleaseUsedDevice)
+	authGroup.POST("/admin/device/:udid/release", ReleaseUsedDevice)
 	authGroup.GET("/admin/devices", GetDevices)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.GET("/admin/users", GetUsers)

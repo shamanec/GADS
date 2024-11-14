@@ -1,12 +1,12 @@
 import { Box, Dialog, DialogContent, Grid } from '@mui/material'
 import { Button } from '@mui/material'
 import { Stack } from '@mui/material'
-import { useDialog } from '../../../../contexts/DialogContext.js'
 import { api } from '../../../../services/api.js'
 import React, { useState, memo } from 'react'
 import CircularProgress from '@mui/material/CircularProgress'
 import CloseIcon from '@mui/icons-material/Close'
 import { useNavigate } from 'react-router-dom'
+import { useSnackbar } from '../../../../contexts/SnackBarContext.js'
 
 function Screenshot({ udid, screenshots, setScreenshots }) {
     const [open, setOpen] = useState(false)
@@ -24,7 +24,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
         api.post(url)
             .then(response => {
                 if (response.status === 404) {
-                    openSessionAlert()
+                    showSessionError()
                     return
                 }
                 return response.data
@@ -35,7 +35,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 404) {
-                        openSessionAlert()
+                        showSessionError()
                     }
                 }
                 setTakeScreenshotStatus('error')
@@ -86,19 +86,12 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
         setScreenshots(prevScreenshots => prevScreenshots.filter((_, i) => i !== index))
     }
 
-    const { showDialog } = useDialog()
-    const openSessionAlert = () => {
-        function backToDevices() {
-            navigate('/devices')
-        }
-
-        showDialog('sessionAlert', {
-            title: 'Session lost!',
-            content: 'You should navigate back to the devices list.',
-            actions: [
-                { label: 'Back to devices', onClick: () => backToDevices() },
-            ],
-            isCloseable: false
+    const { showSnackbar } = useSnackbar()
+    const showSessionError = () => {
+        showSnackbar({
+            message: 'Interaction failed or Appium session has expired!',
+            severity: 'error',
+            duration: 5000, // Optional: Customize the duration for this snackbar
         })
     }
 
