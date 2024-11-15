@@ -3,22 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { Auth } from '../../contexts/Auth'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
-import Alert from '@mui/material/Alert'
 import { api } from '../../services/api.js'
 import { Box, Stack } from '@mui/material'
+import { useSnackbar } from '../../contexts/SnackBarContext.js'
 
 export default function Login() {
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
+    const { showSnackbar, hideSnackbar } = useSnackbar()
     const { login } = useContext(Auth)
-    const [showAlert, setShowAlert] = useState(false)
-    const [alertText, setAlertText] = useState('')
     const navigate = useNavigate()
 
-    function toggleAlert(message) {
-        setAlertText(message)
-        setShowAlert(true)
-    }
+    const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+
+    let gadsVersion = localStorage.getItem('gadsVersion') || 'unknown'
 
     function handleLogin(event) {
         event.preventDefault()
@@ -31,30 +28,33 @@ export default function Login() {
         let url = `/authenticate`
         api.post(url, loginData)
             .then(response => {
-                return response.data
-            })
-            .then(json => {
+                const json = response.data
                 const sessionID = json.sessionID
                 login(sessionID, json.username, json.role)
+                hideSnackbar()
                 navigate('/devices')
+
+                return response.data
             })
             .catch((e) => {
                 if (e.response) {
                     if (e.response.status === 401) {
-                        toggleAlert('Invalid credentials')
+                        showLoginError('Invalid credentials!')
                     }
                 } else {
-                    toggleAlert('Something went wrong')
+                    showLoginError('Something went wrong!')
                 }
-            })
-            .finally(() => {
-                setTimeout(() => {
-                    setShowAlert(false)
-                }, 3000)
             })
     }
 
-    let gadsVersion = localStorage.getItem('gadsVersion') || 'unknown'
+    // Use the custom snackbar to show an error with different messages
+    const showLoginError = (message) => {
+        showSnackbar({
+            message: message,
+            severity: 'error',
+            duration: 3000,
+        })
+    }
 
     return (
         <Box style={{ height: '100vh', width: '100vw', justifyContent: 'center', alignItems: 'center', display: 'flex', backgroundColor: '#f4e6cd' }}>
@@ -130,7 +130,6 @@ export default function Login() {
                                 }}
                             >{gadsVersion.startsWith('v') ? gadsVersion : 'DEV'}
                             </p>
-                            <Alert severity='error' style={{ padding: '2px 4px', visibility: showAlert ? 'visible' : 'hidden', }}>{alertText}</Alert>
                         </Stack>
                     </form>
                 </Box>

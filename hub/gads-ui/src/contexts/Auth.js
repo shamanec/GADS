@@ -5,10 +5,12 @@ import { useSnackbar } from './SnackBarContext'
 export const Auth = createContext()
 
 export const AuthProvider = ({ children }) => {
+    const { showSnackbar } = useSnackbar()
+    const navigate = useNavigate()
+
     const [authToken, setAuthToken] = useState('')
     const [userName, setUserName] = useState('')
     const [userRole, setUserRole] = useState('')
-    const navigate = useNavigate()
 
     function login(token, name, role) {
         setAuthToken(token)
@@ -29,12 +31,11 @@ export const AuthProvider = ({ children }) => {
         showLogoutError()
     }
 
-    const { showSnackbar } = useSnackbar()
     const showLogoutError = () => {
         showSnackbar({
             message: 'You are logged out!',
             severity: 'warning',
-            duration: 5000,
+            duration: 3000,
         })
     }
 
