@@ -1,31 +1,26 @@
-import React, { useState, useContext } from 'react'
-import { Auth } from '../../../../../contexts/Auth'
+import React, { useState } from 'react'
 import CircularProgress from '@mui/material/CircularProgress'
-import { Box, Alert, Button } from '@mui/material'
+import { Box, Button } from '@mui/material'
 import './UploadAppFile.css'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 import { List, ListItem, ListItemIcon, ListItemText, ListSubheader } from '@mui/material'
 import DescriptionIcon from '@mui/icons-material/Description'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import { api } from '../../../../../services/api.js'
+import { useSnackbar } from '../../../../../contexts/SnackBarContext.js'
 
 
 export default function UploadAppFile({ deviceData }) {
+    const { showSnackbar } = useSnackbar()
     // Upload file and file data
     const [file, setFile] = useState(null)
     const [fileName, setFileName] = useState('No data')
     const [fileSize, setFileSize] = useState('No data')
 
-    // Alert
-    const [showAlert, setShowAlert] = useState(false)
-    const [alertText, setAlertText] = useState()
-    const [alertSeverity, setAlertSeverity] = useState()
-
     // Upload button
     const [buttonDisabled, setButtonDisabled] = useState(true)
 
     function handleFileChange(e) {
-        setShowAlert(false)
         if (e.target.files) {
             const targetFile = e.target.files[0]
             const fileExtension = targetFile.name.split('.').pop()
@@ -35,24 +30,79 @@ export default function UploadAppFile({ deviceData }) {
                 // Still show the selected file name and size
                 setFileName(targetFile.name)
                 setFileSize((targetFile.size / (1024 * 1024)).toFixed(2) + ' mb')
-                // Show an alert and disable the upload button
-                setAlertSeverity('error')
-                setAlertText('Invalid file extension, only `apk`, `ipa` and `zip` allowed')
-                setShowAlert(true)
+                // Disable the upload button
+                showCustomSnackbarError('File should be .apk or .ipa or .zip!', 5000)
                 setButtonDisabled(true)
                 return
             }
 
             // If the file has a valid extension
-            // Enable the button, hide any presented alert and present the file details
+            // Enable the button and present the file details
             setButtonDisabled(false)
-            setShowAlert(false)
             setFileName(targetFile.name)
             setFileSize((targetFile.size / (1024 * 1024)).toFixed(2) + ' mb')
             setFile(targetFile)
         } else {
             return
         }
+    }
+
+    const showCustomSnackbarError = (message, timeout = 3000) => {
+        showSnackbar({
+            message: message,
+            severity: 'error',
+            duration: timeout,
+        })
+    }
+
+    function Uploader({ file, deviceData, buttonDisabled }) {
+        const [isUploading, setIsUploading] = useState(false)
+
+        function handleUpload() {
+            setIsUploading(true)
+            const url = `/device/${deviceData.udid}/uploadAndInstallApp`
+
+            const form = new FormData()
+            form.append('file', file)
+
+            api.post(url, form, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+                .then(() => {
+                    setIsUploading(false)
+                })
+                .catch(error => {
+                    if (error.response) {
+                        setIsUploading(false)
+                        showCustomSnackbarError(`Failed to upload '${file}'`)
+                    }
+                    showCustomSnackbarError(`Failed to upload '${file}'`)
+                    setIsUploading(false)
+                })
+        }
+
+        return (
+            <Box id='upload-box'>
+                <Button
+                    startIcon={<FileUploadIcon />}
+                    id='upload-button'
+                    variant='contained'
+                    onClick={handleUpload}
+                    disabled={isUploading || buttonDisabled}
+                    style={{
+                        backgroundColor: (isUploading || buttonDisabled) ? 'rgba(51,71,110,0.47)' : '#2f3b26',
+                        color: '#9ba984',
+                        fontWeight: 'bold',
+                        width: '250px'
+                    }}
+                >Upload and install</Button>
+                {isUploading &&
+                    <CircularProgress id='progress-indicator' size={30} />
+                }
+            </Box>
+        )
     }
 
     return (
@@ -110,71 +160,7 @@ export default function UploadAppFile({ deviceData }) {
                 file={file}
                 deviceData={deviceData}
                 buttonDisabled={buttonDisabled}
-                setAlertSeverity={setAlertSeverity}
-                setAlertText={setAlertText}
-                setShowAlert={setShowAlert}
             ></Uploader>
-            {showAlert && <Alert id='add-user-alert' severity={alertSeverity}>{alertText}</Alert>}
-        </Box>
-    )
-}
-
-function Uploader({ file, deviceData, buttonDisabled, setShowAlert, setAlertSeverity, setAlertText }) {
-    const { logout } = useContext(Auth)
-    const [isUploading, setIsUploading] = useState(false)
-
-    function handleUpload() {
-        setIsUploading(true)
-        const url = `/device/${deviceData.udid}/uploadAndInstallApp`
-
-        const form = new FormData()
-        form.append('file', file)
-
-        setShowAlert(false)
-        api.post(url, form, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        })
-            .then(response => {
-                setAlertSeverity('success')
-                setAlertText(response.data.message)
-                setShowAlert(true)
-                setIsUploading(false)
-            })
-            .catch(error => {
-                if (error.response) {
-                    setAlertSeverity('error')
-                    setAlertText(error.response.data.message)
-                    setShowAlert(true)
-                    setIsUploading(false)
-                }
-                setIsUploading(false)
-                setAlertSeverity('error')
-                setAlertText('Failed uploading/installing file')
-                setShowAlert(true)
-                console.log('Failed uploading/installing file - ' + error)
-            })
-    }
-
-    return (
-        <Box id='upload-box'>
-            <Button
-                startIcon={<FileUploadIcon />}
-                id='upload-button'
-                variant='contained'
-                onClick={handleUpload}
-                disabled={isUploading || buttonDisabled}
-                style={{
-                    backgroundColor: (isUploading || buttonDisabled) ? 'rgba(51,71,110,0.47)' : '#2f3b26',
-                    color: '#9ba984',
-                    fontWeight: 'bold',
-                    width: '250px'
-                }}
-            >Upload and install</Button>
-            {isUploading &&
-                <CircularProgress id='progress-indicator' size={30} />
-            }
         </Box>
     )
 }

@@ -1,15 +1,15 @@
 import { Box, Button, CircularProgress, FormControl, MenuItem, Select, Stack } from '@mui/material'
 import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import './InstallApp.css'
-import { useContext, useState } from 'react'
-import { Auth } from '../../../../../contexts/Auth'
+import { useState } from 'react'
 import { api } from '../../../../../services/api.js'
+import { useSnackbar } from '../../../../../contexts/SnackBarContext.js'
 
 export default function UninstallApp({ udid, installedApps }) {
+    const { showSnackbar } = useSnackbar()
     const [selectedAppUninstall, setSelectedAppUninstall] = useState('no-app')
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isUninstalling, setIsUninstalling] = useState(false)
-    const { logout } = useContext(Auth)
 
     function handleUninstallChange(event) {
         const app = event.target.value
@@ -35,10 +35,19 @@ export default function UninstallApp({ udid, installedApps }) {
             })
             .catch(error => {
                 if (error.response) {
+                    showCustomSnackbarError(`Failed to uninstall '${selectedAppUninstall}'`)
                     setIsUninstalling(false)
                 }
                 setIsUninstalling(false)
             })
+    }
+
+    const showCustomSnackbarError = (message) => {
+        showSnackbar({
+            message: message,
+            severity: 'error',
+            duration: 3000,
+        })
     }
 
     return (
