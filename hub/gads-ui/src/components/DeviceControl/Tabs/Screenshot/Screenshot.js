@@ -21,10 +21,6 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
         const url = `/device/${udid}/screenshot`
         api.post(url)
             .then(response => {
-                if (response.status === 404) {
-                    showSessionError()
-                    return
-                }
                 return response.data
             })
             .then(screenshotJson => {
@@ -33,8 +29,12 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             .catch(error => {
                 if (error.response) {
                     if (error.response.status === 404) {
-                        showSessionError()
+                        showCustomSnackbarError('Failed to take screenshot - Appium session expired!')
+                    } else {
+                        showCustomSnackbarError('Failed to take screenshot!')
                     }
+                } else {
+                    showCustomSnackbarError('Failed to take screenshot!')
                 }
                 setTakeScreenshotStatus('error')
             })
@@ -85,11 +85,11 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
     }
 
     const { showSnackbar } = useSnackbar()
-    const showSessionError = () => {
+    const showCustomSnackbarError = (message) => {
         showSnackbar({
-            message: 'Interaction failed or Appium session has expired!',
+            message: message,
             severity: 'error',
-            duration: 5000, // Optional: Customize the duration for this snackbar
+            duration: 3000,
         })
     }
 
