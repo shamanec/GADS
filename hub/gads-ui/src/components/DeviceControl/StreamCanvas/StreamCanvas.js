@@ -1,5 +1,4 @@
-import { Auth } from '../../../contexts/Auth'
-import { useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './StreamCanvas.css'
 import { Button, Divider, Grid, Tooltip } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
@@ -11,8 +10,10 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import { api } from '../../../services/api.js'
 import StreamSettings from './StreamSettings.js'
+import { useSnackbar } from '../../../contexts/SnackBarContext.js'
 
 export default function StreamCanvas({ deviceData }) {
+    const { showSnackbar } = useSnackbar()
     const [isPortrait, setIsPortrait] = useState(true)
     const [canvasDimensions, setCanvasDimensions] = useState({
         width: 0,
@@ -75,6 +76,14 @@ export default function StreamCanvas({ deviceData }) {
             window.removeEventListener('resize', updateCanvasDimensions)
         }
     }, [isPortrait])
+
+    const showCustomSnackbarError = (message) => {
+        showSnackbar({
+            message: message,
+            severity: 'error',
+            duration: 3000,
+        })
+    }
 
     function Canvas() {
         var tapStartAt = 0
@@ -226,7 +235,16 @@ export default function StreamCanvas({ deviceData }) {
                     return
                 }
             })
-            .catch(() => {
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 404) {
+                        showCustomSnackbarError('Tap failed - Appium session has expired!')
+                    } else {
+                        showCustomSnackbarError('Tap failed!')
+                    }
+                } else {
+                    showCustomSnackbarError('Tap failed!')
+                }
             })
     }
 
@@ -268,12 +286,17 @@ export default function StreamCanvas({ deviceData }) {
         let deviceURL = `/device/${udid}`
 
         api.post(deviceURL + '/touchAndHold', jsonData)
-            .then(response => {
-                if (response.status === 404) {
-                    return
+            .then(() => { })
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 404) {
+                        showCustomSnackbarError('Touch & hold failed - Appium session has expired!')
+                    } else {
+                        showCustomSnackbarError('Touch & hold failed!')
+                    }
+                } else {
+                    showCustomSnackbarError('Touch & hold failed!')
                 }
-            })
-            .catch(() => {
             })
     }
 
@@ -348,12 +371,17 @@ export default function StreamCanvas({ deviceData }) {
         let deviceURL = `/device/${udid}`
 
         api.post(deviceURL + '/swipe', jsonData)
-            .then(response => {
-                if (response.status === 404) {
-                    return
+            .then(() => { })
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 404) {
+                        showCustomSnackbarError('Swipe failed - Appium session has expired!')
+                    } else {
+                        showCustomSnackbarError('Swipe failed!')
+                    }
+                } else {
+                    showCustomSnackbarError('Swipe failed!')
                 }
-            })
-            .catch(() => {
             })
     }
 
@@ -361,11 +389,17 @@ export default function StreamCanvas({ deviceData }) {
         let deviceURL = `/device/${deviceData.udid}/home`
 
         api.post(deviceURL)
-            .then(response => {
-                if (response.status === 404) {
+            .then(() => { })
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 404) {
+                        showCustomSnackbarError('Navigation to Home failed - Appium session has expired!')
+                    } else {
+                        showCustomSnackbarError('Navigation to Home failed!')
+                    }
+                } else {
+                    showCustomSnackbarError('Navigation to Home failed!')
                 }
-            })
-            .catch(() => {
             })
     }
 
@@ -373,11 +407,17 @@ export default function StreamCanvas({ deviceData }) {
         let deviceURL = `/device/${deviceData.udid}/lock`
 
         api.post(deviceURL)
-            .then(response => {
-                if (response.status === 404) {
+            .then(() => { })
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 404) {
+                        showCustomSnackbarError('Device lock failed - Appium session has expired!')
+                    } else {
+                        showCustomSnackbarError('Device lock failed!')
+                    }
+                } else {
+                    showCustomSnackbarError('Device lock failed!')
                 }
-            })
-            .catch(() => {
             })
     }
 
@@ -385,11 +425,17 @@ export default function StreamCanvas({ deviceData }) {
         let deviceURL = `/device/${deviceData.udid}/unlock`
 
         api.post(deviceURL)
-            .then(response => {
-                if (response.status === 404) {
+            .then(() => { })
+            .catch((error) => {
+                if (error.response) {
+                    if (error.response.status === 404) {
+                        showCustomSnackbarError('Device unlock failed - Appium session has expired!')
+                    } else {
+                        showCustomSnackbarError('Device unlock failed!')
+                    }
+                } else {
+                    showCustomSnackbarError('Device unlock failed!')
                 }
-            })
-            .catch(() => {
             })
     }
 
