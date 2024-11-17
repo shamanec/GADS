@@ -178,50 +178,58 @@ function UseButton({ device }) {
 
     if (device.info.usage === 'disabled') {
         return (
-            <button
+            <Button
                 className='device-buttons'
                 variant='contained'
                 disabled
-            >N/A</button>
+            >
+                N/A
+            </Button>
         )
     }
 
     if (device.available) {
         if (device.info.usage === 'automation') {
             return (
-                <button
+                <Button
                     className='device-buttons'
                     variant='contained'
                     disabled
-                >N/A</button>
+                >
+                    N/A
+                </Button>
             )
         }
         if (device.is_running_automation || device.in_use) {
             return (
-                <button
+                <Button
                     className='device-buttons'
                     disabled
-                >In Use</button>
+                >
+                    In Use
+                </Button>
             )
         } else {
             return (
-                <button
+                <Button
                     className='device-buttons'
                     onClick={handleUseButtonClick}
                     disabled={buttonDisabled}
                 >
                     {loading ? <span className='spinner'></span> : 'Use'}
-                </button>
+                </Button>
             )
         }
 
     } else {
         return (
-            <button
+            <Button
                 className='device-buttons'
                 variant='contained'
                 disabled
-            >N/A</button>
+            >
+                N/A
+            </Button>
         )
     }
 }
