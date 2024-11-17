@@ -12,7 +12,7 @@ import { api } from '../../../services/api.js'
 import StreamSettings from './StreamSettings.js'
 import { useSnackbar } from '../../../contexts/SnackBarContext.js'
 
-export default function StreamCanvas({ deviceData }) {
+export default function StreamCanvas({ deviceData, shouldShowStream }) {
     const { showSnackbar } = useSnackbar()
     const [isPortrait, setIsPortrait] = useState(true)
     const [canvasDimensions, setCanvasDimensions] = useState({
@@ -66,7 +66,7 @@ export default function StreamCanvas({ deviceData }) {
         updateCanvasDimensions()
 
         // Reapply the stream URL after the resize is complete
-        imgElement.src = streamUrl
+        imgElement.src = shouldShowStream ? streamUrl : ''
 
         // Set resize listener
         window.addEventListener('resize', updateCanvasDimensions)
@@ -147,7 +147,7 @@ export default function StreamCanvas({ deviceData }) {
                 width={canvasDimensions.width + 'px'}
                 height={canvasDimensions.height + 'px'}
                 style={{ display: 'block' }}
-                src={streamUrl}
+                src={shouldShowStream ? streamUrl : ''}
             ></img>
         )
     }

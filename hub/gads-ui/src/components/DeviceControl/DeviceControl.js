@@ -10,11 +10,12 @@ import { api } from '../../services/api.js'
 import { useDialog } from '../../contexts/DialogContext.js'
 
 export default function DeviceControl() {
-    const { logout, userName } = useContext(Auth)
+    const { userName } = useContext(Auth)
     const { udid } = useParams()
     const navigate = useNavigate()
     const [deviceData, setDeviceData] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [shouldShowStream, setShouldShowStream] = useState(true)
     let screenRatio = window.innerHeight / window.innerWidth
 
     const healthUrl = `/device/${udid}/health`
@@ -66,8 +67,11 @@ export default function DeviceControl() {
                         in_use_socket.send(userName)
                         break
                     case 'releaseDevice':
+                        setShouldShowStream(false)
                         openDeviceForciblyReleasedAlert()
-                        console.log('releasing device')
+                        if (in_use_socket) {
+                            in_use_socket.close()
+                        }
                         break
                 }
             }
@@ -159,7 +163,8 @@ export default function DeviceControl() {
                         >
                             <StreamCanvas
                                 deviceData={deviceData}
-                            ></StreamCanvas>
+                                shouldShowStream={shouldShowStream}
+                            />
                             <TabularControl
                                 deviceData={deviceData}
                             ></TabularControl>
