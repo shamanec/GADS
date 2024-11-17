@@ -85,6 +85,224 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         })
     }
 
+    return (
+        <Grid
+            spacing={1}
+            direction='row'
+            display='flex'
+            justifyContent='center'
+            alignItems='flex-start'
+        >
+
+            <div
+                id='phone-imitation'
+            >
+                <h3
+                    style={{
+                        color: '#2f3b26',
+                        display: 'flex',
+                        fontFamily: 'Verdana',
+                        justifyContent: 'center'
+                    }}
+                >{deviceData.model}</h3>
+                <div
+                    id='stream-div'
+                    style={{
+                        width: canvasDimensions.width,
+                        height: canvasDimensions.height
+                    }}
+                >
+                    <Canvas></Canvas>
+                    <Stream></Stream>
+                </div>
+                <Grid
+                    height='30px'
+                    display='flex'
+                    justifyContent='center'
+                >
+                </Grid>
+            </div >
+
+            <Grid
+                direction='column'
+                width='150px'
+                marginLeft='10px'
+                spacing={1}
+                container
+            >
+                <Grid item>
+                    <Tooltip
+                        title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
+                        arrow
+                        placement='top'
+                    >
+                        <Button
+                            variant={'contained'}
+                            color={'secondary'}
+                            onClick={() => handleOrientationButtonClick(true)}
+                            disabled={isPortrait}
+                            sx={{ width: '100%' }}
+                        >
+                            Portrait
+                        </Button>
+                    </Tooltip>
+                </Grid>
+                <Grid item>
+                    <Tooltip
+                        title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
+                        arrow
+                        placement='top'
+                    >
+                        <Button
+                            variant={'contained'}
+                            color={'secondary'}
+                            onClick={() => handleOrientationButtonClick(false)}
+                            disabled={!isPortrait}
+                            sx={{ width: '100%' }}
+                        >
+                            Landscape
+                        </Button>
+                    </Tooltip>
+                </Grid>
+                <Grid item>
+                    <Divider></Divider>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => homeButton()}
+                        className='canvas-buttons'
+                        startIcon={<HomeIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
+                            width: '100%'
+                        }}
+                    >Home</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => lockButton()}
+                        className='canvas-buttons'
+                        startIcon={<LockIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
+                            width: '100%'
+                        }}
+                    >Lock</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => unlockButton()}
+                        className='canvas-buttons'
+                        startIcon={<LockOpenIcon />}
+                        variant='contained'
+                        style={{
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
+                            width: '100%'
+                        }}
+                    >Unlock</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeLeft()}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowRightIcon />}
+                        style={{
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeRight()}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowLeftIcon />}
+                        style={{
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeUp()}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowDownIcon />}
+                        style={{
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <Button
+                        onClick={() => swipeDown()}
+                        className='canvas-buttons'
+                        variant='contained'
+                        startIcon={<KeyboardArrowUpIcon />}
+                        style={{
+                            fontWeight: 'bold',
+                            color: '#9ba984',
+                            backgroundColor: '#2f3b26',
+                            width: '100%'
+                        }}
+                    >Swipe</Button>
+                </Grid>
+                <Grid item>
+                    <StreamSettings deviceData={deviceData}></StreamSettings>
+                </Grid>
+                <Grid item>
+                    <Tooltip
+                        title='Refresh the Appium session'
+                        arrow
+                        position='top'
+                    >
+                        <Button
+                            onClick={() => unlockButton()}
+                            className='canvas-buttons'
+                            startIcon={
+                                <img
+                                    src="/images/appium-logo.png"
+                                    alt="icon"
+                                    style={{
+                                        width: '24px',
+                                        height: '24px',
+                                    }}
+                                />
+                            }
+                            variant='contained'
+                            style={{
+                                fontWeight: 'bold',
+                                color: '#9ba984',
+                                backgroundColor: '#2f3b26',
+                                width: '100%'
+                            }}
+                        >
+                            Refresh
+                        </Button>
+                    </Tooltip>
+                </Grid>
+            </Grid>
+        </Grid >
+    )
+
     function Canvas() {
         var tapStartAt = 0
         var coord1
@@ -438,191 +656,4 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 }
             })
     }
-
-    return (
-        <Grid
-            spacing={1}
-            direction='row'
-            display='flex'
-            justifyContent='center'
-            alignItems='flex-start'
-        >
-
-            <div
-                id='phone-imitation'
-            >
-                <h3
-                    style={{
-                        color: '#2f3b26',
-                        display: 'flex',
-                        fontFamily: 'Verdana',
-                        justifyContent: 'center'
-                    }}
-                >{deviceData.model}</h3>
-                <div
-                    id='stream-div'
-                    style={{
-                        width: canvasDimensions.width,
-                        height: canvasDimensions.height
-                    }}
-                >
-                    <Canvas></Canvas>
-                    <Stream></Stream>
-                </div>
-                <Grid
-                    height='30px'
-                    display='flex'
-                    justifyContent='center'
-                >
-                </Grid>
-            </div >
-
-            <Grid
-                direction='column'
-                width='150px'
-                marginLeft='10px'
-                spacing={1}
-                container
-            >
-                <Grid item>
-                    <Tooltip
-                        title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
-                        arrow
-                        placement='top'
-                    >
-                        <Button
-                            variant={'contained'}
-                            color={'secondary'}
-                            onClick={() => handleOrientationButtonClick(true)}
-                            disabled={isPortrait}
-                            sx={{ width: '100%' }}
-                        >
-                            Portrait
-                        </Button>
-                    </Tooltip>
-                </Grid>
-                <Grid item>
-                    <Tooltip
-                        title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
-                        arrow
-                        placement='top'
-                    >
-                        <Button
-                            variant={'contained'}
-                            color={'secondary'}
-                            onClick={() => handleOrientationButtonClick(false)}
-                            disabled={!isPortrait}
-                            sx={{ width: '100%' }}
-                        >
-                            Landscape
-                        </Button>
-                    </Tooltip>
-                </Grid>
-                <Grid item>
-                    <Divider></Divider>
-                </Grid>
-                <Grid item>
-                    <Button
-                        onClick={() => homeButton()}
-                        className='canvas-buttons'
-                        startIcon={<HomeIcon />}
-                        variant='contained'
-                        style={{
-                            fontWeight: 'bold',
-                            color: '#9ba984',
-                            backgroundColor: '#2f3b26',
-                            width: '100%'
-                        }}
-                    >Home</Button>
-                </Grid>
-                <Grid item>
-                    <Button
-                        onClick={() => lockButton()}
-                        className='canvas-buttons'
-                        startIcon={<LockIcon />}
-                        variant='contained'
-                        style={{
-                            fontWeight: 'bold',
-                            color: '#9ba984',
-                            backgroundColor: '#2f3b26',
-                            width: '100%'
-                        }}
-                    >Lock</Button>
-                </Grid>
-                <Grid item>
-                    <Button
-                        onClick={() => unlockButton()}
-                        className='canvas-buttons'
-                        startIcon={<LockOpenIcon />}
-                        variant='contained'
-                        style={{
-                            fontWeight: 'bold',
-                            color: '#9ba984',
-                            backgroundColor: '#2f3b26',
-                            width: '100%'
-                        }}
-                    >Unlock</Button>
-                </Grid>
-                <Grid item>
-                    <Button
-                        onClick={() => swipeLeft()}
-                        className='canvas-buttons'
-                        variant='contained'
-                        startIcon={<KeyboardArrowRightIcon />}
-                        style={{
-                            fontWeight: 'bold',
-                            color: '#9ba984',
-                            backgroundColor: '#2f3b26',
-                            width: '100%'
-                        }}
-                    >Swipe</Button>
-                </Grid>
-                <Grid item>
-                    <Button
-                        onClick={() => swipeRight()}
-                        className='canvas-buttons'
-                        variant='contained'
-                        startIcon={<KeyboardArrowLeftIcon />}
-                        style={{
-                            fontWeight: 'bold',
-                            color: '#9ba984',
-                            backgroundColor: '#2f3b26',
-                            width: '100%'
-                        }}
-                    >Swipe</Button>
-                </Grid>
-                <Grid item>
-                    <Button
-                        onClick={() => swipeUp()}
-                        className='canvas-buttons'
-                        variant='contained'
-                        startIcon={<KeyboardArrowDownIcon />}
-                        style={{
-                            fontWeight: 'bold',
-                            color: '#9ba984',
-                            backgroundColor: '#2f3b26',
-                            width: '100%'
-                        }}
-                    >Swipe</Button>
-                </Grid>
-                <Grid item>
-                    <Button
-                        onClick={() => swipeDown()}
-                        className='canvas-buttons'
-                        variant='contained'
-                        startIcon={<KeyboardArrowUpIcon />}
-                        style={{
-                            fontWeight: 'bold',
-                            color: '#9ba984',
-                            backgroundColor: '#2f3b26',
-                            width: '100%'
-                        }}
-                    >Swipe</Button>
-                </Grid>
-                <Grid item>
-                    <StreamSettings deviceData={deviceData}></StreamSettings>
-                </Grid>
-            </Grid>
-        </Grid >
-    )
 }

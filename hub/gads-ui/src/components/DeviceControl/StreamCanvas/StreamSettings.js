@@ -3,8 +3,10 @@ import { useState } from 'react'
 import { api } from '../../../services/api'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
+import { useSnackbar } from '../../../contexts/SnackBarContext'
 
 export default function StreamSettings({ deviceData }) {
+    const { showSnackbar } = useSnackbar()
     const [fps, setFps] = useState(deviceData.stream_target_fps)
     const [jpegQuality, setJpegQuality] = useState(deviceData.stream_jpeg_quality)
     const [scalingFactor, setScalingFactor] = useState(deviceData.stream_scaling_factor)
@@ -42,6 +44,7 @@ export default function StreamSettings({ deviceData }) {
                 setUpdateSettingsStatus('success')
             })
             .catch(() => {
+                showCustomSnackbarError('Failed to update stream settings!')
                 setUpdateSettingsStatus('error')
             })
             .finally(() => {
@@ -52,6 +55,14 @@ export default function StreamSettings({ deviceData }) {
                     }, 2000)
                 }, 1000)
             })
+    }
+
+    const showCustomSnackbarError = (message) => {
+        showSnackbar({
+            message: message,
+            severity: 'error',
+            duration: 3000,
+        })
     }
 
     return (
