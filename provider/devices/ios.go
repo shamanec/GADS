@@ -324,7 +324,7 @@ func createGoIOSTunnel(ctx context.Context, device *models.Device) (tunnel.Tunne
 
 func goIosDeviceWithRsdProvider(device *models.Device) error {
 	var err error
-	rsdService, err := ios.NewWithAddrPort(device.GoIOSTunnel.Address, device.GoIOSTunnel.RsdPort, device.GoIOSDeviceEntry)
+	rsdService, err := ios.NewWithAddrPortDevice(device.GoIOSTunnel.Address, device.GoIOSTunnel.RsdPort, device.GoIOSDeviceEntry)
 	if err != nil {
 		return err
 	}
@@ -345,15 +345,21 @@ func goIosDeviceWithRsdProvider(device *models.Device) error {
 }
 
 func runWDAGoIOS(device *models.Device) {
-	_, err := testmanagerd.RunXCUITest(
-		config.ProviderConfig.WdaBundleID,
-		config.ProviderConfig.WdaBundleID,
-		"WebDriverAgentRunner.xctest",
-		device.GoIOSDeviceEntry,
-		nil,
-		nil,
-		nil,
-		testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+	testConfig := testmanagerd.TestConfig{
+		BundleId:           config.ProviderConfig.WdaBundleID,
+		TestRunnerBundleId: config.ProviderConfig.WdaBundleID,
+		XctestConfigName:   "WebDriverAgentRunner.xctest",
+		Env:                nil,
+		Args:               nil,
+		TestsToRun:         nil,
+		TestsToSkip:        nil,
+		XcTest:             false,
+		Device:             device.GoIOSDeviceEntry,
+		Listener:           testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()),
+	}
+	_, err := testmanagerd.RunTestWithConfig(
+		context.Background(),
+		testConfig)
 	if err != nil {
 		resetLocalDevice(device)
 	}
