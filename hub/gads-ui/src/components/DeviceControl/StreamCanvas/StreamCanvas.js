@@ -268,37 +268,6 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 <Grid item>
                     <StreamSettings deviceData={deviceData}></StreamSettings>
                 </Grid>
-                <Grid item>
-                    <Tooltip
-                        title='Refresh the Appium session'
-                        arrow
-                        position='top'
-                    >
-                        <Button
-                            onClick={() => unlockButton()}
-                            className='canvas-buttons'
-                            startIcon={
-                                <img
-                                    src="/images/appium-logo.png"
-                                    alt="icon"
-                                    style={{
-                                        width: '24px',
-                                        height: '24px',
-                                    }}
-                                />
-                            }
-                            variant='contained'
-                            style={{
-                                fontWeight: 'bold',
-                                color: '#9ba984',
-                                backgroundColor: '#2f3b26',
-                                width: '100%'
-                            }}
-                        >
-                            Refresh
-                        </Button>
-                    </Tooltip>
-                </Grid>
             </Grid>
         </Grid >
     )

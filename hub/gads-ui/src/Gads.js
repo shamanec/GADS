@@ -10,6 +10,7 @@ import AdminDashboard from './components/Admin/AdminDashboard'
 import axiosInterceptor from './services/axiosInterceptor'
 import { DialogProvider } from './contexts/DialogContext'
 import { SnackbarProvider } from './contexts/SnackBarContext'
+import { LoadingOverlayProvider } from './contexts/LoadingOverlayContext'
 
 function Gads() {
     const { authToken, logout } = useContext(Auth)
@@ -34,8 +35,11 @@ function Gads() {
                     <Routes>
                         <Route path="/" element={<Navigate to="/devices" />} />
                         <Route path="/devices" element={<DeviceSelection />} />
+
                         <Route path="/devices/control/:udid" element={
-                            <DeviceControl />
+                            <LoadingOverlayProvider>
+                                <DeviceControl />
+                            </LoadingOverlayProvider>
                         } />
                         <Route path="/admin" element={<AdminDashboard />} />
                     </Routes>
