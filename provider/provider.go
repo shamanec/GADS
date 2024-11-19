@@ -2,7 +2,6 @@ package provider
 
 import (
 	"GADS/common/db"
-	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
@@ -13,7 +12,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"sort"
 	"strings"
 	"time"
 
@@ -65,6 +63,14 @@ func StartProvider(flags *pflag.FlagSet) {
 	logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is installed and available on the host")
 	if !providerutil.AppiumAvailable() {
 		log.Fatal("Appium is not available, set it up on the host as explained in the readme")
+	}
+
+	// Download supervision profile file from MongoDB if a supervision password was supplied
+	if config.ProviderConfig.SupervisionPassword != "" {
+		err = config.SetupIOSSupervisionProfileFile()
+		if err != nil {
+			log.Fatalf("You've set up a supervision profile password but there is something wrong with providing the supervision profile file from MongoDB - %s", err)
+		}
 	}
 
 	// Finalize grid configuration if Selenium Grid usage enabled
@@ -181,16 +187,9 @@ func updateProviderInDB() {
 		coll := db.MongoClient().Database("gads").Collection("providers")
 		filter := bson.D{{Key: "nickname", Value: config.ProviderConfig.Nickname}}
 
-		var providedDevices []models.Device
-		for _, mapDevice := range devices.DBDeviceMap {
-			providedDevices = append(providedDevices, *mapDevice)
-		}
-		sort.Sort(models.ByUDID(providedDevices))
-
 		update := bson.M{
 			"$set": bson.M{
-				"last_updated":     time.Now().UnixMilli(),
-				"provided_devices": providedDevices,
+				"last_updated": time.Now().UnixMilli(),
 			},
 		}
 		opts := options.Update().SetUpsert(true)

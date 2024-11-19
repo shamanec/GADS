@@ -19,6 +19,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/pelletier/go-toml/v2"
 
@@ -65,7 +66,7 @@ func updateProviderHub() {
 
 	for {
 		if updateFailureCounter >= 30 {
-			log.Fatalf("Unsuccessfully attempted to update device data in hub for 10 times, killing provider")
+			log.Fatalf("Unsuccessfully attempted to update device data in hub 30 times, killing provider")
 		}
 		time.Sleep(1 * time.Second)
 
@@ -388,6 +389,21 @@ func setupIOSDevice(device *models.Device) {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair device `%s` - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
+	}
+
+	// Check if developer mode is enabled on the device
+	if device.SemVer.Major() >= 16 {
+		devModeEnabled, err := imagemounter.IsDevModeEnabled(device.GoIOSDeviceEntry)
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not check developer mode status on device `%s` - %s", device.UDID, err))
+			resetLocalDevice(device)
+			return
+		}
+		if !devModeEnabled {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Device `%s` is iOS 16+ but developer mode is not enabled!", device.UDID))
+			resetLocalDevice(device)
+			return
+		}
 	}
 
 	// Mount the DDI on the device

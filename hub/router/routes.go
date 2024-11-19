@@ -618,7 +618,7 @@ func UploadFile(c *gin.Context) {
 		return
 	}
 
-	err = db.UploadFileGridFS(openedFile, fmt.Sprintf("%s%s", fileName, ext), true)
+	err = db.UploadFileGridFS(openedFile, fmt.Sprintf("%s", fileName), true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
 		return

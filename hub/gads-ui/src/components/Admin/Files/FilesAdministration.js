@@ -46,7 +46,7 @@ export default function FilesAdministration() {
                 description='If you want to connect provider Appium nodes to Selenium Grid instance you need to upload a valid Selenium jar. Version 4.13 is recommended.'
                 allowedExtensions={['jar']}
                 fileStatus={seleniumJarExists}
-                fileName='selenium'
+                fileName='selenium.jar'
                 expectedExtension='.jar'
             />
             <FileUploader

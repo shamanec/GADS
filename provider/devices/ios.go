@@ -222,9 +222,22 @@ func pairIOS(device *models.Device) error {
 		return nil
 	}
 
+	if config.ProviderConfig.SupervisionPassword == "" {
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Supervision profile exists but no password provided, falling back to unsupervised pairing for device `%s`", device.UDID))
+		err = ios.Pair(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
+		}
+		return nil
+	}
 	err = ios.PairSupervised(device.GoIOSDeviceEntry, p12, config.ProviderConfig.SupervisionPassword)
 	if err != nil {
-		return fmt.Errorf("Could not perform supervised pairing successfully - %s", err)
+		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to perform supervised pairing on device `%s`, device unsupervised or unknown error - %s. Falling back to unsupervised pairing", device.UDID, err))
+		err = ios.Pair(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
+		}
+		return nil
 	}
 
 	return nil

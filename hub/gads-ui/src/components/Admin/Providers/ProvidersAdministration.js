@@ -72,6 +72,7 @@ function NewProvider({ handleGetProvidersData }) {
     const [seleniumGridInstance, setSeleniumGridInstance] = useState('')
     const [loading, setLoading] = useState(false)
     const [addProviderStatus, setAddProviderStatus] = useState(null)
+    const [supervisionPassword, setSupervisionPassword] = useState('')
 
     function buildPayload() {
         let body = {}
@@ -85,6 +86,7 @@ function NewProvider({ handleGetProvidersData }) {
             body.wda_bundle_id = wdaBundleId
             body.wda_repo_path = wdaRepoPath
             body.use_custom_wda = useCustomWda
+            body.supervision_password = supervisionPassword
         }
         body.use_selenium_grid = useSeleniumGrid
         if (useSeleniumGrid) {
@@ -117,6 +119,7 @@ function NewProvider({ handleGetProvidersData }) {
                 setUseCustomWda(false)
                 setUseSeleniumGrid(false)
                 setSeleniumGridInstance('')
+                setSupervisionPassword('')
             })
             .catch(() => {
                 setAddProviderStatus('error')
@@ -268,6 +271,20 @@ function NewProvider({ handleGetProvidersData }) {
                         />
                     </Tooltip>
                     <Tooltip
+                        title='iOS supervision profile password, used to pair devices if they are supervised'
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            size='small'
+                            label='iOS supervision profile password'
+                            value={supervisionPassword}
+                            disabled={!ios}
+                            autoComplete='off'
+                            onChange={(event) => setSupervisionPassword(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
                         title='Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!'
                         arrow
                         placement='top'
@@ -362,6 +379,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
     const [useCustomWda, setUseCustomWda] = useState(providerData.use_custom_wda)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(providerData.use_selenium_grid)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState(providerData.selenium_grid)
+    const [supervisionPassword, setSupervisionPassword] = useState(providerData.supervision_password)
 
     const [openLogsDialog, setOpenLogsDialog] = useState(false)
 
@@ -393,6 +411,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
             body.wda_bundle_id = wdaBundleId
             body.wda_repo_path = wdaRepoPath
             body.use_custom_wda = useCustomWda
+            body.supervision_password = supervisionPassword
         }
         body.use_selenium_grid = useSeleniumGrid
         if (useSeleniumGrid) {
@@ -563,6 +582,20 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                             disabled={!ios}
                             autoComplete='off'
                             onChange={(event) => setWdaBundleId(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
+                        title='iOS supervision profile password, used to pair devices if they are supervised'
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            size='small'
+                            label='iOS supervision profile password'
+                            value={supervisionPassword}
+                            disabled={!ios}
+                            autoComplete='off'
+                            onChange={(event) => setSupervisionPassword(event.target.value)}
                         />
                     </Tooltip>
                     <Tooltip
