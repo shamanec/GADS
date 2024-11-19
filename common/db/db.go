@@ -283,6 +283,44 @@ func GetUsers() []models.User {
 	return users
 }
 
+func GetDBFiles() []models.DBFile {
+	var files []models.DBFile
+	collection := mongoClient.Database("gads").Collection("fs.files")
+
+	cursor, err := collection.Find(mongoClientCtx, bson.D{{}}, nil)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_files",
+		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest files info from db - %s", err))
+		return files
+	}
+
+	if err := cursor.All(mongoClientCtx, &files); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_files",
+		}).Error(fmt.Sprintf("Could not get files latest info from db cursor - %s", err))
+		return files
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_files",
+		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
+		return files
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.WithFields(log.Fields{
+			"event": "get_db_files",
+		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
+		return files
+	}
+
+	cursor.Close(mongoClientCtx)
+
+	return files
+}
+
 func GetDBDeviceNew() []models.Device {
 	var dbDevices []models.Device
 	// Access the database and collection

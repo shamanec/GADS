@@ -1,7 +1,6 @@
-import { useContext, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../../../services/api'
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
-import { Auth } from '../../../contexts/Auth'
+import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
 import CircularProgress from '@mui/material/CircularProgress'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
@@ -10,7 +9,6 @@ import { useDialog } from '../../../contexts/DialogContext'
 export default function DevicesAdministration() {
     const [devices, setDevices] = useState([])
     const [providers, setProviders] = useState([])
-    const { logout } = useContext(Auth)
 
     function handleGetDeviceData() {
         let url = `/admin/devices`

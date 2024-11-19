@@ -586,17 +586,28 @@ func AvailableDevicesSSE(c *gin.Context) {
 	})
 }
 
-func UploadSeleniumJar(c *gin.Context) {
+// Custom upload function that allows us to upload any file to Mongo
+// While providing the file name we want to use on upload regardless of the actual file name
+func UploadFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No file provided in form data - %s", err)})
 		return
 	}
+	fileName := c.PostForm("fileName")
+	if fileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fileName for MongoDB record was provided"})
+		return
+	}
+	extension := c.PostForm("extension")
+	if extension == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No expected extension was provided"})
+		return
+	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-
-	if ext != ".jar" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .jar files are accepted. Got - " + ext})
+	if ext != extension {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Expected extension is `%s` but you provided file with `%s`", extension, ext)})
 		return
 	}
 
@@ -607,13 +618,13 @@ func UploadSeleniumJar(c *gin.Context) {
 		return
 	}
 
-	err = db.UploadFileGridFS(openedFile, "selenium.jar", true)
+	err = db.UploadFileGridFS(openedFile, fmt.Sprintf("%s%s", fileName, ext), true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Selenium jar uploaded successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("`%s` uploaded successfully", file.Filename)})
 }
 
 func AddDevice(c *gin.Context) {
@@ -831,7 +842,12 @@ func GetUsers(c *gin.Context) {
 	for i := range users {
 		users[i].Password = ""
 	}
-	fmt.Println(users)
 
 	c.JSON(http.StatusOK, users)
+}
+
+func GetFiles(c *gin.Context) {
+	files := db.GetDBFiles()
+
+	c.JSON(http.StatusOK, files)
 }

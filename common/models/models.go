@@ -8,6 +8,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type CustomLogger interface {
@@ -111,4 +112,9 @@ type UpdateStreamSettings struct {
 type DeviceInUseMessage struct {
 	Type    string      `json:"type"`
 	Payload interface{} `json:"payload"`
+}
+
+type DBFile struct {
+	FileName   string             `json:"name" bson:"filename"`
+	UploadDate primitive.DateTime `json:"upload_date" bson:"uploadDate"`
 }
