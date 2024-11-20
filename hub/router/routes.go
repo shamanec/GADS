@@ -481,7 +481,7 @@ func DeviceInUseWS(c *gin.Context) {
 					// Check if device is currently being used by someone
 					if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {
 						// If it is being used check if the any action was performed in the last 30 minutes
-						if (time.Now().UnixMilli() - devices.HubDevicesData.Devices[udid].LastActionTS) > (30 * 1000) {
+						if (time.Now().UnixMilli() - devices.HubDevicesData.Devices[udid].LastActionTS) > (1800 * 1000) {
 							// Send to the websocket a message that the session expired
 							sessionExpiredMessage := models.DeviceInUseMessage{
 								Type: "sessionExpired",

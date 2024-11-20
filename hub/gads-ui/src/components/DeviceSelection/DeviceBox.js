@@ -5,11 +5,19 @@ import AspectRatioIcon from '@mui/icons-material/AspectRatio'
 import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid'
 import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone'
 import { useNavigate } from 'react-router-dom'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import './DeviceBox.css'
 
 export default function DeviceBox({ device }) {
+    const [isAdmin, setIsAdmin] = useState(false)
     let img_src = device.info.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
+
+    useEffect(() => {
+        let roleFromStorage = localStorage.getItem('userRole')
+        if (roleFromStorage === 'admin') {
+            setIsAdmin(true)
+        }
+    }, [])
 
     return (
         <Box
@@ -37,7 +45,7 @@ export default function DeviceBox({ device }) {
                         </Box>
                         <DeviceStatus device={device}
                         ></DeviceStatus>
-                        <UseButton device={device}></UseButton>
+
                     </Stack>
                 </Box>
                 <Box className='info-box'>
@@ -96,6 +104,21 @@ export default function DeviceBox({ device }) {
                         </ListItem>
                     </List>
                 </Box>
+                <Stack
+                    direction='row'
+                    spacing={1}
+                    justifyContent='flex-end'
+                    alignItems='center'
+                    alignContent='center'
+                    height='60px'
+                    marginRight='10px'
+                >
+                    <ReleaseButton
+                        device={device}
+                        isAdmin={isAdmin}
+                    ></ReleaseButton>
+                    <UseButton device={device}></UseButton>
+                </Stack>
             </Stack>
         </Box>
     )
@@ -161,6 +184,19 @@ function DeviceStatus({ device }) {
             >Offline</div>
         )
     }
+}
+
+function ReleaseButton({ device, isAdmin }) {
+
+    return (
+        <Button
+            variant='contained'
+            disabled={!device.in_use}
+            style={{
+                display: isAdmin ? 'block' : 'none'
+            }}
+        >Release</Button>
+    )
 }
 
 function UseButton({ device }) {
