@@ -7,6 +7,8 @@ import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone'
 import { useNavigate } from 'react-router-dom'
 import React, { useEffect, useState } from 'react'
 import './DeviceBox.css'
+import { api } from '../../services/api'
+import { useSnackbar } from '../../contexts/SnackBarContext'
 
 export default function DeviceBox({ device }) {
     const [isAdmin, setIsAdmin] = useState(false)
@@ -187,9 +189,28 @@ function DeviceStatus({ device }) {
 }
 
 function ReleaseButton({ device, isAdmin }) {
+    const { showSnackbar } = useSnackbar()
+    const showCustomSnackbarMessage = (message, severity) => {
+        showSnackbar({
+            message: message,
+            severity: severity,
+            duration: 3000,
+        })
+    }
+
+    function handleReleaseButtonClick() {
+        api.post(`/admin/device/${device.info.udid}/release`)
+            .then(() => {
+                showCustomSnackbarMessage('Device released!', 'success')
+            })
+            .catch(() => {
+                showCustomSnackbarMessage('Failed to release device!', 'error')
+            })
+    }
 
     return (
         <Button
+            onClick={handleReleaseButtonClick}
             variant='contained'
             disabled={!device.in_use}
             style={{
