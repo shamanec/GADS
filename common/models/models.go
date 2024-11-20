@@ -95,6 +95,7 @@ type LocalHubDevice struct {
 	IsAvailableForAutomation bool     `json:"is_available_for_automation"`
 	Available                bool     `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
 	InUseWSConnection        net.Conn `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
+	LastActionTS             int64    `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
 }
 
 type IOSModelData struct {

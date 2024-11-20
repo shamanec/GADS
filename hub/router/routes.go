@@ -478,6 +478,26 @@ func DeviceInUseWS(c *gin.Context) {
 				// If we got any data from the client that is not an empty string - this is the nickname of the person using the device
 				// So we send it to the messageReceived channel
 				if string(data) != "" {
+					// Check if device is currently being used by someone
+					if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {
+						// If it is being used check if the any action was performed in the last 30 minutes
+						if (time.Now().UnixMilli() - devices.HubDevicesData.Devices[udid].LastActionTS) > (30 * 1000) {
+							// Send to the websocket a message that the session expired
+							sessionExpiredMessage := models.DeviceInUseMessage{
+								Type: "sessionExpired",
+							}
+							sessionExpiredJson, _ := json.Marshal(sessionExpiredMessage)
+							wsutil.WriteServerText(conn, sessionExpiredJson)
+							// Update the hub device to no longer be in use
+							devices.HubDevicesData.Mu.Lock()
+							devices.HubDevicesData.Devices[udid].InUseTS = 0
+							devices.HubDevicesData.Devices[udid].InUseBy = ""
+							devices.HubDevicesData.Mu.Unlock()
+							// Cancel the current websocket goroutines and stuff
+							cancel()
+							return
+						}
+					}
 					messageReceived <- string(data)
 				}
 			}

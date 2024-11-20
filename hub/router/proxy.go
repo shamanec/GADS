@@ -25,6 +25,7 @@ func DeviceProxyHandler(c *gin.Context) {
 			fmt.Printf("Recovered from panic: %v. \nThis happens when closing device screen stream and I need to handle it \n", r)
 		}
 	}()
+	udid := c.Param("udid")
 	path := c.Param("path")
 
 	// Create a new ReverseProxy instance that will forward the requests
@@ -32,7 +33,6 @@ func DeviceProxyHandler(c *gin.Context) {
 	// Limit the number of open connections for the host
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			udid := c.Param("udid")
 			req.URL.Scheme = "http"
 			devices.HubDevicesData.Mu.Lock()
 			req.URL.Host = devices.HubDevicesData.Devices[udid].Device.Host
@@ -50,6 +50,11 @@ func DeviceProxyHandler(c *gin.Context) {
 			return nil
 		},
 	}
+
+	// Set the last action performed timestamp through the proxy
+	devices.HubDevicesData.Mu.Lock()
+	devices.HubDevicesData.Devices[udid].LastActionTS = time.Now().UnixMilli()
+	devices.HubDevicesData.Mu.Unlock()
 
 	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
 	proxy.ServeHTTP(c.Writer, c.Request)

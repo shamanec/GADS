@@ -75,6 +75,13 @@ export default function DeviceControl() {
                             in_use_socket.close()
                         }
                         break
+                    case 'sessionExpired':
+                        setShouldShowStream(false)
+                        openDeviceForciblyReleasedAlert({ title: 'Session expired!', content: 'You haven`t performed any action in the last 30 minutes.' })
+                        if (in_use_socket) {
+                            in_use_socket.close()
+                        }
+                        break
                 }
             }
         }
@@ -92,14 +99,14 @@ export default function DeviceControl() {
     }
 
     const { showDialog } = useDialog()
-    const openDeviceForciblyReleasedAlert = () => {
+    const openDeviceForciblyReleasedAlert = ({ title = 'Session terminated!', content = 'You`ve been kicked out by admin' }) => {
         function backToDevices() {
             navigate('/devices')
         }
 
         showDialog('deviceReleasedAlert', {
-            title: 'Session terminated!',
-            content: `You've been kicked out by admin.`,
+            title: title,
+            content: content,
             actions: [
                 { label: 'Back to devices', onClick: () => backToDevices() },
             ],
