@@ -1,4 +1,4 @@
-import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button } from '@mui/material'
+import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button, CircularProgress } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import InfoIcon from '@mui/icons-material/Info'
 import AspectRatioIcon from '@mui/icons-material/AspectRatio'
@@ -190,6 +190,8 @@ function DeviceStatus({ device }) {
 
 function ReleaseButton({ device, isAdmin }) {
     const { showSnackbar } = useSnackbar()
+    const [releasing, setReleasing] = useState(false)
+
     const showCustomSnackbarMessage = (message, severity) => {
         showSnackbar({
             message: message,
@@ -199,6 +201,8 @@ function ReleaseButton({ device, isAdmin }) {
     }
 
     function handleReleaseButtonClick() {
+        setReleasing(true)
+
         api.post(`/admin/device/${device.info.udid}/release`)
             .then(() => {
                 showCustomSnackbarMessage('Device released!', 'success')
@@ -206,17 +210,35 @@ function ReleaseButton({ device, isAdmin }) {
             .catch(() => {
                 showCustomSnackbarMessage('Failed to release device!', 'error')
             })
+            .finally(() => {
+                setTimeout(() => {
+                    setReleasing(false)
+                }, 1000)
+            })
     }
+
 
     return (
         <Button
             onClick={handleReleaseButtonClick}
             variant='contained'
-            disabled={!device.in_use}
+            disabled={!device.in_use || releasing}
             style={{
+                backgroundColor: (!device.in_use || releasing) ? '#878a91' : '#2f3b26',
+                color: '#f4e6cd',
+                fontWeight: 'bold',
+                boxShadow: 'none',
+                height: '40px',
+                width: '100px',
                 display: isAdmin ? 'block' : 'none'
             }}
-        >Release</Button>
+        >
+            {releasing ? (
+                <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+            ) : (
+                'Release'
+            )}
+        </Button>
     )
 }
 
@@ -235,58 +257,58 @@ function UseButton({ device }) {
 
     if (device.info.usage === 'disabled') {
         return (
-            <Button
+            <button
                 className='device-buttons'
                 variant='contained'
                 disabled
             >
                 N/A
-            </Button>
+            </button>
         )
     }
 
     if (device.available) {
         if (device.info.usage === 'automation') {
             return (
-                <Button
+                <button
                     className='device-buttons'
                     variant='contained'
                     disabled
                 >
                     N/A
-                </Button>
+                </button>
             )
         }
         if (device.is_running_automation || device.in_use) {
             return (
-                <Button
+                <button
                     className='device-buttons'
                     disabled
                 >
                     In Use
-                </Button>
+                </button>
             )
         } else {
             return (
-                <Button
+                <button
                     className='device-buttons'
                     onClick={handleUseButtonClick}
                     disabled={buttonDisabled}
                 >
                     {loading ? <span className='spinner'></span> : 'Use'}
-                </Button>
+                </button>
             )
         }
 
     } else {
         return (
-            <Button
+            <button
                 className='device-buttons'
                 variant='contained'
                 disabled
             >
                 N/A
-            </Button>
+            </button>
         )
     }
 }
