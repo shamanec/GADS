@@ -46,8 +46,10 @@ export default function DeviceControl() {
         if (protocol === 'https') {
             wsType = 'wss'
         }
-        // let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/in-use`
-        let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/in-use`
+
+        let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/in-use`
+        // let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/in-use`
+
         in_use_socket = new WebSocket(socketUrl)
         in_use_socket.onopen = () => {
             console.log('In Use WebSocket connection opened')
