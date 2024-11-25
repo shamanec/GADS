@@ -222,9 +222,22 @@ func pairIOS(device *models.Device) error {
 		return nil
 	}
 
+	if config.ProviderConfig.SupervisionPassword == "" {
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Supervision profile exists but no password provided, falling back to unsupervised pairing for device `%s`", device.UDID))
+		err = ios.Pair(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
+		}
+		return nil
+	}
 	err = ios.PairSupervised(device.GoIOSDeviceEntry, p12, config.ProviderConfig.SupervisionPassword)
 	if err != nil {
-		return fmt.Errorf("Could not perform supervised pairing successfully - %s", err)
+		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to perform supervised pairing on device `%s`, device unsupervised or unknown error - %s. Falling back to unsupervised pairing", device.UDID, err))
+		err = ios.Pair(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
+		}
+		return nil
 	}
 
 	return nil
@@ -324,7 +337,7 @@ func createGoIOSTunnel(ctx context.Context, device *models.Device) (tunnel.Tunne
 
 func goIosDeviceWithRsdProvider(device *models.Device) error {
 	var err error
-	rsdService, err := ios.NewWithAddrPort(device.GoIOSTunnel.Address, device.GoIOSTunnel.RsdPort, device.GoIOSDeviceEntry)
+	rsdService, err := ios.NewWithAddrPortDevice(device.GoIOSTunnel.Address, device.GoIOSTunnel.RsdPort, device.GoIOSDeviceEntry)
 	if err != nil {
 		return err
 	}
@@ -345,15 +358,21 @@ func goIosDeviceWithRsdProvider(device *models.Device) error {
 }
 
 func runWDAGoIOS(device *models.Device) {
-	_, err := testmanagerd.RunXCUITest(
-		config.ProviderConfig.WdaBundleID,
-		config.ProviderConfig.WdaBundleID,
-		"WebDriverAgentRunner.xctest",
-		device.GoIOSDeviceEntry,
-		nil,
-		nil,
-		nil,
-		testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()))
+	testConfig := testmanagerd.TestConfig{
+		BundleId:           config.ProviderConfig.WdaBundleID,
+		TestRunnerBundleId: config.ProviderConfig.WdaBundleID,
+		XctestConfigName:   "WebDriverAgentRunner.xctest",
+		Env:                nil,
+		Args:               nil,
+		TestsToRun:         nil,
+		TestsToSkip:        nil,
+		XcTest:             false,
+		Device:             device.GoIOSDeviceEntry,
+		Listener:           testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()),
+	}
+	_, err := testmanagerd.RunTestWithConfig(
+		context.Background(),
+		testConfig)
 	if err != nil {
 		resetLocalDevice(device)
 	}

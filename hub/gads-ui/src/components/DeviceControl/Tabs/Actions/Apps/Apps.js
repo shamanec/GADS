@@ -1,7 +1,6 @@
-import { Box, Divider, Stack } from "@mui/material"
-import { useState } from "react"
-import UploadFile from "./UploadAppFile"
-import UninstallApp from "./UninstallApp"
+import { Box, Divider, Stack } from '@mui/material'
+import UploadFile from './UploadAppFile'
+import UninstallApp from './UninstallApp'
 
 export default function Apps({ deviceData }) {
     return (
@@ -21,7 +20,7 @@ export default function Apps({ deviceData }) {
 
                 </UploadFile>
                 <Divider
-                    orientation="vertical"
+                    orientation='vertical'
                     flexItem
                 />
                 <UninstallApp

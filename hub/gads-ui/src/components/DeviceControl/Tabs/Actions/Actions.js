@@ -1,9 +1,9 @@
-import { useContext, useState } from "react";
-import Apps from "./Apps/Apps";
-import { Alert, Box, CircularProgress, Stack, TextField } from "@mui/material";
-import { Auth } from "../../../../contexts/Auth";
+import { useContext, useState } from 'react'
+import Apps from './Apps/Apps'
+import { Alert, Box, CircularProgress, Stack, TextField } from '@mui/material'
+import { Auth } from '../../../../contexts/Auth'
 import { api } from '../../../../services/api.js'
-import Clipboard from "./Clipboard";
+import Clipboard from './Clipboard'
 
 export default function Actions({ deviceData }) {
     return (
@@ -26,11 +26,11 @@ function TypeText({ deviceData }) {
     function handleEnter(event) {
         // If currently typing text through the API with Appium do not allow typing in input box
         if (isTyping) {
-            event.target.value = ""
+            event.target.value = ''
         } else if (event.keyCode === 13) {
-            if (event.target.value != "") {
+            if (event.target.value != '') {
                 handleType(event.target.value)
-                event.target.value = ""
+                event.target.value = ''
             }
         }
     }
@@ -53,16 +53,12 @@ function TypeText({ deviceData }) {
         setIsTyping(true)
         setShowError(false)
 
-        let json = `{"text": "${text}"}`
+        let json = `{'text': '${text}'}`
 
         let url = `/device/${deviceData.udid}/typeText`
         api.post(url, json)
             .catch(error => {
                 if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
                     if (error.response.status === 404) {
                     }
                     handleShowError()
@@ -96,9 +92,9 @@ function TypeText({ deviceData }) {
                 }}
             >
                 <TextField
-                    id="outlined-basic"
-                    label="Type something and press Enter"
-                    variant="outlined"
+                    id='outlined-basic'
+                    label='Type something and press Enter'
+                    variant='outlined'
                     onKeyUp={(event) => handleEnter(event)}
                     style={{
                         backgroundColor: '#9ba984',
@@ -120,7 +116,7 @@ function TypeText({ deviceData }) {
             </Box>
             {showError &&
                 <Alert
-                    severity="error"
+                    severity='error'
                     sx={{
                         width: '80%',
                         marginTop: '5px',

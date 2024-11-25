@@ -9,7 +9,7 @@ const axiosInterceptor = (logout) => {
         (error) => {
             // Check if the error response status is 401 (Unauthorized)
             if (error.response.status === 401) {
-                localStorage.removeItem('authToken');
+                localStorage.removeItem('authToken')
                 localStorage.removeItem('userRole')
                 logout()
             }

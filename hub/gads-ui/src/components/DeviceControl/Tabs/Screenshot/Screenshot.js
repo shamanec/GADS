@@ -1,14 +1,13 @@
-import {Box, Dialog, DialogContent, Grid} from "@mui/material";
-import { Button } from "@mui/material";
-import { Stack } from "@mui/material";
-import { useDialog } from "../../SessionDialogContext";
+import { Box, Dialog, DialogContent, Grid } from '@mui/material'
+import { Button } from '@mui/material'
+import { Stack } from '@mui/material'
 import { api } from '../../../../services/api.js'
-import React, { useState, memo } from 'react';
-import CircularProgress from "@mui/material/CircularProgress";
-import CloseIcon from "@mui/icons-material/Close";
+import React, { useState, memo } from 'react'
+import CircularProgress from '@mui/material/CircularProgress'
+import CloseIcon from '@mui/icons-material/Close'
+import { useSnackbar } from '../../../../contexts/SnackBarContext.js'
 
 function Screenshot({ udid, screenshots, setScreenshots }) {
-    const { setDialog } = useDialog()
     const [open, setOpen] = useState(false)
     const [selectedImage, setSelectedImage] = useState(null)
     const [isTakingScreenshot, setIsTakingScreenshot] = useState(false)
@@ -22,16 +21,21 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
         const url = `/device/${udid}/screenshot`
         api.post(url)
             .then(response => {
-                if (response.status === 404) {
-                    setDialog(true)
-                    return
-                }
                 return response.data
             })
             .then(screenshotJson => {
                 imageBase64String = screenshotJson.value
             })
-            .catch(() => {
+            .catch(error => {
+                if (error.response) {
+                    if (error.response.status === 404) {
+                        showCustomSnackbarError('Failed to take screenshot - Appium session expired!')
+                    } else {
+                        showCustomSnackbarError('Failed to take screenshot!')
+                    }
+                } else {
+                    showCustomSnackbarError('Failed to take screenshot!')
+                }
                 setTakeScreenshotStatus('error')
             })
             .finally(() => {
@@ -77,7 +81,16 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
     }
 
     const handleDeleteImage = (index) => {
-        setScreenshots(prevScreenshots => prevScreenshots.filter((_, i) => i !== index));
+        setScreenshots(prevScreenshots => prevScreenshots.filter((_, i) => i !== index))
+    }
+
+    const { showSnackbar } = useSnackbar()
+    const showCustomSnackbarError = (message) => {
+        showSnackbar({
+            message: message,
+            severity: 'error',
+            duration: 3000,
+        })
     }
 
     return (
@@ -95,7 +108,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             >
                 <Button
                     onClick={() => takeScreenshot()}
-                    variant="contained"
+                    variant='contained'
                     style={{
                         backgroundColor: '#2f3b26',
                         color: '#9ba984',
@@ -151,7 +164,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
             <Dialog
                 open={open}
                 onClose={handleCloseImageDialog}
-                maxWidth="sm"
+                maxWidth='sm'
                 style={{
                     overflowY: 'hidden'
                 }}
@@ -168,7 +181,7 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                 </DialogContent>
             </Dialog>
         </Box>
-    );
+    )
 }
 export default React.memo(Screenshot)
 

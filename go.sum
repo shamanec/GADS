@@ -17,6 +17,8 @@ github.com/danielpaulus/go-ios v1.0.123 h1:Pyv+9xdFIaaGXJFQHL11l1rBde1pJhSA+N0Id
 github.com/danielpaulus/go-ios v1.0.123/go.mod h1:tCOjUoiimx1wL8WJ7GoTF1bT9o4xAN1Fpif+vzSHXkc=
 github.com/danielpaulus/go-ios v1.0.135 h1:o7EZImQ83+2yI/OMNmprspUGzkYEkNUDZxiKtE5QwGs=
 github.com/danielpaulus/go-ios v1.0.135/go.mod h1:YdQ7zSYbkIM0eSMo2LHc07w9zXIYKmj/AoAAOQ8rBco=
+github.com/danielpaulus/go-ios v1.0.160 h1:vpAu3E+4A7bmSfHX4aaaItR83K1Dkk+hPooJ09Srp/w=
+github.com/danielpaulus/go-ios v1.0.160/go.mod h1:ZkUcaC59yNba47j/+ULKsCi3dYPFwY9r39PxdmVmLHE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

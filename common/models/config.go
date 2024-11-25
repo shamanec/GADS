@@ -16,7 +16,6 @@ type Provider struct {
 	SupervisionPassword    string                   `json:"supervision_password" bson:"supervision_password"`
 	ProviderFolder         string                   `json:"-" bson:"-"`
 	LastUpdatedTimestamp   int64                    `json:"last_updated" bson:"last_updated"`
-	ProvidedDevices        []Device                 `json:"provided_devices" bson:"provided_devices"`
 	WebDriverBinary        string                   `json:"-" bson:"-"`
 	UseGadsIosStream       bool                     `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
 	UseCustomWDA           bool                     `json:"use_custom_wda" bson:"use_custom_wda"`

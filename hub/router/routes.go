@@ -5,6 +5,7 @@ import (
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -425,6 +426,8 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
+// This websocket connection is used to both set the device in use when remotely controlled
+// As well as send live updates when needed - device info, release device, etc
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -433,8 +436,28 @@ func DeviceInUseWS(c *gin.Context) {
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
 		return
 	}
-	defer conn.Close()
 
+	// Add the created connection to the respective device in the map
+	// So we can send different messages to it from other sources
+	devices.HubDevicesData.Mu.Lock()
+	devices.HubDevicesData.Devices[udid].InUseWSConnection = conn
+	devices.HubDevicesData.Mu.Unlock()
+
+	// If this function returns then we close the connection
+	// And also set it to nil for the respective device in the map
+	defer func() {
+		conn.Close()
+		devices.HubDevicesData.Mu.Lock()
+		devices.HubDevicesData.Devices[udid].InUseWSConnection = nil
+		devices.HubDevicesData.Mu.Unlock()
+	}()
+
+	// Create a context with cancel to use in the goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create a channel to send data from the goroutine listening for messages coming from the client(UI)
+	// And then we receive from the channel in the for loop that sets the device in-use status
 	messageReceived := make(chan string)
 	defer close(messageReceived)
 
@@ -442,36 +465,78 @@ func DeviceInUseWS(c *gin.Context) {
 	// To keep device in use
 	go func() {
 		for {
-			data, code, err := wsutil.ReadClientData(conn)
-			if err != nil {
+			select {
+			case <-ctx.Done(): // If context was cancelled in the other goroutine or the for loop we return to stop the current goroutine
 				return
-			}
+			default:
+				data, code, err := wsutil.ReadClientData(conn)
+				if err != nil || code == 8 { // 8 is close code
+					cancel() // Trigger context cancellation for all goroutines and the for loop if we got an error from the websocket/client and return to stop the current goroutine
+					return
+				}
 
-			if code == 8 {
-				return
-			}
-
-			if string(data) != "" {
-				messageReceived <- string(data)
+				// If we got any data from the client that is not an empty string - this is the nickname of the person using the device
+				// So we send it to the messageReceived channel
+				if string(data) != "" {
+					// Check if device is currently being used by someone
+					if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {
+						// If it is being used check if the any action was performed in the last 30 minutes
+						if (time.Now().UnixMilli() - devices.HubDevicesData.Devices[udid].LastActionTS) > (1800 * 1000) {
+							// Send to the websocket a message that the session expired
+							sessionExpiredMessage := models.DeviceInUseMessage{
+								Type: "sessionExpired",
+							}
+							sessionExpiredJson, _ := json.Marshal(sessionExpiredMessage)
+							wsutil.WriteServerText(conn, sessionExpiredJson)
+							// Update the hub device to no longer be in use
+							devices.HubDevicesData.Mu.Lock()
+							devices.HubDevicesData.Devices[udid].InUseTS = 0
+							devices.HubDevicesData.Devices[udid].InUseBy = ""
+							devices.HubDevicesData.Mu.Unlock()
+							// Cancel the current websocket goroutines and stuff
+							cancel()
+							return
+						}
+					}
+					messageReceived <- string(data)
+				}
 			}
 		}
 	}()
 
-	// Loop sending messages to client to keep the connection and avoid using setInterval in the UI
+	// Loop sending messages to client to keep the connection - like ping/pong
 	go func() {
 		for {
-			err := wsutil.WriteServerText(conn, []byte("ping"))
-			if err != nil {
-				fmt.Println("Write error " + err.Error())
+			select {
+			case <-ctx.Done(): // If context was cancelled in the other goroutine or the for loop we return to stop the current goroutine
 				return
+			default:
+				// Send a ping message to the client(UI) using the DeviceInUseMessage struct as json string
+				deviceInUseMessage := models.DeviceInUseMessage{
+					Type: "ping",
+				}
+				deviceInUseMessageJson, _ := json.Marshal(deviceInUseMessage)
+				err := wsutil.WriteServerText(conn, deviceInUseMessageJson)
+				if err != nil {
+					cancel() // Trigger context cancellation for all goroutines and the for loop if we got an error from the websocket/client and return to stop the current goroutine
+					return
+				}
+				// Wait 1 second between pings
+				time.Sleep(1 * time.Second)
 			}
-			time.Sleep(1 * time.Second)
 		}
 	}()
 
+	// Create a new timer for the loop below
 	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+
+	// We loop over the messageReceived channel, timer and the context cancellation signal
 	for {
 		select {
+		// If a message is received over the channel with the username of the user occupying the device
+		// We set the last timestamp for in use and set the name of the person using it
+		// We reset the timer each time a message was received
 		case userName := <-messageReceived:
 			devices.HubDevicesData.Mu.Lock()
 			devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
@@ -481,6 +546,9 @@ func DeviceInUseWS(c *gin.Context) {
 				<-timer.C
 			}
 			timer.Reset(2 * time.Second)
+		// If the timer limit is reached and the device is not in use by automation but a person
+		// We reset the in use timestamp
+		// And remove the name of the person that was using it
 		case <-timer.C:
 			devices.HubDevicesData.Mu.Lock()
 			devices.HubDevicesData.Devices[udid].InUseTS = 0
@@ -488,6 +556,10 @@ func DeviceInUseWS(c *gin.Context) {
 				devices.HubDevicesData.Devices[udid].InUseBy = ""
 			}
 			devices.HubDevicesData.Mu.Unlock()
+			return
+		// If the context was cancelled from the read/write goroutines
+		// We return to exit the loop
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -534,17 +606,28 @@ func AvailableDevicesSSE(c *gin.Context) {
 	})
 }
 
-func UploadSeleniumJar(c *gin.Context) {
+// Custom upload function that allows us to upload any file to Mongo
+// While providing the file name we want to use on upload regardless of the actual file name
+func UploadFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No file provided in form data - %s", err)})
 		return
 	}
+	fileName := c.PostForm("fileName")
+	if fileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No fileName for MongoDB record was provided"})
+		return
+	}
+	extension := c.PostForm("extension")
+	if extension == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No expected extension was provided"})
+		return
+	}
 
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-
-	if ext != ".jar" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .jar files are accepted. Got - " + ext})
+	if ext != extension {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Expected extension is `%s` but you provided file with `%s`", extension, ext)})
 		return
 	}
 
@@ -555,13 +638,13 @@ func UploadSeleniumJar(c *gin.Context) {
 		return
 	}
 
-	err = db.UploadFileGridFS(openedFile, "selenium.jar", true)
+	err = db.UploadFileGridFS(openedFile, fmt.Sprintf("%s", fileName), true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Selenium jar uploaded successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("`%s` uploaded successfully", file.Filename)})
 }
 
 func AddDevice(c *gin.Context) {
@@ -689,6 +772,30 @@ func GetDevices(c *gin.Context) {
 	c.JSON(http.StatusOK, adminDeviceData)
 }
 
+func ReleaseUsedDevice(c *gin.Context) {
+	udid := c.Param("udid")
+
+	// Send a release device message on the device in use websocket connection
+	deviceInUseMessage := models.DeviceInUseMessage{
+		Type: "releaseDevice",
+	}
+	deviceInUseMessageJson, _ := json.Marshal(deviceInUseMessage)
+
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	err := wsutil.WriteServerText(devices.HubDevicesData.Devices[udid].InUseWSConnection, deviceInUseMessageJson)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to send release device message - " + err.Error()})
+		return
+	}
+
+	devices.HubDevicesData.Devices[udid].InUseWSConnection.Close()
+	devices.HubDevicesData.Devices[udid].InUseTS = 0
+	devices.HubDevicesData.Devices[udid].InUseBy = ""
+
+	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
+}
+
 func ProviderUpdate(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	defer c.Request.Body.Close()
@@ -755,7 +862,12 @@ func GetUsers(c *gin.Context) {
 	for i := range users {
 		users[i].Password = ""
 	}
-	fmt.Println(users)
 
 	c.JSON(http.StatusOK, users)
+}
+
+func GetFiles(c *gin.Context) {
+	files := db.GetDBFiles()
+
+	c.JSON(http.StatusOK, files)
 }

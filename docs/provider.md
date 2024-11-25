@@ -140,11 +140,14 @@ This is an optional but a preferable step - it can make devices setup more auton
 
 - Install Apple Configurator 2 on your Mac.
 - Attach your first device.
-- Set it up for supervision using a new(or existing) supervision identity. You can do that for free without having a paid MDM account.
+- Set it up for supervision using a new (or existing) supervision identity. You can do that for free without having a paid MDM account.
 - Connect each consecutive device and supervise it using the same supervision identity.
 - Export your supervision identity file and choose a password.
-- Save your new supervision identity file in the provider folder as `supervision.p12`.
+- Save your new supervision identity as `*.p12` file.
+- Log in to the hub with admin and upload the `*.p12` file via `Admin > Files`.
 
+**NB** Make sure to remember the supervision password, you need to set it up in the provider config for each provider that will use a supervision profile.  
+**NB** Provider will fall back to manual pairing if something is wrong with the supervision profile, provided password or supervised pairing.  
 **NB** You can skip supervising the devices and you should trust manually on first pair attempt by the provider but if devices are supervised in advance setup can be more autonomous.
 
 ## Android
@@ -157,7 +160,7 @@ This is an optional but a preferable step - it can make devices setup more auton
 ## Prepare WebDriverAgent on macOS - (read the full paragraph)
 ### Custom WebDriverAgent
 By using my custom WebDriverAgent you can have faster tap/swipe interactions on iOS devices.  
-The provider configuration should be set to use the custom WebDriverAgent in Mongo - either set it through GADS UI or using any db tool to update the provider config in Mongo for `use_custom_wda` with `true`
+The provider configuration should be set to use the custom WebDriverAgent through GADS UI  
 - Download the code of the `main` branch from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
 - Unzip the code in any folder.
 - Open WebDriverAgent.xcodeproj in Xcode

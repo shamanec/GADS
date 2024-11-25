@@ -70,7 +70,7 @@ func createAppiumSession(device *models.Device) (string, error) {
 			"alwaysMatch": map[string]interface{}{
 				"appium:automationName":     automationName,
 				"platformName":              platformName,
-				"appium:newCommandTimeout":  120,
+				"appium:newCommandTimeout":  1800,
 				"appium:waitForIdleTimeout": waitForIdleTimeout,
 			},
 			"firstMatch": []map[string]interface{}{},
@@ -78,7 +78,7 @@ func createAppiumSession(device *models.Device) (string, error) {
 		"desiredCapabilities": map[string]interface{}{
 			"appium:automationName":     automationName,
 			"platformName":              platformName,
-			"appium:newCommandTimeout":  120,
+			"appium:newCommandTimeout":  1800,
 			"appium:waitForIdleTimeout": waitForIdleTimeout,
 		},
 	}

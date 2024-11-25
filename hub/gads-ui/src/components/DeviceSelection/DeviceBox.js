@@ -1,23 +1,32 @@
-import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button } from "@mui/material"
+import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button, CircularProgress } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import InfoIcon from '@mui/icons-material/Info'
 import AspectRatioIcon from '@mui/icons-material/AspectRatio'
 import PhoneAndroidIcon from '@mui/icons-material/PhoneAndroid'
 import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone'
-import { api } from '../../services/api.js'
 import { useNavigate } from 'react-router-dom'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import './DeviceBox.css'
+import { api } from '../../services/api'
+import { useSnackbar } from '../../contexts/SnackBarContext'
 
 export default function DeviceBox({ device }) {
+    const [isAdmin, setIsAdmin] = useState(false)
     let img_src = device.info.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
+
+    useEffect(() => {
+        let roleFromStorage = localStorage.getItem('userRole')
+        if (roleFromStorage === 'admin') {
+            setIsAdmin(true)
+        }
+    }, [])
 
     return (
         <Box
             className='device-box'
         >
             <Stack
-                divider={<Divider orientation="horizontal" flexItem />}
+                divider={<Divider orientation='horizontal' flexItem />}
             >
                 <Box
                     className='status-box'
@@ -38,7 +47,7 @@ export default function DeviceBox({ device }) {
                         </Box>
                         <DeviceStatus device={device}
                         ></DeviceStatus>
-                        <UseButton device={device}></UseButton>
+
                     </Stack>
                 </Box>
                 <Box className='info-box'>
@@ -97,13 +106,28 @@ export default function DeviceBox({ device }) {
                         </ListItem>
                     </List>
                 </Box>
+                <Stack
+                    direction='row'
+                    spacing={1}
+                    justifyContent='flex-end'
+                    alignItems='center'
+                    alignContent='center'
+                    height='60px'
+                    marginRight='10px'
+                >
+                    <ReleaseButton
+                        device={device}
+                        isAdmin={isAdmin}
+                    ></ReleaseButton>
+                    <UseButton device={device}></UseButton>
+                </Stack>
             </Stack>
         </Box>
     )
 }
 
 function DeviceStatus({ device }) {
-    if (device.info.usage === "disabled") {
+    if (device.info.usage === 'disabled') {
         return (
             <div
                 className='offline-status'
@@ -112,7 +136,7 @@ function DeviceStatus({ device }) {
     }
 
     if (device.available) {
-        if (device.info.usage === "automation") {
+        if (device.info.usage === 'automation') {
             if (device.is_running_automation) {
                 return (
                     <div>
@@ -130,7 +154,7 @@ function DeviceStatus({ device }) {
             }
         }
 
-        if (device.info.usage === "enabled" || device.info.usage === "control") {
+        if (device.info.usage === 'enabled' || device.info.usage === 'control') {
             if (device.is_running_automation) {
                 return (
                     <div>
@@ -164,6 +188,60 @@ function DeviceStatus({ device }) {
     }
 }
 
+function ReleaseButton({ device, isAdmin }) {
+    const { showSnackbar } = useSnackbar()
+    const [releasing, setReleasing] = useState(false)
+
+    const showCustomSnackbarMessage = (message, severity) => {
+        showSnackbar({
+            message: message,
+            severity: severity,
+            duration: 3000,
+        })
+    }
+
+    function handleReleaseButtonClick() {
+        setReleasing(true)
+
+        api.post(`/admin/device/${device.info.udid}/release`)
+            .then(() => {
+                showCustomSnackbarMessage('Device released!', 'success')
+            })
+            .catch(() => {
+                showCustomSnackbarMessage('Failed to release device!', 'error')
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    setReleasing(false)
+                }, 1000)
+            })
+    }
+
+
+    return (
+        <Button
+            onClick={handleReleaseButtonClick}
+            variant='contained'
+            disabled={!device.in_use || releasing}
+            style={{
+                backgroundColor: (!device.in_use || releasing) ? '#878a91' : '#2f3b26',
+                color: '#f4e6cd',
+                fontWeight: 'bold',
+                boxShadow: 'none',
+                height: '40px',
+                width: '100px',
+                display: isAdmin ? 'block' : 'none'
+            }}
+        >
+            {releasing ? (
+                <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
+            ) : (
+                'Release'
+            )}
+        </Button>
+    )
+}
+
 function UseButton({ device }) {
     const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
@@ -177,24 +255,28 @@ function UseButton({ device }) {
 
     const buttonDisabled = loading || !device.info.connected
 
-    if (device.info.usage === "disabled") {
+    if (device.info.usage === 'disabled') {
         return (
             <button
                 className='device-buttons'
-                variant="contained"
+                variant='contained'
                 disabled
-            >N/A</button>
+            >
+                N/A
+            </button>
         )
     }
 
     if (device.available) {
-        if (device.info.usage === "automation") {
+        if (device.info.usage === 'automation') {
             return (
                 <button
                     className='device-buttons'
-                    variant="contained"
+                    variant='contained'
                     disabled
-                >N/A</button>
+                >
+                    N/A
+                </button>
             )
         }
         if (device.is_running_automation || device.in_use) {
@@ -202,7 +284,9 @@ function UseButton({ device }) {
                 <button
                     className='device-buttons'
                     disabled
-                >In Use</button>
+                >
+                    In Use
+                </button>
             )
         } else {
             return (
@@ -211,7 +295,7 @@ function UseButton({ device }) {
                     onClick={handleUseButtonClick}
                     disabled={buttonDisabled}
                 >
-                    {loading ? <span className="spinner"></span> : 'Use'}
+                    {loading ? <span className='spinner'></span> : 'Use'}
                 </button>
             )
         }
@@ -220,9 +304,11 @@ function UseButton({ device }) {
         return (
             <button
                 className='device-buttons'
-                variant="contained"
+                variant='contained'
                 disabled
-            >N/A</button>
+            >
+                N/A
+            </button>
         )
     }
 }

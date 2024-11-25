@@ -2,11 +2,13 @@ package models
 
 import (
 	"context"
+	"net"
 	"sync"
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type CustomLogger interface {
@@ -82,16 +84,18 @@ type Device struct {
 }
 
 type LocalHubDevice struct {
-	Device                   Device `json:"info"`
-	SessionID                string `json:"-"`
-	IsRunningAutomation      bool   `json:"is_running_automation"`
-	LastAutomationActionTS   int64  `json:"last_automation_action_ts"`
-	InUse                    bool   `json:"in_use"`
-	InUseBy                  string `json:"in_use_by"`
-	InUseTS                  int64  `json:"in_use_ts"`
-	AppiumNewCommandTimeout  int64  `json:"appium_new_command_timeout"`
-	IsAvailableForAutomation bool   `json:"is_available_for_automation"`
-	Available                bool   `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
+	Device                   Device   `json:"info"`
+	SessionID                string   `json:"-"`
+	IsRunningAutomation      bool     `json:"is_running_automation"`
+	LastAutomationActionTS   int64    `json:"last_automation_action_ts"`
+	InUse                    bool     `json:"in_use"`
+	InUseBy                  string   `json:"in_use_by"`
+	InUseTS                  int64    `json:"in_use_ts"`
+	AppiumNewCommandTimeout  int64    `json:"appium_new_command_timeout"`
+	IsAvailableForAutomation bool     `json:"is_available_for_automation"`
+	Available                bool     `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
+	InUseWSConnection        net.Conn `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
+	LastActionTS             int64    `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
 }
 
 type IOSModelData struct {
@@ -104,4 +108,14 @@ type UpdateStreamSettings struct {
 	TargetFPS     int `json:"target_fps,omitempty"`
 	JpegQuality   int `json:"jpeg_quality,omitempty"`
 	ScalingFactor int `json:"scaling_factor,omitempty"`
+}
+
+type DeviceInUseMessage struct {
+	Type    string      `json:"type"`
+	Payload interface{} `json:"payload"`
+}
+
+type DBFile struct {
+	FileName   string             `json:"name" bson:"filename"`
+	UploadDate primitive.DateTime `json:"upload_date" bson:"uploadDate"`
 }

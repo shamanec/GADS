@@ -1,15 +1,15 @@
-import { Box } from "@mui/material"
-import { Tabs, Tab } from "@mui/material"
-import { useState } from "react"
-import Screenshot from "./Screenshot/Screenshot"
-import Actions from "./Actions/Actions"
-import AppiumLogsTable from "./Logs/AppiumLogsTable";
+import { Box } from '@mui/material'
+import { Tabs, Tab } from '@mui/material'
+import { useState } from 'react'
+import Screenshot from './Screenshot/Screenshot'
+import Actions from './Actions/Actions'
+import AppiumLogsTable from './Logs/AppiumLogsTable'
 
 export default function TabularControl({ deviceData }) {
     const udid = deviceData.udid
 
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
-    const [screenshots, setScreenshots] = useState([]);
+    const [screenshots, setScreenshots] = useState([])
 
     const handleTabChange = (e, tabIndex) => {
         setCurrentTabIndex(tabIndex)
@@ -39,17 +39,17 @@ export default function TabularControl({ deviceData }) {
                 <Tab
                     className='control-tabs'
                     label='Actions'
-                    style={{ fontWeight: "bold" }}
+                    style={{ fontWeight: 'bold' }}
                 />
                 <Tab
                     className='control-tabs'
                     label='Screenshot'
-                    style={{ fontWeight: "bold" }}
+                    style={{ fontWeight: 'bold' }}
                 />
                 <Tab
                     className='control-tabs'
                     label='Appium Logs'
-                    style={{ fontWeight: "bold" }}
+                    style={{ fontWeight: 'bold' }}
                 />
             </Tabs>
             {currentTabIndex === 1 && <Screenshot udid={udid} screenshots={screenshots} setScreenshots={setScreenshots} />}

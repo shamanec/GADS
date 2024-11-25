@@ -1,15 +1,15 @@
-import {Box, Button, CircularProgress, FormControl, MenuItem, Select, Stack} from "@mui/material";
-import InstallMobileIcon from '@mui/icons-material/InstallMobile';
+import { Box, Button, CircularProgress, FormControl, MenuItem, Select, Stack } from '@mui/material'
+import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import './InstallApp.css'
-import {useContext, useState} from "react";
-import {Auth} from "../../../../../contexts/Auth";
-import {api} from '../../../../../services/api.js'
+import { useState } from 'react'
+import { api } from '../../../../../services/api.js'
+import { useSnackbar } from '../../../../../contexts/SnackBarContext.js'
 
-export default function UninstallApp({udid, installedApps}) {
+export default function UninstallApp({ udid, installedApps }) {
+    const { showSnackbar } = useSnackbar()
     const [selectedAppUninstall, setSelectedAppUninstall] = useState('no-app')
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isUninstalling, setIsUninstalling] = useState(false)
-    const {logout} = useContext(Auth)
 
     function handleUninstallChange(event) {
         const app = event.target.value
@@ -23,10 +23,10 @@ export default function UninstallApp({udid, installedApps}) {
 
     function handleUninstall() {
         setIsUninstalling(true)
-        const url = `/device/${udid}/uninstallApp`;
+        const url = `/device/${udid}/uninstallApp`
 
         const body = `{
-            "app": "` + selectedAppUninstall + `"
+            'app': '` + selectedAppUninstall + `'
         } `
 
         api.post(url, body)
@@ -35,18 +35,23 @@ export default function UninstallApp({udid, installedApps}) {
             })
             .catch(error => {
                 if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                        return
-                    }
+                    showCustomSnackbarError(`Failed to uninstall '${selectedAppUninstall}'`)
                     setIsUninstalling(false)
                 }
                 setIsUninstalling(false)
-            });
+            })
+    }
+
+    const showCustomSnackbarError = (message) => {
+        showSnackbar({
+            message: message,
+            severity: 'error',
+            duration: 3000,
+        })
     }
 
     return (
-        <Box style={{width: '300px'}}>
+        <Box style={{ width: '300px' }}>
             <Stack
                 alignItems='center'
             >
@@ -84,19 +89,19 @@ export default function UninstallApp({udid, installedApps}) {
                 <Box id='install-box'>
                     <Button
                         onClick={handleUninstall}
-                        startIcon={<InstallMobileIcon/>}
+                        startIcon={<InstallMobileIcon />}
                         id='install-button'
                         variant='contained'
                         disabled={uninstallButtonDisabled}
                         style={{
-                            backgroundColor: "#2f3b26",
-                            color: "#9ba984",
-                            fontWeight: "bold",
+                            backgroundColor: '#2f3b26',
+                            color: '#9ba984',
+                            fontWeight: 'bold',
                             width: '260px'
                         }}
                     >
                         {isUninstalling ? (
-                            <CircularProgress id='progress-indicator' size={30}/>
+                            <CircularProgress id='progress-indicator' size={30} />
                         ) : (
                             'Uninstall'
                         )}

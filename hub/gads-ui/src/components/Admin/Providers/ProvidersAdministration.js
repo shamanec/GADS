@@ -1,12 +1,13 @@
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from "@mui/material"
-import { useContext, useEffect, useState } from "react"
-import { api } from "../../../services/api"
-import { Auth } from "../../../contexts/Auth"
-import ProviderLogsTable from "./ProviderLogsTable"
-import CircularProgress from "@mui/material/CircularProgress";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
+import { Box, Button, Dialog, DialogContent, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
+import { useContext, useEffect, useState } from 'react'
+import { api } from '../../../services/api'
+import { Auth } from '../../../contexts/Auth'
+import ProviderLogsTable from './ProviderLogsTable'
+import CircularProgress from '@mui/material/CircularProgress'
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
 import './ProvidersAdministration.css'
+import { useDialog } from '../../../contexts/DialogContext'
 
 export default function ProvidersAdministration() {
     const [providers, setProviders] = useState([])
@@ -20,11 +21,6 @@ export default function ProvidersAdministration() {
                 setProviders(response.data)
             })
             .catch(error => {
-                if (error.response) {
-                    if (error.response.status === 401) {
-                        logout()
-                    }
-                }
             })
     }
 
@@ -74,8 +70,9 @@ function NewProvider({ handleGetProvidersData }) {
     const [useCustomWda, setUseCustomWda] = useState(false)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(false)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState('')
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false)
     const [addProviderStatus, setAddProviderStatus] = useState(null)
+    const [supervisionPassword, setSupervisionPassword] = useState('')
 
     function buildPayload() {
         let body = {}
@@ -89,6 +86,7 @@ function NewProvider({ handleGetProvidersData }) {
             body.wda_bundle_id = wdaBundleId
             body.wda_repo_path = wdaRepoPath
             body.use_custom_wda = useCustomWda
+            body.supervision_password = supervisionPassword
         }
         body.use_selenium_grid = useSeleniumGrid
         if (useSeleniumGrid) {
@@ -121,6 +119,7 @@ function NewProvider({ handleGetProvidersData }) {
                 setUseCustomWda(false)
                 setUseSeleniumGrid(false)
                 setSeleniumGridInstance('')
+                setSupervisionPassword('')
             })
             .catch(() => {
                 setAddProviderStatus('error')
@@ -272,6 +271,20 @@ function NewProvider({ handleGetProvidersData }) {
                         />
                     </Tooltip>
                     <Tooltip
+                        title='iOS supervision profile password, used to pair devices if they are supervised'
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            size='small'
+                            label='iOS supervision profile password'
+                            value={supervisionPassword}
+                            disabled={!ios}
+                            autoComplete='off'
+                            onChange={(event) => setSupervisionPassword(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
                         title='Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!'
                         arrow
                         placement='top'
@@ -366,11 +379,11 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
     const [useCustomWda, setUseCustomWda] = useState(providerData.use_custom_wda)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(providerData.use_selenium_grid)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState(providerData.selenium_grid)
+    const [supervisionPassword, setSupervisionPassword] = useState(providerData.supervision_password)
 
-    const [openAlert, setOpenAlert] = useState(false)
     const [openLogsDialog, setOpenLogsDialog] = useState(false)
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false)
     const [updateProviderStatus, setUpdateProviderStatus] = useState(null)
 
     function handleDeleteProvider(event) {
@@ -383,7 +396,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
             })
             .finally(() => {
                 handleGetProvidersData()
-                setOpenAlert(false)
             })
     }
 
@@ -399,6 +411,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
             body.wda_bundle_id = wdaBundleId
             body.wda_repo_path = wdaRepoPath
             body.use_custom_wda = useCustomWda
+            body.supervision_password = supervisionPassword
         }
         body.use_selenium_grid = useSeleniumGrid
         if (useSeleniumGrid) {
@@ -433,6 +446,20 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                     }, 2000)
                 }, 1000)
             })
+    }
+
+    const { showDialog, hideDialog } = useDialog()
+    const showDeleteProviderAlert = (event) => {
+
+        showDialog('deleteProviderAlert', {
+            title: 'Delete provider from DB?',
+            content: `Nickname: ${nickname}. Host address: ${hostAddress}.`,
+            actions: [
+                { label: 'Cancel', onClick: () => hideDialog() },
+                { label: 'Confirm', onClick: () => handleDeleteProvider(event) }
+            ],
+            isCloseable: false
+        })
     }
 
     return (
@@ -558,6 +585,20 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         />
                     </Tooltip>
                     <Tooltip
+                        title='iOS supervision profile password, used to pair devices if they are supervised'
+                        arrow
+                        placement='top'
+                    >
+                        <TextField
+                            size='small'
+                            label='iOS supervision profile password'
+                            value={supervisionPassword}
+                            disabled={!ios}
+                            autoComplete='off'
+                            onChange={(event) => setSupervisionPassword(event.target.value)}
+                        />
+                    </Tooltip>
+                    <Tooltip
                         title='WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent'
                         arrow
                         placement='top'
@@ -660,7 +701,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         }}
                     >Show logs</Button>
                     <Button
-                        onClick={() => setOpenAlert(true)}
+                        onClick={(event) => showDeleteProviderAlert(event)}
                         style={{
                             backgroundColor: 'orange',
                             color: '#2f3b26',
@@ -669,25 +710,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                             height: '40px'
                         }}
                     >Delete provider</Button>
-                    <Dialog
-                        open={openAlert}
-                        onClose={() => setOpenAlert(false)}
-                    >
-                        <DialogTitle>
-                            Delete provider from DB?
-                        </DialogTitle>
-                        <DialogContent>
-                            <DialogContentText>
-                                Nickname: {nickname}. Host address: {hostAddress}.
-                            </DialogContentText>
-                        </DialogContent>
-                        <DialogActions>
-                            <Button onClick={() => setOpenAlert(false)}>Cancel</Button>
-                            <Button onClick={handleDeleteProvider} autoFocus>
-                                Confirm
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
                     <Dialog
                         fullWidth
                         maxWidth='xl'
