@@ -9,6 +9,7 @@ type Provider struct {
 	SeleniumGrid         string `json:"selenium_grid" bson:"selenium_grid"`
 	ProvideAndroid       bool   `json:"provide_android" bson:"provide_android"`
 	ProvideIOS           bool   `json:"provide_ios" bson:"provide_ios"`
+	ProvideTizen         bool   `json:"provide_tizen" bson:"provide_tizen"`
 	WdaBundleID          string `json:"wda_bundle_id" bson:"wda_bundle_id"`
 	SupervisionPassword  string `json:"supervision_password" bson:"supervision_password"`
 	ProviderFolder       string `json:"-" bson:"-"`

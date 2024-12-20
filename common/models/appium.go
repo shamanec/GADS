@@ -68,6 +68,7 @@ type AppiumServerCapabilities struct {
 	DeviceName            string `json:"appium:deviceName"`
 	WdaLaunchTimeout      string `json:"appium:wdaLaunchTimeout,omitempty"`
 	WdaConnectionTimeout  string `json:"appium:wdaConnectionTimeout,omitempty"`
+	RCToken               string `json:"appium:rcToken,omitempty"`
 }
 
 type AppiumTomlNode struct {

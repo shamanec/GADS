@@ -32,7 +32,7 @@ The platform architecture consists of two main components:
 
 ### Why Choose GADS?
 - 💰 **Free**: Self-hosted alternative to AWS Device Farm and Firebase Test Lab
-- 📱 **Cross-Platform**: Full support for both iOS and Android devices
+- 📱 **Cross-Platform**: Full support for both iOS and Android devices, with automated testing for Tizen OS TVs
 - 🎮 **Remote Control**: Real-time device control and testing capabilities
 - 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
 - 🔑 **Flexible Authentication**: Support for multiple JWT issuers with origin-based keys
@@ -77,14 +77,15 @@ The platform architecture consists of two main components:
 - 🧪 **Testing Integration**
   - Individual Appium server endpoints
   - Optional Selenium Grid 4 node registration
+  - Automated testing for Samsung Tizen OS TVs
 
 ## 💻 Platform Support
 
-| OS        | Android Support | iOS Support  | Notes |
-|-----------|-----------------|--------------|-------|
-| **macOS** | ✅               | ✅            | Full support |
-| **Linux** | ✅               | ⚠️            | Limited iOS support due to Xcode dependency |
-| **Windows** | ✅             | ⚠️            | Limited iOS support due to Xcode dependency |
+| OS         | Android Support | iOS Support | Tizen OS Support    | Notes                                                             |
+|------------|----------------|-------------|----------------------|-------------------------------------------------------------------|
+| **macOS**  | ✅             | ✅           | ✅ (automation only) | Full support for mobile, Tizen OS supports only automated testing |
+| **Linux**  | ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency                       |
+| **Windows**| ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency                       |
 
 ## Licensing
 
@@ -222,6 +223,7 @@ https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 - **CI/CD Pipeline**: Integrate automated testing in your deployment workflow
 - **Device Lab Management**: Centralized management of your organization's mobile devices
 - **Cross-Browser Testing**: Test web applications across multiple mobile browsers
+- **Smart TV Testing**: Automated testing of Tizen OS applications for Samsung TVs
 
 ## 📊 Project Status
 
@@ -230,4 +232,4 @@ https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 
 ## 🔍 Keywords
 
-`device-farm`, `mobile-testing`, `ios-testing`, `android-testing`, `appium`, `test-automation`, `qa-tools`, `continuous-testing`, `mobile-device-management`, `selenium-grid`, `remote-device-control`, `mobile-qa`
+`device-farm`, `mobile-testing`, `ios-testing`, `android-testing`, `appium`, `test-automation`, `qa-tools`, `continuous-testing`, `mobile-device-management`, `selenium-grid`, `remote-device-control`, `mobile-qa`, `tizen-testing`, `smart-tv-testing`

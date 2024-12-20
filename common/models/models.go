@@ -45,6 +45,7 @@ type Device struct {
 	OS               string `json:"os" bson:"os"`                                 // device OS
 	Name             string `json:"name" bson:"name"`                             // name of the device
 	OSVersion        string `json:"os_version" bson:"os_version"`                 // OS version of the device
+	IPAddress        string `json:"ip_address" bson:"ip_address"`                 // IP address of the device
 	Provider         string `json:"provider" bson:"provider"`                     // nickname of the device host(provider)
 	Usage            string `json:"usage" bson:"usage"`                           // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
 	ScreenWidth      string `json:"screen_width" bson:"screen_width"`             // screen width of device
@@ -87,6 +88,7 @@ type Device struct {
 	GoIOSTunnel      tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
 	SemVer           *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
 	InitialSetupDone bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
+	RCToken          string             `json:"-" bson:"-"` // Remote control token for Tizen devices
 }
 
 type LocalHubDevice struct {

@@ -202,13 +202,14 @@ func updateDevices() {
 				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
 					setContext(dbDevice)
 					dbDevice.AppiumReadyChan = make(chan bool, 1)
-					if dbDevice.OS == "ios" {
+					switch dbDevice.OS {
+					case "ios":
 						dbDevice.WdaReadyChan = make(chan bool, 1)
 						go setupIOSDevice(dbDevice)
-					}
-
-					if dbDevice.OS == "android" {
+					case "android":
 						go setupAndroidDevice(dbDevice)
+					case "tizen":
+						go setupTizenDevice(dbDevice)
 					}
 				}
 			} else {
@@ -730,6 +731,7 @@ func GetConnectedDevicesCommon() []string {
 
 	var androidDevices []string
 	var iosDevices []string
+	var tizenDevices []string
 
 	if config.ProviderConfig.ProvideAndroid {
 		androidDevices = getConnectedDevicesAndroid()
@@ -739,8 +741,13 @@ func GetConnectedDevicesCommon() []string {
 		iosDevices = getConnectedDevicesIOS()
 	}
 
+	if config.ProviderConfig.ProvideTizen {
+		tizenDevices = getConnectedDevicesTizen()
+	}
+
 	connectedDevices = append(connectedDevices, iosDevices...)
 	connectedDevices = append(connectedDevices, androidDevices...)
+	connectedDevices = append(connectedDevices, tizenDevices...)
 
 	return connectedDevices
 }
@@ -853,6 +860,14 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 			AutomationName: "UiAutomator2",
 			PlatformName:   "Android",
 			DeviceName:     device.Name,
+		}
+	} else if device.OS == "tizen" {
+		capabilities = models.AppiumServerCapabilities{
+			UDID:           device.UDID,
+			AutomationName: "TizenTV",
+			PlatformName:   "TizenTV",
+			DeviceName:     device.Name,
+			RCToken:        device.RCToken,
 		}
 	}
 
@@ -1178,4 +1193,29 @@ func applyDeviceStreamSettings(device *models.Device) error {
 	}
 
 	return nil
+}
+
+func getConnectedDevicesTizen() []string {
+	var devices []string
+	cmd := exec.Command("sdb", "devices")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to get connected Tizen devices - %s", err))
+		return devices
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "List of devices attached") || strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[1] == "device" {
+			devices = append(devices, fields[0])
+		}
+	}
+
+	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Found Tizen devices: %v", devices))
+	return devices
 }

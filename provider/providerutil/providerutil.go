@@ -210,3 +210,16 @@ func GetXCUITestDriverVersion() (string, error) {
 func GetUiAutomator2DriverVersion() (string, error) {
 	return GetAppiumDriverVersion("uiautomator2")
 }
+
+// Check if sdb is available on the host by checking its version
+func SdbAvailable() bool {
+	logger.ProviderLogger.LogInfo("provider_setup", "Checking if sdb is set up and available on the host PATH")
+
+	cmd := exec.Command("sdb", "version")
+	err := cmd.Run()
+	if err != nil {
+		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("sdbAvailable: sdb is not available or command failed - %s", err))
+		return false
+	}
+	return true
+}
