@@ -53,7 +53,7 @@ function TypeText({ deviceData }) {
         setIsTyping(true)
         setShowError(false)
 
-        let json = `{'text': '${text}'}`
+        let json = `{"text": "${text}"}`
 
         let url = `/device/${deviceData.udid}/typeText`
         api.post(url, json)
