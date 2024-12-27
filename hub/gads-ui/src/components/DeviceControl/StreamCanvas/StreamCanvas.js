@@ -25,7 +25,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     let deviceScreenRatio = deviceX / deviceY
     let deviceLandscapeScreenRatio = deviceY / deviceX
     let deviceOS = deviceData.os
-    let usesCustomWda = deviceData.usesCustomWda
+    let usesCustomWda = deviceData.uses_custom_wda
     let udid = deviceData.udid
 
     let streamUrl = ''
