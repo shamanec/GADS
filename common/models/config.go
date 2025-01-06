@@ -35,4 +35,5 @@ type HubConfig struct {
 	SeleniumGridInstance string `json:"selenium_grid_instance"`
 	OSTempDir            string `json:"-"`
 	UIFilesTempDir       string `json:"-"`
+	OS                   string `json:"os"`
 }

@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -58,6 +59,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string) {
 		MongoDB:        mongoDB,
 		OSTempDir:      osTempDir,
 		UIFilesTempDir: uiFilesTempDir,
+		OS:             runtime.GOOS,
 	}
 
 	devices.ConfigData = &config
