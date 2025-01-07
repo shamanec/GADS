@@ -29,6 +29,6 @@ type HubConfig struct {
 	MongoDB              string `json:"mongo_db"`
 	SeleniumGridInstance string `json:"selenium_grid_instance"`
 	OSTempDir            string `json:"-"`
-	UIFilesTempDir       string `json:"-"`
+	FilesTempDir         string `json:"-"`
 	OS                   string `json:"os"`
 }
