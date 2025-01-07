@@ -20,7 +20,6 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
-	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/pelletier/go-toml/v2"
 
 	"GADS/common/constants"
@@ -43,13 +42,6 @@ func Listener() {
 	Setup()
 	DBDeviceMap = getDBProviderDevices()
 	setupDevices()
-
-	// Create pair record manager for go-ios tunnel handling of iOS 17.4+
-	pm, err := tunnel.NewPairRecordManager(config.ProviderConfig.ProviderFolder)
-	if err != nil {
-		os.Exit(1)
-	}
-	config.ProviderConfig.GoIOSPairRecordManager = pm
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
@@ -508,16 +500,8 @@ func setupIOSDevice(device *models.Device) {
 	go goIosForward(device, device.StreamPort, "9500")
 	go goIosForward(device, device.WDAStreamPort, "9100")
 
-	wdaPath := ""
-	if config.ProviderConfig.OS != "darwin" {
-		wdaPath = fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, config.ProviderConfig.WebDriverBinary)
-	} else {
-		wdaRepoPath := strings.TrimSuffix(config.ProviderConfig.WdaRepoPath, "/")
-		wdaPath = fmt.Sprintf("%s/build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app", wdaRepoPath)
-	}
-
 	if device.SemVer.Major() < 17 || (device.SemVer.Major() >= 17 && device.SemVer.Minor() >= 4) {
-		err = installAppIOS(device, wdaPath)
+		err = installAppIOS(device, fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder))
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
 			resetLocalDevice(device)
@@ -525,7 +509,7 @@ func setupIOSDevice(device *models.Device) {
 		}
 		go runWDAGoIOS(device)
 	} else {
-		go startWdaWithXcodebuild(device)
+		// TODO - start WDA with launch instead of Xcode
 	}
 
 	go checkWebDriverAgentUp(device)

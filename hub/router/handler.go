@@ -58,6 +58,7 @@ func HandleRequests() *gin.Engine {
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.GET("/admin/users", GetUsers)
 	authGroup.GET("/admin/files", GetFiles)
+	authGroup.POST("/admin/download-github-file", DownloadResourceFromGithubRepo)
 	authGroup.POST("/admin/upload-file", UploadFile)
 	authGroup.PUT("/admin/user", UpdateUser)
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)

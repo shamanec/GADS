@@ -1,7 +1,6 @@
 package devices
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -45,49 +43,6 @@ func goIosForward(device *models.Device, hostPort string, devicePort string) {
 	case <-device.Context.Done():
 		cl.Close()
 		return
-	}
-}
-
-// Start the prebuilt WebDriverAgent with `xcodebuild`
-func startWdaWithXcodebuild(device *models.Device) {
-	cmd := exec.CommandContext(device.Context, "xcodebuild",
-		"-project", "WebDriverAgent.xcodeproj",
-		"-scheme", "WebDriverAgentRunner",
-		"-destination", "platform=iOS,id="+device.UDID,
-		"-derivedDataPath", "./build",
-		"test-without-building")
-	cmd.Dir = config.ProviderConfig.WdaRepoPath
-	logger.ProviderLogger.LogDebug("webdriveragent_xcodebuild", fmt.Sprintf("startWdaWithXcodebuild: Starting WebDriverAgent with command `%v`", cmd.Args))
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		device.Logger.LogError("webdriveragent_xcodebuild", fmt.Sprintf("startWdaWithXcodebuild: Error creating stdoutpipe while running WebDriverAgent with xcodebuild for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
-	if err := cmd.Start(); err != nil {
-		device.Logger.LogError("webdriveragent_xcodebuild", fmt.Sprintf("startWdaWithXcodebuild: Could not start WebDriverAgent with xcodebuild for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
-		return
-	}
-
-	scanner := bufio.NewScanner(stdout)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		//device.Logger.LogInfo("webdriveragent", strings.TrimSpace(line))
-
-		if strings.Contains(line, "Restarting after") {
-			resetLocalDevice(device)
-			return
-		}
-	}
-
-	if err := cmd.Wait(); err != nil {
-		device.Logger.LogError("webdriveragent_xcodebuild", fmt.Sprintf("startWdaWithXcodebuild: Error waiting for WebDriverAgent(xcodebuild) command to finish, it errored out or device `%v` was disconnected - %v", device.UDID, err))
-		resetLocalDevice(device)
 	}
 }
 

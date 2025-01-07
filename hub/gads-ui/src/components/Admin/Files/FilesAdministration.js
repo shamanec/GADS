@@ -6,6 +6,9 @@ import { api } from '../../../services/api'
 export default function FilesAdministration() {
     const [seleniumJarExists, setSeleniumJarExists] = useState(false)
     const [supervisionFileExists, setSupervisionFileExists] = useState(false)
+    const [webDriverAgentFileExists, setWebDriverAgentFileExists] = useState(false)
+    const [pemFileExists, setPemFileExists] = useState(false)
+    const [mobileProvisionFileExists, setMobileProvisionFileExists] = useState(false)
 
     function handleGetFileData() {
         let url = `/admin/files`
@@ -20,6 +23,15 @@ export default function FilesAdministration() {
                         }
                         if (file.name === 'supervision.p12') {
                             setSupervisionFileExists(true)
+                        }
+                        if (file.name === 'WebDriverAgent.ipa') {
+                            setWebDriverAgentFileExists(true)
+                        }
+                        if (file.name === 'private_key.pem') {
+                            setPemFileExists(true)
+                        }
+                        if (file.name === 'profile.mobileprovision') {
+                            setMobileProvisionFileExists(true)
                         }
                     }
                 }
@@ -57,6 +69,30 @@ export default function FilesAdministration() {
                 fileStatus={supervisionFileExists}
                 fileName='supervision.p12'
                 expectedExtension='.p12'
+            />
+            <FileUploader
+                title='Upload WebDriverAgent IPA'
+                description='Upload signed/unsigned WebDriverAgent IPA file'
+                allowedExtensions={['ipa']}
+                fileStatus={webDriverAgentFileExists}
+                fileName='WebDriverAgent.ipa'
+                expectedExtension='.ipa'
+            />
+            <FileUploader
+                title='Upload iOS .pem file'
+                description='Upload private key file for signing WebDriverAgent.ipa'
+                allowedExtensions={['pem']}
+                fileStatus={pemFileExists}
+                fileName='private_key.pem'
+                expectedExtension='.pem'
+            />
+            <FileUploader
+                title='Upload iOS provisioning profile'
+                description='Upload mobile provisioning profile for signing WebDriverAgent.ipa'
+                allowedExtensions={['mobileprovision']}
+                fileStatus={mobileProvisionFileExists}
+                fileName='profile.mobileprovision'
+                expectedExtension='.mobileprovision'
             />
         </Stack>
     )
