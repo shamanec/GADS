@@ -509,7 +509,12 @@ func setupIOSDevice(device *models.Device) {
 		}
 		go runWDAGoIOS(device)
 	} else {
-		// TODO - start WDA with launch instead of Xcode
+		err = launchAppIOS(device, config.ProviderConfig.WdaBundleID, true)
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not launch WebDriverAgent on device `%s` - %s", device.UDID, err))
+			resetLocalDevice(device)
+			return
+		}
 	}
 
 	go checkWebDriverAgentUp(device)

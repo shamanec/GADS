@@ -22,6 +22,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
+	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
@@ -252,6 +253,24 @@ func installAppIOS(device *models.Device, appPath string) error {
 		return err
 	}
 	err = conn.SendFile(appPath)
+
+	return nil
+}
+
+func launchAppIOS(device *models.Device, bundleID string, killExisting bool) error {
+	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("launchAppIOS: Failed to initiate process control launching app with bundleID `$s` - %s", bundleID, err)
+	}
+
+	opts := map[string]any{}
+	if killExisting {
+		opts["KillExisting"] = 1
+	}
+	_, err = pControl.LaunchAppWithArgs(bundleID, nil, nil, opts)
+	if err != nil {
+		return fmt.Errorf("launchAppIOS: Failed to launch app with bundleID `%s` - %s", bundleID, err)
+	}
 
 	return nil
 }
