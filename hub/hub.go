@@ -18,7 +18,7 @@ import (
 
 var configData *models.HubConfig
 
-func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS) {
+func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourceFiles embed.FS) {
 	port, _ := flags.GetString("port")
 	if port == "" {
 		log.Fatalf("Please provide a port on which the hub instance should run through the --port flag, e.g. --port=10000")
@@ -83,6 +83,11 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS) {
 		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", filesTempDir, err)
 	}
 
+	err = setupResources(resourceFiles)
+	if err != nil {
+		log.Fatalf("Failed to unpack resource files in folder `%s` - %s", filesTempDir, err)
+	}
+
 	r := router.HandleRequests(configData)
 
 	// Start the GADS UI on the host IP address
@@ -112,6 +117,59 @@ func setupUIFiles(uiFiles embed.FS) error {
 
 	// Access the embedded directory as if it's the root
 	fsSub, err := fs.Sub(uiFiles, embeddedDir)
+	if err != nil {
+		return err
+	}
+
+	// Walk the 'virtual' root of the embedded filesystem
+	err = fs.WalkDir(fsSub, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Path here is relative to the 'virtual' root, no need to strip directories
+		outputPath := filepath.Join(targetDir, path)
+
+		if d.IsDir() {
+			// Create directory
+			return os.MkdirAll(outputPath, os.ModePerm)
+		}
+
+		// Read file data from the 'virtual' root
+		data, err := fs.ReadFile(fsSub, path)
+		if err != nil {
+			return err
+		}
+
+		// Write file data
+		return os.WriteFile(outputPath, data, os.ModePerm)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setupResources(resourceFiles embed.FS) error {
+	embeddedDir := "resources"
+	targetDir := filepath.Join(configData.FilesTempDir, "resources")
+
+	fmt.Printf("Attempting to unpack embedded resource files from `%s` to `%s`\n", embeddedDir, targetDir)
+
+	err := os.RemoveAll(targetDir)
+	if err != nil {
+		return err
+	}
+
+	// Ensure the target directory exists
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// Access the embedded directory as if it's the root
+	fsSub, err := fs.Sub(resourceFiles, embeddedDir)
 	if err != nil {
 		return err
 	}

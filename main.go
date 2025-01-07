@@ -27,7 +27,7 @@ func main() {
 		Use:   "hub",
 		Short: "Run a hub component",
 		Run: func(cmd *cobra.Command, args []string) {
-			hub.StartHub(cmd.Flags(), AppVersion, uiFiles)
+			hub.StartHub(cmd.Flags(), AppVersion, uiFiles, resourceFiles)
 		},
 	}
 	hubCmd.Flags().String("host-address", "localhost", "The IP address of the host machine")
