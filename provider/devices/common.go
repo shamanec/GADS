@@ -1211,8 +1211,9 @@ func getConnectedDevicesTizen() []string {
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[1] == "device" {
-			devices = append(devices, fields[0])
+		if len(fields) >= 3 && fields[1] == "device" {
+			deviceID := fields[len(fields)-1]
+			devices = append(devices, deviceID)
 		}
 	}
 
