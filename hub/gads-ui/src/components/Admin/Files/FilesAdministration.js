@@ -72,27 +72,11 @@ export default function FilesAdministration() {
             />
             <FileUploader
                 title='Upload WebDriverAgent IPA'
-                description='Upload signed/unsigned WebDriverAgent IPA file'
+                description='Upload signed WebDriverAgent IPA file'
                 allowedExtensions={['ipa']}
                 fileStatus={webDriverAgentFileExists}
                 fileName='WebDriverAgent.ipa'
                 expectedExtension='.ipa'
-            />
-            <FileUploader
-                title='Upload iOS .pem file'
-                description='Upload private key file for signing WebDriverAgent.ipa'
-                allowedExtensions={['pem']}
-                fileStatus={pemFileExists}
-                fileName='private_key.pem'
-                expectedExtension='.pem'
-            />
-            <FileUploader
-                title='Upload iOS provisioning profile'
-                description='Upload mobile provisioning profile for signing WebDriverAgent.ipa'
-                allowedExtensions={['mobileprovision']}
-                fileStatus={mobileProvisionFileExists}
-                fileName='profile.mobileprovision'
-                expectedExtension='.mobileprovision'
             />
         </Stack>
     )
