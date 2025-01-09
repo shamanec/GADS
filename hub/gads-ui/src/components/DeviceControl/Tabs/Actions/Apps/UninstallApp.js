@@ -25,9 +25,9 @@ export default function UninstallApp({ udid, installedApps }) {
         setIsUninstalling(true)
         const url = `/device/${udid}/uninstallApp`
 
-        const body = `{
-            'app': '` + selectedAppUninstall + `'
-        } `
+        const body = {
+            app: selectedAppUninstall
+        }
 
         api.post(url, body)
             .then(() => {
