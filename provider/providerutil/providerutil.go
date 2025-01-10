@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
 
+	"GADS/common/cli"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 )
@@ -146,4 +148,40 @@ func downloadGadsStreamApk() error {
 	}
 
 	return nil
+}
+
+func GetAppiumVersion() (string, error) {
+	versionOutput, err := cli.ExecuteCommand("appium", "-v")
+	if err != nil {
+		return "", err
+	}
+
+	return versionOutput, nil
+}
+
+func GetAppiumDriverVersion(driverName string) (string, error) {
+	output, err := cli.ExecuteCommand("appium", "driver", "list")
+	if err != nil {
+		return "", err
+	}
+	// Appium driver list has coloured output
+	// So we must strip the ANSI color codes
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	cleanedOutput := ansiRegex.ReplaceAllString(output, "")
+
+	re := regexp.MustCompile(fmt.Sprintf(`(?m)-\s%s@([\d\.]+)\s\[installed`, driverName))
+	match := re.FindStringSubmatch(cleanedOutput)
+	if match == nil {
+		return "", fmt.Errorf("driver %s not installed", driverName)
+	}
+
+	return match[1], nil
+}
+
+func GetXCUITestDriverVersion() (string, error) {
+	return GetAppiumDriverVersion("xcuitest")
+}
+
+func GetUiAutomator2DriverVersion() (string, error) {
+	return GetAppiumDriverVersion("uiautomator2")
 }
