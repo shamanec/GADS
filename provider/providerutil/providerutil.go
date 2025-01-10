@@ -60,19 +60,6 @@ func AdbAvailable() bool {
 	return true
 }
 
-// Check if xcodebuild is available on the host by checking its version
-func XcodebuildAvailable() bool {
-	logger.ProviderLogger.LogInfo("provider_setup", "Checking if xcodebuild is set up and available on the host (Xcode is installed)")
-
-	cmd := exec.Command("xcodebuild", "-version")
-	err := cmd.Run()
-	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("xcodebuildAvailable: xcodebuild is not available or command failed - %s", err))
-		return false
-	}
-	return true
-}
-
 // Check if Appium is installed and available on the host by checking its version
 func AppiumAvailable() bool {
 	logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is set up and available on the host PATH")

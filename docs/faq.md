@@ -7,21 +7,15 @@
 - *I have connected device, it appears as live in UI but I cannot connect to it, why?*
     - Could be a number of things, make sure you run the provider with `--log-level=debug` and observe the provider logs
     - Observe the respective device `appium.log` file as well
-- *[macOS] I have a connected iOS device where WebDriverAgent installation consistently fails, why?*
-    - GADS uses `xcodebuild` to run WebDriverAgent on iOS 17+ devices on macOS
-    - Make sure that you have signed the WebDriverAgent project from `Xcode` and have attempted to `Product > Test` it successfully at least once
-    - Observe the provider logs - you will see the full `xcodebuild` command used by GADS to attempt and start it on the device. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
 - *When I start my provider WDA is in a install loop and I get the error: `Error accepting new connection accept tcp [::]:56505: use of closed network connection`*
-    -   this is probably caused by inproper signing of WDA. Make sure that in xcode you sign it with something looking like this: `com.facebook.WebDriverAgentRunner`
-    -   In your provider config in GADS UI make sure you append .xctrunner to it so it looks like this: `com.facebook.WebDriverAgentRunner.xctrunner`
-- *[Linux/Windows] I have a connected iOS device where WebDriverAgent installation/start up consistently fails, why?*
-    - GADS uses `go-ios` to install and run WebDriverAgent on iOS < 17 devices on Linux/Windows
-    - Make sure you've properly signed and created the [WebDriverAgent](./provider.md#prepare-webdriveragent-file---linux-windows) ipa/app
-    - Observe the provider logs - if installation is failing, you will see the full `go-ios` command used by GADS to install the prepared WebDriverAgent ipa/app. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
-        - You might have to unlock your keychain, I haven't observed the need for this but it was reported - `security unlock-keychain -p yourMacPassword ~/Library/Keychains/login.keychain`
+    -   Make sure you've properly signed and created the uploaded [WebDriverAgent](./provider.md#prepare-webdriveragent-file---linux-windows) ipa
+    -   In your provider config in GADS UI make sure you've provided proper bundle identifier for WebDriverAgent, e.g. `com.shamanec.WebDriverAgentRunner`
+- *[macOS/Linux/Windows] I have a connected iOS device where WebDriverAgent installation/start up consistently fails, why?*
+    - Make sure you've properly signed and created the uploaded [WebDriverAgent](./provider.md#prepare-webdriveragent-file---linux-windows) ipa
+    - Observe the provider logs - if installation is failing, you will see the full `go-ios` command used by GADS to install the prepared WebDriverAgent ipa. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
     - Observe the provider logs - if running of WDA is failing, you will see the full `go-ios` command used by GADS to run the installed WebDriverAgent. Copy the command and run it from terminal without the provider. Observe and debug the output
 - *[Android] I can load the device in the UI but there is no video, why?*
-    - First option is that `GADS-android-stream` just doesn't work on your device - unlikely
+    - **NB** The Android stream will not start properly if the device screen is off(device is locked)
     - Disconnect your device, find the `GADS-stream` app on it and uninstall it, reconnect the device - hopefully the new set up will be able to start it properly
     - You can also do the above through the UI - load the device, find the `GADS-stream` package in the installed apps and uninstall it. Go to `Admin > Providers Administration` and reset the device from the provider interface.
     - If above doesn't work - disconnect your device, tap on the `GADS-stream` app on it. If it asks for permissions - allow them and press the `Home` button on the device. Check in the notifications for something like `GADS-stream is recording the device screen`. Reconnect the device.

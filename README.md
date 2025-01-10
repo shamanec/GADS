@@ -58,13 +58,13 @@ Supports Linux, macOS and Windows - notes below
 - macOS
   - Supports both Android / iOS
 - Linux
-  - Supports both Android / iOS < 17 && iOS >= 17.4
+  - Supports both Android / iOS
   - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Linux
 - Windows 10
-  - Supports Android / iOS < 17 && ios >= 17.4
+  - Supports Android / iOS
   - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Windows
 
-Developed and tested on Ubuntu 18.04 LTS, Ubuntu 20.04 LTS, Windows 10, macOS Ventura 13.5.1
+Developed and tested on Ubuntu 18.04 LTS, Ubuntu 20.04 LTS, Windows 10, macOS Sequioa 15.0
 
 ## Setup
 Currently the project assumes that GADS hub, device providers, MongoDB and Selenium Grid are on the same network. They can all be on the same machine as well.

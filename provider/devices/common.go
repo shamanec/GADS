@@ -360,12 +360,6 @@ func setupIOSDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
-	if device.SemVer.Major() >= 17 && device.SemVer.Minor() < 4 && config.ProviderConfig.OS != "darwin" {
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Windows/Linux support only iOS < 17 and iOS >= 17.4, setup for device `%s` will be skipped", device.UDID))
-		device.ProviderState = "init"
-		return
-	}
-
 	goIosDeviceEntry, err := ios.GetDevice(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get `go-ios` DeviceEntry for device - %v, err - %v", device.UDID, err))
@@ -500,7 +494,7 @@ func setupIOSDevice(device *models.Device) {
 	go goIosForward(device, device.StreamPort, "9500")
 	go goIosForward(device, device.WDAStreamPort, "9100")
 
-	if device.SemVer.Major() < 17 || (device.SemVer.Major() >= 17 && device.SemVer.Minor() >= 4) {
+	if device.SemVer.Major() < 17 || device.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
 		err = installAppIOS(device, fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder))
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
