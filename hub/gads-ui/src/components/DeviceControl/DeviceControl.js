@@ -135,8 +135,6 @@ export default function DeviceControl() {
             })
     }
 
-
-
     return (
         <div>
             <div className='back-button-bar' style={{

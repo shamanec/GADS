@@ -1,4 +1,4 @@
-import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button, CircularProgress } from '@mui/material'
+import { Box, Stack, List, ListItemIcon, ListItem, ListItemText, Divider, Button, CircularProgress, ListItemButton } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import InfoIcon from '@mui/icons-material/Info'
 import AspectRatioIcon from '@mui/icons-material/AspectRatio'
@@ -13,6 +13,7 @@ import { useSnackbar } from '../../contexts/SnackBarContext'
 export default function DeviceBox({ device }) {
     const [isAdmin, setIsAdmin] = useState(false)
     let img_src = device.info.os === 'android' ? './images/android-logo.png' : './images/apple-logo.png'
+    const { showSnackbar } = useSnackbar()
 
     useEffect(() => {
         let roleFromStorage = localStorage.getItem('userRole')
@@ -20,6 +21,25 @@ export default function DeviceBox({ device }) {
             setIsAdmin(true)
         }
     }, [])
+
+    const copyAppiumUrlToClipboard = (udid) => {
+        const baseURL = `${window.location.protocol}//${window.location.host}`
+        navigator.clipboard.writeText(`${baseURL}/device/${udid}/appium`)
+            .then(() => {
+                showSnackbar({
+                    message: 'Appium URL copied to clipboard!',
+                    severity: 'success',
+                    duration: 3000,
+                })
+            })
+            .catch(() => {
+                showSnackbar({
+                    message: 'Failed to copy Appium URL to clipboard!',
+                    severity: 'error',
+                    duration: 3000,
+                })
+            })
+    }
 
     return (
         <Box
@@ -103,6 +123,25 @@ export default function DeviceBox({ device }) {
                                 className='filterable info-text'
                                 primary={device.info.provider}
                             />
+                        </ListItem>
+                        <ListItem disablePadding>
+
+                            <ListItemButton
+                                onClick={() => copyAppiumUrlToClipboard(device.info.udid)}
+                            >
+                                <ListItemIcon>
+                                    <img
+                                        src="/images/appium-logo.png"
+                                        alt="icon"
+                                        style={{
+                                            width: '22px',
+                                            height: '22px',
+                                        }}
+                                    />
+                                </ListItemIcon>
+                                <ListItemText primary="Get Appium URL" />
+                            </ListItemButton>
+
                         </ListItem>
                     </List>
                 </Box>
