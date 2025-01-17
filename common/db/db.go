@@ -20,13 +20,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var mongoClient *mongo.Client
-var mongoClientCtx context.Context
-var mongoClientCtxCancel context.CancelFunc
+var (
+	mongoClient          *mongo.Client
+	mongoClientCtx       context.Context
+	mongoClientCtxCancel context.CancelFunc
+	connectionString     string
+)
 
 func InitMongoClient(mongoDb string) {
 	var err error
-	connectionString := "mongodb://" + mongoDb + "/?keepAlive=true"
+	connectionString = "mongodb://" + mongoDb + "/?keepAlive=true"
 
 	// Set up a context for the connection.
 	mongoClientCtx, mongoClientCtxCancel = context.WithCancel(context.Background())
@@ -66,18 +69,52 @@ func CloseMongoConn() {
 func checkDBConnection() {
 	errorCounter := 0
 	for {
-		if errorCounter < 10 {
-			time.Sleep(1 * time.Second)
-			err := mongoClient.Ping(mongoClientCtx, nil)
-			if err != nil {
-				fmt.Println("FAILED PINGING MONGO")
-				errorCounter++
-				continue
+		time.Sleep(1 * time.Second)
+		err := mongoClient.Ping(mongoClientCtx, nil)
+
+		if err != nil {
+			errorCounter++
+			log.WithFields(log.Fields{
+				"error_count": errorCounter,
+				"error":       err,
+			}).Warn("Failed to ping MongoDB")
+
+			if err := reconnectMongo(); err != nil {
+				log.WithFields(log.Fields{
+					"error_count": errorCounter,
+					"error":       err,
+				}).Error("Failed to reconnect to MongoDB")
+
+				if errorCounter >= 30 {
+					log.Fatal("Lost connection to MongoDB server and failed to reconnect after 30 attempts!")
+				}
+			} else {
+				log.Info("MongoDB connection restored")
+				errorCounter = 0
 			}
-		} else {
-			log.Fatal("Lost connection to MongoDB server for more than 10 seconds!")
 		}
 	}
+}
+
+func reconnectMongo() error {
+	if mongoClient != nil {
+		if err := mongoClient.Disconnect(mongoClientCtx); err != nil {
+			log.WithError(err).Error("Failed to disconnect from MongoDB")
+		}
+	}
+
+	clientOptions := options.Client().ApplyURI(connectionString)
+	newClient, err := mongo.Connect(mongoClientCtx, clientOptions)
+	if err != nil {
+		return fmt.Errorf("failed to reconnect to MongoDB: %v", err)
+	}
+
+	if err := newClient.Ping(mongoClientCtx, nil); err != nil {
+		return fmt.Errorf("failed to ping new MongoDB connection: %v", err)
+	}
+
+	mongoClient = newClient
+	return nil
 }
 
 func GetProviderFromDB(nickname string) (models.Provider, error) {
