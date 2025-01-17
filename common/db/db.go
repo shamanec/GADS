@@ -85,15 +85,10 @@ func checkDBConnection() {
 					"error":       err,
 				}).Error("Failed to reconnect to MongoDB")
 
-				if errorCounter >= 10 {
-					log.Fatal("Lost connection to MongoDB server and failed to reconnect after 10 attempts!")
+				if errorCounter >= 30 {
+					log.Fatal("Lost connection to MongoDB server and failed to reconnect after 30 attempts!")
 				}
 			} else {
-				log.Info("MongoDB connection restored")
-				errorCounter = 0
-			}
-		} else {
-			if errorCounter > 0 {
 				log.Info("MongoDB connection restored")
 				errorCounter = 0
 			}
