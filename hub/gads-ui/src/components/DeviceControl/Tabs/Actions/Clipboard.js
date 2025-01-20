@@ -1,24 +1,33 @@
 import { Box, Button, CircularProgress, Stack, TextField } from '@mui/material'
-import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import { api } from '../../../../services/api'
 import { useState } from 'react'
+import { useSnackbar } from '../../../../contexts/SnackBarContext'
 
 
 export default function Clipboard({ deviceData }) {
     const [isGettingCb, setIsGettingCb] = useState(false)
-    const [cbValue, setCbValue] = useState('')
+    const { showSnackbar } = useSnackbar()
 
     function handleGetClipboard() {
         setIsGettingCb(true)
         const url = `/device/${deviceData.udid}/getClipboard`
-        setCbValue('')
         api.get(url)
             .then((response) => {
-                setCbValue(response.data)
+                navigator.clipboard.writeText(response.data)
                 setIsGettingCb(false)
+                showSnackbar({
+                    message: 'Device clipboard copied!',
+                    severity: 'success',
+                    duration: 2000,
+                })
             })
             .catch(() => {
                 setIsGettingCb(false)
+                showSnackbar({
+                    message: 'Failed to get device clipboard!',
+                    severity: 'error',
+                    duration: 2000,
+                })
             })
     }
 
@@ -58,16 +67,6 @@ export default function Clipboard({ deviceData }) {
                         'Get clipboard'
                     )}
                 </Button>
-                <TextField
-                    id='outlined-basic'
-                    variant='outlined'
-                    value={cbValue}
-                    style={{
-                        backgroundColor: '#9ba984',
-                        marginTop: '15px',
-                        width: '100%'
-                    }}
-                />
             </Stack>
         </Box>
     )
