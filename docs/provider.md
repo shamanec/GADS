@@ -157,16 +157,17 @@ This is an optional but a preferable step - it can make devices setup more auton
 
 ## Prepare WebDriverAgent - (read the full paragraph)
 ### WebDriverAgent ipa
-You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`
-By using my custom WebDriverAgent you can have faster tap/swipe interactions on iOS devices (the provider configuration should be set to use the custom WebDriverAgent through GADS UI).  
+You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`  
+By using the custom WebDriverAgent from my fork you can have faster tap/swipe interactions on iOS devices (the provider configuration should be set to use the custom WebDriverAgent through hub UI).  
 You can use mainstream WebDriverAgent as well  
   
 ### Prebuilt custom WebDriverAgent
 - Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
-- Use any tool to resign it with your developer account (or provisioning profile + certificate)
+- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
   - [zsign](https://github.com/zhlynn/zsign)
   - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
   - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - Re-sign from hub UI - TODO
 
 ### Prebuilt mainstream WebDriverAgent
 - Download the latest prebuilt `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) releases
@@ -174,10 +175,11 @@ You can use mainstream WebDriverAgent as well
 - Navigate to the folder above and create an empty directory with the name `Payload`.
 - Copy the `.app` bundle inside the `Payload` folder
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
-- Use any tool to resign it with your developer account (or provisioning profile + certificate)
+- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
   - [zsign](https://github.com/zhlynn/zsign)
   - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
   - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - Re-sign from hub UI - TODO
 
 ### Build WebDriverAgent IPA file manually using Xcode
 - Download the code of the latest mainstream [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) release or alternatively the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent) for faster tap/swipe interactions.
