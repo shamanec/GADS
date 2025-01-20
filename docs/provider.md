@@ -189,7 +189,7 @@ You can use mainstream WebDriverAgent as well
 - Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
    `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
 - Navigate to the folder above and create an empty directory with the name `Payload`.
-- Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*` folders
+- Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders
 - Copy the `WebDriverAgentRunner-Runner.app` bundle/file inside the `Payload` folder
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
