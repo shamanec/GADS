@@ -155,39 +155,40 @@ This is an optional but a preferable step - it can make devices setup more auton
 * On each device activate `Developer options`, open them and enable `Enable USB debugging`
 * Connect each device to the host - a popup will appear on the device to pair - allow it.
 
-
-
 ## Prepare WebDriverAgent - (read the full paragraph)
+### WebDriverAgent ipa
+You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`
 By using my custom WebDriverAgent you can have faster tap/swipe interactions on iOS devices (the provider configuration should be set to use the custom WebDriverAgent through GADS UI).  
 You can use mainstream WebDriverAgent as well  
   
-### Custom WebDriverAgent
+### Prebuilt custom WebDriverAgent
+- Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
+- Use any tool to resign it with your developer account (or provisioning profile + certificate)
+  - [zsign](https://github.com/zhlynn/zsign)
+  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
 
-- Download the code of the `main` branch from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
-- Unzip the code in any folder.
-- Open WebDriverAgent.xcodeproj in Xcode
-- Select signing profiles for WebDriverAgentLib and WebDriverAgentRunner  
-- Run the WebDriverAgentRunner with `Build > Test` on a device at least once to validate it builds and runs as expected.
+### Prebuilt mainstream WebDriverAgent
+- Download the latest prebuilt `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) releases
+- Unzip the `.app` bundle in any folder.
+- Navigate to the folder above and create an empty directory with the name `Payload`.
+- Copy the `.app` bundle inside the `Payload` folder
+- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
+- Use any tool to resign it with your developer account (or provisioning profile + certificate)
+  - [zsign](https://github.com/zhlynn/zsign)
+  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
 
-### Normal WebDriverAgent
-- Download the latest release of [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases)
-- Unzip the source code in any folder.
-- Open WebDriverAgent.xcodeproj in Xcode
-- Select signing profiles for WebDriverAgentLib and WebDriverAgentRunner.
-
-- Run the WebDriverAgentRunner with `Build > Test` on a device at least once to validate it builds and runs as expected.
-
-### Prepare WebDriverAgent IPA file
+### Build WebDriverAgent IPA file manually using Xcode
 - Download the code of the latest mainstream [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) release or alternatively the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent) for faster tap/swipe interactions.
 - Open `WebDriverAgent.xcodeproj` in Xcode.
 - Select signing profile for WebDriverAgentRunner. To do this go to: *Targets*, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
 - Select `Build > Clean build folder` (just in case)
 - Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
    `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
-- Navigate to the folder above and create a new folder named `Payload`
-- Copy the `WebDriverAgentRunner-Runner.app` bundle inside the `Payload` folder
-- Right-click the `Payload` folder and compress it to a zip.
-- Rename the `Payload.zip` file to `WebDriverAgent.ipa`
+- Navigate to the folder above and create an empty directory with the name `Payload`.
+- Copy the `WebDriverAgentRunner-Runner.app` bundle/file inside the `Payload` folder
+- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  
