@@ -10,15 +10,15 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
-//go:embed gads-ui/build
-var uiFiles embed.FS
+var configData *models.HubConfig
 
-func StartHub(flags *pflag.FlagSet, appVersion string) {
+func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourceFiles embed.FS) {
 	port, _ := flags.GetString("port")
 	if port == "" {
 		log.Fatalf("Please provide a port on which the hub instance should run through the --port flag, e.g. --port=10000")
@@ -33,34 +33,34 @@ func StartHub(flags *pflag.FlagSet, appVersion string) {
 	fmt.Println("Default admin username is `admin`")
 	fmt.Println("Default admin password is `password` unless you've changed it")
 
-	uiFilesDir, _ := flags.GetString("ui-files-dir")
+	filesDir, _ := flags.GetString("files-dir")
 	osTempDir := os.TempDir()
-	var uiFilesTempDir string
+	var filesTempDir string
 	// If a specific folder is provided, unpack the UI files there
-	if uiFilesDir != "" {
-		_, err := os.Stat(uiFilesDir)
+	if filesDir != "" {
+		_, err := os.Stat(filesDir)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Fatalf("The provided ui-files-dir `%s` does not exist - %s", uiFilesDir, err)
+				log.Fatalf("The provided files-dir `%s` does not exist - %s", filesDir, err)
 			}
-			log.Fatalf("Could not check if the provided ui-files-dir `%s` exists - %s", uiFilesDir, err)
+			log.Fatalf("Could not check if the provided files-dir `%s` exists - %s", filesDir, err)
 		}
-		uiFilesTempDir = filepath.Join(uiFilesDir, "gads-ui")
+		filesTempDir = filesDir
 	} else {
 		// If no folder is specified, use a temporary directory on the host
-		uiFilesTempDir = filepath.Join(osTempDir, "gads-ui")
+		filesTempDir = osTempDir
 	}
-	fmt.Printf("UI static files will be unpacked in `%s`\n", uiFilesTempDir)
 
 	config := models.HubConfig{
-		HostAddress:    hostAddress,
-		Port:           port,
-		MongoDB:        mongoDB,
-		OSTempDir:      osTempDir,
-		UIFilesTempDir: uiFilesTempDir,
+		HostAddress:  hostAddress,
+		Port:         port,
+		MongoDB:      mongoDB,
+		OSTempDir:    osTempDir,
+		FilesTempDir: filesTempDir,
+		OS:           runtime.GOOS,
 	}
 
-	devices.ConfigData = &config
+	configData = &config
 
 	// Create a new connection to MongoDB
 	db.InitMongoClient(mongoDB)
@@ -78,15 +78,20 @@ func StartHub(flags *pflag.FlagSet, appVersion string) {
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}
 
-	err = setupUIFiles()
+	err = setupUIFiles(uiFiles)
 	if err != nil {
-		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", uiFilesTempDir, err)
+		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", filesTempDir, err)
 	}
 
-	r := router.HandleRequests()
+	err = setupResources(resourceFiles)
+	if err != nil {
+		log.Fatalf("Failed to unpack resource files in folder `%s` - %s", filesTempDir, err)
+	}
+
+	r := router.HandleRequests(configData)
 
 	// Start the GADS UI on the host IP address
-	address := fmt.Sprintf("%s:%s", devices.ConfigData.HostAddress, devices.ConfigData.Port)
+	address := fmt.Sprintf("%s:%s", configData.HostAddress, configData.Port)
 	//err = r.RunTLS(address, "./server.crt", "./server.key")
 	err = r.Run(address)
 	if err != nil {
@@ -94,18 +99,19 @@ func StartHub(flags *pflag.FlagSet, appVersion string) {
 	}
 }
 
-func setupUIFiles() error {
-	embeddedDir := "gads-ui/build"
+func setupUIFiles(uiFiles embed.FS) error {
+	embeddedDir := "hub/gads-ui/build"
+	targetDir := filepath.Join(configData.FilesTempDir, "gads-ui")
 
-	fmt.Printf("Attempting to unpack embedded UI static files from `%s` to `%s`\n", embeddedDir, devices.ConfigData.UIFilesTempDir)
+	fmt.Printf("Attempting to unpack embedded UI static files from `%s` to `%s`\n", embeddedDir, targetDir)
 
-	err := os.RemoveAll(devices.ConfigData.UIFilesTempDir)
+	err := os.RemoveAll(targetDir)
 	if err != nil {
 		return err
 	}
 
 	// Ensure the target directory exists
-	if err := os.MkdirAll(devices.ConfigData.UIFilesTempDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
 		return err
 	}
 
@@ -122,7 +128,60 @@ func setupUIFiles() error {
 		}
 
 		// Path here is relative to the 'virtual' root, no need to strip directories
-		outputPath := filepath.Join(devices.ConfigData.UIFilesTempDir, path)
+		outputPath := filepath.Join(targetDir, path)
+
+		if d.IsDir() {
+			// Create directory
+			return os.MkdirAll(outputPath, os.ModePerm)
+		}
+
+		// Read file data from the 'virtual' root
+		data, err := fs.ReadFile(fsSub, path)
+		if err != nil {
+			return err
+		}
+
+		// Write file data
+		return os.WriteFile(outputPath, data, os.ModePerm)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setupResources(resourceFiles embed.FS) error {
+	embeddedDir := "resources"
+	targetDir := filepath.Join(configData.FilesTempDir, "resources")
+
+	fmt.Printf("Attempting to unpack embedded resource files from `%s` to `%s`\n", embeddedDir, targetDir)
+
+	err := os.RemoveAll(targetDir)
+	if err != nil {
+		return err
+	}
+
+	// Ensure the target directory exists
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// Access the embedded directory as if it's the root
+	fsSub, err := fs.Sub(resourceFiles, embeddedDir)
+	if err != nil {
+		return err
+	}
+
+	// Walk the 'virtual' root of the embedded filesystem
+	err = fs.WalkDir(fsSub, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Path here is relative to the 'virtual' root, no need to strip directories
+		outputPath := filepath.Join(targetDir, path)
 
 		if d.IsDir() {
 			// Create directory

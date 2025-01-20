@@ -1,17 +1,18 @@
 package providerutil
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
 
+	"GADS/common/cli"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 )
@@ -61,19 +62,6 @@ func AdbAvailable() bool {
 	return true
 }
 
-// Check if xcodebuild is available on the host by checking its version
-func XcodebuildAvailable() bool {
-	logger.ProviderLogger.LogInfo("provider_setup", "Checking if xcodebuild is set up and available on the host (Xcode is installed)")
-
-	cmd := exec.Command("xcodebuild", "-version")
-	err := cmd.Run()
-	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("xcodebuildAvailable: xcodebuild is not available or command failed - %s", err))
-		return false
-	}
-	return true
-}
-
 // Check if Appium is installed and available on the host by checking its version
 func AppiumAvailable() bool {
 	logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is set up and available on the host PATH")
@@ -85,38 +73,6 @@ func AppiumAvailable() bool {
 		return false
 	}
 	return true
-}
-
-// Build WebDriverAgent for testing with `xcodebuild`
-func BuildWebDriverAgent() error {
-	cmd := exec.Command("xcodebuild", "-project", "WebDriverAgent.xcodeproj", "-scheme", "WebDriverAgentRunner", "-destination", "generic/platform=iOS", "build-for-testing", "-derivedDataPath", "./build")
-	cmd.Dir = config.ProviderConfig.WdaRepoPath
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Building WebDriverAgent for testing using xcodebuild in path `%s` with command `%s` ", config.ProviderConfig.WdaRepoPath, cmd.String()))
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	// Create a scanner to read the command's output line by line
-	scanner := bufio.NewScanner(stdout)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		logger.ProviderLogger.LogDebug("webdriveragent_xcodebuild", line)
-	}
-
-	// Wait for the command to finish
-	if err := cmd.Wait(); err != nil {
-		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("buildWebDriverAgent: Error waiting for build WebDriverAgent with `xcodebuild` command to finish - %s", err))
-		logger.ProviderLogger.LogError("provider_setup", "buildWebDriverAgent: Building WebDriverAgent for testing was unsuccessful")
-		os.Exit(1)
-	}
-	return nil
 }
 
 // Remove all adb forwarded ports(if any) on provider start
@@ -192,4 +148,40 @@ func downloadGadsStreamApk() error {
 	}
 
 	return nil
+}
+
+func GetAppiumVersion() (string, error) {
+	versionOutput, err := cli.ExecuteCommand("appium", "-v")
+	if err != nil {
+		return "", err
+	}
+
+	return versionOutput, nil
+}
+
+func GetAppiumDriverVersion(driverName string) (string, error) {
+	output, err := cli.ExecuteCommand("appium", "driver", "list")
+	if err != nil {
+		return "", err
+	}
+	// Appium driver list has coloured output
+	// So we must strip the ANSI color codes
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	cleanedOutput := ansiRegex.ReplaceAllString(output, "")
+
+	re := regexp.MustCompile(fmt.Sprintf(`(?m)-\s%s@([\d\.]+)\s\[installed`, driverName))
+	match := re.FindStringSubmatch(cleanedOutput)
+	if match == nil {
+		return "", fmt.Errorf("driver %s not installed", driverName)
+	}
+
+	return match[1], nil
+}
+
+func GetXCUITestDriverVersion() (string, error) {
+	return GetAppiumDriverVersion("xcuitest")
+}
+
+func GetUiAutomator2DriverVersion() (string, error) {
+	return GetAppiumDriverVersion("uiautomator2")
 }

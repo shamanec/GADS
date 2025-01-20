@@ -6,6 +6,9 @@ import { api } from '../../../services/api'
 export default function FilesAdministration() {
     const [seleniumJarExists, setSeleniumJarExists] = useState(false)
     const [supervisionFileExists, setSupervisionFileExists] = useState(false)
+    const [webDriverAgentFileExists, setWebDriverAgentFileExists] = useState(false)
+    const [pemFileExists, setPemFileExists] = useState(false)
+    const [mobileProvisionFileExists, setMobileProvisionFileExists] = useState(false)
 
     function handleGetFileData() {
         let url = `/admin/files`
@@ -20,6 +23,15 @@ export default function FilesAdministration() {
                         }
                         if (file.name === 'supervision.p12') {
                             setSupervisionFileExists(true)
+                        }
+                        if (file.name === 'WebDriverAgent.ipa') {
+                            setWebDriverAgentFileExists(true)
+                        }
+                        if (file.name === 'private_key.pem') {
+                            setPemFileExists(true)
+                        }
+                        if (file.name === 'profile.mobileprovision') {
+                            setMobileProvisionFileExists(true)
                         }
                     }
                 }
@@ -57,6 +69,14 @@ export default function FilesAdministration() {
                 fileStatus={supervisionFileExists}
                 fileName='supervision.p12'
                 expectedExtension='.p12'
+            />
+            <FileUploader
+                title='Upload WebDriverAgent IPA'
+                description='Upload signed WebDriverAgent IPA file'
+                allowedExtensions={['ipa']}
+                fileStatus={webDriverAgentFileExists}
+                fileName='WebDriverAgent.ipa'
+                expectedExtension='.ipa'
             />
         </Stack>
     )

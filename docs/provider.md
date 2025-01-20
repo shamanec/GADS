@@ -130,7 +130,7 @@ Example installation command for Ubuntu -  `sudo apt install usbmuxd`.
 
 ## iOS Phones
 ### Enable Developer mode - iOS 16+ only
-Developer mode needs to be enabled on iOS 16+ devices to allow Xcode and `go-ios` usage against the device
+Developer mode needs to be enabled on iOS 16+ devices to allow `go-ios` usage against the device
 - Open `Settings > Privacy & Security > Developer Mode`
 - Enable the toggle
 
@@ -155,43 +155,43 @@ This is an optional but a preferable step - it can make devices setup more auton
 * On each device activate `Developer options`, open them and enable `Enable USB debugging`
 * Connect each device to the host - a popup will appear on the device to pair - allow it.
 
-
-
-## Prepare WebDriverAgent on macOS - (read the full paragraph)
-### Custom WebDriverAgent
-By using my custom WebDriverAgent you can have faster tap/swipe interactions on iOS devices.  
-The provider configuration should be set to use the custom WebDriverAgent through GADS UI  
-- Download the code of the `main` branch from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
-- Unzip the code in any folder.
-- Open WebDriverAgent.xcodeproj in Xcode
-- Select signing profiles for WebDriverAgentLib and WebDriverAgentRunner  
-- Run the WebDriverAgentRunner with `Build > Test` on a device at least once to validate it builds and runs as expected.
-
-### Normal WebDriverAgent
-- Download the latest release of [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases)
-- Unzip the source code in any folder.
-- **Open WebDriverAgent.xcodeproj in Xcode**
-- Select signing profiles for WebDriverAgentLib and WebDriverAgentRunner.
-
-- Run the WebDriverAgentRunner with `Build > Test` on a device at least once to validate it builds and runs as expected.
-
-## Prepare WebDriverAgent file - Linux, Windows
+## Prepare WebDriverAgent - (read the full paragraph)
+### WebDriverAgent ipa
+You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`  
+By using the custom WebDriverAgent from my fork you can have faster tap/swipe interactions on iOS devices (the provider configuration should be set to use the custom WebDriverAgent through hub UI).  
+You can use mainstream WebDriverAgent as well  
   
-> [!NOTE]  
-> You need a Mac machine to at least build and sign WebDriverAgent, currently we cannot avoid this.
->You need a paid Apple Developer account to build and sign `WebDriverAgent` if you have more than 2 devices?.
+### Prebuilt custom WebDriverAgent
+- Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
+- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
+  - [zsign](https://github.com/zhlynn/zsign)
+  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - Re-sign from hub UI - TODO
 
+### Prebuilt mainstream WebDriverAgent
+- Download the latest prebuilt `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) releases
+- Unzip the `.app` bundle in any folder.
+- Navigate to the folder above and create an empty directory with the name `Payload`.
+- Copy the `.app` bundle inside the `Payload` folder
+- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
+- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
+  - [zsign](https://github.com/zhlynn/zsign)
+  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - Re-sign from hub UI - TODO
 
-- Download and install [iOS App Signer](https://dantheman827.github.io/ios-app-signer/)
+### Build WebDriverAgent IPA file manually using Xcode
 - Download the code of the latest mainstream [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) release or alternatively the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent) for faster tap/swipe interactions.
 - Open `WebDriverAgent.xcodeproj` in Xcode.
-- Ensure a team is selected before building the application. To do this go to: *Targets* and select each target one at a time. There should be a field for assigning teams certificates to the target.
-- Remove your `WebDriverAgent` folder from `DerivedData` and run `Clean build folder` (just in case)
-- Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Run `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
+- Select signing profile for WebDriverAgentRunner. To do this go to: *Targets*, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
+- Select `Build > Clean build folder` (just in case)
+- Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
    `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
-- Open `iOS App Signer`
-- Select `WebDriverAgentRunner-Runner.app`.
-- Generate the WebDriverAgent *.ipa file.
+- Navigate to the folder above and create an empty directory with the name `Payload`.
+- Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders
+- Copy the `.app` bundle inside the `Payload` folder
+- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  

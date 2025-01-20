@@ -1,8 +1,8 @@
 package router
 
 import (
+	"GADS/common/models"
 	"GADS/hub/auth"
-	"GADS/hub/devices"
 	"path/filepath"
 
 	"github.com/gin-contrib/cors"
@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func HandleRequests() *gin.Engine {
+func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	// Create the router and allow all origins
 	// Allow particular headers as well
 	r := gin.Default()
@@ -19,11 +19,12 @@ func HandleRequests() *gin.Engine {
 	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
 	r.Use(cors.New(config))
 
-	indexHtmlPath := filepath.Join(devices.ConfigData.UIFilesTempDir, "index.html")
+	filesDir := filepath.Join(configData.FilesTempDir, "gads-ui")
+	indexHtmlPath := filepath.Join(filesDir, "index.html")
 
 	// Configuration for SAP applications
 	// Serve the static files from the built React app
-	r.Use(static.Serve("/", static.LocalFile(devices.ConfigData.UIFilesTempDir, true)))
+	r.Use(static.Serve("/", static.LocalFile(filesDir, true)))
 	// For any missing route serve the index.htm from the static files
 	// This will fix the issue with accessing particular endpoint in the browser manually or with refresh
 	r.NoRoute(func(c *gin.Context) {
@@ -58,6 +59,7 @@ func HandleRequests() *gin.Engine {
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.GET("/admin/users", GetUsers)
 	authGroup.GET("/admin/files", GetFiles)
+	authGroup.POST("/admin/download-github-file", DownloadResourceFromGithubRepo)
 	authGroup.POST("/admin/upload-file", UploadFile)
 	authGroup.PUT("/admin/user", UpdateUser)
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)

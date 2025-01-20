@@ -12,7 +12,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -73,54 +72,18 @@ func StartProvider(flags *pflag.FlagSet) {
 		}
 	}
 
+	if config.ProviderConfig.ProvideIOS {
+		err = config.SetupWebDriverAgentFile()
+		if err != nil {
+			log.Fatalf("Could not provide WebDriverAgent.ipa file from MongoDB - %s", err)
+		}
+	}
+
 	// Finalize grid configuration if Selenium Grid usage enabled
 	if config.ProviderConfig.UseSeleniumGrid {
 		err = config.SetupSeleniumJar()
 		if err != nil {
 			log.Fatalf("Selenium Grid connection is enabled but there is something wrong with providing the selenium jar file from MongoDB - %s", err)
-		}
-	}
-
-	// If running on macOS and iOS device provisioning is enabled
-	if config.ProviderConfig.OS == "darwin" && config.ProviderConfig.ProvideIOS {
-		logger.ProviderLogger.LogInfo("provider_setup", "Provider runs on macOS and is set up to provide iOS devices")
-		// Add a trailing slash to WDA repo folder if its missing
-		// To avoid issues with the configuration
-		logger.ProviderLogger.LogDebug("provider_setup", "Handling trailing slash of provided WebDriverAgent repo path if needed")
-		if !strings.HasSuffix(config.ProviderConfig.WdaRepoPath, "/") {
-			logger.ProviderLogger.LogDebug("provider_setup", "Provided WebDriverAgent repo path has no trailing slash, adding it")
-			config.ProviderConfig.WdaRepoPath = fmt.Sprintf("%s/", config.ProviderConfig.WdaRepoPath)
-		}
-
-		// Check if the provided WebDriverAgent repo path exists
-		logger.ProviderLogger.LogDebug("provider_setup", "Checking if provided WebDriverAgent repo path exists on the host")
-		_, err := os.Stat(config.ProviderConfig.WdaRepoPath)
-		if err != nil {
-			log.Fatalf("`%s` does not exist, you need to provide valid path to the WebDriverAgent repo in the provider configuration", config.ProviderConfig.WdaRepoPath)
-		}
-
-		// Check if xcodebuild is available - Xcode and command line tools should be installed
-		if !providerutil.XcodebuildAvailable() {
-			log.Fatal("xcodebuild is not available, you need to set it up on the host as explained in the readme")
-		}
-
-		// Build the WebDriverAgent using xcodebuild from the provided repo path
-		err = providerutil.BuildWebDriverAgent()
-		if err != nil {
-			log.Fatalf("Could not build WebDriverAgent for testing - %s", err)
-		}
-	}
-
-	if config.ProviderConfig.ProvideIOS {
-		// If on Linux or Windows and iOS devices provision enabled check for WebDriverAgent.ipa/app
-		if config.ProviderConfig.OS != "darwin" {
-			logger.ProviderLogger.LogInfo(
-				"provider_setup",
-				"Provider runs on Linux/Windows and is set up to provide iOS devices, checking if prepared WebDriverAgent binary exists in the provider folder as explained in the readme")
-			err := configureWebDriverBinary(providerFolder)
-			if err != nil {
-				log.Fatalf("You should put signed WebDriverAgent.ipa/app file in the provider folder `%s` as explained in the readme", providerFolder)
-			}
 		}
 	}
 
@@ -158,24 +121,6 @@ func startHTTPServer() error {
 		return err
 	}
 	return fmt.Errorf("HTTP server stopped due to an unknown reason")
-}
-
-// Check for and set up WebDriverAgent.ipa/app binary in config
-func configureWebDriverBinary(providerFolder string) error {
-	// Check for WDA ipa, then WDA app availability
-	ipaPath := fmt.Sprintf("%s/WebDriverAgent.ipa", providerFolder)
-	_, err := os.Stat(ipaPath)
-	if err != nil {
-		appPath := fmt.Sprintf("%s/WebDriverAgent.app", providerFolder)
-		_, err = os.Stat(appPath)
-		if os.IsNotExist(err) {
-			return err
-		}
-		config.ProviderConfig.WebDriverBinary = "WebDriverAgent.app"
-	} else {
-		config.ProviderConfig.WebDriverBinary = "WebDriverAgent.ipa"
-	}
-	return nil
 }
 
 // Periodically send current provider data updates to MongoDB

@@ -6,7 +6,7 @@ toolchain go1.22.6
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/danielpaulus/go-ios v1.0.160
+	github.com/danielpaulus/go-ios v1.0.172
 	github.com/gin-contrib/static v0.0.1
 	github.com/gin-gonic/gin v1.9.0
 	github.com/gobwas/ws v1.4.0

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -320,16 +321,6 @@ func AddProvider(c *gin.Context) {
 		BadRequest(c, "Missing or invalid port")
 		return
 	}
-	if provider.ProvideIOS {
-		if provider.WdaBundleID == "" && (provider.OS == "windows" || provider.OS == "linux") {
-			BadRequest(c, "Missing or invalid WebDriverAgent bundle ID")
-			return
-		}
-		if provider.WdaRepoPath == "" && provider.OS == "darwin" {
-			BadRequest(c, "Missing or invalid WebDriverAgent repo path")
-			return
-		}
-	}
 	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
 		BadRequest(c, "Missing or invalid Selenium Grid address")
 		return
@@ -375,16 +366,6 @@ func UpdateProvider(c *gin.Context) {
 	if provider.Port == 0 {
 		BadRequest(c, "missing `port` field")
 		return
-	}
-	if provider.ProvideIOS {
-		if provider.WdaBundleID == "" && (provider.OS == "windows" || provider.OS == "linux") {
-			BadRequest(c, "missing `wda_bundle_id` field")
-			return
-		}
-		if provider.WdaRepoPath == "" && provider.OS == "darwin" {
-			BadRequest(c, "missing `wda_repo_path` field")
-			return
-		}
 	}
 	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
 		BadRequest(c, "missing `selenium_grid` field")
@@ -870,4 +851,34 @@ func GetFiles(c *gin.Context) {
 	files := db.GetDBFiles()
 
 	c.JSON(http.StatusOK, files)
+}
+
+func DownloadResourceFromGithubRepo(c *gin.Context) {
+	fileName := c.Query("fileName")
+	fmt.Println("Filename " + fileName)
+
+	// Create the file
+	out, err := os.Create(fileName)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Create"+err.Error())
+		return
+	}
+	defer out.Close()
+
+	// Get the data
+	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/shamanec/GADS/wda-signing/resources/%s", fileName))
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Get"+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	// Check server response
+	if resp.StatusCode != http.StatusOK {
+		c.String(resp.StatusCode, "Statuscode"+err.Error())
+		return
+	}
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
 }

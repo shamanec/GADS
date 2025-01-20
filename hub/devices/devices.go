@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-var ConfigData *models.HubConfig
-
 func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canvasHeight string) {
 	// Get the width and height provided
 	widthString := device.ScreenWidth

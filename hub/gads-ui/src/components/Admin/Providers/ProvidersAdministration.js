@@ -65,7 +65,6 @@ function NewProvider({ handleGetProvidersData }) {
     const [port, setPort] = useState(0)
     const [ios, setIos] = useState(false)
     const [android, setAndroid] = useState(false)
-    const [wdaRepoPath, setWdaRepoPath] = useState('')
     const [wdaBundleId, setWdaBundleId] = useState('')
     const [useCustomWda, setUseCustomWda] = useState(false)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(false)
@@ -84,7 +83,6 @@ function NewProvider({ handleGetProvidersData }) {
         body.provide_ios = ios
         if (ios) {
             body.wda_bundle_id = wdaBundleId
-            body.wda_repo_path = wdaRepoPath
             body.use_custom_wda = useCustomWda
             body.supervision_password = supervisionPassword
         }
@@ -114,7 +112,6 @@ function NewProvider({ handleGetProvidersData }) {
                 setPort(0)
                 setIos(false)
                 setAndroid(false)
-                setWdaRepoPath('')
                 setWdaBundleId('')
                 setUseCustomWda(false)
                 setUseSeleniumGrid(false)
@@ -256,21 +253,6 @@ function NewProvider({ handleGetProvidersData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title='WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent'
-                        arrow
-                        placement='top'
-                    >
-                        <TextField
-                            required
-                            size='small'
-                            label='WDA repo path'
-                            value={wdaRepoPath}
-                            disabled={!ios || (ios && os !== 'darwin')}
-                            autoComplete='off'
-                            onChange={(event) => setWdaRepoPath(event.target.value)}
-                        />
-                    </Tooltip>
-                    <Tooltip
                         title='iOS supervision profile password, used to pair devices if they are supervised'
                         arrow
                         placement='top'
@@ -285,7 +267,7 @@ function NewProvider({ handleGetProvidersData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title='Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!'
+                        title='Select `Yes` if you are using the custom WebDriverAgent from my forked repository. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WebDriverAgent this will break your interactions!'
                         arrow
                         placement='top'
                     >
@@ -374,7 +356,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
     const [port, setPort] = useState(providerData.port)
     const [ios, setIos] = useState(providerData.provide_ios)
     const [android, setAndroid] = useState(providerData.provide_android)
-    const [wdaRepoPath, setWdaRepoPath] = useState(providerData.wda_repo_path)
     const [wdaBundleId, setWdaBundleId] = useState(providerData.wda_bundle_id)
     const [useCustomWda, setUseCustomWda] = useState(providerData.use_custom_wda)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(providerData.use_selenium_grid)
@@ -409,7 +390,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
         body.provide_ios = ios
         if (ios) {
             body.wda_bundle_id = wdaBundleId
-            body.wda_repo_path = wdaRepoPath
             body.use_custom_wda = useCustomWda
             body.supervision_password = supervisionPassword
         }
@@ -599,22 +579,7 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title='WebDriverAgent repository path on the host from which it will be built with `xcodebuild`, e.g. /Users/shamanec/repos/WebDriverAgent'
-                        arrow
-                        placement='top'
-                    >
-                        <TextField
-                            required
-                            size='small'
-                            label='WDA repo path'
-                            value={wdaRepoPath}
-                            disabled={!ios || (ios && os !== 'darwin')}
-                            autoComplete='off'
-                            onChange={(event) => setWdaRepoPath(event.target.value)}
-                        />
-                    </Tooltip>
-                    <Tooltip
-                        title='Select `Yes` if you are using the custom WebDriverAgent from my repositories. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WDA this will break your interactions!'
+                        title='Select `Yes` if you are using the custom WebDriverAgent from my forked repository. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WebDriverAgent this will break your interactions!'
                         arrow
                         placement='top'
                     >

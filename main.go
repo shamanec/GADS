@@ -3,6 +3,7 @@ package main
 import (
 	"GADS/hub"
 	"GADS/provider"
+	"embed"
 	"fmt"
 	"os"
 
@@ -10,6 +11,12 @@ import (
 )
 
 var AppVersion = "development"
+
+//go:embed resources
+var resourceFiles embed.FS
+
+//go:embed hub/gads-ui/build
+var uiFiles embed.FS
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "GADS"}
@@ -20,12 +27,12 @@ func main() {
 		Use:   "hub",
 		Short: "Run a hub component",
 		Run: func(cmd *cobra.Command, args []string) {
-			hub.StartHub(cmd.Flags(), AppVersion)
+			hub.StartHub(cmd.Flags(), AppVersion, uiFiles, resourceFiles)
 		},
 	}
 	hubCmd.Flags().String("host-address", "localhost", "The IP address of the host machine")
 	hubCmd.Flags().String("port", "", "The port on which the component should run")
-	hubCmd.Flags().String("ui-files-dir", "", "Directory where the UI static files will be unpacked and served from."+
+	hubCmd.Flags().String("files-dir", "", "Directory where the UI static files and other resources will be unpacked."+
 		"\nBy default app will try to use a temp dir on the host, use this flag only if you encounter issues with the temp folder."+
 		"\nAlso you need to have created the folder in advance!")
 	rootCmd.AddCommand(hubCmd)
