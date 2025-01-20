@@ -190,7 +190,7 @@ You can use mainstream WebDriverAgent as well
    `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
 - Navigate to the folder above and create an empty directory with the name `Payload`.
 - Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders
-- Copy the `WebDriverAgentRunner-Runner.app` bundle/file inside the `Payload` folder
+- Copy the `.app` bundle inside the `Payload` folder
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
 ## Starting a provider instance
