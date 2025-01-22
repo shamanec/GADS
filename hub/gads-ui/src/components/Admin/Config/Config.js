@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Divider, Stack, Tooltip } from "@mui/material";
+import { Box, Button, CircularProgress, Divider, Grid2, Stack, Tooltip } from "@mui/material";
 import { useEffect, useState } from "react";
 import { api } from "../../../services/api";
 import { useDialog } from "../../../contexts/DialogContext";
@@ -77,8 +77,7 @@ export default function Config() {
         width: '300px',
         height: '200px',
         justifyContent: 'center',
-        justifyItems: 'center',
-        alignContent: 'center'
+        justifyItems: 'center'
     }))
 
     const StyledButton = styled(Button)(() => ({
@@ -107,15 +106,26 @@ export default function Config() {
     }
 
     return (
-        <Stack>
-            <SigningPrivateKeyBox
-            ></SigningPrivateKeyBox>
-            <CSRBox></CSRBox>
-            <SigningP12FileBox></SigningP12FileBox>
-            <WebDriverAgentBox></WebDriverAgentBox>
-            <AndroidStreamBox></AndroidStreamBox>
-            <SeleniumJarBox></SeleniumJarBox>
-        </Stack>
+        <Grid2 container spacing={2}>
+            <Grid2 item>
+                <SigningPrivateKeyBox></SigningPrivateKeyBox>
+            </Grid2>
+            <Grid2 item>
+                <CSRBox></CSRBox>
+            </Grid2>
+            <Grid2 item>
+                <SigningP12FileBox></SigningP12FileBox>
+            </Grid2>
+            <Grid2 item>
+                <WebDriverAgentBox></WebDriverAgentBox>
+            </Grid2>
+            <Grid2 item>
+                <AndroidStreamBox></AndroidStreamBox>
+            </Grid2>
+            <Grid2 item>
+                <SeleniumJarBox></SeleniumJarBox>
+            </Grid2>
+        </Grid2>
     )
 
     function AndroidStreamBox() {
