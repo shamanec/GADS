@@ -1,4 +1,4 @@
-import { Box, Button, Divider, Stack, Tooltip } from "@mui/material";
+import { Box, Button, CircularProgress, Divider, Stack, Tooltip } from "@mui/material";
 import { useEffect, useState } from "react";
 import { api } from "../../../services/api";
 import { useDialog } from "../../../contexts/DialogContext";
@@ -75,10 +75,10 @@ export default function Config() {
         padding: '10px',
         backgroundColor: '#f5f5f5',
         width: '300px',
-        height: '400px',
+        height: '200px',
         justifyContent: 'center',
-        justifyItems: 'center'
-
+        justifyItems: 'center',
+        alignContent: 'center'
     }))
 
     const StyledButton = styled(Button)(() => ({
@@ -87,15 +87,24 @@ export default function Config() {
         fontWeight: 'bold',
         boxShadow: 'none',
         height: '40px',
+        width: '100px',
         '&:hover': {
             backgroundColor: '#2f3b26', // Prevent hover effect
             boxShadow: 'none',
         },
     }))
 
-    // StyledButton.defaultProps = {
-    //     variant: 'contained',
-    // }
+    const StyledLoadingButton = ({ loading, children, ...props }) => {
+        return (
+            <StyledButton {...props}>
+                {loading ? (
+                    <CircularProgress size={25} sx={{ color: '#f4e6cd' }} />
+                ) : (
+                    children
+                )}
+            </StyledButton>
+        )
+    }
 
     return (
         <Stack>
@@ -126,7 +135,6 @@ export default function Config() {
                 .finally(() => {
                     setTimeout(() => {
                         setUpdatingApk(false)
-                        console.log(updatingApk)
                     }, 1000)
                 })
         }
@@ -138,12 +146,16 @@ export default function Config() {
                 <Tooltip
                     arrow
                     placement='bottom'
-                    title='Downloads the latest GADS Android stream apk from releases and updates it in the DB'
+                    title='Download the latest GADS Android stream apk from releases and update it in the DB'
                 >
-                    <StyledButton
-                        onClick={handleAndroidStreamUpdate}
-                        disabled={updatingApk}
-                    >{androidStreamFileExists ? 'Update' : 'Get'}</StyledButton>
+                    <span style={{ display: 'inline-block' }}>
+                        <StyledLoadingButton
+                            onClick={handleAndroidStreamUpdate}
+                            // disabled={updatingApk}
+                            loading={updatingApk}
+                        >{androidStreamFileExists ? 'Update' : 'Get'}</StyledLoadingButton>
+                    </span>
+
                 </Tooltip>
             </StyledBox>
         )
@@ -180,9 +192,15 @@ export default function Config() {
             <StyledBox>
                 <div>iOS p12 signing file</div>
                 <Divider></Divider>
-                <StyledButton>Upload</StyledButton>
-                <StyledButton>Download</StyledButton>
-                <StyledButton>Generate</StyledButton>
+                <Stack
+                    direction='column'
+                    spacing={1}
+                >
+                    <StyledButton>Upload</StyledButton>
+                    <StyledButton>Download</StyledButton>
+                    <StyledButton>Generate</StyledButton>
+                </Stack>
+
             </StyledBox>
         )
     }
@@ -222,19 +240,23 @@ export default function Config() {
             <StyledBox>
                 <div>iOS signing private key</div>
                 <Divider></Divider>
-                <StyledButton>{signingPemFileExists ? "Update" : "Upload"}</StyledButton>
-                <StyledButton>Download</StyledButton>
-                <Tooltip
-                    title={<div>Generate a new private key that can be used for creating CSR(certificate signing request) and re-signing of WebDriverAgent<br />!!! Note that this will replace your currently existing private key file</div>}
-                    arrow
-                    placement='bottom'
+                <Stack
+                    direction='column'
+                    spacing={1}
                 >
+                    <StyledButton>{signingPemFileExists ? "Update" : "Upload"}</StyledButton>
+                    <StyledButton>Download</StyledButton>
+                    <Tooltip
+                        title={<div>Generate a new private key that can be used for creating CSR(certificate signing request) and re-signing of WebDriverAgent<br />!!! Note that this will replace your currently existing private key file</div>}
+                        arrow
+                        placement='bottom'
+                    >
 
-                    <StyledButton
-                        onClick={handleGeneratePrivateKeyClick}
-                    >Generate</StyledButton>
-                </Tooltip>
-
+                        <StyledButton
+                            onClick={handleGeneratePrivateKeyClick}
+                        >Generate</StyledButton>
+                    </Tooltip>
+                </Stack>
             </StyledBox>
         )
     }
@@ -244,8 +266,14 @@ export default function Config() {
             <StyledBox>
                 <div>WebDriverAgent - real devices</div>
                 <Divider></Divider>
-                <StyledButton>Upload</StyledButton>
-                <StyledButton>Re-sign</StyledButton>
+                <Stack
+                    direction='column'
+                    spacing={1}
+                >
+                    <StyledButton>Upload</StyledButton>
+                    <StyledButton>Re-sign</StyledButton>
+                </Stack>
+
             </StyledBox>
         )
     }
