@@ -25,6 +25,8 @@ var (
 	mongoClientCtx       context.Context
 	mongoClientCtxCancel context.CancelFunc
 	connectionString     string
+	maxErrorCount        = 30                                         // Maximum number of errors before logging fatal
+	maxTimeout           = time.Duration(maxErrorCount) * time.Second // Maximum timeout value for server selection and socket
 )
 
 func InitMongoClient(mongoDb string) {
@@ -34,8 +36,13 @@ func InitMongoClient(mongoDb string) {
 	// Set up a context for the connection.
 	mongoClientCtx, mongoClientCtxCancel = context.WithCancel(context.Background())
 
-	// Create a MongoDB client with options.
-	clientOptions := options.Client().ApplyURI(connectionString)
+	// Create a MongoDB client with options and timeout
+	clientOptions := options.Client().
+		ApplyURI(connectionString).
+		SetServerSelectionTimeout(maxTimeout).
+		SetConnectTimeout(5 * time.Second).
+		SetSocketTimeout(maxTimeout)
+
 	mongoClient, err = mongo.Connect(mongoClientCtx, clientOptions)
 	if err != nil {
 		log.Fatalf("Could not connect to Mongo server at `%s` - %s", connectionString, err)
@@ -69,8 +76,9 @@ func CloseMongoConn() {
 func checkDBConnection() {
 	errorCounter := 0
 	for {
-		time.Sleep(1 * time.Second)
-		err := mongoClient.Ping(mongoClientCtx, nil)
+		ctx, cancel := context.WithTimeout(mongoClientCtx, 1*time.Second)
+		err := mongoClient.Ping(ctx, nil)
+		cancel()
 
 		if err != nil {
 			errorCounter++
@@ -79,42 +87,17 @@ func checkDBConnection() {
 				"error":       err,
 			}).Warn("Failed to ping MongoDB")
 
-			if err := reconnectMongo(); err != nil {
-				log.WithFields(log.Fields{
-					"error_count": errorCounter,
-					"error":       err,
-				}).Error("Failed to reconnect to MongoDB")
-
-				if errorCounter >= 30 {
-					log.Fatal("Lost connection to MongoDB server and failed to reconnect after 30 attempts!")
-				}
-			} else {
+			if errorCounter >= maxErrorCount {
+				log.Fatalf("Lost connection to MongoDB server and failed to reconnect after %d attempts!", maxErrorCount)
+			}
+		} else {
+			if errorCounter > 0 {
 				log.Info("MongoDB connection restored")
 				errorCounter = 0
 			}
+			time.Sleep(1 * time.Second)
 		}
 	}
-}
-
-func reconnectMongo() error {
-	if mongoClient != nil {
-		if err := mongoClient.Disconnect(mongoClientCtx); err != nil {
-			log.WithError(err).Error("Failed to disconnect from MongoDB")
-		}
-	}
-
-	clientOptions := options.Client().ApplyURI(connectionString)
-	newClient, err := mongo.Connect(mongoClientCtx, clientOptions)
-	if err != nil {
-		return fmt.Errorf("failed to reconnect to MongoDB: %v", err)
-	}
-
-	if err := newClient.Ping(mongoClientCtx, nil); err != nil {
-		return fmt.Errorf("failed to ping new MongoDB connection: %v", err)
-	}
-
-	mongoClient = newClient
-	return nil
 }
 
 func GetProviderFromDB(nickname string) (models.Provider, error) {
@@ -138,20 +121,20 @@ func GetProvidersFromDB() []models.Provider {
 	cursor, err := collection.Find(ctx, bson.D{{}}, options.Find())
 	if err != nil {
 		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
+			"event": "get_db_providers",
+		}).Error(fmt.Sprintf("Could not get db cursor when trying to get the providers info from db - %s", err))
 	}
 	defer cursor.Close(ctx)
 
 	if err := cursor.All(ctx, &providers); err != nil {
 		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
+			"event": "get_db_providers",
+		}).Error(fmt.Sprintf("Could not get the providers info from db cursor - %s", err))
 	}
 
 	if err := cursor.Err(); err != nil {
 		log.WithFields(log.Fields{
-			"event": "get_db_devices",
+			"event": "get_db_providers",
 		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
 	}
 
