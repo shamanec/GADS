@@ -320,9 +320,9 @@ func GetUsers() []models.User {
 	return users
 }
 
-func GetDBFiles() []models.DBFile {
+func GetDBFiles(bucketName string) []models.DBFile {
 	var files []models.DBFile
-	collection := mongoClient.Database("gads").Collection("fs.files")
+	collection := mongoClient.Database("gads").Collection(fmt.Sprintf("%s.files", bucketName))
 
 	cursor, err := collection.Find(mongoClientCtx, bson.D{{}}, nil)
 	if err != nil {
@@ -454,15 +454,16 @@ func AddAdminUserIfMissing() error {
 	return nil
 }
 
-func UploadFileGridFS(file io.Reader, fileName string, force bool) error {
+func UploadFileGridFS(file io.Reader, bucketName string, fileName string, force bool) error {
 	mongoDb := MongoClient().Database("gads")
-	bucket, err := gridfs.NewBucket(mongoDb, nil)
+	bucketOptions := options.GridFSBucket().SetName(bucketName)
+	bucket, err := gridfs.NewBucket(mongoDb, bucketOptions)
 
 	// Create a filter and search the bucket for the selenium.jar file
-	filter := bson.D{{"filename", fileName}}
+	filter := bson.D{{Key: "filename", Value: fileName}}
 	cursor, err := bucket.Find(filter)
 	if err != nil {
-		return fmt.Errorf("Failed to get cursor from DB - %s", err)
+		return fmt.Errorf("failed to find file `%s` in bucket: %w", fileName, err)
 	}
 
 	// Try to get the found files from the cursor
@@ -473,38 +474,26 @@ func UploadFileGridFS(file io.Reader, fileName string, force bool) error {
 	var foundFiles []gridfsFile
 	err = cursor.All(MongoCtx(), &foundFiles)
 	if err != nil {
-		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
+		return fmt.Errorf("Failed to parse files from cursor - %s", err)
 	}
 
-	// If there are found files fail upload
-	if len(foundFiles) == 1 {
-		if force {
-			// Get the ObjectID for the file in Mongo
-			id, err := primitive.ObjectIDFromHex(foundFiles[0].ID)
-			if err != nil {
-				return fmt.Errorf("Failed to get ObjectID from the Mongo file ID - %s", err)
-			}
-
-			// Delete the file in Mongo before attempting to upload
-			err = bucket.Delete(id)
-			if err != nil {
-				return fmt.Errorf("File is force upload but failed to delete it from Mongo before upload - %s", err)
-			}
-
-			// Upload the file to the bucket
-			_, err = bucket.UploadFromStream(fileName, file, nil)
-			if err != nil {
-				return fmt.Errorf("Failed to upload file `%s` to bucket - %s", fileName, err)
-			}
-			return nil
+	if len(foundFiles) > 0 {
+		if !force {
+			return fmt.Errorf("File `%s` already exists in bucket `%s`", fileName, bucketName)
 		}
-		return fmt.Errorf("File with name `%s` is already present in MongoDB", fileName)
-	} else {
-		// File is not in bucket so upload it
-		_, err = bucket.UploadFromStream(fileName, file, nil)
+
+		fileID, err := primitive.ObjectIDFromHex(foundFiles[0].ID)
+
+		err = bucket.Delete(fileID)
 		if err != nil {
-			return fmt.Errorf("Failed to upload file `%s` to bucket - %s", fileName, err)
+			return fmt.Errorf("Failed to delete existing file `%s` in bucket `%s`: %w", fileName, bucketName, err)
 		}
-		return nil
 	}
+
+	_, err = bucket.UploadFromStream(fileName, file, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to upload file `%s` to bucket `%s`: %w", fileName, bucketName, err)
+	}
+
+	return nil
 }

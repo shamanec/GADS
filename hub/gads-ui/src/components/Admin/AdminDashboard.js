@@ -6,6 +6,7 @@ import UsersAdministration from "./Users/UsersAdministration";
 import FilesAdministration from "./Files/FilesAdministration";
 import DevicesAdministration from './Devices/DevicesAdministration';
 import ProvidersAdministration from './Providers/ProvidersAdministration';
+import Config from './Config/Config';
 
 
 export default function AdminDashboard() {
@@ -39,6 +40,14 @@ export default function AdminDashboard() {
                 }}
             >
                 <Tab
+                    label="Config"
+                    style={{
+                        textTransform: 'none',
+                        fontSize: '16px',
+                        fontWeight: "bold"
+                    }}
+                />
+                <Tab
                     label="Providers"
                     style={{
                         textTransform: 'none',
@@ -71,10 +80,11 @@ export default function AdminDashboard() {
                     }}
                 />
             </Tabs>
-            {currentTabIndex === 0 && <ProvidersAdministration></ProvidersAdministration>}
-            {currentTabIndex === 1 && <DevicesAdministration></DevicesAdministration>}
-            {currentTabIndex === 2 && <UsersAdministration></UsersAdministration>}
-            {currentTabIndex === 3 && <FilesAdministration></FilesAdministration>}
+            {currentTabIndex === 0 && <Config></Config>}
+            {currentTabIndex === 1 && <ProvidersAdministration></ProvidersAdministration>}
+            {currentTabIndex === 2 && <DevicesAdministration></DevicesAdministration>}
+            {currentTabIndex === 3 && <UsersAdministration></UsersAdministration>}
+            {currentTabIndex === 4 && <FilesAdministration></FilesAdministration>}
         </Box >
     )
 }

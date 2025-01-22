@@ -619,7 +619,7 @@ func UploadFile(c *gin.Context) {
 		return
 	}
 
-	err = db.UploadFileGridFS(openedFile, fmt.Sprintf("%s", fileName), true)
+	err = db.UploadFileGridFS(openedFile, "Apps", fmt.Sprintf("%s", fileName), true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
 		return
@@ -848,7 +848,7 @@ func GetUsers(c *gin.Context) {
 }
 
 func GetFiles(c *gin.Context) {
-	files := db.GetDBFiles()
+	files := db.GetDBFiles("Config")
 
 	c.JSON(http.StatusOK, files)
 }
@@ -881,4 +881,38 @@ func DownloadResourceFromGithubRepo(c *gin.Context) {
 
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
+}
+
+func GenerateSigningPrivateKey(c *gin.Context) {
+
+}
+
+func DownloadSigningPem(c *gin.Context) {
+
+}
+
+func UpdateAndroidStreamAPK(c *gin.Context) {
+	client := http.Client{
+		Timeout: time.Duration(240 * time.Second),
+	}
+
+	resp, err := client.Get("https://github.com/shamanec/GADS-Android-stream/releases/latest/download/gads-stream.apk")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get latest GADS-Android-stream apk!"})
+		fmt.Println(err)
+		return
+	}
+	defer resp.Body.Close()
+	contentDisposition := resp.Header.Get("Content-Disposition")
+	fmt.Println("KOLEO")
+	fmt.Println(contentDisposition)
+
+	err = db.UploadFileGridFS(resp.Body, "Config", "gads-stream.apk", true)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update GADS-Android-stream apk!"})
+		fmt.Println(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully updated GADS-Android-stream apk!"})
 }
