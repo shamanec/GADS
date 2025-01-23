@@ -94,15 +94,36 @@ export default function Config() {
         },
     }))
 
-    const StyledLoadingButton = ({ loading, children, ...props }) => {
+    const StyledLoadingButton = ({ loading, tooltipText, children, ...props }) => {
         return (
-            <StyledButton {...props}>
-                {loading ? (
-                    <CircularProgress size={25} sx={{ color: '#f4e6cd' }} />
-                ) : (
-                    children
-                )}
-            </StyledButton>
+            <Tooltip
+                arrow
+                placement='left'
+                title={tooltipText}
+                disableInteractive={true}
+            >
+                <span style={{ display: 'inline-block' }}>
+                    <StyledButton {...props}>
+                        {loading ? (
+                            <CircularProgress size={25} sx={{ color: '#f4e6cd' }} />
+                        ) : (
+                            children
+                        )}
+                    </StyledButton>
+                </span>
+            </Tooltip>
+        )
+    }
+
+    const StyledUploadLoadingButton = ({ allowedFileExtension, loading, tooltipText, children, ...props }) => {
+        return (
+            <StyledLoadingButton
+                loading={loading}
+                tooltipText={tooltipText}
+                children={children}
+                {...props}
+            >
+            </StyledLoadingButton>
         )
     }
 
@@ -170,19 +191,12 @@ export default function Config() {
                     </a>{' '}
                 </p>
                 <Stack spacing={1}>
-                    <Tooltip
-                        arrow
-                        placement='left'
-                        title='Download the latest GADS Android stream apk from releases and update it in the DB'
-                    >
-                        <span style={{ display: 'inline-block' }}>
-                            <StyledLoadingButton
-                                onClick={handleAndroidStreamUpdate}
-                                disabled={updatingApk}
-                                loading={updatingApk}
-                            >{androidStreamFileExists ? 'Update' : 'Get'}</StyledLoadingButton>
-                        </span>
-                    </Tooltip>
+                    <StyledLoadingButton
+                        onClick={handleAndroidStreamUpdate}
+                        tooltipText='Download the latest GADS Android stream apk from releases and update it in the DB'
+                        disabled={updatingApk}
+                        loading={updatingApk}
+                    >{androidStreamFileExists ? 'Update' : 'Get'}</StyledLoadingButton>
                 </Stack>
             </StyledBox>
         )
@@ -210,25 +224,17 @@ export default function Config() {
                     direction='column'
                     spacing={1}
                 >
-                    <Tooltip
-                        arrow
-                        placement='left'
-                        title='Select the WebDriverAgent ipa file from the file explorer'
+                    <StyledLoadingButton
+                        component='label'
+                        tooltipText='Select the WebDriverAgent ipa file from the file explorer'
                     >
-                        <span style={{ display: 'inline-block' }}>
-                            <StyledLoadingButton
-                                component='label'
-                            >
-                                <input
-                                    type="file"
-                                    accept=".ipa"
-                                    hidden
-                                    onChange={(event) => console.log("OPALE")}
-                                />
-                                Upload</StyledLoadingButton>
-                        </span>
-                    </Tooltip>
-
+                        <input
+                            type="file"
+                            accept=".ipa"
+                            hidden
+                            onChange={(event) => console.log("OPALE")}
+                        />
+                        Upload</StyledLoadingButton>
                 </Stack>
 
             </StyledBox>
@@ -340,16 +346,10 @@ export default function Config() {
                 >
                     <StyledButton>{signingPemFileExists ? "Update" : "Upload"}</StyledButton>
                     <StyledButton>Download</StyledButton>
-                    <Tooltip
-                        title={<div>Generate a new private key that can be used for creating CSR(certificate signing request) and re-signing of WebDriverAgent<br />!!! Note that this will replace your currently existing private key file</div>}
-                        arrow
-                        placement='bottom'
-                    >
-
-                        <StyledButton
-                            onClick={handleGeneratePrivateKeyClick}
-                        >Generate</StyledButton>
-                    </Tooltip>
+                    <StyledLoadingButton
+                        tooltipText={<div>Generate a new private key that can be used for creating CSR(certificate signing request) and re-signing of WebDriverAgent<br />!!! Note that this will replace your currently existing private key file</div>}
+                        onClick={handleGeneratePrivateKeyClick}
+                    >Generate</StyledLoadingButton>
                 </Stack>
             </StyledBox>
         )
