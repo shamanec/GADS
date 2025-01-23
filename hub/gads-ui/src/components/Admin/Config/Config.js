@@ -190,6 +190,9 @@ export default function Config() {
                 <SeleniumJarBox></SeleniumJarBox>
             </Grid2>
             <Grid2 item>
+                <IOSSupervisionBox></IOSSupervisionBox>
+            </Grid2>
+            <Grid2 item>
                 <SigningPrivateKeyBox></SigningPrivateKeyBox>
             </Grid2>
             <Grid2 item>
@@ -327,6 +330,25 @@ export default function Config() {
         )
     }
 
+    function IOSSupervisionBox() {
+        return (
+            <StyledBox>
+                <h3>iOS supervision profile</h3>
+                <p
+                    style={{
+                        marginTop: '5px',
+                        textAlign: 'center',
+                    }}
+                >If you have supervised your iOS devices you can supply the supervision `.p12` file to allow providers to pair with devices without manual intervention</p>
+                <StyledUploadLoadingButton
+                    filename='supervision_profile.p12'
+                    allowedFileExtension='.p12'
+                    tooltipText='Select and upload iOS supervision profile'
+                ></StyledUploadLoadingButton>
+            </StyledBox>
+        )
+    }
+
     function SigningP12FileBox() {
         return (
             <StyledBox>
@@ -344,7 +366,7 @@ export default function Config() {
                     <StyledUploadLoadingButton
                         filename='signing_pkcs.p12'
                         allowedFileExtension='.p12'
-                        tooltipText='Select and upload PKCS#12 file'
+                        tooltipText='Select and upload PKCS#12 (.p12) file'
                     ></StyledUploadLoadingButton>
                     <StyledButton>Download</StyledButton>
                     <StyledButton>Generate</StyledButton>
