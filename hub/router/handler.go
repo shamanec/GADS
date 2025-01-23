@@ -63,7 +63,7 @@ func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	authGroup.POST("/admin/files/download-signing-pem", DownloadSigningPem)
 	authGroup.POST("/admin/files/update-android-stream-apk", UpdateAndroidStreamAPK)
 	authGroup.POST("/admin/files/download-github-file", DownloadResourceFromGithubRepo)
-	authGroup.POST("/admin/upload-file", UploadFile)
+	authGroup.POST("/admin/upload-config-file", UploadConfigFile)
 	authGroup.PUT("/admin/user", UpdateUser)
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
 	appiumGroup := r.Group("/grid")

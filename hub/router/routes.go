@@ -11,10 +11,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -589,7 +587,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 
 // Custom upload function that allows us to upload any file to Mongo
 // While providing the file name we want to use on upload regardless of the actual file name
-func UploadFile(c *gin.Context) {
+func UploadConfigFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No file provided in form data - %s", err)})
@@ -600,17 +598,6 @@ func UploadFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No fileName for MongoDB record was provided"})
 		return
 	}
-	extension := c.PostForm("extension")
-	if extension == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No expected extension was provided"})
-		return
-	}
-
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != extension {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Expected extension is `%s` but you provided file with `%s`", extension, ext)})
-		return
-	}
 
 	openedFile, err := file.Open()
 	defer openedFile.Close()
@@ -619,7 +606,7 @@ func UploadFile(c *gin.Context) {
 		return
 	}
 
-	err = db.UploadFileGridFS(openedFile, "Apps", fmt.Sprintf("%s", fileName), true)
+	err = db.UploadFileGridFS(openedFile, "Config", fileName, true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
 		return

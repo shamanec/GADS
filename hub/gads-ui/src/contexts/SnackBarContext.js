@@ -42,10 +42,16 @@ export function SnackbarProvider({ children }) {
                 autoHideDuration={snackbar.duration}
                 onClose={(event, reason) => {
                     if (reason === 'timeout') {
-                        hideSnackbar() // Only hide on timeout
+                        hideSnackbar()
                     }
                 }}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                sx={{
+                    '& .MuiPaper-root': {
+                        minWidth: '100px',
+                        fontSize: '1.2rem',
+                    },
+                }}
             >
                 <Alert onClose={hideSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
                     {snackbar.message}

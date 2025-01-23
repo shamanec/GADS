@@ -13,7 +13,7 @@ export default function Config() {
     const [mobileProvisionFileExists, setMobileProvisionFileExists] = useState(false)
     const [androidStreamFileExists, setAndroidStreamFileExists] = useState(false)
 
-    const { showSnackbar } = useSnackbar()
+    const { hideSnackbar, showSnackbar } = useSnackbar()
     const { showDialog, hideDialog } = useDialog()
 
     function handleGetFileData() {
@@ -53,19 +53,19 @@ export default function Config() {
         handleGetFileData()
     }, [])
 
-    const showCustomSnackbarError = (message) => {
+    const showCustomSnackbarError = ({ message, timeout = 3000 }) => {
         showSnackbar({
             message: message,
             severity: 'error',
-            duration: 3000,
+            duration: timeout,
         })
     }
 
-    const showCustomSnackbarSuccess = (message) => {
+    const showCustomSnackbarSuccess = (message, timeout = 3000) => {
         showSnackbar({
             message: message,
             severity: 'success',
-            duration: 3000,
+            duration: timeout,
         })
     }
 
@@ -115,14 +115,65 @@ export default function Config() {
         )
     }
 
-    const StyledUploadLoadingButton = ({ allowedFileExtension, loading, tooltipText, children, ...props }) => {
+    const StyledUploadLoadingButton = ({ filename = '', allowedFileExtension, tooltipText, children, ...props }) => {
+        const [isUploading, setIsUploading] = useState(false)
+        const [inputKey, setInputKey] = useState(Date.now())
+
+        const handleUploadFile = (e) => {
+            hideSnackbar()
+
+            if (e.target.files) {
+                const targetFile = e.target.files[0]
+                if (!targetFile) {
+                    return
+                }
+
+                const form = new FormData()
+
+                form.append('file', targetFile)
+                if (filename !== '') {
+                    form.append('fileName', filename)
+                } else {
+                    form.append('fileName', targetFile.name)
+                }
+                setIsUploading(true)
+
+                api.post('/admin/upload-config-file', form, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                })
+                    .then(() => {
+                        showCustomSnackbarSuccess('File uploaded!')
+                    })
+                    .catch(() => {
+                        showCustomSnackbarError('File upload failed!')
+                    })
+                    .finally(() => {
+                        setInputKey(Date.now())
+                        setTimeout(() => {
+                            setIsUploading(false)
+                        }, 1000)
+                    })
+            }
+        }
+
         return (
             <StyledLoadingButton
-                loading={loading}
+                component='label'
+                loading={isUploading}
                 tooltipText={tooltipText}
                 children={children}
                 {...props}
             >
+                <input
+                    key={inputKey}
+                    type="file"
+                    accept={allowedFileExtension}
+                    hidden
+                    onChange={(event) => handleUploadFile(event)}
+                />
+                Upload
             </StyledLoadingButton>
         )
     }
@@ -224,17 +275,12 @@ export default function Config() {
                     direction='column'
                     spacing={1}
                 >
-                    <StyledLoadingButton
+                    <StyledUploadLoadingButton
                         component='label'
                         tooltipText='Select the WebDriverAgent ipa file from the file explorer'
-                    >
-                        <input
-                            type="file"
-                            accept=".ipa"
-                            hidden
-                            onChange={(event) => console.log("OPALE")}
-                        />
-                        Upload</StyledLoadingButton>
+                        allowedFileExtension='.ipa'
+                        filename='WebDriverAgent.ipa'
+                    ></StyledUploadLoadingButton>
                 </Stack>
 
             </StyledBox>
@@ -272,7 +318,11 @@ export default function Config() {
                         textAlign: 'center',
                     }}
                 >If you want to connect provider Appium nodes to Selenium Grid instance you need to upload a valid Selenium jar. Version 4.13 is recommended.</p>
-                <StyledButton>Upload</StyledButton>
+                <StyledUploadLoadingButton
+                    filename='selenium.jar'
+                    allowedFileExtension='.jar'
+                    tooltipText='Select and upload Selenium standalone jar file'
+                ></StyledUploadLoadingButton>
             </StyledBox>
         )
     }
@@ -291,7 +341,11 @@ export default function Config() {
                     direction='column'
                     spacing={1}
                 >
-                    <StyledButton>Upload</StyledButton>
+                    <StyledUploadLoadingButton
+                        filename='signing_pkcs.p12'
+                        allowedFileExtension='.p12'
+                        tooltipText='Select and upload PKCS#12 file'
+                    ></StyledUploadLoadingButton>
                     <StyledButton>Download</StyledButton>
                     <StyledButton>Generate</StyledButton>
                 </Stack>
@@ -344,7 +398,11 @@ export default function Config() {
                     direction='column'
                     spacing={1}
                 >
-                    <StyledButton>{signingPemFileExists ? "Update" : "Upload"}</StyledButton>
+                    <StyledUploadLoadingButton
+                        filename='signing_key.pem'
+                        allowedFileExtension='.pem'
+                        tooltipText='Select and upload private signing key'
+                    ></StyledUploadLoadingButton>
                     <StyledButton>Download</StyledButton>
                     <StyledLoadingButton
                         tooltipText={<div>Generate a new private key that can be used for creating CSR(certificate signing request) and re-signing of WebDriverAgent<br />!!! Note that this will replace your currently existing private key file</div>}
