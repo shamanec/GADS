@@ -165,8 +165,9 @@ You can use mainstream WebDriverAgent as well
 - Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
 - Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
   - [zsign](https://github.com/zhlynn/zsign)
-  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
-  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - [macOS] [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [macOS] [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - [macOS] [iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)
   - Re-sign from hub UI - TODO
 
 ### Prebuilt mainstream WebDriverAgent
@@ -177,8 +178,9 @@ You can use mainstream WebDriverAgent as well
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 - Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
   - [zsign](https://github.com/zhlynn/zsign)
-  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
-  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - [macOS] [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [macOS] [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - [macOS] [iOS App Signer](https://github.com/DanTheMan827/ios-app-signer)
   - Re-sign from hub UI - TODO
 
 ### Build WebDriverAgent IPA file manually using Xcode

@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Divider, Grid2, Stack, Tooltip } from "@mui/material";
+import { Badge, Box, Button, CircularProgress, Divider, Grid2, Stack, Tooltip } from "@mui/material";
 import { useEffect, useState } from "react";
 import { api } from "../../../services/api";
 import { useDialog } from "../../../contexts/DialogContext";
@@ -76,7 +76,7 @@ export default function Config() {
         flexDirection: 'column',
         backgroundColor: '#9ba984',
         width: '300px',
-        height: '200px',
+        height: '300px',
         alignItems: 'center',
         border: '1px solid #ddd',
     }))
@@ -89,7 +89,7 @@ export default function Config() {
         height: '40px',
         width: '100px',
         '&:hover': {
-            backgroundColor: '#2f3b26', // Prevent hover effect
+            backgroundColor: '#2f3b26',
             boxShadow: 'none',
         },
     }))
@@ -107,7 +107,16 @@ export default function Config() {
     }
 
     return (
-        <Grid2 container spacing={2}>
+        <Grid2 container spacing={2} margin='20px'>
+            <Grid2 item>
+                <AndroidStreamBox></AndroidStreamBox>
+            </Grid2>
+            <Grid2 item>
+                <WebDriverAgentBox></WebDriverAgentBox>
+            </Grid2>
+            <Grid2 item>
+                <SeleniumJarBox></SeleniumJarBox>
+            </Grid2>
             <Grid2 item>
                 <SigningPrivateKeyBox></SigningPrivateKeyBox>
             </Grid2>
@@ -116,15 +125,6 @@ export default function Config() {
             </Grid2>
             <Grid2 item>
                 <SigningP12FileBox></SigningP12FileBox>
-            </Grid2>
-            <Grid2 item>
-                <WebDriverAgentBox></WebDriverAgentBox>
-            </Grid2>
-            <Grid2 item>
-                <AndroidStreamBox></AndroidStreamBox>
-            </Grid2>
-            <Grid2 item>
-                <SeleniumJarBox></SeleniumJarBox>
             </Grid2>
         </Grid2>
     )
@@ -153,20 +153,84 @@ export default function Config() {
         return (
             <StyledBox>
                 <h3>GADS Android stream</h3>
-                <Tooltip
-                    arrow
-                    placement='bottom'
-                    title='Download the latest GADS Android stream apk from releases and update it in the DB'
+                <p
+                    style={{
+                        marginTop: '5px',
+                        textAlign: 'center',
+                    }}
                 >
-                    <span style={{ display: 'inline-block' }}>
-                        <StyledLoadingButton
-                            onClick={handleAndroidStreamUpdate}
-                            // disabled={updatingApk}
-                            loading={updatingApk}
-                        >{androidStreamFileExists ? 'Update' : 'Get'}</StyledLoadingButton>
-                    </span>
+                    For remote control of Android devices you need GADS-Android-stream apk for the MJPEG stream. {' '}
+                    <a
+                        href="https://github.com/shamanec/GADS-Android-stream"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'blue', textDecoration: 'underline' }}
+                    >
+                        Link
+                    </a>{' '}
+                </p>
+                <Stack spacing={1}>
+                    <Tooltip
+                        arrow
+                        placement='left'
+                        title='Download the latest GADS Android stream apk from releases and update it in the DB'
+                    >
+                        <span style={{ display: 'inline-block' }}>
+                            <StyledLoadingButton
+                                onClick={handleAndroidStreamUpdate}
+                                disabled={updatingApk}
+                                loading={updatingApk}
+                            >{androidStreamFileExists ? 'Update' : 'Get'}</StyledLoadingButton>
+                        </span>
+                    </Tooltip>
+                </Stack>
+            </StyledBox>
+        )
+    }
 
-                </Tooltip>
+    function WebDriverAgentBox() {
+        return (
+            <StyledBox>
+                <h3>WebDriverAgent - real devices</h3>
+                <p
+                    style={{
+                        marginTop: '5px',
+                        textAlign: 'center',
+                    }}
+                >To work with real iOS devices you have to upload a prebuilt WebDriverAgent bundled into `.ipa`. You can find instructions {' '}
+                    <a
+                        href="https://github.com/shamanec/GADS/blob/main/docs/provider.md#prepare-webdriveragent---read-the-full-paragraph"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'blue', textDecoration: 'underline' }}
+                    >
+                        here
+                    </a>{' '}</p>
+                <Stack
+                    direction='column'
+                    spacing={1}
+                >
+                    <Tooltip
+                        arrow
+                        placement='left'
+                        title='Select the WebDriverAgent ipa file from the file explorer'
+                    >
+                        <span style={{ display: 'inline-block' }}>
+                            <StyledLoadingButton
+                                component='label'
+                            >
+                                <input
+                                    type="file"
+                                    accept=".ipa"
+                                    hidden
+                                    onChange={(event) => console.log("OPALE")}
+                                />
+                                Upload</StyledLoadingButton>
+                        </span>
+                    </Tooltip>
+
+                </Stack>
+
             </StyledBox>
         )
     }
@@ -175,6 +239,12 @@ export default function Config() {
         return (
             <StyledBox>
                 <h3>iOS CSR</h3>
+                <p
+                    style={{
+                        marginTop: '5px',
+                        textAlign: 'center',
+                    }}
+                >Apple requires CSR(Certificate Signing Request) to create new certificates on Apple developer portal. You can generate one via GADS if you do not own a macOS machine. Private key is required!</p>
                 <Stack
                     direction='column'
                     spacing={1}
@@ -190,6 +260,12 @@ export default function Config() {
         return (
             <StyledBox>
                 <h3>Selenium jar</h3>
+                <p
+                    style={{
+                        marginTop: '5px',
+                        textAlign: 'center',
+                    }}
+                >If you want to connect provider Appium nodes to Selenium Grid instance you need to upload a valid Selenium jar. Version 4.13 is recommended.</p>
                 <StyledButton>Upload</StyledButton>
             </StyledBox>
         )
@@ -199,6 +275,12 @@ export default function Config() {
         return (
             <StyledBox>
                 <h3>iOS p12 signing file</h3>
+                <p
+                    style={{
+                        marginTop: '5px',
+                        textAlign: 'center',
+                    }}
+                >If you want to resign WebDriverAgent via GADS (through zsign) you can supply a `.p12` certificate file. You can also generate one if you supply private signing key and developer certificate</p>
                 <Stack
                     direction='column'
                     spacing={1}
@@ -246,6 +328,12 @@ export default function Config() {
         return (
             <StyledBox>
                 <h3>iOS signing private key</h3>
+                <p
+                    style={{
+                        marginTop: '5px',
+                        textAlign: 'center',
+                    }}
+                >If you want to resign WebDriverAgent via GADS you have to upload/generate a private key `.pem` file</p>
                 <Stack
                     direction='column'
                     spacing={1}
@@ -263,22 +351,6 @@ export default function Config() {
                         >Generate</StyledButton>
                     </Tooltip>
                 </Stack>
-            </StyledBox>
-        )
-    }
-
-    function WebDriverAgentBox() {
-        return (
-            <StyledBox>
-                <h3>WebDriverAgent - real devices</h3>
-                <Stack
-                    direction='column'
-                    spacing={1}
-                >
-                    <StyledButton>Upload</StyledButton>
-                    <StyledButton>Re-sign</StyledButton>
-                </Stack>
-
             </StyledBox>
         )
     }
