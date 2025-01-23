@@ -1,4 +1,4 @@
-import { Box, Dialog, DialogContent, Grid } from '@mui/material'
+import { Box, Dialog, DialogContent, Grid, Grid2 } from '@mui/material'
 import { Button } from '@mui/material'
 import { Stack } from '@mui/material'
 import { api } from '../../../../services/api.js'
@@ -133,9 +133,9 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                         overflowY: 'auto'
                     }}
                 >
-                    <Grid container spacing={2}>
+                    <Grid2 container spacing={2}>
                         {screenshots.map((screenshot, index) => (
-                            <Grid item key={index}>
+                            <Grid2 item key={index}>
                                 <Stack spacing={1}>
                                     <img
                                         src={`data:image/png;base64,${screenshot.thumbnail}`}
@@ -156,9 +156,9 @@ function Screenshot({ udid, screenshots, setScreenshots }) {
                                         Delete
                                     </Button>
                                 </Stack>
-                            </Grid>
+                            </Grid2>
                         ))}
-                    </Grid>
+                    </Grid2>
                 </Box>
             </Stack>
             <Dialog

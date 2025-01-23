@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../../../services/api'
-import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
+import { Box, Button, FormControl, Grid2, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
 import CircularProgress from '@mui/material/CircularProgress'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
@@ -41,29 +41,29 @@ export default function DevicesAdministration() {
                     width: '100%'
                 }}
             >
-                <Grid
+                <Grid2
                     container
                     spacing={2}
                     margin='10px'
                 >
-                    <Grid item>
+                    <Grid2 item>
                         <NewDevice providers={providers} handleGetDeviceData={handleGetDeviceData}>
                         </NewDevice>
-                    </Grid>
+                    </Grid2>
                     {devices.map((device) => {
                         return (
-                            <Grid item>
+                            <Grid2 item>
                                 <ExistingDevice
                                     deviceData={device}
                                     providersData={providers}
                                     handleGetDeviceData={handleGetDeviceData}
                                 >
                                 </ExistingDevice>
-                            </Grid>
+                            </Grid2>
                         )
                     })
                     }
-                </Grid>
+                </Grid2>
             </Box>
         </Stack>
     )

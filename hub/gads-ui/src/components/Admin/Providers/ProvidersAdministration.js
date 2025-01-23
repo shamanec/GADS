@@ -1,4 +1,4 @@
-import { Box, Button, Dialog, DialogContent, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
+import { Box, Button, Dialog, DialogContent, FormControl, Grid2, MenuItem, Stack, TextField, Tooltip } from '@mui/material'
 import { useContext, useEffect, useState } from 'react'
 import { api } from '../../../services/api'
 import { Auth } from '../../../contexts/Auth'
@@ -31,28 +31,28 @@ export default function ProvidersAdministration() {
     return (
         <Stack id='outer-stack' direction='row' spacing={2}>
             <Box id='outer-box'>
-                <Grid
+                <Grid2
                     container
                     spacing={2}
                     margin='10px'
                 >
-                    <Grid item>
+                    <Grid2 item>
                         <NewProvider handleGetProvidersData={handleGetProvidersData}>
                         </NewProvider>
-                    </Grid>
+                    </Grid2>
                     {providers.map((provider) => {
                         return (
-                            <Grid item>
+                            <Grid2 item>
                                 <ExistingProvider
                                     providerData={provider}
                                     handleGetProvidersData={handleGetProvidersData}
                                 >
                                 </ExistingProvider>
-                            </Grid>
+                            </Grid2>
                         )
                     })
                     }
-                </Grid>
+                </Grid2>
             </Box>
         </Stack>
     )

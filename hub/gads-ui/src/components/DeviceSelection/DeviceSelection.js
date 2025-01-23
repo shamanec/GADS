@@ -10,6 +10,7 @@ import { OSFilterTabs, DeviceSearch } from './Filters'
 import { Auth } from '../../contexts/Auth'
 import { api } from '../../services/api.js'
 import DeviceBox from './DeviceBox'
+import { Grid2 } from '@mui/material'
 
 export default function DeviceSelection() {
     const open = true
@@ -130,7 +131,7 @@ function OSSelection({ devices }) {
                         value='{currentTabIndex}'
                         style={{ height: '80vh', overflowY: 'auto' }}
                     >
-                        <Grid
+                        <Grid2
                             id='devices-container'
                             container
                             spacing={2}
@@ -142,34 +143,34 @@ function OSSelection({ devices }) {
                                 devices.map((device) => {
                                     if (currentTabIndex === 0) {
                                         return (
-                                            <Grid item>
+                                            <Grid2 item>
                                                 <DeviceBox
                                                     device={device}
                                                 />
-                                            </Grid>
+                                            </Grid2>
                                         )
 
                                     } else if (currentTabIndex === 1 && device.info.os === 'android') {
                                         return (
-                                            <Grid item>
+                                            <Grid2 item>
                                                 <DeviceBox
                                                     device={device}
                                                 />
-                                            </Grid>
+                                            </Grid2>
                                         )
 
                                     } else if (currentTabIndex === 2 && device.info.os === 'ios') {
                                         return (
-                                            <Grid item>
+                                            <Grid2 item>
                                                 <DeviceBox
                                                     device={device}
                                                 />
-                                            </Grid>
+                                            </Grid2>
                                         )
                                     }
                                 })
                             }
-                        </Grid>
+                        </Grid2>
                     </TabPanel>
                 )}
             </Box>

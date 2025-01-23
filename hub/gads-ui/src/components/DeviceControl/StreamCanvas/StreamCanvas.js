@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import './StreamCanvas.css'
-import { Button, Divider, Grid, Tooltip } from '@mui/material'
+import { Button, Divider, Grid, Grid2, Tooltip } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
 import LockOpenIcon from '@mui/icons-material/LockOpen'
 import LockIcon from '@mui/icons-material/Lock'
@@ -86,7 +86,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     }
 
     return (
-        <Grid
+        <Grid2
             spacing={1}
             direction='row'
             display='flex'
@@ -115,22 +115,22 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                     <Canvas></Canvas>
                     <Stream></Stream>
                 </div>
-                <Grid
+                <Grid2
                     height='30px'
                     display='flex'
                     justifyContent='center'
                 >
-                </Grid>
+                </Grid2>
             </div >
 
-            <Grid
+            <Grid2
                 direction='column'
                 width='150px'
                 marginLeft='10px'
                 spacing={1}
                 container
             >
-                <Grid item>
+                <Grid2 item>
                     <Tooltip
                         title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
                         arrow
@@ -146,8 +146,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             Portrait
                         </Button>
                     </Tooltip>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Tooltip
                         title='This does not change the orientation of the device itself, just updates the UI if the device orientation is already changed'
                         arrow
@@ -163,11 +163,11 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             Landscape
                         </Button>
                     </Tooltip>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Divider></Divider>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Button
                         onClick={() => homeButton()}
                         className='canvas-buttons'
@@ -180,8 +180,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             width: '100%'
                         }}
                     >Home</Button>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Button
                         onClick={() => lockButton()}
                         className='canvas-buttons'
@@ -194,8 +194,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             width: '100%'
                         }}
                     >Lock</Button>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Button
                         onClick={() => unlockButton()}
                         className='canvas-buttons'
@@ -208,8 +208,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             width: '100%'
                         }}
                     >Unlock</Button>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Button
                         onClick={() => swipeLeft()}
                         className='canvas-buttons'
@@ -222,8 +222,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             width: '100%'
                         }}
                     >Swipe</Button>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Button
                         onClick={() => swipeRight()}
                         className='canvas-buttons'
@@ -236,8 +236,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             width: '100%'
                         }}
                     >Swipe</Button>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Button
                         onClick={() => swipeUp()}
                         className='canvas-buttons'
@@ -250,8 +250,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             width: '100%'
                         }}
                     >Swipe</Button>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <Button
                         onClick={() => swipeDown()}
                         className='canvas-buttons'
@@ -264,12 +264,12 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                             width: '100%'
                         }}
                     >Swipe</Button>
-                </Grid>
-                <Grid item>
+                </Grid2>
+                <Grid2 item>
                     <StreamSettings deviceData={deviceData}></StreamSettings>
-                </Grid>
-            </Grid>
-        </Grid >
+                </Grid2>
+            </Grid2>
+        </Grid2 >
     )
 
     function Canvas() {

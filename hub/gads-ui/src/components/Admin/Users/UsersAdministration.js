@@ -3,6 +3,7 @@ import {
     Button,
     FormControl,
     Grid,
+    Grid2,
     MenuItem,
     TextField, Tooltip
 } from '@mui/material'
@@ -38,19 +39,19 @@ export default function UsersAdministration() {
     return (
         <Stack id='outer-stack' direction='row' spacing={2}>
             <Box id='outer-box'>
-                <Grid id='user-grid' container spacing={2}>
-                    <Grid item>
+                <Grid2 id='user-grid' container spacing={2}>
+                    <Grid2 item>
                         <NewUser handleGetUserData={handleGetUserData}></NewUser>
-                    </Grid>
+                    </Grid2>
                     {userData.map((user) => {
                         return (
-                            <Grid item>
+                            <Grid2 item>
                                 <ExistingUser user={user} handleGetUserData={handleGetUserData}></ExistingUser>
-                            </Grid>
+                            </Grid2>
                         )
                     })
                     }
-                </Grid>
+                </Grid2>
             </Box>
         </Stack>
     )

@@ -70,14 +70,15 @@ export default function Config() {
     }
 
     const StyledBox = styled(Box)(() => ({
-        border: '1px solid #ccc',
-        borderRadius: '8px',
-        padding: '10px',
-        backgroundColor: '#f5f5f5',
+        borderRadius: '10px',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#9ba984',
         width: '300px',
         height: '200px',
-        justifyContent: 'center',
-        justifyItems: 'center'
+        alignItems: 'center',
+        border: '1px solid #ddd',
     }))
 
     const StyledButton = styled(Button)(() => ({
@@ -151,8 +152,7 @@ export default function Config() {
 
         return (
             <StyledBox>
-                <div>GADS Android stream</div>
-                <Divider width='100%'></Divider>
+                <h3>GADS Android stream</h3>
                 <Tooltip
                     arrow
                     placement='bottom'
@@ -174,8 +174,7 @@ export default function Config() {
     function CSRBox() {
         return (
             <StyledBox>
-                <div>iOS CSR</div>
-                <Divider></Divider>
+                <h3>iOS CSR</h3>
                 <Stack
                     direction='column'
                     spacing={1}
@@ -190,8 +189,7 @@ export default function Config() {
     function SeleniumJarBox() {
         return (
             <StyledBox>
-                <div>Selenium jar</div>
-                <Divider></Divider>
+                <h3>Selenium jar</h3>
                 <StyledButton>Upload</StyledButton>
             </StyledBox>
         )
@@ -200,8 +198,7 @@ export default function Config() {
     function SigningP12FileBox() {
         return (
             <StyledBox>
-                <div>iOS p12 signing file</div>
-                <Divider></Divider>
+                <h3>iOS p12 signing file</h3>
                 <Stack
                     direction='column'
                     spacing={1}
@@ -248,8 +245,7 @@ export default function Config() {
 
         return (
             <StyledBox>
-                <div>iOS signing private key</div>
-                <Divider></Divider>
+                <h3>iOS signing private key</h3>
                 <Stack
                     direction='column'
                     spacing={1}
@@ -274,8 +270,7 @@ export default function Config() {
     function WebDriverAgentBox() {
         return (
             <StyledBox>
-                <div>WebDriverAgent - real devices</div>
-                <Divider></Divider>
+                <h3>WebDriverAgent - real devices</h3>
                 <Stack
                     direction='column'
                     spacing={1}
