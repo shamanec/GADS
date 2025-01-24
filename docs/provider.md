@@ -195,6 +195,14 @@ You can use mainstream WebDriverAgent as well
 - Copy the `.app` bundle inside the `Payload` folder
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
+### Bundle WebDriverAgent .app into .ipa
+- Navigate to the folder where the respective WebDriverAgent .app bundle is and create an empty directory with the name `Payload`.
+- Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders
+- Copy the `.app` bundle inside the `Payload` folder
+- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
+
+https://github.com/user-attachments/assets/587e2b92-abcb-4eaa-8ddb-d482f2a94e67
+
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  
   - `--nickname=` - mandatory, this is used to get the correct provider configuration from MongoDB
