@@ -195,7 +195,7 @@ You can use mainstream WebDriverAgent as well
 - Copy the `.app` bundle inside the `Payload` folder
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
-https://github.com/user-attachments/assets/587e2b92-abcb-4eaa-8ddb-d482f2a94e67
+https://github.com/user-attachments/assets/e6059d3a-7e3b-4725-8551-4575303c43b9
 
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  
