@@ -173,10 +173,7 @@ You can use mainstream WebDriverAgent as well
 ### Prebuilt mainstream WebDriverAgent
 - Download the latest prebuilt `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) releases
 - Unzip the `.app` bundle in any folder.
-- Navigate to the folder above and create an empty directory with the name `Payload`.
-- Copy the `.app` bundle inside the `Payload` folder
-- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
-- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
+- Create an [.ipa](#bundle-webdriveragent-app-into-ipa) file
   - [zsign](https://github.com/zhlynn/zsign)
   - [macOS] [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
   - [macOS] [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
@@ -190,10 +187,7 @@ You can use mainstream WebDriverAgent as well
 - Select `Build > Clean build folder` (just in case)
 - Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
    `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
-- Navigate to the folder above and create an empty directory with the name `Payload`.
-- Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders
-- Copy the `.app` bundle inside the `Payload` folder
-- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
+- Create an [.ipa](#bundle-webdriveragent-app-into-ipa) file
 
 ### Bundle WebDriverAgent .app into .ipa
 - Navigate to the folder where the respective WebDriverAgent .app bundle is and create an empty directory with the name `Payload`.
