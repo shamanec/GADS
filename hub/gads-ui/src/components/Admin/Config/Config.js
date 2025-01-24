@@ -377,8 +377,6 @@ export default function Config() {
     }
 
     function SigningPrivateKeyBox() {
-
-
         const handleGeneratePrivateKeyClick = () => {
             if (signingPemFileExists) {
                 showDialog('generatePrivateKeyAlert', {

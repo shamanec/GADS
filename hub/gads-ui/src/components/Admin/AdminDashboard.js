@@ -1,12 +1,11 @@
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import { useState } from "react";
-import { Box } from "@mui/material";
-import UsersAdministration from "./Users/UsersAdministration";
-import FilesAdministration from "./Files/FilesAdministration";
-import DevicesAdministration from './Devices/DevicesAdministration';
-import ProvidersAdministration from './Providers/ProvidersAdministration';
-import Config from './Config/Config';
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
+import { useState } from "react"
+import { Box } from "@mui/material"
+import UsersAdministration from "./Users/UsersAdministration"
+import DevicesAdministration from './Devices/DevicesAdministration'
+import ProvidersAdministration from './Providers/ProvidersAdministration'
+import Config from './Config/Config'
 
 
 export default function AdminDashboard() {
@@ -71,20 +70,11 @@ export default function AdminDashboard() {
                         fontWeight: "bold"
                     }}
                 />
-                <Tab
-                    label="Files"
-                    style={{
-                        textTransform: 'none',
-                        fontSize: '16px',
-                        fontWeight: "bold"
-                    }}
-                />
             </Tabs>
             {currentTabIndex === 0 && <Config></Config>}
             {currentTabIndex === 1 && <ProvidersAdministration></ProvidersAdministration>}
             {currentTabIndex === 2 && <DevicesAdministration></DevicesAdministration>}
             {currentTabIndex === 3 && <UsersAdministration></UsersAdministration>}
-            {currentTabIndex === 4 && <FilesAdministration></FilesAdministration>}
         </Box >
     )
 }
