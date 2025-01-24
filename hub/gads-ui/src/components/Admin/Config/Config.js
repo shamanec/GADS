@@ -9,9 +9,10 @@ export default function Config() {
     const [seleniumJarExists, setSeleniumJarExists] = useState(false)
     const [supervisionFileExists, setSupervisionFileExists] = useState(false)
     const [webDriverAgentFileExists, setWebDriverAgentFileExists] = useState(false)
-    const [signingPemFileExists, setSigningPemFileExists] = useState(true)
+    const [signingPemFileExists, setSigningPemFileExists] = useState(false)
     const [mobileProvisionFileExists, setMobileProvisionFileExists] = useState(false)
     const [androidStreamFileExists, setAndroidStreamFileExists] = useState(false)
+    const [signingCertificateFileExists, setSigningCertificateFileExists] = useState(false)
 
     const { hideSnackbar, showSnackbar } = useSnackbar()
     const { showDialog, hideDialog } = useDialog()
@@ -33,7 +34,7 @@ export default function Config() {
                         if (file.name === 'WebDriverAgent.ipa') {
                             setWebDriverAgentFileExists(true)
                         }
-                        if (file.name === 'private_key.pem') {
+                        if (file.name === 'signing_key.pem') {
                             setSigningPemFileExists(true)
                         }
                         if (file.name === 'profile.mobileprovision') {
@@ -76,7 +77,7 @@ export default function Config() {
         flexDirection: 'column',
         backgroundColor: '#9ba984',
         width: '300px',
-        height: '300px',
+        height: '320px',
         alignItems: 'center',
         border: '1px solid #ddd',
     }))
@@ -92,6 +93,9 @@ export default function Config() {
             backgroundColor: '#2f3b26',
             boxShadow: 'none',
         },
+        '&:disabled': {
+            backgroundColor: '#667a57'
+        }
     }))
 
     const StyledLoadingButton = ({ loading, tooltipText, children, ...props }) => {
@@ -144,6 +148,7 @@ export default function Config() {
                     },
                 })
                     .then(() => {
+                        handleGetFileData()
                         showCustomSnackbarSuccess('File uploaded!')
                     })
                     .catch(() => {
@@ -234,15 +239,15 @@ export default function Config() {
                         textAlign: 'center',
                     }}
                 >
-                    For remote control of Android devices you need GADS-Android-stream apk for the MJPEG stream. {' '}
+                    For remote control of Android devices you need GADS-Android-stream apk for the MJPEG stream({''}
                     <a
                         href="https://github.com/shamanec/GADS-Android-stream"
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ color: 'blue', textDecoration: 'underline' }}
                     >
-                        Link
-                    </a>{' '}
+                        link
+                    </a>{''}). The button below will update it to the latest release.
                 </p>
                 <Stack spacing={1}>
                     <StyledLoadingButton
@@ -350,6 +355,8 @@ export default function Config() {
     }
 
     function SigningP12FileBox() {
+        const canGenerate = signingCertificateFileExists && signingPemFileExists
+
         return (
             <StyledBox>
                 <h3>iOS p12 signing file</h3>
@@ -362,14 +369,51 @@ export default function Config() {
                 <Stack
                     direction='column'
                     spacing={1}
+                    alignItems={"center"}
                 >
                     <StyledUploadLoadingButton
                         filename='signing_pkcs.p12'
                         allowedFileExtension='.p12'
                         tooltipText='Select and upload PKCS#12 (.p12) file'
                     ></StyledUploadLoadingButton>
-                    <StyledButton>Download</StyledButton>
-                    <StyledButton>Generate</StyledButton>
+                    <Divider width='100%'></Divider>
+                    <StyledButton
+                        disabled={!canGenerate}
+                    >Generate</StyledButton>
+                    {signingPemFileExists ? (
+                        <p
+                            style={{
+                                color: 'green',
+                                fontSize: '15px',
+                                fontWeight: 'bold'
+                            }}
+                        >Signing private key exists.</p>
+                    ) : (
+                        <p
+                            style={{
+                                color: 'red',
+                                fontSize: '15px',
+                                fontWeight: 'bold'
+                            }}
+                        >No signing private key present.</p>
+                    )}
+                    {signingCertificateFileExists ? (
+                        <p
+                            style={{
+                                color: 'green',
+                                fontSize: '15px',
+                                fontWeight: 'bold'
+                            }}
+                        >Signing certificate exists.</p>
+                    ) : (
+                        <p
+                            style={{
+                                color: 'red',
+                                fontSize: '15px',
+                                fontWeight: 'bold'
+                            }}
+                        >No signing certificate present.</p>
+                    )}
                 </Stack>
 
             </StyledBox>
@@ -398,10 +442,6 @@ export default function Config() {
         }
 
         const handleDownloadPrivateKey = () => {
-
-        }
-
-        const handleUploadPrivateKey = () => {
 
         }
 
