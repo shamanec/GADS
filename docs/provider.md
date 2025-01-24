@@ -195,6 +195,16 @@ You can use mainstream WebDriverAgent as well
 - Copy the `.app` bundle inside the `Payload` folder
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
+### Export signing .p12 file
+If you are using or have access to macOS machine, you can export a `.p12` file from your development certificate in Keychain Access which can be used to resign WebDriverAgent through GADS.
+- Open `Keychain Access`
+- Open `login` from `Default Keychains`
+- Find your Apple development certificate
+- Right-click and click `Export {some name}`
+- Choose a file name, regarding GADS it doesn't really matter because it will be changed on upload via the Admin
+- Choose a password
+- Save the file
+
 https://github.com/user-attachments/assets/e6059d3a-7e3b-4725-8551-4575303c43b9
 
 ## Starting a provider instance
