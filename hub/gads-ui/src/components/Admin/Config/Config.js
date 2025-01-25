@@ -119,6 +119,20 @@ export default function Config() {
         )
     }
 
+    const FileInfo = ({ existsText, notExistsText, exists }) => {
+        return (
+            <p
+                style={{
+                    color: exists ? 'green' : 'red',
+                    fontSize: '15px',
+                    fontWeight: 'bold'
+                }}
+            >
+                {exists ? existsText : notExistsText}
+            </p>
+        )
+    }
+
     const StyledUploadLoadingButton = ({ filename = '', allowedFileExtension, tooltipText, children, ...props }) => {
         const [isUploading, setIsUploading] = useState(false)
         const [inputKey, setInputKey] = useState(Date.now())
@@ -192,12 +206,6 @@ export default function Config() {
                 <WebDriverAgentBox></WebDriverAgentBox>
             </Grid2>
             <Grid2 item>
-                <SeleniumJarBox></SeleniumJarBox>
-            </Grid2>
-            <Grid2 item>
-                <IOSSupervisionBox></IOSSupervisionBox>
-            </Grid2>
-            <Grid2 item>
                 <SigningPrivateKeyBox></SigningPrivateKeyBox>
             </Grid2>
             <Grid2 item>
@@ -205,6 +213,12 @@ export default function Config() {
             </Grid2>
             <Grid2 item>
                 <SigningP12FileBox></SigningP12FileBox>
+            </Grid2>
+            <Grid2 item>
+                <IOSSupervisionBox></IOSSupervisionBox>
+            </Grid2>
+            <Grid2 item>
+                <SeleniumJarBox></SeleniumJarBox>
             </Grid2>
         </Grid2>
     )
@@ -249,13 +263,26 @@ export default function Config() {
                         link
                     </a>{''}). The button below will update it to the latest release.
                 </p>
-                <Stack spacing={1}>
+                <Stack
+                    spacing={1}
+                    alignItems={"center"}
+                >
                     <StyledLoadingButton
                         onClick={handleAndroidStreamUpdate}
-                        tooltipText='Download the latest GADS Android stream apk from releases and update it in the DB'
+                        tooltipText='Automatically update GADS-Android-stream apk'
                         disabled={updatingApk}
                         loading={updatingApk}
                     >{androidStreamFileExists ? 'Update' : 'Get'}</StyledLoadingButton>
+                    <StyledUploadLoadingButton
+                        filename='gads-stream.apk'
+                        allowedFileExtension='.apk'
+                        tooltipText='Select and upload GADS-Android-stream apk'
+                    ></StyledUploadLoadingButton>
+                    <FileInfo
+                        exists={androidStreamFileExists}
+                        existsText='APK is available.'
+                        notExistsText='APK not available.'
+                    ></FileInfo>
                 </Stack>
             </StyledBox>
         )
@@ -309,8 +336,8 @@ export default function Config() {
                     direction='column'
                     spacing={1}
                 >
-                    <StyledButton>Generate</StyledButton>
                     <StyledButton>Download</StyledButton>
+                    <StyledButton>Generate</StyledButton>
                 </Stack>
             </StyledBox>
         )
@@ -380,42 +407,17 @@ export default function Config() {
                     <StyledButton
                         disabled={!canGenerate}
                     >Generate</StyledButton>
-                    {signingPemFileExists ? (
-                        <p
-                            style={{
-                                color: 'green',
-                                fontSize: '15px',
-                                fontWeight: 'bold'
-                            }}
-                        >Signing private key exists.</p>
-                    ) : (
-                        <p
-                            style={{
-                                color: 'red',
-                                fontSize: '15px',
-                                fontWeight: 'bold'
-                            }}
-                        >No signing private key present.</p>
-                    )}
-                    {signingCertificateFileExists ? (
-                        <p
-                            style={{
-                                color: 'green',
-                                fontSize: '15px',
-                                fontWeight: 'bold'
-                            }}
-                        >Signing certificate exists.</p>
-                    ) : (
-                        <p
-                            style={{
-                                color: 'red',
-                                fontSize: '15px',
-                                fontWeight: 'bold'
-                            }}
-                        >No signing certificate present.</p>
-                    )}
+                    <FileInfo
+                        exists={signingPemFileExists}
+                        existsText='Signing private key is available.'
+                        notExistsText='No signing private key.'
+                    ></FileInfo>
+                    <FileInfo
+                        exists={signingCertificateFileExists}
+                        existsText='Signing certificate is available.'
+                        notExistsText='No signing certificate.'
+                    ></FileInfo>
                 </Stack>
-
             </StyledBox>
         )
     }
