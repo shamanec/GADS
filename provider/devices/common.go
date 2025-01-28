@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+
 	"os/exec"
 	"slices"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
+
 	"github.com/pelletier/go-toml/v2"
 
 	"GADS/common/constants"
@@ -28,6 +30,8 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
+
+	"GADS/common"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -108,9 +112,28 @@ func setupDevices() {
 		dbDevice.LastUpdatedTimestamp = 0
 		dbDevice.IsResetting = false
 		dbDevice.InitialSetupDone = false
-		dbDevice.StreamTargetFPS = 15
-		dbDevice.StreamJpegQuality = 75
-		dbDevice.StreamScalingFactor = 50
+
+		// Get the DeviceStreamSettings for the current device
+		deviceStreamSettings, err := db.GetDeviceStreamSettings(dbDevice.UDID)
+		if err != nil {
+			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to retrieve stream settings for device `%s`: %v", dbDevice.UDID, err))
+			continue
+		}
+
+		// Check if the DeviceStreamSettings exist
+		if deviceStreamSettings.UDID == "" {
+			// If not, update the device with global settings
+			err = updateDeviceWithGlobalSettings(dbDevice)
+			if err != nil {
+				logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", dbDevice.UDID, err))
+				continue
+			}
+		} else {
+			// Apply the retrieved stream settings
+			dbDevice.StreamTargetFPS = deviceStreamSettings.StreamTargetFPS
+			dbDevice.StreamJpegQuality = deviceStreamSettings.StreamJpegQuality
+			dbDevice.StreamScalingFactor = deviceStreamSettings.StreamScalingFactor
+		}
 
 		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 
@@ -906,5 +929,70 @@ func checkAppiumUp(device *models.Device) {
 			}
 		}
 		loops++
+	}
+}
+
+func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {
+	globalSettings, err := db.GetGlobalStreamSettings()
+	if err != nil {
+		return fmt.Errorf("failed to get global stream settings: %v", err)
+	}
+
+	dbDevice.StreamTargetFPS = globalSettings.TargetFPS
+	dbDevice.StreamJpegQuality = globalSettings.JpegQuality
+
+	// Check the device OS before assigning the scaling factor
+	if dbDevice.OS == "android" {
+		dbDevice.StreamScalingFactor = globalSettings.ScalingFactorAndroid
+	} else if dbDevice.OS == "ios" {
+		dbDevice.StreamScalingFactor = globalSettings.ScalingFactoriOS
+	}
+
+	return nil
+}
+
+func UpdateDevicesStreamSettings() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		for _, dbDevice := range DBDeviceMap {
+			time.Sleep(1 * time.Second)
+			if dbDevice.ProviderState == "live" {
+				globalSettings, err := db.GetGlobalStreamSettings()
+				if err != nil {
+					logger.ProviderLogger.LogError("updateStreamSettings", fmt.Sprintf("Failed to get global stream settings: %v", err))
+					continue
+				}
+
+				var scalingFactor int
+
+				if dbDevice.OS == "android" {
+					scalingFactor = globalSettings.ScalingFactorAndroid
+				} else if dbDevice.OS == "ios" {
+					scalingFactor = globalSettings.ScalingFactoriOS
+				}
+
+				common.Mu.Lock()
+				existingSettings, err := db.GetDeviceStreamSettings(dbDevice.UDID)
+
+				if err != nil {
+					logger.ProviderLogger.LogError("updateStreamSettings", fmt.Sprintf("Failed to retrieve device stream settings"))
+					common.Mu.Unlock()
+					return
+				}
+
+				// Check if there are differences in stream settings
+				if existingSettings.UDID == "" && (dbDevice.StreamTargetFPS != globalSettings.TargetFPS ||
+					dbDevice.StreamJpegQuality != globalSettings.JpegQuality ||
+					dbDevice.StreamScalingFactor != scalingFactor) {
+
+					dbDevice.StreamTargetFPS = globalSettings.TargetFPS
+					dbDevice.StreamJpegQuality = globalSettings.JpegQuality
+					dbDevice.StreamScalingFactor = scalingFactor
+				}
+				common.Mu.Unlock()
+			}
+		}
 	}
 }

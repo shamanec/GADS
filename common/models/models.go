@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
@@ -98,6 +99,13 @@ type LocalHubDevice struct {
 	LastActionTS             int64    `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
 }
 
+type DeviceStreamSettings struct {
+	UDID                string `json:"udid" bson:"udid"`                                             // device UDID
+	StreamTargetFPS     int    `json:"stream_target_fps,omitempty" bson:"stream_target_fps"`         // The target FPS for the MJPEG video streams
+	StreamJpegQuality   int    `json:"stream_jpeg_quality,omitempty" bson:"stream_jpeg_quality"`     // The target JPEG quality for the MJPEG video streams
+	StreamScalingFactor int    `json:"stream_scaling_factor,omitempty" bson:"stream_scaling_factor"` // The target scaling factor for the MJPEG video streams
+}
+
 type IOSModelData struct {
 	Width  string
 	Height string
@@ -118,4 +126,18 @@ type DeviceInUseMessage struct {
 type DBFile struct {
 	FileName   string             `json:"name" bson:"filename"`
 	UploadDate primitive.DateTime `json:"upload_date" bson:"uploadDate"`
+}
+
+type GlobalSettings struct {
+	ID          primitive.ObjectID `bson:"_id,omitempty"`
+	Type        string             `json:"type" bson:"type"`
+	Settings    interface{}        `json:"settings" bson:"settings"`
+	LastUpdated time.Time          `json:"last_updated" bson:"last_updated"`
+}
+
+type StreamSettings struct {
+	TargetFPS            int `json:"target_fps,omitempty" bson:"target_fps"`
+	JpegQuality          int `json:"jpeg_quality,omitempty" bson:"jpeg_quality"`
+	ScalingFactorAndroid int `json:"scaling_factor_android,omitempty" bson:"scaling_factor_android"`
+	ScalingFactoriOS     int `json:"scaling_factor_ios,omitempty" bson:"scaling_factor_ios"`
 }

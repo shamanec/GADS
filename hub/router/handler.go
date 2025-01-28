@@ -63,6 +63,8 @@ func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	authGroup.POST("/admin/upload-file", UploadFile)
 	authGroup.PUT("/admin/user", UpdateUser)
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
+	authGroup.GET("/admin/global-settings", GetGlobalStreamSettings)
+	authGroup.POST("/admin/global-settings", UpdateGlobalStreamSettings)
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
 	appiumGroup.Any("/*path")

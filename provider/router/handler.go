@@ -53,7 +53,7 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.Any("/appium/*proxyPath", AppiumReverseProxy)
 	deviceGroup.GET("/android-stream", AndroidStreamProxy)
 	deviceGroup.GET("/android-stream-mjpeg", AndroidStreamMJPEG)
-	deviceGroup.POST("/update-stream-settings", UpdateStreamSettings)
+	deviceGroup.POST("/update-stream-settings", UpdateDeviceStreamSettings)
 	if config.ProviderConfig.UseGadsIosStream {
 		deviceGroup.GET("/ios-stream", IosStreamProxyGADS)
 		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEG)
