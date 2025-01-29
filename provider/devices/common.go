@@ -951,7 +951,6 @@ func UpdateDevicesStreamSettings() {
 
 	for range ticker.C {
 		for _, dbDevice := range DBDeviceMap {
-			time.Sleep(1 * time.Second)
 			if dbDevice.ProviderState == "live" {
 				globalSettings, err := db.GetGlobalStreamSettings()
 				if err != nil {
