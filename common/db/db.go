@@ -556,10 +556,7 @@ func GetDeviceStreamSettings(udid string) (models.DeviceStreamSettings, error) {
 
 	err := coll.FindOne(mongoClientCtx, filter).Decode(&deviceStreamSettings)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return deviceStreamSettings, nil // No settings found, return empty struct
-		}
-		return deviceStreamSettings, err // Return error if any other error occurred
+		return deviceStreamSettings, err // Return error if no settings were found or if any other error occurred
 	}
 
 	return deviceStreamSettings, nil

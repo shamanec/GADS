@@ -116,13 +116,7 @@ func setupDevices() {
 		// Get the DeviceStreamSettings for the current device
 		deviceStreamSettings, err := db.GetDeviceStreamSettings(dbDevice.UDID)
 		if err != nil {
-			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to retrieve stream settings for device `%s`: %v", dbDevice.UDID, err))
-			continue
-		}
-
-		// Check if the DeviceStreamSettings exist
-		if deviceStreamSettings.UDID == "" {
-			// If not, update the device with global settings
+			// If there's an error (including not found), update the device with global settings
 			err = updateDeviceWithGlobalSettings(dbDevice)
 			if err != nil {
 				logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", dbDevice.UDID, err))
@@ -974,22 +968,19 @@ func UpdateDevicesStreamSettings() {
 				}
 
 				common.MutexManager.StreamSettings.Lock()
-				existingSettings, err := db.GetDeviceStreamSettings(dbDevice.UDID)
+				_, err = db.GetDeviceStreamSettings(dbDevice.UDID)
 
 				if err != nil {
-					logger.ProviderLogger.LogError("updateStreamSettings", fmt.Sprintf("Failed to retrieve device stream settings"))
-					common.MutexManager.StreamSettings.Unlock()
-					return
-				}
+					if dbDevice.StreamTargetFPS != globalSettings.TargetFPS ||
+						dbDevice.StreamJpegQuality != globalSettings.JpegQuality ||
+						dbDevice.StreamScalingFactor != scalingFactor {
 
-				// Check if there are differences in stream settings
-				if existingSettings.UDID == "" && (dbDevice.StreamTargetFPS != globalSettings.TargetFPS ||
-					dbDevice.StreamJpegQuality != globalSettings.JpegQuality ||
-					dbDevice.StreamScalingFactor != scalingFactor) {
+						logger.ProviderLogger.LogInfo("updateStreamSettings", fmt.Sprintf("Applying global stream settings to device `%s` as no specific settings are saved in the database.", dbDevice.UDID))
 
-					dbDevice.StreamTargetFPS = globalSettings.TargetFPS
-					dbDevice.StreamJpegQuality = globalSettings.JpegQuality
-					dbDevice.StreamScalingFactor = scalingFactor
+						dbDevice.StreamTargetFPS = globalSettings.TargetFPS
+						dbDevice.StreamJpegQuality = globalSettings.JpegQuality
+						dbDevice.StreamScalingFactor = scalingFactor
+					}
 				}
 				common.MutexManager.StreamSettings.Unlock()
 			}
