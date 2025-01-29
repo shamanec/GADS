@@ -206,6 +206,12 @@ export default function Config() {
                 <WebDriverAgentBox></WebDriverAgentBox>
             </Grid2>
             <Grid2 item>
+                <IOSSupervisionBox></IOSSupervisionBox>
+            </Grid2>
+            <Grid2 item>
+                <SeleniumJarBox></SeleniumJarBox>
+            </Grid2>
+            <Grid2 item>
                 <SigningPrivateKeyBox></SigningPrivateKeyBox>
             </Grid2>
             <Grid2 item>
@@ -213,12 +219,6 @@ export default function Config() {
             </Grid2>
             <Grid2 item>
                 <SigningP12FileBox></SigningP12FileBox>
-            </Grid2>
-            <Grid2 item>
-                <IOSSupervisionBox></IOSSupervisionBox>
-            </Grid2>
-            <Grid2 item>
-                <SeleniumJarBox></SeleniumJarBox>
             </Grid2>
         </Grid2>
     )
