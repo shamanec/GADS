@@ -973,12 +973,12 @@ func UpdateDevicesStreamSettings() {
 					scalingFactor = globalSettings.ScalingFactoriOS
 				}
 
-				common.Mu.Lock()
+				common.MutexManager.StreamSettings.Lock()
 				existingSettings, err := db.GetDeviceStreamSettings(dbDevice.UDID)
 
 				if err != nil {
 					logger.ProviderLogger.LogError("updateStreamSettings", fmt.Sprintf("Failed to retrieve device stream settings"))
-					common.Mu.Unlock()
+					common.MutexManager.StreamSettings.Unlock()
 					return
 				}
 
@@ -991,7 +991,7 @@ func UpdateDevicesStreamSettings() {
 					dbDevice.StreamJpegQuality = globalSettings.JpegQuality
 					dbDevice.StreamScalingFactor = scalingFactor
 				}
-				common.Mu.Unlock()
+				common.MutexManager.StreamSettings.Unlock()
 			}
 		}
 	}

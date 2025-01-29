@@ -363,8 +363,8 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 			return
 		}
 
-		common.Mu.Lock()
-		defer common.Mu.Unlock()
+		common.MutexManager.StreamSettings.Lock()
+		defer common.MutexManager.StreamSettings.Unlock()
 
 		if device.OS == "ios" {
 			if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
