@@ -1,6 +1,7 @@
 import { Box, Button, TextField, Grid, MenuItem, Stack, Typography } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
+import { useSnackbar } from '../../../contexts/SnackBarContext';
 
 // Import options from StreamSettings
 const fpsOptions = [5, 10, 15, 20, 30, 45, 60];
@@ -9,12 +10,12 @@ const scalingFactorOptionsAndroid = [25, 50];
 const scalingFactorOptionsiOS = [25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 
 export default function GlobalSettings() {
+    const { showSnackbar } = useSnackbar();
     const [fps, setFps] = useState(15);
     const [jpegQuality, setJpegQuality] = useState(75);
     const [scalingFactorAndroid, setScalingFactorAndroid] = useState(50);
     const [scalingFactoriOS, setScalingFactoriOS] = useState(50);
     const [loading, setLoading] = useState(false);
-    const [status, setStatus] = useState(null);
 
     useEffect(() => {
         // Fetch global stream settings on component mount
@@ -27,9 +28,13 @@ export default function GlobalSettings() {
                 setScalingFactoriOS(settings.scaling_factor_ios);
             })
             .catch(() => {
-                setStatus('error');
+                showSnackbar({
+                    message: 'Failed to load global settings!',
+                    severity: 'error',
+                    duration: 3000,
+                });
             });
-    }, []);
+    }, [showSnackbar]);
 
     const handleSave = () => {
         setLoading(true);
@@ -37,14 +42,21 @@ export default function GlobalSettings() {
 
         api.post('/admin/global-settings', settings)
             .then(() => {
-                setStatus('success');
+                showSnackbar({
+                    message: 'Settings saved successfully!',
+                    severity: 'success',
+                    duration: 3000,
+                });
             })
             .catch(() => {
-                setStatus('error');
+                showSnackbar({
+                    message: 'Failed to save settings!',
+                    severity: 'error',
+                    duration: 3000,
+                });
             })
             .finally(() => {
                 setLoading(false);
-                setTimeout(() => setStatus(null), 2000);
             });
     };
 
@@ -146,8 +158,6 @@ export default function GlobalSettings() {
                                 >
                                     {loading ? 'Saving...' : 'Save Settings'}
                                 </Button>
-                                {status === 'success' && <Typography color="green">Settings saved successfully!</Typography>}
-                                {status === 'error' && <Typography color="red">Failed to save settings!</Typography>}
                             </Stack>
                         </Box>
                     </Grid>
