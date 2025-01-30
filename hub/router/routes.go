@@ -882,3 +882,33 @@ func DownloadResourceFromGithubRepo(c *gin.Context) {
 	// Write the body to file
 	_, err = io.Copy(out, resp.Body)
 }
+
+func GetGlobalStreamSettings(c *gin.Context) {
+	// Retrieve global stream settings from the database
+	streamSettings, err := db.GetGlobalStreamSettings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve global stream settings"})
+		return
+	}
+
+	// Return the stream settings as a JSON response
+	c.JSON(http.StatusOK, streamSettings)
+}
+
+func UpdateGlobalStreamSettings(c *gin.Context) {
+	var settings models.StreamSettings
+
+	// Bind the JSON input to the settings struct
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	err := db.UpdateGlobalStreamSettings(settings)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save settings"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
+}

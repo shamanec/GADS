@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+
 	"os/exec"
 	"slices"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
+
 	"github.com/pelletier/go-toml/v2"
 
 	"GADS/common/constants"
@@ -28,6 +30,8 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
+
+	"GADS/common"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -108,9 +112,6 @@ func setupDevices() {
 		dbDevice.LastUpdatedTimestamp = 0
 		dbDevice.IsResetting = false
 		dbDevice.InitialSetupDone = false
-		dbDevice.StreamTargetFPS = 15
-		dbDevice.StreamJpegQuality = 75
-		dbDevice.StreamScalingFactor = 50
 
 		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 
@@ -335,6 +336,13 @@ func setupAndroidDevice(device *models.Device) {
 		}
 	}
 
+	err = applyDeviceStreamSettings(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
 	go startAppium(device)
 	go checkAppiumUp(device)
 
@@ -528,6 +536,13 @@ func setupIOSDevice(device *models.Device) {
 	err = updateWebDriverAgent(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully create WebDriverAgent session or update its stream settings for device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
+	err = applyDeviceStreamSettings(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
@@ -907,4 +922,46 @@ func checkAppiumUp(device *models.Device) {
 		}
 		loops++
 	}
+}
+
+func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {
+	globalSettings, err := db.GetGlobalStreamSettings()
+	if err != nil {
+		return fmt.Errorf("failed to get global stream settings: %v", err)
+	}
+
+	dbDevice.StreamTargetFPS = globalSettings.TargetFPS
+	dbDevice.StreamJpegQuality = globalSettings.JpegQuality
+
+	// Check the device OS before assigning the scaling factor
+	if dbDevice.OS == "android" {
+		dbDevice.StreamScalingFactor = globalSettings.ScalingFactorAndroid
+	} else if dbDevice.OS == "ios" {
+		dbDevice.StreamScalingFactor = globalSettings.ScalingFactoriOS
+	}
+
+	return nil
+}
+
+func applyDeviceStreamSettings(device *models.Device) error {
+	common.MutexManager.StreamSettings.Lock()
+	defer common.MutexManager.StreamSettings.Unlock()
+	// Get the DeviceStreamSettings for the current device
+	deviceStreamSettings, err := db.GetDeviceStreamSettings(device.UDID)
+
+	if err != nil {
+		// If there's an error (including not found), update the device with global settings
+		err = updateDeviceWithGlobalSettings(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", device.UDID, err))
+			return err
+		}
+	} else {
+		// Apply the retrieved stream settings
+		device.StreamTargetFPS = deviceStreamSettings.StreamTargetFPS
+		device.StreamJpegQuality = deviceStreamSettings.StreamJpegQuality
+		device.StreamScalingFactor = deviceStreamSettings.StreamScalingFactor
+	}
+
+	return nil
 }

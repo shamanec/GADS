@@ -1,6 +1,7 @@
 package router
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/common/util"
 	"GADS/provider/config"
@@ -18,7 +19,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
+
+	"GADS/common"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gobwas/ws"
@@ -344,10 +346,9 @@ func ResetDevice(c *gin.Context) {
 	c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist", udid)})
 }
 
-func UpdateStreamSettings(c *gin.Context) {
+func UpdateDeviceStreamSettings(c *gin.Context) {
 	udid := c.Param("udid")
 
-	var mu sync.Mutex
 	if device, ok := devices.DBDeviceMap[udid]; ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -362,8 +363,10 @@ func UpdateStreamSettings(c *gin.Context) {
 			return
 		}
 
+		common.MutexManager.StreamSettings.Lock()
+		defer common.MutexManager.StreamSettings.Unlock()
+
 		if device.OS == "ios" {
-			mu.Lock()
 			if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
 				device.StreamTargetFPS = streamSettings.TargetFPS
 			}
@@ -373,7 +376,7 @@ func UpdateStreamSettings(c *gin.Context) {
 			if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
 				device.StreamScalingFactor = streamSettings.ScalingFactor
 			}
-			mu.Unlock()
+
 			err = devices.UpdateWebDriverAgentStreamSettings(device, false)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update stream settings on iOS device " + err.Error()})
@@ -415,9 +418,21 @@ func UpdateStreamSettings(c *gin.Context) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed sending Android stream settings to stream websocket - " + err.Error()})
 				return
 			}
+		}
 
+		deviceStreamSettings := models.DeviceStreamSettings{
+			UDID:                udid,
+			StreamTargetFPS:     device.StreamTargetFPS,
+			StreamJpegQuality:   device.StreamJpegQuality,
+			StreamScalingFactor: device.StreamScalingFactor,
+		}
+
+		err = db.UpdateDeviceStreamSettings(udid, deviceStreamSettings)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update device stream settings in the database"})
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{"message": "Stream settings updated"})
 		return
 	}
