@@ -102,9 +102,6 @@ func StartProvider(flags *pflag.FlagSet) {
 	// Start a goroutine that will start updating devices on provider start
 	go devices.Listener()
 
-	// Start updating the stream settings for devices based on global settings in a go routine
-	go devices.UpdateDevicesStreamSettings()
-
 	// Start the provider server
 	err = startHTTPServer()
 	if err != nil {

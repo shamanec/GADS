@@ -113,22 +113,6 @@ func setupDevices() {
 		dbDevice.IsResetting = false
 		dbDevice.InitialSetupDone = false
 
-		// Get the DeviceStreamSettings for the current device
-		deviceStreamSettings, err := db.GetDeviceStreamSettings(dbDevice.UDID)
-		if err != nil {
-			// If there's an error (including not found), update the device with global settings
-			err = updateDeviceWithGlobalSettings(dbDevice)
-			if err != nil {
-				logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", dbDevice.UDID, err))
-				continue
-			}
-		} else {
-			// Apply the retrieved stream settings
-			dbDevice.StreamTargetFPS = deviceStreamSettings.StreamTargetFPS
-			dbDevice.StreamJpegQuality = deviceStreamSettings.StreamJpegQuality
-			dbDevice.StreamScalingFactor = deviceStreamSettings.StreamScalingFactor
-		}
-
 		dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 
 		semver, err := semver.NewVersion(dbDevice.OSVersion)
@@ -352,6 +336,13 @@ func setupAndroidDevice(device *models.Device) {
 		}
 	}
 
+	err = applyDeviceStreamSettings(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
 	go startAppium(device)
 	go checkAppiumUp(device)
 
@@ -545,6 +536,13 @@ func setupIOSDevice(device *models.Device) {
 	err = updateWebDriverAgent(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully create WebDriverAgent session or update its stream settings for device `%v` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
+	err = applyDeviceStreamSettings(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
@@ -945,44 +943,25 @@ func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {
 	return nil
 }
 
-func UpdateDevicesStreamSettings() {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+func applyDeviceStreamSettings(device *models.Device) error {
+	common.MutexManager.StreamSettings.Lock()
+	defer common.MutexManager.StreamSettings.Unlock()
+	// Get the DeviceStreamSettings for the current device
+	deviceStreamSettings, err := db.GetDeviceStreamSettings(device.UDID)
 
-	for range ticker.C {
-		for _, dbDevice := range DBDeviceMap {
-			if dbDevice.ProviderState == "live" {
-				globalSettings, err := db.GetGlobalStreamSettings()
-				if err != nil {
-					logger.ProviderLogger.LogError("updateStreamSettings", fmt.Sprintf("Failed to get global stream settings: %v", err))
-					continue
-				}
-
-				var scalingFactor int
-
-				if dbDevice.OS == "android" {
-					scalingFactor = globalSettings.ScalingFactorAndroid
-				} else if dbDevice.OS == "ios" {
-					scalingFactor = globalSettings.ScalingFactoriOS
-				}
-
-				common.MutexManager.StreamSettings.Lock()
-				_, err = db.GetDeviceStreamSettings(dbDevice.UDID)
-
-				if err != nil {
-					if dbDevice.StreamTargetFPS != globalSettings.TargetFPS ||
-						dbDevice.StreamJpegQuality != globalSettings.JpegQuality ||
-						dbDevice.StreamScalingFactor != scalingFactor {
-
-						logger.ProviderLogger.LogInfo("updateStreamSettings", fmt.Sprintf("Applying global stream settings to device `%s` as no specific settings are saved in the database.", dbDevice.UDID))
-
-						dbDevice.StreamTargetFPS = globalSettings.TargetFPS
-						dbDevice.StreamJpegQuality = globalSettings.JpegQuality
-						dbDevice.StreamScalingFactor = scalingFactor
-					}
-				}
-				common.MutexManager.StreamSettings.Unlock()
-			}
+	if err != nil {
+		// If there's an error (including not found), update the device with global settings
+		err = updateDeviceWithGlobalSettings(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", device.UDID, err))
+			return err
 		}
+	} else {
+		// Apply the retrieved stream settings
+		device.StreamTargetFPS = deviceStreamSettings.StreamTargetFPS
+		device.StreamJpegQuality = deviceStreamSettings.StreamJpegQuality
+		device.StreamScalingFactor = deviceStreamSettings.StreamScalingFactor
 	}
+
+	return nil
 }
