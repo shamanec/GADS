@@ -55,20 +55,21 @@ type AppiumLog struct {
 }
 
 type AppiumServerCapabilities struct {
-	UDID                  string `json:"appium:udid"`
-	WdaMjpegPort          string `json:"appium:mjpegServerPort,omitempty"`
-	ClearSystemFiles      string `json:"appium:clearSystemFiles,omitempty"`
-	WdaURL                string `json:"appium:webDriverAgentUrl,omitempty"`
-	PreventWdaAttachments string `json:"appium:preventWDAAttachments,omitempty"`
-	SimpleIsVisibleCheck  string `json:"appium:simpleIsVisibleCheck,omitempty"`
-	WdaLocalPort          string `json:"appium:wdaLocalPort,omitempty"`
-	PlatformVersion       string `json:"appium:platformVersion,omitempty"`
-	AutomationName        string `json:"appium:automationName"`
-	PlatformName          string `json:"platformName"`
-	DeviceName            string `json:"appium:deviceName"`
-	WdaLaunchTimeout      string `json:"appium:wdaLaunchTimeout,omitempty"`
-	WdaConnectionTimeout  string `json:"appium:wdaConnectionTimeout,omitempty"`
-	RCToken               string `json:"appium:rcToken,omitempty"`
+	UDID                   string `json:"appium:udid"`
+	WdaMjpegPort           string `json:"appium:mjpegServerPort,omitempty"`
+	ClearSystemFiles       string `json:"appium:clearSystemFiles,omitempty"`
+	WdaURL                 string `json:"appium:webDriverAgentUrl,omitempty"`
+	PreventWdaAttachments  string `json:"appium:preventWDAAttachments,omitempty"`
+	SimpleIsVisibleCheck   string `json:"appium:simpleIsVisibleCheck,omitempty"`
+	WdaLocalPort           string `json:"appium:wdaLocalPort,omitempty"`
+	PlatformVersion        string `json:"appium:platformVersion,omitempty"`
+	AutomationName         string `json:"appium:automationName"`
+	PlatformName           string `json:"platformName"`
+	DeviceName             string `json:"appium:deviceName"`
+	WdaLaunchTimeout       string `json:"appium:wdaLaunchTimeout,omitempty"`
+	WdaConnectionTimeout   string `json:"appium:wdaConnectionTimeout,omitempty"`
+	RCToken                string `json:"appium:rcToken,omitempty"`
+	ChromeDriverExecutable string `json:"appium:chromedriverExecutable,omitempty"`
 }
 
 type AppiumTomlNode struct {

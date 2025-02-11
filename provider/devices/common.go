@@ -227,6 +227,13 @@ func Setup() {
 			log.Fatalf("Setup: Could not check availability of and download GADS-stream latest release - %s", err)
 		}
 	}
+
+	if config.ProviderConfig.ProvideTizen {
+		err := providerutil.DownloadAndExtractChromeDriver()
+		if err != nil {
+			log.Fatalf("Setup: Failed to download and extract ChromeDriver - %s", err)
+		}
+	}
 }
 
 func setupAndroidDevice(device *models.Device) {
@@ -862,12 +869,13 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 			DeviceName:     device.Name,
 		}
 	} else if device.OS == "tizen" {
+		chromeDriverPath := fmt.Sprintf("%s/drivers/chromedriver", config.ProviderConfig.ProviderFolder) // Adjust the path as needed
 		capabilities = models.AppiumServerCapabilities{
-			UDID:           device.UDID,
 			AutomationName: "TizenTV",
 			PlatformName:   "TizenTV",
 			DeviceName:     device.Name,
-			RCToken:        device.RCToken,
+			// RCToken:        device.RCToken,
+			ChromeDriverExecutable: chromeDriverPath,
 		}
 	}
 

@@ -11,6 +11,11 @@ import (
 	"strconv"
 	"time"
 
+	"path/filepath"
+	"runtime"
+
+	"archive/zip"
+
 	"GADS/common"
 	"GADS/common/cli"
 	"GADS/provider/config"
@@ -222,4 +227,79 @@ func SdbAvailable() bool {
 		return false
 	}
 	return true
+}
+
+func DownloadAndExtractChromeDriver() error {
+	var url string
+	switch runtime.GOOS {
+	case "linux":
+		url = "https://chromedriver.storage.googleapis.com/2.36/chromedriver_linux64.zip"
+	case "darwin":
+		url = "https://chromedriver.storage.googleapis.com/2.36/chromedriver_mac64.zip"
+	case "windows":
+		url = "https://chromedriver.storage.googleapis.com/2.36/chromedriver_win32.zip"
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	// Download the zip file
+	response, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download ChromeDriver: %s", err)
+	}
+	defer response.Body.Close()
+
+	// Create a temporary file
+	tempFile, err := os.CreateTemp("", "chromedriver.zip")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %s", err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	// Write the response body to the temp file
+	_, err = io.Copy(tempFile, response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write to temp file: %s", err)
+	}
+
+	// Extract the zip file
+	err = unzip(tempFile.Name(), "./drivers") // Specify the extraction directory
+	if err != nil {
+		return fmt.Errorf("failed to extract ChromeDriver: %s", err)
+	}
+
+	return nil
+}
+
+func unzip(src string, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	os.MkdirAll(dest, 0755)
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		fpath := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, f.Mode())
+		} else {
+			outFile, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer outFile.Close()
+			if _, err := io.Copy(outFile, rc); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
