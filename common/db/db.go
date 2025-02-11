@@ -41,7 +41,10 @@ func InitMongoClient(mongoDb string) {
 		ApplyURI(connectionString).
 		SetServerSelectionTimeout(maxTimeout).
 		SetConnectTimeout(5 * time.Second).
-		SetSocketTimeout(maxTimeout)
+		SetSocketTimeout(maxTimeout).
+		SetMaxPoolSize(200).
+		SetMinPoolSize(10).
+		SetMaxConnIdleTime(5 * time.Minute)
 
 	mongoClient, err = mongo.Connect(mongoClientCtx, clientOptions)
 	if err != nil {
