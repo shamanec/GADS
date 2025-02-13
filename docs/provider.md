@@ -10,7 +10,9 @@ The provider component is responsible for setting up the Appium servers and mana
   - [Linux](#linux)
   - [Windows](#windows)
 - [Dependencies Notes](#dependencies-notes)
-- [Devices Notes](#ios-phones)
+- [Device Notes](#device-notes)
+  - [iOS Phones](#ios-phones)
+  - [Android](#android-phone)
 - [Starting Provider Instance](#starting-a-provider-instance)
 - [Logging](#logging)
 
@@ -43,8 +45,8 @@ To specify a folder, create it on your machine and provide it at startup using t
 -  **Enable** [USB Debugging](#usb-debugging) on each Android device.
 
 #### iOS
--  **Prepare** [WebDriverAgent](#prepare-webdriveragent-on-macos).
--  (Optional) **Supervise** [your iOS devices](#supervise-devices).
+-  **Prepare** [WebDriverAgent](#build-webdriveragent-ipa-file-manually-using-xcode).
+- (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 <br>
 
@@ -60,7 +62,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 #### iOS
 - **Install** [usbmuxd](#usbmuxd) if providing iOS devices.
-- **Prepare** [WebDriverAgent](#prepare-webdriveragent-file---linux-windows).
+- **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### ⚠️ Known Limitations - Linux, iOS
@@ -82,7 +84,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 #### iOS
 - **Install** [iTunes](#itunes) if providing iOS devices.
-- **Prepare** [WebDriverAgent](#prepare-webdriveragent-file---linux-windows).
+- **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### ⚠️ Known Limitations - Windows, iOS
@@ -126,15 +128,54 @@ Example installation command for Ubuntu -  `sudo apt install usbmuxd`.
 ### iTunes - Windows -> iOS
 `iTunes` is needed only on **Windows** and mandatory when providing **iOS devices**. Install it through an installation package or Microsoft Store, shouldn't really matter
 
+### WebDriverAgent -> iOS
 
+#### WebDriverAgent ipa
+You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`  
+By using the custom WebDriverAgent from my fork you can have faster tap/swipe interactions on iOS devices (the provider configuration should be set to use the custom WebDriverAgent through hub UI).  
+You can use mainstream WebDriverAgent as well  
+  
+#### Prebuilt custom WebDriverAgent
+- Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
+- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
+  - [zsign](https://github.com/zhlynn/zsign)
+  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - Re-sign from hub UI - TODO
 
-## iOS Phones
-### Enable Developer mode - iOS 16+ only
+#### Prebuilt mainstream WebDriverAgent
+- Download the latest prebuilt `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) releases
+- Unzip the `.app` bundle in any folder.
+- Navigate to the folder above and create an empty directory with the name `Payload`.
+- Copy the `.app` bundle inside the `Payload` folder
+- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
+- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
+  - [zsign](https://github.com/zhlynn/zsign)
+  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
+  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
+  - Re-sign from hub UI - TODO
+
+#### Build WebDriverAgent IPA file manually using Xcode
+- Download the code of the latest mainstream [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) release or alternatively the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent) for faster tap/swipe interactions.
+- Open `WebDriverAgent.xcodeproj` in Xcode.
+- Select signing profile for WebDriverAgentRunner. To do this go to: *Targets*, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
+- Select `Build > Clean build folder` (just in case)
+- Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
+   `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
+- Navigate to the folder above and create an empty directory with the name `Payload`.
+- Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders
+- Copy the `.app` bundle inside the `Payload` folder
+- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
+
+## Device Notes
+
+### iOS Phones
+#### Enable Developer mode - iOS 16+ only
 Developer mode needs to be enabled on iOS 16+ devices to allow `go-ios` usage against the device
 - Open `Settings > Privacy & Security > Developer Mode`
 - Enable the toggle
 
-### Supervise devices
+#### Supervise devices
 This is an optional but a preferable step - it can make devices setup more autonomous - it can allow trusted pairing with devices without interacting with Trust popup  
 **NB** You need a Mac machine to do this!
 
@@ -150,48 +191,10 @@ This is an optional but a preferable step - it can make devices setup more auton
 **NB** Provider will fall back to manual pairing if something is wrong with the supervision profile, provided password or supervised pairing.  
 **NB** You can skip supervising the devices and you should trust manually on first pair attempt by the provider but if devices are supervised in advance setup can be more autonomous.
 
-## Android
+### Android Phones
 #### USB Debugging
 * On each device activate `Developer options`, open them and enable `Enable USB debugging`
 * Connect each device to the host - a popup will appear on the device to pair - allow it.
-
-## Prepare WebDriverAgent - (read the full paragraph)
-### WebDriverAgent ipa
-You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`  
-By using the custom WebDriverAgent from my fork you can have faster tap/swipe interactions on iOS devices (the provider configuration should be set to use the custom WebDriverAgent through hub UI).  
-You can use mainstream WebDriverAgent as well  
-  
-### Prebuilt custom WebDriverAgent
-- Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
-- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
-  - [zsign](https://github.com/zhlynn/zsign)
-  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
-  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
-  - Re-sign from hub UI - TODO
-
-### Prebuilt mainstream WebDriverAgent
-- Download the latest prebuilt `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) releases
-- Unzip the `.app` bundle in any folder.
-- Navigate to the folder above and create an empty directory with the name `Payload`.
-- Copy the `.app` bundle inside the `Payload` folder
-- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
-- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
-  - [zsign](https://github.com/zhlynn/zsign)
-  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
-  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
-  - Re-sign from hub UI - TODO
-
-### Build WebDriverAgent IPA file manually using Xcode
-- Download the code of the latest mainstream [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) release or alternatively the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent) for faster tap/swipe interactions.
-- Open `WebDriverAgent.xcodeproj` in Xcode.
-- Select signing profile for WebDriverAgentRunner. To do this go to: *Targets*, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
-- Select `Build > Clean build folder` (just in case)
-- Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
-   `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
-- Navigate to the folder above and create an empty directory with the name `Payload`.
-- Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders
-- Copy the `.app` bundle inside the `Payload` folder
-- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
 
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  
