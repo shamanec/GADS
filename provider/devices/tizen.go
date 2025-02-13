@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"GADS/common/models"
 	"GADS/provider/logger"
+	"GADS/provider/providerutil"
 )
 
 type TizenTVInfo struct {
@@ -66,7 +67,15 @@ func setupTizenDevice(device *models.Device) {
 	// 	return
 	// }
 
-	err := getTizenTVInfo(device)
+	appiumPort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
+		ResetLocalDevice(device, "Failed to allocate free host port for Appium")
+		return
+	}
+	device.AppiumPort = appiumPort
+
+	err = getTizenTVInfo(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Failed to get TV info for device `%v` - %v", device.UDID, err))
 		ResetLocalDevice(device, "Failed to pair remote with Tizen TV")
@@ -94,63 +103,14 @@ func setupTizenDevice(device *models.Device) {
 	wg.Wait()
 }
 
-// func pairRemoteWithTizenTV(device *models.Device) (string, error) {
-// 	tvHost, err := getTizenTVHost(device.UDID)
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to get TV host - %s", err)
-// 	}
-
-// 	cmd := exec.Command("appium", "driver", "run", "tizentv", "pair-remote", "--host", tvHost)
-// 	output, err := cmd.CombinedOutput()
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to pair remote with Tizen TV - %s: %s", err, string(output))
-// 	}
-
-// 	token := extractTokenFromOutput(string(output))
-// 	if token == "" {
-// 		return "", fmt.Errorf("pairing token not found in output")
-// 	}
-
-// 	logger.ProviderLogger.LogInfo("tizen_device_setup", "Remote pairing initiated successfully. Please accept the pairing on the TV.")
-
-// 	return token, nil
-// }
-
-// func extractTokenFromOutput(output string) string {
-// 	lines := strings.Split(output, "\n")
-// 	for _, line := range lines {
-// 		if strings.Contains(line, "pairing token") {
-// 			parts := strings.Split(line, ":")
-// 			if len(parts) > 1 {
-// 				return strings.TrimSpace(parts[1])
-// 			}
-// 		}
-// 	}
-// 	return ""
-// }
-
 func getTizenTVHost(tvID string) (string, error) {
-	cmd := exec.Command("sdb", "devices")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to get Tizen devices - %s", err)
+	// Check if the hostWithPort is in the format HOST_IP:PORT
+	if matched, _ := regexp.MatchString(`^([0-9]{1,3}\.){3}[0-9]{1,3}:\d+$`, tvID); matched {
+		host := strings.Split(tvID, ":")[0]
+		return host, nil
+	} else {
+		return "", fmt.Errorf("invalid format for host: %s", tvID)
 	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "List of devices attached") || strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[1] == "device" && fields[len(fields)-1] == tvID {
-			hostWithPort := fields[0]
-			host := strings.Split(hostWithPort, ":")[0]
-			return host, nil
-		}
-	}
-
-	return "", fmt.Errorf("TV with ID %s not found in connected devices", tvID)
 }
 
 func getTizenTVInfo(device *models.Device) error {
@@ -177,6 +137,7 @@ func getTizenTVInfo(device *models.Device) error {
 	device.HardwareModel = tvInfo.Device.ModelName
 	device.OSVersion = tvInfo.Version
 	device.IPAddress = tvInfo.Device.IP
+	device.DeviceAddress = device.UDID
 
 	// Extrair dimensões da resolução
 	if tvInfo.Device.Resolution != "" {

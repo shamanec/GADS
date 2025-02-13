@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -229,7 +230,7 @@ func Setup() {
 	}
 
 	if config.ProviderConfig.ProvideTizen {
-		err := providerutil.DownloadAndExtractChromeDriver()
+		err := providerutil.CheckChromeDriverAndDownload()
 		if err != nil {
 			log.Fatalf("Setup: Failed to download and extract ChromeDriver - %s", err)
 		}
@@ -869,13 +870,19 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 			DeviceName:     device.Name,
 		}
 	} else if device.OS == "tizen" {
-		chromeDriverPath := fmt.Sprintf("%s/drivers/chromedriver", config.ProviderConfig.ProviderFolder) // Adjust the path as needed
+		chromeDriverPath := filepath.Join(config.ProviderConfig.ProviderFolder, "drivers/chromedriver")
+		absolutePath, err := filepath.Abs(chromeDriverPath)
+		if err != nil {
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to get absolute path for ChromeDriver - %s", err))
+			return
+		}
 		capabilities = models.AppiumServerCapabilities{
-			AutomationName: "TizenTV",
-			PlatformName:   "TizenTV",
-			DeviceName:     device.Name,
-			// RCToken:        device.RCToken,
-			ChromeDriverExecutable: chromeDriverPath,
+			AutomationName:         "TizenTV",
+			PlatformName:           "TizenTV",
+			UDID:                   device.UDID,
+			DeviceAddress:          device.DeviceAddress,
+			DeviceName:             device.Name,
+			ChromeDriverExecutable: absolutePath,
 		}
 	}
 
@@ -1220,7 +1227,7 @@ func getConnectedDevicesTizen() []string {
 
 		fields := strings.Fields(line)
 		if len(fields) >= 3 && fields[1] == "device" {
-			deviceID := fields[len(fields)-1]
+			deviceID := fields[0]
 			devices = append(devices, deviceID)
 		}
 	}

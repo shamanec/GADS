@@ -88,7 +88,7 @@ type Device struct {
 	GoIOSTunnel      tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
 	SemVer           *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
 	InitialSetupDone bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
-	RCToken          string             `json:"-" bson:"-"` // Remote control token for Tizen devices
+	DeviceAddress    string             `json:"-" bson:"-"`
 }
 
 type LocalHubDevice struct {

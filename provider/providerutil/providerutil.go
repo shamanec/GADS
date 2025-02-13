@@ -229,7 +229,28 @@ func SdbAvailable() bool {
 	return true
 }
 
-func DownloadAndExtractChromeDriver() error {
+// Check if chromedriver is located in the drivers provider folder
+func isChromeDriverAvailable() bool {
+	var chromedriverPath string
+	if runtime.GOOS == "windows" {
+		chromedriverPath = fmt.Sprintf("%s/drivers/chromedriver.exe", config.ProviderConfig.ProviderFolder)
+	} else {
+		chromedriverPath = fmt.Sprintf("%s/drivers/chromedriver", config.ProviderConfig.ProviderFolder)
+	}
+
+	_, err := os.Stat(chromedriverPath)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil
+}
+
+func CheckChromeDriverAndDownload() error {
+	if isChromeDriverAvailable() {
+		logger.ProviderLogger.LogInfo("provider_setup", "Chromedriver is available in the drivers provider folder, it will not be downloaded.")
+		return nil
+	}
+
 	var url string
 	switch runtime.GOOS {
 	case "linux":
@@ -262,8 +283,11 @@ func DownloadAndExtractChromeDriver() error {
 		return fmt.Errorf("failed to write to temp file: %s", err)
 	}
 
+	// Define the extraction directory as the provider folder
+	extractionDir := fmt.Sprintf("%s/drivers", config.ProviderConfig.ProviderFolder)
+
 	// Extract the zip file
-	err = unzip(tempFile.Name(), "./drivers") // Specify the extraction directory
+	err = unzip(tempFile.Name(), extractionDir) // Specify the extraction directory
 	if err != nil {
 		return fmt.Errorf("failed to extract ChromeDriver: %s", err)
 	}
