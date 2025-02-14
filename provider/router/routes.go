@@ -3,7 +3,7 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/util"
+	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
@@ -155,7 +155,7 @@ func UploadAndInstallApp(c *gin.Context) {
 			}
 
 			// Get a list of the files in the zip
-			fileNames, err := util.ListFilesInZip(buf.Bytes())
+			fileNames, err := utils.ListFilesInZip(buf.Bytes())
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get file list from provided zip file - %s", err)})
 				return
@@ -170,7 +170,7 @@ func UploadAndInstallApp(c *gin.Context) {
 			// If we got an apk or ipa file - directly extract it
 			if strings.HasSuffix(fileNames[0], ".apk") || strings.HasSuffix(fileNames[0], ".ipa") {
 				// We use the file content we read above to unzip from memory without storing the zip file at all
-				err = util.UnzipInMemory(buf.Bytes(), uploadDir)
+				err = utils.UnzipInMemory(buf.Bytes(), uploadDir)
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unzip the file - %s", err)})
 					return
@@ -185,7 +185,7 @@ func UploadAndInstallApp(c *gin.Context) {
 
 				// Delete the unzipped file when the function ends
 				defer func() {
-					err := util.DeleteFile(uploadDir + "/" + fileNames[0])
+					err := utils.DeleteFile(uploadDir + "/" + fileNames[0])
 					if err != nil {
 						logger.ProviderLogger.LogError("upload_and_install_app", fmt.Sprintf("Failed to delete app file - %s", err))
 					}
@@ -193,7 +193,7 @@ func UploadAndInstallApp(c *gin.Context) {
 			} else if strings.Contains(fileNames[0], ".app") {
 				// If the file name ends with .app, then its an iOS .app directory
 				// We use the file content we read above to unzip from memory without storing the zip file at all
-				err = util.UnzipInMemory(buf.Bytes(), uploadDir)
+				err = utils.UnzipInMemory(buf.Bytes(), uploadDir)
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unzip .app directory - %s", err)})
 					return
@@ -208,7 +208,7 @@ func UploadAndInstallApp(c *gin.Context) {
 
 				// Delete the unzipped .app directory when the function ends
 				defer func() {
-					err := util.DeleteFolder(uploadDir + "/" + fileNames[0])
+					err := utils.DeleteFolder(uploadDir + "/" + fileNames[0])
 					if err != nil {
 						logger.ProviderLogger.LogError("upload_and_install_app", "Failed to delete unzipped .app directory")
 					}
