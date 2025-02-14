@@ -702,8 +702,6 @@ func startAppium(device *models.Device) {
 	}
 
 	capabilitiesJson, _ := json.Marshal(capabilities)
-	capabilitiesJsonString := fmt.Sprintf("'%s'", string(capabilitiesJson))
-
 	cmd := exec.CommandContext(
 		device.Context,
 		"appium",
@@ -713,7 +711,7 @@ func startAppium(device *models.Device) {
 		"--session-override",
 		"--log-no-colors",
 		"--relaxed-security",
-		"--default-capabilities", capabilitiesJsonString)
+		"--default-capabilities", string(capabilitiesJson))
 
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", device.UDID, cmd.Args))
 	// Create a pipe to capture the command's output
