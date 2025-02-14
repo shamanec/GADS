@@ -49,6 +49,7 @@ type Device struct {
 	ScreenWidth  string `json:"screen_width" bson:"screen_width"`   // screen width of device
 	ScreenHeight string `json:"screen_height" bson:"screen_height"` // screen height of device
 	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
+	WorkspaceID  string `json:"workspace_id" bson:"workspace_id"`   // ID of the associated workspace
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -141,4 +142,10 @@ type StreamSettings struct {
 	JpegQuality          int `json:"jpeg_quality,omitempty" bson:"jpeg_quality"`
 	ScalingFactorAndroid int `json:"scaling_factor_android,omitempty" bson:"scaling_factor_android"`
 	ScalingFactoriOS     int `json:"scaling_factor_ios,omitempty" bson:"scaling_factor_ios"`
+}
+
+type Workspace struct {
+	ID          string `json:"id" bson:"_id,omitempty"`
+	Name        string `json:"name" bson:"name"`
+	Description string `json:"description" bson:"description"`
 }
