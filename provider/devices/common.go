@@ -743,7 +743,7 @@ func startAppium(device *models.Device) {
 		}
 	}()
 
-	// Wait for stderr processing to finish
+	// Wait for stdout processing to finish
 	wg.Wait()
 
 	// Wait for the command to finish
