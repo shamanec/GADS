@@ -714,7 +714,6 @@ func startAppium(device *models.Device) {
 		"--default-capabilities", string(capabilitiesJson))
 
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", device.UDID, cmd.Args))
-	// Create a pipe to capture the command's output
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stdoutpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
@@ -722,24 +721,46 @@ func startAppium(device *models.Device) {
 		return
 	}
 
-	err = cmd.Start()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
+	// Use a buffer to capture stderr separately
+	var stderrBuffer bytes.Buffer
+	cmd.Stderr = &stderrBuffer
+
+	if err := cmd.Start(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
 
-	// Create a scanner to read the command's output line by line
-	scanner := bufio.NewScanner(stdout)
+	var wg sync.WaitGroup
+	wg.Add(1)
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		device.AppiumLogger.Log(device, line)
-	}
+	// Process stdout
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			device.AppiumLogger.Log(device, scanner.Text())
+		}
+	}()
 
-	err = cmd.Wait()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, device.UDID, err))
+	// Wait for stderr processing to finish
+	wg.Wait()
+
+	// Wait for the command to finish
+	if err := cmd.Wait(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
+			"startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
+			cmd.Args, device.UDID, err))
+
+		// If we have any Appium error in the error buffer
+		// Split it line by line to make it remotely readable and then print it out
+		if stderrBuffer.Len() > 0 {
+			lines := strings.Split(stderrBuffer.String(), "\n")
+			for _, line := range lines {
+				logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: `%v` Appium error - %v", device.UDID, line))
+			}
+
+		}
 		resetLocalDevice(device)
 	}
 }
