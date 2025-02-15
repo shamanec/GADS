@@ -18,6 +18,7 @@ import { useDialog } from '../../../contexts/DialogContext'
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
+    const [workspaces, setWorkspaces] = useState([])
     const { logout } = useContext(Auth)
 
     function handleGetUserData() {
@@ -32,7 +33,13 @@ export default function UsersAdministration() {
     }
 
     useEffect(() => {
+        const fetchWorkspaces = async () => {
+            const response = await api.get('/admin/workspaces')
+            setWorkspaces(response.data)
+        }
+
         handleGetUserData()
+        fetchWorkspaces()
     }, [])
 
     return (
@@ -40,12 +47,12 @@ export default function UsersAdministration() {
             <Box id='outer-box'>
                 <Grid id='user-grid' container spacing={2}>
                     <Grid item>
-                        <NewUser handleGetUserData={handleGetUserData}></NewUser>
+                        <NewUser handleGetUserData={handleGetUserData} workspaces={workspaces}></NewUser>
                     </Grid>
                     {userData.map((user) => {
                         return (
                             <Grid item>
-                                <ExistingUser user={user} handleGetUserData={handleGetUserData}></ExistingUser>
+                                <ExistingUser user={user} handleGetUserData={handleGetUserData} workspaces={workspaces}></ExistingUser>
                             </Grid>
                         )
                     })
@@ -56,10 +63,11 @@ export default function UsersAdministration() {
     )
 }
 
-function NewUser({ handleGetUserData }) {
+function NewUser({ handleGetUserData, workspaces }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [role, setRole] = useState('user')
+    const [workspaceId, setWorkspaceId] = useState('')
     const [loading, setLoading] = useState(false)
     const [addUserStatus, setAddUserStatus] = useState(null)
 
@@ -70,18 +78,20 @@ function NewUser({ handleGetUserData }) {
 
         let url = `/admin/user`
 
-        const loginData = {
+        const userData = {
             username: username,
             password: password,
-            role: role
+            role: role,
+            workspace_id: workspaceId
         }
 
-        api.post(url, loginData)
+        api.post(url, userData)
             .then(() => {
                 setAddUserStatus('success')
                 setUsername('')
                 setPassword('')
                 setRole('user')
+                setWorkspaceId('')
             })
             .catch(e => {
                 setAddUserStatus('error')
@@ -136,6 +146,20 @@ function NewUser({ handleGetUserData }) {
                             <MenuItem value='admin'>Admin</MenuItem>
                         </TextField>
                     </FormControl>
+                    <FormControl fullWidth required>
+                        <TextField
+                            value={workspaceId}
+                            onChange={(e) => setWorkspaceId(e.target.value)}
+                            select
+                            label='Workspace'
+                            required
+                            size='small'
+                        >
+                            {workspaces.map((ws) => (
+                                <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
+                            ))}
+                        </TextField>
+                    </FormControl>
                     <Button
                         variant='contained'
                         type='submit'
@@ -164,28 +188,28 @@ function NewUser({ handleGetUserData }) {
     )
 }
 
-function ExistingUser({ user, handleGetUserData }) {
+function ExistingUser({ user, handleGetUserData, workspaces }) {
     const [username, setUsername] = useState(user.username)
     const [password, setPassword] = useState('')
     const [role, setRole] = useState(user.role)
     const [openAlert, setOpenAlert] = useState(false)
     const [updateLoading, setUpdateLoading] = useState(false)
     const [updateUserStatus, setUpdateUserStatus] = useState(null)
+    const [workspaceId, setWorkspaceId] = useState(user.workspace_id)
 
     function handleUpdateUser(event) {
         setUpdateLoading(true)
         setUpdateUserStatus(null)
         event.preventDefault()
 
-        let url = `/admin/user`
-
-        const loginData = {
+        const updatedUser = {
             username: username,
             password: password,
-            role: role
+            role: role,
+            workspace_id: role === 'admin' ? null : workspaceId
         }
 
-        api.put(url, loginData)
+        api.put(`/admin/user`, updatedUser)
             .then(() => {
                 setUpdateUserStatus('success')
                 setPassword('')
@@ -265,6 +289,22 @@ function ExistingUser({ user, handleGetUserData }) {
                             <MenuItem value='admin'>Admin</MenuItem>
                         </TextField>
                     </FormControl>
+                    {role !== 'admin' && (
+                        <FormControl fullWidth required>
+                            <TextField
+                                value={workspaceId}
+                                onChange={(e) => setWorkspaceId(e.target.value)}
+                                select
+                                label='Workspace'
+                                required
+                                size='small'
+                            >
+                                {workspaces.map((ws) => (
+                                    <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
+                                ))}
+                            </TextField>
+                        </FormControl>
+                    )}
                     <Button
                         variant='contained'
                         type='submit'
