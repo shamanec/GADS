@@ -189,6 +189,11 @@ func AddUser(c *gin.Context) {
 		BadRequest(c, "Empty password provided")
 	}
 
+	// Check if workspace ID is provided and valid
+	if user.WorkspaceID == "" {
+		BadRequest(c, "Empty workspace ID provided")
+	}
+
 	dbUser, err := db.GetUserFromDB(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
