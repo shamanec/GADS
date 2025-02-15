@@ -532,17 +532,17 @@ func setupIOSDevice(device *models.Device) {
 		return
 	}
 
-	// Create a WebDriverAgent session and update the MJPEG stream settings
-	err = updateWebDriverAgent(device)
+	err = applyDeviceStreamSettings(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully create WebDriverAgent session or update its stream settings for device `%v` - %v", device.UDID, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
 
-	err = applyDeviceStreamSettings(device)
+	// Create a WebDriverAgent session and update the MJPEG stream settings
+	err = updateWebDriverAgent(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully create WebDriverAgent session or update its stream settings for device `%v` - %v", device.UDID, err))
 		resetLocalDevice(device)
 		return
 	}
