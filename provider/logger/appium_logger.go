@@ -22,7 +22,7 @@ type AppiumLogger struct {
 }
 
 func NewAppiumLogger(logFilePath, udid string) (*AppiumLogger, error) {
-	file, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(logFilePath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}

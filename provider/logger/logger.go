@@ -8,6 +8,7 @@ import (
 
 	"GADS/common/db"
 	"GADS/provider/config"
+
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -84,7 +85,7 @@ func CreateCustomLogger(logFilePath, collection string) (*CustomLogger, error) {
 	logger.SetLevel(logLevelMapping[logLevel])
 
 	// Open the log file
-	logFile, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+	logFile, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return &CustomLogger{}, fmt.Errorf("Could not set log output - %v", err)
 	}
