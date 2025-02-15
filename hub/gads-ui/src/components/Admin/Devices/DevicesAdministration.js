@@ -109,7 +109,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
             os: os,
             usage: usage,
             device_type: type,
-            workspace: workspace
+            workspace_id: workspace
         }
 
         api.post(url, deviceData)
@@ -368,7 +368,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
     const [usage, setUsage] = useState(deviceData.usage)
     const [type, setType] = useState(deviceData.device_type)
     const [provider, setProvider] = useState(deviceData.provider)
-    const [workspace, setWorkspace] = useState(deviceData.workspace)
+    const [workspaceId, setWorkspaceId] = useState('default')
     const [loading, setLoading] = useState(false)
     const [updateDeviceStatus, setUpdateDeviceStatus] = useState(null)
     const [reprovisionLoading, setReprovisionLoading] = useState(false)
@@ -381,7 +381,8 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
         setOSVersion(deviceData.os_version)
         setScreenHeight(deviceData.screen_height)
         setScreenWidth(deviceData.screen_width)
-    }, [deviceData])
+        setWorkspaceId(workspaces.find(ws => ws.id === deviceData.workspace_id)?.id || "")
+    }, [deviceData, workspaces])
 
     function handleUpdateDevice(event) {
         setLoading(true)
@@ -400,7 +401,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
             os: os,
             usage: usage,
             device_type: type,
-            workspace
+            workspace_id: workspaceId
         }
 
         api.put(url, reqData)
@@ -648,8 +649,8 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             <TextField
                                 style={{ width: '100%' }}
                                 variant='outlined'
-                                value={workspace}
-                                onChange={(e) => setWorkspace(e.target.value)}
+                                value={workspaceId}
+                                onChange={(e) => setWorkspaceId(e.target.value)}
                                 select
                                 label='Workspace'
                                 required
