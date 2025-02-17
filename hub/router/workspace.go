@@ -44,6 +44,15 @@ func UpdateWorkspace(c *gin.Context) {
 		return
 	}
 
+	// Validate unique workspace name
+	existingWorkspaces := db.GetWorkspaces()
+	for _, ws := range existingWorkspaces {
+		if ws.Name == workspace.Name && ws.ID != workspace.ID {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})
+			return
+		}
+	}
+
 	// Update workspace in database
 	err := db.UpdateWorkspace(&workspace)
 	if err != nil {
