@@ -123,20 +123,42 @@ function ExistingWorkspace({ workspace, handleGetWorkspaces }) {
     const [description, setDescription] = useState(workspace.description);
     const [loading, setLoading] = useState(false);
     const [updateStatus, setUpdateStatus] = useState(null);
+    const { showSnackbar } = useSnackbar();
 
     const handleUpdateWorkspace = async (event) => {
         setLoading(true);
         event.preventDefault();
 
         const updatedWorkspace = { id: workspace.id, name, description };
-        await api.put('/admin/workspaces', updatedWorkspace);
-        handleGetWorkspaces();
-        setLoading(false);
+        api.put('/admin/workspaces', updatedWorkspace)
+        .then(() => {
+            setLoading(false)
+            handleGetWorkspaces()
+        })
+        .catch(e => {
+            setLoading(false);
+            showSnackbar({
+                message: e.response.data.error,
+                severity: 'error',
+                duration: 3000,
+            });
+        })
     };
 
     const handleDeleteWorkspace = async () => {
-        await api.delete(`/admin/workspaces/${workspace.id}`);
-        handleGetWorkspaces();
+        api.delete(`/admin/workspaces/${workspace.id}`)
+        .then(() => {
+            setLoading(false)
+            handleGetWorkspaces()
+        })
+        .catch(e => {
+            setLoading(false);
+            showSnackbar({
+                message: e.response.data.error,
+                severity: 'error',
+                duration: 3000,
+            });
+        })
     };
 
     return (
