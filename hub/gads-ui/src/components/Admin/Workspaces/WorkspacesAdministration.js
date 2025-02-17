@@ -175,7 +175,7 @@ function ExistingWorkspace({ workspace, handleGetWorkspaces }) {
                             'Update Workspace'
                         )}
                     </Button>
-                    {workspace.id !== 'default' && (
+                    {!workspace.is_default && (
                         <Button
                             variant='contained'
                             style={{
