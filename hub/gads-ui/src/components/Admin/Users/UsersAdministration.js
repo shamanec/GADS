@@ -67,7 +67,7 @@ function NewUser({ handleGetUserData, workspaces }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [role, setRole] = useState('user')
-    const [workspaceId, setWorkspaceId] = useState('')
+    const [workspaceIds, setWorkspaceIds] = useState([])
     const [loading, setLoading] = useState(false)
     const [addUserStatus, setAddUserStatus] = useState(null)
 
@@ -76,22 +76,20 @@ function NewUser({ handleGetUserData, workspaces }) {
         setAddUserStatus(null)
         event.preventDefault()
 
-        let url = `/admin/user`
-
         const userData = {
             username: username,
             password: password,
             role: role,
-            workspace_id: workspaceId
+            workspace_ids: workspaceIds
         }
 
-        api.post(url, userData)
+        api.post('/admin/user', userData)
             .then(() => {
                 setAddUserStatus('success')
                 setUsername('')
                 setPassword('')
                 setRole('user')
-                setWorkspaceId('')
+                setWorkspaceIds([])
             })
             .catch(e => {
                 setAddUserStatus('error')
@@ -148,12 +146,16 @@ function NewUser({ handleGetUserData, workspaces }) {
                     </FormControl>
                     <FormControl fullWidth required>
                         <TextField
-                            value={workspaceId}
-                            onChange={(e) => setWorkspaceId(e.target.value)}
+                            value={workspaceIds}
+                            onChange={(e) => {
+                                const value = Array.from(e.target.value, option => option.value);
+                                setWorkspaceIds(value);
+                            }}
                             select
-                            label='Workspace'
+                            label='Workspaces'
                             required
                             size='small'
+                            multiple
                         >
                             {workspaces.map((ws) => (
                                 <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>

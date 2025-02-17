@@ -171,7 +171,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	if user == (models.User{}) {
+	if user.Username == "" || user.Password == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
 		BadRequest(c, "Empty or invalid body")
 		return
 	}
@@ -181,26 +181,13 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	if user.Username == "" {
-		BadRequest(c, "Empty username provided")
-	}
-
-	if user.Password == "" {
-		BadRequest(c, "Empty password provided")
-	}
-
-	// Check if workspace ID is provided and valid
-	if user.WorkspaceID == "" {
-		BadRequest(c, "Empty workspace ID provided")
-	}
-
 	dbUser, err := db.GetUserFromDB(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
 	}
 
-	if dbUser != (models.User{}) {
+	if dbUser.Username != "" {
 		BadRequest(c, "User already exists")
 		return
 	}
@@ -229,7 +216,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if user == (models.User{}) {
+	if user.Username == "" || user.Password == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
 		BadRequest(c, "Empty or invalid body")
 		return
 	}
@@ -240,7 +227,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if dbUser == (models.User{}) {
+	if dbUser.Username != "" {
 		BadRequest(c, "Cannot update non-existing user")
 		return
 	}

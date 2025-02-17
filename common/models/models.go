@@ -33,11 +33,11 @@ func (a ByUDID) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByUDID) Less(i, j int) bool { return a[i].UDID < a[j].UDID }
 
 type User struct {
-	Username    string `json:"username" bson:"username"`
-	Password    string `json:"password" bson:"password"`
-	Role        string `json:"role,omitempty" bson:"role"`
-	ID          string `json:"_id" bson:"_id,omitempty"`
-	WorkspaceID string `json:"workspace_id,omitempty" bson:"workspace_id"`
+	Username     string   `json:"username" bson:"username"`
+	Password     string   `json:"password" bson:"password"`
+	Role         string   `json:"role,omitempty" bson:"role"`
+	ID           string   `json:"_id" bson:"_id,omitempty"`
+	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids"`
 }
 
 type Device struct {
