@@ -429,8 +429,8 @@ func AddAdminUserIfMissing() error {
 		return fmt.Errorf("AddAdminUserIfMissing: Failed to check if admin user is in the DB - %s", err)
 	}
 
-	if dbUser != (models.User{}) {
-		return nil
+	if dbUser.Username != "" {
+		return nil // User exists
 	}
 
 	err = AddOrUpdateUser(models.User{Username: "admin", Password: "password", Role: "admin"})
