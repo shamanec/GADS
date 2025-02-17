@@ -5,7 +5,6 @@ import (
 
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/utils"
 	"GADS/provider/config"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -41,7 +40,11 @@ func getDBProviderDevices() map[string]*models.Device {
 	for _, dbDevice := range deviceData {
 		// Ensure that devices are associated with the Default workspace if not specified
 		if dbDevice.WorkspaceID == "" {
-			dbDevice.WorkspaceID = utils.FormatWorkspaceID("Default")
+			if defaultWorkspace, err := db.GetDefaultWorkspace(); err == nil {
+				dbDevice.WorkspaceID = defaultWorkspace.ID
+			} else {
+				return nil
+			}
 		}
 		deviceDataMap[dbDevice.UDID] = dbDevice
 	}

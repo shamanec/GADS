@@ -3,7 +3,6 @@ package hub
 import (
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/utils"
 	"GADS/hub/devices"
 	"GADS/hub/router"
 	"embed"
@@ -79,14 +78,13 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}
 
-	// Check if any workspaces exist
-	workspaces := db.GetWorkspaces()
-	if len(workspaces) == 0 {
+	// Check if the default workspace exists
+	if _, err := db.GetDefaultWorkspace(); err != nil {
 		// Create default workspace if none exist
 		defaultWorkspace := models.Workspace{
-			ID:          utils.FormatWorkspaceID("Default"),
-			Name:        "Default",
+			Name:        "Default Workspace",
 			Description: "This is the default workspace.",
+			IsDefault:   true,
 		}
 		err := db.AddWorkspace(&defaultWorkspace)
 		if err != nil {

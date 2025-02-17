@@ -3,7 +3,6 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/common/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,12 +15,13 @@ func CreateWorkspace(c *gin.Context) {
 		return
 	}
 
-	workspace.ID = utils.FormatWorkspaceID(workspace.Name)
+	workspace.GenerateUUID()
+	workspace.IsDefault = false
 
 	// Validate unique ID
 	existingWorkspaces := db.GetWorkspaces()
 	for _, ws := range existingWorkspaces {
-		if ws.ID == workspace.ID {
+		if ws.Name == workspace.Name {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})
 			return
 		}
