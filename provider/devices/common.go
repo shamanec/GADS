@@ -203,12 +203,8 @@ func updateDevices() {
 					}
 				}
 			} else {
-				dbDevice.ProviderState = "init"
-				dbDevice.IsResetting = false
+				resetLocalDevice(dbDevice)
 				dbDevice.Connected = false
-				if dbDevice.GoIOSTunnel.Address != "" {
-					dbDevice.GoIOSTunnel.Close()
-				}
 			}
 		}
 	}
