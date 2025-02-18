@@ -24,6 +24,7 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
+	"GADS/common/cli"
 	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
@@ -224,6 +225,13 @@ func setupAndroidDevice(device *models.Device) {
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
+	err := cli.KillAppiumProcess(device.UDID)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
+
 	// If Selenium Grid is used attempt to create a TOML file for the grid connection
 	if config.ProviderConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
@@ -363,6 +371,13 @@ func setupAndroidDevice(device *models.Device) {
 func setupIOSDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
+
+	err := cli.KillAppiumProcess(device.UDID)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device)
+		return
+	}
 
 	goIosDeviceEntry, err := ios.GetDevice(device.UDID)
 	if err != nil {
@@ -594,7 +609,6 @@ func getConnectedDevicesIOS() []string {
 
 	deviceList, err := ios.ListDevices()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesIOS: Could not get connected devices with `go-ios` library, returning empty slice - %s", err))
 		return connectedDevices
 	}
 
@@ -677,7 +691,6 @@ func startAppium(device *models.Device) {
 		capabilities = models.AppiumServerCapabilities{
 			UDID:                  device.UDID,
 			WdaURL:                "http://localhost:" + device.WDAPort,
-			WdaMjpegPort:          device.WDAStreamPort,
 			WdaLocalPort:          device.WDAPort,
 			WdaLaunchTimeout:      "120000",
 			WdaConnectionTimeout:  "240000",
