@@ -225,7 +225,7 @@ func setupAndroidDevice(device *models.Device) {
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
-	err := cli.KillAppiumProcess(device.UDID)
+	err := cli.KillDeviceAppiumProcess(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
 		resetLocalDevice(device)
@@ -372,7 +372,7 @@ func setupIOSDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
-	err := cli.KillAppiumProcess(device.UDID)
+	err := cli.KillDeviceAppiumProcess(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
 		resetLocalDevice(device)

@@ -54,7 +54,7 @@ func KillProcess(p *process.Process) error {
 }
 
 // Kills any hanging appium processes for the current device
-func KillAppiumProcess(udid string) error {
+func KillDeviceAppiumProcess(udid string) error {
 	processes, err := process.Processes()
 	if err != nil {
 		return fmt.Errorf("KillAppiumProcess: failed to list processes: %v", err)
