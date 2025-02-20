@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"sync"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -18,7 +20,10 @@ type AuthCreds struct {
 	Password string `json:"password"`
 }
 
-var sessionsMap = make(map[string]*Session)
+var (
+	sessionsMap = make(map[string]*Session)
+	mapMutex    = &sync.Mutex{}
+)
 
 type Session struct {
 	User      models.User
@@ -56,13 +61,18 @@ func LoginHandler(c *gin.Context) {
 		SessionID: sessionID.String(),
 		ExpireAt:  time.Now().Add(time.Hour),
 	}
+
+	mapMutex.Lock()
 	sessionsMap[sessionID.String()] = session
+	mapMutex.Unlock()
 
 	c.JSON(http.StatusOK, gin.H{"sessionID": sessionID, "username": user.Username, "role": user.Role})
 }
 
 func LogoutHandler(c *gin.Context) {
 	sessionID := c.GetHeader("X-Auth-Token")
+	mapMutex.Lock()
+	defer mapMutex.Unlock()
 	if _, exists := sessionsMap[sessionID]; exists {
 		delete(sessionsMap, sessionID)
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
@@ -78,6 +88,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		sessionID := c.GetHeader("X-Auth-Token")
 
 		if !strings.Contains(path, "appium") && !strings.Contains(path, "stream") && !strings.Contains(path, "ws") {
+			mapMutex.Lock()
+			defer mapMutex.Unlock()
+
 			if session, exists := sessionsMap[sessionID]; exists {
 				if session.ExpireAt.Before(time.Now()) {
 					delete(sessionsMap, sessionID)
