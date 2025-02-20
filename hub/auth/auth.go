@@ -89,22 +89,23 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		if !strings.Contains(path, "appium") && !strings.Contains(path, "stream") && !strings.Contains(path, "ws") {
 			mapMutex.Lock()
-			defer mapMutex.Unlock()
-
 			if session, exists := sessionsMap[sessionID]; exists {
 				if session.ExpireAt.Before(time.Now()) {
 					delete(sessionsMap, sessionID)
+					mapMutex.Unlock()
 					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "session expired"})
 					return
 				}
 				// Refresh the session expiry time
 				session.ExpireAt = time.Now().Add(time.Hour)
+				mapMutex.Unlock()
 
 				if strings.Contains(path, "admin") && session.User.Role != "admin" {
 					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you need admin privileges to access this endpoint"})
 					return
 				}
 			} else {
+				mapMutex.Unlock()
 				// If the session doesn't exist
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 				return
