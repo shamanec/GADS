@@ -204,7 +204,7 @@ func updateDevices() {
 					}
 				}
 			} else {
-				resetLocalDevice(dbDevice)
+				resetLocalDevice(dbDevice, "Device is no longer connected.")
 				dbDevice.Connected = false
 			}
 		}
@@ -227,8 +227,8 @@ func setupAndroidDevice(device *models.Device) {
 
 	err := cli.KillDeviceAppiumProcess(device.UDID)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device, "Failed to kill existing Appium processes.")
 		return
 	}
 
@@ -236,8 +236,8 @@ func setupAndroidDevice(device *models.Device) {
 	if config.ProviderConfig.UseSeleniumGrid {
 		err := createGridTOML(device)
 		if err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
-			resetLocalDevice(device)
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
+			resetLocalDevice(device, "Failed to create TOML for device.")
 			return
 		}
 	}
@@ -247,7 +247,7 @@ func setupAndroidDevice(device *models.Device) {
 		err := updateAndroidScreenSizeADB(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to update screen dimensions with adb for device `%v` - %v", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to update screen dimensions.")
 			return
 		}
 	}
@@ -255,7 +255,7 @@ func setupAndroidDevice(device *models.Device) {
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS-stream for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to allocate free host port for GADS-stream.")
 		return
 	}
 	device.StreamPort = streamPort
@@ -263,7 +263,7 @@ func setupAndroidDevice(device *models.Device) {
 	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to allocate free host port for Appium.")
 		return
 	}
 	device.AppiumPort = appiumPort
@@ -275,7 +275,7 @@ func setupAndroidDevice(device *models.Device) {
 		err = uninstallGadsStream(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to uninstall GADS-stream from Android device.")
 			return
 		}
 		time.Sleep(3 * time.Second)
@@ -284,7 +284,7 @@ func setupAndroidDevice(device *models.Device) {
 	err = installGadsStream(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to install GADS-stream on Android device.")
 		return
 	}
 	time.Sleep(2 * time.Second)
@@ -292,7 +292,7 @@ func setupAndroidDevice(device *models.Device) {
 	err = addGadsStreamRecordingPermissions(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS-stream recording permissions on Android device - %v:\n %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to set GADS-stream recording permissions on Android device.")
 		return
 	}
 	time.Sleep(2 * time.Second)
@@ -300,7 +300,7 @@ func setupAndroidDevice(device *models.Device) {
 	err = startGadsStreamApp(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS-stream app on Android device - %v:\n %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to start GADS-stream app on Android device.")
 		return
 	}
 	time.Sleep(2 * time.Second)
@@ -310,7 +310,7 @@ func setupAndroidDevice(device *models.Device) {
 	err = forwardGadsStream(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS-stream port to host port %v for Android device - %v:\n %v", device.StreamPort, device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to forward GADS-stream port to host port.")
 		return
 	}
 
@@ -343,7 +343,7 @@ func setupAndroidDevice(device *models.Device) {
 	err = applyDeviceStreamSettings(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to apply device stream settings.")
 		return
 	}
 
@@ -352,11 +352,11 @@ func setupAndroidDevice(device *models.Device) {
 
 	select {
 	case <-device.AppiumReadyChan:
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+		logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
 		break
 	case <-time.After(30 * time.Second):
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-		resetLocalDevice(device)
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+		resetLocalDevice(device, "Failed to start Appium for device.")
 		return
 	}
 
@@ -375,14 +375,14 @@ func setupIOSDevice(device *models.Device) {
 	err := cli.KillDeviceAppiumProcess(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to kill existing Appium processes.")
 		return
 	}
 
 	goIosDeviceEntry, err := ios.GetDevice(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get `go-ios` DeviceEntry for device - %v, err - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to get `go-ios` DeviceEntry for device.")
 		return
 	}
 
@@ -392,7 +392,7 @@ func setupIOSDevice(device *models.Device) {
 	err = pairIOS(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair device `%s` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to pair device.")
 		return
 	}
 
@@ -401,12 +401,12 @@ func setupIOSDevice(device *models.Device) {
 		devModeEnabled, err := imagemounter.IsDevModeEnabled(device.GoIOSDeviceEntry)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not check developer mode status on device `%s` - %s", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to check developer mode status on device.")
 			return
 		}
 		if !devModeEnabled {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Device `%s` is iOS 16+ but developer mode is not enabled!", device.UDID))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Device is iOS 16+ but developer mode is not enabled.")
 			return
 		}
 	}
@@ -418,7 +418,7 @@ func setupIOSDevice(device *models.Device) {
 	plistValues, err := ios.GetValuesPlist(device.GoIOSDeviceEntry)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get info plist values with go-ios `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to get info plist values with go-ios.")
 		return
 	}
 	// Update hardware model got from plist
@@ -428,7 +428,7 @@ func setupIOSDevice(device *models.Device) {
 		err = updateIOSScreenSize(device, plistValues["ProductType"].(string))
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to update screen dimensions for device `%s` - %s", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to update screen dimensions for device.")
 			return
 		}
 	}
@@ -438,7 +438,7 @@ func setupIOSDevice(device *models.Device) {
 		err := createGridTOML(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to create TOML for device.")
 			return
 		}
 	}
@@ -446,7 +446,7 @@ func setupIOSDevice(device *models.Device) {
 	tunnelPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent port for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to allocate free WebDriverAgent port for device.")
 		return
 	}
 	intTunnelPort, _ := strconv.Atoi(tunnelPort)
@@ -457,7 +457,7 @@ func setupIOSDevice(device *models.Device) {
 		deviceTunnel, err := createGoIOSTunnel(device.Context, device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to create userspace tunnel for device.")
 			return
 		}
 		device.GoIOSTunnel = deviceTunnel
@@ -469,7 +469,7 @@ func setupIOSDevice(device *models.Device) {
 		err = goIosDeviceWithRsdProvider(device)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create go-ios device entry with rsd provider for device `%s` - %v", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to create go-ios device entry with rsd provider for device.")
 			return
 		}
 	}
@@ -479,7 +479,7 @@ func setupIOSDevice(device *models.Device) {
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent port for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to allocate free WebDriverAgent port for device.")
 		return
 	}
 	device.WDAPort = wdaPort
@@ -487,7 +487,7 @@ func setupIOSDevice(device *models.Device) {
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free iOS stream port for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to allocate free iOS stream port for device.")
 		return
 	}
 	device.StreamPort = streamPort
@@ -495,7 +495,7 @@ func setupIOSDevice(device *models.Device) {
 	wdaStreamPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent stream port for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to allocate free WebDriverAgent stream port for device.")
 		return
 	}
 	device.WDAStreamPort = wdaStreamPort
@@ -503,7 +503,7 @@ func setupIOSDevice(device *models.Device) {
 	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to allocate free Appium port for device.")
 		return
 	}
 	device.AppiumPort = appiumPort
@@ -517,7 +517,7 @@ func setupIOSDevice(device *models.Device) {
 		err = installAppIOS(device, fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder))
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to install WebDriverAgent on device.")
 			return
 		}
 		go runWDAGoIOS(device)
@@ -525,7 +525,7 @@ func setupIOSDevice(device *models.Device) {
 		err = launchAppIOS(device, config.ProviderConfig.WdaBundleID, true)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not launch WebDriverAgent on device `%s` - %s", device.UDID, err))
-			resetLocalDevice(device)
+			resetLocalDevice(device, "Failed to launch WebDriverAgent on device.")
 			return
 		}
 	}
@@ -539,14 +539,14 @@ func setupIOSDevice(device *models.Device) {
 		break
 	case <-time.After(60 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 60 seconds", device.UDID))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to start WebDriverAgent on device.")
 		return
 	}
 
 	err = applyDeviceStreamSettings(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to apply device stream settings.")
 		return
 	}
 
@@ -554,7 +554,7 @@ func setupIOSDevice(device *models.Device) {
 	err = updateWebDriverAgent(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully create WebDriverAgent session or update its stream settings for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to create WebDriverAgent session or update its stream settings.")
 		return
 	}
 
@@ -568,7 +568,7 @@ func setupIOSDevice(device *models.Device) {
 		break
 	case <-time.After(30 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to start Appium for device.")
 		return
 	}
 
@@ -655,11 +655,11 @@ func getConnectedDevicesAndroid() []string {
 	return connectedDevices
 }
 
-func resetLocalDevice(device *models.Device) {
+func resetLocalDevice(device *models.Device, reason string) {
 	device.Mutex.Lock()
 	defer device.Mutex.Unlock()
 	if !device.IsResetting && device.ProviderState != "init" {
-		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` after error. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", device.UDID))
+		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` after error: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", device.UDID, reason))
 
 		device.IsResetting = true
 		device.CtxCancel()
@@ -726,7 +726,7 @@ func startAppium(device *models.Device) {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stdoutpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to create stdoutpipe on Appium command.")
 		return
 	}
 
@@ -736,7 +736,7 @@ func startAppium(device *models.Device) {
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to execute Appium command.")
 		return
 	}
 
@@ -770,7 +770,7 @@ func startAppium(device *models.Device) {
 			}
 
 		}
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Appium command errored out or device was disconnected.")
 	}
 }
 
@@ -843,13 +843,13 @@ func startGridNode(device *models.Device) {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error creating stdoutpipe while starting Selenium Grid node for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to create stdoutpipe while starting Selenium Grid node.")
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Could not start Selenium Grid node for device `%v` - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to start Selenium Grid node.")
 		return
 	}
 
@@ -862,7 +862,7 @@ func startGridNode(device *models.Device) {
 
 	if err := cmd.Wait(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error waiting for Selenium Grid node command to finish, it errored out or device `%v` was disconnected - %v", device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to wait for Selenium Grid node command to finish.")
 	}
 }
 
