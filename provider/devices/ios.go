@@ -35,7 +35,7 @@ func goIosForward(device *models.Device, hostPort string, devicePort string) {
 	cl, err := forward.Forward(device.GoIOSDeviceEntry, uint16(hostPortInt), uint16(devicePortInt))
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to forward device port %s to host port %s for device `%s` - %s", devicePort, hostPort, device.UDID, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to forward device port to host port due to an error.")
 		return
 	}
 
@@ -153,14 +153,14 @@ func mountDeveloperImageIOS(device *models.Device) {
 	path, err := imagemounter.DownloadImageFor(device.GoIOSDeviceEntry, basedir)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` to path `%s` - %s", device.UDID, basedir, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to download Developer Disk Image (DDI) for the device.")
 		return
 	}
 
 	err = imagemounter.MountImage(device.GoIOSDeviceEntry, path)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to mount DDI on device `%s` from path `%s` - %s", device.UDID, path, err))
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to mount Developer Disk Image (DDI) on the device.")
 	}
 }
 
@@ -250,6 +250,7 @@ func installAppIOS(device *models.Device, appPath string) error {
 	conn, err := zipconduit.New(device.GoIOSDeviceEntry)
 	if err != nil {
 		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to create zipconduit connection when installing app `%s` on device `%s`", appPath, device.UDID))
+		resetLocalDevice(device, "Failed to create zipconduit connection for app installation.")
 		return err
 	}
 	err = conn.SendFile(appPath)
@@ -269,6 +270,7 @@ func launchAppIOS(device *models.Device, bundleID string, killExisting bool) err
 	}
 	_, err = pControl.LaunchAppWithArgs(bundleID, nil, nil, opts)
 	if err != nil {
+		resetLocalDevice(device, "Failed to launch app with bundleID due to process control error.")
 		return fmt.Errorf("launchAppIOS: Failed to launch app with bundleID `%s` - %s", bundleID, err)
 	}
 
@@ -285,6 +287,7 @@ func checkWebDriverAgentUp(device *models.Device) {
 	loops := 0
 	for {
 		if loops >= 30 {
+			resetLocalDevice(device, "WebDriverAgent did not respond within the expected time.")
 			return
 		}
 		resp, err := netClient.Do(req)
@@ -348,7 +351,7 @@ func runWDAGoIOS(device *models.Device) {
 		context.Background(),
 		testConfig)
 	if err != nil {
-		resetLocalDevice(device)
+		resetLocalDevice(device, "Failed to run WebDriverAgent due to an error.")
 	}
 }
 
