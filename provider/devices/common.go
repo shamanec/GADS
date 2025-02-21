@@ -34,10 +34,6 @@ import (
 
 	"GADS/common"
 
-	"net/url"
-
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -351,7 +347,7 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 
-	err = updateGadsStreamSettings(device)
+	err = UpdateGadsStreamSettings(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to update GADS stream settings for device `%s` - %v", device.UDID, err))
 		resetLocalDevice(device, "Failed to update GADS stream settings.")
@@ -1002,28 +998,6 @@ func applyDeviceStreamSettings(device *models.Device) error {
 		device.StreamTargetFPS = deviceStreamSettings.StreamTargetFPS
 		device.StreamJpegQuality = deviceStreamSettings.StreamJpegQuality
 		device.StreamScalingFactor = deviceStreamSettings.StreamScalingFactor
-	}
-
-	return nil
-}
-
-func updateGadsStreamSettings(device *models.Device) error {
-	// Prepare the WebSocket URL
-	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
-	destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
-	if err != nil {
-		return fmt.Errorf("failed connecting to device `%s` stream port - %s", device.UDID, err)
-	}
-	defer destConn.Close()
-
-	// Create the message to send
-	socketMsg := fmt.Sprintf("targetFPS=%v:jpegQuality=%v:scalingFactor=%v",
-		device.StreamTargetFPS, device.StreamJpegQuality, device.StreamScalingFactor)
-
-	// Send the message over the WebSocket
-	err = wsutil.WriteServerMessage(destConn, ws.OpText, []byte(socketMsg))
-	if err != nil {
-		return fmt.Errorf("failed sending stream settings to stream websocket - %s", err)
 	}
 
 	return nil

@@ -6,9 +6,14 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"bytes"
+	"context"
 	"fmt"
+	"net/url"
 	"os/exec"
 	"strings"
+
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 // Check if the GADS-stream service is running on the device
@@ -205,6 +210,28 @@ func installAppAndroid(device *models.Device, appName string) error {
 	if err := cmd.Run(); err != nil {
 		device.Logger.LogError("install_app", fmt.Sprintf("installAppAndroid: Error executing `%s` trying to install app - %v", cmd.Args, err))
 		return err
+	}
+
+	return nil
+}
+
+func UpdateGadsStreamSettings(device *models.Device) error {
+	// Prepare the WebSocket URL
+	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
+	destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+	if err != nil {
+		return fmt.Errorf("failed connecting to device `%s` stream port - %s", device.UDID, err)
+	}
+	defer destConn.Close()
+
+	// Create the message to send
+	socketMsg := fmt.Sprintf("targetFPS=%v:jpegQuality=%v:scalingFactor=%v",
+		device.StreamTargetFPS, device.StreamJpegQuality, device.StreamScalingFactor)
+
+	// Send the message over the WebSocket
+	err = wsutil.WriteServerMessage(destConn, ws.OpText, []byte(socketMsg))
+	if err != nil {
+		return fmt.Errorf("failed sending stream settings to stream websocket - %s", err)
 	}
 
 	return nil
