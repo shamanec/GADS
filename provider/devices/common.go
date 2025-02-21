@@ -347,6 +347,13 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 
+	err = UpdateGadsStreamSettings(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to update GADS stream settings for device `%s` - %v", device.UDID, err))
+		resetLocalDevice(device, "Failed to update GADS stream settings.")
+		return
+	}
+
 	go startAppium(device)
 	go checkAppiumUp(device)
 
