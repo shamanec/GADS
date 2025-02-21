@@ -60,13 +60,6 @@ func setupTizenDevice(device *models.Device) {
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("tizen_device_setup", fmt.Sprintf("Running setup for Tizen device `%v`", device.UDID))
 
-	// Iniciar o emparelhamento remoto com a TV e capturar o token
-	// rcToken, err := pairRemoteWithTizenTV(device)
-	// if err != nil {
-	// 	resetLocalDevice(device)
-	// 	return
-	// }
-
 	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
@@ -78,12 +71,10 @@ func setupTizenDevice(device *models.Device) {
 	err = getTizenTVInfo(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Failed to get TV info for device `%v` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to pair remote with Tizen TV")
+		ResetLocalDevice(device, "Failed to retrieve TV information.")
 		return
 	}
 
-	// Armazenar o token no dispositivo
-	// device.RCToken = rcToken
 	device.OS = "tizen"
 
 	go startAppium(device, &wg)
@@ -95,7 +86,7 @@ func setupTizenDevice(device *models.Device) {
 		break
 	case <-time.After(30 * time.Second):
 		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-		ResetLocalDevice(device, "Failed to start Appium")
+		ResetLocalDevice(device, "Appium did not start within the expected time.")
 		return
 	}
 
