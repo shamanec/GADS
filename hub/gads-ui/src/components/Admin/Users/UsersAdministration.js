@@ -15,6 +15,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { useDialog } from '../../../contexts/DialogContext'
+import Autocomplete from '@mui/material/Autocomplete';
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
@@ -145,22 +146,23 @@ function NewUser({ handleGetUserData, workspaces }) {
                         </TextField>
                     </FormControl>
                     <FormControl fullWidth required>
-                        <TextField
-                            value={workspaceIds}
-                            onChange={(e) => {
-                                const value = Array.from(e.target.value, option => option.value);
-                                setWorkspaceIds(value);
-                            }}
-                            select
-                            label='Workspaces'
-                            required
-                            size='small'
+                        <Autocomplete
                             multiple
-                        >
-                            {workspaces.map((ws) => (
-                                <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
-                            ))}
-                        </TextField>
+                            id="workspaces"
+                            options={workspaces}
+                            getOptionLabel={(option) => option.name}
+                            defaultValue={workspaces.length > 0 ? [workspaces[0]] : []}
+                            limitTags={2}
+                            size="small"
+                            renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                variant="standard"
+                                label="Workspaces"
+                                placeholder="Select a workspace"
+                            />
+                            )}
+                        />
                     </FormControl>
                     <Button
                         variant='contained'
