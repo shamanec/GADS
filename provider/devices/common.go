@@ -676,6 +676,9 @@ func resetLocalDevice(device *models.Device, reason string) {
 			device.GoIOSTunnel.Close()
 		}
 
+		common.MutexManager.ResetLocalDeviceFreePorts.Lock()
+		defer common.MutexManager.ResetLocalDeviceFreePorts.Unlock()
+
 		// Free any used ports from the map where we keep them
 		delete(providerutil.UsedPorts, device.WDAPort)
 		delete(providerutil.UsedPorts, device.StreamPort)
