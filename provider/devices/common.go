@@ -1232,6 +1232,5 @@ func getConnectedDevicesTizen() []string {
 		}
 	}
 
-	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Found Tizen devices: %v", devices))
 	return devices
 }
