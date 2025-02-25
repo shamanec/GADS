@@ -9,43 +9,43 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
+	"GADS/common"
 	"GADS/common/cli"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 )
 
-var mu sync.RWMutex
 var UsedPorts = make(map[string]bool)
 var gadsStreamURL = "https://github.com/shamanec/GADS-Android-stream/releases/latest/download/gads-stream.apk"
 
 // Use this function to get a free port on the host for any service that might need one
 // We keep a map of used ports so we don't allocate same ports to different services
 func GetFreePort() (string, error) {
-	mu.Lock()
-	defer mu.Unlock()
+	for {
+		a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return "", fmt.Errorf("Failed to resolve tcp address trying to get new port - %s", err)
+		}
 
-	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return "", fmt.Errorf("Failed to resolve tcp address trying to get new port - %s", err)
-	}
+		l, err := net.ListenTCP("tcp", a)
+		if err != nil {
+			return "", fmt.Errorf("Failed to listen tcp trying to get new port - %s", err)
+		}
 
-	var l *net.TCPListener
-	l, err = net.ListenTCP("tcp", a)
-	if err != nil {
-		return "", fmt.Errorf("Failed to listen tcp trying to get new port - %s", err)
-	}
-	defer l.Close()
+		portInt := l.Addr().(*net.TCPAddr).Port
+		portString := strconv.Itoa(portInt)
+		l.Close()
 
-	portInt := l.Addr().(*net.TCPAddr).Port
-	portString := strconv.Itoa(portInt)
-	if _, ok := UsedPorts[portString]; ok {
-		return GetFreePort()
+		common.MutexManager.LocalDevicePorts.Lock()
+		if _, exists := UsedPorts[portString]; !exists {
+			UsedPorts[portString] = true
+			common.MutexManager.LocalDevicePorts.Unlock()
+			return portString, nil
+		}
+		common.MutexManager.LocalDevicePorts.Unlock()
 	}
-	UsedPorts[portString] = true
-	return portString, nil
 }
 
 // Check if adb is available on the host by starting the server
