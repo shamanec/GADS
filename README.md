@@ -1,12 +1,16 @@
-- [Intro](#intro)  
-- [Features](#features)  
+- [Intro](#intro)
+- [Features](#features)
   - [Hub](#hub-features)
   - [Provider](#provider-features)
-- [Setup](#setup) 
+- [Setup](#setup)
   - [Common setup](#common-setup)
     - [MongoDB](#mongodb)
-  - [Hub setup](./docs/hub.md)
-  - [Provider setup](./docs/provider.md)
+  - [Hub setup](#hub-setup)
+  - [Provider setup](#provider-setup)
+  - [Running GADS as a System Service](#running-gads-as-a-system-service)
+    - [Linux](#linux)
+    - [Windows](#windows)
+    - [macOS](#macos)
 - [FAQ](./docs/faq.md)
 - [Thanks](#thanks)
 - [Demo video](#demo-video)
@@ -94,6 +98,18 @@ or
 
 #### Provider setup
 [Docs](./docs/provider.md)
+
+### Running GADS as a System Service
+To ensure that GADS runs continuously and can be managed easily, it is recommended to execute it as a service on your operating system. Running GADS as a service allows it to start automatically on boot, restart on failure, and be managed through standard service commands.
+
+#### Linux
+For detailed instructions on how to create a service for Linux using systemd, please refer to the [Linux Service Documentation](./docs/linux-service.md).
+
+#### Windows
+*Note: Service implementation for Windows is yet to be documented.*
+
+#### macOS
+*Note: Service implementation for macOS is yet to be documented.*
 
 ### Thanks
 
