@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -90,8 +91,8 @@ func CreateCustomLogger(logFilePath, collection string) (*CustomLogger, error) {
 		return &CustomLogger{}, fmt.Errorf("Could not set log output - %v", err)
 	}
 
-	// Set the output to the log file
-	logger.SetOutput(logFile)
+	// Set the output to both the log file and standard output (console)
+	logger.SetOutput(io.MultiWriter(logFile, os.Stdout))
 
 	logger.AddHook(&MongoDBHook{
 		Client:     db.MongoClient(),
