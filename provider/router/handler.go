@@ -18,6 +18,7 @@ func HandleRequests() *gin.Engine {
 	r.GET("/info", GetProviderData)
 	r.GET("/devices", DevicesInfo)
 	r.POST("/uploadFile", UploadAndInstallApp)
+	r.GET("/rtc", WebRTCSocket)
 
 	pprofGroup := r.Group("/debug/pprof")
 	{
