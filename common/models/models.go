@@ -79,6 +79,7 @@ type Device struct {
 	Logger           CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
 	AppiumLogger     AppiumLogger       `json:"-" bson:"-"` // AppiumLogger object for logging appium actions
 	Mutex            sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
+	SetupMutex       sync.Mutex         `json:"-" bson:"-"` // Mutex for synchronizing device setup operations
 	GoIOSTunnel      tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
 	SemVer           *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
 	InitialSetupDone bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
