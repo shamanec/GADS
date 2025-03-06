@@ -331,10 +331,6 @@ func ResetDevice(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Only devices in `live` state can be reset, current state is `" + device.ProviderState + "`"})
 			return
 		}
-		// device.IsResetting = true
-		// device.CtxCancel()
-		// device.ProviderState = "init"
-		// device.IsResetting = false
 
 		devices.ResetLocalDevice(device, "Re-provisioning device")
 
