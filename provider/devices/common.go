@@ -843,64 +843,13 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 	// Process stdout
 	go func() {
 		defer wg.Done()
-		scanner := bufio.NewScanner(stdout)
-
-		for {
-			select {
-			case <-device.Context.Done():
-				return // Exit the goroutine if the context is done
-			default:
-				scanDone := make(chan bool)
-
-				go func() {
-					if scanner.Scan() {
-						device.AppiumLogger.Log(device, scanner.Text())
-					}
-					scanDone <- true
-				}()
-
-				// Wait for either scan completion or timeout
-				select {
-				case <-scanDone:
-					// Scan completed successfully
-				case <-time.After(500 * time.Millisecond):
-					// Timeout occurred
-				}
-			}
-		}
+		processStream(bufio.NewScanner(stdout), device, false)
 	}()
 
 	// Process stderr
 	go func() {
 		defer wg.Done()
-		scanner := bufio.NewScanner(stderr)
-
-		for {
-			select {
-			case <-device.Context.Done():
-				return // Exit the goroutine if the context is done
-			default:
-				scanDone := make(chan bool)
-
-				go func() {
-					if scanner.Scan() {
-						lines := strings.Split(scanner.Text(), "\n")
-						for _, line := range lines {
-							logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: `%v` Appium error - %v", device.UDID, line))
-						}
-					}
-					scanDone <- true
-				}()
-
-				// Wait for either scan completion or timeout
-				select {
-				case <-scanDone:
-					// Scan completed successfully
-				case <-time.After(500 * time.Millisecond):
-					// Timeout occurred
-				}
-			}
-		}
+		processStream(bufio.NewScanner(stderr), device, true)
 	}()
 
 	// Wait for stdout and stderr processing to finish
@@ -914,6 +863,39 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 
 		ResetLocalDevice(device, "Appium command errored out or device was disconnected.")
 		deviceSetupWg.Done()
+	}
+}
+
+func processStream(scanner *bufio.Scanner, device *models.Device, isErrorStream bool) {
+	for {
+		select {
+		case <-device.Context.Done():
+			return // Exit the goroutine if the context is done
+		default:
+			scanDone := make(chan bool)
+
+			go func() {
+				if scanner.Scan() {
+					if isErrorStream {
+						lines := strings.Split(scanner.Text(), "\n")
+						for _, line := range lines {
+							logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: `%v` Appium error - %v", device.UDID, line))
+						}
+					} else {
+						device.AppiumLogger.Log(device, scanner.Text())
+					}
+				}
+				scanDone <- true
+			}()
+
+			// Wait for either scan completion or timeout
+			select {
+			case <-scanDone:
+				// Scan completed successfully
+			case <-time.After(500 * time.Millisecond):
+				// Timeout occurred
+			}
+		}
 	}
 }
 
