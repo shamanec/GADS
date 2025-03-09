@@ -88,37 +88,13 @@ const WebRTCClient = () => {
             direction: "recvonly", // or "sendrecv" if you also plan to send video
         });
 
-        const transceivers = pc.current.getTransceivers();
-        for (const transceiver of transceivers) {
-            if (transceiver.receiver.track.kind === "video") {
-                // 1. Get all video capabilities
-                const cap = RTCRtpSender.getCapabilities("video");
-                if (!cap) continue;
-
-                // 2. Find H.264 codecs
-                // mimeType can be "video/H264" or sometimes "video/h264"
-                const h264Codecs = cap.codecs.filter((c) =>
-                    c.mimeType.toLowerCase() === "video/H264"
-                );
-                if (h264Codecs.length) {
-                    // 3. Reorder so that H.264 is at the front, followed by the rest
-                    const preferred = [
-                        ...h264Codecs,
-                        ...cap.codecs.filter((c) => c.mimeType.toLowerCase() !== "video/H264"),
-                    ];
-                    // 4. Apply the codec preferences to this transceiver
-                    transceiver.setCodecPreferences(preferred);
-                    console.log("Preferred H.264 for this transceiver");
-                }
-            }
-        }
-
-
         const offer = await pc.current.createOffer({
             iceRestart: true,
             offerToReceiveAudio: false,
             offerToReceiveVideo: true
         });
+
+        // offer.sdp = preferCodec(offer.sdp, "VP8");
 
         await pc.current.setLocalDescription(offer);
 
@@ -129,6 +105,34 @@ const WebRTCClient = () => {
 
         ws.current.send(message);
         console.log("Offer sent:", message);
+    };
+
+    const preferCodec = (sdp, codec = "VP9") => {
+        const lines = sdp.split("\r\n");
+        let mLineIndex = -1;
+        let codecPayloadType = null;
+
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith("m=video")) {
+                mLineIndex = i;
+            }
+            if (lines[i].toLowerCase().includes(`a=rtpmap`) && lines[i].includes(codec)) {
+                codecPayloadType = lines[i].match(/:(\d+) /)[1];
+                break;
+            }
+        }
+
+        if (mLineIndex === -1 || codecPayloadType === null) {
+            console.warn(`${codec} codec not found in SDP`);
+            return sdp;
+        }
+
+        const mLineParts = lines[mLineIndex].split(" ");
+        const newMLine = [lines[mLineIndex].split(" ")[0], lines[mLineIndex].split(" ")[1], lines[mLineIndex].split(" ")[2], codecPayloadType]
+            .concat(lines[mLineIndex].split(" ").slice(3).filter(pt => pt !== codecPayloadType));
+
+        lines[mLineIndex] = newMLine.join(" ");
+        return lines.join("\r\n");
     };
 
     return (
