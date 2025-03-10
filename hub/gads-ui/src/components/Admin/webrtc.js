@@ -84,9 +84,25 @@ const WebRTCClient = () => {
             console.log("ICE connection state:", pc.current.iceConnectionState);
         };
 
-        pc.current.addTransceiver("video", {
+        const transceiver = pc.current.addTransceiver("video", {
             direction: "recvonly", // or "sendrecv" if you also plan to send video
         });
+
+        if (transceiver.setCodecPreferences) {
+            const capabilities = RTCRtpReceiver.getCapabilities("video");
+            const h264Codecs = capabilities.codecs.filter(codec =>
+                codec.mimeType.toLowerCase() === "video/h264"
+            )
+
+            // Force the transceiver to prefer H.264 if available
+            if (h264Codecs.length) {
+                transceiver.setCodecPreferences(h264Codecs);
+            } else {
+                console.warn("H.264 not supported in this browser's codecs.");
+            }
+        } else {
+            console.warn("No setCodecPreferences() support; falling back to SDP rewrite.");
+        }
 
         const offer = await pc.current.createOffer({
             iceRestart: true,
@@ -94,7 +110,10 @@ const WebRTCClient = () => {
             offerToReceiveVideo: true
         });
 
-        // offer.sdp = preferCodec(offer.sdp, "VP8");
+        // if (!transceiver.setCodecPreferences) {
+        //     console.log("PREFERRING CODEC")
+        //     offer.sdp = preferCodec(offer.sdp, "VP9");
+        // }
 
         await pc.current.setLocalDescription(offer);
 
@@ -127,6 +146,9 @@ const WebRTCClient = () => {
             return sdp;
         }
 
+        console.log("CODEC TYPE")
+        console.log(codecPayloadType)
+
         const mLineParts = lines[mLineIndex].split(" ");
         const newMLine = [lines[mLineIndex].split(" ")[0], lines[mLineIndex].split(" ")[1], lines[mLineIndex].split(" ")[2], codecPayloadType]
             .concat(lines[mLineIndex].split(" ").slice(3).filter(pt => pt !== codecPayloadType));
@@ -138,7 +160,7 @@ const WebRTCClient = () => {
     return (
         <div>
             <button onClick={sendOffer}>Send Offer</button>;
-            <video ref={videoRef} autoPlay playsInline style={{ width: "100%", maxHeight: "800px", background: "black" }} />
+            <video ref={videoRef} autoPlay playsInline style={{ width: "540px", maxHeight: "1120px", background: "black" }} />
         </div>
     )
 
