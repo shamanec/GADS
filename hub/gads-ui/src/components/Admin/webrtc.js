@@ -87,31 +87,32 @@ const WebRTCClient = () => {
             direction: "recvonly"
         })
 
-
-        if (transceiver.setCodecPreferences) {
-            console.log('WebRTC: Browser supports setting WebRTC codec preferences, trying to force H.264.')
-            const capabilities = RTCRtpReceiver.getCapabilities("video");
-            const h264Codecs = capabilities.codecs.filter(codec =>
-                codec.mimeType.toLowerCase() === "video/h264"
-            )
-
-            // Force the transceiver to prefer H.264 if available
-            if (h264Codecs.length) {
-                transceiver.setCodecPreferences(h264Codecs)
-            } else {
-                console.warn("WebRTC: H.264 not supported in this browser's codecs.")
-            }
-        } else {
-            console.warn("WebRTC: No setCodecPreferences() support; falling back to SDP rewrite.")
-        }
-
         const offer = await pc.current.createOffer({
             iceRestart: true,
             offerToReceiveAudio: false,
             offerToReceiveVideo: true
-        });
+        })
 
-        if (!transceiver.setCodecPreferences) {
+        const isFirefox = navigator.userAgent.toLowerCase().includes('firefox')
+
+        if (!isFirefox) {
+            if (transceiver.setCodecPreferences) {
+                console.log('WebRTC: Browser supports setting WebRTC codec preferences, trying to force H.264.')
+                const capabilities = RTCRtpReceiver.getCapabilities("video");
+                const h264Codecs = capabilities.codecs.filter(codec =>
+                    codec.mimeType.toLowerCase() === "video/h264"
+                )
+
+                // Force the transceiver to prefer H.264 if available
+                if (h264Codecs.length) {
+                    transceiver.setCodecPreferences(h264Codecs)
+                } else {
+                    console.warn("WebRTC: H.264 not supported in this browser's codecs.")
+                }
+            } else {
+                console.warn("WebRTC: No setCodecPreferences() support; falling back to SDP rewrite.")
+            }
+        } else {
             console.log('WebRTC: Trying to prefer H.264 codec by re-writing offer SDP')
             offer.sdp = preferCodec(offer.sdp, "H264")
         }
@@ -124,7 +125,7 @@ const WebRTCClient = () => {
         });
 
         ws.current.send(message)
-        // console.log("Offer sent:", message)
+        console.log("Offer sent:", message)
     };
 
     const preferCodec = (sdp, codec = "VP9") => {
