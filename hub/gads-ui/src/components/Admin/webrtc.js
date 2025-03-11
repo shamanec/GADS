@@ -87,33 +87,32 @@ const WebRTCClient = () => {
             direction: "recvonly"
         })
 
-        const offer = await pc.current.createOffer({
-            iceRestart: true,
-            offerToReceiveAudio: false,
-            offerToReceiveVideo: true
-        })
-
-        const isFirefox = navigator.userAgent.toLowerCase().includes('firefox')
-
-        if (!isFirefox) {
+        if (isChrome()) {
             if (transceiver.setCodecPreferences) {
                 console.log('WebRTC: Browser supports setting WebRTC codec preferences, trying to force H.264.')
                 const capabilities = RTCRtpReceiver.getCapabilities("video");
                 const h264Codecs = capabilities.codecs.filter(codec =>
                     codec.mimeType.toLowerCase() === "video/h264"
                 )
-
+                console.log("CODECS")
+                console.log(h264Codecs)
                 // Force the transceiver to prefer H.264 if available
                 if (h264Codecs.length) {
                     transceiver.setCodecPreferences(h264Codecs)
                 } else {
                     console.warn("WebRTC: H.264 not supported in this browser's codecs.")
                 }
-            } else {
-                console.warn("WebRTC: No setCodecPreferences() support; falling back to SDP rewrite.")
             }
-        } else {
-            console.log('WebRTC: Trying to prefer H.264 codec by re-writing offer SDP')
+        }
+
+        const offer = await pc.current.createOffer({
+            iceRestart: true,
+            offerToReceiveAudio: false,
+            offerToReceiveVideo: true
+        })
+
+        if (isFirefox() || isSafari()) {
+            console.log('WebRTC: Trying to prefer H.264 codec for Firefox by re-writing offer SDP')
             offer.sdp = preferCodec(offer.sdp, "H264")
         }
 
@@ -133,6 +132,8 @@ const WebRTCClient = () => {
         let mLineIndex = -1
         let codecPayloadType = null
 
+        console.log("LINES")
+        console.log(lines)
         for (let i = 0; i < lines.length; i++) {
             if (lines[i].startsWith("m=video")) {
                 mLineIndex = i
@@ -148,6 +149,8 @@ const WebRTCClient = () => {
             return sdp;
         }
 
+        console.log("CHANGING TO PAYLOAD TYPE " + codecPayloadType)
+
         // const mLineParts = lines[mLineIndex].split(" ");
         const newMLine = [lines[mLineIndex].split(" ")[0], lines[mLineIndex].split(" ")[1], lines[mLineIndex].split(" ")[2], codecPayloadType]
             .concat(lines[mLineIndex].split(" ").slice(3).filter(pt => pt !== codecPayloadType))
@@ -155,6 +158,22 @@ const WebRTCClient = () => {
         lines[mLineIndex] = newMLine.join(" ")
         return lines.join("\r\n")
     };
+
+    function agentHas(keyword) {
+        return navigator.userAgent.toLowerCase().search(keyword.toLowerCase()) > -1;
+    }
+
+    function isSafari() {
+        return (!!window.ApplePaySetupFeature || !!window.safari) && agentHas("Safari") && !agentHas("Chrome") && !agentHas("CriOS");
+    }
+
+    function isChrome() {
+        return agentHas("CriOS") || agentHas("Chrome") || !!window.chrome;
+    }
+
+    function isFirefox() {
+        return agentHas("Firefox") || agentHas("FxiOS") || agentHas("Focus");
+    }
 
     return (
         <div>
