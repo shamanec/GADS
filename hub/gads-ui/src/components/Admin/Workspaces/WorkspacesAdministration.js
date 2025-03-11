@@ -1,219 +1,272 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
-import { Box, Button, FormControl, Grid, MenuItem, Stack, TextField, Tooltip } from '@mui/material';
-import CircularProgress from '@mui/material/CircularProgress';
-import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
-import './WorkspacesAdministration.css';
+import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, CircularProgress, Paper, Modal, TextField, Stack, TablePagination } from '@mui/material';
 import { useSnackbar } from '../../../contexts/SnackBarContext';
+import './WorkspacesAdministration.css';
 
 export default function WorkspacesAdministration() {
     const [workspaces, setWorkspaces] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [openModal, setOpenModal] = useState(false);
+    const [currentWorkspace, setCurrentWorkspace] = useState(null);
+    const [openDeleteModal, setOpenDeleteModal] = useState(false);
+    const [newWorkspace, setNewWorkspace] = useState({ name: '', description: '' });
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [totalCount, setTotalCount] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
         fetchWorkspaces();
-    }, []);
+    }, [page, rowsPerPage, searchTerm]);
 
     const fetchWorkspaces = async () => {
-        const response = await api.get('/admin/workspaces');
-        setWorkspaces(response.data);
+        setLoading(true);
+        try {
+            const response = await api.get(`/admin/workspaces?page=${page + 1}&limit=${rowsPerPage}&search=${searchTerm}`);
+            setWorkspaces(response.data.workspaces || []);
+            setTotalCount(response.data.total);
+        } catch (error) {
+            showSnackbar({
+                message: error.response?.data?.error || 'Failed to fetch workspaces.',
+                severity: 'error',
+                duration: 3000,
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0); // Reset to first page
+    };
+
+    const handleEditWorkspace = (workspace) => {
+        setCurrentWorkspace(workspace);
+        setOpenModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setOpenModal(false);
+        setCurrentWorkspace(null);
+        setNewWorkspace({ name: '', description: '' });
+    };
+
+    const handleUpdateWorkspace = async () => {
+        try {
+            await api.put(`/admin/workspaces`, {
+                id: currentWorkspace.id,
+                name: currentWorkspace.name,
+                description: currentWorkspace.description,
+            });
+            showSnackbar({
+                message: 'Workspace updated successfully!',
+                severity: 'success',
+                duration: 3000,
+            });
+            fetchWorkspaces();
+            handleCloseModal();
+        } catch (error) {
+            showSnackbar({
+                message: error.response?.data?.error || 'Failed to update workspace.',
+                severity: 'error',
+                duration: 3000,
+            });
+        }
+    };
+
+    const handleDeleteWorkspace = (workspace) => {
+        setCurrentWorkspace(workspace);
+        setOpenDeleteModal(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        try {
+            await api.delete(`/admin/workspaces/${currentWorkspace.id}`);
+            showSnackbar({
+                message: 'Workspace deleted successfully!',
+                severity: 'success',
+                duration: 3000,
+            });
+            fetchWorkspaces();
+            setOpenDeleteModal(false);
+        } catch (error) {
+            showSnackbar({
+                message: error.response?.data?.error || 'Failed to delete workspace.',
+                severity: 'error',
+                duration: 3000,
+            });
+        }
+    };
+
+    const handleCloseDeleteModal = () => {
+        setOpenDeleteModal(false);
+        setCurrentWorkspace(null);
+    };
+
+    const handleAddWorkspace = () => {
+        setOpenModal(true);
+    };
+
+    const handleCreateWorkspace = async () => {
+        try {
+            await api.post('/admin/workspaces', newWorkspace);
+            showSnackbar({
+                message: 'Workspace created successfully!',
+                severity: 'success',
+                duration: 3000,
+            });
+            fetchWorkspaces();
+            handleCloseModal();
+        } catch (error) {
+            showSnackbar({
+                message: error.response?.data?.error || 'Failed to create workspace.',
+                severity: 'error',
+                duration: 3000,
+            });
+        }
+    };
+
+    const handleSearchChange = (event) => {
+        setSearchTerm(event.target.value);
+        setPage(0);
     };
 
     return (
         <Stack id='outer-stack' direction='row' spacing={2}>
-            <Box id='outer-box'>
-                <Grid id='workspace-grid' container spacing={2}>
-                    <Grid item>
-                        <NewWorkspace handleGetWorkspaces={fetchWorkspaces} />
-                    </Grid>
-                    {workspaces.map((workspace) => (
-                        <Grid item key={workspace.id}>
-                            <ExistingWorkspace workspace={workspace} handleGetWorkspaces={fetchWorkspaces} />
-                        </Grid>
-                    ))}
-                </Grid>
+            <Box id='outer-box' className='workspace-managment-container'>
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+                    <TextField
+                        placeholder="Search Workspaces"
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                    />
+                    <Button variant='contained' onClick={handleAddWorkspace} style={{ float: 'right', height: 'fit-content', paddingTop: '8px', paddingBottom: '8px' }}>
+                        Add Workspace
+                    </Button>
+                </div>
+                {loading ? (
+                    <CircularProgress />
+                ) : (
+                    <TableContainer style={{ marginTop: '10px' }} component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell className="table-header">Workspace Name</TableCell>
+                                    <TableCell className="table-header">Description</TableCell>
+                                    <TableCell className="table-header">Type</TableCell>
+                                    <TableCell className="table-header">Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {workspaces.map((workspace) => (
+                                    <TableRow key={workspace.id}>
+                                        <TableCell>{workspace.name}</TableCell>
+                                        <TableCell>{workspace.description}</TableCell>
+                                        <TableCell>{workspace.is_default ? 'Default' : 'Custom'}</TableCell>
+                                        <TableCell>
+                                            <Button style={{ marginRight: '10px' }} variant='contained' onClick={() => handleEditWorkspace(workspace)}>
+                                                Edit
+                                            </Button>
+                                            {!workspace.is_default && (
+                                                <Button variant='contained' color='error' onClick={() => handleDeleteWorkspace(workspace)}>
+                                                    Delete
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                        <TablePagination
+                            rowsPerPageOptions={[5, 10, 25]}
+                            component="div"
+                            count={totalCount}
+                            rowsPerPage={rowsPerPage}
+                            page={page}
+                            onPageChange={handleChangePage}
+                            onRowsPerPageChange={handleChangeRowsPerPage}
+                        />
+                    </TableContainer>
+                )}
+
+                <Modal open={openModal} onClose={handleCloseModal}>
+                    <Box sx={{
+                        padding: 4,
+                        backgroundColor: 'white',
+                        borderRadius: 2,
+                        boxShadow: 3,
+                        maxWidth: 400,
+                        margin: 'auto',
+                        mt: 5
+                    }}>
+                        <h2>{currentWorkspace ? 'Edit Workspace' : 'Add Workspace'}</h2>
+                        <Stack spacing={2}>
+                            <TextField
+                                label='Workspace Name'
+                                value={currentWorkspace ? currentWorkspace.name : newWorkspace.name}
+                                onChange={(e) => {
+                                    if (currentWorkspace) {
+                                        setCurrentWorkspace({ ...currentWorkspace, name: e.target.value });
+                                    } else {
+                                        setNewWorkspace({ ...newWorkspace, name: e.target.value });
+                                    }
+                                }}
+                                required
+                            />
+                            <TextField
+                                label='Description'
+                                value={currentWorkspace ? currentWorkspace.description : newWorkspace.description}
+                                onChange={(e) => {
+                                    if (currentWorkspace) {
+                                        setCurrentWorkspace({ ...currentWorkspace, description: e.target.value });
+                                    } else {
+                                        setNewWorkspace({ ...newWorkspace, description: e.target.value });
+                                    }
+                                }}
+                                required
+                            />
+                            <Stack direction='row' spacing={1}>
+                                <Button variant='contained' onClick={currentWorkspace ? handleUpdateWorkspace : handleCreateWorkspace}>
+                                    {currentWorkspace ? 'Apply' : 'Create'}
+                                </Button>
+                                <Button variant='outlined' onClick={handleCloseModal}>
+                                    Cancel
+                                </Button>
+                            </Stack>
+                        </Stack>
+                    </Box>
+                </Modal>
+
+                <Modal open={openDeleteModal} onClose={handleCloseDeleteModal}>
+                    <Box sx={{
+                        padding: 4,
+                        backgroundColor: 'white',
+                        borderRadius: 2,
+                        boxShadow: 3,
+                        maxWidth: 400,
+                        margin: 'auto',
+                        mt: 5
+                    }}>
+                        <h2>Confirm Deletion</h2>
+                        <p>Are you sure you want to delete the workspace "{currentWorkspace?.name}"?</p>
+                        <Stack direction='row' spacing={1}>
+                            <Button variant='contained' color='error' onClick={handleConfirmDelete}>
+                                Delete
+                            </Button>
+                            <Button variant='outlined' onClick={handleCloseDeleteModal}>
+                                Cancel
+                            </Button>
+                        </Stack>
+                    </Box>
+                </Modal>
             </Box>
         </Stack>
     );
 }
-
-function NewWorkspace({ handleGetWorkspaces }) {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [addWorkspaceStatus, setAddWorkspaceStatus] = useState(null);
-    const { showSnackbar } = useSnackbar();
-
-    const handleAddWorkspace = (event) => {
-        setLoading(true);
-        setAddWorkspaceStatus(null);
-        event.preventDefault();
-
-        const workspaceData = { name, description };
-        api.post('/admin/workspaces', workspaceData)
-        .then(() => {
-            setAddWorkspaceStatus('sucess');
-            setName('');
-            setDescription('');
-        })
-        .catch(e => {
-            setAddWorkspaceStatus('error')
-            showSnackbar({
-                message: e.response.data.error,
-                severity: 'error',
-                duration: 3000,
-            });
-        })
-        .finally(() => {
-            setLoading(false)
-            handleGetWorkspaces()
-            setAddWorkspaceStatus(null)
-        })
-    };
-
-    return (
-        <Box className='workspace-box'>
-            <form onSubmit={handleAddWorkspace}>
-                <Stack id='workspace-box-stack' spacing={2}>
-                    <Tooltip title='Case-sensitive' arrow placement='top'>
-                        <TextField
-                            required
-                            label='Workspace Name'
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            autoComplete='off'
-                            size='small'
-                        />
-                    </Tooltip>
-                    <TextField
-                        required
-                        label='Description'
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        autoComplete='off'
-                        size='small'
-                    />
-                    <Button
-                        variant='contained'
-                        type='submit'
-                        style={{
-                            backgroundColor: '#2f3b26',
-                            color: '#f4e6cd',
-                            fontWeight: 'bold',
-                            boxShadow: 'none',
-                            height: '40px'
-                        }}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
-                        ) : (
-                            'Add Workspace'
-                        )}
-                    </Button>
-                </Stack>
-            </form>
-        </Box>
-    );
-}
-
-function ExistingWorkspace({ workspace, handleGetWorkspaces }) {
-    const [name, setName] = useState(workspace.name);
-    const [description, setDescription] = useState(workspace.description);
-    const [loading, setLoading] = useState(false);
-    const [updateStatus, setUpdateStatus] = useState(null);
-    const { showSnackbar } = useSnackbar();
-
-    const handleUpdateWorkspace = async (event) => {
-        setLoading(true);
-        event.preventDefault();
-
-        const updatedWorkspace = { id: workspace.id, name, description };
-        api.put('/admin/workspaces', updatedWorkspace)
-        .then(() => {
-            setLoading(false)
-            handleGetWorkspaces()
-        })
-        .catch(e => {
-            setLoading(false);
-            showSnackbar({
-                message: e.response.data.error,
-                severity: 'error',
-                duration: 3000,
-            });
-        })
-    };
-
-    const handleDeleteWorkspace = async () => {
-        api.delete(`/admin/workspaces/${workspace.id}`)
-        .then(() => {
-            setLoading(false)
-            handleGetWorkspaces()
-        })
-        .catch(e => {
-            setLoading(false);
-            showSnackbar({
-                message: e.response.data.error,
-                severity: 'error',
-                duration: 3000,
-            });
-        })
-    };
-
-    return (
-        <Box className='workspace-box'>
-            <form onSubmit={handleUpdateWorkspace}>
-                <Stack id='workspace-box-stack' spacing={2}>
-                    <TextField
-                        label='Workspace Name'
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete='off'
-                        size='small'
-                    />
-                    <TextField
-                        label='Description'
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        autoComplete='off'
-                        size='small'
-                    />
-                    <Button
-                        variant='contained'
-                        type='submit'
-                        style={{
-                            backgroundColor: '#2f3b26',
-                            color: '#f4e6cd',
-                            fontWeight: 'bold',
-                            height: '40px',
-                            boxShadow: 'none'
-                        }}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <CircularProgress size={25} style={{ color: '#f4e6cd' }} />
-                        ) : (
-                            'Update Workspace'
-                        )}
-                    </Button>
-                    {!workspace.is_default && (
-                        <Button
-                            variant='contained'
-                            style={{
-                                backgroundColor: 'orange',
-                                color: '#2f3b26',
-                                fontWeight: 'bold',
-                                height: '40px',
-                                boxShadow: 'none'
-                            }}
-                            onClick={handleDeleteWorkspace}
-                        >
-                            Delete Workspace
-                        </Button>
-                    )}
-                </Stack>
-            </form>
-        </Box>
-    );
-} 

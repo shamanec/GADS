@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func AddWorkspace(workspace *models.Workspace) error {
@@ -103,4 +104,39 @@ func GetDefaultWorkspace() (models.Workspace, error) {
 		return models.Workspace{}, err
 	}
 	return workspace, nil
+}
+
+func GetWorkspacesPaginated(page, limit int, search string) ([]models.Workspace, int64) {
+	var workspaces []models.Workspace
+	collection := mongoClient.Database("gads").Collection("workspaces")
+
+	// Calculate the number of documents to skip
+	skip := (page - 1) * limit
+
+	filter := bson.M{}
+	if search != "" {
+		filter["name"] = bson.M{"$regex": search, "$options": "i"} // Case-insensitive search
+	}
+
+	cursor, err := collection.Find(mongoClientCtx, filter, options.Find().SetSkip(int64(skip)).SetLimit(int64(limit)))
+	if err != nil {
+		return workspaces, 0
+	}
+	defer cursor.Close(mongoClientCtx)
+
+	for cursor.Next(mongoClientCtx) {
+		var workspace models.Workspace
+		if err := cursor.Decode(&workspace); err != nil {
+			continue
+		}
+		workspaces = append(workspaces, workspace)
+	}
+
+	// Get total count of workspaces
+	count, err := collection.CountDocuments(mongoClientCtx, filter)
+	if err != nil {
+		return workspaces, 0
+	}
+
+	return workspaces, count
 }

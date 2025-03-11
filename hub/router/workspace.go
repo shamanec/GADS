@@ -4,6 +4,7 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -82,6 +83,20 @@ func DeleteWorkspace(c *gin.Context) {
 }
 
 func GetWorkspaces(c *gin.Context) {
-	workspaces := db.GetWorkspaces()
-	c.JSON(http.StatusOK, workspaces)
+	pageStr := c.Query("page")
+	limitStr := c.Query("limit")
+	searchStr := c.Query("search")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10 // Default limit
+	}
+
+	workspaces, totalCount := db.GetWorkspacesPaginated(page, limit, searchStr)
+	c.JSON(http.StatusOK, gin.H{"workspaces": workspaces, "total": totalCount})
 }
