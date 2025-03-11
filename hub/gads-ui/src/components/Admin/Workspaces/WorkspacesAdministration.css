@@ -13,7 +13,12 @@
     box-shadow: inset 0 -10px 10px -10px #000000;
     scrollbar-width: none;
     margin-right: 10px;
+    /* margin-left: 10px; */
     width: 100%;
+}
+
+.workspace-managment-container {
+    padding: 20px;
 }
 
 #workspace-grid {
@@ -32,4 +37,10 @@
 
 #workspace-box-stack {
     padding: 10px;
+}
+
+.table-header {
+    background-color: #31343a;
+    color: white !important;
+    font-weight: bold !important;
 } 

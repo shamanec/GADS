@@ -24,8 +24,8 @@ export default function DevicesAdministration() {
     }
 
     const fetchWorkspaces = async () => {
-        const response = await api.get('/admin/workspaces')
-        setWorkspaces(response.data)
+        const response = await api.get('/admin/workspaces?page=1&limit=100')
+        setWorkspaces(response.data.workspaces)
     }
 
     useEffect(() => {
