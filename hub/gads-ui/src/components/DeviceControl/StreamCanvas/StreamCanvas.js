@@ -305,7 +305,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                     id='stream-div'
                     style={{
                         width: canvasDimensions.width,
-                        height: canvasDimensions.height
+                        height: canvasDimensions.height,
+                        position: "relative",
                     }}
                 >
                     <Canvas></Canvas>
@@ -518,7 +519,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 height={canvasDimensions.height + 'px'}
                 onMouseDown={handleMouseDown}
                 onMouseUp={handleMouseUp}
-                style={{ position: 'absolute' }}
+                style={{ position: 'absolute', zIndex: 2 }}
             ></canvas>
         )
     }
@@ -537,7 +538,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
     function VideoStream() {
         return (
-            <video ref={videoRef} autoPlay playsInline width={canvasDimensions.width + 'px'} height={canvasDimensions.height + 'px'} style={{ background: "black", display: 'block' }} />
+            <video ref={videoRef} autoPlay playsInline width={canvasDimensions.width + 'px'} height={canvasDimensions.height + 'px'} style={{ background: "black", display: 'block', zIndex: 1 }} />
         )
     }
 
