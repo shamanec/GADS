@@ -702,6 +702,12 @@ func UpdateDevice(c *gin.Context) {
 			if reqDevice.Usage != "" && reqDevice.Usage != dbDevice.Usage {
 				dbDevice.Usage = reqDevice.Usage
 			}
+			if reqDevice.UseWebRTCVideo != dbDevice.UseWebRTCVideo {
+				dbDevice.UseWebRTCVideo = reqDevice.UseWebRTCVideo
+			}
+			if reqDevice.WebRTCVideoCodec != dbDevice.WebRTCVideoCodec {
+				dbDevice.WebRTCVideoCodec = reqDevice.WebRTCVideoCodec
+			}
 			err = db.UpsertDeviceDB(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})

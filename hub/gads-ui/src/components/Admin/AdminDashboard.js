@@ -7,6 +7,7 @@ import FilesAdministration from "./Files/FilesAdministration";
 import DevicesAdministration from './Devices/DevicesAdministration';
 import ProvidersAdministration from './Providers/ProvidersAdministration';
 import GlobalSettings from './GlobalSettings/GlobalSettings';
+import WebRTCClient from './webrtc';
 
 
 export default function AdminDashboard() {
@@ -79,12 +80,21 @@ export default function AdminDashboard() {
                         fontWeight: "bold"
                     }}
                 />
+                <Tab
+                    label="OPALQ"
+                    style={{
+                        textTransform: 'none',
+                        fontSize: '16px',
+                        fontWeight: "bold"
+                    }}
+                />
             </Tabs>
             {currentTabIndex === 0 && <ProvidersAdministration></ProvidersAdministration>}
             {currentTabIndex === 1 && <DevicesAdministration></DevicesAdministration>}
             {currentTabIndex === 2 && <UsersAdministration></UsersAdministration>}
             {currentTabIndex === 3 && <FilesAdministration></FilesAdministration>}
             {currentTabIndex === 4 && <GlobalSettings></GlobalSettings>}
+            {currentTabIndex === 5 && <WebRTCClient></WebRTCClient>}
         </Box >
     )
 }

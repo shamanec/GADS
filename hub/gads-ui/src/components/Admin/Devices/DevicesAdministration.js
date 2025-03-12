@@ -79,6 +79,8 @@ function NewDevice({ providers, handleGetDeviceData }) {
     const [screenWidth, setScreenWidth] = useState('')
     const [usage, setUsage] = useState('enabled')
     const [type, setType] = useState('real')
+    const [webrtcVideo, setWebrtcVideo] = useState(false)
+    const [webrtcCodec, setWebrtcCodec] = useState('h264')
 
     const [loading, setLoading] = useState(false)
     const [addDeviceStatus, setAddDeviceStatus] = useState(null)
@@ -113,6 +115,8 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 setScreenHeight('')
                 setScreenWidth('')
                 setUsage('enabled')
+                setWebrtcVideo(false)
+                setWebrtcCodec('')
             })
             .catch(() => {
                 setAddDeviceStatus('error')
@@ -136,7 +140,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '830px',
+                height: '940px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -297,6 +301,51 @@ function NewDevice({ providers, handleGetDeviceData }) {
                             </TextField>
                         </FormControl>
                     </Tooltip>
+                    <Tooltip
+                        title='Should the device use WebRTC video instead of MJPEG?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios'}
+                                variant='outlined'
+                                value={webrtcVideo}
+                                onChange={(e) => setWebrtcVideo(e.target.value)}
+                                select
+                                size='small'
+                                label='Use WebRTC video?'
+                                required
+                            >
+                                <MenuItem value={true}>Yes</MenuItem>
+                                <MenuItem value={false}>No</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='Which video codec should be preferred for WebRTC video?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios' || !webrtcVideo}
+                                variant='outlined'
+                                value={webrtcCodec}
+                                onChange={(e) => setWebrtcCodec(e.target.value)}
+                                select
+                                size='small'
+                                label='WebRTC preferred video codec?'
+                                required
+                            >
+                                <MenuItem value='h264'>H264</MenuItem>
+                                <MenuItem value='vp8'>VP8</MenuItem>
+                                <MenuItem value='vp9'>VP9</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
                     <Button
                         variant='contained'
                         type='submit'
@@ -335,6 +384,8 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
     const [screenWidth, setScreenWidth] = useState(deviceData.screen_width)
     const [usage, setUsage] = useState(deviceData.usage)
     const [type, setType] = useState(deviceData.device_type)
+    const [webrtcVideo, setWebrtcVideo] = useState(deviceData.webrtc_video)
+    const [webrtcCodec, setWebrtcCodec] = useState(deviceData.webrtc_video_codec)
     const udid = deviceData.udid
 
     const [loading, setLoading] = useState(false)
@@ -349,6 +400,8 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
         setOSVersion(deviceData.os_version)
         setScreenHeight(deviceData.screen_height)
         setScreenWidth(deviceData.screen_width)
+        setWebrtcVideo(deviceData.use_webrtc_video)
+        setWebrtcCodec(deviceData.webrtc_video_codec)
     }, [deviceData])
 
     function handleUpdateDevice(event) {
@@ -367,7 +420,9 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
             screen_width: screenWidth,
             os: os,
             usage: usage,
-            device_type: type
+            device_type: type,
+            use_webrtc_video: webrtcVideo,
+            webrtc_video_codec: webrtcCodec
         }
 
         api.put(url, reqData)
@@ -446,7 +501,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '830px',
+                height: '940px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -603,6 +658,51 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                                     )
                                 })
                                 }
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='Should the device use WebRTC video instead of MJPEG?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios'}
+                                variant='outlined'
+                                value={webrtcVideo}
+                                onChange={(e) => setWebrtcVideo(e.target.value)}
+                                select
+                                size='small'
+                                label='Use WebRTC video?'
+                                required
+                            >
+                                <MenuItem value={true}>Yes</MenuItem>
+                                <MenuItem value={false}>No</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='Which video codec should be preferred for WebRTC video?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios' || !webrtcVideo}
+                                variant='outlined'
+                                value={webrtcCodec}
+                                onChange={(e) => setWebrtcCodec(e.target.value)}
+                                select
+                                size='small'
+                                label='WebRTC preferred video codec?'
+                                required
+                            >
+                                <MenuItem value='h264'>H264</MenuItem>
+                                <MenuItem value='vp8'>VP8</MenuItem>
+                                <MenuItem value='vp9'>VP9</MenuItem>
                             </TextField>
                         </FormControl>
                     </Tooltip>

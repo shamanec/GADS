@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './StreamCanvas.css'
 import { Button, Divider, Grid, Tooltip } from '@mui/material'
 import HomeIcon from '@mui/icons-material/Home'
@@ -13,6 +13,11 @@ import StreamSettings from './StreamSettings.js'
 import { useSnackbar } from '../../../contexts/SnackBarContext.js'
 
 export default function StreamCanvas({ deviceData, shouldShowStream }) {
+    // WebRTC refs
+    const ws = useRef(null)
+    const pc = useRef(null)
+    const videoRef = useRef(null)
+
     const { showSnackbar } = useSnackbar()
     const [isPortrait, setIsPortrait] = useState(true)
     const [canvasDimensions, setCanvasDimensions] = useState({
@@ -27,14 +32,16 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     let deviceOS = deviceData.os
     let usesCustomWda = deviceData.uses_custom_wda
     let udid = deviceData.udid
+    let useWebRTCVideo = deviceData.use_webrtc_video
+    let webRTCVideoCodec = deviceData.webrtc_video_codec
 
     let streamUrl = ''
     if (deviceData.os === 'ios') {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     const handleOrientationButtonClick = (isPortrait) => {
@@ -61,21 +68,210 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         const imgElement = document.getElementById('image-stream')
 
         // Temporarily remove the stream source
-        imgElement.src = ''
+        if (!useWebRTCVideo) {
+            imgElement.src = ''
+        }
+
 
         updateCanvasDimensions()
 
         // Reapply the stream URL after the resize is complete
-        imgElement.src = shouldShowStream ? streamUrl : ''
+        if (!useWebRTCVideo) {
+            imgElement.src = shouldShowStream ? streamUrl : ''
+        }
+
 
         // Set resize listener
         window.addEventListener('resize', updateCanvasDimensions)
 
+        if (useWebRTCVideo) {
+            setupWebRTCVideo()
+        }
+
         return () => {
+            if (ws.current) {
+                ws.current.close()
+            }
+            if (pc.current) {
+                pc.current.close()
+            }
+
             window.stop()
             window.removeEventListener('resize', updateCanvasDimensions)
         }
-    }, [isPortrait])
+    }, [shouldShowStream])
+
+    function setupWebRTCVideo() {
+        const caps = RTCRtpSender.getCapabilities("video");
+        console.debug("WebRTC: Browser video capabilities:", caps);
+
+        const protocol = window.location.protocol
+        let wsType = 'ws'
+        if (protocol === 'https') {
+            wsType = 'wss'
+        }
+        // let socketUrl = `${wsType}://${window.location.host}/device/${udid}/webrtc`
+        let socketUrl = `${wsType}://192.168.1.41:10001/device/${udid}/webrtc`
+        ws.current = new WebSocket(socketUrl);
+
+        ws.current.onopen = () => {
+            console.log("WebRTC: Connected to signalling websocket server")
+            sendOffer()
+        };
+
+        ws.current.onmessage = (event) => {
+            const data = JSON.parse(event.data)
+            console.log('WebRTC: Received from signalling server:', data)
+
+            if (data.type === "answer" && pc.current) {
+                console.log('WebRTC: Received answer from signalling server')
+                pc.current.setRemoteDescription(new RTCSessionDescription(data))
+            } else if (data.type === "candidate" && pc.current) {
+                console.log('WebRTC: Received ICE candidate from signalling server')
+                const candidate = new RTCIceCandidate({
+                    candidate: data.candidate,
+                    sdpMid: data.sdpMid,
+                    sdpMLineIndex: data.sdpMLineIndex
+                });
+                pc.current.addIceCandidate(candidate).catch(console.error)
+            }
+        }
+    }
+
+    const sendOffer = async () => {
+        console.log('Sending offer')
+        if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+            console.log(ws.current)
+            console.log(ws.current.readyState)
+            console.error("WebRTC: Provider WebRTC signalling server webSocket is not connected!")
+            return;
+        }
+
+        pc.current = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+
+        pc.current.ontrack = (event) => {
+            console.log('WebRTC: Received remote track: ', event)
+            if (videoRef.current && event.streams.length > 0) {
+                console.log('WebRTC: There are track streams available!')
+                videoRef.current.srcObject = event.streams[0]
+                console.log("WebRTC: ✅ Remote video stream set")
+                // event.track.enabled = true
+                console.log('WebRTC: Attempting to force video playback')
+                // videoRef.current.play().catch(e => console.error("🔴 Failed to play video:", e))
+
+            } else {
+                console.warn("WebRTC: No video track in event");
+            }
+        };
+
+        pc.current.onicecandidate = (event) => {
+            if (event.candidate) {
+                const message = JSON.stringify({
+                    type: "candidate",
+                    candidate: event.candidate
+                });
+                ws.current.send(message);
+                console.log("WebRTC: Sent ICE candidate to signalling server: ", message)
+            }
+        };
+
+        pc.current.oniceconnectionstatechange = () => {
+            console.log("WebRTC: ICE connection state: ", pc.current.iceConnectionState);
+        };
+
+        const transceiver = pc.current.addTransceiver("video", {
+            direction: "recvonly"
+        })
+
+        if (isChrome()) {
+            if (transceiver.setCodecPreferences) {
+                console.log('WebRTC: Browser supports setting WebRTC codec preferences, trying to force H.264.')
+                const capabilities = RTCRtpReceiver.getCapabilities("video");
+                const h264Codecs = capabilities.codecs.filter(codec =>
+                    codec.mimeType.toLowerCase() === "video/h264"
+                )
+                console.log("CODECS")
+                console.log(h264Codecs)
+                // Force the transceiver to prefer H.264 if available
+                if (h264Codecs.length) {
+                    transceiver.setCodecPreferences(h264Codecs)
+                } else {
+                    console.warn("WebRTC: H.264 not supported in this browser's codecs.")
+                }
+            }
+        }
+
+        const offer = await pc.current.createOffer({
+            iceRestart: true,
+            offerToReceiveAudio: false,
+            offerToReceiveVideo: true
+        })
+
+        if (isFirefox() || isSafari()) {
+            console.log('WebRTC: Trying to prefer H.264 codec for Firefox by re-writing offer SDP')
+            offer.sdp = preferCodec(offer.sdp, "H264")
+        }
+
+        await pc.current.setLocalDescription(offer)
+
+        const message = JSON.stringify({
+            type: "offer",
+            sdp: offer.sdp
+        });
+
+        ws.current.send(message)
+        console.log("Offer sent:", message)
+    };
+
+    const preferCodec = (sdp, codec = "VP9") => {
+        const lines = sdp.split("\r\n")
+        let mLineIndex = -1
+        let codecPayloadType = null
+
+        console.log("LINES")
+        console.log(lines)
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith("m=video")) {
+                mLineIndex = i
+            }
+            if (lines[i].toLowerCase().includes(`a=rtpmap`) && lines[i].includes(codec)) {
+                codecPayloadType = lines[i].match(/:(\d+) /)[1]
+                break
+            }
+        }
+
+        if (mLineIndex === -1 || codecPayloadType === null) {
+            console.warn(`WebRTC: ${codec} codec not found in SDP`)
+            return sdp;
+        }
+
+        console.log("CHANGING TO PAYLOAD TYPE " + codecPayloadType)
+
+        // const mLineParts = lines[mLineIndex].split(" ");
+        const newMLine = [lines[mLineIndex].split(" ")[0], lines[mLineIndex].split(" ")[1], lines[mLineIndex].split(" ")[2], codecPayloadType]
+            .concat(lines[mLineIndex].split(" ").slice(3).filter(pt => pt !== codecPayloadType))
+
+        lines[mLineIndex] = newMLine.join(" ")
+        return lines.join("\r\n")
+    };
+
+    function agentHas(keyword) {
+        return navigator.userAgent.toLowerCase().search(keyword.toLowerCase()) > -1;
+    }
+
+    function isSafari() {
+        return (!!window.ApplePaySetupFeature || !!window.safari) && agentHas("Safari") && !agentHas("Chrome") && !agentHas("CriOS");
+    }
+
+    function isChrome() {
+        return agentHas("CriOS") || agentHas("Chrome") || !!window.chrome;
+    }
+
+    function isFirefox() {
+        return agentHas("Firefox") || agentHas("FxiOS") || agentHas("Focus");
+    }
 
     const showCustomSnackbarError = (message) => {
         showSnackbar({
@@ -113,7 +309,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                     }}
                 >
                     <Canvas></Canvas>
-                    <Stream></Stream>
+                    {useWebRTCVideo ? <VideoStream></VideoStream> : <Stream></Stream>}
                 </div>
                 <Grid
                     height='30px'
@@ -336,6 +532,12 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 style={{ display: 'block' }}
                 src={shouldShowStream ? streamUrl : ''}
             ></img>
+        )
+    }
+
+    function VideoStream() {
+        return (
+            <video ref={videoRef} autoPlay playsInline width={canvasDimensions.width + 'px'} height={canvasDimensions.height + 'px'} style={{ background: "black", display: 'block' }} />
         )
     }
 

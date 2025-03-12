@@ -9,7 +9,7 @@ const WebRTCClient = () => {
         const caps = RTCRtpSender.getCapabilities("video");
         console.debug("WebRTC: Browser video capabilities:", caps);
 
-        ws.current = new WebSocket("ws://192.168.1.41:10001/device/00008030-0018386C1106402E/webrtc");
+        ws.current = new WebSocket("ws://192.168.1.41:10001/rtc");
 
         ws.current.onopen = () => {
             console.log("WebRTC: Connected to signalling websocket server")
@@ -55,7 +55,7 @@ const WebRTCClient = () => {
 
         pc.current.ontrack = (event) => {
             console.log('WebRTC: Received remote track: ', event)
-            if (videoRef.current && event.streams.length > 0) {
+            if (event.streams.length > 0) {
                 console.log('WebRTC: There are track streams available!')
                 videoRef.current.srcObject = event.streams[0]
                 console.log("WebRTC: ✅ Remote video stream set")

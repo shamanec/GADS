@@ -1,6 +1,7 @@
 package router
 
 import (
+	"GADS/provider/devices"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -21,13 +22,14 @@ func WebRTCSocket2(c *gin.Context) {
 	udid := c.Param("udid")
 
 	fmt.Println("DEVICE " + udid)
+	device := devices.DBDeviceMap[udid]
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		log.Printf("Failed to upgrade connection: %v", err)
 		return
 	}
 
-	u := url.URL{Scheme: "ws", Host: "localhost:1991", Path: ""}
+	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
 	deviceConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
 		log.Printf("Failed to dial device websocket - " + err.Error())
