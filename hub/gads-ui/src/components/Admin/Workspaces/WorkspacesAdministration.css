@@ -43,4 +43,18 @@
     background-color: #31343a;
     color: white !important;
     font-weight: bold !important;
-} 
+}
+
+#search-input-workspaces {
+    background-color: rgb(244, 230, 205);
+    border: none;
+    font-size: 16px;
+    margin-left: 10px;
+    height: 40px;
+    border-bottom: 2px solid #2f3b26;
+    color: #2f3b26;
+}
+
+#search-input-workspaces:focus {
+    outline: none;
+}
