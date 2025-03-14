@@ -37,6 +37,7 @@ func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
+	authGroup.GET("devices/control/:udid/webrtc", DeviceWebRTCWS)
 	authGroup.POST("/provider-update", ProviderUpdate)
 	// Enable authentication on the endpoints below
 	authGroup.Use(auth.AuthMiddleware())
