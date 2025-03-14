@@ -72,6 +72,11 @@ function NewUser({ handleGetUserData, workspaces }) {
     const [loading, setLoading] = useState(false)
     const [addUserStatus, setAddUserStatus] = useState(null)
 
+    useEffect(() => {
+        // Reset workspaceIds whenever workspaces change
+        setWorkspaceIds([]);
+    }, [workspaces]);
+
     function handleAddUser(event) {
         setLoading(true)
         setAddUserStatus(null)
@@ -153,14 +158,17 @@ function NewUser({ handleGetUserData, workspaces }) {
                             getOptionLabel={(option) => option.name}
                             defaultValue={workspaces.length > 0 ? [workspaces[0]] : []}
                             limitTags={2}
+                            onChange={(event, newValue) => {
+                                setWorkspaceIds(newValue.map(workspace => workspace.id))
+                            }}
                             size="small"
                             renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                variant="standard"
-                                label="Workspaces"
-                                placeholder="Select a workspace"
-                            />
+                                <TextField
+                                    {...params}
+                                    variant="standard"
+                                    label="Workspaces"
+                                    placeholder="Select a workspace"
+                                />
                             )}
                         />
                     </FormControl>
@@ -199,7 +207,12 @@ function ExistingUser({ user, handleGetUserData, workspaces }) {
     const [openAlert, setOpenAlert] = useState(false)
     const [updateLoading, setUpdateLoading] = useState(false)
     const [updateUserStatus, setUpdateUserStatus] = useState(null)
-    const [workspaceId, setWorkspaceId] = useState(user.workspace_id)
+    const [workspaceIds, setWorkspaceIds] = useState(user.workspace_ids)
+
+    useEffect(() => {
+        // Reset workspaceId whenever workspaces change
+        setWorkspaceIds([]);
+    }, [workspaces]);
 
     function handleUpdateUser(event) {
         setUpdateLoading(true)
@@ -210,7 +223,7 @@ function ExistingUser({ user, handleGetUserData, workspaces }) {
             username: username,
             password: password,
             role: role,
-            workspace_id: role === 'admin' ? null : workspaceId
+            workspace_ids: role === 'admin' ? null : workspaceIds
         }
 
         api.put(`/admin/user`, updatedUser)
@@ -295,18 +308,26 @@ function ExistingUser({ user, handleGetUserData, workspaces }) {
                     </FormControl>
                     {role !== 'admin' && (
                         <FormControl fullWidth required>
-                            <TextField
-                                value={workspaceId}
-                                onChange={(e) => setWorkspaceId(e.target.value)}
-                                select
-                                label='Workspace'
-                                required
-                                size='small'
-                            >
-                                {workspaces.map((ws) => (
-                                    <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
-                                ))}
-                            </TextField>
+                            <Autocomplete
+                                multiple
+                                id="workspaces"
+                                options={workspaces}
+                                getOptionLabel={(option) => option.name}
+                                defaultValue={workspaceIds.length > 0 ? workspaces.filter(workspace => workspaceIds.includes(workspace.id)) : []}
+                                limitTags={2}
+                                size="small"
+                                onChange={(event, newValue) => {
+                                    setWorkspaceIds(newValue.map(workspace => workspace.id))
+                                }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        variant="standard"
+                                        label="Workspaces"
+                                        placeholder="Select a workspace"
+                                    />
+                                )}
+                            />
                         </FormControl>
                     )}
                     <Button

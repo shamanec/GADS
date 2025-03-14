@@ -227,13 +227,9 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if dbUser.Username != "" {
+	if dbUser.Username == "" {
 		BadRequest(c, "Cannot update non-existing user")
 		return
-	}
-
-	if user.Password == "" {
-		user.Password = dbUser.Password
 	}
 
 	err = db.AddOrUpdateUser(user)
