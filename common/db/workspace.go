@@ -70,6 +70,16 @@ func WorkspaceHasDevices(id string) bool {
 	return count > 0
 }
 
+func WorkspaceHasUsers(id string) bool {
+	collection := mongoClient.Database("gads").Collection("users")
+	filter := bson.M{"workspace_ids": id}
+	count, err := collection.CountDocuments(mongoClientCtx, filter)
+	if err != nil {
+		return false
+	}
+	return count > 0
+}
+
 func GetWorkspaceByID(id string) (models.Workspace, error) {
 	var workspace models.Workspace
 	collection := mongoClient.Database("gads").Collection("workspaces")
