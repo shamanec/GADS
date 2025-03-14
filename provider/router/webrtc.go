@@ -56,6 +56,10 @@ func WebRTCSocket(c *gin.Context) {
 		msg, op, err := wsutil.ReadClientData(conn)
 		if err != nil {
 			log.Printf("Client disconnected: %s", err)
+			err = wsutil.WriteServerText(deviceConn, []byte("hangup"))
+			if err != nil {
+				log.Printf("Failed to send hangup to the android socket")
+			}
 			return
 		}
 

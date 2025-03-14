@@ -37,11 +37,11 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
     let streamUrl = ''
     if (deviceData.os === 'ios') {
-        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     const handleOrientationButtonClick = (isPortrait) => {
@@ -49,29 +49,12 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     }
 
     useEffect(() => {
-        const updateCanvasDimensions = () => {
-            let calculatedWidth, calculatedHeight
-            if (isPortrait) {
-                calculatedHeight = window.innerHeight * 0.7
-                calculatedWidth = calculatedHeight * deviceScreenRatio
-            } else {
-                calculatedWidth = window.innerWidth * 0.4
-                calculatedHeight = calculatedWidth / deviceLandscapeScreenRatio
-            }
-
-            setCanvasDimensions({
-                width: calculatedWidth,
-                height: calculatedHeight
-            })
-        }
-
         const imgElement = document.getElementById('image-stream')
 
         // Temporarily remove the stream source
         if (!useWebRTCVideo) {
             imgElement.src = ''
         }
-
 
         updateCanvasDimensions()
 
@@ -101,17 +84,33 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         }
     }, [shouldShowStream])
 
+    const updateCanvasDimensions = () => {
+        let calculatedWidth, calculatedHeight
+        if (isPortrait) {
+            calculatedHeight = window.innerHeight * 0.7
+            calculatedWidth = calculatedHeight * deviceScreenRatio
+        } else {
+            calculatedWidth = window.innerWidth * 0.4
+            calculatedHeight = calculatedWidth / deviceLandscapeScreenRatio
+        }
+
+        setCanvasDimensions({
+            width: calculatedWidth,
+            height: calculatedHeight
+        })
+    }
+
     function setupWebRTCVideo() {
         const caps = RTCRtpSender.getCapabilities("video");
         console.debug("WebRTC: Browser video capabilities:", caps);
 
         const protocol = window.location.protocol
         let wsType = 'ws'
-        if (protocol === 'https') {
+        if (protocol === 'https:') {
             wsType = 'wss'
         }
-        // let socketUrl = `${wsType}://${window.location.host}/device/${udid}/webrtc`
-        let socketUrl = `${wsType}://192.168.1.41:10001/device/${udid}/webrtc`
+        let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
+        // let socketUrl = `${wsType}://192.168.1.41:10000/device/${udid}/webrtc`
         ws.current = new WebSocket(socketUrl);
 
         ws.current.onopen = () => {

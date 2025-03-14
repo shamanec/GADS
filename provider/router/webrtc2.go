@@ -78,14 +78,14 @@ func WebRTCSocket2(c *gin.Context) {
 				switch message.Type {
 				case "offer":
 					fmt.Println("GOT OFFER!!")
-					err = wsutil.WriteServerText(deviceConn, msg)
+					err = wsutil.WriteClientText(deviceConn, msg)
 					if err != nil {
 						log.Printf("Failed to write to android socket")
 					}
 					break
 				case "candidate":
 					fmt.Println("GOT CANDIDATE!!")
-					err = wsutil.WriteServerText(deviceConn, msg)
+					err = wsutil.WriteClientText(deviceConn, msg)
 					if err != nil {
 						log.Printf("Failed to write to android socket")
 					}

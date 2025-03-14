@@ -384,7 +384,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
     const [screenWidth, setScreenWidth] = useState(deviceData.screen_width)
     const [usage, setUsage] = useState(deviceData.usage)
     const [type, setType] = useState(deviceData.device_type)
-    const [webrtcVideo, setWebrtcVideo] = useState(deviceData.webrtc_video)
+    const [webrtcVideo, setWebrtcVideo] = useState(deviceData.use_webrtc_video)
     const [webrtcCodec, setWebrtcCodec] = useState(deviceData.webrtc_video_codec)
     const udid = deviceData.udid
 
