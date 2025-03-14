@@ -3,6 +3,7 @@ import { api } from '../../../services/api';
 import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, CircularProgress, Paper, Modal, TextField, Stack, TablePagination } from '@mui/material';
 import { useSnackbar } from '../../../contexts/SnackBarContext';
 import './WorkspacesAdministration.css';
+import { FiSearch } from 'react-icons/fi'
 
 export default function WorkspacesAdministration() {
     const [workspaces, setWorkspaces] = useState([]);
@@ -134,7 +135,8 @@ export default function WorkspacesAdministration() {
     };
 
     const handleSearchChange = (event) => {
-        setSearchTerm(event.target.value);
+        var input = document.getElementById('search-input-workspaces')
+        setSearchTerm(input.value);
         setPage(0);
     };
 
@@ -142,11 +144,9 @@ export default function WorkspacesAdministration() {
         <Stack id='outer-stack' direction='row' spacing={2}>
             <Box id='outer-box' className='workspace-managment-container'>
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-                    <TextField
-                        placeholder="Search Workspaces"
-                        value={searchTerm}
-                        onChange={handleSearchChange}
-                    />
+                    <WorkspaceSearch
+                        keyUpFilterFunc={handleSearchChange}
+                    ></WorkspaceSearch>
                     <Button variant='contained' onClick={handleAddWorkspace} style={{ float: 'right', height: 'fit-content', paddingTop: '8px', paddingBottom: '8px' }}>
                         Add Workspace
                     </Button>
@@ -269,4 +269,22 @@ export default function WorkspacesAdministration() {
             </Box>
         </Stack>
     );
+}
+
+export function WorkspaceSearch({ keyUpFilterFunc }) {
+    return (
+        <div id='search-wrapper'>
+            <div id='image-wrapper'>
+                <FiSearch size={25} />
+            </div>
+            <input
+                type='search'
+                id='search-input-workspaces'
+                onInput={() => keyUpFilterFunc()}
+                placeholder='Search workspaces'
+                className='custom-placeholder'
+                autoComplete='off'
+            ></input>
+        </div>
+    )
 }
