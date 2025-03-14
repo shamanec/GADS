@@ -68,8 +68,8 @@ func DeleteWorkspace(c *gin.Context) {
 	id := c.Param("id")
 
 	// Check if workspace is default or has devices
-	if id == "default" || db.WorkspaceHasDevices(id) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete default workspace or workspace with devices"})
+	if id == "default" || db.WorkspaceHasDevices(id) || db.WorkspaceHasUsers(id) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete default workspace or workspace with devices/users"})
 		return
 	}
 
