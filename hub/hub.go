@@ -79,9 +79,10 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 
 	// Check if the default workspace exists
-	if _, err := db.GetDefaultWorkspace(); err != nil {
+	defaultWorkspace, err := db.GetDefaultWorkspace()
+	if err != nil {
 		// Create default workspace if none exist
-		defaultWorkspace := models.Workspace{
+		defaultWorkspace = models.Workspace{
 			Name:        "Default Workspace",
 			Description: "This is the default workspace.",
 			IsDefault:   true,
@@ -89,6 +90,24 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		err := db.AddWorkspace(&defaultWorkspace)
 		if err != nil {
 			log.Fatalf("Failed to create default workspace - %s", err)
+		}
+	}
+
+	// Associate users without workspaces to default workspace
+	users := db.GetUsers()
+	for _, user := range users {
+		// Skip admin users as they have access to all workspaces
+		if user.Role == "admin" {
+			continue
+		}
+
+		if len(user.WorkspaceIDs) == 0 {
+			// Update only the workspace_ids field
+			err := db.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
+			if err != nil {
+				log.Printf("Failed to associate user %s with default workspace - %s", user.Username, err)
+				continue
+			}
 		}
 	}
 
