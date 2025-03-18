@@ -69,6 +69,7 @@ func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	authGroup.PUT("/admin/workspaces", UpdateWorkspace)
 	authGroup.DELETE("/admin/workspaces/:id", DeleteWorkspace)
 	authGroup.GET("/admin/workspaces", GetWorkspaces)
+	authGroup.GET("/workspaces", GetUserWorkspaces)
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
 	appiumGroup.Any("/*path")

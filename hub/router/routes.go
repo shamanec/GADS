@@ -535,6 +535,13 @@ func DeviceInUseWS(c *gin.Context) {
 }
 
 func AvailableDevicesSSE(c *gin.Context) {
+	// Get workspace ID from query parameter
+	workspaceID := c.Query("workspaceId")
+	if workspaceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workspaceId is required"})
+		return
+	}
+
 	c.Stream(func(w io.Writer) bool {
 
 		devices.HubDevicesData.Mu.Lock()
@@ -547,23 +554,31 @@ func AvailableDevicesSSE(c *gin.Context) {
 
 		var deviceList = []*models.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
-			if devices.HubDevicesData.Devices[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && devices.HubDevicesData.Devices[key].Device.Connected {
-				devices.HubDevicesData.Devices[key].Available = false
-			} else if devices.HubDevicesData.Devices[key].Device.ProviderState != "live" {
-				devices.HubDevicesData.Devices[key].Available = false
-			} else {
-				devices.HubDevicesData.Devices[key].Available = true
+			device := devices.HubDevicesData.Devices[key]
+
+			// Filter by workspace
+			if device.Device.WorkspaceID != workspaceID {
+				continue
 			}
-			if devices.HubDevicesData.Devices[key].InUseTS > (time.Now().UnixMilli() - 3000) {
-				if !devices.HubDevicesData.Devices[key].InUse {
-					devices.HubDevicesData.Devices[key].InUse = true
+
+			if device.Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && device.Device.Connected {
+				device.Available = false
+			} else if device.Device.ProviderState != "live" {
+				device.Available = false
+			} else {
+				device.Available = true
+			}
+
+			if device.InUseTS > (time.Now().UnixMilli() - 3000) {
+				if !device.InUse {
+					device.InUse = true
 				}
 			} else {
-				if devices.HubDevicesData.Devices[key].InUse {
-					devices.HubDevicesData.Devices[key].InUse = false
+				if device.InUse {
+					device.InUse = false
 				}
 			}
-			deviceList = append(deviceList, devices.HubDevicesData.Devices[key])
+			deviceList = append(deviceList, device)
 		}
 		devices.HubDevicesData.Mu.Unlock()
 
