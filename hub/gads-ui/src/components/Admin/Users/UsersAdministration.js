@@ -16,11 +16,14 @@ import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { useDialog } from '../../../contexts/DialogContext'
 import Autocomplete from '@mui/material/Autocomplete';
+import Chip from '@mui/material/Chip';
+import { useSnackbar } from '../../../contexts/SnackBarContext';
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
     const [workspaces, setWorkspaces] = useState([])
     const { logout } = useContext(Auth)
+    const { showSnackbar } = useSnackbar();
 
     function handleGetUserData() {
         let url = `/admin/users`
@@ -28,16 +31,33 @@ export default function UsersAdministration() {
             .then(response => {
                 setUserData(response.data)
             })
-            .catch(error => {
+            .catch(e => {
+                const message = e.response?.data?.error || 'Failed to get users'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
             })
 
     }
 
+    function fetchWorkspaces() {
+        api.get('/admin/workspaces?page=1&limit=100')
+            .then(response => {
+                setWorkspaces(response.data.workspaces)
+            })
+            .catch(e => {
+                const message = e.response?.data?.error || 'Failed to get workspaces'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
+            })
+    }
+
     useEffect(() => {
-        const fetchWorkspaces = async () => {
-            const response = await api.get('/admin/workspaces?page=1&limit=100')
-            setWorkspaces(response.data.workspaces)
-        }
 
         handleGetUserData()
         fetchWorkspaces()
@@ -48,12 +68,12 @@ export default function UsersAdministration() {
             <Box id='outer-box'>
                 <Grid id='user-grid' container spacing={2}>
                     <Grid item>
-                        <NewUser handleGetUserData={handleGetUserData} workspaces={workspaces}></NewUser>
+                        <NewUser handleGetUserData={handleGetUserData} fetchWorkspaces={fetchWorkspaces} workspaces={workspaces}></NewUser>
                     </Grid>
                     {userData.map((user) => {
                         return (
                             <Grid item>
-                                <ExistingUser user={user} handleGetUserData={handleGetUserData} workspaces={workspaces}></ExistingUser>
+                                <ExistingUser user={user} handleGetUserData={handleGetUserData} fetchWorkspaces={fetchWorkspaces} workspaces={workspaces}></ExistingUser>
                             </Grid>
                         )
                     })
@@ -64,17 +84,24 @@ export default function UsersAdministration() {
     )
 }
 
-function NewUser({ handleGetUserData, workspaces }) {
+function NewUser({ handleGetUserData, fetchWorkspaces, workspaces }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [role, setRole] = useState('user')
     const [workspaceIds, setWorkspaceIds] = useState([])
     const [loading, setLoading] = useState(false)
     const [addUserStatus, setAddUserStatus] = useState(null)
+    const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true)
+    const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-        // Reset workspaceIds whenever workspaces change
-        setWorkspaceIds([]);
+        if (workspaces.length > 0) {
+            const defaultWorkspace = workspaces.filter(workspace => workspace.is_default);
+            if (defaultWorkspace.length > 0) {
+                setWorkspaceIds([defaultWorkspace[0].id]);
+            }
+            setIsWorkspacesLoading(false)
+        }
     }, [workspaces]);
 
     function handleAddUser(event) {
@@ -99,11 +126,18 @@ function NewUser({ handleGetUserData, workspaces }) {
             })
             .catch(e => {
                 setAddUserStatus('error')
+                const message = e.response?.data?.error || 'Failed to create new user'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
             })
             .finally(() => {
                 setTimeout(() => {
                     setLoading(false)
                     handleGetUserData()
+                    fetchWorkspaces()
                     setTimeout(() => {
                         setAddUserStatus(null)
                     }, 2000)
@@ -151,26 +185,39 @@ function NewUser({ handleGetUserData, workspaces }) {
                         </TextField>
                     </FormControl>
                     <FormControl fullWidth required>
-                        <Autocomplete
-                            multiple
-                            id="workspaces"
-                            options={workspaces}
-                            getOptionLabel={(option) => option.name}
-                            defaultValue={workspaces.length > 0 ? [workspaces[0]] : []}
-                            limitTags={2}
-                            onChange={(event, newValue) => {
-                                setWorkspaceIds(newValue.map(workspace => workspace.id))
-                            }}
-                            size="small"
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    variant="standard"
-                                    label="Workspaces"
-                                    placeholder="Select a workspace"
-                                />
-                            )}
-                        />
+                        {isWorkspacesLoading ? (
+                            <CircularProgress size={20} />
+                        ) : (
+                            <Autocomplete
+                                multiple
+                                id="workspaces"
+                                options={workspaces}
+                                getOptionLabel={(option) => option.name}
+                                value={workspaces.filter(workspace => workspaceIds.includes(workspace.id))}
+                                limitTags={2}
+                                size="small"
+                                onChange={(event, newValue) => {
+                                    setWorkspaceIds(newValue.map(workspace => workspace.id))
+                                }}
+                                freeSolo
+                                renderTags={(value, getTagProps) =>
+                                    value.map((option, index) => {
+                                        const { key, ...tagProps } = getTagProps({ index });
+                                        return (
+                                            <Chip variant="outlined" label={option.name} key={key} {...tagProps} />
+                                        );
+                                    })
+                                }
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        variant="standard"
+                                        label="Workspaces"
+                                        placeholder="Select a workspace"
+                                    />
+                                )}
+                            />
+                        )}
                     </FormControl>
                     <Button
                         variant='contained'
@@ -200,7 +247,7 @@ function NewUser({ handleGetUserData, workspaces }) {
     )
 }
 
-function ExistingUser({ user, handleGetUserData, workspaces }) {
+function ExistingUser({ user, handleGetUserData, fetchWorkspaces, workspaces }) {
     const [username, setUsername] = useState(user.username)
     const [password, setPassword] = useState('')
     const [role, setRole] = useState(user.role)
@@ -208,11 +255,14 @@ function ExistingUser({ user, handleGetUserData, workspaces }) {
     const [updateLoading, setUpdateLoading] = useState(false)
     const [updateUserStatus, setUpdateUserStatus] = useState(null)
     const [workspaceIds, setWorkspaceIds] = useState(user.workspace_ids)
+    const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true)
+    const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
-        // Reset workspaceId whenever workspaces change
-        setWorkspaceIds([]);
-    }, [workspaces]);
+        if (workspaces.length > 0 && workspaceIds) {
+            setIsWorkspacesLoading(false)
+        }
+    }, [workspaces, workspaceIds]);
 
     function handleUpdateUser(event) {
         setUpdateLoading(true)
@@ -231,13 +281,20 @@ function ExistingUser({ user, handleGetUserData, workspaces }) {
                 setUpdateUserStatus('success')
                 setPassword('')
             })
-            .catch(() => {
+            .catch((e) => {
                 setUpdateUserStatus('error')
+                const message = e.response?.data?.error || 'Failed to update user'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
             })
             .finally(() => {
                 setTimeout(() => {
                     setUpdateLoading(false)
                     handleGetUserData()
+                    fetchWorkspaces()
                     setTimeout(() => {
                         setUpdateUserStatus(null)
                     }, 2000)
@@ -249,10 +306,18 @@ function ExistingUser({ user, handleGetUserData, workspaces }) {
         let url = `/admin/user/${username}`
 
         api.delete(url)
-            .then(() =>
+            .then(() => {
                 handleGetUserData()
-            )
-            .catch()
+                fetchWorkspaces()
+            })
+            .catch((e) => {
+                const message = e.response?.data?.error || 'Failed to delete user'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
+            })
             .finally(() => {
                 setOpenAlert(false)
             })
@@ -308,26 +373,39 @@ function ExistingUser({ user, handleGetUserData, workspaces }) {
                     </FormControl>
                     {role !== 'admin' && (
                         <FormControl fullWidth required>
-                            <Autocomplete
-                                multiple
-                                id="workspaces"
-                                options={workspaces}
-                                getOptionLabel={(option) => option.name}
-                                defaultValue={workspaceIds.length > 0 ? workspaces.filter(workspace => workspaceIds.includes(workspace.id)) : []}
-                                limitTags={2}
-                                size="small"
-                                onChange={(event, newValue) => {
-                                    setWorkspaceIds(newValue.map(workspace => workspace.id))
-                                }}
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        variant="standard"
-                                        label="Workspaces"
-                                        placeholder="Select a workspace"
-                                    />
-                                )}
-                            />
+                            {isWorkspacesLoading ? (
+                                <CircularProgress size={20} />
+                            ) : (
+                                <Autocomplete
+                                    multiple
+                                    id="workspaces"
+                                    options={workspaces}
+                                    getOptionLabel={(option) => option.name}
+                                    value={workspaces.filter(workspace => workspaceIds.includes(workspace.id))}
+                                    limitTags={2}
+                                    size="small"
+                                    onChange={(event, newValue) => {
+                                        setWorkspaceIds(newValue.map(workspace => workspace.id))
+                                    }}
+                                    freeSolo
+                                    renderTags={(value, getTagProps) =>
+                                        value.map((option, index) => {
+                                            const { key, ...tagProps } = getTagProps({ index });
+                                            return (
+                                                <Chip variant="outlined" label={option.name} key={key} {...tagProps} />
+                                            );
+                                        })
+                                    }
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            variant="standard"
+                                            label="Workspaces"
+                                            placeholder="Select a workspace"
+                                        />
+                                    )}
+                                />
+                            )}
                         </FormControl>
                     )}
                     <Button
