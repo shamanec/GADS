@@ -53,10 +53,17 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
     // Handles orientation/resizing only
     useEffect(() => {
+        const handleResize = () => {
+            // Only update if the ref still exists
+            if (videoDimensionsRef.current) {
+                updateCanvasDimensions(isPortrait)
+            }
+        }
+
         updateCanvasDimensions(isPortrait)
 
-        window.addEventListener("resize", updateCanvasDimensions(isPortrait))
-        return () => window.removeEventListener("resize", updateCanvasDimensions(isPortrait))
+        window.addEventListener("resize", handleResize)
+        return () => window.removeEventListener("resize", handleResize)
     }, [])
 
     // Handles starting/stopping the WebRTC connection
