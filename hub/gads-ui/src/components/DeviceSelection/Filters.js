@@ -58,14 +58,22 @@ export function WorkspaceSelector({ selectedWorkspace, setSelectedWorkspace }) {
     const fetchWorkspaces = async () => {
         try {
             const response = await api.get('/workspaces?page=1&limit=10&search=');
-            setWorkspaces(response.data.workspaces);
+            
+            // Sort workspaces to ensure default workspace is always first
+            const sortedWorkspaces = [...response.data.workspaces].sort((a, b) => {
+                if (a.is_default) return -1;
+                if (b.is_default) return 1;
+                return 0;
+            });
+            
+            setWorkspaces(sortedWorkspaces);
             
             // Find the default workspace
-            const defaultWorkspace = response.data.workspaces.find(ws => ws.is_default);
+            const defaultWorkspace = sortedWorkspaces.find(ws => ws.is_default);
             if (defaultWorkspace) {
                 setSelectedWorkspace(defaultWorkspace.id);
-            } else if (response.data.workspaces.length > 0) {
-                setSelectedWorkspace(response.data.workspaces[0].id);
+            } else if (sortedWorkspaces.length > 0) {
+                setSelectedWorkspace(sortedWorkspaces[0].id);
             }
         } catch (error) {
             console.error('Failed to fetch workspaces:', error);
