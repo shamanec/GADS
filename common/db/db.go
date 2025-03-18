@@ -576,3 +576,19 @@ func UpdateDeviceStreamSettings(udid string, settings models.DeviceStreamSetting
 	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
 	return err
 }
+
+func UpdateUserWorkspaces(username string, workspaceIDs []string) error {
+	update := bson.M{
+		"$set": bson.M{
+			"workspace_ids": workspaceIDs,
+		},
+	}
+	coll := mongoClient.Database("gads").Collection("users")
+	filter := bson.D{{Key: "username", Value: username}}
+
+	_, err := coll.UpdateOne(mongoClientCtx, filter, update)
+	if err != nil {
+		return err
+	}
+	return nil
+}
