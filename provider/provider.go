@@ -2,6 +2,7 @@ package provider
 
 import (
 	"GADS/common/db"
+	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
@@ -49,6 +50,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	// Create a connection to Mongo
 	db.InitMongoClient(mongoDb)
 	defer db.MongoCtxCancel()
+
 	// Set up the provider configuration
 	config.SetupConfig(nickname, providerFolder, hubAddress)
 	config.ProviderConfig.OS = runtime.GOOS
@@ -58,6 +60,23 @@ func StartProvider(flags *pflag.FlagSet) {
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
+
+	// Check if the default workspace exists
+	defaultWorkspace, err := db.GetDefaultWorkspace()
+	if err != nil {
+		// Create default workspace if none exist
+		defaultWorkspace = models.Workspace{
+			Name:        "Default Workspace",
+			Description: "This is the default workspace.",
+			IsDefault:   true,
+		}
+		defaultWorkspace.GenerateUUID()
+		err := db.AddWorkspace(&defaultWorkspace)
+		if err != nil {
+			log.Fatalf("Failed to create default workspace - %s", err)
+		}
+		logger.ProviderLogger.LogInfo("provider_setup", "Created default workspace")
+	}
 
 	logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is installed and available on the host")
 	if !providerutil.AppiumAvailable() {

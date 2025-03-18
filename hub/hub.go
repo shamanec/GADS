@@ -111,6 +111,19 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		}
 	}
 
+	// Associate devices without workspace to default workspace
+	devices := db.GetDBDeviceNew()
+	for _, device := range devices {
+		if device.WorkspaceID == "" {
+			device.WorkspaceID = defaultWorkspace.ID
+			err := db.UpsertDeviceDB(&device)
+			if err != nil {
+				log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
+				continue
+			}
+		}
+	}
+
 	err = setupUIFiles(uiFiles)
 	if err != nil {
 		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", filesTempDir, err)

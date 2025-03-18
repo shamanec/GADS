@@ -2,6 +2,7 @@ package devices
 
 import (
 	"context"
+	"log"
 
 	"GADS/common/db"
 	"GADS/common/models"
@@ -42,6 +43,11 @@ func getDBProviderDevices() map[string]*models.Device {
 		if dbDevice.WorkspaceID == "" {
 			if defaultWorkspace, err := db.GetDefaultWorkspace(); err == nil {
 				dbDevice.WorkspaceID = defaultWorkspace.ID
+				// Persist the workspace association in the database
+				err := db.UpsertDeviceDB(dbDevice)
+				if err != nil {
+					log.Printf("Failed to associate device %s with default workspace - %s", dbDevice.UDID, err)
+				}
 			} else {
 				return nil
 			}
