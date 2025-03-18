@@ -17,6 +17,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     const ws = useRef(null)
     const pc = useRef(null)
     const videoRef = useRef(null)
+    const videoDimensionsRef = useRef()
+    const [remoteStream, setRemoteStream] = useState(null)
 
     const { showSnackbar } = useSnackbar()
     const [isPortrait, setIsPortrait] = useState(true)
@@ -37,54 +39,55 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
     let streamUrl = ''
     if (deviceData.os === 'ios') {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/ios-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/ios-stream-mjpeg`
     } else {
-        // streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
-        streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
+        streamUrl = `http://192.168.1.41:10000/device/${deviceData.udid}/android-stream-mjpeg`
+        // streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
     const handleOrientationButtonClick = (isPortrait) => {
         setIsPortrait(isPortrait)
+        updateCanvasDimensions(isPortrait)
     }
 
+    // Handles orientation/resizing only
     useEffect(() => {
-        const imgElement = document.getElementById('image-stream')
+        updateCanvasDimensions(isPortrait)
 
-        // Temporarily remove the stream source
+        window.addEventListener("resize", updateCanvasDimensions(isPortrait))
+        return () => window.removeEventListener("resize", updateCanvasDimensions(isPortrait))
+    }, [])
+
+    // Handles starting/stopping the WebRTC connection
+    useEffect(() => {
         if (!useWebRTCVideo) {
-            imgElement.src = ''
+            const imgElement = document.getElementById('image-stream')
+            // If MJPEG, just set the <img> src once
+            if (shouldShowStream) {
+                imgElement.src = streamUrl
+            } else {
+                imgElement.src = ""
+            }
+            return;
         }
 
-        updateCanvasDimensions()
-
-        // Reapply the stream URL after the resize is complete
-        if (!useWebRTCVideo) {
-            imgElement.src = shouldShowStream ? streamUrl : ''
-        }
-
-
-        // Set resize listener
-        window.addEventListener('resize', updateCanvasDimensions)
-
-        if (useWebRTCVideo) {
+        if (shouldShowStream) {
             setupWebRTCVideo()
         }
 
         return () => {
-            if (ws.current) {
-                ws.current.close()
-            }
-            if (pc.current) {
-                pc.current.close()
-            }
+            // Only tear down if user hides the stream or unmounts
+            if (ws.current) ws.current.close()
+            if (pc.current) pc.current.close()
+        };
+    }, [useWebRTCVideo, shouldShowStream])
 
-            window.stop()
-            window.removeEventListener('resize', updateCanvasDimensions)
-        }
-    }, [shouldShowStream])
+    useEffect(() => {
+        videoRef.current.srcObject = remoteStream
+    }, [remoteStream, videoRef, isPortrait])
 
-    const updateCanvasDimensions = () => {
+    const updateCanvasDimensions = (isPortrait) => {
         let calculatedWidth, calculatedHeight
         if (isPortrait) {
             calculatedHeight = window.innerHeight * 0.7
@@ -93,6 +96,10 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             calculatedWidth = window.innerWidth * 0.4
             calculatedHeight = calculatedWidth / deviceLandscapeScreenRatio
         }
+
+
+        videoDimensionsRef.current.style.width = calculatedWidth + 'px'
+        videoDimensionsRef.current.style.height = calculatedHeight + 'px'
 
         setCanvasDimensions({
             width: calculatedWidth,
@@ -109,8 +116,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         if (protocol === 'https:') {
             wsType = 'wss'
         }
-        let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
-        // let socketUrl = `${wsType}://192.168.1.41:10000/device/${udid}/webrtc`
+        // let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
+        let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/webrtc`
         ws.current = new WebSocket(socketUrl);
 
         ws.current.onopen = () => {
@@ -155,11 +162,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             if (videoRef.current && event.streams.length > 0) {
                 console.log('WebRTC: There are track streams available!')
                 videoRef.current.srcObject = event.streams[0]
+                setRemoteStream(event.streams[0])
                 console.log("WebRTC: ✅ Remote video stream set")
-                // event.track.enabled = true
-                console.log('WebRTC: Attempting to force video playback')
-                // videoRef.current.play().catch(e => console.error("🔴 Failed to play video:", e))
-
             } else {
                 console.warn("WebRTC: No video track in event");
             }
@@ -188,16 +192,15 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             if (transceiver.setCodecPreferences) {
                 console.log('WebRTC: Browser supports setting WebRTC codec preferences, trying to force H.264.')
                 const capabilities = RTCRtpReceiver.getCapabilities("video");
-                const h264Codecs = capabilities.codecs.filter(codec =>
-                    codec.mimeType.toLowerCase() === "video/h264"
+                const foundCodecs = capabilities.codecs.filter(codec =>
+                    codec.mimeType.toLowerCase() === `video/${webRTCVideoCodec}`
                 )
-                console.log("CODECS")
-                console.log(h264Codecs)
-                // Force the transceiver to prefer H.264 if available
-                if (h264Codecs.length) {
-                    transceiver.setCodecPreferences(h264Codecs)
+                console.log(`WebRTC: Found codecs with preference for ${webRTCVideoCodec}`)
+                console.log(foundCodecs)
+                if (foundCodecs.length) {
+                    transceiver.setCodecPreferences(foundCodecs)
                 } else {
-                    console.warn("WebRTC: H.264 not supported in this browser's codecs.")
+                    console.warn(`WebRTC: '${webRTCVideoCodec}' not supported in this browser's codecs.`)
                 }
             }
         }
@@ -209,8 +212,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         })
 
         if (isFirefox() || isSafari()) {
-            console.log('WebRTC: Trying to prefer H.264 codec for Firefox by re-writing offer SDP')
-            offer.sdp = preferCodec(offer.sdp, "H264")
+            console.log(`WebRTC: Trying to prefer '${webRTCVideoCodec}' codec for Firefox/Safari by re-writing offer SDP`)
+            offer.sdp = preferCodec(offer.sdp, `${webRTCVideoCodec}`.toUpperCase)
         }
 
         await pc.current.setLocalDescription(offer)
@@ -229,8 +232,6 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         let mLineIndex = -1
         let codecPayloadType = null
 
-        console.log("LINES")
-        console.log(lines)
         for (let i = 0; i < lines.length; i++) {
             if (lines[i].startsWith("m=video")) {
                 mLineIndex = i
@@ -246,8 +247,6 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             return sdp;
         }
 
-        console.log("CHANGING TO PAYLOAD TYPE " + codecPayloadType)
-
         // const mLineParts = lines[mLineIndex].split(" ");
         const newMLine = [lines[mLineIndex].split(" ")[0], lines[mLineIndex].split(" ")[1], lines[mLineIndex].split(" ")[2], codecPayloadType]
             .concat(lines[mLineIndex].split(" ").slice(3).filter(pt => pt !== codecPayloadType))
@@ -256,18 +255,22 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         return lines.join("\r\n")
     };
 
+    // Check for specific keyword in browser agent
     function agentHas(keyword) {
         return navigator.userAgent.toLowerCase().search(keyword.toLowerCase()) > -1;
     }
 
+    // Check if current browser is Safari
     function isSafari() {
         return (!!window.ApplePaySetupFeature || !!window.safari) && agentHas("Safari") && !agentHas("Chrome") && !agentHas("CriOS");
     }
 
+    // Check if current browser is Chrome
     function isChrome() {
         return agentHas("CriOS") || agentHas("Chrome") || !!window.chrome;
     }
 
+    // Check if current browser is Firefox
     function isFirefox() {
         return agentHas("Firefox") || agentHas("FxiOS") || agentHas("Focus");
     }
@@ -301,10 +304,9 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                     }}
                 >{deviceData.model}</h3>
                 <div
+                    ref={videoDimensionsRef}
                     id='stream-div'
                     style={{
-                        width: canvasDimensions.width,
-                        height: canvasDimensions.height,
                         position: "relative",
                     }}
                 >
@@ -514,11 +516,9 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         return (
             <canvas
                 id='actions-canvas'
-                width={canvasDimensions.width + 'px'}
-                height={canvasDimensions.height + 'px'}
                 onMouseDown={handleMouseDown}
                 onMouseUp={handleMouseUp}
-                style={{ position: 'absolute', zIndex: 2 }}
+                style={{ position: 'absolute', zIndex: 2, width: '100%', height: '100%' }}
             ></canvas>
         )
     }
@@ -527,8 +527,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         return (
             <img
                 id='image-stream'
-                width={canvasDimensions.width + 'px'}
-                height={canvasDimensions.height + 'px'}
+                width="100%"
+                height="100%"
                 style={{ display: 'block' }}
                 src={shouldShowStream ? streamUrl : ''}
             ></img>
@@ -537,7 +537,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
     function VideoStream() {
         return (
-            <video ref={videoRef} autoPlay playsInline width={canvasDimensions.width + 'px'} height={canvasDimensions.height + 'px'} style={{ background: "black", display: 'block', zIndex: 1 }} />
+            <video ref={videoRef} autoPlay playsInline style={{ background: "black", display: 'block', zIndex: 1, width: '100%', height: '100%' }} />
         )
     }
 
