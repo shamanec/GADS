@@ -150,3 +150,51 @@ func GetWorkspacesPaginated(page, limit int, search string) ([]models.Workspace,
 
 	return workspaces, count
 }
+
+func GetUserWorkspacesPaginated(username string, page, limit int, search string) ([]models.Workspace, int64) {
+	var workspaces []models.Workspace
+	collection := mongoClient.Database("gads").Collection("workspaces")
+
+	// Calculate skip for pagination
+	skip := (page - 1) * limit
+
+	// Get user's workspace IDs from users collection
+	userCollection := mongoClient.Database("gads").Collection("users")
+	var user models.User
+	err := userCollection.FindOne(mongoClientCtx, bson.M{"username": username}).Decode(&user)
+	if err != nil {
+		return workspaces, 0
+	}
+
+	// Build filter for workspaces
+	filter := bson.M{"_id": bson.M{"$in": user.WorkspaceIDs}}
+	if search != "" {
+		filter["name"] = bson.M{"$regex": search, "$options": "i"}
+	}
+
+	// Get workspaces with pagination
+	cursor, err := collection.Find(mongoClientCtx, filter,
+		options.Find().
+			SetSkip(int64(skip)).
+			SetLimit(int64(limit)))
+	if err != nil {
+		return workspaces, 0
+	}
+	defer cursor.Close(mongoClientCtx)
+
+	for cursor.Next(mongoClientCtx) {
+		var workspace models.Workspace
+		if err := cursor.Decode(&workspace); err != nil {
+			continue
+		}
+		workspaces = append(workspaces, workspace)
+	}
+
+	// Get total count
+	count, err := collection.CountDocuments(mongoClientCtx, filter)
+	if err != nil {
+		return workspaces, 0
+	}
+
+	return workspaces, count
+}

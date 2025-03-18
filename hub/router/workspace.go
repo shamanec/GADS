@@ -3,6 +3,7 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/hub/auth"
 	"net/http"
 	"strconv"
 
@@ -99,4 +100,46 @@ func GetWorkspaces(c *gin.Context) {
 
 	workspaces, totalCount := db.GetWorkspacesPaginated(page, limit, searchStr)
 	c.JSON(http.StatusOK, gin.H{"workspaces": workspaces, "total": totalCount})
+}
+
+func GetUserWorkspaces(c *gin.Context) {
+	// Get session ID from header
+	sessionID := c.GetHeader("X-Auth-Token")
+
+	// Get user from session
+	session, exists := auth.GetSession(sessionID)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	pageStr := c.Query("page")
+	limitStr := c.Query("limit")
+	searchStr := c.Query("search")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10 // Default limit
+	}
+
+	var workspaces []models.Workspace
+	var totalCount int64
+
+	// If user is admin, return all workspaces
+	if session.User.Role == "admin" {
+		workspaces, totalCount = db.GetWorkspacesPaginated(page, limit, searchStr)
+	} else {
+		// For non-admin users, only return workspaces associated with the user
+		workspaces, totalCount = db.GetUserWorkspacesPaginated(session.User.Username, page, limit, searchStr)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"workspaces": workspaces,
+		"total":      totalCount,
+	})
 }

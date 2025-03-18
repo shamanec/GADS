@@ -84,6 +84,9 @@ func GetLatestDBDevices() {
 				if hubDevice.Device.Provider != dbDevice.Provider {
 					hubDevice.Device.Provider = dbDevice.Provider
 				}
+				if hubDevice.Device.WorkspaceID != dbDevice.WorkspaceID {
+					hubDevice.Device.WorkspaceID = dbDevice.WorkspaceID
+				}
 			} else {
 				HubDevicesData.Devices[dbDevice.UDID] = &models.LocalHubDevice{
 					Device:                   dbDevice,
