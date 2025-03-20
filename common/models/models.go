@@ -9,7 +9,6 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -151,9 +150,4 @@ type Workspace struct {
 	Name        string `json:"name" bson:"name"`
 	Description string `json:"description" bson:"description"`
 	IsDefault   bool   `json:"is_default" bson:"is_default"`
-}
-
-// GenerateUUID generates a new UUID for the workspace
-func (w *Workspace) GenerateUUID() {
-	w.ID = uuid.New().String()
 }
