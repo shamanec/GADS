@@ -216,8 +216,8 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if user.Username == "" || user.Password == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
-		BadRequest(c, "Empty or invalid body")
+	if user.Username == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
+		BadRequest(c, "Username cannot be empty and non-admin users must have at least one workspace")
 		return
 	}
 
