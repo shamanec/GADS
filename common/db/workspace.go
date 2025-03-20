@@ -67,14 +67,7 @@ func GetWorkspaces() []models.Workspace {
 	}
 	defer cursor.Close(mongoClientCtx)
 
-	for cursor.Next(mongoClientCtx) {
-		var workspace models.Workspace
-		if err := cursor.Decode(&workspace); err != nil {
-			continue
-		}
-		workspaces = append(workspaces, workspace)
-	}
-
+	cursor.All(mongoClientCtx, &workspaces)
 	return workspaces
 }
 
