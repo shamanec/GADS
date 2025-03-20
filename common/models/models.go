@@ -34,7 +34,7 @@ func (a ByUDID) Less(i, j int) bool { return a[i].UDID < a[j].UDID }
 
 type User struct {
 	Username     string   `json:"username" bson:"username"`
-	Password     string   `json:"password" bson:"password"`
+	Password     string   `json:"password" bson:"password,omitempty"`
 	Role         string   `json:"role,omitempty" bson:"role"`
 	ID           string   `json:"_id" bson:"_id,omitempty"`
 	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids"`
