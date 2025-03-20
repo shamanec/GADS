@@ -21,7 +21,12 @@ func AddWorkspace(workspace *models.Workspace) error {
 func UpdateWorkspace(workspace *models.Workspace) error {
 	collection := mongoClient.Database("gads").Collection("workspaces")
 	filter := bson.M{"_id": workspace.ID}
-	update := bson.M{"$set": workspace}
+	update := bson.M{
+		"$set": bson.M{
+			"name":        workspace.Name,
+			"description": workspace.Description,
+		},
+	}
 	_, err := collection.UpdateOne(mongoClientCtx, filter, update)
 	if err != nil {
 		return err
