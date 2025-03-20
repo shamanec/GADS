@@ -4,19 +4,20 @@ import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, Ta
 import { useSnackbar } from '../../../contexts/SnackBarContext';
 import './WorkspacesAdministration.css';
 import { FiSearch } from 'react-icons/fi'
+import { useDialog } from '../../../contexts/DialogContext';
 
 export default function WorkspacesAdministration() {
     const [workspaces, setWorkspaces] = useState([]);
     const [loading, setLoading] = useState(false);
     const [openModal, setOpenModal] = useState(false);
     const [currentWorkspace, setCurrentWorkspace] = useState(null);
-    const [openDeleteModal, setOpenDeleteModal] = useState(false);
     const [newWorkspace, setNewWorkspace] = useState({ name: '', description: '' });
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalCount, setTotalCount] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const { showSnackbar } = useSnackbar();
+    const { showDialog, hideDialog } = useDialog();
 
     useEffect(() => {
         fetchWorkspaces();
@@ -83,20 +84,29 @@ export default function WorkspacesAdministration() {
     };
 
     const handleDeleteWorkspace = (workspace) => {
-        setCurrentWorkspace(workspace);
-        setOpenDeleteModal(true);
+        showDialog('deleteWorkspaceAlert', {
+            title: 'Delete workspace from DB?',
+            content: `Workspace: ${workspace.name}`,
+            actions: [
+                { label: 'Cancel', onClick: () => hideDialog() },
+                { label: 'Confirm', onClick: () => {
+                    handleConfirmDelete(workspace);
+                    hideDialog();
+                }}
+            ],
+            isCloseable: false
+        });
     };
 
-    const handleConfirmDelete = async () => {
+    const handleConfirmDelete = async (workspace) => {
         try {
-            await api.delete(`/admin/workspaces/${currentWorkspace.id}`);
+            await api.delete(`/admin/workspaces/${workspace.id}`);
             showSnackbar({
                 message: 'Workspace deleted successfully!',
                 severity: 'success',
                 duration: 3000,
             });
             fetchWorkspaces();
-            setOpenDeleteModal(false);
         } catch (error) {
             showSnackbar({
                 message: error.response?.data?.error || 'Failed to delete workspace.',
@@ -104,11 +114,6 @@ export default function WorkspacesAdministration() {
                 duration: 3000,
             });
         }
-    };
-
-    const handleCloseDeleteModal = () => {
-        setOpenDeleteModal(false);
-        setCurrentWorkspace(null);
     };
 
     const handleAddWorkspace = () => {
@@ -240,29 +245,6 @@ export default function WorkspacesAdministration() {
                                     Cancel
                                 </Button>
                             </Stack>
-                        </Stack>
-                    </Box>
-                </Modal>
-
-                <Modal open={openDeleteModal} onClose={handleCloseDeleteModal}>
-                    <Box sx={{
-                        padding: 4,
-                        backgroundColor: 'white',
-                        borderRadius: 2,
-                        boxShadow: 3,
-                        maxWidth: 400,
-                        margin: 'auto',
-                        mt: 5
-                    }}>
-                        <h2>Confirm Deletion</h2>
-                        <p>Are you sure you want to delete the workspace "{currentWorkspace?.name}"?</p>
-                        <Stack direction='row' spacing={1}>
-                            <Button variant='contained' color='error' onClick={handleConfirmDelete}>
-                                Delete
-                            </Button>
-                            <Button variant='outlined' onClick={handleCloseDeleteModal}>
-                                Cancel
-                            </Button>
                         </Stack>
                     </Box>
                 </Modal>
