@@ -70,7 +70,6 @@ func StartProvider(flags *pflag.FlagSet) {
 			Description: "This is the default workspace.",
 			IsDefault:   true,
 		}
-		defaultWorkspace.GenerateUUID()
 		err := db.AddWorkspace(&defaultWorkspace)
 		if err != nil {
 			log.Fatalf("Failed to create default workspace - %s", err)

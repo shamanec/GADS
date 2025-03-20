@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func CreateWorkspace(c *gin.Context) {
@@ -17,10 +18,9 @@ func CreateWorkspace(c *gin.Context) {
 		return
 	}
 
-	workspace.GenerateUUID()
 	workspace.IsDefault = false
 
-	// Validate unique ID
+	// Validate unique name
 	existingWorkspaces := db.GetWorkspaces()
 	for _, ws := range existingWorkspaces {
 		if ws.Name == workspace.Name {
@@ -68,13 +68,22 @@ func UpdateWorkspace(c *gin.Context) {
 func DeleteWorkspace(c *gin.Context) {
 	id := c.Param("id")
 
-	// Check if workspace is default or has devices
-	if id == "default" || db.WorkspaceHasDevices(id) || db.WorkspaceHasUsers(id) {
+	workspace, err := db.GetWorkspaceByID(id)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Workspace not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspace"})
+		return
+	}
+
+	if workspace.IsDefault || db.WorkspaceHasDevices(id) || db.WorkspaceHasUsers(id) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete default workspace or workspace with devices/users"})
 		return
 	}
 
-	err := db.DeleteWorkspace(id)
+	err = db.DeleteWorkspace(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete workspace"})
 		return

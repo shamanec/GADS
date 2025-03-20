@@ -5,29 +5,36 @@ import (
 	"context"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func AddWorkspace(workspace *models.Workspace) error {
-	workspace.GenerateUUID()
 	collection := mongoClient.Database("gads").Collection("workspaces")
-	_, err := collection.InsertOne(mongoClientCtx, workspace)
+	result, err := collection.InsertOne(mongoClientCtx, workspace)
 	if err != nil {
 		return err
 	}
+	workspace.ID = result.InsertedID.(primitive.ObjectID).Hex()
 	return nil
 }
 
 func UpdateWorkspace(workspace *models.Workspace) error {
 	collection := mongoClient.Database("gads").Collection("workspaces")
-	filter := bson.M{"_id": workspace.ID}
+
+	objectID, err := primitive.ObjectIDFromHex(workspace.ID)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"_id": objectID}
 	update := bson.M{
 		"$set": bson.M{
 			"name":        workspace.Name,
 			"description": workspace.Description,
 		},
 	}
-	_, err := collection.UpdateOne(mongoClientCtx, filter, update)
+	_, err = collection.UpdateOne(mongoClientCtx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -36,8 +43,14 @@ func UpdateWorkspace(workspace *models.Workspace) error {
 
 func DeleteWorkspace(id string) error {
 	collection := mongoClient.Database("gads").Collection("workspaces")
-	filter := bson.M{"_id": id}
-	_, err := collection.DeleteOne(mongoClientCtx, filter)
+
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"_id": objectID}
+	_, err = collection.DeleteOne(mongoClientCtx, filter)
 	if err != nil {
 		return err
 	}
@@ -88,9 +101,14 @@ func WorkspaceHasUsers(id string) bool {
 func GetWorkspaceByID(id string) (models.Workspace, error) {
 	var workspace models.Workspace
 	collection := mongoClient.Database("gads").Collection("workspaces")
-	filter := bson.M{"_id": id}
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return models.Workspace{}, err
+	}
 
-	err := collection.FindOne(context.TODO(), filter).Decode(&workspace)
+	filter := bson.M{"_id": objectID}
+
+	err = collection.FindOne(context.TODO(), filter).Decode(&workspace)
 	if err != nil {
 		return models.Workspace{}, err
 	}
