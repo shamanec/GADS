@@ -62,8 +62,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
         updateCanvasDimensions(isPortrait)
 
-        window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
     }, [])
 
     // Handles starting/stopping the WebRTC connection
@@ -74,7 +74,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             if (shouldShowStream) {
                 imgElement.src = streamUrl
             } else {
-                imgElement.src = ""
+                imgElement.src = ''
             }
             return;
         }
@@ -117,8 +117,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     }
 
     function setupWebRTCVideo() {
-        const caps = RTCRtpSender.getCapabilities("video");
-        console.debug("WebRTC: Browser video capabilities:", caps);
+        const caps = RTCRtpSender.getCapabilities('video')
+        console.debug(`WebRTC: Browser video capabilities: ${caps}`)
 
         const protocol = window.location.protocol
         let wsType = 'ws'
@@ -127,18 +127,18 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         }
         let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
         // let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/webrtc`
-        ws.current = new WebSocket(socketUrl);
+        ws.current = new WebSocket(socketUrl)
 
         ws.current.onopen = () => {
-            console.log("WebRTC: Connected to signalling websocket server")
+            console.log('WebRTC: Connected to signalling websocket server')
             sendOffer()
         };
 
         ws.current.onmessage = (event) => {
             const data = JSON.parse(event.data)
-            console.log('WebRTC: Received from signalling server:', data)
+            console.log(`WebRTC: Received from signalling server: ${data}`)
 
-            if (data.type === "answer" && pc.current) {
+            if (data.type === 'answer' && pc.current) {
                 console.log('WebRTC: Received answer from signalling server')
                 pc.current.setRemoteDescription(new RTCSessionDescription(data))
             } else if (data.type === "candidate" && pc.current) {
@@ -158,43 +158,43 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
             console.log(ws.current)
             console.log(ws.current.readyState)
-            console.error("WebRTC: Provider WebRTC signalling server webSocket is not connected!")
+            console.error('WebRTC: Provider WebRTC signalling server webSocket is not connected!')
             return;
         }
 
         pc.current = new RTCPeerConnection({
-            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         })
         // pc.current = new RTCPeerConnection()
 
         pc.current.ontrack = (event) => {
-            console.log('WebRTC: Received remote track: ', event)
+            console.log(`WebRTC: Received remote track: ${event}`)
             if (videoRef.current && event.streams.length > 0) {
                 console.log('WebRTC: There are track streams available!')
                 videoRef.current.srcObject = event.streams[0]
                 setRemoteStream(event.streams[0])
-                console.log("WebRTC: ✅ Remote video stream set")
+                console.log('WebRTC: ✅ Remote video stream set')
             } else {
-                console.warn("WebRTC: No video track in event");
+                console.warn('WebRTC: No video track in event')
             }
         };
 
         pc.current.onicecandidate = (event) => {
             if (event.candidate) {
                 const message = JSON.stringify({
-                    type: "candidate",
+                    type: 'candidate',
                     candidate: event.candidate
                 });
                 ws.current.send(message);
-                console.log("WebRTC: Sent ICE candidate to signalling server: ", message)
+                console.log(`WebRTC: Sent ICE candidate to signalling server: ${message}`)
             }
         };
 
         pc.current.oniceconnectionstatechange = () => {
-            console.log("WebRTC: ICE connection state: ", pc.current.iceConnectionState);
+            console.log(`WebRTC: ICE connection state: ${pc.current.iceConnectionState}`)
         };
 
-        const transceiver = pc.current.addTransceiver("video", {
+        const transceiver = pc.current.addTransceiver('video', {
             direction: "recvonly"
         })
 
@@ -229,21 +229,21 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         await pc.current.setLocalDescription(offer)
 
         const message = JSON.stringify({
-            type: "offer",
+            type: 'offer',
             sdp: offer.sdp
-        });
+        })
 
         ws.current.send(message)
-        console.log("Offer sent:", message)
+        console.log(`Offer sent: ${message}`)
     };
 
-    const preferCodec = (sdp, codec = "VP9") => {
-        const lines = sdp.split("\r\n")
+    const preferCodec = (sdp, codec = 'VP9') => {
+        const lines = sdp.split('\r\n')
         let mLineIndex = -1
         let codecPayloadType = null
 
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].startsWith("m=video")) {
+            if (lines[i].startsWith('m=video')) {
                 mLineIndex = i
             }
             if (lines[i].toLowerCase().includes(`a=rtpmap`) && lines[i].includes(codec)) {
@@ -254,35 +254,35 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
         if (mLineIndex === -1 || codecPayloadType === null) {
             console.warn(`WebRTC: ${codec} codec not found in SDP`)
-            return sdp;
+            return sdp
         }
 
         // const mLineParts = lines[mLineIndex].split(" ");
-        const newMLine = [lines[mLineIndex].split(" ")[0], lines[mLineIndex].split(" ")[1], lines[mLineIndex].split(" ")[2], codecPayloadType]
+        const newMLine = [lines[mLineIndex].split(' ')[0], lines[mLineIndex].split(' ')[1], lines[mLineIndex].split(' ')[2], codecPayloadType]
             .concat(lines[mLineIndex].split(" ").slice(3).filter(pt => pt !== codecPayloadType))
 
-        lines[mLineIndex] = newMLine.join(" ")
+        lines[mLineIndex] = newMLine.join(' ')
         return lines.join("\r\n")
     };
 
     // Check for specific keyword in browser agent
     function agentHas(keyword) {
-        return navigator.userAgent.toLowerCase().search(keyword.toLowerCase()) > -1;
+        return navigator.userAgent.toLowerCase().search(keyword.toLowerCase()) > -1
     }
 
     // Check if current browser is Safari
     function isSafari() {
-        return (!!window.ApplePaySetupFeature || !!window.safari) && agentHas("Safari") && !agentHas("Chrome") && !agentHas("CriOS");
+        return (!!window.ApplePaySetupFeature || !!window.safari) && agentHas('Safari') && !agentHas('Chrome') && !agentHas('CriOS')
     }
 
     // Check if current browser is Chrome
     function isChrome() {
-        return agentHas("CriOS") || agentHas("Chrome") || !!window.chrome;
+        return agentHas('CriOS') || agentHas('Chrome') || !!window.chrome
     }
 
     // Check if current browser is Firefox
     function isFirefox() {
-        return agentHas("Firefox") || agentHas("FxiOS") || agentHas("Focus");
+        return agentHas('Firefox') || agentHas('FxiOS') || agentHas('Focus')
     }
 
     const showCustomSnackbarError = (message) => {
@@ -317,7 +317,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                     ref={videoDimensionsRef}
                     id='stream-div'
                     style={{
-                        position: "relative",
+                        position: 'relative',
                     }}
                 >
                     <Canvas></Canvas>
