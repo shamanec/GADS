@@ -43,6 +43,7 @@
 - 📡 **Remote Control**
   - iOS streaming via [WebDriverAgent](https://github.com/appium/WebDriverAgent)
   - Android streaming via [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
+  - Experimental - Android WebRTC video stream - [notes](./docs/provider.md#android-webrtc-video---experimental)
   - Comprehensive Appium-based device interaction
 - 🧪 **Testing Integration**
   - Individual Appium server endpoints

@@ -237,3 +237,71 @@ func SetupWebDriverAgentFile() error {
 
 	return nil
 }
+
+func SetupGADSWebRTCAndroidApkFile() error {
+	mongoDb := db.MongoClient().Database("gads")
+	bucket, err := gridfs.NewBucket(mongoDb, nil)
+
+	// Create a filter and search the bucket for the WebDriverAgent.ipa file
+	filter := bson.D{{Key: "filename", Value: "gads-webrtc.apk"}}
+	cursor, err := bucket.Find(filter)
+	if err != nil {
+		return fmt.Errorf("Failed to get cursor from DB - %s", err)
+	}
+
+	// Try to get the found files from the cursor
+	type gridfsFile struct {
+		Name string `bson:"filename"`
+		ID   string `bson:"_id"`
+	}
+	var foundFiles []gridfsFile
+	err = cursor.All(db.MongoCtx(), &foundFiles)
+	if err != nil {
+		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
+	}
+
+	// If no found files
+	if len(foundFiles) == 0 {
+		return fmt.Errorf("gads-webrtc.apk is not present in MongoDB, you have to upload it via the hub admin UI")
+	}
+
+	// If more than 1 found file
+	if len(foundFiles) > 1 {
+		fmt.Printf("There is more than one gads-webrtc.apk file in MongoDB, will download the first one!\n")
+	}
+
+	// Create the filepath and remove the supervision profile file if present
+	filePath := fmt.Sprintf("%s/%s", ProviderConfig.ProviderFolder, "gads-webrtc.apk")
+	err = os.Remove(filePath)
+	if err != nil {
+		fmt.Printf("There is no gads-webrtc.apk file located at `%s`, nothing to remove\n", filePath)
+	}
+
+	// Get the ObjectID from the file ID in Mongo
+	id, err := primitive.ObjectIDFromHex(foundFiles[0].ID)
+	downloadStream, err := bucket.OpenDownloadStream(id)
+	if err != nil {
+		return fmt.Errorf("Failed to open download stream from the GridFS bucket - %s", err)
+	}
+
+	// Create a new buffer and read the download stream to it
+	fileBuffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(fileBuffer, downloadStream); err != nil {
+		return fmt.Errorf("Failed to copy download stream to the bytes buffer - %s", err)
+	}
+
+	// Create the file on the provider host
+	actualFile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("Failed to create file with path `%s` - %s", filePath, err)
+	}
+	defer actualFile.Close()
+
+	// Write the file contents to the file
+	_, err = actualFile.Write(fileBuffer.Bytes())
+	if err != nil {
+		return fmt.Errorf("Failed to write byte to file with path `%s` - %s", filePath, err)
+	}
+
+	return nil
+}

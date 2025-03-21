@@ -20,7 +20,14 @@ import (
 func isGadsStreamServiceRunning(device *models.Device) (bool, error) {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Checking if GADS-stream is already running on device `%v`", device.UDID))
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "dumpsys", "activity", "services", "com.shamanec.stream/.ScreenCaptureService")
+	var serviceName = ""
+	if device.UseWebRTCVideo {
+		serviceName = "com.gads.webrtc/.ScreenCaptureService"
+	} else {
+		serviceName = "com.shamanec.stream/.ScreenCaptureService"
+	}
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "dumpsys", "activity", "services", serviceName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, fmt.Errorf("isGadsStreamServiceRunning: Error executing `%s` with combined output - %s", cmd.Args, err)
@@ -36,7 +43,13 @@ func isGadsStreamServiceRunning(device *models.Device) (bool, error) {
 
 func stopGadsStreamService(device *models.Device) {
 	logger.ProviderLogger.LogInfo("android_device_setup", "Stopping GADS-stream service")
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "stopservice", "com.shamanec.stream/.ScreenCaptureService")
+	var serviceName = ""
+	if device.UseWebRTCVideo {
+		serviceName = "com.gads.webrtc/.ScreenCaptureService"
+	} else {
+		serviceName = "com.shamanec.stream/.ScreenCaptureService"
+	}
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "stopservice", serviceName)
 
 	err := cmd.Run()
 	if err != nil {
@@ -57,18 +70,41 @@ func installGadsStream(device *models.Device) error {
 	return nil
 }
 
+func installGadsWebRTCStream(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS WebRTC stream apk on device `%v`", device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-webrtc.apk", config.ProviderConfig.ProviderFolder))
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("installGadsWebRTCStream: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
 // Uninstall the GADS stream app from the Android device
 func uninstallGadsStream(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Uninstalling GADS-stream from device `%v`", device.UDID))
-
-	return UninstallApp(device, "com.shamanec.stream")
+	var packageName = ""
+	if device.UseWebRTCVideo {
+		packageName = "com.gads.webrtc"
+	} else {
+		packageName = "com.shamanec.stream"
+	}
+	return UninstallApp(device, packageName)
 }
 
 // Add recording permissions to gads-stream app to avoid popup on start
 func addGadsStreamRecordingPermissions(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS-stream recording permissions on device `%v`", device.UDID))
+	var packageName = ""
+	if device.UseWebRTCVideo {
+		packageName = "com.gads.webrtc"
+	} else {
+		packageName = "com.shamanec.stream"
+	}
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "appops", "set", "com.shamanec.stream", "PROJECT_MEDIA", "allow")
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "appops", "set", packageName, "PROJECT_MEDIA", "allow")
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("addGadsStreamRecordingPermissions: Error executing `%s` - %s", cmd.Args, err)
@@ -80,8 +116,14 @@ func addGadsStreamRecordingPermissions(device *models.Device) error {
 // Start the gads-stream app using adb
 func startGadsStreamApp(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", device.UDID))
+	var activityName = ""
+	if device.UseWebRTCVideo {
+		activityName = "com.gads.webrtc/com.gads.webrtc.ScreenCaptureActivity"
+	} else {
+		activityName = "com.shamanec.stream/com.shamanec.stream.ScreenCaptureActivity"
+	}
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "start", "-n", "com.shamanec.stream/com.shamanec.stream.ScreenCaptureActivity")
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "start", "-n", activityName)
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("startGadsStreamApp: Error executing `%s` - %s", cmd.Args, err)
