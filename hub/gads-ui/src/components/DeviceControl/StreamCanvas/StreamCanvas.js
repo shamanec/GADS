@@ -91,7 +91,9 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     }, [useWebRTCVideo, shouldShowStream])
 
     useEffect(() => {
-        videoRef.current.srcObject = remoteStream
+        if (useWebRTCVideo) {
+            videoRef.current.srcObject = remoteStream
+        }
     }, [remoteStream, videoRef, isPortrait])
 
     const updateCanvasDimensions = (isPortrait) => {
