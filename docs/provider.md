@@ -211,7 +211,7 @@ GADS has experimental WebRTC video streaming for Android that can be used instea
 * Select a preferred video [codec](#webrtc-video-codecs)
 
 ##### WebRTC video codecs
-Many Android phones support hardware encoding for H264 which seemingly to provide the best quality and performance from the small amount of phones I tested.  
+Many Android phones support hardware encoding for H264 which seemingly provides the best quality and performance from the small amount of phones I tested.  
 Some devices like Huawei do not - for them software encoding is enforced.  
 You can test the performance and select H264, VP8 or VP9 per device to achieve the best quality and performance of the video stream.  
 Note that it is possible that on some devices it might not work at all, in this case you should disable WebRTC and use the MJPEG stream instead.  
