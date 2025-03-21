@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
+// This is a component for easier testing and debugging of webrtc without having to build each time on a device and testing via device control
 const WebRTCClient = () => {
     const ws = useRef(null);
     const pc = useRef(null);

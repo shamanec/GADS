@@ -12,6 +12,7 @@ import (
 	"github.com/gobwas/ws/wsutil"
 )
 
+// This endpoint is for easier testing and debugging of WebRTC instead of building on a device each time
 func WebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 

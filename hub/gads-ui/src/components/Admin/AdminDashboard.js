@@ -80,21 +80,22 @@ export default function AdminDashboard() {
                         fontWeight: "bold"
                     }}
                 />
-                <Tab
+                {/* this tab is for testing webrtc */}
+                {/* <Tab
                     label="OPALQ"
                     style={{
                         textTransform: 'none',
                         fontSize: '16px',
                         fontWeight: "bold"
                     }}
-                />
+                /> */}
             </Tabs>
             {currentTabIndex === 0 && <ProvidersAdministration></ProvidersAdministration>}
             {currentTabIndex === 1 && <DevicesAdministration></DevicesAdministration>}
             {currentTabIndex === 2 && <UsersAdministration></UsersAdministration>}
             {currentTabIndex === 3 && <FilesAdministration></FilesAdministration>}
             {currentTabIndex === 4 && <GlobalSettings></GlobalSettings>}
-            {currentTabIndex === 5 && <WebRTCClient></WebRTCClient>}
+            {/* {currentTabIndex === 5 && <WebRTCClient></WebRTCClient>} */}
         </Box >
     )
 }

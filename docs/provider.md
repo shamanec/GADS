@@ -216,7 +216,8 @@ Some devices like Huawei do not - for them software encoding is enforced.
 You can test the performance and select H264, VP8 or VP9 per device to achieve the best quality and performance of the video stream.  
 Note that it is possible that on some devices it might not work at all, in this case you should disable WebRTC and use the MJPEG stream instead.  
 
-**NB** It is complex to handle both device encoder and browser decoder limitations, I would suggest using Chrome/Safari, but I assume that most of the time also Firefox should manage.
+**NB** It is complex to handle both device encoder and browser decoder limitations, I would suggest using Chrome/Safari, but I assume that most of the time also Firefox should manage.  
+**NB** WebRTC video has some initial delay/latency while calculating the bitrate and connection capabilities when you access the device control.  
 
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  
