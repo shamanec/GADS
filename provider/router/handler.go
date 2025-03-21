@@ -65,7 +65,7 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.POST("/uninstallApp", UninstallApp)
 	deviceGroup.POST("/reset", ResetDevice)
 	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
-	deviceGroup.GET("/webrtc", WebRTCSocket2)
+	deviceGroup.GET("/webrtc", DevicesWebRTCSocket)
 
 	return r
 }

@@ -421,7 +421,7 @@ func DeviceWebRTCWS(c *gin.Context) {
 	// Accept the connection from the React UI
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
+		log.Printf("Failed upgrading hub WebRTC websocket for device `%s` - %s\n", udid, err)
 		return
 	}
 
@@ -458,7 +458,7 @@ func DeviceWebRTCWS(c *gin.Context) {
 	for {
 		msg, op, err := wsutil.ReadClientData(conn)
 		if err != nil {
-			log.Printf("Hub UI client for device `%s` disconnected, sending hangup message to provider signalling server - %s\n", udid, err)
+			log.Printf("Hub UI WebRTC client for device `%s` disconnected, sending hangup message to provider signalling server - %s\n", udid, err)
 			err = wsutil.WriteClientMessage(providerConn, op, []byte("hangup"))
 			if err != nil {
 				log.Printf("Failed to send hangup signal to provider signalling server for device `%s` - %s\n", udid, err)

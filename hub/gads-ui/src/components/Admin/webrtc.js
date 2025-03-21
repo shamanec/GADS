@@ -92,7 +92,7 @@ const WebRTCClient = () => {
                 console.log('WebRTC: Browser supports setting WebRTC codec preferences, trying to force H.264.')
                 const capabilities = RTCRtpReceiver.getCapabilities("video");
                 const h264Codecs = capabilities.codecs.filter(codec =>
-                    codec.mimeType.toLowerCase() === "video/h264"
+                    codec.mimeType.toLowerCase() === "video/vp8"
                 )
                 console.log("CODECS")
                 console.log(h264Codecs)
@@ -178,7 +178,7 @@ const WebRTCClient = () => {
     return (
         <div>
             <button onClick={sendOffer}>Send Offer</button>;
-            <video ref={videoRef} autoPlay playsInline style={{ width: "540px", maxHeight: "1120px", background: "black" }} />
+            <video ref={videoRef} autoPlay playsInline style={{ width: "360px", height: "640px", background: "black" }} />
         </div>
     )
 

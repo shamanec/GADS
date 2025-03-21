@@ -37,8 +37,8 @@ export default function DeviceSelection() {
         CheckServerHealth()
 
         // Use specific full address for local development, proxy does not seem to work okay
-        // const evtSource = new EventSource(`http://192.168.1.41:10000/available-devices`)
-        const evtSource = new EventSource(`/available-devices`)
+        const evtSource = new EventSource(`http://192.168.1.41:10000/available-devices`)
+        // const evtSource = new EventSource(`/available-devices`)
 
         evtSource.onmessage = (message) => {
             let devicesJson = JSON.parse(message.data)

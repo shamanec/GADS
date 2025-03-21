@@ -2,8 +2,8 @@ import axios from 'axios'
 
 export function GetAPIClient() {
     const api = axios.create({
-        // baseURL: `http://192.168.1.41:10000`
-        baseURL: ``
+        baseURL: `http://192.168.1.41:10000`
+        // baseURL: ``
     })
 
     api.interceptors.request.use(
