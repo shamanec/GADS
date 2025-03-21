@@ -164,7 +164,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
         pc.current = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-        });
+        })
+        // pc.current = new RTCPeerConnection()
 
         pc.current.ontrack = (event) => {
             console.log('WebRTC: Received remote track: ', event)
@@ -473,7 +474,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                     >Swipe</Button>
                 </Grid>
                 <Grid item>
-                    <StreamSettings deviceData={deviceData}></StreamSettings>
+                    {!useWebRTCVideo && <StreamSettings deviceData={deviceData} />}
                 </Grid>
             </Grid>
         </Grid >
