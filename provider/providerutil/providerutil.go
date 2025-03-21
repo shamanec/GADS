@@ -23,7 +23,12 @@ var gadsStreamURL = "https://github.com/shamanec/GADS-Android-stream/releases/la
 // Use this function to get a free port on the host for any service that might need one
 // We keep a map of used ports so we don't allocate same ports to different services
 func GetFreePort() (string, error) {
-	for {
+	const (
+		maxAttempts = 10
+		baseBackoff = 50 * time.Millisecond
+	)
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		logger.ProviderLogger.LogDebug("port_allocation", "Trying to get a free port")
 
 		a, err := net.ResolveTCPAddr("tcp", "localhost:0")
@@ -61,7 +66,11 @@ func GetFreePort() (string, error) {
 		logger.ProviderLogger.LogDebug("port_allocation", "Releasing lock for used ports")
 		common.MutexManager.LocalDevicePorts.Unlock()
 		l.Close()
+
+		// Simple incremental backoff
+		time.Sleep(time.Duration(attempt) * baseBackoff)
 	}
+	return "", fmt.Errorf("failed to find a free port after %d attempts", maxAttempts)
 }
 
 // Check if adb is available on the host by starting the server

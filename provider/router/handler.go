@@ -18,7 +18,7 @@ func HandleRequests() *gin.Engine {
 	r.GET("/info", GetProviderData)
 	r.GET("/devices", DevicesInfo)
 	r.POST("/uploadFile", UploadAndInstallApp)
-	r.GET("/rtc", WebRTCSocket)
+	r.GET("/rtc", WebRTCSocket) // This endpoint is for easier testing and debugging of WebRTC instead of building on a device each time
 
 	pprofGroup := r.Group("/debug/pprof")
 	{

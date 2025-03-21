@@ -1,91 +1,94 @@
-- [Intro](#intro)
-- [Features](#features)
-  - [Hub](#hub-features)
-  - [Provider](#provider-features)
-- [Setup](#setup)
-  - [Common setup](#common-setup)
-    - [MongoDB](#mongodb)
-  - [Hub setup](#hub-setup)
-  - [Provider setup](#provider-setup)
-  - [Running GADS as a System Service](#running-gads-as-a-system-service)
-    - [Linux](#linux)
-    - [Windows](#windows)
-    - [macOS](#macos)
-- [FAQ](./docs/faq.md)
-- [Thanks](#thanks)
-- [Demo video](#demo-video)
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="/docs/gads-logo-light.png">
+    <img src="/docs/gads-logo.png" width="256" alt="GADS Logo"/>
+  </picture>
 
-[![](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
+  <h1>GADS - Mobile Device Management & Testing Platform</h1>
 
-<img src="/docs/gads-logo.png" width="256"/>
+  [![Discord](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
 
-## Intro
-GADS is an application for remote control and Appium test execution on mobile devices  
+  🚀 **Remote control and automated testing** for iOS & Android devices
+</div>
 
-The app consists of two main components  - `hub` and `provider`  
-The role of the `hub` is to serve a web interface for the remote control of devices and provider management, as well as act as proxy for providers.  
-The role of the `provider` is to set up and provide the mobile devices for remote control/testing  
-Supports both Android and iOS devices  
-Supports Linux, macOS and Windows - notes below
+## 📖 Overview
 
-## Features
-### Hub features
-- Web interface
-  - Authentication
-    - Login, session expiry
-    - Add users (for admins)
-  - Devices control (most of interaction is wrapped around Appium APIs)
-    - Live video
-      - **NB** Videos are essentially MJPEG streams so they are very bandwidth hungry
-      - EXPERIMENTAL - WebRTC video stream for Android, possibly lower quality than MJPEG but automatically optimised stream - [notes](./docs/provider.md#android-webrtc-video---experimental) 
-    - Basic remote control - tap, swipe, touch&hold, home, lock, unlock, type text to active element, get clipboard
-    - Install/Uninstall apps
-    - Take high quality screenshots
-    - Reservation - loading a device sets it `In use` and can't be used by another person until it is released
-- Backend
-  - Serving the web interface
-  - Proxy the communication to the provider instances
-  - Experimental Appium grid replacement for Selenium Grid
-    - Integrated with UI to reserve devices currently running Appium tests
+**GADS** is a platform for **remote device control** and **Appium test execution** on mobile devices. It consists of two main components:
 
-### Provider features
-- Straightforward dependencies setup
-- Devices administration via the hub UI
-- Automatic provisioning when registered devices are connected
-  - Dependencies automatically installed on devices 
-  - Appium server set up and started for each device
-- Remote control APIs for the hub
-  - iOS MJPEG video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
-  - Android MJPEG video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
-  - EXPERIMENTAL - WebRTC video stream for Android, possibly lower quality than MJPEG but automatically optimised stream - [notes](./docs/provider.md#android-webrtc-video---experimental) 
-  - Interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device, get clipboard
-- Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
-- Optionally Selenium Grid 4 nodes can be registered for each device Appium server
-- macOS
-  - Supports both Android / iOS
-- Linux
-  - Supports both Android / iOS
-  - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Linux
-- Windows 10
-  - Supports Android / iOS
-  - Has some limitations to Appium execution with iOS devices due to actual Xcode tools being unavailable on Windows
+- **Hub**: A web interface for remote device control and provider management.
+- **Provider**: Handles device setup and makes them available for remote access.
 
-Developed and tested on Ubuntu 18.04 LTS, Ubuntu 20.04 LTS, Windows 10, macOS Sequioa 15.0
+## ✨ Key Features
 
-## Setup
-Currently the project assumes that GADS hub, device providers, MongoDB and Selenium Grid are on the same network. They can all be on the same machine as well.
-- Download the latest binary for your OS from [releases](https://github.com/shamanec/GADS/releases).
+### Hub Features 🎯
+- 🔐 **Authentication System**
+  - User login with session management
+  - Admin user management
+- 📱 **Device Control**
+  - Real-time video streaming (MJPEG)
+  - Remote interactions: tap, swipe, text input
+  - App installation/uninstallation
+  - High-quality screenshots
+  - Device reservation system
+- 🔄 **Backend Capabilities**
+  - Web interface serving
+  - Provider communication proxy
+  - Experimental **Selenium Grid** replacement
 
-or build the project from source 
-- Clone the project.
-- Open the `hub/gads-ui` folder in Terminal.
-- Execute `npm install`
-- Execute `npm run build`
-- Go back to the main repo folder.
-- Execute `go build .`
+### Provider Features 🔌
+- 🛠️ **Easy Setup**
+  - UI-based device management
+- 🤖 **Automated Device Provisioning**
+  - Per-device Appium server configuration
+- 📡 **Remote Control**
+  - iOS streaming via [WebDriverAgent](https://github.com/appium/WebDriverAgent)
+  - Android streaming via [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
+  - Experimental - Android WebRTC video stream - [notes](./docs/provider.md#android-webrtc-video---experimental)
+  - Comprehensive Appium-based device interaction
+- 🧪 **Testing Integration**
+  - Individual Appium server endpoints
+  - Optional Selenium Grid 4 node registration
 
-### Common setup
-#### MongoDB
+## 💻 Platform Support
+
+| OS        | Android Support | iOS Support  | Notes |
+|-----------|-----------------|--------------|-------|
+| **macOS** | ✅               | ✅            | Full support |
+| **Linux** | ✅               | ⚠️            | Limited iOS support due to Xcode dependency |
+| **Windows** | ✅             | ⚠️            | Limited iOS support due to Xcode dependency |
+
+## 🚀 Getting Started
+
+> ### **Prerequisites**
+> Before getting started, make sure you have the following:
+> - A **MongoDB** instance (v6.0 recommended)
+> - Network connectivity between Hub, Providers, MongoDB, and Selenium Grid
+> ---
+
+### ⚡ Quick Start
+
+#### Option 1: Download the latest binary
+
+1. Go to the [releases page](https://github.com/shamanec/GADS/releases) and download the latest binary for your platform.
+
+#### Option 2: Build from source
+
+```bash
+# Clone the repository
+git clone https://github.com/shamanec/GADS
+
+# Build the UI
+cd hub/gads-ui
+npm install
+npm run build
+
+# Build the application
+cd ../..
+go build .
+```
+
+### 🛠️ Common setup
+#### 🌱 MongoDB
 The project uses MongoDB for storing logs and for synchronization of some data between hub and providers.
 You can either run MongoDB in a docker container:  
 - You need to have Docker(Docker Desktop on macOS, Windows) installed.
@@ -95,32 +98,38 @@ You can either run MongoDB in a docker container:
 or  
 - Start MongoDB instance in the way you prefer
 
-#### Hub setup
-[Docs](./docs/hub.md)  
+#### ⚙️ Hub setup
+For detailed instructions on setting up the Hub, refer to the [Hub Setup Docs](./docs/hub.md)  
 
-#### Provider setup
-[Docs](./docs/provider.md)
+#### 📱 Provider setup
+For detailed instructions on setting up the Provider, refer to the [Provider Setup Docs.](./docs/provider.md)
 
-### Running GADS as a System Service
+## Running GADS as a System Service
 To ensure that GADS runs continuously and can be managed easily, it is recommended to execute it as a service on your operating system. Running GADS as a service allows it to start automatically on boot, restart on failure, and be managed through standard service commands.
 
-#### Linux
+### 🐧 Linux
 For detailed instructions on how to create a service for Linux using systemd, please refer to the [Linux Service Documentation](./docs/linux-service.md).
 
-#### Windows
+### 🖥️ Windows
 *Note: Service implementation for Windows is yet to be documented.*
 
-#### macOS
+### 🍏 macOS
 *Note: Service implementation for macOS is yet to be documented.*
 
-### Thanks
+## ❓ FAQ
+
+The **FAQ** (Frequently Asked Questions) section has been created to provide quick answers to the most common questions about GADS. If you have any questions regarding installation, setup, or functionality, check out the answers in our documentation.
+
+For more details, refer to the [full FAQ](./docs/faq.md).
+
+## 🙏 Thanks
 
 | | About                                                                                                                                                              |
 |---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
 |[go-ios](https://github.com/danielpaulus/go-ios)| Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
 |[Appium](https://github.com/appium)| It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                         |  
 
-### Videos
+## 🎥 Videos
 #### Start hub
 https://github.com/user-attachments/assets/7a6dab5a-52d1-4c48-882d-48b67e180c89
 
