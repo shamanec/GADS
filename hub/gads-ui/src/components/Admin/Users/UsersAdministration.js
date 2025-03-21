@@ -4,7 +4,11 @@ import {
     FormControl,
     Grid,
     MenuItem,
-    TextField, Tooltip
+    TextField, Tooltip,
+    Select,
+    OutlinedInput,
+    InputLabel,
+    ListItemText
 } from '@mui/material'
 import Stack from '@mui/material/Stack'
 import { api } from '../../../services/api'
@@ -15,14 +19,21 @@ import CircularProgress from '@mui/material/CircularProgress'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { useDialog } from '../../../contexts/DialogContext'
-import Autocomplete from '@mui/material/Autocomplete';
-import Chip from '@mui/material/Chip';
+import Checkbox from '@mui/material/Checkbox';
 import { useSnackbar } from '../../../contexts/SnackBarContext';
+
+const MenuProps = {
+    PaperProps: {
+        style: {
+            maxHeight: 48 * 4.5 + 8,
+            width: 250,
+        },
+    },
+};
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
     const [workspaces, setWorkspaces] = useState([])
-    const { logout } = useContext(Auth)
     const { showSnackbar } = useSnackbar();
 
     function handleGetUserData() {
@@ -91,7 +102,6 @@ function NewUser({ handleGetUserData, fetchWorkspaces, workspaces }) {
     const [workspaceIds, setWorkspaceIds] = useState([])
     const [loading, setLoading] = useState(false)
     const [addUserStatus, setAddUserStatus] = useState(null)
-    const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true)
     const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
@@ -100,7 +110,6 @@ function NewUser({ handleGetUserData, fetchWorkspaces, workspaces }) {
             if (defaultWorkspace.length > 0) {
                 setWorkspaceIds([defaultWorkspace[0].id]);
             }
-            setIsWorkspacesLoading(false)
         }
     }, [workspaces]);
 
@@ -184,40 +193,37 @@ function NewUser({ handleGetUserData, fetchWorkspaces, workspaces }) {
                             <MenuItem value='admin'>Admin</MenuItem>
                         </TextField>
                     </FormControl>
-                    <FormControl fullWidth required>
-                        {isWorkspacesLoading ? (
-                            <CircularProgress size={20} />
-                        ) : (
-                            <Autocomplete
-                                multiple
-                                id="workspaces"
-                                options={workspaces}
-                                getOptionLabel={(option) => option.name}
-                                value={workspaces.filter(workspace => workspaceIds.includes(workspace.id))}
-                                limitTags={2}
-                                size="small"
-                                onChange={(event, newValue) => {
-                                    setWorkspaceIds(newValue.map(workspace => workspace.id))
-                                }}
-                                freeSolo
-                                renderTags={(value, getTagProps) =>
-                                    value.map((option, index) => {
-                                        const { key, ...tagProps } = getTagProps({ index });
-                                        return (
-                                            <Chip variant="outlined" label={option.name} key={key} {...tagProps} />
-                                        );
-                                    })
-                                }
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        variant="standard"
-                                        label="Workspaces"
-                                        placeholder="Select a workspace"
-                                    />
-                                )}
-                            />
-                        )}
+                    <FormControl fullWidth required size="small">
+                        <InputLabel id="workspaces-checkbox-label">Workspaces</InputLabel>
+                        <Select
+                            labelId="workspaces-checkbox-label"
+                            id="workspaces-checkbox"
+                            multiple
+                            value={workspaceIds}
+                            onChange={(event) => {
+                                const {
+                                    target: { value },
+                                } = event;
+                                setWorkspaceIds(
+                                    typeof value === 'string' ? value.split(',') : value,
+                                );
+                            }}
+                            input={<OutlinedInput label="Workspaces" />}
+                            renderValue={(selected) => 
+                                workspaces
+                                    .filter(workspace => selected.includes(workspace.id))
+                                    .map(workspace => workspace.name)
+                                    .join(', ')
+                            }
+                            MenuProps={MenuProps}
+                        >
+                            {workspaces.map((workspace) => (
+                                <MenuItem key={workspace.id} value={workspace.id}>
+                                    <Checkbox checked={workspaceIds.includes(workspace.id)} />
+                                    <ListItemText primary={workspace.name} />
+                                </MenuItem>
+                            ))}
+                        </Select>
                     </FormControl>
                     <Button
                         variant='contained'
@@ -255,14 +261,7 @@ function ExistingUser({ user, handleGetUserData, fetchWorkspaces, workspaces }) 
     const [updateLoading, setUpdateLoading] = useState(false)
     const [updateUserStatus, setUpdateUserStatus] = useState(null)
     const [workspaceIds, setWorkspaceIds] = useState(user.workspace_ids)
-    const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true)
     const { showSnackbar } = useSnackbar();
-
-    useEffect(() => {
-        if (workspaces.length > 0 && workspaceIds) {
-            setIsWorkspacesLoading(false)
-        }
-    }, [workspaces, workspaceIds]);
 
     function handleUpdateUser(event) {
         setUpdateLoading(true)
@@ -372,40 +371,37 @@ function ExistingUser({ user, handleGetUserData, fetchWorkspaces, workspaces }) 
                         </TextField>
                     </FormControl>
                     {role !== 'admin' && (
-                        <FormControl fullWidth required>
-                            {isWorkspacesLoading ? (
-                                <CircularProgress size={20} />
-                            ) : (
-                                <Autocomplete
-                                    multiple
-                                    id="workspaces"
-                                    options={workspaces}
-                                    getOptionLabel={(option) => option.name}
-                                    value={workspaces.filter(workspace => workspaceIds.includes(workspace.id))}
-                                    limitTags={2}
-                                    size="small"
-                                    onChange={(event, newValue) => {
-                                        setWorkspaceIds(newValue.map(workspace => workspace.id))
-                                    }}
-                                    freeSolo
-                                    renderTags={(value, getTagProps) =>
-                                        value.map((option, index) => {
-                                            const { key, ...tagProps } = getTagProps({ index });
-                                            return (
-                                                <Chip variant="outlined" label={option.name} key={key} {...tagProps} />
-                                            );
-                                        })
-                                    }
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            variant="standard"
-                                            label="Workspaces"
-                                            placeholder="Select a workspace"
-                                        />
-                                    )}
-                                />
-                            )}
+                        <FormControl fullWidth required size="small">
+                            <InputLabel id="workspaces-checkbox-label">Workspaces</InputLabel>
+                            <Select
+                                labelId="workspaces-checkbox-label"
+                                id="workspaces-checkbox"
+                                multiple
+                                value={workspaceIds}
+                                onChange={(event) => {
+                                    const {
+                                        target: { value },
+                                    } = event;
+                                    setWorkspaceIds(
+                                        typeof value === 'string' ? value.split(',') : value,
+                                    );
+                                }}
+                                input={<OutlinedInput label="Workspaces" />}
+                                renderValue={(selected) => 
+                                    workspaces
+                                        .filter(workspace => selected.includes(workspace.id))
+                                        .map(workspace => workspace.name)
+                                        .join(', ')
+                                }
+                                MenuProps={MenuProps}
+                            >
+                                {workspaces.map((workspace) => (
+                                    <MenuItem key={workspace.id} value={workspace.id}>
+                                        <Checkbox checked={workspaceIds.includes(workspace.id)} />
+                                        <ListItemText primary={workspace.name} />
+                                    </MenuItem>
+                                ))}
+                            </Select>
                         </FormControl>
                     )}
                     <Button
