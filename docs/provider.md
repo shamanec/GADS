@@ -198,6 +198,26 @@ This is an optional but a preferable step - it can make devices setup more auton
 * On each device activate `Developer options`, open them and enable `Enable USB debugging`
 * Connect each device to the host - a popup will appear on the device to pair - allow it.
 
+#### Android WebRTC video - EXPERIMENTAL
+GADS has experimental WebRTC video streaming for Android that can be used instead of MJPEG. The quality can be lower because it is controlled by WebRTC itself but it can potentially work better on external networks with lower bandwidth consumption.
+
+##### WebRTC apk setup
+* Download the `gads-webrtc.apk` file from the project [resources](https://github.com/shamanec/GADS/tree/main/resources)
+* Go to `Admin > Files` in the hub UI and upload the file.
+
+##### WebRTC device setup
+* Go to `Admin > Devices` in the hub UI
+* Set `Use WebRTC video?` to `true` for the target device
+* Select a preferred video [codec](#webrtc-video-codecs)
+
+##### WebRTC video codecs
+Many Android phones support hardware encoding for H264 which seemingly to provide the best quality and performance from the small amount of phones I tested.  
+Some devices like Huawei do not - for them software encoding is enforced.  
+You can test the performance and select H264, VP8 or VP9 per device to achieve the best quality and performance of the video stream.  
+Note that it is possible that on some devices it might not work at all, in this case you should disable WebRTC and use the MJPEG stream instead.  
+
+**NB** It is complex to handle both device encoder and browser decoder limitations, I would suggest using Chrome/Safari, but I assume that most of the time also Firefox should manage.
+
 ## Starting a provider instance
 - Execute `./GADS provider` providing the following flags:  
   - `--nickname=` - mandatory, this is used to get the correct provider configuration from MongoDB

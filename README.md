@@ -37,7 +37,7 @@ Supports Linux, macOS and Windows - notes below
   - Devices control (most of interaction is wrapped around Appium APIs)
     - Live video
       - **NB** Videos are essentially MJPEG streams so they are very bandwidth hungry
-      - EXPERIMENTAL - WebRTC P2P video for Android, possibly lower quality than MJPEG but optimised stream for external networks
+      - EXPERIMENTAL - WebRTC video stream for Android, possibly lower quality than MJPEG but automatically optimised stream - [notes](./docs/provider.md#android-webrtc-video---experimental) 
     - Basic remote control - tap, swipe, touch&hold, home, lock, unlock, type text to active element, get clipboard
     - Install/Uninstall apps
     - Take high quality screenshots
@@ -57,7 +57,7 @@ Supports Linux, macOS and Windows - notes below
 - Remote control APIs for the hub
   - iOS MJPEG video stream using [WebDriverAgent](https://github.com/appium/WebDriverAgent)
   - Android MJPEG video stream using [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
-  - EXPERIMENTAL - WebRTC P2P video for Android, possibly lower quality than MJPEG but optimised stream for external networks
+  - EXPERIMENTAL - WebRTC video stream for Android, possibly lower quality than MJPEG but automatically optimised stream - [notes](./docs/provider.md#android-webrtc-video---experimental) 
   - Interaction wrapped around Appium - tap, swipe, touch&hold, type text, lock and unlock device, get clipboard
 - Appium test execution - each device has its Appium server proxied on a provider endpoint for easier access
 - Optionally Selenium Grid 4 nodes can be registered for each device Appium server
