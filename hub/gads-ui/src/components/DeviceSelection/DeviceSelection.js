@@ -6,14 +6,15 @@ import TabContext from '@mui/lab/TabContext'
 import Grid from '@mui/material/Grid'
 import Stack from '@mui/material/Stack'
 import Divider from '@mui/material/Divider'
-import { OSFilterTabs, DeviceSearch } from './Filters'
+import { OSFilterTabs, DeviceSearch, WorkspaceSelector } from './Filters'
 import { Auth } from '../../contexts/Auth'
 import { api } from '../../services/api.js'
 import DeviceBox from './DeviceBox'
+import { FormControl, Select, MenuItem } from '@mui/material'
 
 export default function DeviceSelection() {
-    const open = true
     const [devices, setDevices] = useState([])
+    const [selectedWorkspace, setSelectedWorkspace] = useState("")
     const { logout } = useContext(Auth)
 
     function CheckServerHealth() {
@@ -36,22 +37,22 @@ export default function DeviceSelection() {
     useEffect(() => {
         CheckServerHealth()
 
-        // Use specific full address for local development, proxy does not seem to work okay
-        // const evtSource = new EventSource(`http://192.168.1.41:10000/available-devices`)
-        const evtSource = new EventSource(`/available-devices`)
+        if (selectedWorkspace) {
+            const evtSource = new EventSource(`/available-devices?workspaceId=${selectedWorkspace}`)
 
-        evtSource.onmessage = (message) => {
-            let devicesJson = JSON.parse(message.data)
-            setDevices(devicesJson)
-        }
+            evtSource.onmessage = (message) => {
+                let devicesJson = JSON.parse(message.data)
+                setDevices(devicesJson)
+            }
 
-        // If component unmounts close the websocket connection
-        return () => {
-            if (evtSource) {
-                evtSource.close()
+            // If component unmounts close the websocket connection
+            return () => {
+                if (evtSource) {
+                    evtSource.close()
+                }
             }
         }
-    }, [])
+    }, [selectedWorkspace])
 
     return (
         <div
@@ -62,13 +63,15 @@ export default function DeviceSelection() {
             >
                 <OSSelection
                     devices={devices}
+                    selectedWorkspace={selectedWorkspace}
+                    setSelectedWorkspace={setSelectedWorkspace}
                 />
             </div>
         </div>
     )
 }
 
-function OSSelection({ devices }) {
+function OSSelection({ devices, selectedWorkspace, setSelectedWorkspace }) {
     const [currentTabIndex, setCurrentTabIndex] = useState(0)
 
     const handleTabChange = (e, tabIndex) => {
@@ -78,7 +81,7 @@ function OSSelection({ devices }) {
     }
 
     return (
-        <TabContext value='{currentTabIndex}'>
+        <TabContext value={currentTabIndex}>
             <Box
                 sx={{
                     display: 'flex',
@@ -92,7 +95,7 @@ function OSSelection({ devices }) {
                     alignItems='center'
                     className='filters-stack'
                     sx={{
-                        height: '200px',
+                        height: '250px',
                         backgroundColor: '#9ba984',
                         borderRadius: '10px'
                     }}
@@ -100,10 +103,14 @@ function OSSelection({ devices }) {
                     <OSFilterTabs
                         currentTabIndex={currentTabIndex}
                         handleTabChange={handleTabChange}
-                    ></OSFilterTabs>
+                    />
                     <DeviceSearch
                         keyUpFilterFunc={deviceSearch}
-                    ></DeviceSearch>
+                    />
+                    <WorkspaceSelector
+                        selectedWorkspace={selectedWorkspace}
+                        setSelectedWorkspace={setSelectedWorkspace}
+                    />
                 </Stack>
                 {devices.length === 0 ? (
                     <Box
@@ -127,7 +134,7 @@ function OSSelection({ devices }) {
                     </Box>
                 ) : (
                     <TabPanel
-                        value='{currentTabIndex}'
+                        value={currentTabIndex}
                         style={{ height: '80vh', overflowY: 'auto' }}
                     >
                         <Grid
@@ -173,7 +180,7 @@ function OSSelection({ devices }) {
                     </TabPanel>
                 )}
             </Box>
-        </TabContext >
+        </TabContext>
     )
 }
 

@@ -32,10 +32,11 @@ func (a ByUDID) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByUDID) Less(i, j int) bool { return a[i].UDID < a[j].UDID }
 
 type User struct {
-	Username string `json:"username" bson:"username"`
-	Password string `json:"password" bson:"password"`
-	Role     string `json:"role,omitempty" bson:"role"`
-	ID       string `json:"_id" bson:"_id,omitempty"`
+	Username     string   `json:"username" bson:"username"`
+	Password     string   `json:"password" bson:"password,omitempty"`
+	Role         string   `json:"role,omitempty" bson:"role"`
+	ID           string   `json:"_id" bson:"_id,omitempty"`
+	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids"`
 }
 
 type Device struct {
@@ -49,6 +50,7 @@ type Device struct {
 	ScreenWidth  string `json:"screen_width" bson:"screen_width"`   // screen width of device
 	ScreenHeight string `json:"screen_height" bson:"screen_height"` // screen height of device
 	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
+	WorkspaceID  string `json:"workspace_id" bson:"workspace_id"`   // ID of the associated workspace
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -141,4 +143,11 @@ type StreamSettings struct {
 	JpegQuality          int `json:"jpeg_quality,omitempty" bson:"jpeg_quality"`
 	ScalingFactorAndroid int `json:"scaling_factor_android,omitempty" bson:"scaling_factor_android"`
 	ScalingFactoriOS     int `json:"scaling_factor_ios,omitempty" bson:"scaling_factor_ios"`
+}
+
+type Workspace struct {
+	ID          string `json:"id" bson:"_id,omitempty"`
+	Name        string `json:"name" bson:"name"`
+	Description string `json:"description" bson:"description"`
+	IsDefault   bool   `json:"is_default" bson:"is_default"`
 }
