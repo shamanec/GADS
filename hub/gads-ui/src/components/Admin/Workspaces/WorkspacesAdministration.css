@@ -13,7 +13,6 @@
     box-shadow: inset 0 -10px 10px -10px #000000;
     scrollbar-width: none;
     margin-right: 10px;
-    /* margin-left: 10px; */
     width: 100%;
 }
 
@@ -40,8 +39,8 @@
 }
 
 .table-header {
-    background-color: #31343a;
-    color: white !important;
+    background-color: #98a984;
+    color: #f4e6cd !important;
     font-weight: bold !important;
 }
 
@@ -57,4 +56,28 @@
 
 #search-input-workspaces:focus {
     outline: none;
+}
+
+.MuiTableRow-root {
+    background-color: #f4e6cd;
+}
+
+.MuiTableCell-root {
+    color: #2f3b26 !important;
+}
+
+.MuiTableContainer-root {
+    background-color: #f4e6cd;
+    border-radius: 8px;
+    border: 2px solid #2f3b26;
+}
+
+.MuiTablePagination-root {
+    background-color: #2f3b26;
+    color: #f4e6cd !important;
+}
+
+.MuiTablePagination-selectIcon,
+.MuiTablePagination-actions button {
+    color: #f4e6cd !important;
 }

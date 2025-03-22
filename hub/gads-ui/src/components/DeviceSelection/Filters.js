@@ -3,7 +3,7 @@ import Tab from '@mui/material/Tab'
 import React, { useEffect, useState } from 'react'
 import './Filters.css'
 import { FiSearch } from 'react-icons/fi'
-import { Box, FormControl, Select, MenuItem } from '@mui/material'
+import { Box, FormControl, MenuItem, Tooltip, TextField} from '@mui/material'
 import { api } from '../../services/api'
 
 export function OSFilterTabs({ currentTabIndex, handleTabChange }) {
@@ -81,26 +81,35 @@ export function WorkspaceSelector({ selectedWorkspace, setSelectedWorkspace }) {
     };
 
     return (
-        <Box sx={{ minWidth: 200, padding: '0 10px' }}>
-            <FormControl fullWidth size="small">
-                <Select
-                    value={selectedWorkspace}
-                    onChange={(e) => setSelectedWorkspace(e.target.value)}
-                    sx={{
-                        backgroundColor: '#ffffff',
-                        borderRadius: '4px',
-                        '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#2f3b26',
-                        },
-                    }}
-                >
-                    {workspaces.map((workspace) => (
-                        <MenuItem key={workspace.id} value={workspace.id}>
-                            {workspace.name}
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
+        <Box sx={{ minWidth: 200 }}>
+            <Tooltip
+                title='Devices Workspace'
+                arrow
+                placement='top'
+            >
+                <FormControl fullWidth size="small" style={{backgroundColor: '#878a91'}}>
+                    <TextField
+                        label='Workspace'
+                        value={selectedWorkspace}
+                        select
+                        onChange={(e) => setSelectedWorkspace(e.target.value)}
+                        sx={{
+                            backgroundColor: '#f4e6cd',
+                            borderRadius: '4px',
+                            '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: '#2f3b26',
+                            },
+                        }}
+                        size='small'
+                    >
+                        {workspaces.map((workspace) => (
+                            <MenuItem key={workspace.id} value={workspace.id}>
+                                {workspace.name}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </FormControl>
+            </Tooltip>
         </Box>
     );
 }
