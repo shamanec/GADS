@@ -9,6 +9,7 @@ import { useDialog } from '../../../contexts/DialogContext'
 export default function DevicesAdministration() {
     const [devices, setDevices] = useState([])
     const [providers, setProviders] = useState([])
+    const [workspaces, setWorkspaces] = useState([])
 
     function handleGetDeviceData() {
         let url = `/admin/devices`
@@ -22,8 +23,14 @@ export default function DevicesAdministration() {
             })
     }
 
+    const fetchWorkspaces = async () => {
+        const response = await api.get('/admin/workspaces?page=1&limit=100')
+        setWorkspaces(response.data.workspaces)
+    }
+
     useEffect(() => {
         handleGetDeviceData()
+        fetchWorkspaces()
     }, [])
 
     return (
@@ -47,7 +54,7 @@ export default function DevicesAdministration() {
                     margin='10px'
                 >
                     <Grid item>
-                        <NewDevice providers={providers} handleGetDeviceData={handleGetDeviceData}>
+                        <NewDevice providers={providers} workspaces={workspaces} handleGetDeviceData={handleGetDeviceData}>
                         </NewDevice>
                     </Grid>
                     {devices.map((device) => {
@@ -56,6 +63,7 @@ export default function DevicesAdministration() {
                                 <ExistingDevice
                                     deviceData={device}
                                     providersData={providers}
+                                    workspaces={workspaces}
                                     handleGetDeviceData={handleGetDeviceData}
                                 >
                                 </ExistingDevice>
@@ -69,7 +77,7 @@ export default function DevicesAdministration() {
     )
 }
 
-function NewDevice({ providers, handleGetDeviceData }) {
+function NewDevice({ providers, workspaces, handleGetDeviceData }) {
     const [udid, setUdid] = useState('')
     const [provider, setProvider] = useState('')
     const [os, setOS] = useState('')
@@ -79,6 +87,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
     const [screenWidth, setScreenWidth] = useState('')
     const [usage, setUsage] = useState('enabled')
     const [type, setType] = useState('real')
+    const [workspace, setWorkspace] = useState('')
 
     const [loading, setLoading] = useState(false)
     const [addDeviceStatus, setAddDeviceStatus] = useState(null)
@@ -99,7 +108,8 @@ function NewDevice({ providers, handleGetDeviceData }) {
             screen_width: screenWidth,
             os: os,
             usage: usage,
-            device_type: type
+            device_type: type,
+            workspace_id: workspace
         }
 
         api.post(url, deviceData)
@@ -113,6 +123,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 setScreenHeight('')
                 setScreenWidth('')
                 setUsage('enabled')
+                setWorkspace('')
             })
             .catch(() => {
                 setAddDeviceStatus('error')
@@ -136,7 +147,7 @@ function NewDevice({ providers, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '830px',
+                height: '910px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -297,6 +308,27 @@ function NewDevice({ providers, handleGetDeviceData }) {
                             </TextField>
                         </FormControl>
                     </Tooltip>
+                    <Tooltip
+                        title='The workspace to which the device is assigned'
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                style={{ width: '100%' }}
+                                variant='outlined'
+                                value={workspace}
+                                onChange={(e) => setWorkspace(e.target.value)}
+                                select
+                                label='Workspace'
+                                required
+                            >
+                                {workspaces.map((ws) => (
+                                    <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
+                                ))}
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
                     <Button
                         variant='contained'
                         type='submit'
@@ -326,20 +358,20 @@ function NewDevice({ providers, handleGetDeviceData }) {
     )
 }
 
-function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
-    const [provider, setProvider] = useState(deviceData.provider)
-    const [os, setOS] = useState(deviceData.os)
+function ExistingDevice({ deviceData, providersData, workspaces, handleGetDeviceData }) {
+    const [udid, setUdid] = useState(deviceData.udid)
     const [name, setName] = useState(deviceData.name)
+    const [os, setOS] = useState(deviceData.os)
     const [osVersion, setOSVersion] = useState(deviceData.os_version)
     const [screenHeight, setScreenHeight] = useState(deviceData.screen_height)
     const [screenWidth, setScreenWidth] = useState(deviceData.screen_width)
     const [usage, setUsage] = useState(deviceData.usage)
     const [type, setType] = useState(deviceData.device_type)
-    const udid = deviceData.udid
-
+    const [provider, setProvider] = useState(deviceData.provider)
+    const [workspaceId, setWorkspaceId] = useState('default')
     const [loading, setLoading] = useState(false)
-    const [reprovisionLoading, setReprovisionLoading] = useState(false)
     const [updateDeviceStatus, setUpdateDeviceStatus] = useState(null)
+    const [reprovisionLoading, setReprovisionLoading] = useState(false)
     const [reprovisionDeviceStatus, setReprovisionDeviceStatus] = useState(null)
 
     useEffect(() => {
@@ -349,7 +381,8 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
         setOSVersion(deviceData.os_version)
         setScreenHeight(deviceData.screen_height)
         setScreenWidth(deviceData.screen_width)
-    }, [deviceData])
+        setWorkspaceId(workspaces.find(ws => ws.id === deviceData.workspace_id)?.id || "")
+    }, [deviceData, workspaces])
 
     function handleUpdateDevice(event) {
         setLoading(true)
@@ -367,7 +400,8 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
             screen_width: screenWidth,
             os: os,
             usage: usage,
-            device_type: type
+            device_type: type,
+            workspace_id: workspaceId
         }
 
         api.put(url, reqData)
@@ -446,7 +480,7 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '830px',
+                height: '910px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -603,6 +637,27 @@ function ExistingDevice({ deviceData, providersData, handleGetDeviceData }) {
                                     )
                                 })
                                 }
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='The workspace to which the device is assigned'
+                        arrow
+                        placement='top'
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                style={{ width: '100%' }}
+                                variant='outlined'
+                                value={workspaceId}
+                                onChange={(e) => setWorkspaceId(e.target.value)}
+                                select
+                                label='Workspace'
+                                required
+                            >
+                                {workspaces.map((ws) => (
+                                    <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
+                                ))}
                             </TextField>
                         </FormControl>
                     </Tooltip>

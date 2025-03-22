@@ -78,6 +78,52 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}
 
+	// Check if the default workspace exists
+	defaultWorkspace, err := db.GetDefaultWorkspace()
+	if err != nil {
+		// Create default workspace if none exist
+		defaultWorkspace = models.Workspace{
+			Name:        "Default Workspace",
+			Description: "This is the default workspace.",
+			IsDefault:   true,
+		}
+		err := db.AddWorkspace(&defaultWorkspace)
+		if err != nil {
+			log.Fatalf("Failed to create default workspace - %s", err)
+		}
+	}
+
+	// Associate users without workspaces to default workspace
+	users := db.GetUsers()
+	for _, user := range users {
+		// Skip admin users as they have access to all workspaces
+		if user.Role == "admin" {
+			continue
+		}
+
+		if len(user.WorkspaceIDs) == 0 {
+			// Update only the workspace_ids field
+			err := db.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
+			if err != nil {
+				log.Printf("Failed to associate user %s with default workspace - %s", user.Username, err)
+				continue
+			}
+		}
+	}
+
+	// Associate devices without workspace to default workspace
+	devices := db.GetDBDeviceNew()
+	for _, device := range devices {
+		if device.WorkspaceID == "" {
+			device.WorkspaceID = defaultWorkspace.ID
+			err := db.UpsertDeviceDB(&device)
+			if err != nil {
+				log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
+				continue
+			}
+		}
+	}
+
 	err = setupUIFiles(uiFiles)
 	if err != nil {
 		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", filesTempDir, err)
