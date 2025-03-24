@@ -4,7 +4,11 @@ import {
     FormControl,
     Grid,
     MenuItem,
-    TextField, Tooltip
+    TextField, Tooltip,
+    Select,
+    OutlinedInput,
+    InputLabel,
+    ListItemText
 } from '@mui/material'
 import Stack from '@mui/material/Stack'
 import { api } from '../../../services/api'
@@ -15,10 +19,22 @@ import CircularProgress from '@mui/material/CircularProgress'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { useDialog } from '../../../contexts/DialogContext'
+import Checkbox from '@mui/material/Checkbox';
+import { useSnackbar } from '../../../contexts/SnackBarContext';
+
+const MenuProps = {
+    PaperProps: {
+        style: {
+            maxHeight: 48 * 4.5 + 8,
+            width: 250,
+        },
+    },
+};
 
 export default function UsersAdministration() {
     const [userData, setUserData] = useState([])
-    const { logout } = useContext(Auth)
+    const [workspaces, setWorkspaces] = useState([])
+    const { showSnackbar } = useSnackbar();
 
     function handleGetUserData() {
         let url = `/admin/users`
@@ -26,13 +42,36 @@ export default function UsersAdministration() {
             .then(response => {
                 setUserData(response.data)
             })
-            .catch(error => {
+            .catch(e => {
+                const message = e.response?.data?.error || 'Failed to get users'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
             })
 
     }
 
+    function fetchWorkspaces() {
+        api.get('/admin/workspaces?page=1&limit=100')
+            .then(response => {
+                setWorkspaces(response.data.workspaces)
+            })
+            .catch(e => {
+                const message = e.response?.data?.error || 'Failed to get workspaces'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
+            })
+    }
+
     useEffect(() => {
+
         handleGetUserData()
+        fetchWorkspaces()
     }, [])
 
     return (
@@ -40,12 +79,12 @@ export default function UsersAdministration() {
             <Box id='outer-box'>
                 <Grid id='user-grid' container spacing={2}>
                     <Grid item>
-                        <NewUser handleGetUserData={handleGetUserData}></NewUser>
+                        <NewUser handleGetUserData={handleGetUserData} fetchWorkspaces={fetchWorkspaces} workspaces={workspaces}></NewUser>
                     </Grid>
                     {userData.map((user) => {
                         return (
                             <Grid item>
-                                <ExistingUser user={user} handleGetUserData={handleGetUserData}></ExistingUser>
+                                <ExistingUser user={user} handleGetUserData={handleGetUserData} fetchWorkspaces={fetchWorkspaces} workspaces={workspaces}></ExistingUser>
                             </Grid>
                         )
                     })
@@ -56,40 +95,58 @@ export default function UsersAdministration() {
     )
 }
 
-function NewUser({ handleGetUserData }) {
+function NewUser({ handleGetUserData, fetchWorkspaces, workspaces }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [role, setRole] = useState('user')
+    const [workspaceIds, setWorkspaceIds] = useState([])
     const [loading, setLoading] = useState(false)
     const [addUserStatus, setAddUserStatus] = useState(null)
+    const { showSnackbar } = useSnackbar();
+
+    useEffect(() => {
+        if (workspaces.length > 0) {
+            const defaultWorkspace = workspaces.filter(workspace => workspace.is_default);
+            if (defaultWorkspace.length > 0) {
+                setWorkspaceIds([defaultWorkspace[0].id]);
+            }
+        }
+    }, [workspaces]);
 
     function handleAddUser(event) {
         setLoading(true)
         setAddUserStatus(null)
         event.preventDefault()
 
-        let url = `/admin/user`
-
-        const loginData = {
+        const userData = {
             username: username,
             password: password,
-            role: role
+            role: role,
+            workspace_ids: workspaceIds
         }
 
-        api.post(url, loginData)
+        api.post('/admin/user', userData)
             .then(() => {
                 setAddUserStatus('success')
                 setUsername('')
                 setPassword('')
                 setRole('user')
+                setWorkspaceIds([])
             })
             .catch(e => {
                 setAddUserStatus('error')
+                const message = e.response?.data?.error || 'Failed to create new user'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
             })
             .finally(() => {
                 setTimeout(() => {
                     setLoading(false)
                     handleGetUserData()
+                    fetchWorkspaces()
                     setTimeout(() => {
                         setAddUserStatus(null)
                     }, 2000)
@@ -136,6 +193,38 @@ function NewUser({ handleGetUserData }) {
                             <MenuItem value='admin'>Admin</MenuItem>
                         </TextField>
                     </FormControl>
+                    <FormControl fullWidth required size="small">
+                        <InputLabel id="workspaces-checkbox-label">Workspaces</InputLabel>
+                        <Select
+                            labelId="workspaces-checkbox-label"
+                            id="workspaces-checkbox"
+                            multiple
+                            value={workspaceIds}
+                            onChange={(event) => {
+                                const {
+                                    target: { value },
+                                } = event;
+                                setWorkspaceIds(
+                                    typeof value === 'string' ? value.split(',') : value,
+                                );
+                            }}
+                            input={<OutlinedInput label="Workspaces" />}
+                            renderValue={(selected) => 
+                                workspaces
+                                    .filter(workspace => selected.includes(workspace.id))
+                                    .map(workspace => workspace.name)
+                                    .join(', ')
+                            }
+                            MenuProps={MenuProps}
+                        >
+                            {workspaces.map((workspace) => (
+                                <MenuItem key={workspace.id} value={workspace.id}>
+                                    <Checkbox checked={workspaceIds.includes(workspace.id)} />
+                                    <ListItemText primary={workspace.name} />
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                     <Button
                         variant='contained'
                         type='submit'
@@ -164,39 +253,47 @@ function NewUser({ handleGetUserData }) {
     )
 }
 
-function ExistingUser({ user, handleGetUserData }) {
+function ExistingUser({ user, handleGetUserData, fetchWorkspaces, workspaces }) {
     const [username, setUsername] = useState(user.username)
     const [password, setPassword] = useState('')
     const [role, setRole] = useState(user.role)
     const [openAlert, setOpenAlert] = useState(false)
     const [updateLoading, setUpdateLoading] = useState(false)
     const [updateUserStatus, setUpdateUserStatus] = useState(null)
+    const [workspaceIds, setWorkspaceIds] = useState(user.workspace_ids)
+    const { showSnackbar } = useSnackbar();
 
     function handleUpdateUser(event) {
         setUpdateLoading(true)
         setUpdateUserStatus(null)
         event.preventDefault()
 
-        let url = `/admin/user`
-
-        const loginData = {
+        const updatedUser = {
             username: username,
             password: password,
-            role: role
+            role: role,
+            workspace_ids: role === 'admin' ? null : workspaceIds
         }
 
-        api.put(url, loginData)
+        api.put(`/admin/user`, updatedUser)
             .then(() => {
                 setUpdateUserStatus('success')
                 setPassword('')
             })
-            .catch(() => {
+            .catch((e) => {
                 setUpdateUserStatus('error')
+                const message = e.response?.data?.error || 'Failed to update user'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
             })
             .finally(() => {
                 setTimeout(() => {
                     setUpdateLoading(false)
                     handleGetUserData()
+                    fetchWorkspaces()
                     setTimeout(() => {
                         setUpdateUserStatus(null)
                     }, 2000)
@@ -208,10 +305,18 @@ function ExistingUser({ user, handleGetUserData }) {
         let url = `/admin/user/${username}`
 
         api.delete(url)
-            .then(() =>
+            .then(() => {
                 handleGetUserData()
-            )
-            .catch()
+                fetchWorkspaces()
+            })
+            .catch((e) => {
+                const message = e.response?.data?.error || 'Failed to delete user'
+                showSnackbar({
+                    message: message,
+                    severity: 'error',
+                    duration: 3000,
+                });
+            })
             .finally(() => {
                 setOpenAlert(false)
             })
@@ -265,6 +370,40 @@ function ExistingUser({ user, handleGetUserData }) {
                             <MenuItem value='admin'>Admin</MenuItem>
                         </TextField>
                     </FormControl>
+                    {role !== 'admin' && (
+                        <FormControl fullWidth required size="small">
+                            <InputLabel id="workspaces-checkbox-label">Workspaces</InputLabel>
+                            <Select
+                                labelId="workspaces-checkbox-label"
+                                id="workspaces-checkbox"
+                                multiple
+                                value={workspaceIds}
+                                onChange={(event) => {
+                                    const {
+                                        target: { value },
+                                    } = event;
+                                    setWorkspaceIds(
+                                        typeof value === 'string' ? value.split(',') : value,
+                                    );
+                                }}
+                                input={<OutlinedInput label="Workspaces" />}
+                                renderValue={(selected) => 
+                                    workspaces
+                                        .filter(workspace => selected.includes(workspace.id))
+                                        .map(workspace => workspace.name)
+                                        .join(', ')
+                                }
+                                MenuProps={MenuProps}
+                            >
+                                {workspaces.map((workspace) => (
+                                    <MenuItem key={workspace.id} value={workspace.id}>
+                                        <Checkbox checked={workspaceIds.includes(workspace.id)} />
+                                        <ListItemText primary={workspace.name} />
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    )}
                     <Button
                         variant='contained'
                         type='submit'

@@ -173,7 +173,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	if user == (models.User{}) {
+	if user.Username == "" || user.Password == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
 		BadRequest(c, "Empty or invalid body")
 		return
 	}
@@ -183,21 +183,13 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	if user.Username == "" {
-		BadRequest(c, "Empty username provided")
-	}
-
-	if user.Password == "" {
-		BadRequest(c, "Empty password provided")
-	}
-
 	dbUser, err := db.GetUserFromDB(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
 	}
 
-	if dbUser != (models.User{}) {
+	if dbUser.Username != "" {
 		BadRequest(c, "User already exists")
 		return
 	}
@@ -226,8 +218,8 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if user == (models.User{}) {
-		BadRequest(c, "Empty or invalid body")
+	if user.Username == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
+		BadRequest(c, "Username cannot be empty and non-admin users must have at least one workspace")
 		return
 	}
 
@@ -237,13 +229,9 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if dbUser == (models.User{}) {
+	if dbUser.Username == "" {
 		BadRequest(c, "Cannot update non-existing user")
 		return
-	}
-
-	if user.Password == "" {
-		user.Password = dbUser.Password
 	}
 
 	err = db.AddOrUpdateUser(user)
@@ -635,6 +623,13 @@ func DeviceInUseWS(c *gin.Context) {
 }
 
 func AvailableDevicesSSE(c *gin.Context) {
+	// Get workspace ID from query parameter
+	workspaceID := c.Query("workspaceId")
+	if workspaceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workspaceId is required"})
+		return
+	}
+
 	c.Stream(func(w io.Writer) bool {
 
 		devices.HubDevicesData.Mu.Lock()
@@ -647,23 +642,31 @@ func AvailableDevicesSSE(c *gin.Context) {
 
 		var deviceList = []*models.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
-			if devices.HubDevicesData.Devices[key].Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && devices.HubDevicesData.Devices[key].Device.Connected {
-				devices.HubDevicesData.Devices[key].Available = false
-			} else if devices.HubDevicesData.Devices[key].Device.ProviderState != "live" {
-				devices.HubDevicesData.Devices[key].Available = false
-			} else {
-				devices.HubDevicesData.Devices[key].Available = true
+			device := devices.HubDevicesData.Devices[key]
+
+			// Filter by workspace
+			if device.Device.WorkspaceID != workspaceID {
+				continue
 			}
-			if devices.HubDevicesData.Devices[key].InUseTS > (time.Now().UnixMilli() - 3000) {
-				if !devices.HubDevicesData.Devices[key].InUse {
-					devices.HubDevicesData.Devices[key].InUse = true
+
+			if device.Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && device.Device.Connected {
+				device.Available = false
+			} else if device.Device.ProviderState != "live" {
+				device.Available = false
+			} else {
+				device.Available = true
+			}
+
+			if device.InUseTS > (time.Now().UnixMilli() - 3000) {
+				if !device.InUse {
+					device.InUse = true
 				}
 			} else {
-				if devices.HubDevicesData.Devices[key].InUse {
-					devices.HubDevicesData.Devices[key].InUse = false
+				if device.InUse {
+					device.InUse = false
 				}
 			}
-			deviceList = append(deviceList, devices.HubDevicesData.Devices[key])
+			deviceList = append(deviceList, device)
 		}
 		devices.HubDevicesData.Mu.Unlock()
 
@@ -796,6 +799,11 @@ func UpdateDevice(c *gin.Context) {
 			if reqDevice.WebRTCVideoCodec != dbDevice.WebRTCVideoCodec {
 				dbDevice.WebRTCVideoCodec = reqDevice.WebRTCVideoCodec
 			}
+
+			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
+				dbDevice.WorkspaceID = reqDevice.WorkspaceID
+			}
+
 			err = db.UpsertDeviceDB(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})

@@ -34,6 +34,10 @@
   - Web interface serving
   - Provider communication proxy
   - Experimental **Selenium Grid** replacement
+- 👥 **Workspace Management**
+  - User access control per workspace
+  - Default workspace for legacy support
+  - [Detailed Workspace Documentation](./docs/workspaces.md)
 
 ### Provider Features 🔌
 - 🛠️ **Easy Setup**
