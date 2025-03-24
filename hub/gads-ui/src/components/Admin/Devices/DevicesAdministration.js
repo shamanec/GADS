@@ -151,7 +151,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '1020px',
+                height: '860px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -160,7 +160,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                 <Stack
                     spacing={2}
                     style={{
-                        padding: '20px'
+                        padding: '10px'
                     }}
                 >
                     <Tooltip
@@ -177,6 +177,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Device OS'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='android'>Android</MenuItem>
                                 <MenuItem value='ios'>iOS</MenuItem>
@@ -197,6 +198,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Device type'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='real'>Real device</MenuItem>
                                 <MenuItem disabled value='emulator'>Emulator/Simulator - TODO</MenuItem>
@@ -214,6 +216,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={udid}
                             autoComplete='off'
                             onChange={(event) => setUdid(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -227,6 +230,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={name}
                             autoComplete='off'
                             onChange={(event) => setName(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -240,6 +244,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={osVersion}
                             autoComplete='off'
                             onChange={(event) => setOSVersion(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -252,6 +257,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={screenWidth}
                             autoComplete='off'
                             onChange={(event) => setScreenWidth(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -264,6 +270,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={screenHeight}
                             autoComplete='off'
                             onChange={(event) => setScreenHeight(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -280,6 +287,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Device usage'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='enabled'>Enabled</MenuItem>
                                 <MenuItem value='automation'>Automation</MenuItem>
@@ -302,6 +310,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Provider'
                                 required
+                                size='small'
                             >
                                 {providers.map((providerName) => {
                                     return (
@@ -371,6 +380,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Workspace'
                                 required
+                                size='small'
                             >
                                 {workspaces.map((ws) => (
                                     <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
@@ -536,7 +546,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '1020px',
+                height: '860px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -545,7 +555,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                 <Stack
                     spacing={2}
                     style={{
-                        padding: '20px'
+                        padding: '10px'
                     }}
                 >
                     <Tooltip
@@ -563,6 +573,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Device OS'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='android'>Android</MenuItem>
                                 <MenuItem value='ios'>iOS</MenuItem>
@@ -583,6 +594,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 label='Device type'
                                 required
                                 disabled
+                                size='small'
                             >
                                 <MenuItem value='real'>Real device</MenuItem>
                                 <MenuItem value='emulator'>Emulator/Simulator</MenuItem>
@@ -598,6 +610,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             disabled
                             label='UDID'
                             defaultValue={udid}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -611,6 +624,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             defaultValue={name}
                             autoComplete='off'
                             onChange={(event) => setName(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -624,6 +638,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             defaultValue={osVersion}
                             autoComplete='off'
                             onChange={(event) => setOSVersion(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -648,6 +663,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             defaultValue={screenHeight}
                             autoComplete='off'
                             onChange={(event) => setScreenHeight(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -664,6 +680,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Device usage'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='enabled'>Enabled</MenuItem>
                                 <MenuItem value='automation'>Automation</MenuItem>
@@ -686,6 +703,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Provider'
                                 required
+                                size='small'
                             >
                                 {providersData.map((providerName) => {
                                     return (
@@ -755,6 +773,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Workspace'
                                 required
+                                size='small'
                             >
                                 {workspaces.map((ws) => (
                                     <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
