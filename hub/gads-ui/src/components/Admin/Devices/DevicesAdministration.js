@@ -151,7 +151,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '940px',
+                height: '1020px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -536,7 +536,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '940px',
+                height: '1020px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
