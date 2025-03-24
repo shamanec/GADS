@@ -418,7 +418,6 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
     const [type, setType] = useState(deviceData.device_type)
     const [webrtcVideo, setWebrtcVideo] = useState(deviceData.use_webrtc_video)
     const [webrtcCodec, setWebrtcCodec] = useState(deviceData.webrtc_video_codec)
-    const udid = deviceData.udid
 
     const [provider, setProvider] = useState(deviceData.provider)
     const [workspaceId, setWorkspaceId] = useState('default')
@@ -457,7 +456,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
             usage: usage,
             device_type: type,
             use_webrtc_video: webrtcVideo,
-            webrtc_video_codec: webrtcCodec
+            webrtc_video_codec: webrtcCodec,
             workspace_id: workspaceId
         }
 
