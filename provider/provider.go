@@ -100,7 +100,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	if config.ProviderConfig.ProvideAndroid {
 		err = config.SetupGADSWebRTCAndroidApkFile()
 		if err != nil {
-			fmt.Println("There is no GADS Android WebRTC apk uploaded via the Admin UI!!!")
+			logger.ProviderLogger.LogWarn("provider_setup", "There is no GADS Android WebRTC apk uploaded via the Admin UI!!!")
 		}
 	}
 
