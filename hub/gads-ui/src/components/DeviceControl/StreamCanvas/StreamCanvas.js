@@ -60,7 +60,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             }
         }
 
-        updateCanvasDimensions(isPortrait)
+        handleResize()
 
         window.addEventListener('resize', handleResize)
         return () => window.removeEventListener('resize', handleResize)
@@ -85,8 +85,14 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
         return () => {
             // Only tear down if user hides the stream or unmounts
-            if (ws.current) ws.current.close()
-            if (pc.current) pc.current.close()
+            if (ws.current) {
+                ws.current.close()
+                ws = null
+            }
+            if (pc.current) {
+                pc.current.close()
+                pc = null
+            }
         };
     }, [useWebRTCVideo, shouldShowStream])
 
