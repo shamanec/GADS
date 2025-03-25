@@ -43,7 +43,7 @@ export default function DeviceControl() {
         }
         const protocol = window.location.protocol
         let wsType = 'ws'
-        if (protocol === 'https') {
+        if (protocol === 'https:') {
             wsType = 'wss'
         }
 

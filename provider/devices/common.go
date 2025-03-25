@@ -302,48 +302,60 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked and uninstalled existing GADS-stream app on device `%v` if it was present", device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Installing GADS-stream on device `%v`", device.UDID))
-	err = installGadsStream(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to install GADS-stream on Android device.")
-		return
+	if !device.UseWebRTCVideo {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Installing GADS-stream on device `%v`", device.UDID))
+		err = installGadsStream(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to install GADS-stream on Android device.")
+			return
+		}
+		time.Sleep(2 * time.Second)
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully installed GADS-stream on device `%v`", device.UDID))
+	} else {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Installing GADS WebRTC stream on device `%v`", device.UDID))
+		err = installGadsWebRTCStream(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS WebRTC stream on Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to install GADS WebRTC stream on Android device.")
+			return
+		}
+		time.Sleep(2 * time.Second)
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully installed GADS WebRTC stream on device `%v`", device.UDID))
 	}
-	time.Sleep(2 * time.Second)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully installed GADS-stream on device `%v`", device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Setting GADS-stream recording permissions on Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Setting GADS stream recording permissions on Android device `%v`", device.UDID))
 	err = addGadsStreamRecordingPermissions(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS-stream recording permissions on Android device - %v:\n %v", device.UDID, err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS stream recording permissions on Android device - %v:\n %v", device.UDID, err))
 		ResetLocalDevice(device, "Failed to set GADS-stream recording permissions on Android device.")
 		return
 	}
 	time.Sleep(2 * time.Second)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully set GADS-stream recording permissions on Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully set GADS stream recording permissions on Android device `%v`", device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS-stream app on Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS stream app on Android device `%v`", device.UDID))
 	err = startGadsStreamApp(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS-stream app on Android device - %v:\n %v", device.UDID, err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS stream app on Android device - %v:\n %v", device.UDID, err))
 		ResetLocalDevice(device, "Failed to start GADS-stream app on Android device.")
 		return
 	}
 	time.Sleep(2 * time.Second)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully started GADS-stream app on Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully started GADS stream app on Android device `%v`", device.UDID))
 
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Pressing home button on Android device `%v`", device.UDID))
 	pressHomeButton(device)
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully pressed home button on Android device `%v`", device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS-stream port to host port for Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS stream port to host port for Android device `%v`", device.UDID))
 	err = forwardGadsStream(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS-stream port to host port %v for Android device - %v:\n %v", device.StreamPort, device.UDID, err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS stream port to host port %v for Android device - %v:\n %v", device.StreamPort, device.UDID, err))
 		ResetLocalDevice(device, "Failed to forward GADS-stream port to host port.")
 		return
 	}
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS-stream port to host port for Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS stream port to host port for Android device `%v`", device.UDID))
 
 	device.InstalledApps = GetInstalledAppsAndroid(device)
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
@@ -867,34 +879,38 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 }
 
 func processStream(scanner *bufio.Scanner, device *models.Device, isErrorStream bool) {
+	linesChan := make(chan string)
+
+	go func() {
+		defer close(linesChan)
+		for scanner.Scan() {
+			linesChan <- scanner.Text()
+		}
+
+		if err := scanner.Err(); err != nil {
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("processStream: `%v` scanner error - %v", device.UDID, err))
+			return
+		}
+	}()
+
+	// Listen on both the lines channel and the device context
 	for {
 		select {
 		case <-device.Context.Done():
 			return // Exit the goroutine if the context is done
-		default:
-			scanDone := make(chan bool)
-
-			go func() {
-				if scanner.Scan() {
-					if isErrorStream {
-						lines := strings.Split(scanner.Text(), "\n")
-						for _, line := range lines {
-							logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: `%v` Appium error - %v", device.UDID, line))
-						}
-					} else {
-						device.AppiumLogger.Log(device, scanner.Text())
-					}
-				}
-				scanDone <- true
-			}()
-
-			// Wait for either scan completion or timeout
-			select {
-			case <-scanDone:
-				// Scan completed successfully
-			case <-time.After(500 * time.Millisecond):
-				// Timeout occurred
+		case line, ok := <-linesChan:
+			if !ok {
+				return // No more lines from scanner - probably channel closed
 			}
+
+			// If we are getting lines - log them as expected
+			if isErrorStream {
+				logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: %v Appium error - %v", device.UDID, line))
+			} else {
+				device.AppiumLogger.Log(device, line)
+			}
+		case <-time.After(500 * time.Millisecond):
+			return
 		}
 	}
 }

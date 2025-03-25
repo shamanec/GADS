@@ -97,6 +97,13 @@ func StartProvider(flags *pflag.FlagSet) {
 		}
 	}
 
+	if config.ProviderConfig.ProvideAndroid {
+		err = config.SetupGADSWebRTCAndroidApkFile()
+		if err != nil {
+			logger.ProviderLogger.LogWarn("provider_setup", "There is no GADS Android WebRTC apk uploaded via the Admin UI!!!")
+		}
+	}
+
 	// Finalize grid configuration if Selenium Grid usage enabled
 	if config.ProviderConfig.UseSeleniumGrid {
 		err = config.SetupSeleniumJar()

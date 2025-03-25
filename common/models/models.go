@@ -41,15 +41,17 @@ type User struct {
 
 type Device struct {
 	// DB DATA
-	UDID         string `json:"udid" bson:"udid"`                   // device UDID
-	OS           string `json:"os" bson:"os"`                       // device OS
-	Name         string `json:"name" bson:"name"`                   // name of the device
-	OSVersion    string `json:"os_version" bson:"os_version"`       // OS version of the device
-	Provider     string `json:"provider" bson:"provider"`           // nickname of the device host(provider)
-	Usage        string `json:"usage" bson:"usage"`                 // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
-	ScreenWidth  string `json:"screen_width" bson:"screen_width"`   // screen width of device
-	ScreenHeight string `json:"screen_height" bson:"screen_height"` // screen height of device
-	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
+	UDID             string `json:"udid" bson:"udid"`                             // device UDID
+	OS               string `json:"os" bson:"os"`                                 // device OS
+	Name             string `json:"name" bson:"name"`                             // name of the device
+	OSVersion        string `json:"os_version" bson:"os_version"`                 // OS version of the device
+	Provider         string `json:"provider" bson:"provider"`                     // nickname of the device host(provider)
+	Usage            string `json:"usage" bson:"usage"`                           // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
+	ScreenWidth      string `json:"screen_width" bson:"screen_width"`             // screen width of device
+	ScreenHeight     string `json:"screen_height" bson:"screen_height"`           // screen height of device
+	DeviceType       string `json:"device_type" bson:"device_type"`               // The type of device - `real` or `emulator`
+	UseWebRTCVideo   bool   `json:"use_webrtc_video" bson:"use_webrtc_video"`     // Should the device use WebRTC video instead of MJPEG
+	WebRTCVideoCodec string `json:"webrtc_video_codec" bson:"webrtc_video_codec"` // Which video codec should the device use for WebRTC video stream
 	WorkspaceID  string `json:"workspace_id" bson:"workspace_id"`   // ID of the associated workspace
 	// NON-DB DATA
 	/// COMMON VALUES

@@ -87,6 +87,8 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
     const [screenWidth, setScreenWidth] = useState('')
     const [usage, setUsage] = useState('enabled')
     const [type, setType] = useState('real')
+    const [webrtcVideo, setWebrtcVideo] = useState(false)
+    const [webrtcCodec, setWebrtcCodec] = useState('h264')
     const [workspace, setWorkspace] = useState('')
 
     const [loading, setLoading] = useState(false)
@@ -123,6 +125,8 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                 setScreenHeight('')
                 setScreenWidth('')
                 setUsage('enabled')
+                setWebrtcVideo(false)
+                setWebrtcCodec('')
                 setWorkspace('')
             })
             .catch(() => {
@@ -147,7 +151,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '910px',
+                height: '860px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -156,7 +160,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                 <Stack
                     spacing={2}
                     style={{
-                        padding: '20px'
+                        padding: '10px'
                     }}
                 >
                     <Tooltip
@@ -173,6 +177,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Device OS'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='android'>Android</MenuItem>
                                 <MenuItem value='ios'>iOS</MenuItem>
@@ -193,6 +198,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Device type'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='real'>Real device</MenuItem>
                                 <MenuItem disabled value='emulator'>Emulator/Simulator - TODO</MenuItem>
@@ -210,6 +216,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={udid}
                             autoComplete='off'
                             onChange={(event) => setUdid(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -223,6 +230,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={name}
                             autoComplete='off'
                             onChange={(event) => setName(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -236,6 +244,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={osVersion}
                             autoComplete='off'
                             onChange={(event) => setOSVersion(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -248,6 +257,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={screenWidth}
                             autoComplete='off'
                             onChange={(event) => setScreenWidth(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -260,6 +270,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                             value={screenHeight}
                             autoComplete='off'
                             onChange={(event) => setScreenHeight(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -276,6 +287,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Device usage'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='enabled'>Enabled</MenuItem>
                                 <MenuItem value='automation'>Automation</MenuItem>
@@ -298,6 +310,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Provider'
                                 required
+                                size='small'
                             >
                                 {providers.map((providerName) => {
                                     return (
@@ -305,6 +318,51 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                     )
                                 })
                                 }
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='Use WebRTC video instead of MJPEG?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios'}
+                                variant='outlined'
+                                value={webrtcVideo}
+                                onChange={(e) => setWebrtcVideo(e.target.value)}
+                                select
+                                size='small'
+                                label='Use WebRTC video?'
+                                required
+                            >
+                                <MenuItem value={true}>Yes</MenuItem>
+                                <MenuItem value={false}>No</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='Preferred WebRTC video codec?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios' || !webrtcVideo}
+                                variant='outlined'
+                                value={webrtcCodec}
+                                onChange={(e) => setWebrtcCodec(e.target.value)}
+                                select
+                                size='small'
+                                label='WebRTC preferred video codec?'
+                                required
+                            >
+                                <MenuItem value='h264'>H264</MenuItem>
+                                <MenuItem value='vp8'>VP8</MenuItem>
+                                <MenuItem value='vp9'>VP9</MenuItem>
                             </TextField>
                         </FormControl>
                     </Tooltip>
@@ -322,6 +380,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                                 select
                                 label='Workspace'
                                 required
+                                size='small'
                             >
                                 {workspaces.map((ws) => (
                                     <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>
@@ -367,6 +426,9 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
     const [screenWidth, setScreenWidth] = useState(deviceData.screen_width)
     const [usage, setUsage] = useState(deviceData.usage)
     const [type, setType] = useState(deviceData.device_type)
+    const [webrtcVideo, setWebrtcVideo] = useState(deviceData.use_webrtc_video)
+    const [webrtcCodec, setWebrtcCodec] = useState(deviceData.webrtc_video_codec)
+
     const [provider, setProvider] = useState(deviceData.provider)
     const [workspaceId, setWorkspaceId] = useState('default')
     const [loading, setLoading] = useState(false)
@@ -382,6 +444,8 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
         setScreenHeight(deviceData.screen_height)
         setScreenWidth(deviceData.screen_width)
         setWorkspaceId(workspaces.find(ws => ws.id === deviceData.workspace_id)?.id || "")
+        setWebrtcVideo(deviceData.use_webrtc_video)
+        setWebrtcCodec(deviceData.webrtc_video_codec)
     }, [deviceData, workspaces])
 
     function handleUpdateDevice(event) {
@@ -401,6 +465,8 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
             os: os,
             usage: usage,
             device_type: type,
+            use_webrtc_video: webrtcVideo,
+            webrtc_video_codec: webrtcCodec,
             workspace_id: workspaceId
         }
 
@@ -480,7 +546,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                 width: '400px',
                 minWidth: '400px',
                 maxWidth: '400px',
-                height: '910px',
+                height: '860px',
                 borderRadius: '5px',
                 backgroundColor: '#9ba984'
             }}
@@ -489,7 +555,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                 <Stack
                     spacing={2}
                     style={{
-                        padding: '20px'
+                        padding: '10px'
                     }}
                 >
                     <Tooltip
@@ -507,6 +573,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Device OS'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='android'>Android</MenuItem>
                                 <MenuItem value='ios'>iOS</MenuItem>
@@ -527,6 +594,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 label='Device type'
                                 required
                                 disabled
+                                size='small'
                             >
                                 <MenuItem value='real'>Real device</MenuItem>
                                 <MenuItem value='emulator'>Emulator/Simulator</MenuItem>
@@ -542,6 +610,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             disabled
                             label='UDID'
                             defaultValue={udid}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -555,6 +624,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             defaultValue={name}
                             autoComplete='off'
                             onChange={(event) => setName(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -568,6 +638,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             defaultValue={osVersion}
                             autoComplete='off'
                             onChange={(event) => setOSVersion(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -592,6 +663,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                             defaultValue={screenHeight}
                             autoComplete='off'
                             onChange={(event) => setScreenHeight(event.target.value)}
+                            size='small'
                         />
                     </Tooltip>
                     <Tooltip
@@ -608,6 +680,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Device usage'
                                 required
+                                size='small'
                             >
                                 <MenuItem value='enabled'>Enabled</MenuItem>
                                 <MenuItem value='automation'>Automation</MenuItem>
@@ -630,6 +703,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Provider'
                                 required
+                                size='small'
                             >
                                 {providersData.map((providerName) => {
                                     return (
@@ -637,6 +711,51 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                     )
                                 })
                                 }
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='Use WebRTC video instead of MJPEG?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios'}
+                                variant='outlined'
+                                value={webrtcVideo}
+                                onChange={(e) => setWebrtcVideo(e.target.value)}
+                                select
+                                size='small'
+                                label='Use WebRTC video?'
+                                required
+                            >
+                                <MenuItem value={true}>Yes</MenuItem>
+                                <MenuItem value={false}>No</MenuItem>
+                            </TextField>
+                        </FormControl>
+                    </Tooltip>
+                    <Tooltip
+                        title='Preferred WebRTC video codec?'
+                        arrow
+                        placement='top'
+                        leaveDelay={0}
+                    >
+                        <FormControl fullWidth variant='outlined' required>
+                            <TextField
+                                disabled={os === 'ios' || !webrtcVideo}
+                                variant='outlined'
+                                value={webrtcCodec}
+                                onChange={(e) => setWebrtcCodec(e.target.value)}
+                                select
+                                size='small'
+                                label='WebRTC preferred video codec?'
+                                required
+                            >
+                                <MenuItem value='h264'>H264</MenuItem>
+                                <MenuItem value='vp8'>VP8</MenuItem>
+                                <MenuItem value='vp9'>VP9</MenuItem>
                             </TextField>
                         </FormControl>
                     </Tooltip>
@@ -654,6 +773,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                                 select
                                 label='Workspace'
                                 required
+                                size='small'
                             >
                                 {workspaces.map((ws) => (
                                     <MenuItem key={ws.id} value={ws.id}>{ws.name}</MenuItem>

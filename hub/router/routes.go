@@ -9,12 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -395,6 +395,92 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
+type WebRTCMessage struct {
+	Type string `json:"type"`
+	SDP  string `json:"sdp"`
+}
+
+// Websocket signalling server for WebRTC
+func DeviceWebRTCWS(c *gin.Context) {
+	udid := c.Param("udid")
+
+	// Accept the connection from the React UI
+	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
+	if err != nil {
+		log.Printf("Failed upgrading hub WebRTC websocket for device `%s` - %s\n", udid, err)
+		return
+	}
+
+	// Get the target device UDID
+	devices.HubDevicesData.Mu.Lock()
+	var deviceTest = devices.HubDevicesData.Devices[udid]
+	devices.HubDevicesData.Mu.Unlock()
+
+	// Connect to the respective device WebRTC signalling server websocket on the provider
+	u := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s", deviceTest.Device.Host), Path: "/device/" + deviceTest.Device.UDID + "/webrtc"}
+	providerConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+	if err != nil {
+		log.Printf("Failed to dial provider signalling server websocket for device `%s` - %s\n", udid, err)
+		return
+	}
+	defer providerConn.Close()
+
+	go func() {
+		for {
+			msg, op, err := wsutil.ReadServerData(providerConn)
+			if err != nil {
+				log.Printf("WebRTC signalling webserver for device `%s` on provider `%s` disconnected - %s\n", udid, deviceTest.Device.Host, err)
+				return
+			}
+			log.Printf("Received WebRTC message from provider signalling server for device `%s`, sending to hub UI - %s\n", udid, string(msg))
+			err = wsutil.WriteServerMessage(conn, op, msg)
+			if err != nil {
+				log.Printf("Failed to write WebRTC message from provider signalling server to hub UI client for device `%s` - %s\n", udid, err)
+				return
+			}
+		}
+	}()
+
+	for {
+		msg, op, err := wsutil.ReadClientData(conn)
+		if err != nil {
+			log.Printf("Hub UI WebRTC client for device `%s` disconnected, sending hangup message to provider signalling server - %s\n", udid, err)
+			err = wsutil.WriteClientMessage(providerConn, op, []byte("hangup"))
+			if err != nil {
+				log.Printf("Failed to send hangup signal to provider signalling server for device `%s` - %s\n", udid, err)
+			}
+			return
+		}
+		log.Printf("Received WebRTC message from hub UI client for device `%s`, sending to provider signalling server - %s\n", udid, string(msg))
+
+		var message WebRTCMessage
+		err = json.Unmarshal(msg, &message)
+		if err != nil {
+			log.Printf("Failed to unmarshal WebRTC message from hub UI client for device `%s`, sending hangup message to provider signalling server - %s\n", udid, err)
+			err = wsutil.WriteClientMessage(providerConn, op, []byte("hangup"))
+			if err != nil {
+				log.Printf("Failed to send hangup signal to provider signalling server for device `%s` - %s\n", udid, err)
+			}
+			return
+		}
+		switch message.Type {
+		case "offer":
+			log.Printf("Received an WebRTC offer from hub UI client for device `%s`, sending to provider signalling server\n", udid)
+			err = wsutil.WriteClientMessage(providerConn, op, msg)
+			if err != nil {
+				log.Printf("Failed to send hub UI WebRTC offer for device `%s` to provider signalling server - %s\n", udid, err)
+			}
+			break
+		case "candidate":
+			err = wsutil.WriteClientMessage(providerConn, op, msg)
+			if err != nil {
+				log.Printf("Failed to send hub UI WebRTC ICE candidate for device `%s` to provider signalling server - %s\n", udid, err)
+			}
+			break
+		}
+	}
+}
+
 // This websocket connection is used to both set the device in use when remotely controlled
 // As well as send live updates when needed - device info, release device, etc
 func DeviceInUseWS(c *gin.Context) {
@@ -603,17 +689,6 @@ func UploadFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No fileName for MongoDB record was provided"})
 		return
 	}
-	extension := c.PostForm("extension")
-	if extension == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No expected extension was provided"})
-		return
-	}
-
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != extension {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Expected extension is `%s` but you provided file with `%s`", extension, ext)})
-		return
-	}
 
 	openedFile, err := file.Open()
 	defer openedFile.Close()
@@ -704,6 +779,12 @@ func UpdateDevice(c *gin.Context) {
 
 			if reqDevice.Usage != "" && reqDevice.Usage != dbDevice.Usage {
 				dbDevice.Usage = reqDevice.Usage
+			}
+			if reqDevice.UseWebRTCVideo != dbDevice.UseWebRTCVideo {
+				dbDevice.UseWebRTCVideo = reqDevice.UseWebRTCVideo
+			}
+			if reqDevice.WebRTCVideoCodec != dbDevice.WebRTCVideoCodec {
+				dbDevice.WebRTCVideoCodec = reqDevice.WebRTCVideoCodec
 			}
 
 			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
