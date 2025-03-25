@@ -151,6 +151,10 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 pc.current.addIceCandidate(candidate).catch(console.error)
             }
         }
+
+        ws.current.onerror = (error) => {
+            console.error("WebSocket error:", error)
+        }
     }
 
     const sendOffer = async () => {
