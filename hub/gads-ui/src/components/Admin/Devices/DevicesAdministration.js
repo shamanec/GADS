@@ -322,7 +322,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='Should the device use WebRTC video instead of MJPEG?'
+                        title='Use WebRTC video instead of MJPEG?'
                         arrow
                         placement='top'
                         leaveDelay={0}
@@ -344,7 +344,7 @@ function NewDevice({ providers, workspaces, handleGetDeviceData }) {
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='Which video codec should be preferred for WebRTC video?'
+                        title='Preferred WebRTC video codec?'
                         arrow
                         placement='top'
                         leaveDelay={0}
@@ -715,7 +715,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='Should the device use WebRTC video instead of MJPEG?'
+                        title='Use WebRTC video instead of MJPEG?'
                         arrow
                         placement='top'
                         leaveDelay={0}
@@ -737,7 +737,7 @@ function ExistingDevice({ deviceData, providersData, workspaces, handleGetDevice
                         </FormControl>
                     </Tooltip>
                     <Tooltip
-                        title='Which video codec should be preferred for WebRTC video?'
+                        title='Preferred WebRTC video codec?'
                         arrow
                         placement='top'
                         leaveDelay={0}
