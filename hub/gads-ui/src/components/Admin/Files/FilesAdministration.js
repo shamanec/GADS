@@ -63,7 +63,6 @@ export default function FilesAdministration() {
                 allowedExtensions={['jar']}
                 fileStatus={seleniumJarExists}
                 fileName='selenium.jar'
-                expectedExtension='.jar'
             />
             <FileUploader
                 title='Upload supervision profile'
@@ -72,7 +71,6 @@ export default function FilesAdministration() {
                 allowedExtensions={['p12']}
                 fileStatus={supervisionFileExists}
                 fileName='supervision.p12'
-                expectedExtension='.p12'
             />
             <FileUploader
                 title='Upload WebDriverAgent IPA'
@@ -80,7 +78,6 @@ export default function FilesAdministration() {
                 allowedExtensions={['ipa']}
                 fileStatus={webDriverAgentFileExists}
                 fileName='WebDriverAgent.ipa'
-                expectedExtension='.ipa'
             />
             <FileUploader
                 title='Upload GADS WebRTC apk'
@@ -88,7 +85,6 @@ export default function FilesAdministration() {
                 allowedExtensions={['apk']}
                 fileStatus={androidWebRtcFileExists}
                 fileName='gads-webrtc.apk'
-                expectedExtension='.apk'
             />
         </Stack>
     )

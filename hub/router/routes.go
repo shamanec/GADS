@@ -13,10 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -689,17 +687,6 @@ func UploadFile(c *gin.Context) {
 	fileName := c.PostForm("fileName")
 	if fileName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No fileName for MongoDB record was provided"})
-		return
-	}
-	extension := c.PostForm("extension")
-	if extension == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No expected extension was provided"})
-		return
-	}
-
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != extension {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Expected extension is `%s` but you provided file with `%s`", extension, ext)})
 		return
 	}
 

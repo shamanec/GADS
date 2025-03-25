@@ -11,8 +11,7 @@ export default function FileUploader({
     onError = () => { },
     buttonLabel = 'Select and upload',
     fileStatus = false,
-    fileName = '',
-    expectedExtension = ''
+    fileName = ''
 }) {
     const [isUploading, setIsUploading] = useState(false)
     const [isUploaded, setIsUploaded] = useState(fileStatus)
@@ -41,7 +40,6 @@ export default function FileUploader({
             const form = new FormData()
             form.append('file', targetFile)
             form.append('fileName', fileName)
-            form.append('extension', expectedExtension)
 
             setIsUploading(true)
             api.post('/admin/upload-file', form, {
