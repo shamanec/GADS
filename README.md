@@ -1,16 +1,25 @@
+<!--
+  Title: GADS - Open Source Device Farm
+  Description: Self-hosted device farm and test automation platform for iOS and Android. Open source alternative to AWS Device Farm and Firebase Test Lab with Appium integration.
+  Author: shamanec
+  Tags: device-farm, mobile-testing, ios-testing, android-testing, appium, test-automation, qa-tools, continuous-testing, mobile-device-management, selenium-grid
+  -->
+
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="/docs/gads-logo-light.png">
-    <img src="/docs/gads-logo.png" width="256" alt="GADS - Open Source Device Farm for iOS and Android Testing"/>
+    <source media="(prefers-color-scheme: dark)" srcset="/docs/gads-logo-light.png" alt="GADS - Open Source Mobile Device Farm Platform - Dark Theme Logo">
+    <img src="/docs/gads-logo.png" width="256" alt="GADS - Open Source Mobile Device Farm Platform for iOS and Android Automated Testing"/>
   </picture>
 
   <h1>GADS - Open Source Device Farm for Mobile Testing</h1>
 
   [![GitHub Stars](https://img.shields.io/github/stars/shamanec/GADS?style=social)](https://github.com/shamanec/GADS/stargazers)
+  [![GitHub Release](https://img.shields.io/github/v/release/shamanec/GADS)](https://github.com/shamanec/GADS/releases)
+  [![GitHub Downloads](https://img.shields.io/github/downloads/shamanec/GADS/total)](https://github.com/shamanec/GADS/releases)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![Discord](https://dcbadge.vercel.app/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
 
-  🚀 **Open Source Device Farm for iOS & Android Testing** - Alternative to AWS Device Farm and Firebase Test Lab
+  🚀 **Self-Hosted Device Farm & Test Automation Platform** - Open Source Alternative to AWS Device Farm and Firebase Test Lab
 </div>
 
 ## 🎯 What is GADS?
@@ -175,7 +184,3 @@ https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 ## 🔍 Keywords
 
 `device-farm`, `mobile-testing`, `ios-testing`, `android-testing`, `appium`, `test-automation`, `qa-tools`, `continuous-testing`, `mobile-device-management`, `selenium-grid`, `remote-device-control`, `mobile-qa`
-
-
-
-
