@@ -1,22 +1,41 @@
+<!--
+  Title: GADS - Open Source Device Farm
+  Description: Self-hosted device farm and test automation platform for iOS and Android. Open source alternative to AWS Device Farm and Firebase Test Lab with Appium integration.
+  Author: shamanec
+  Tags: device-farm, mobile-testing, ios-testing, android-testing, appium, test-automation, qa-tools, continuous-testing, mobile-device-management, selenium-grid
+  -->
+
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="/docs/gads-logo-light.png">
-    <img src="/docs/gads-logo.png" width="256" alt="GADS Logo"/>
+    <source media="(prefers-color-scheme: dark)" srcset="/docs/gads-logo-light.png" alt="GADS - Open Source Mobile Device Farm Platform - Dark Theme Logo">
+    <img src="/docs/gads-logo.png" width="256" alt="GADS - Open Source Mobile Device Farm Platform for iOS and Android Automated Testing"/>
   </picture>
 
-  <h1>GADS - Mobile Device Management & Testing Platform</h1>
+  <h1>GADS - Open Source Device Farm for Mobile Testing</h1>
 
-  [![Discord](https://dcbadge.vercel.app/api/server/5amWvknKQd)](https://discord.gg/5amWvknKQd)
+  [![GitHub Stars](https://img.shields.io/github/stars/shamanec/GADS?style=social)](https://github.com/shamanec/GADS/stargazers)
+  [![GitHub Release](https://img.shields.io/github/v/release/shamanec/GADS)](https://github.com/shamanec/GADS/releases)
+  [![GitHub Downloads](https://img.shields.io/github/downloads/shamanec/GADS/total)](https://github.com/shamanec/GADS/releases)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Discord](https://dcbadge.vercel.app/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
 
-  🚀 **Remote control and automated testing** for iOS & Android devices
+  🚀 **Self-Hosted Device Farm & Test Automation Platform** - Open Source Alternative to AWS Device Farm and Firebase Test Lab
 </div>
 
-## 📖 Overview
+## 🎯 What is GADS?
 
-**GADS** is a platform for **remote device control** and **Appium test execution** on mobile devices. It consists of two main components:
+**GADS** is a free, open-source device farm platform that enables **remote device control** and **Appium test execution** on mobile devices. Perfect for QA teams, mobile developers, and organizations looking for a self-hosted alternative to expensive cloud testing services like AWS Device Farm and Firebase Test Lab.
 
+The platform architecture consists of two main components:
 - **Hub**: A web interface for remote device control and provider management.
 - **Provider**: Handles device setup and makes them available for remote access.
+
+### Why Choose GADS?
+- 💰 **Free & Open Source**: Complete alternative to AWS Device Farm and Firebase Test Lab
+- 📱 **Cross-Platform**: Full support for both iOS and Android devices
+- 🎮 **Remote Control**: Real-time device control and testing capabilities
+- 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
+- 🛠 **Easy Setup**: Simple installation and configuration process
 
 ## ✨ Key Features
 
@@ -149,6 +168,19 @@ https://github.com/user-attachments/assets/cb2da413-6a72-4ead-9433-c4d2b41d5f4b
 #### Remote control
 https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 
+## 💡 Use Cases
 
+- **Mobile App Testing**: Automate testing across multiple real devices
+- **Manual QA**: Remote access to physical devices for manual testing
+- **CI/CD Pipeline**: Integrate automated testing in your deployment workflow
+- **Device Lab Management**: Centralized management of your organization's mobile devices
+- **Cross-Browser Testing**: Test web applications across multiple mobile browsers
 
+## 📊 Project Status
 
+- **Project Stage**: Active Development
+- **Contributors**: [View Contributors](https://github.com/shamanec/GADS/graphs/contributors)
+
+## 🔍 Keywords
+
+`device-farm`, `mobile-testing`, `ios-testing`, `android-testing`, `appium`, `test-automation`, `qa-tools`, `continuous-testing`, `mobile-device-management`, `selenium-grid`, `remote-device-control`, `mobile-qa`
