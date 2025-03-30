@@ -828,6 +828,8 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 		"--relaxed-security",
 		"--default-capabilities", string(capabilitiesJson))
 
+	SetupProcessAttributes(cmd)
+
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", device.UDID, cmd.Args))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
