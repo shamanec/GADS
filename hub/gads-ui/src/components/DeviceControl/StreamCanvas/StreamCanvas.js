@@ -87,11 +87,11 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             // Only tear down if user hides the stream or unmounts
             if (ws.current) {
                 ws.current.close()
-                ws = null
+                ws.current = null
             }
             if (pc.current) {
                 pc.current.close()
-                pc = null
+                pc.current = null
             }
         };
     }, [useWebRTCVideo, shouldShowStream])
