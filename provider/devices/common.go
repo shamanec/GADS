@@ -881,36 +881,39 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 func processStream(scanner *bufio.Scanner, device *models.Device, isErrorStream bool) {
 	linesChan := make(chan string)
 
+	// Goroutine responsible for reading from the scanner and sending lines to the channel
 	go func() {
 		defer close(linesChan)
 		for scanner.Scan() {
 			linesChan <- scanner.Text()
 		}
-
 		if err := scanner.Err(); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("processStream: `%v` scanner error - %v", device.UDID, err))
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("processStream: %v scanner error - %v", device.UDID, err))
 			return
 		}
 	}()
 
-	// Listen on both the lines channel and the device context
+	// Main loop that listens to the lines channel and the device context
 	for {
 		select {
 		case <-device.Context.Done():
-			return // Exit the goroutine if the context is done
+			return // Exit if the device context is canceled
 		case line, ok := <-linesChan:
 			if !ok {
-				return // No more lines from scanner - probably channel closed
+				return // Exit if the channel is closed (EOF reached)
 			}
-
-			// If we are getting lines - log them as expected
+			// If it's an error stream, split the line if it contains multiple lines and log each separately
 			if isErrorStream {
-				logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: %v Appium error - %v", device.UDID, line))
+				lines := strings.Split(line, "\n")
+				for _, l := range lines {
+					logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: %v Appium error - %v", device.UDID, l))
+				}
 			} else {
 				device.AppiumLogger.Log(device, line)
 			}
 		case <-time.After(500 * time.Millisecond):
-			return
+			// On timeout, continue the loop waiting for new lines
+			continue
 		}
 	}
 }
