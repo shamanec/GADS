@@ -3,6 +3,7 @@ package devices
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+	"context"
 	"fmt"
 	"strconv"
 	"sync"
@@ -44,7 +45,7 @@ func GetLatestDBDevices() {
 	var latestDBDevices []models.Device
 
 	for {
-		latestDBDevices = db.GetDBDeviceNew()
+		latestDBDevices, _ = db.GlobalMongoStore.GetDevices(context.Background())
 
 		HubDevicesData.Mu.Lock()
 		for udid, _ := range HubDevicesData.Devices {

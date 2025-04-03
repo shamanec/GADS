@@ -5,6 +5,7 @@ import (
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"GADS/hub/router"
+	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -65,6 +66,8 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	// Create a new connection to MongoDB
 	db.InitMongoClient(mongoDB)
 
+	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
+
 	devices.InitHubDevicesData()
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
 	go devices.GetLatestDBDevices()
@@ -94,7 +97,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 
 	// Associate users without workspaces to default workspace
-	users := db.GetUsers()
+	users, _ := db.GlobalMongoStore.GetUsers(context.Background())
 	for _, user := range users {
 		// Skip admin users as they have access to all workspaces
 		if user.Role == "admin" {
@@ -112,7 +115,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 
 	// Associate devices without workspace to default workspace
-	devices := db.GetDBDeviceNew()
+	devices, _ := db.GlobalMongoStore.GetDevices(context.Background())
 	for _, device := range devices {
 		if device.WorkspaceID == "" {
 			device.WorkspaceID = defaultWorkspace.ID

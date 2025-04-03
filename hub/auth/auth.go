@@ -2,6 +2,7 @@ package auth
 
 import (
 	"GADS/common/db"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -31,7 +32,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := db.GetUserFromDB(creds.Username)
+	user, err := db.GlobalMongoStore.GetUser(context.Background(), creds.Username)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return

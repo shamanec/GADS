@@ -181,7 +181,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	dbUser, err := db.GetUserFromDB(user.Username)
+	dbUser, err := db.GlobalMongoStore.GetUser(context.Background(), user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -221,7 +221,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	dbUser, err := db.GetUserFromDB(user.Username)
+	dbUser, err := db.GlobalMongoStore.GetUser(context.Background(), user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -252,7 +252,7 @@ func DeleteUser(c *gin.Context) {
 }
 
 func GetProviders(c *gin.Context) {
-	providers := db.GetProvidersFromDB()
+	providers, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
 	if len(providers) == 0 {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
@@ -262,7 +262,7 @@ func GetProviders(c *gin.Context) {
 
 func GetProviderInfo(c *gin.Context) {
 	providerName := c.Param("name")
-	providers := db.GetProvidersFromDB()
+	providers, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
 			c.JSON(http.StatusOK, provider)
@@ -291,7 +291,7 @@ func AddProvider(c *gin.Context) {
 		BadRequest(c, "Missing or invalid nickname")
 		return
 	}
-	providerDB, _ := db.GetProviderFromDB(provider.Nickname)
+	providerDB, _ := db.GlobalMongoStore.GetProvider(context.Background(), provider.Nickname)
 	if providerDB.Nickname == provider.Nickname {
 		BadRequest(c, "Provider with this nickname already exists")
 		return
@@ -320,7 +320,7 @@ func AddProvider(c *gin.Context) {
 		return
 	}
 
-	providersDB := db.GetProvidersFromDB()
+	providersDB, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
 	OkJSON(c, providersDB)
 }
 
@@ -384,7 +384,7 @@ func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
 	c.Stream(func(w io.Writer) bool {
-		providerData, _ := db.GetProviderFromDB(nickname)
+		providerData, _ := db.GlobalMongoStore.GetProvider(context.Background(), nickname)
 
 		jsonData, _ := json.Marshal(&providerData)
 
@@ -721,7 +721,7 @@ func AddDevice(c *gin.Context) {
 		return
 	}
 
-	dbDevices := db.GetDBDeviceNew()
+	dbDevices, _ := db.GlobalMongoStore.GetDevices(context.Background())
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == device.UDID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
@@ -753,7 +753,7 @@ func UpdateDevice(c *gin.Context) {
 		return
 	}
 
-	dbDevices := db.GetDBDeviceNew()
+	dbDevices, _ := db.GlobalMongoStore.GetDevices(context.Background())
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == reqDevice.UDID {
 			// Update only the relevant data and only if something has changed
@@ -822,8 +822,8 @@ type AdminDeviceData struct {
 }
 
 func GetDevices(c *gin.Context) {
-	dbDevices := db.GetDBDeviceNew()
-	providers := db.GetProvidersFromDB()
+	dbDevices, _ := db.GlobalMongoStore.GetDevices(context.Background())
+	providers, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
 
 	var providerNames []string = []string{}
 	for _, provider := range providers {
@@ -927,7 +927,7 @@ func ProviderUpdate(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	users := db.GetUsers()
+	users, _ := db.GlobalMongoStore.GetUsers(context.Background())
 	// Clean up the passwords, not that the project is very secure but let's not send them
 	for i := range users {
 		users[i].Password = ""
@@ -937,7 +937,7 @@ func GetUsers(c *gin.Context) {
 }
 
 func GetFiles(c *gin.Context) {
-	files := db.GetDBFiles()
+	files, _ := db.GlobalMongoStore.GetFiles(context.Background())
 
 	c.JSON(http.StatusOK, files)
 }

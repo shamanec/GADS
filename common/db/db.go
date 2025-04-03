@@ -103,47 +103,6 @@ func checkDBConnection() {
 	}
 }
 
-func GetProviderFromDB(nickname string) (models.Provider, error) {
-	var provider models.Provider
-	coll := mongoClient.Database("gads").Collection("providers")
-	filter := bson.D{{Key: "nickname", Value: nickname}}
-
-	err := coll.FindOne(context.TODO(), filter).Decode(&provider)
-	if err != nil {
-		return models.Provider{}, err
-	}
-	return provider, nil
-}
-
-func GetProvidersFromDB() []models.Provider {
-	var providers []models.Provider
-	ctx, cancel := context.WithTimeout(mongoClientCtx, 10*time.Second)
-	defer cancel()
-
-	collection := mongoClient.Database("gads").Collection("providers")
-	cursor, err := collection.Find(ctx, bson.D{{}}, options.Find())
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_providers",
-		}).Error(fmt.Sprintf("Could not get db cursor when trying to get the providers info from db - %s", err))
-	}
-	defer cursor.Close(ctx)
-
-	if err := cursor.All(ctx, &providers); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_providers",
-		}).Error(fmt.Sprintf("Could not get the providers info from db cursor - %s", err))
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_providers",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-	}
-
-	return providers
-}
-
 func AddOrUpdateUser(user models.User) error {
 	update := bson.M{
 		"$set": user,
@@ -213,18 +172,6 @@ func AddCollectionIndex(dbName, collectionName string, indexModel mongo.IndexMod
 	return nil
 }
 
-func GetUserFromDB(username string) (models.User, error) {
-	var user models.User
-
-	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "username", Value: username}}
-	err := coll.FindOne(context.TODO(), filter).Decode(&user)
-	if err != nil {
-		return models.User{}, err
-	}
-	return user, nil
-}
-
 func AddOrUpdateProvider(provider models.Provider) error {
 	update := bson.M{
 		"$set": provider,
@@ -237,140 +184,6 @@ func AddOrUpdateProvider(provider models.Provider) error {
 		return err
 	}
 	return nil
-}
-
-func GetDBDevices() []models.Device {
-	var dbDevices []models.Device
-	// Access the database and collection
-	collection := MongoClient().Database("gads").Collection("devices")
-
-	cursor, err := collection.Find(context.Background(), bson.D{{}}, nil)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
-	}
-
-	if err := cursor.All(context.Background(), &dbDevices); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-	}
-
-	cursor.Close(context.TODO())
-
-	return dbDevices
-}
-
-func GetUsers() []models.User {
-	var users []models.User
-	collection := mongoClient.Database("gads").Collection("users")
-
-	cursor, err := collection.Find(mongoClientCtx, bson.D{{}}, nil)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_users",
-		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest user info from db - %s", err))
-		return users
-	}
-
-	if err := cursor.All(mongoClientCtx, &users); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_users",
-		}).Error(fmt.Sprintf("Could not get users latest info from db cursor - %s", err))
-		return users
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-		return users
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_users",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-		return users
-	}
-
-	cursor.Close(mongoClientCtx)
-
-	return users
-}
-
-func GetDBFiles() []models.DBFile {
-	var files []models.DBFile
-	collection := mongoClient.Database("gads").Collection("fs.files")
-
-	cursor, err := collection.Find(mongoClientCtx, bson.D{{}}, nil)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_files",
-		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest files info from db - %s", err))
-		return files
-	}
-
-	if err := cursor.All(mongoClientCtx, &files); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_files",
-		}).Error(fmt.Sprintf("Could not get files latest info from db cursor - %s", err))
-		return files
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_files",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-		return files
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_files",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-		return files
-	}
-
-	cursor.Close(mongoClientCtx)
-
-	return files
-}
-
-func GetDBDeviceNew() []models.Device {
-	var dbDevices []models.Device
-	// Access the database and collection
-	collection := MongoClient().Database("gads").Collection("new_devices")
-
-	cursor, err := collection.Find(context.Background(), bson.D{{}}, nil)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get db cursor when trying to get latest device info from db - %s", err))
-	}
-
-	if err := cursor.All(context.Background(), &dbDevices); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Could not get devices latest info from db cursor - %s", err))
-	}
-
-	if err := cursor.Err(); err != nil {
-		log.WithFields(log.Fields{
-			"event": "get_db_devices",
-		}).Error(fmt.Sprintf("Encountered db cursor error - %s", err))
-	}
-
-	cursor.Close(context.TODO())
-
-	return dbDevices
 }
 
 func UpsertDeviceDB(device *models.Device) error {
@@ -424,7 +237,7 @@ func DeleteProviderDB(nickname string) error {
 }
 
 func AddAdminUserIfMissing() error {
-	dbUser, err := GetUserFromDB("admin")
+	dbUser, err := GlobalMongoStore.GetUser(context.Background(), "admin")
 	if err != nil && err != mongo.ErrNoDocuments {
 		return fmt.Errorf("AddAdminUserIfMissing: Failed to check if admin user is in the DB - %s", err)
 	}
@@ -549,20 +362,6 @@ func UpdateGlobalStreamSettings(settings models.StreamSettings) error {
 
 	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
 	return err
-}
-
-func GetDeviceStreamSettings(udid string) (models.DeviceStreamSettings, error) {
-	var deviceStreamSettings models.DeviceStreamSettings
-
-	coll := mongoClient.Database("gads").Collection("device_stream_settings")
-	filter := bson.D{{Key: "udid", Value: udid}}
-
-	err := coll.FindOne(mongoClientCtx, filter).Decode(&deviceStreamSettings)
-	if err != nil {
-		return deviceStreamSettings, err // Return error if no settings were found or if any other error occurred
-	}
-
-	return deviceStreamSettings, nil
 }
 
 func UpdateDeviceStreamSettings(udid string, settings models.DeviceStreamSettings) error {

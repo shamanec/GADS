@@ -4,6 +4,7 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -18,7 +19,7 @@ import (
 var ProviderConfig = &models.Provider{}
 
 func SetupConfig(nickname, folder, hubAddress string) {
-	provider, err := db.GetProviderFromDB(nickname)
+	provider, err := db.GlobalMongoStore.GetProvider(context.Background(), nickname)
 	if err != nil {
 		log.Fatalf("Failed to get provider data from DB - %s", err)
 	}

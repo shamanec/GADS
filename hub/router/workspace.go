@@ -4,6 +4,7 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth"
+	"context"
 	"net/http"
 	"strconv"
 
@@ -21,7 +22,7 @@ func CreateWorkspace(c *gin.Context) {
 	workspace.IsDefault = false
 
 	// Validate unique name
-	existingWorkspaces := db.GetWorkspaces()
+	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces(context.Background())
 	for _, ws := range existingWorkspaces {
 		if ws.Name == workspace.Name {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})
@@ -47,7 +48,7 @@ func UpdateWorkspace(c *gin.Context) {
 	}
 
 	// Validate unique workspace name
-	existingWorkspaces := db.GetWorkspaces()
+	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces(context.Background())
 	for _, ws := range existingWorkspaces {
 		if ws.Name == workspace.Name && ws.ID != workspace.ID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})

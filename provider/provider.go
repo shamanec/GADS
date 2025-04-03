@@ -51,6 +51,8 @@ func StartProvider(flags *pflag.FlagSet) {
 	db.InitMongoClient(mongoDb)
 	defer db.MongoCtxCancel()
 
+	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
+
 	// Set up the provider configuration
 	config.SetupConfig(nickname, providerFolder, hubAddress)
 	config.ProviderConfig.OS = runtime.GOOS

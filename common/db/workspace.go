@@ -57,18 +57,9 @@ func DeleteWorkspace(id string) error {
 	return nil
 }
 
-func GetWorkspaces() []models.Workspace {
-	var workspaces []models.Workspace
-	collection := mongoClient.Database("gads").Collection("workspaces")
-
-	cursor, err := collection.Find(mongoClientCtx, bson.M{})
-	if err != nil {
-		return workspaces
-	}
-	defer cursor.Close(mongoClientCtx)
-
-	cursor.All(mongoClientCtx, &workspaces)
-	return workspaces
+func (m *MongoStore) GetWorkspaces(ctx context.Context) ([]models.Workspace, error) {
+	coll := m.Collection("workspaces")
+	return GetDocuments[models.Workspace](ctx, coll, bson.D{{}})
 }
 
 func WorkspaceHasDevices(id string) bool {
