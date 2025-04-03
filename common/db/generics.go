@@ -37,3 +37,22 @@ func GetDocument[T any](ctx context.Context, coll *mongo.Collection, filter inte
 	}
 	return result, nil
 }
+
+// CountDocuments returns the number of documents found in the provided collection with the possibility of applying filter or options.FindOptions
+func CountDocuments(ctx context.Context, coll *mongo.Collection, filter interface{}, opts ...*options.FindOptions) (int64, error) {
+	count, err := coll.CountDocuments(mongoClientCtx, filter)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// HasDocuments returns boolean regarding if a collection has documents respecting the provided filter and options
+func HasDocuments(ctx context.Context, coll *mongo.Collection, filter interface{}, opts ...*options.FindOptions) bool {
+	count, err := CountDocuments(ctx, coll, filter, opts...)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}

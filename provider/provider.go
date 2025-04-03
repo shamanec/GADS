@@ -64,7 +64,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
 
 	// Check if the default workspace exists
-	defaultWorkspace, err := db.GetDefaultWorkspace()
+	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace(context.Background())
 	if err != nil {
 		// Create default workspace if none exist
 		defaultWorkspace = models.Workspace{

@@ -82,7 +82,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 
 	// Check if the default workspace exists
-	defaultWorkspace, err := db.GetDefaultWorkspace()
+	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace(context.Background())
 	if err != nil {
 		// Create default workspace if none exist
 		defaultWorkspace = models.Workspace{

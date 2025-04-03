@@ -41,7 +41,7 @@ func getDBProviderDevices() map[string]*models.Device {
 	for _, dbDevice := range deviceData {
 		// Ensure that devices are associated with the Default workspace if not specified
 		if dbDevice.WorkspaceID == "" {
-			if defaultWorkspace, err := db.GetDefaultWorkspace(); err == nil {
+			if defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace(context.Background()); err == nil {
 				dbDevice.WorkspaceID = defaultWorkspace.ID
 				// Persist the workspace association in the database
 				err := db.UpsertDeviceDB(dbDevice)

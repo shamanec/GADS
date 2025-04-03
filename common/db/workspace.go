@@ -62,71 +62,47 @@ func (m *MongoStore) GetWorkspaces(ctx context.Context) ([]models.Workspace, err
 	return GetDocuments[models.Workspace](ctx, coll, bson.D{{}})
 }
 
-func WorkspaceHasDevices(id string) bool {
-	collection := mongoClient.Database("gads").Collection("new_devices")
-	filter := bson.M{"workspace_id": id}
-	count, err := collection.CountDocuments(mongoClientCtx, filter)
-	if err != nil {
-		return false
-	}
-	return count > 0
+func (m *MongoStore) WorkspaceHasDevices(ctx context.Context, workspaceId string) bool {
+	coll := m.Collection("new_devices")
+	filter := bson.M{"workspace_id": workspaceId}
+
+	return HasDocuments(ctx, coll, filter)
 }
 
-func WorkspaceHasUsers(id string) bool {
-	collection := mongoClient.Database("gads").Collection("users")
-	filter := bson.M{"workspace_ids": id}
-	count, err := collection.CountDocuments(mongoClientCtx, filter)
-	if err != nil {
-		return false
-	}
-	return count > 0
+func (m *MongoStore) WorkspaceHasUsers(ctx context.Context, workspaceId string) bool {
+	coll := m.Collection("users")
+	filter := bson.M{"workspace_id": workspaceId}
+
+	return HasDocuments(ctx, coll, filter)
 }
 
-func GetWorkspaceByID(id string) (models.Workspace, error) {
-	var workspace models.Workspace
-	collection := mongoClient.Database("gads").Collection("workspaces")
-	objectID, err := primitive.ObjectIDFromHex(id)
+func (m *MongoStore) GetWorkspaceByID(ctx context.Context, workspaceId string) (models.Workspace, error) {
+	coll := m.Collection("workspaces")
+	objectID, err := primitive.ObjectIDFromHex(workspaceId)
 	if err != nil {
 		return models.Workspace{}, err
 	}
-
 	filter := bson.M{"_id": objectID}
 
-	err = collection.FindOne(context.TODO(), filter).Decode(&workspace)
-	if err != nil {
-		return models.Workspace{}, err
-	}
-	return workspace, nil
+	return GetDocument[models.Workspace](ctx, coll, filter)
 }
 
-func GetWorkspaceByName(name string) (models.Workspace, error) {
-	var workspace models.Workspace
-	collection := mongoClient.Database("gads").Collection("workspaces")
-	filter := bson.M{"name": name}
+func (m *MongoStore) GetWorkspaceByName(ctx context.Context, workspaceName string) (models.Workspace, error) {
+	coll := m.Collection("workspaces")
+	filter := bson.M{"name": workspaceName}
 
-	err := collection.FindOne(context.TODO(), filter).Decode(&workspace)
-	if err != nil {
-		return models.Workspace{}, err
-	}
-	return workspace, nil
+	return GetDocument[models.Workspace](ctx, coll, filter)
 }
 
-func GetDefaultWorkspace() (models.Workspace, error) {
-	var workspace models.Workspace
-	collection := mongoClient.Database("gads").Collection("workspaces")
+func (m *MongoStore) GetDefaultWorkspace(ctx context.Context) (models.Workspace, error) {
+	coll := m.Collection("workspaces")
 	filter := bson.M{"is_default": true}
 
-	err := collection.FindOne(context.TODO(), filter).Decode(&workspace)
-	if err != nil {
-		return models.Workspace{}, err
-	}
-	return workspace, nil
+	return GetDocument[models.Workspace](ctx, coll, filter)
 }
 
-func GetWorkspacesPaginated(page, limit int, search string) ([]models.Workspace, int64) {
-	var workspaces []models.Workspace
-	collection := mongoClient.Database("gads").Collection("workspaces")
-
+func (m *MongoStore) GetWorkspacesPaginated(ctx context.Context, page, limit int, search string) ([]models.Workspace, int64) {
+	coll := m.Collection("workspaces")
 	// Calculate the number of documents to skip
 	skip := (page - 1) * limit
 
@@ -135,27 +111,20 @@ func GetWorkspacesPaginated(page, limit int, search string) ([]models.Workspace,
 		filter["name"] = bson.M{"$regex": search, "$options": "i"} // Case-insensitive search
 	}
 
-	cursor, err := collection.Find(mongoClientCtx, filter, options.Find().SetSkip(int64(skip)).SetLimit(int64(limit)))
+	workspaces, err := GetDocuments[models.Workspace](ctx, coll, filter, options.Find().SetSkip(int64(skip)).SetLimit(int64(limit)))
 	if err != nil {
-		return workspaces, 0
+		return []models.Workspace{}, 0
 	}
-	defer cursor.Close(mongoClientCtx)
-
-	for cursor.Next(mongoClientCtx) {
-		var workspace models.Workspace
-		if err := cursor.Decode(&workspace); err != nil {
-			continue
-		}
-		workspaces = append(workspaces, workspace)
-	}
-
-	// Get total count of workspaces
-	count, err := collection.CountDocuments(mongoClientCtx, filter)
+	workspaceCount, err := CountDocuments(ctx, coll, filter)
 	if err != nil {
-		return workspaces, 0
+		return []models.Workspace{}, 0
 	}
 
-	return workspaces, count
+	return workspaces, workspaceCount
+}
+
+func (m *MongoStore) GetUserWorkspacesPaginated(ctx context.Context, username string, page, limit int, search string) ([]models.Workspace, int64) {
+	return []models.Workspace{}, 0
 }
 
 func GetUserWorkspacesPaginated(username string, page, limit int, search string) ([]models.Workspace, int64) {
