@@ -9,24 +9,24 @@ import (
 )
 
 func (m *MongoStore) GetUser(username string) (models.User, error) {
-	coll := m.Collection("users")
+	coll := m.GetCollection("users")
 	filter := bson.D{{Key: "username", Value: username}}
 	return GetDocument[models.User](m.Ctx, coll, filter)
 }
 
 func (m *MongoStore) GetUsers() ([]models.User, error) {
-	coll := m.Collection("users")
+	coll := m.GetCollection("users")
 	return GetDocuments[models.User](m.Ctx, coll, bson.D{{}})
 }
 
 func (m *MongoStore) AddOrUpdateUser(user models.User) error {
-	coll := m.Collection("users")
+	coll := m.GetCollection("users")
 	filter := bson.D{{Key: "username", Value: user.Username}}
 	return UpsertDocument[models.User](m.Ctx, coll, filter, user)
 }
 
 func (m *MongoStore) DeleteUser(nickname string) error {
-	coll := m.Collection("users")
+	coll := m.GetCollection("users")
 	filter := bson.M{"username": nickname}
 	return DeleteDocument(m.Ctx, coll, filter)
 }
@@ -46,4 +46,15 @@ func (m *MongoStore) AddAdminUserIfMissing() error {
 		return fmt.Errorf("Failed to add/update admin user - %s", err)
 	}
 	return nil
+}
+
+func (m *MongoStore) UpdateUserWorkspaces(username string, workspaceIDs []string) error {
+	user, err := GlobalMongoStore.GetUser(username)
+	if err != nil {
+		return err
+	}
+	user.WorkspaceIDs = workspaceIDs
+	coll := m.GetCollection("users")
+	filter := bson.D{{Key: "username", Value: username}}
+	return UpsertDocument[models.User](m.Ctx, coll, filter, user)
 }

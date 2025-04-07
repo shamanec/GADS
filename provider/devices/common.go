@@ -124,7 +124,7 @@ func setupDevices() {
 		dbDevice.SemVer = semver
 
 		// Check if a capped Appium logs collection already exists for the current device
-		exists, err := db.CollectionExists("appium_logs", dbDevice.UDID)
+		exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs", dbDevice.UDID)
 		if err != nil {
 			logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
 		}
@@ -148,7 +148,7 @@ func setupDevices() {
 				},
 			},
 		}
-		db.AddCollectionIndex("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
+		db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
 
 		// Create logs directory for the device if it doesn't already exist
 		if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {

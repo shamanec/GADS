@@ -7,6 +7,6 @@ import (
 )
 
 func (m *MongoStore) GetFiles() ([]models.DBFile, error) {
-	coll := m.Collection("fs.files")
+	coll := m.GetCollection("fs.files")
 	return GetDocuments[models.DBFile](m.Ctx, coll, bson.D{{}})
 }

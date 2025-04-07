@@ -131,33 +131,6 @@ func CreateCappedCollection(dbName, collectionName string, maxDocuments, mb int6
 	return nil
 }
 
-func CollectionExists(dbName, collectionName string) (bool, error) {
-	database := MongoClient().Database(dbName)
-	collections, err := database.ListCollectionNames(context.Background(), bson.M{})
-	if err != nil {
-		return false, err
-	}
-
-	if slices.Contains(collections, collectionName) {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func AddCollectionIndex(dbName, collectionName string, indexModel mongo.IndexModel) error {
-	ctx, cancel := context.WithCancel(MongoCtx())
-	defer cancel()
-
-	db := MongoClient().Database(dbName)
-	_, err := db.Collection(collectionName).Indexes().CreateOne(ctx, indexModel)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func UploadFileGridFS(file io.Reader, fileName string, force bool) error {
 	mongoDb := MongoClient().Database("gads")
 	bucket, err := gridfs.NewBucket(mongoDb, nil)
@@ -229,7 +202,7 @@ func GetGlobalStreamSettings() (models.StreamSettings, error) {
 			ScalingFactoriOS:     50,
 		}
 
-		err = UpdateGlobalStreamSettings(streamSettings)
+		err = GlobalMongoStore.UpdateGlobalStreamSettings(streamSettings)
 		if err != nil {
 			return streamSettings, err
 		}
@@ -248,51 +221,4 @@ func GetGlobalStreamSettings() (models.StreamSettings, error) {
 	}
 
 	return streamSettings, nil
-}
-
-func UpdateGlobalStreamSettings(settings models.StreamSettings) error {
-	globalSettings := models.GlobalSettings{
-		Type:        "stream-settings",
-		Settings:    settings,
-		LastUpdated: time.Now(),
-	}
-
-	update := bson.M{
-		"$set": globalSettings,
-	}
-
-	coll := mongoClient.Database("gads").Collection("global_settings")
-	filter := bson.D{{Key: "type", Value: "stream-settings"}}
-	opts := options.Update().SetUpsert(true)
-
-	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
-	return err
-}
-
-func UpdateDeviceStreamSettings(udid string, settings models.DeviceStreamSettings) error {
-	coll := mongoClient.Database("gads").Collection("device_stream_settings")
-	filter := bson.D{{Key: "udid", Value: udid}}
-	update := bson.M{
-		"$set": settings,
-	}
-	opts := options.Update().SetUpsert(true)
-
-	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
-	return err
-}
-
-func UpdateUserWorkspaces(username string, workspaceIDs []string) error {
-	update := bson.M{
-		"$set": bson.M{
-			"workspace_ids": workspaceIDs,
-		},
-	}
-	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "username", Value: username}}
-
-	_, err := coll.UpdateOne(mongoClientCtx, filter, update)
-	if err != nil {
-		return err
-	}
-	return nil
 }

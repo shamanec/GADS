@@ -57,26 +57,26 @@ func DeleteWorkspace(id string) error {
 }
 
 func (m *MongoStore) GetWorkspaces() ([]models.Workspace, error) {
-	coll := m.Collection("workspaces")
+	coll := m.GetCollection("workspaces")
 	return GetDocuments[models.Workspace](m.Ctx, coll, bson.D{{}})
 }
 
 func (m *MongoStore) WorkspaceHasDevices(workspaceId string) bool {
-	coll := m.Collection("new_devices")
+	coll := m.GetCollection("new_devices")
 	filter := bson.M{"workspace_id": workspaceId}
 
 	return HasDocuments(m.Ctx, coll, filter)
 }
 
 func (m *MongoStore) WorkspaceHasUsers(workspaceId string) bool {
-	coll := m.Collection("users")
+	coll := m.GetCollection("users")
 	filter := bson.M{"workspace_id": workspaceId}
 
 	return HasDocuments(m.Ctx, coll, filter)
 }
 
 func (m *MongoStore) GetWorkspaceByID(workspaceId string) (models.Workspace, error) {
-	coll := m.Collection("workspaces")
+	coll := m.GetCollection("workspaces")
 	objectID, err := primitive.ObjectIDFromHex(workspaceId)
 	if err != nil {
 		return models.Workspace{}, err
@@ -87,21 +87,21 @@ func (m *MongoStore) GetWorkspaceByID(workspaceId string) (models.Workspace, err
 }
 
 func (m *MongoStore) GetWorkspaceByName(workspaceName string) (models.Workspace, error) {
-	coll := m.Collection("workspaces")
+	coll := m.GetCollection("workspaces")
 	filter := bson.M{"name": workspaceName}
 
 	return GetDocument[models.Workspace](m.Ctx, coll, filter)
 }
 
 func (m *MongoStore) GetDefaultWorkspace() (models.Workspace, error) {
-	coll := m.Collection("workspaces")
+	coll := m.GetCollection("workspaces")
 	filter := bson.M{"is_default": true}
 
 	return GetDocument[models.Workspace](m.Ctx, coll, filter)
 }
 
 func (m *MongoStore) GetWorkspacesPaginated(page, limit int, search string) ([]models.Workspace, int64) {
-	coll := m.Collection("workspaces")
+	coll := m.GetCollection("workspaces")
 	// Calculate the number of documents to skip
 	skip := (page - 1) * limit
 

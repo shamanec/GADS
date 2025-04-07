@@ -66,7 +66,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	db.InitMongoClient(mongoDB)
 
 	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
-	defer db.CloseMongoConnection()
+	defer db.GlobalMongoStore.Close()
 
 	devices.InitHubDevicesData()
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
@@ -106,7 +106,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 
 		if len(user.WorkspaceIDs) == 0 {
 			// Update only the workspace_ids field
-			err := db.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
+			err := db.GlobalMongoStore.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
 			if err != nil {
 				log.Printf("Failed to associate user %s with default workspace - %s", user.Username, err)
 				continue

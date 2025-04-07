@@ -993,7 +993,7 @@ func UpdateGlobalStreamSettings(c *gin.Context) {
 		return
 	}
 
-	err := db.UpdateGlobalStreamSettings(settings)
+	err := db.GlobalMongoStore.UpdateGlobalStreamSettings(settings)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save settings"})
 		return

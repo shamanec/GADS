@@ -52,7 +52,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	defer db.MongoCtxCancel()
 
 	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
-	defer db.CloseMongoConnection()
+	defer db.GlobalMongoStore.Close()
 
 	// Set up the provider configuration
 	config.SetupConfig(nickname, providerFolder, hubAddress)

@@ -9,17 +9,27 @@ import (
 )
 
 type MongoStore struct {
-	Client    *mongo.Client
-	Database  string // default database name if you want
-	Ctx       context.Context
-	CtxCancel context.CancelFunc
+	Client              *mongo.Client
+	DefaultDatabaseName string // default database name if you want
+	Ctx                 context.Context
+	CtxCancel           context.CancelFunc
 }
 
 var (
 	GlobalMongoStore *MongoStore
 )
 
-func NewMongoStore(uri, dbName string) (*MongoStore, error) {
+func InitMongo(uri, dbName string) error {
+	store, err := newMongoStore(uri, dbName)
+	if err != nil {
+		return err
+	}
+
+	GlobalMongoStore = store
+	return nil
+}
+
+func newMongoStore(uri, dbName string) (*MongoStore, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	clientOptions := options.Client().
@@ -41,33 +51,15 @@ func NewMongoStore(uri, dbName string) (*MongoStore, error) {
 	}
 
 	return &MongoStore{
-		Client:    client,
-		Database:  dbName,
-		Ctx:       ctx,
-		CtxCancel: cancel,
+		Client:              client,
+		DefaultDatabaseName: dbName,
+		Ctx:                 ctx,
+		CtxCancel:           cancel,
 	}, nil
 }
 
-func CloseMongoConnection() {
-	GlobalMongoStore.CtxCancel()
-}
-
-func InitMongo(uri, dbName string) error {
-	store, err := NewMongoStore(uri, dbName)
-	if err != nil {
-		return err
-	}
-
-	GlobalMongoStore = store
-	return nil
-}
-
 // Close closes the Mongo connection
-func (m *MongoStore) Close(ctx context.Context) error {
-	return m.Client.Disconnect(ctx)
-}
-
-// Collection is a helper to get a collection from the default db
-func (m *MongoStore) Collection(name string) *mongo.Collection {
-	return m.Client.Database(m.Database).Collection(name)
+func (m *MongoStore) Close() error {
+	m.CtxCancel()
+	return m.Client.Disconnect(m.Ctx)
 }
