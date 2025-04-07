@@ -181,7 +181,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	dbUser, err := db.GlobalMongoStore.GetUser(context.Background(), user.Username)
+	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -192,7 +192,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateUser(user)
+	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
@@ -221,7 +221,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	dbUser, err := db.GlobalMongoStore.GetUser(context.Background(), user.Username)
+	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -232,7 +232,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateUser(user)
+	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
@@ -242,7 +242,7 @@ func UpdateUser(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	nickname := c.Param("nickname")
 
-	err := db.DeleteUserDB(nickname)
+	err := db.GlobalMongoStore.DeleteUser(nickname)
 	if err != nil {
 		InternalServerError(c, "Failed to delete user - "+err.Error())
 		return
@@ -252,7 +252,7 @@ func DeleteUser(c *gin.Context) {
 }
 
 func GetProviders(c *gin.Context) {
-	providers, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	if len(providers) == 0 {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
@@ -262,7 +262,7 @@ func GetProviders(c *gin.Context) {
 
 func GetProviderInfo(c *gin.Context) {
 	providerName := c.Param("name")
-	providers, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
 			c.JSON(http.StatusOK, provider)
@@ -291,7 +291,7 @@ func AddProvider(c *gin.Context) {
 		BadRequest(c, "Missing or invalid nickname")
 		return
 	}
-	providerDB, _ := db.GlobalMongoStore.GetProvider(context.Background(), provider.Nickname)
+	providerDB, _ := db.GlobalMongoStore.GetProvider(provider.Nickname)
 	if providerDB.Nickname == provider.Nickname {
 		BadRequest(c, "Provider with this nickname already exists")
 		return
@@ -314,13 +314,13 @@ func AddProvider(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateProvider(provider)
+	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not create provider")
 		return
 	}
 
-	providersDB, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
+	providersDB, _ := db.GlobalMongoStore.GetAllProviders()
 	OkJSON(c, providersDB)
 }
 
@@ -360,7 +360,7 @@ func UpdateProvider(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateProvider(provider)
+	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not update provider")
 		return
@@ -371,7 +371,7 @@ func UpdateProvider(c *gin.Context) {
 func DeleteProvider(c *gin.Context) {
 	nickname := c.Param("nickname")
 
-	err := db.DeleteProviderDB(nickname)
+	err := db.GlobalMongoStore.DeleteProvider(nickname)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete provider from DB - %s", err)})
 		return
@@ -384,7 +384,7 @@ func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
 	c.Stream(func(w io.Writer) bool {
-		providerData, _ := db.GlobalMongoStore.GetProvider(context.Background(), nickname)
+		providerData, _ := db.GlobalMongoStore.GetProvider(nickname)
 
 		jsonData, _ := json.Marshal(&providerData)
 
@@ -721,7 +721,7 @@ func AddDevice(c *gin.Context) {
 		return
 	}
 
-	dbDevices, _ := db.GlobalMongoStore.GetDevices(context.Background())
+	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == device.UDID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
@@ -729,7 +729,7 @@ func AddDevice(c *gin.Context) {
 		}
 	}
 
-	err = db.UpsertDeviceDB(&device)
+	err = db.GlobalMongoStore.AddOrUpdateDevice(&device)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 		return
@@ -753,7 +753,7 @@ func UpdateDevice(c *gin.Context) {
 		return
 	}
 
-	dbDevices, _ := db.GlobalMongoStore.GetDevices(context.Background())
+	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == reqDevice.UDID {
 			// Update only the relevant data and only if something has changed
@@ -791,7 +791,7 @@ func UpdateDevice(c *gin.Context) {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
 			}
 
-			err = db.UpsertDeviceDB(&dbDevice)
+			err = db.GlobalMongoStore.AddOrUpdateDevice(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 				return
@@ -807,7 +807,7 @@ func UpdateDevice(c *gin.Context) {
 func DeleteDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	err := db.DeleteDeviceDB(udid)
+	err := db.GlobalMongoStore.DeleteDevice(udid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
 		return
@@ -822,8 +822,8 @@ type AdminDeviceData struct {
 }
 
 func GetDevices(c *gin.Context) {
-	dbDevices, _ := db.GlobalMongoStore.GetDevices(context.Background())
-	providers, _ := db.GlobalMongoStore.GetAllProviders(context.Background())
+	dbDevices, _ := db.GlobalMongoStore.GetDevices()
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
 
 	var providerNames []string = []string{}
 	for _, provider := range providers {
@@ -927,7 +927,7 @@ func ProviderUpdate(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	users, _ := db.GlobalMongoStore.GetUsers(context.Background())
+	users, _ := db.GlobalMongoStore.GetUsers()
 	// Clean up the passwords, not that the project is very secure but let's not send them
 	for i := range users {
 		users[i].Password = ""
@@ -937,7 +937,7 @@ func GetUsers(c *gin.Context) {
 }
 
 func GetFiles(c *gin.Context) {
-	files, _ := db.GlobalMongoStore.GetFiles(context.Background())
+	files, _ := db.GlobalMongoStore.GetFiles()
 
 	c.JSON(http.StatusOK, files)
 }

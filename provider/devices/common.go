@@ -1121,7 +1121,7 @@ func applyDeviceStreamSettings(device *models.Device) error {
 	common.MutexManager.StreamSettings.Lock()
 	defer common.MutexManager.StreamSettings.Unlock()
 	// Get the DeviceStreamSettings for the current device
-	deviceStreamSettings, err := db.GlobalMongoStore.GetDeviceStreamSettings(context.Background(), device.UDID)
+	deviceStreamSettings, err := db.GlobalMongoStore.GetDeviceStreamSettings(device.UDID)
 
 	if err != nil {
 		// If there's an error (including not found), update the device with global settings

@@ -2,18 +2,29 @@ package db
 
 import (
 	"GADS/common/models"
-	"context"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (m *MongoStore) GetDevices(ctx context.Context) ([]models.Device, error) {
+func (m *MongoStore) GetDevices() ([]models.Device, error) {
 	coll := m.Collection("new_devices")
-	return GetDocuments[models.Device](ctx, coll, bson.D{{}})
+	return GetDocuments[models.Device](m.Ctx, coll, bson.D{{}})
 }
 
-func (m *MongoStore) GetDeviceStreamSettings(ctx context.Context, udid string) (models.DeviceStreamSettings, error) {
+func (m *MongoStore) GetDeviceStreamSettings(udid string) (models.DeviceStreamSettings, error) {
 	coll := m.Collection("device_stream_settings")
 	filter := bson.D{{Key: "udid", Value: udid}}
-	return GetDocument[models.DeviceStreamSettings](ctx, coll, filter)
+	return GetDocument[models.DeviceStreamSettings](m.Ctx, coll, filter)
+}
+
+func (m *MongoStore) DeleteDevice(udid string) error {
+	coll := m.Collection("new_devices")
+	filter := bson.M{"udid": udid}
+	return DeleteDocument(m.Ctx, coll, filter)
+}
+
+func (m *MongoStore) AddOrUpdateDevice(device *models.Device) error {
+	coll := m.Collection("new_devices")
+	filter := bson.D{{Key: "udid", Value: device.UDID}}
+	return UpsertDocument[models.Device](m.Ctx, coll, filter, *device)
 }

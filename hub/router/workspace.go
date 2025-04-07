@@ -4,7 +4,6 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth"
-	"context"
 	"net/http"
 	"strconv"
 
@@ -22,7 +21,7 @@ func CreateWorkspace(c *gin.Context) {
 	workspace.IsDefault = false
 
 	// Validate unique name
-	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces(context.Background())
+	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
 	for _, ws := range existingWorkspaces {
 		if ws.Name == workspace.Name {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})
@@ -48,7 +47,7 @@ func UpdateWorkspace(c *gin.Context) {
 	}
 
 	// Validate unique workspace name
-	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces(context.Background())
+	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
 	for _, ws := range existingWorkspaces {
 		if ws.Name == workspace.Name && ws.ID != workspace.ID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})
@@ -69,7 +68,7 @@ func UpdateWorkspace(c *gin.Context) {
 func DeleteWorkspace(c *gin.Context) {
 	id := c.Param("id")
 
-	workspace, err := db.GlobalMongoStore.GetWorkspaceByID(context.Background(), id)
+	workspace, err := db.GlobalMongoStore.GetWorkspaceByID(id)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Workspace not found"})
@@ -79,7 +78,7 @@ func DeleteWorkspace(c *gin.Context) {
 		return
 	}
 
-	if workspace.IsDefault || db.GlobalMongoStore.WorkspaceHasDevices(context.Background(), id) || db.GlobalMongoStore.WorkspaceHasUsers(context.Background(), id) {
+	if workspace.IsDefault || db.GlobalMongoStore.WorkspaceHasDevices(id) || db.GlobalMongoStore.WorkspaceHasUsers(id) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete default workspace or workspace with devices/users"})
 		return
 	}
@@ -108,7 +107,7 @@ func GetWorkspaces(c *gin.Context) {
 		limit = 10 // Default limit
 	}
 
-	workspaces, totalCount := db.GlobalMongoStore.GetWorkspacesPaginated(context.Background(), page, limit, searchStr)
+	workspaces, totalCount := db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
 	c.JSON(http.StatusOK, gin.H{"workspaces": workspaces, "total": totalCount})
 }
 
@@ -142,7 +141,7 @@ func GetUserWorkspaces(c *gin.Context) {
 
 	// If user is admin, return all workspaces
 	if session.User.Role == "admin" {
-		workspaces, totalCount = db.GlobalMongoStore.GetWorkspacesPaginated(context.Background(), page, limit, searchStr)
+		workspaces, totalCount = db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
 	} else {
 		// For non-admin users, only return workspaces associated with the user
 		workspaces, totalCount = db.GetUserWorkspacesPaginated(session.User.Username, page, limit, searchStr)

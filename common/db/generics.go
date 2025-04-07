@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -55,4 +56,18 @@ func HasDocuments(ctx context.Context, coll *mongo.Collection, filter interface{
 	}
 
 	return count > 0
+}
+
+// UpsertDocument updates a document in the target collection respecting the provided filter
+func UpsertDocument[T any](ctx context.Context, coll *mongo.Collection, filter interface{}, doc T) error {
+	update := bson.M{"$set": doc}
+	opts := options.Update().SetUpsert(true)
+	_, err := coll.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// DeleteDocument removes a document from the target collection respecting the provided filter
+func DeleteDocument(ctx context.Context, coll *mongo.Collection, filter interface{}) error {
+	_, err := coll.DeleteOne(ctx, filter)
+	return err
 }

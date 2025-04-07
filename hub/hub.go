@@ -5,7 +5,6 @@ import (
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"GADS/hub/router"
-	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -67,6 +66,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	db.InitMongoClient(mongoDB)
 
 	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
+	defer db.CloseMongoConnection()
 
 	devices.InitHubDevicesData()
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
@@ -76,13 +76,13 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 
 	defer db.MongoCtxCancel()
 
-	err := db.AddAdminUserIfMissing()
+	err := db.GlobalMongoStore.AddAdminUserIfMissing()
 	if err != nil {
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}
 
 	// Check if the default workspace exists
-	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace(context.Background())
+	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace()
 	if err != nil {
 		// Create default workspace if none exist
 		defaultWorkspace = models.Workspace{
@@ -97,7 +97,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 
 	// Associate users without workspaces to default workspace
-	users, _ := db.GlobalMongoStore.GetUsers(context.Background())
+	users, _ := db.GlobalMongoStore.GetUsers()
 	for _, user := range users {
 		// Skip admin users as they have access to all workspaces
 		if user.Role == "admin" {
@@ -115,11 +115,11 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 
 	// Associate devices without workspace to default workspace
-	devices, _ := db.GlobalMongoStore.GetDevices(context.Background())
+	devices, _ := db.GlobalMongoStore.GetDevices()
 	for _, device := range devices {
 		if device.WorkspaceID == "" {
 			device.WorkspaceID = defaultWorkspace.ID
-			err := db.UpsertDeviceDB(&device)
+			err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
 			if err != nil {
 				log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
 				continue

@@ -2,12 +2,11 @@ package db
 
 import (
 	"GADS/common/models"
-	"context"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (m *MongoStore) GetFiles(ctx context.Context) ([]models.DBFile, error) {
+func (m *MongoStore) GetFiles() ([]models.DBFile, error) {
 	coll := m.Collection("fs.files")
-	return GetDocuments[models.DBFile](ctx, coll, bson.D{{}})
+	return GetDocuments[models.DBFile](m.Ctx, coll, bson.D{{}})
 }

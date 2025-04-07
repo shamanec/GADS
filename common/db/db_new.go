@@ -21,7 +21,6 @@ var (
 
 func NewMongoStore(uri, dbName string) (*MongoStore, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	clientOptions := options.Client().
 		ApplyURI(connectionString).
@@ -47,6 +46,10 @@ func NewMongoStore(uri, dbName string) (*MongoStore, error) {
 		Ctx:       ctx,
 		CtxCancel: cancel,
 	}, nil
+}
+
+func CloseMongoConnection() {
+	GlobalMongoStore.CtxCancel()
 }
 
 func InitMongo(uri, dbName string) error {

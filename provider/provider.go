@@ -52,6 +52,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	defer db.MongoCtxCancel()
 
 	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
+	defer db.CloseMongoConnection()
 
 	// Set up the provider configuration
 	config.SetupConfig(nickname, providerFolder, hubAddress)
@@ -64,7 +65,7 @@ func StartProvider(flags *pflag.FlagSet) {
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
 
 	// Check if the default workspace exists
-	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace(context.Background())
+	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace()
 	if err != nil {
 		// Create default workspace if none exist
 		defaultWorkspace = models.Workspace{

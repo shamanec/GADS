@@ -103,20 +103,6 @@ func checkDBConnection() {
 	}
 }
 
-func AddOrUpdateUser(user models.User) error {
-	update := bson.M{
-		"$set": user,
-	}
-	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.D{{Key: "username", Value: user.Username}}
-	opts := options.Update().SetUpsert(true)
-	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func CreateCappedCollection(dbName, collectionName string, maxDocuments, mb int64) error {
 
 	database := MongoClient().Database(dbName)
@@ -169,87 +155,6 @@ func AddCollectionIndex(dbName, collectionName string, indexModel mongo.IndexMod
 		return err
 	}
 
-	return nil
-}
-
-func AddOrUpdateProvider(provider models.Provider) error {
-	update := bson.M{
-		"$set": provider,
-	}
-	coll := mongoClient.Database("gads").Collection("providers")
-	filter := bson.D{{Key: "nickname", Value: provider.Nickname}}
-	opts := options.Update().SetUpsert(true)
-	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func UpsertDeviceDB(device *models.Device) error {
-	update := bson.M{
-		"$set": device,
-	}
-	coll := mongoClient.Database("gads").Collection("new_devices")
-	filter := bson.D{{Key: "udid", Value: device.UDID}}
-	opts := options.Update().SetUpsert(true)
-	_, err := coll.UpdateOne(mongoClientCtx, filter, update, opts)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DeleteDeviceDB(udid string) error {
-	coll := mongoClient.Database("gads").Collection("new_devices")
-	filter := bson.M{"udid": udid}
-
-	_, err := coll.DeleteOne(mongoClientCtx, filter)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DeleteUserDB(nickname string) error {
-	coll := mongoClient.Database("gads").Collection("users")
-	filter := bson.M{"username": nickname}
-
-	_, err := coll.DeleteOne(mongoClientCtx, filter)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func DeleteProviderDB(nickname string) error {
-	coll := mongoClient.Database("gads").Collection("providers")
-	filter := bson.M{"nickname": nickname}
-
-	_, err := coll.DeleteOne(mongoClientCtx, filter)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func AddAdminUserIfMissing() error {
-	dbUser, err := GlobalMongoStore.GetUser(context.Background(), "admin")
-	if err != nil && err != mongo.ErrNoDocuments {
-		return fmt.Errorf("AddAdminUserIfMissing: Failed to check if admin user is in the DB - %s", err)
-	}
-
-	if dbUser.Username != "" {
-		return nil // User exists
-	}
-
-	err = AddOrUpdateUser(models.User{Username: "admin", Password: "password", Role: "admin"})
-	if err != nil {
-		return fmt.Errorf("Failed to add/update admin user - %s", err)
-	}
 	return nil
 }
 
