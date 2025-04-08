@@ -8,7 +8,6 @@ import (
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
 	"GADS/provider/router"
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -16,8 +15,6 @@ import (
 	"time"
 
 	"github.com/spf13/pflag"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func StartProvider(flags *pflag.FlagSet) {
@@ -49,7 +46,6 @@ func StartProvider(flags *pflag.FlagSet) {
 
 	// Create a connection to Mongo
 	db.InitMongoClient(mongoDb)
-	defer db.MongoCtxCancel()
 
 	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
 	defer db.GlobalMongoStore.Close()
@@ -57,8 +53,6 @@ func StartProvider(flags *pflag.FlagSet) {
 	// Set up the provider configuration
 	config.SetupConfig(nickname, providerFolder, hubAddress)
 	config.ProviderConfig.OS = runtime.GOOS
-	// Defer closing the Mongo connection on provider stopped
-	defer db.CloseMongoConn()
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
@@ -153,23 +147,12 @@ func startHTTPServer() error {
 
 // Periodically send current provider data updates to MongoDB
 func updateProviderInDB() {
-	ctx, cancel := context.WithCancel(db.MongoCtx())
-	defer cancel()
-
 	for {
-		coll := db.MongoClient().Database("gads").Collection("providers")
-		filter := bson.D{{Key: "nickname", Value: config.ProviderConfig.Nickname}}
-
-		update := bson.M{
-			"$set": bson.M{
-				"last_updated": time.Now().UnixMilli(),
-			},
-		}
-		opts := options.Update().SetUpsert(true)
-		_, err := coll.UpdateOne(ctx, filter, update, opts)
+		err := db.GlobalMongoStore.UpdateProviderTimestamp(config.ProviderConfig.Nickname, time.Now().UnixMilli())
 		if err != nil {
 			logger.ProviderLogger.LogError("update_provider", fmt.Sprintf("Failed to upsert provider in DB - %s", err))
 		}
+
 		time.Sleep(1 * time.Second)
 	}
 }

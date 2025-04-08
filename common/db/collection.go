@@ -5,6 +5,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func (m *MongoStore) GetCollection(name string) *mongo.Collection {
@@ -59,4 +60,36 @@ func (m *MongoStore) AddCollectionIndexWithDB(dbName, collectionName string, ind
 		return err
 	}
 	return nil
+}
+
+func (m *MongoStore) CreateCollection(collectionName string, opts *options.CreateCollectionOptions) error {
+	return m.CreateCollectionWithDB(m.DefaultDatabaseName, collectionName, opts)
+}
+
+func (m *MongoStore) CreateCollectionWithDB(dbName, collectionName string, opts ...*options.CreateCollectionOptions) error {
+	err := m.Client.Database(dbName).CreateCollection(GlobalMongoStore.Ctx, collectionName, opts...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *MongoStore) CreateCappedCollection(collectionName string, maxDocuments, mb int64) error {
+	return m.CreateCappedCollectionWitDB(m.DefaultDatabaseName, collectionName, maxDocuments, mb)
+}
+
+func (m *MongoStore) CreateCappedCollectionWitDB(dbName, collectionName string, maxDocuments, mb int64) error {
+	collections, err := m.GetCollectionNamesWithDB(dbName)
+	if slices.Contains(collections, collectionName) {
+		return err
+	}
+
+	// Create capped collection options with limit of documents or 20 mb size limit
+	// Seems reasonable for now, I have no idea what is a proper amount
+	collectionOptions := options.CreateCollection()
+	collectionOptions.SetCapped(true)
+	collectionOptions.SetMaxDocuments(maxDocuments)
+	collectionOptions.SetSizeInBytes(mb * 1024 * 1024)
+
+	return m.CreateCollectionWithDB(dbName, collectionName, collectionOptions)
 }

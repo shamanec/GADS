@@ -28,3 +28,9 @@ func (m *MongoStore) AddOrUpdateDevice(device *models.Device) error {
 	filter := bson.D{{Key: "udid", Value: device.UDID}}
 	return UpsertDocument[models.Device](m.Ctx, coll, filter, *device)
 }
+
+func (m *MongoStore) GetProviderDevices(providerNickname string) ([]models.Device, error) {
+	coll := m.GetCollection("new_devices")
+	filter := bson.M{"provider": providerNickname}
+	return GetDocuments[models.Device](m.Ctx, coll, filter)
+}

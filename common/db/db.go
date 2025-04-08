@@ -1,8 +1,6 @@
 package db
 
 import (
-	"GADS/common/errors"
-	"GADS/common/models"
 	"context"
 	"fmt"
 	"io"
@@ -10,8 +8,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
-
-	"slices"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -54,28 +50,6 @@ func InitMongoClient(mongoDb string) {
 	go checkDBConnection()
 }
 
-func MongoClient() *mongo.Client {
-	if mongoClient == nil {
-		errors.ExitWithErrorMessage("Mongo client is not initialized")
-	}
-	return mongoClient
-}
-
-func MongoCtx() context.Context {
-	return mongoClientCtx
-}
-
-func MongoCtxCancel() context.CancelFunc {
-	return mongoClientCtxCancel
-}
-
-func CloseMongoConn() {
-	err := mongoClient.Disconnect(mongoClientCtx)
-	if err != nil {
-		log.Fatalf("Failed to close mongo connection when stopping provider - %s", err)
-	}
-}
-
 func checkDBConnection() {
 	errorCounter := 0
 	for {
@@ -103,36 +77,8 @@ func checkDBConnection() {
 	}
 }
 
-func CreateCappedCollection(dbName, collectionName string, maxDocuments, mb int64) error {
-
-	database := MongoClient().Database(dbName)
-	collections, err := database.ListCollectionNames(context.Background(), bson.M{})
-	if err != nil {
-		return err
-	}
-
-	if slices.Contains(collections, collectionName) {
-		return err
-	}
-
-	// Create capped collection options with limit of documents or 20 mb size limit
-	// Seems reasonable for now, I have no idea what is a proper amount
-	collectionOptions := options.CreateCollection()
-	collectionOptions.SetCapped(true)
-	collectionOptions.SetMaxDocuments(maxDocuments)
-	collectionOptions.SetSizeInBytes(mb * 1024 * 1024)
-
-	// Create the actual collection
-	err = database.CreateCollection(MongoCtx(), collectionName, collectionOptions)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func UploadFileGridFS(file io.Reader, fileName string, force bool) error {
-	mongoDb := MongoClient().Database("gads")
+	mongoDb := GlobalMongoStore.Client.Database("gads")
 	bucket, err := gridfs.NewBucket(mongoDb, nil)
 
 	// Create a filter and search the bucket for the selenium.jar file
@@ -148,7 +94,7 @@ func UploadFileGridFS(file io.Reader, fileName string, force bool) error {
 		ID   string `bson:"_id"`
 	}
 	var foundFiles []gridfsFile
-	err = cursor.All(MongoCtx(), &foundFiles)
+	err = cursor.All(GlobalMongoStore.Ctx, &foundFiles)
 	if err != nil {
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
@@ -184,41 +130,4 @@ func UploadFileGridFS(file io.Reader, fileName string, force bool) error {
 		}
 		return nil
 	}
-}
-
-func GetGlobalStreamSettings() (models.StreamSettings, error) {
-	var globalSettings models.GlobalSettings
-	var streamSettings models.StreamSettings
-
-	coll := mongoClient.Database("gads").Collection("global_settings")
-	filter := bson.D{{Key: "type", Value: "stream-settings"}}
-
-	err := coll.FindOne(mongoClientCtx, filter).Decode(&globalSettings)
-	if err == mongo.ErrNoDocuments {
-		streamSettings = models.StreamSettings{
-			TargetFPS:            15,
-			JpegQuality:          75,
-			ScalingFactorAndroid: 50,
-			ScalingFactoriOS:     50,
-		}
-
-		err = GlobalMongoStore.UpdateGlobalStreamSettings(streamSettings)
-		if err != nil {
-			return streamSettings, err
-		}
-	} else if err != nil {
-		return streamSettings, err
-	} else {
-		settingsBytes, err := bson.Marshal(globalSettings.Settings)
-		if err != nil {
-			return streamSettings, fmt.Errorf("failed to marshal settings: %v", err)
-		}
-
-		err = bson.Unmarshal(settingsBytes, &streamSettings)
-		if err != nil {
-			return streamSettings, fmt.Errorf("failed to unmarshal settings: %v", err)
-		}
-	}
-
-	return streamSettings, nil
 }

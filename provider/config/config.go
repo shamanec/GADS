@@ -35,7 +35,7 @@ func SetupConfig(nickname, folder, hubAddress string) {
 }
 
 func SetupSeleniumJar() error {
-	mongoDb := db.MongoClient().Database("gads")
+	mongoDb := db.GlobalMongoStore.Client.Database("gads")
 	bucket, err := gridfs.NewBucket(mongoDb, nil)
 
 	// Create a filter and search the bucket for the selenium.jar file
@@ -51,7 +51,7 @@ func SetupSeleniumJar() error {
 		ID   string `bson:"_id"`
 	}
 	var foundFiles []gridfsFile
-	err = cursor.All(db.MongoCtx(), &foundFiles)
+	err = cursor.All(db.GlobalMongoStore.Ctx, &foundFiles)
 	if err != nil {
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
@@ -103,7 +103,7 @@ func SetupSeleniumJar() error {
 }
 
 func SetupIOSSupervisionProfileFile() error {
-	mongoDb := db.MongoClient().Database("gads")
+	mongoDb := db.GlobalMongoStore.Client.Database("gads")
 	bucket, err := gridfs.NewBucket(mongoDb, nil)
 
 	// Create a filter and search the bucket for the supervision.p12 file
@@ -119,7 +119,7 @@ func SetupIOSSupervisionProfileFile() error {
 		ID   string `bson:"_id"`
 	}
 	var foundFiles []gridfsFile
-	err = cursor.All(db.MongoCtx(), &foundFiles)
+	err = cursor.All(db.GlobalMongoStore.Ctx, &foundFiles)
 	if err != nil {
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
@@ -171,7 +171,7 @@ func SetupIOSSupervisionProfileFile() error {
 }
 
 func SetupWebDriverAgentFile() error {
-	mongoDb := db.MongoClient().Database("gads")
+	mongoDb := db.GlobalMongoStore.Client.Database("gads")
 	bucket, err := gridfs.NewBucket(mongoDb, nil)
 
 	// Create a filter and search the bucket for the WebDriverAgent.ipa file
@@ -187,7 +187,7 @@ func SetupWebDriverAgentFile() error {
 		ID   string `bson:"_id"`
 	}
 	var foundFiles []gridfsFile
-	err = cursor.All(db.MongoCtx(), &foundFiles)
+	err = cursor.All(db.GlobalMongoStore.Ctx, &foundFiles)
 	if err != nil {
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
@@ -239,7 +239,7 @@ func SetupWebDriverAgentFile() error {
 }
 
 func SetupGADSWebRTCAndroidApkFile() error {
-	mongoDb := db.MongoClient().Database("gads")
+	mongoDb := db.GlobalMongoStore.Client.Database("gads")
 	bucket, err := gridfs.NewBucket(mongoDb, nil)
 
 	// Create a filter and search the bucket for the WebDriverAgent.ipa file
@@ -255,7 +255,7 @@ func SetupGADSWebRTCAndroidApkFile() error {
 		ID   string `bson:"_id"`
 	}
 	var foundFiles []gridfsFile
-	err = cursor.All(db.MongoCtx(), &foundFiles)
+	err = cursor.All(db.GlobalMongoStore.Ctx, &foundFiles)
 	if err != nil {
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}

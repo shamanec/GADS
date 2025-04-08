@@ -74,8 +74,6 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	// Start a goroutine to clean hanging grid sessions
 	go router.UpdateExpiredGridSessions()
 
-	defer db.MongoCtxCancel()
-
 	err := db.GlobalMongoStore.AddAdminUserIfMissing()
 	if err != nil {
 		log.Fatalf("Failed adding admin user on start - %s", err)

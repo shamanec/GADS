@@ -19,8 +19,6 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -32,21 +30,6 @@ var netClient = &http.Client{
 
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
-}
-
-type AppiumLog struct {
-	TS        int64  `json:"ts" bson:"ts"`
-	Message   string `json:"msg" bson:"msg"`
-	AppiumTS  string `json:"appium_ts" bson:"appium_ts"`
-	LogType   string `json:"log_type" bson:"log_type"`
-	SessionID string `json:"session_id" bson:"session_id"`
-}
-
-type ProviderLog struct {
-	EventName string `json:"eventname" bson:"eventname"`
-	Level     string `json:"level" bson:"level"`
-	Message   string `json:"message" bson:"message"`
-	Timestamp int64  `json:"timestamp" bson:"timestamp"`
 }
 
 func GetAppiumLogs(c *gin.Context) {
@@ -61,24 +44,9 @@ func GetAppiumLogs(c *gin.Context) {
 		return
 	}
 
-	var logs []AppiumLog
-
-	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
-	findOptions.SetLimit(int64(logLimit))
-
-	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)
+	logs, err := db.GlobalMongoStore.GetAppiumLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, "Failed to get cursor for collection")
-	}
-	defer cursor.Close(db.MongoCtx())
-
-	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
-		InternalServerError(c, "Failed to read data from cursor")
-	}
-	if err := cursor.Err(); err != nil {
-		InternalServerError(c, "Cursor error")
+		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
 	}
 
 	c.JSON(200, logs)
@@ -96,32 +64,16 @@ func GetProviderLogs(c *gin.Context) {
 		return
 	}
 
-	var logs []ProviderLog
-
-	collection := db.MongoClient().Database("logs").Collection(collectionName)
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
-	findOptions.SetLimit(int64(logLimit))
-
-	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)
+	logs, err := db.GlobalMongoStore.GetProviderLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, "Failed to get cursor for collection")
-	}
-	defer cursor.Close(db.MongoCtx())
-
-	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
-		InternalServerError(c, "Failed to read data from cursor")
-	}
-	if err := cursor.Err(); err != nil {
-		InternalServerError(c, "Cursor error")
+		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		return
 	}
 
 	c.JSON(200, logs)
 }
 
 func GetAppiumSessionLogs(c *gin.Context) {
-	var logs []AppiumLog
-
 	collectionName := c.DefaultQuery("collection", "")
 	if collectionName == "" {
 		BadRequest(c, "Empty collection name provided")
@@ -134,23 +86,9 @@ func GetAppiumSessionLogs(c *gin.Context) {
 		return
 	}
 
-	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
-
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
-	filter := bson.D{{"session_id", sessionID}}
-
-	cursor, err := collection.Find(db.MongoCtx(), filter, findOptions)
+	logs, err := db.GlobalMongoStore.GetAppiumSessionLogs(collectionName, sessionID)
 	if err != nil {
-		InternalServerError(c, "Failed to get cursor for collection")
-	}
-	defer cursor.Close(db.MongoCtx())
-
-	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
-		InternalServerError(c, "Failed to read data from cursor")
-	}
-	if err := cursor.Err(); err != nil {
-		InternalServerError(c, "Cursor error")
+		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
 	}
 
 	c.JSON(200, logs)
@@ -974,7 +912,7 @@ func DownloadResourceFromGithubRepo(c *gin.Context) {
 
 func GetGlobalStreamSettings(c *gin.Context) {
 	// Retrieve global stream settings from the database
-	streamSettings, err := db.GetGlobalStreamSettings()
+	streamSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve global stream settings"})
 		return

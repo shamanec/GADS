@@ -131,7 +131,7 @@ func setupDevices() {
 
 		// If it doesn't exist - attempt to create it
 		if !exists {
-			err = db.CreateCappedCollection("appium_logs", dbDevice.UDID, 30000, 30)
+			err = db.GlobalMongoStore.CreateCappedCollectionWitDB("appium_logs", dbDevice.UDID, 30000, 30)
 			if err != nil {
 				logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
 				continue
@@ -1099,7 +1099,7 @@ func checkAppiumUp(device *models.Device) {
 }
 
 func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {
-	globalSettings, err := db.GetGlobalStreamSettings()
+	globalSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
 		return fmt.Errorf("failed to get global stream settings: %v", err)
 	}

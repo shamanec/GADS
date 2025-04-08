@@ -153,3 +153,10 @@ type Workspace struct {
 	Description string `json:"description" bson:"description"`
 	IsDefault   bool   `json:"is_default" bson:"is_default"`
 }
+
+type ProviderLog struct {
+	EventName string `json:"eventname" bson:"eventname"`
+	Level     string `json:"level" bson:"level"`
+	Message   string `json:"message" bson:"message"`
+	Timestamp int64  `json:"timestamp" bson:"timestamp"`
+}

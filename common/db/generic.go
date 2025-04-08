@@ -66,6 +66,14 @@ func UpsertDocument[T any](ctx context.Context, coll *mongo.Collection, filter i
 	return err
 }
 
+// PartialDocumentUpdate updates only specific fields of the document that are provided via `updates` interface, usually bson.M{} maps
+func PartialDocumentUpdate(ctx context.Context, coll *mongo.Collection, filter interface{}, updates interface{}, opts ...*options.UpdateOptions) error {
+	update := bson.M{"$set": updates}
+
+	_, err := coll.UpdateOne(ctx, filter, update, opts...)
+	return err
+}
+
 // DeleteDocument removes a document from the target collection respecting the provided filter
 func DeleteDocument(ctx context.Context, coll *mongo.Collection, filter interface{}) error {
 	_, err := coll.DeleteOne(ctx, filter)
