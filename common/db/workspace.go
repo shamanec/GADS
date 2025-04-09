@@ -26,10 +26,8 @@ func (m *MongoStore) UpdateWorkspace(workspace *models.Workspace) error {
 	}
 	filter := bson.M{"_id": objectID}
 	update := bson.M{
-		"$set": bson.M{
-			"name":        workspace.Name,
-			"description": workspace.Description,
-		},
+		"name":        workspace.Name,
+		"description": workspace.Description,
 	}
 	return PartialDocumentUpdate(m.Ctx, coll, filter, update)
 }
