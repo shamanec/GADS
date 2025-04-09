@@ -41,7 +41,7 @@ func GetDocument[T any](ctx context.Context, coll *mongo.Collection, filter inte
 
 // CountDocuments returns the number of documents found in the provided collection with the possibility of applying filter or options.FindOptions
 func CountDocuments(ctx context.Context, coll *mongo.Collection, filter interface{}, opts ...*options.FindOptions) (int64, error) {
-	count, err := coll.CountDocuments(mongoClientCtx, filter)
+	count, err := coll.CountDocuments(ctx, filter)
 	if err != nil {
 		return 0, err
 	}
@@ -62,8 +62,17 @@ func HasDocuments(ctx context.Context, coll *mongo.Collection, filter interface{
 func UpsertDocument[T any](ctx context.Context, coll *mongo.Collection, filter interface{}, doc T) error {
 	update := bson.M{"$set": doc}
 	opts := options.Update().SetUpsert(true)
+
 	_, err := coll.UpdateOne(ctx, filter, update, opts)
 	return err
+}
+
+func UpsertDocumentWithResult[T any](ctx context.Context, coll *mongo.Collection, filter interface{}, doc T) (*mongo.UpdateResult, error) {
+	update := bson.M{"$set": doc}
+	opts := options.Update().SetUpsert(true)
+
+	result, err := coll.UpdateOne(ctx, filter, update, opts)
+	return result, err
 }
 
 // PartialDocumentUpdate updates only specific fields of the document that are provided via `updates` interface, usually bson.M{} maps

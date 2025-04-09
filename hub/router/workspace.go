@@ -30,7 +30,7 @@ func CreateWorkspace(c *gin.Context) {
 	}
 
 	// Save to database
-	err := db.AddWorkspace(&workspace)
+	err := db.GlobalMongoStore.AddWorkspace(&workspace)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create workspace"})
 		return
@@ -56,7 +56,7 @@ func UpdateWorkspace(c *gin.Context) {
 	}
 
 	// Update workspace in database
-	err := db.UpdateWorkspace(&workspace)
+	err := db.GlobalMongoStore.UpdateWorkspace(&workspace)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update workspace"})
 		return
@@ -83,7 +83,7 @@ func DeleteWorkspace(c *gin.Context) {
 		return
 	}
 
-	err = db.DeleteWorkspace(id)
+	err = db.GlobalMongoStore.DeleteWorkspace(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete workspace"})
 		return

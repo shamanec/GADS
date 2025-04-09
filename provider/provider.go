@@ -44,10 +44,7 @@ func StartProvider(flags *pflag.FlagSet) {
 		log.Fatalf("Failed to create provider folder `%s` - %s", providerFolder, err)
 	}
 
-	// Create a connection to Mongo
-	db.InitMongoClient(mongoDb)
-
-	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
+	db.InitMongo(mongoDb, "gads")
 	defer db.GlobalMongoStore.Close()
 
 	// Set up the provider configuration
@@ -67,7 +64,7 @@ func StartProvider(flags *pflag.FlagSet) {
 			Description: "This is the default workspace.",
 			IsDefault:   true,
 		}
-		err := db.AddWorkspace(&defaultWorkspace)
+		err := db.GlobalMongoStore.AddWorkspace(&defaultWorkspace)
 		if err != nil {
 			log.Fatalf("Failed to create default workspace - %s", err)
 		}

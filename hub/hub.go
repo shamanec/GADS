@@ -62,10 +62,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 
 	configData = &config
 
-	// Create a new connection to MongoDB
-	db.InitMongoClient(mongoDB)
-
-	db.InitMongo("mongodb://localhost:27017/?keepAlive=true", "gads")
+	db.InitMongo(mongoDB, "gads")
 	defer db.GlobalMongoStore.Close()
 
 	devices.InitHubDevicesData()
@@ -88,7 +85,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 			Description: "This is the default workspace.",
 			IsDefault:   true,
 		}
-		err := db.AddWorkspace(&defaultWorkspace)
+		err := db.GlobalMongoStore.AddWorkspace(&defaultWorkspace)
 		if err != nil {
 			log.Fatalf("Failed to create default workspace - %s", err)
 		}

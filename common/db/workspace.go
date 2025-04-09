@@ -8,24 +8,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func AddWorkspace(workspace *models.Workspace) error {
-	collection := mongoClient.Database("gads").Collection("workspaces")
-	result, err := collection.InsertOne(mongoClientCtx, workspace)
+func (m *MongoStore) AddWorkspace(workspace *models.Workspace) error {
+	coll := m.GetCollection("workspaces")
+	result, err := UpsertDocumentWithResult[models.Workspace](m.Ctx, coll, bson.D{{}}, *workspace)
 	if err != nil {
 		return err
 	}
-	workspace.ID = result.InsertedID.(primitive.ObjectID).Hex()
+	workspace.ID = result.UpsertedID.(primitive.ObjectID).Hex()
 	return nil
 }
 
-func UpdateWorkspace(workspace *models.Workspace) error {
-	collection := mongoClient.Database("gads").Collection("workspaces")
-
+func (m *MongoStore) UpdateWorkspace(workspace *models.Workspace) error {
+	coll := m.GetCollection("workspaces")
 	objectID, err := primitive.ObjectIDFromHex(workspace.ID)
 	if err != nil {
 		return err
 	}
-
 	filter := bson.M{"_id": objectID}
 	update := bson.M{
 		"$set": bson.M{
@@ -33,27 +31,17 @@ func UpdateWorkspace(workspace *models.Workspace) error {
 			"description": workspace.Description,
 		},
 	}
-	_, err = collection.UpdateOne(mongoClientCtx, filter, update)
-	if err != nil {
-		return err
-	}
-	return nil
+	return PartialDocumentUpdate(m.Ctx, coll, filter, update)
 }
 
-func DeleteWorkspace(id string) error {
-	collection := mongoClient.Database("gads").Collection("workspaces")
-
+func (m *MongoStore) DeleteWorkspace(id string) error {
+	coll := m.GetCollection("workspaces")
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
 	}
-
 	filter := bson.M{"_id": objectID}
-	_, err = collection.DeleteOne(mongoClientCtx, filter)
-	if err != nil {
-		return err
-	}
-	return nil
+	return DeleteDocument(m.Ctx, coll, filter)
 }
 
 func (m *MongoStore) GetWorkspaces() ([]models.Workspace, error) {
@@ -128,15 +116,15 @@ func (m *MongoStore) GetUserWorkspacesPaginated(username string, page, limit int
 
 func GetUserWorkspacesPaginated(username string, page, limit int, search string) ([]models.Workspace, int64) {
 	var workspaces []models.Workspace
-	collection := mongoClient.Database("gads").Collection("workspaces")
+	collection := GlobalMongoStore.Client.Database("gads").Collection("workspaces")
 
 	// Calculate skip for pagination
 	skip := (page - 1) * limit
 
 	// Get user's workspace IDs from users collection
-	userCollection := mongoClient.Database("gads").Collection("users")
+	userCollection := GlobalMongoStore.Client.Database("gads").Collection("users")
 	var user models.User
-	err := userCollection.FindOne(mongoClientCtx, bson.M{"username": username}).Decode(&user)
+	err := userCollection.FindOne(GlobalMongoStore.Ctx, bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		return workspaces, 0
 	}
@@ -148,16 +136,16 @@ func GetUserWorkspacesPaginated(username string, page, limit int, search string)
 	}
 
 	// Get workspaces with pagination
-	cursor, err := collection.Find(mongoClientCtx, filter,
+	cursor, err := collection.Find(GlobalMongoStore.Ctx, filter,
 		options.Find().
 			SetSkip(int64(skip)).
 			SetLimit(int64(limit)))
 	if err != nil {
 		return workspaces, 0
 	}
-	defer cursor.Close(mongoClientCtx)
+	defer cursor.Close(GlobalMongoStore.Ctx)
 
-	for cursor.Next(mongoClientCtx) {
+	for cursor.Next(GlobalMongoStore.Ctx) {
 		var workspace models.Workspace
 		if err := cursor.Decode(&workspace); err != nil {
 			continue
@@ -166,7 +154,7 @@ func GetUserWorkspacesPaginated(username string, page, limit int, search string)
 	}
 
 	// Get total count
-	count, err := collection.CountDocuments(mongoClientCtx, filter)
+	count, err := collection.CountDocuments(GlobalMongoStore.Ctx, filter)
 	if err != nil {
 		return workspaces, 0
 	}
