@@ -1,6 +1,7 @@
 package main
 
 import (
+	"GADS/grid"
 	"GADS/hub"
 	"GADS/provider"
 	"embed"
@@ -21,6 +22,19 @@ var uiFiles embed.FS
 func main() {
 	var rootCmd = &cobra.Command{Use: "GADS"}
 	rootCmd.PersistentFlags().String("mongo-db", "localhost:27017", "The address of the MongoDB instance")
+
+	// Grid command
+	var gridCmd = &cobra.Command{
+		Use:   "grid",
+		Short: "Run Appium grid component",
+		Run: func(cmd *cobra.Command, args []string) {
+			grid.StartGrid()
+		},
+	}
+	gridCmd.Flags().String("host-address", "localhost", "The IP address of the host machine")
+	gridCmd.Flags().String("port", "", "The port on which the grid should run")
+	gridCmd.Flags().String("hub", "", "The address of the GADS hub instance")
+	rootCmd.AddCommand(gridCmd)
 
 	// Hub Command
 	var hubCmd = &cobra.Command{
