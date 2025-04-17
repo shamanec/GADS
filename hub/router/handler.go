@@ -72,8 +72,8 @@ func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	authGroup.GET("/admin/workspaces", GetWorkspaces)
 	authGroup.GET("/workspaces", GetUserWorkspaces)
 	appiumGroup := r.Group("/grid")
-	appiumGroup.Use(AppiumGridMiddleware())
-	appiumGroup.Any("/*path")
+	appiumGroup.POST("/session", AppiumGridCreateSession)
+	appiumGroup.Any("/session/*any", AppiumGridSessionProxy)
 
 	return r
 }
