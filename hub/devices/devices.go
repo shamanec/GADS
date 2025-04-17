@@ -44,7 +44,7 @@ func GetLatestDBDevices() {
 	var latestDBDevices []models.Device
 
 	for {
-		latestDBDevices = db.GetDBDeviceNew()
+		latestDBDevices, _ = db.GlobalMongoStore.GetDevices()
 
 		HubDevicesData.Mu.Lock()
 		for udid, _ := range HubDevicesData.Devices {
