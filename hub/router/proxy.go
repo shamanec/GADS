@@ -65,7 +65,7 @@ func ProviderProxyHandler(c *gin.Context) {
 	name := c.Param("name")
 	providerAddress := ""
 
-	providers := db.GetProvidersFromDB()
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	for _, provider := range providers {
 		if provider.Nickname == name {
 			providerAddress = fmt.Sprintf("%s:%v", provider.HostAddress, provider.Port)
