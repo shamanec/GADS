@@ -33,3 +33,8 @@ func (m *MongoStore) GetAppiumSessionLogs(collectionName, sessionID string) ([]m
 
 	return GetDocuments[models.AppiumLog](m.Ctx, coll, filter, findOptions)
 }
+
+func (m *MongoStore) WriteAppiumLog(collectionName string, log models.AppiumLogEntry) error {
+	coll := m.GetCollectionWithDB("appium_logs_new", collectionName)
+	return InsertDocument[models.AppiumLogEntry](m.Ctx, coll, log)
+}

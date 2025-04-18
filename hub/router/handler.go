@@ -71,9 +71,12 @@ func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	authGroup.DELETE("/admin/workspaces/:id", DeleteWorkspace)
 	authGroup.GET("/admin/workspaces", GetWorkspaces)
 	authGroup.GET("/workspaces", GetUserWorkspaces)
-	appiumGroup := r.Group("/grid")
-	appiumGroup.POST("/session", AppiumGridCreateSession)
-	appiumGroup.Any("/session/*any", AppiumGridSessionProxy)
+	appiumGridGroup := r.Group("/grid")
+	appiumGridGroup.POST("/register", AppiumRegisterDevice)
+	appiumGridGroup.POST("/logs", AppiumLogs)
+	appiumGridGroup.GET("/api/proxy")
+	appiumGridGroup.POST("/session", AppiumGridCreateSession)
+	appiumGridGroup.Any("/session/*any", AppiumGridSessionProxy)
 
 	return r
 }

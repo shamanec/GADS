@@ -558,6 +558,34 @@ func DeviceInUseWS(c *gin.Context) {
 	}
 }
 
+func AppiumLogs(c *gin.Context) {
+	var logEntry models.AppiumLogEntry
+	err := c.ShouldBindJSON(&logEntry)
+	if err != nil {
+		c.Status(400)
+		return
+	}
+	fmt.Println("GOT LOGS")
+	fmt.Println(logEntry)
+	err = db.GlobalMongoStore.WriteAppiumLog("appium_logs", logEntry)
+	if err != nil {
+		c.Status(400)
+		return
+	}
+	c.Status(200)
+}
+
+func AppiumRegisterDevice(c *gin.Context) {
+	fmt.Println("GOT REGISTER")
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err != nil {
+		// handle error if needed
+	}
+	fmt.Println(string(bodyBytes))
+	c.Status(200)
+}
+
 func AvailableDevicesSSE(c *gin.Context) {
 	// Get workspace ID from query parameter
 	workspaceID := c.Query("workspaceId")

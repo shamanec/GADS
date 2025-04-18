@@ -67,6 +67,15 @@ func UpsertDocument[T any](ctx context.Context, coll *mongo.Collection, filter i
 	return err
 }
 
+func InsertDocument[T any](ctx context.Context, coll *mongo.Collection, doc T, opts ...*options.InsertOneOptions) error {
+	_, err := coll.InsertOne(ctx, doc, opts...)
+	return err
+}
+
+func InsertDocumentWithResult[T any](ctx context.Context, coll *mongo.Collection, doc T, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
+	return coll.InsertOne(ctx, doc, opts...)
+}
+
 func UpsertDocumentWithResult[T any](ctx context.Context, coll *mongo.Collection, filter interface{}, doc T) (*mongo.UpdateResult, error) {
 	update := bson.M{"$set": doc}
 	opts := options.Update().SetUpsert(true)

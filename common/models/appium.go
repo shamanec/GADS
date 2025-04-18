@@ -99,3 +99,11 @@ type WDAMjpegProperties struct {
 	MjpegServerScreenshotQuality int `json:"mjpegServerScreenshotQuality,omitempty"`
 	MjpegServerScalingFactor     int `json:"mjpegScalingFactor,omitempty"`
 }
+
+type AppiumLogEntry struct {
+	Level     string `json:"level" bson:"level"`
+	Message   string `json:"message" bson:"message"`
+	SessionID string `json:"session_id" bson:"session_id"`
+	UDID      string `json:"udid" bson:"udid"`
+	Prefix    string `json:"prefix" bson:"prefix"`
+}

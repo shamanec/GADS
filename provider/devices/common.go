@@ -829,43 +829,12 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 		"--default-capabilities", string(capabilitiesJson))
 
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", device.UDID, cmd.Args))
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stdoutpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
-		ResetLocalDevice(device, "Failed to create stdoutpipe on Appium command.")
-		return
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stderrpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
-		ResetLocalDevice(device, "Failed to create stderrpipe on Appium command.")
-		return
-	}
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
 		ResetLocalDevice(device, "Failed to execute Appium command.")
 		return
 	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Process stdout
-	go func() {
-		defer wg.Done()
-		processStream(bufio.NewScanner(stdout), device, false)
-	}()
-
-	// Process stderr
-	go func() {
-		defer wg.Done()
-		processStream(bufio.NewScanner(stderr), device, true)
-	}()
-
-	// Wait for stdout and stderr processing to finish
-	wg.Wait()
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
@@ -874,7 +843,6 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 			cmd.Args, device.UDID, err))
 
 		ResetLocalDevice(device, "Appium command errored out or device was disconnected.")
-		deviceSetupWg.Done()
 	}
 }
 

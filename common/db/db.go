@@ -6,6 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -15,6 +16,7 @@ type MongoStore struct {
 	DefaultDatabaseName string // default database name if you want
 	Ctx                 context.Context
 	CtxCancel           context.CancelFunc
+	EmptyFilter         interface{}
 }
 
 var (
@@ -63,6 +65,7 @@ func NewMongoStore(dbName string) (*MongoStore, error) {
 		DefaultDatabaseName: dbName,
 		Ctx:                 ctx,
 		CtxCancel:           cancel,
+		EmptyFilter:         bson.D{{}},
 	}
 	go newStore.checkDBConnection()
 
