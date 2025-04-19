@@ -31,7 +31,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	user, err := db.GetUserFromDB(creds.Username)
+	user, err := db.GlobalMongoStore.GetUser(creds.Username)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
