@@ -124,14 +124,14 @@ func setupDevices() {
 		dbDevice.SemVer = semver
 
 		// Check if a capped Appium logs collection already exists for the current device
-		exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs", dbDevice.UDID)
+		exists, err := db.CollectionExists("appium_logs", dbDevice.UDID)
 		if err != nil {
 			logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
 		}
 
 		// If it doesn't exist - attempt to create it
 		if !exists {
-			err = db.GlobalMongoStore.CreateCappedCollectionWitDB("appium_logs", dbDevice.UDID, 30000, 30)
+			err = db.CreateCappedCollection("appium_logs", dbDevice.UDID, 30000, 30)
 			if err != nil {
 				logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
 				continue
@@ -148,7 +148,7 @@ func setupDevices() {
 				},
 			},
 		}
-		db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
+		db.AddCollectionIndex("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
 
 		// Create logs directory for the device if it doesn't already exist
 		if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
@@ -1099,7 +1099,7 @@ func checkAppiumUp(device *models.Device) {
 }
 
 func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {
-	globalSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
+	globalSettings, err := db.GetGlobalStreamSettings()
 	if err != nil {
 		return fmt.Errorf("failed to get global stream settings: %v", err)
 	}
@@ -1121,7 +1121,7 @@ func applyDeviceStreamSettings(device *models.Device) error {
 	common.MutexManager.StreamSettings.Lock()
 	defer common.MutexManager.StreamSettings.Unlock()
 	// Get the DeviceStreamSettings for the current device
-	deviceStreamSettings, err := db.GlobalMongoStore.GetDeviceStreamSettings(device.UDID)
+	deviceStreamSettings, err := db.GetDeviceStreamSettings(device.UDID)
 
 	if err != nil {
 		// If there's an error (including not found), update the device with global settings

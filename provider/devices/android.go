@@ -164,7 +164,7 @@ func updateAndroidScreenSizeADB(device *models.Device) error {
 		device.ScreenHeight = strings.TrimSpace(screenDimensions[1])
 	}
 
-	err := db.GlobalMongoStore.AddOrUpdateDevice(device)
+	err := db.UpsertDeviceDB(device)
 	if err != nil {
 		return fmt.Errorf("Failed to uspert new device screen dimensions to DB - %s", err)
 	}

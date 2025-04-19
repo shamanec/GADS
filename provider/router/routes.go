@@ -401,7 +401,7 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 			StreamScalingFactor: device.StreamScalingFactor,
 		}
 
-		err = db.GlobalMongoStore.UpdateDeviceStreamSettings(udid, deviceStreamSettings)
+		err = db.UpdateDeviceStreamSettings(udid, deviceStreamSettings)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update device stream settings in the database"})
 			return

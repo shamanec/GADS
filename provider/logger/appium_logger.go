@@ -27,7 +27,7 @@ func NewAppiumLogger(logFilePath, udid string) (*AppiumLogger, error) {
 		return nil, err
 	}
 
-	collection := db.GlobalMongoStore.Client.Database("appium_logs").Collection(udid)
+	collection := db.MongoClient().Database("appium_logs").Collection(udid)
 
 	return &AppiumLogger{
 		localFile:       file,

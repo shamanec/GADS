@@ -364,7 +364,7 @@ func updateIOSScreenSize(device *models.Device, deviceMachineCode string) error 
 	}
 
 	// Update the device with the new dimensions in the DB
-	err := db.GlobalMongoStore.AddOrUpdateDevice(device)
+	err := db.UpsertDeviceDB(device)
 	if err != nil {
 		return fmt.Errorf("Failed to update DB with new device dimensions - %s", err)
 	}

@@ -52,7 +52,7 @@ type Device struct {
 	DeviceType       string `json:"device_type" bson:"device_type"`               // The type of device - `real` or `emulator`
 	UseWebRTCVideo   bool   `json:"use_webrtc_video" bson:"use_webrtc_video"`     // Should the device use WebRTC video instead of MJPEG
 	WebRTCVideoCodec string `json:"webrtc_video_codec" bson:"webrtc_video_codec"` // Which video codec should the device use for WebRTC video stream
-	WorkspaceID      string `json:"workspace_id" bson:"workspace_id"`             // ID of the associated workspace
+	WorkspaceID  string `json:"workspace_id" bson:"workspace_id"`   // ID of the associated workspace
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -152,11 +152,4 @@ type Workspace struct {
 	Name        string `json:"name" bson:"name"`
 	Description string `json:"description" bson:"description"`
 	IsDefault   bool   `json:"is_default" bson:"is_default"`
-}
-
-type ProviderLog struct {
-	EventName string `json:"eventname" bson:"eventname"`
-	Level     string `json:"level" bson:"level"`
-	Message   string `json:"message" bson:"message"`
-	Timestamp int64  `json:"timestamp" bson:"timestamp"`
 }

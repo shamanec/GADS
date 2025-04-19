@@ -62,8 +62,8 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 
 	configData = &config
 
-	db.InitMongo(mongoDB, "gads")
-	defer db.GlobalMongoStore.Close()
+	// Create a new connection to MongoDB
+	db.InitMongoClient(mongoDB)
 
 	devices.InitHubDevicesData()
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
@@ -71,13 +71,15 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	// Start a goroutine to clean hanging grid sessions
 	go router.UpdateExpiredGridSessions()
 
-	err := db.GlobalMongoStore.AddAdminUserIfMissing()
+	defer db.MongoCtxCancel()
+
+	err := db.AddAdminUserIfMissing()
 	if err != nil {
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}
 
 	// Check if the default workspace exists
-	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace()
+	defaultWorkspace, err := db.GetDefaultWorkspace()
 	if err != nil {
 		// Create default workspace if none exist
 		defaultWorkspace = models.Workspace{
@@ -85,14 +87,14 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 			Description: "This is the default workspace.",
 			IsDefault:   true,
 		}
-		err := db.GlobalMongoStore.AddWorkspace(&defaultWorkspace)
+		err := db.AddWorkspace(&defaultWorkspace)
 		if err != nil {
 			log.Fatalf("Failed to create default workspace - %s", err)
 		}
 	}
 
 	// Associate users without workspaces to default workspace
-	users, _ := db.GlobalMongoStore.GetUsers()
+	users := db.GetUsers()
 	for _, user := range users {
 		// Skip admin users as they have access to all workspaces
 		if user.Role == "admin" {
@@ -101,7 +103,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 
 		if len(user.WorkspaceIDs) == 0 {
 			// Update only the workspace_ids field
-			err := db.GlobalMongoStore.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
+			err := db.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
 			if err != nil {
 				log.Printf("Failed to associate user %s with default workspace - %s", user.Username, err)
 				continue
@@ -110,11 +112,11 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 
 	// Associate devices without workspace to default workspace
-	devices, _ := db.GlobalMongoStore.GetDevices()
+	devices := db.GetDBDeviceNew()
 	for _, device := range devices {
 		if device.WorkspaceID == "" {
 			device.WorkspaceID = defaultWorkspace.ID
-			err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
+			err := db.UpsertDeviceDB(&device)
 			if err != nil {
 				log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
 				continue

@@ -8,6 +8,7 @@ import (
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
 	"GADS/provider/router"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +16,8 @@ import (
 	"time"
 
 	"github.com/spf13/pflag"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func StartProvider(flags *pflag.FlagSet) {
@@ -44,19 +47,22 @@ func StartProvider(flags *pflag.FlagSet) {
 		log.Fatalf("Failed to create provider folder `%s` - %s", providerFolder, err)
 	}
 
-	db.InitMongo(mongoDb, "gads")
-	defer db.GlobalMongoStore.Close()
+	// Create a connection to Mongo
+	db.InitMongoClient(mongoDb)
+	defer db.MongoCtxCancel()
 
 	// Set up the provider configuration
 	config.SetupConfig(nickname, providerFolder, hubAddress)
 	config.ProviderConfig.OS = runtime.GOOS
+	// Defer closing the Mongo connection on provider stopped
+	defer db.CloseMongoConn()
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
 
 	// Check if the default workspace exists
-	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace()
+	defaultWorkspace, err := db.GetDefaultWorkspace()
 	if err != nil {
 		// Create default workspace if none exist
 		defaultWorkspace = models.Workspace{
@@ -64,7 +70,7 @@ func StartProvider(flags *pflag.FlagSet) {
 			Description: "This is the default workspace.",
 			IsDefault:   true,
 		}
-		err := db.GlobalMongoStore.AddWorkspace(&defaultWorkspace)
+		err := db.AddWorkspace(&defaultWorkspace)
 		if err != nil {
 			log.Fatalf("Failed to create default workspace - %s", err)
 		}
@@ -144,12 +150,23 @@ func startHTTPServer() error {
 
 // Periodically send current provider data updates to MongoDB
 func updateProviderInDB() {
+	ctx, cancel := context.WithCancel(db.MongoCtx())
+	defer cancel()
+
 	for {
-		err := db.GlobalMongoStore.UpdateProviderTimestamp(config.ProviderConfig.Nickname, time.Now().UnixMilli())
+		coll := db.MongoClient().Database("gads").Collection("providers")
+		filter := bson.D{{Key: "nickname", Value: config.ProviderConfig.Nickname}}
+
+		update := bson.M{
+			"$set": bson.M{
+				"last_updated": time.Now().UnixMilli(),
+			},
+		}
+		opts := options.Update().SetUpsert(true)
+		_, err := coll.UpdateOne(ctx, filter, update, opts)
 		if err != nil {
 			logger.ProviderLogger.LogError("update_provider", fmt.Sprintf("Failed to upsert provider in DB - %s", err))
 		}
-
 		time.Sleep(1 * time.Second)
 	}
 }
