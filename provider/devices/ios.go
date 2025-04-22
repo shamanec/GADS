@@ -51,13 +51,7 @@ func goIosForward(device *models.Device, hostPort string, devicePort string) {
 func updateWebDriverAgent(device *models.Device) error {
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("updateWebDriverAgent: Updating WebDriverAgent session and mjpeg stream settings for device `%s`", device.UDID))
 
-	err := createWebDriverAgentSession(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("updateWebDriverAgent: Could not create WebDriverAgent session for device %v - %v", device.UDID, err))
-		return err
-	}
-
-	err = UpdateWebDriverAgentStreamSettings(device, true)
+	err := UpdateWebDriverAgentStreamSettings(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("updateWebDriverAgent: Could not update WebDriverAgent stream settings for device %v - %v", device.UDID, err))
 		return err
@@ -66,7 +60,7 @@ func updateWebDriverAgent(device *models.Device) error {
 	return nil
 }
 
-func UpdateWebDriverAgentStreamSettings(device *models.Device, useWDA bool) error {
+func UpdateWebDriverAgentStreamSettings(device *models.Device) error {
 	var mjpegProperties models.WDAMjpegProperties
 	mjpegProperties.MjpegServerFramerate = device.StreamTargetFPS
 	mjpegProperties.MjpegServerScreenshotQuality = device.StreamJpegQuality
@@ -82,15 +76,10 @@ func UpdateWebDriverAgentStreamSettings(device *models.Device, useWDA bool) erro
 		return err
 	}
 
-	fmt.Println("Sending to http://localhost:" + device.AppiumPort + "/session/" + device.AppiumSessionID + "/appium/settings")
+	fmt.Println("Updating Appium settings")
 	fmt.Println(bytes.NewBuffer(requestBody))
 
-	var url string
-	if useWDA {
-		url = "http://localhost:" + device.WDAPort + "/session/" + device.WDASessionID + "/appium/settings"
-	} else {
-		url = "http://localhost:" + device.AppiumPort + "/session/" + device.AppiumSessionID + "/appium/settings"
-	}
+	var url = fmt.Sprintf("http://localhost:%v/appium/settings", device.WDAPort)
 
 	// Post the mjpeg server settings
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody))
@@ -103,47 +92,6 @@ func UpdateWebDriverAgentStreamSettings(device *models.Device, useWDA bool) erro
 		return fmt.Errorf("updateWebDriverAgentStreamSettings: Could not successfully update WDA stream settings, status code=%v", response.StatusCode)
 	}
 
-	return nil
-}
-
-// Create a new WebDriverAgent session
-func createWebDriverAgentSession(device *models.Device) error {
-	requestString := `{
-		"capabilities": {
-			"firstMatch": [{}],
-			"alwaysMatch": {
-				
-			}
-		}
-	}`
-
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:"+device.WDAPort+"/session", strings.NewReader(requestString))
-	if err != nil {
-		return err
-	}
-
-	response, err := netClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	// Get the response into a byte slice
-	responseBody, _ := io.ReadAll(response.Body)
-	// Unmarshal response into a basic map
-	var responseJson map[string]interface{}
-	err = json.Unmarshal(responseBody, &responseJson)
-	if err != nil {
-		return err
-	}
-
-	// Check the session ID from the map
-	if responseJson["sessionId"] == "" {
-		if err != nil {
-			return fmt.Errorf("createWebDriverAgentSession: Could not get `sessionId` while creating a new WebDriverAgent session")
-		}
-	}
-
-	device.WDASessionID = fmt.Sprintf("%v", responseJson["sessionId"])
 	return nil
 }
 

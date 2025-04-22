@@ -241,7 +241,6 @@ func DeviceInfo(c *gin.Context) {
 
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		devices.UpdateInstalledApps(dev)
-		dev.UsesCustomWDA = config.ProviderConfig.UseCustomWDA
 		c.JSON(http.StatusOK, dev)
 		return
 	}
@@ -372,7 +371,7 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 				device.StreamScalingFactor = streamSettings.ScalingFactor
 			}
 
-			err = devices.UpdateWebDriverAgentStreamSettings(device, false)
+			err = devices.UpdateWebDriverAgentStreamSettings(device)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update stream settings on iOS device " + err.Error()})
 				return
