@@ -19,8 +19,6 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -32,21 +30,6 @@ var netClient = &http.Client{
 
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
-}
-
-type AppiumLog struct {
-	TS        int64  `json:"ts" bson:"ts"`
-	Message   string `json:"msg" bson:"msg"`
-	AppiumTS  string `json:"appium_ts" bson:"appium_ts"`
-	LogType   string `json:"log_type" bson:"log_type"`
-	SessionID string `json:"session_id" bson:"session_id"`
-}
-
-type ProviderLog struct {
-	EventName string `json:"eventname" bson:"eventname"`
-	Level     string `json:"level" bson:"level"`
-	Message   string `json:"message" bson:"message"`
-	Timestamp int64  `json:"timestamp" bson:"timestamp"`
 }
 
 func GetAppiumLogs(c *gin.Context) {
@@ -61,24 +44,9 @@ func GetAppiumLogs(c *gin.Context) {
 		return
 	}
 
-	var logs []AppiumLog
-
-	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
-	findOptions.SetLimit(int64(logLimit))
-
-	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)
+	logs, err := db.GlobalMongoStore.GetAppiumLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, "Failed to get cursor for collection")
-	}
-	defer cursor.Close(db.MongoCtx())
-
-	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
-		InternalServerError(c, "Failed to read data from cursor")
-	}
-	if err := cursor.Err(); err != nil {
-		InternalServerError(c, "Cursor error")
+		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
 	}
 
 	c.JSON(200, logs)
@@ -96,32 +64,16 @@ func GetProviderLogs(c *gin.Context) {
 		return
 	}
 
-	var logs []ProviderLog
-
-	collection := db.MongoClient().Database("logs").Collection(collectionName)
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
-	findOptions.SetLimit(int64(logLimit))
-
-	cursor, err := collection.Find(db.MongoCtx(), bson.D{{}}, findOptions)
+	logs, err := db.GlobalMongoStore.GetProviderLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, "Failed to get cursor for collection")
-	}
-	defer cursor.Close(db.MongoCtx())
-
-	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
-		InternalServerError(c, "Failed to read data from cursor")
-	}
-	if err := cursor.Err(); err != nil {
-		InternalServerError(c, "Cursor error")
+		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		return
 	}
 
 	c.JSON(200, logs)
 }
 
 func GetAppiumSessionLogs(c *gin.Context) {
-	var logs []AppiumLog
-
 	collectionName := c.DefaultQuery("collection", "")
 	if collectionName == "" {
 		BadRequest(c, "Empty collection name provided")
@@ -134,23 +86,9 @@ func GetAppiumSessionLogs(c *gin.Context) {
 		return
 	}
 
-	collection := db.MongoClient().Database("appium_logs").Collection(collectionName)
-
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
-	filter := bson.D{{"session_id", sessionID}}
-
-	cursor, err := collection.Find(db.MongoCtx(), filter, findOptions)
+	logs, err := db.GlobalMongoStore.GetAppiumSessionLogs(collectionName, sessionID)
 	if err != nil {
-		InternalServerError(c, "Failed to get cursor for collection")
-	}
-	defer cursor.Close(db.MongoCtx())
-
-	if err := cursor.All(db.MongoCtx(), &logs); err != nil {
-		InternalServerError(c, "Failed to read data from cursor")
-	}
-	if err := cursor.Err(); err != nil {
-		InternalServerError(c, "Cursor error")
+		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
 	}
 
 	c.JSON(200, logs)
@@ -181,7 +119,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	dbUser, err := db.GetUserFromDB(user.Username)
+	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -192,7 +130,7 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateUser(user)
+	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
@@ -221,7 +159,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	dbUser, err := db.GetUserFromDB(user.Username)
+	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		InternalServerError(c, "Failed checking for user in db - "+err.Error())
 		return
@@ -232,7 +170,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateUser(user)
+	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
@@ -242,7 +180,7 @@ func UpdateUser(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	nickname := c.Param("nickname")
 
-	err := db.DeleteUserDB(nickname)
+	err := db.GlobalMongoStore.DeleteUser(nickname)
 	if err != nil {
 		InternalServerError(c, "Failed to delete user - "+err.Error())
 		return
@@ -252,7 +190,7 @@ func DeleteUser(c *gin.Context) {
 }
 
 func GetProviders(c *gin.Context) {
-	providers := db.GetProvidersFromDB()
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	if len(providers) == 0 {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
@@ -262,7 +200,7 @@ func GetProviders(c *gin.Context) {
 
 func GetProviderInfo(c *gin.Context) {
 	providerName := c.Param("name")
-	providers := db.GetProvidersFromDB()
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
 			c.JSON(http.StatusOK, provider)
@@ -291,7 +229,7 @@ func AddProvider(c *gin.Context) {
 		BadRequest(c, "Missing or invalid nickname")
 		return
 	}
-	providerDB, _ := db.GetProviderFromDB(provider.Nickname)
+	providerDB, _ := db.GlobalMongoStore.GetProvider(provider.Nickname)
 	if providerDB.Nickname == provider.Nickname {
 		BadRequest(c, "Provider with this nickname already exists")
 		return
@@ -314,13 +252,13 @@ func AddProvider(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateProvider(provider)
+	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not create provider")
 		return
 	}
 
-	providersDB := db.GetProvidersFromDB()
+	providersDB, _ := db.GlobalMongoStore.GetAllProviders()
 	OkJSON(c, providersDB)
 }
 
@@ -360,7 +298,7 @@ func UpdateProvider(c *gin.Context) {
 		return
 	}
 
-	err = db.AddOrUpdateProvider(provider)
+	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not update provider")
 		return
@@ -371,7 +309,7 @@ func UpdateProvider(c *gin.Context) {
 func DeleteProvider(c *gin.Context) {
 	nickname := c.Param("nickname")
 
-	err := db.DeleteProviderDB(nickname)
+	err := db.GlobalMongoStore.DeleteProvider(nickname)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete provider from DB - %s", err)})
 		return
@@ -384,7 +322,7 @@ func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
 	c.Stream(func(w io.Writer) bool {
-		providerData, _ := db.GetProviderFromDB(nickname)
+		providerData, _ := db.GlobalMongoStore.GetProvider(nickname)
 
 		jsonData, _ := json.Marshal(&providerData)
 
@@ -697,7 +635,7 @@ func UploadFile(c *gin.Context) {
 		return
 	}
 
-	err = db.UploadFileGridFS(openedFile, fmt.Sprintf("%s", fileName), true)
+	err = db.GlobalMongoStore.UploadFile(openedFile, fmt.Sprintf("%s", fileName), true)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
 		return
@@ -721,7 +659,7 @@ func AddDevice(c *gin.Context) {
 		return
 	}
 
-	dbDevices := db.GetDBDeviceNew()
+	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == device.UDID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
@@ -729,7 +667,7 @@ func AddDevice(c *gin.Context) {
 		}
 	}
 
-	err = db.UpsertDeviceDB(&device)
+	err = db.GlobalMongoStore.AddOrUpdateDevice(&device)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 		return
@@ -753,7 +691,7 @@ func UpdateDevice(c *gin.Context) {
 		return
 	}
 
-	dbDevices := db.GetDBDeviceNew()
+	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == reqDevice.UDID {
 			// Update only the relevant data and only if something has changed
@@ -791,7 +729,7 @@ func UpdateDevice(c *gin.Context) {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
 			}
 
-			err = db.UpsertDeviceDB(&dbDevice)
+			err = db.GlobalMongoStore.AddOrUpdateDevice(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 				return
@@ -807,7 +745,7 @@ func UpdateDevice(c *gin.Context) {
 func DeleteDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	err := db.DeleteDeviceDB(udid)
+	err := db.GlobalMongoStore.DeleteDevice(udid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
 		return
@@ -822,8 +760,8 @@ type AdminDeviceData struct {
 }
 
 func GetDevices(c *gin.Context) {
-	dbDevices := db.GetDBDeviceNew()
-	providers := db.GetProvidersFromDB()
+	dbDevices, _ := db.GlobalMongoStore.GetDevices()
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
 
 	var providerNames []string = []string{}
 	for _, provider := range providers {
@@ -927,7 +865,7 @@ func ProviderUpdate(c *gin.Context) {
 }
 
 func GetUsers(c *gin.Context) {
-	users := db.GetUsers()
+	users, _ := db.GlobalMongoStore.GetUsers()
 	// Clean up the passwords, not that the project is very secure but let's not send them
 	for i := range users {
 		users[i].Password = ""
@@ -937,7 +875,7 @@ func GetUsers(c *gin.Context) {
 }
 
 func GetFiles(c *gin.Context) {
-	files := db.GetDBFiles()
+	files, _ := db.GlobalMongoStore.GetFiles()
 
 	c.JSON(http.StatusOK, files)
 }
@@ -974,7 +912,7 @@ func DownloadResourceFromGithubRepo(c *gin.Context) {
 
 func GetGlobalStreamSettings(c *gin.Context) {
 	// Retrieve global stream settings from the database
-	streamSettings, err := db.GetGlobalStreamSettings()
+	streamSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve global stream settings"})
 		return
@@ -993,7 +931,7 @@ func UpdateGlobalStreamSettings(c *gin.Context) {
 		return
 	}
 
-	err := db.UpdateGlobalStreamSettings(settings)
+	err := db.GlobalMongoStore.UpdateGlobalStreamSettings(settings)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save settings"})
 		return
