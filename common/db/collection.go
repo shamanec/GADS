@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"slices"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -39,7 +40,7 @@ func (m *MongoStore) CheckCollectionExistsWithDB(dbName, collectionName string) 
 }
 
 func (m *MongoStore) GetCollectionNames() ([]string, error) {
-	return m.Client.Database(m.DefaultDatabaseName).ListCollectionNames(m.Ctx, bson.M{})
+	return m.Client.Database(m.DatabaseName).ListCollectionNames(m.Ctx, bson.M{})
 }
 
 func (m *MongoStore) GetCollectionNamesWithDB(dbName string) ([]string, error) {
@@ -63,11 +64,11 @@ func (m *MongoStore) AddCollectionIndexWithDB(dbName, collectionName string, ind
 }
 
 func (m *MongoStore) CreateCollection(collectionName string, opts *options.CreateCollectionOptions) error {
-	return m.CreateCollectionWithDB(m.DefaultDatabaseName, collectionName, opts)
+	return m.CreateCollectionWithDB(m.DatabaseName, collectionName, opts)
 }
 
 func (m *MongoStore) CreateCollectionWithDB(dbName, collectionName string, opts ...*options.CreateCollectionOptions) error {
-	err := m.Client.Database(dbName).CreateCollection(GlobalMongoStore.Ctx, collectionName, opts...)
+	err := m.Client.Database(dbName).CreateCollection(m.Ctx, collectionName, opts...)
 	if err != nil {
 		return err
 	}
@@ -75,13 +76,16 @@ func (m *MongoStore) CreateCollectionWithDB(dbName, collectionName string, opts 
 }
 
 func (m *MongoStore) CreateCappedCollection(collectionName string, maxDocuments, mb int64) error {
-	return m.CreateCappedCollectionWitDB(m.DefaultDatabaseName, collectionName, maxDocuments, mb)
+	return m.CreateCappedCollectionWithDB(m.DatabaseName, collectionName, maxDocuments, mb)
 }
 
-func (m *MongoStore) CreateCappedCollectionWitDB(dbName, collectionName string, maxDocuments, mb int64) error {
+func (m *MongoStore) CreateCappedCollectionWithDB(dbName, collectionName string, maxDocuments, mb int64) error {
 	collections, err := m.GetCollectionNamesWithDB(dbName)
+	if err != nil {
+		return fmt.Errorf("Failed getting collection names - %s", err.Error())
+	}
 	if slices.Contains(collections, collectionName) {
-		return err
+		return nil
 	}
 
 	// Create capped collection options with limit of documents or 20 mb size limit

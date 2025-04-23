@@ -42,7 +42,7 @@ func (m *MongoStore) GetGlobalStreamSettings() (models.StreamSettings, error) {
 			ScalingFactoriOS:     50,
 		}
 
-		err = GlobalMongoStore.UpdateGlobalStreamSettings(streamSettings)
+		err = m.UpdateGlobalStreamSettings(streamSettings)
 		if err != nil {
 			return streamSettings, err
 		}

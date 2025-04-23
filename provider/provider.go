@@ -145,7 +145,7 @@ func startHTTPServer() error {
 // Periodically send current provider data updates to MongoDB
 func updateProviderInDB() {
 	for {
-		err := db.GlobalMongoStore.UpdateProviderTimestamp(config.ProviderConfig.Nickname, time.Now().UnixMilli())
+		err := db.GlobalMongoStore.UpdateProviderTimestamp(config.ProviderConfig.Nickname)
 		if err != nil {
 			logger.ProviderLogger.LogError("update_provider", fmt.Sprintf("Failed to upsert provider in DB - %s", err))
 		}

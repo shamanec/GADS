@@ -131,7 +131,7 @@ func setupDevices() {
 
 		// If it doesn't exist - attempt to create it
 		if !exists {
-			err = db.GlobalMongoStore.CreateCappedCollectionWitDB("appium_logs", dbDevice.UDID, 30000, 30)
+			err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs", dbDevice.UDID, 30000, 30)
 			if err != nil {
 				logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
 				continue

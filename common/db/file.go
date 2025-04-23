@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,7 +33,7 @@ func (m *MongoStore) UploadFile(file io.Reader, fileName string, force bool) err
 	}
 
 	var foundFiles []gridfsFile
-	err = cursor.All(GlobalMongoStore.Ctx, &foundFiles)
+	err = cursor.All(m.Ctx, &foundFiles)
 	if err != nil {
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
@@ -89,7 +90,7 @@ func (m *MongoStore) DownloadFile(fileName, downloadPath string) error {
 		ID   string `bson:"_id"`
 	}
 	var foundFiles []gridfsFile
-	err = cursor.All(GlobalMongoStore.Ctx, &foundFiles)
+	err = cursor.All(m.Ctx, &foundFiles)
 	if err != nil {
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
@@ -105,7 +106,7 @@ func (m *MongoStore) DownloadFile(fileName, downloadPath string) error {
 	}
 
 	// Create the filepath and remove the supervision profile file if present
-	filePath := fmt.Sprintf("%s/%s", downloadPath, fileName)
+	filePath := filepath.Join(downloadPath, fileName)
 	err = os.Remove(filePath)
 	if err != nil {
 		fmt.Printf("There is no %s file located at `%s`, nothing to remove\n", fileName, filePath)
@@ -113,6 +114,9 @@ func (m *MongoStore) DownloadFile(fileName, downloadPath string) error {
 
 	// Get the ObjectID from the file ID in Mongo
 	id, err := primitive.ObjectIDFromHex(foundFiles[0].ID)
+	if err != nil {
+		return fmt.Errorf("Failed to get object id from hex - %s", err)
+	}
 	downloadStream, err := bucket.OpenDownloadStream(id)
 	if err != nil {
 		return fmt.Errorf("Failed to open download stream from the GridFS bucket - %s", err)

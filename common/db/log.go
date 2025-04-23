@@ -7,8 +7,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const (
+	appiumLogDB   = "appium_logs"
+	providerLogDB = "logs"
+)
+
 func (m *MongoStore) GetAppiumLogs(collectionName string, logLimit int) ([]models.AppiumLog, error) {
-	coll := m.GetCollectionWithDB("appium_logs", collectionName)
+	coll := m.GetCollectionWithDB(appiumLogDB, collectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
 	findOptions.SetLimit(int64(logLimit))
@@ -17,7 +22,7 @@ func (m *MongoStore) GetAppiumLogs(collectionName string, logLimit int) ([]model
 }
 
 func (m *MongoStore) GetProviderLogs(collectionName string, logLimit int) ([]models.ProviderLog, error) {
-	coll := m.GetCollectionWithDB("logs", collectionName)
+	coll := m.GetCollectionWithDB(providerLogDB, collectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 	findOptions.SetLimit(int64(logLimit))
@@ -26,7 +31,7 @@ func (m *MongoStore) GetProviderLogs(collectionName string, logLimit int) ([]mod
 }
 
 func (m *MongoStore) GetAppiumSessionLogs(collectionName, sessionID string) ([]models.AppiumLog, error) {
-	coll := m.GetCollectionWithDB("appium_logs", collectionName)
+	coll := m.GetCollectionWithDB(appiumLogDB, collectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
 	filter := bson.D{{"session_id", sessionID}}

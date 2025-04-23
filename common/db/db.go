@@ -11,10 +11,10 @@ import (
 )
 
 type MongoStore struct {
-	Client              *mongo.Client
-	DefaultDatabaseName string // default database name if you want
-	Ctx                 context.Context
-	CtxCancel           context.CancelFunc
+	Client       *mongo.Client
+	DatabaseName string // default database name if you want
+	Ctx          context.Context
+	CtxCancel    context.CancelFunc
 }
 
 var (
@@ -59,10 +59,10 @@ func NewMongoStore(dbName string) (*MongoStore, error) {
 	}
 
 	newStore := &MongoStore{
-		Client:              client,
-		DefaultDatabaseName: dbName,
-		Ctx:                 ctx,
-		CtxCancel:           cancel,
+		Client:       client,
+		DatabaseName: dbName,
+		Ctx:          ctx,
+		CtxCancel:    cancel,
 	}
 	go newStore.checkDBConnection()
 

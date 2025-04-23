@@ -30,7 +30,7 @@ func (m *MongoStore) DeleteProvider(nickname string) error {
 	return DeleteDocument(m.Ctx, coll, filter)
 }
 
-func (m *MongoStore) UpdateProviderTimestamp(nickname string, timestamp int64) error {
+func (m *MongoStore) UpdateProviderTimestamp(nickname string) error {
 	coll := m.GetCollection("providers")
 	filter := bson.M{"nickname": nickname}
 	updates := bson.M{

@@ -49,7 +49,7 @@ func (m *MongoStore) AddAdminUserIfMissing() error {
 }
 
 func (m *MongoStore) UpdateUserWorkspaces(username string, workspaceIDs []string) error {
-	user, err := GlobalMongoStore.GetUser(username)
+	user, err := m.GetUser(username)
 	if err != nil {
 		return err
 	}
