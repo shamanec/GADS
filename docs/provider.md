@@ -132,8 +132,10 @@ Example installation command for Ubuntu -  `sudo apt install usbmuxd`.
 
 #### WebDriverAgent ipa
 You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`  
-By using the custom WebDriverAgent from my fork you can have faster tap/swipe interactions on iOS devices (the provider configuration should be set to use the custom WebDriverAgent through hub UI).  
-You can use mainstream WebDriverAgent as well  
+GADS supports only WebDriverAgent from my [fork](https://github.com/shamanec/WebDriverAgent).  
+The fork has optimizations for the mjpeg video stream and additional endpoints for faster tap/swipe interactions that are not available in the mainstream repo.  
+Additionally those endpoints require different coordinates for interaction from mainstream WDA which forces separate handling for the remote control which is too much work.  
+Fork is kept up to date with latest mainstream.  
   
 #### Prebuilt custom WebDriverAgent
 - Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
@@ -143,20 +145,8 @@ You can use mainstream WebDriverAgent as well
   - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
   - Re-sign from hub UI - TODO
 
-#### Prebuilt mainstream WebDriverAgent
-- Download the latest prebuilt `WebDriverAgentRunner-Runner.zip` from the [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) releases
-- Unzip the `.app` bundle in any folder.
-- Navigate to the folder above and create an empty directory with the name `Payload`.
-- Copy the `.app` bundle inside the `Payload` folder
-- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
-- Use any tool to re-sign it with your developer account (or provisioning profile + certificate)
-  - [zsign](https://github.com/zhlynn/zsign)
-  - [fastlane-sigh](https://docs.fastlane.tools/actions/sigh/)
-  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html)
-  - Re-sign from hub UI - TODO
-
 #### Build WebDriverAgent IPA file manually using Xcode
-- Download the code of the latest mainstream [WebDriverAgent](https://github.com/appium/WebDriverAgent/releases) release or alternatively the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent) for faster tap/swipe interactions.
+- Download the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent).
 - Open `WebDriverAgent.xcodeproj` in Xcode.
 - Select signing profile for WebDriverAgentRunner. To do this go to: *Targets*, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
 - Select `Build > Clean build folder` (just in case)

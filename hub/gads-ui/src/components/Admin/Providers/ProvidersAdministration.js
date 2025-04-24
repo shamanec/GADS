@@ -66,7 +66,6 @@ function NewProvider({ handleGetProvidersData }) {
     const [ios, setIos] = useState(false)
     const [android, setAndroid] = useState(false)
     const [wdaBundleId, setWdaBundleId] = useState('')
-    const [useCustomWda, setUseCustomWda] = useState(false)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(false)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState('')
     const [loading, setLoading] = useState(false)
@@ -83,7 +82,6 @@ function NewProvider({ handleGetProvidersData }) {
         body.provide_ios = ios
         if (ios) {
             body.wda_bundle_id = wdaBundleId
-            body.use_custom_wda = useCustomWda
             body.supervision_password = supervisionPassword
         }
         body.use_selenium_grid = useSeleniumGrid
@@ -113,7 +111,6 @@ function NewProvider({ handleGetProvidersData }) {
                 setIos(false)
                 setAndroid(false)
                 setWdaBundleId('')
-                setUseCustomWda(false)
                 setUseSeleniumGrid(false)
                 setSeleniumGridInstance('')
                 setSupervisionPassword('')
@@ -267,26 +264,6 @@ function NewProvider({ handleGetProvidersData }) {
                         />
                     </Tooltip>
                     <Tooltip
-                        title='Select `Yes` if you are using the custom WebDriverAgent from my forked repository. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WebDriverAgent this will break your interactions!'
-                        arrow
-                        placement='top'
-                    >
-                        <FormControl fullWidth required>
-                            <TextField
-                                size='small'
-                                value={useCustomWda}
-                                onChange={(e) => setUseCustomWda(e.target.value)}
-                                select
-                                label='Use custom WDA?'
-                                required
-                                disabled={!ios}
-                            >
-                                <MenuItem value={true}>Yes</MenuItem>
-                                <MenuItem value={false}>No</MenuItem>
-                            </TextField>
-                        </FormControl>
-                    </Tooltip>
-                    <Tooltip
                         title='Select `Yes` if you want the provider to register the devices Appium servers as Selenium Grid nodes. You need to have the Selenium Grid instance running separately from the provider!'
                         arrow
                         placement='top'
@@ -357,7 +334,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
     const [ios, setIos] = useState(providerData.provide_ios)
     const [android, setAndroid] = useState(providerData.provide_android)
     const [wdaBundleId, setWdaBundleId] = useState(providerData.wda_bundle_id)
-    const [useCustomWda, setUseCustomWda] = useState(providerData.use_custom_wda)
     const [useSeleniumGrid, setUseSeleniumGrid] = useState(providerData.use_selenium_grid)
     const [seleniumGridInstance, setSeleniumGridInstance] = useState(providerData.selenium_grid)
     const [supervisionPassword, setSupervisionPassword] = useState(providerData.supervision_password)
@@ -390,7 +366,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
         body.provide_ios = ios
         if (ios) {
             body.wda_bundle_id = wdaBundleId
-            body.use_custom_wda = useCustomWda
             body.supervision_password = supervisionPassword
         }
         body.use_selenium_grid = useSeleniumGrid
@@ -577,26 +552,6 @@ function ExistingProvider({ providerData, handleGetProvidersData }) {
                             autoComplete='off'
                             onChange={(event) => setSupervisionPassword(event.target.value)}
                         />
-                    </Tooltip>
-                    <Tooltip
-                        title='Select `Yes` if you are using the custom WebDriverAgent from my forked repository. It allows for faster tapping/swiping actions on iOS. If you are using mainstream WebDriverAgent this will break your interactions!'
-                        arrow
-                        placement='top'
-                    >
-                        <FormControl fullWidth required>
-                            <TextField
-                                size='small'
-                                value={useCustomWda}
-                                onChange={(e) => setUseCustomWda(e.target.value)}
-                                select
-                                label='Use custom WDA?'
-                                required
-                                disabled={!ios}
-                            >
-                                <MenuItem value={true}>Yes</MenuItem>
-                                <MenuItem value={false}>No</MenuItem>
-                            </TextField>
-                        </FormControl>
                     </Tooltip>
                     <Tooltip
                         title='Select `Yes` if you want the provider to register the devices Appium servers as Selenium Grid nodes. You need to have the Selenium Grid instance running separately from the provider!'

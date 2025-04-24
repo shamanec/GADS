@@ -151,34 +151,36 @@ export default function DeviceControl() {
                         fontWeight: 'bold'
                     }}
                 >Back to devices</Button>
-                <Tooltip
-                    title='Refresh the Appium session'
-                    arrow
-                    placement='bottom'
-                >
-                    <Button
-                        onClick={refreshAppiumSession}
-                        startIcon={
-                            <img
-                                src="/images/appium-logo.png"
-                                alt="icon"
-                                style={{
-                                    width: '24px',
-                                    height: '24px',
-                                }}
-                            />
-                        }
-                        variant='contained'
-                        style={{
-                            marginLeft: '20px',
-                            backgroundColor: '#2f3b26',
-                            color: '#9ba984',
-                            fontWeight: 'bold'
-                        }}
+                {deviceData?.os !== 'ios' && (
+                    <Tooltip
+                        title='Refresh the Appium session'
+                        arrow
+                        placement='bottom'
                     >
-                        Refresh
-                    </Button>
-                </Tooltip>
+                        <Button
+                            onClick={refreshAppiumSession}
+                            startIcon={
+                                <img
+                                    src="/images/appium-logo.png"
+                                    alt="icon"
+                                    style={{
+                                        width: '24px',
+                                        height: '24px',
+                                    }}
+                                />
+                            }
+                            variant='contained'
+                            style={{
+                                marginLeft: '20px',
+                                backgroundColor: '#2f3b26',
+                                color: '#9ba984',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            Refresh
+                        </Button>
+                    </Tooltip>
+                )}
             </div>
             {
                 isLoading ? (

@@ -66,8 +66,7 @@ type Device struct {
 	StreamScalingFactor  int    `json:"stream_scaling_factor,omitempty" bson:"-"` // The target scaling factor for the MJPEG video streams
 	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES
-	InstalledApps []string `json:"installed_apps" bson:"-"`  // list of installed apps on device
-	UsesCustomWDA bool     `json:"uses_custom_wda" bson:"-"` // Flag for iOS device if provider sets up custom WDA
+	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
 	///// NON-RETURNABLE VALUES
 	AppiumSessionID  string             `json:"-" bson:"-"` // current Appium session ID
 	WDASessionID     string             `json:"-" bson:"-"` // current WebDriverAgent session ID
