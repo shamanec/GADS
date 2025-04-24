@@ -24,8 +24,6 @@ func GetDocuments[T any](ctx context.Context, coll *mongo.Collection, filter int
 		return nil, err
 	}
 
-	// If needed, you can do post-processing or handle 'cursor.Err()' again,
-	// but 'cursor.All()' typically covers it.
 	return results, nil
 }
 
@@ -58,6 +56,17 @@ func HasDocuments(ctx context.Context, coll *mongo.Collection, filter interface{
 	return count > 0
 }
 
+// InsertDocument inserts a document in the target collection respecting the provided options
+func InsertDocument[T any](ctx context.Context, coll *mongo.Collection, doc T, opts ...*options.InsertOneOptions) error {
+	_, err := InsertDocumentWithResult(ctx, coll, doc, opts...)
+	return err
+}
+
+// InsertDocument inserts a document in the target collection respecting the provided options and returns the insert result
+func InsertDocumentWithResult[T any](ctx context.Context, coll *mongo.Collection, doc T, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
+	return coll.InsertOne(ctx, doc, opts...)
+}
+
 // UpsertDocument updates a document in the target collection respecting the provided filter
 func UpsertDocument[T any](ctx context.Context, coll *mongo.Collection, filter interface{}, doc T) error {
 	update := bson.M{"$set": doc}
@@ -67,6 +76,7 @@ func UpsertDocument[T any](ctx context.Context, coll *mongo.Collection, filter i
 	return err
 }
 
+// UpsertDocument updates a document in the target collection respecting the provided filter and returns the result
 func UpsertDocumentWithResult[T any](ctx context.Context, coll *mongo.Collection, filter interface{}, doc T) (*mongo.UpdateResult, error) {
 	update := bson.M{"$set": doc}
 	opts := options.Update().SetUpsert(true)

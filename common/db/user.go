@@ -49,12 +49,10 @@ func (m *MongoStore) AddAdminUserIfMissing() error {
 }
 
 func (m *MongoStore) UpdateUserWorkspaces(username string, workspaceIDs []string) error {
-	user, err := m.GetUser(username)
-	if err != nil {
-		return err
-	}
-	user.WorkspaceIDs = workspaceIDs
 	coll := m.GetCollection("users")
-	filter := bson.D{{Key: "username", Value: username}}
-	return UpsertDocument[models.User](m.Ctx, coll, filter, user)
+	filter := bson.M{"username": username}
+	updates := bson.M{
+		"workspace_ids": workspaceIDs,
+	}
+	return PartialDocumentUpdate(m.Ctx, coll, filter, updates)
 }
