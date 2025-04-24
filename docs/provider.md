@@ -132,7 +132,10 @@ Example installation command for Ubuntu -  `sudo apt install usbmuxd`.
 
 #### WebDriverAgent ipa
 You need to prepare and upload a signed `WebDriverAgent` ipa file from the hub UI in `Admin > Files`  
-GADS supports only the custom WebDriverAgent from my fork.  
+GADS supports only WebDriverAgent from my [fork](https://github.com/shamanec/WebDriverAgent).  
+The fork has optimizations for the mjpeg video stream and additional endpoints for faster tap/swipe interactions that are not available in the mainstream repo.  
+Additionally those endpoints require different coordinates for interaction from mainstream WDA which forces separate handling for the remote control which is too much work.  
+Fork is kept up to date with latest mainstream.  
   
 #### Prebuilt custom WebDriverAgent
 - Download the prebuilt `WebDriverAgent.ipa` from my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent)
