@@ -52,7 +52,7 @@ func appiumLockUnlock(device *models.Device, lock string) (*http.Response, error
 }
 
 func appiumTap(device *models.Device, x float64, y float64) (*http.Response, error) {
-	if config.ProviderConfig.UseCustomWDA && device.OS == "ios" {
+	if device.OS == "ios" {
 		requestBody := struct {
 			X float64 `json:"x"`
 			Y float64 `json:"y"`
@@ -109,7 +109,7 @@ func appiumTap(device *models.Device, x float64, y float64) (*http.Response, err
 
 func appiumTouchAndHold(device *models.Device, x float64, y float64) (*http.Response, error) {
 	// Generate the struct object for the Appium actions JSON request
-	if config.ProviderConfig.UseCustomWDA && device.OS == "ios" {
+	if device.OS == "ios" {
 		requestBody := struct {
 			X     float64 `json:"x"`
 			Y     float64 `json:"y"`
@@ -167,7 +167,7 @@ func appiumTouchAndHold(device *models.Device, x float64, y float64) (*http.Resp
 }
 
 func appiumSwipe(device *models.Device, x, y, endX, endY float64) (*http.Response, error) {
-	if config.ProviderConfig.UseCustomWDA && device.OS == "ios" {
+	if device.OS == "ios" {
 		requestBody := struct {
 			X     float64 `json:"startX"`
 			Y     float64 `json:"startY"`

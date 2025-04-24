@@ -32,7 +32,6 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     let deviceScreenRatio = deviceX / deviceY
     let deviceLandscapeScreenRatio = deviceY / deviceX
     let deviceOS = deviceData.os
-    let usesCustomWda = deviceData.uses_custom_wda
     let udid = deviceData.udid
     let useWebRTCVideo = deviceData.use_webrtc_video
     let webRTCVideoCodec = deviceData.webrtc_video_codec
@@ -619,15 +618,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 finalY = (y / canvasDimensions.width) * deviceY
             }
             if (deviceOS === 'ios') {
-                if (usesCustomWda) {
-                    finalX = deviceX - ((y / canvasDimensions.height) * deviceX)
-                    finalY = (x / canvasDimensions.width) * deviceY
-                } else {
-                    // On normal WDA in landscape X corresponds to the canvas width but it is actually the device's height
-                    finalX = (x / canvasDimensions.width) * deviceY
-                    // Y corresponds to the canvas height but it is actually the device's width
-                    finalY = (y / canvasDimensions.height) * deviceX
-                }
+                finalX = deviceX - ((y / canvasDimensions.height) * deviceX)
+                finalY = (x / canvasDimensions.width) * deviceY
             }
         }
 
@@ -675,15 +667,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 finalY = (y / canvasDimensions.width) * deviceY
             }
             if (deviceOS === 'ios') {
-                if (usesCustomWda) {
-                    finalX = deviceX - ((y / canvasDimensions.height) * deviceX)
-                    finalY = (x / canvasDimensions.width) * deviceY
-                } else {
-                    // On normal WDA in landscape X corresponds to the canvas width but it is actually the device's height
-                    finalX = (x / canvasDimensions.width) * deviceY
-                    // Y corresponds to the canvas height but it is actually the device's width
-                    finalY = (y / canvasDimensions.height) * deviceX
-                }
+                finalX = deviceX - ((y / canvasDimensions.height) * deviceX)
+                finalY = (x / canvasDimensions.width) * deviceY
             }
         }
 
@@ -736,36 +721,25 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 secondYFinal = (secondCoordY / canvasDimensions.width) * deviceY
             } else {
                 // For iOS its complete sh*t
-                if (usesCustomWda) {
-                    // NB: All calculations below are when the device is on its right side landscape(your left)
-                    // For custom WDA the 0 X coordinate is at the bottom of the canvas
-                    // And the 0 Y coordinate is at the left end of the canvas
-                    // This means that they kinda follow the portrait logic but inverted based on the side it is in landscape
-                    // Imagine a device that is X:Y=100:200
-                    // If you swipe vertically from bottom to the middle you are essentially swiping coordinates on the device X:0 and X: 50
-                    // And if you swipe horizontally from left to middle you are essentially swiping coordinates on the device Y: 0 and Y: 100
-                    // But on the canvas those are Y coordinates
-                    // And this is where it gets funky
-                    // For X we get the ratio from the canvas Y coordinate and the canvas height
-                    // And we multiply it by the device width because that is what it corresponds to
-                    // Then we subtract the value from the actual deviceX because the device width starts from the bottom of the canvas height
-                    firstXFinal = deviceX - ((firstCoordY / canvasDimensions.height) * deviceX)
-                    // For Y we get the ratio from the canvas X coordinate and the canvas width
-                    // And we multiply it by the device height because that is what it corresponds to
-                    firstYFinal = (firstCoordX / canvasDimensions.width) * deviceY
-                    // Same goes for the other two coordinates when the mouse is released
-                    secondXFinal = deviceX - ((secondCoordY / canvasDimensions.height) * deviceX)
-                    secondYFinal = (secondCoordX / canvasDimensions.width) * deviceY
-                } else {
-                    // On normal WDA the X coordinates correspond to the device height
-                    // and the Y coordinates correspond to the device width
-                    // So we calculate ratio based on canvas dimensions and coordinates
-                    // But multiply by device height for X swipe coordinates and by device width for Y swipe coordinates
-                    firstXFinal = (firstCoordX / canvasDimensions.width) * deviceY
-                    firstYFinal = (firstCoordY / canvasDimensions.height) * deviceX
-                    secondXFinal = (secondCoordX / canvasDimensions.width) * deviceY
-                    secondYFinal = (secondCoordY / canvasDimensions.height) * deviceX
-                }
+                // NB: All calculations below are when the device is on its right side landscape(your left)
+                // For custom WDA the 0 X coordinate is at the bottom of the canvas
+                // And the 0 Y coordinate is at the left end of the canvas
+                // This means that they kinda follow the portrait logic but inverted based on the side it is in landscape
+                // Imagine a device that is X:Y=100:200
+                // If you swipe vertically from bottom to the middle you are essentially swiping coordinates on the device X:0 and X: 50
+                // And if you swipe horizontally from left to middle you are essentially swiping coordinates on the device Y: 0 and Y: 100
+                // But on the canvas those are Y coordinates
+                // And this is where it gets funky
+                // For X we get the ratio from the canvas Y coordinate and the canvas height
+                // And we multiply it by the device width because that is what it corresponds to
+                // Then we subtract the value from the actual deviceX because the device width starts from the bottom of the canvas height
+                firstXFinal = deviceX - ((firstCoordY / canvasDimensions.height) * deviceX)
+                // For Y we get the ratio from the canvas X coordinate and the canvas width
+                // And we multiply it by the device height because that is what it corresponds to
+                firstYFinal = (firstCoordX / canvasDimensions.width) * deviceY
+                // Same goes for the other two coordinates when the mouse is released
+                secondXFinal = deviceX - ((secondCoordY / canvasDimensions.height) * deviceX)
+                secondYFinal = (secondCoordX / canvasDimensions.width) * deviceY
             }
         }
         console.log('Swipe is ' + firstXFinal + ':' + firstYFinal + '-' + secondXFinal + ':' + secondYFinal)

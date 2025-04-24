@@ -14,7 +14,6 @@ type Provider struct {
 	ProviderFolder       string `json:"-" bson:"-"`
 	LastUpdatedTimestamp int64  `json:"last_updated" bson:"last_updated"`
 	UseGadsIosStream     bool   `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
-	UseCustomWDA         bool   `json:"use_custom_wda" bson:"use_custom_wda"`
 	HubAddress           string `json:"hub_address" bson:"-"`
 }
 
