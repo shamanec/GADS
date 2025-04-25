@@ -6,15 +6,16 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/exp/slices"
 )
 
 func (m *MongoStore) AddWorkspace(workspace *models.Workspace) error {
 	coll := m.GetCollection("workspaces")
-	result, err := UpsertDocumentWithResult[models.Workspace](m.Ctx, coll, bson.D{{}}, *workspace)
+	result, err := InsertDocumentWithResult[models.Workspace](m.Ctx, coll, *workspace)
 	if err != nil {
 		return err
 	}
-	workspace.ID = result.UpsertedID.(primitive.ObjectID).Hex()
+	workspace.ID = result.InsertedID.(primitive.ObjectID).Hex()
 	return nil
 }
 
@@ -108,54 +109,21 @@ func (m *MongoStore) GetWorkspacesPaginated(page, limit int, search string) ([]m
 	return workspaces, workspaceCount
 }
 
-func (m *MongoStore) GetUserWorkspacesPaginated(username string, page, limit int, search string) ([]models.Workspace, int64) {
-	return []models.Workspace{}, 0
-}
-
-func GetUserWorkspacesPaginated(username string, page, limit int, search string) ([]models.Workspace, int64) {
-	var workspaces []models.Workspace
-	collection := GlobalMongoStore.Client.Database("gads").Collection("workspaces")
-
-	// Calculate skip for pagination
-	skip := (page - 1) * limit
-
-	// Get user's workspace IDs from users collection
-	userCollection := GlobalMongoStore.Client.Database("gads").Collection("users")
-	var user models.User
-	err := userCollection.FindOne(GlobalMongoStore.Ctx, bson.M{"username": username}).Decode(&user)
+func (m *MongoStore) GetUserWorkspaces(username string) []models.Workspace {
+	user, err := m.GetUser(username)
 	if err != nil {
-		return workspaces, 0
+		return []models.Workspace{}
 	}
-
-	// Build filter for workspaces
-	filter := bson.M{"_id": bson.M{"$in": user.WorkspaceIDs}}
-	if search != "" {
-		filter["name"] = bson.M{"$regex": search, "$options": "i"}
-	}
-
-	// Get workspaces with pagination
-	cursor, err := collection.Find(GlobalMongoStore.Ctx, filter,
-		options.Find().
-			SetSkip(int64(skip)).
-			SetLimit(int64(limit)))
+	dbWorkspaces, err := m.GetWorkspaces()
 	if err != nil {
-		return workspaces, 0
+		return []models.Workspace{}
 	}
-	defer cursor.Close(GlobalMongoStore.Ctx)
 
-	for cursor.Next(GlobalMongoStore.Ctx) {
-		var workspace models.Workspace
-		if err := cursor.Decode(&workspace); err != nil {
-			continue
+	var userWorkspaces []models.Workspace
+	for _, dbWorkspace := range dbWorkspaces {
+		if slices.Contains(user.WorkspaceIDs, dbWorkspace.ID) {
+			userWorkspaces = append(userWorkspaces, dbWorkspace)
 		}
-		workspaces = append(workspaces, workspace)
 	}
-
-	// Get total count
-	count, err := collection.CountDocuments(GlobalMongoStore.Ctx, filter)
-	if err != nil {
-		return workspaces, 0
-	}
-
-	return workspaces, count
+	return userWorkspaces
 }

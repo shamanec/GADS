@@ -14,6 +14,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var configData *models.HubConfig
@@ -91,7 +92,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		}
 	}
 
-	// Associate users without workspaces to default workspace
+	// Associate users to default workspace if needed
 	users, _ := db.GlobalMongoStore.GetUsers()
 	for _, user := range users {
 		// Skip admin users as they have access to all workspaces
@@ -99,8 +100,8 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 			continue
 		}
 
+		// If user has no workspaces at all then associate them with default workspace
 		if len(user.WorkspaceIDs) == 0 {
-			// Update only the workspace_ids field
 			err := db.GlobalMongoStore.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
 			if err != nil {
 				log.Printf("Failed to associate user %s with default workspace - %s", user.Username, err)
@@ -109,15 +110,28 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		}
 	}
 
-	// Associate devices without workspace to default workspace
+	// Associate devices to default workspace if needed
 	devices, _ := db.GlobalMongoStore.GetDevices()
 	for _, device := range devices {
+		// If device has no workspace at all associate with the default workspace
 		if device.WorkspaceID == "" {
 			device.WorkspaceID = defaultWorkspace.ID
 			err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
 			if err != nil {
 				log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
 				continue
+			}
+		} else {
+			// If device has a workspace but it does not exist (for example it was default but default was deleted)
+			// Then associate them with default workspace
+			_, err := db.GlobalMongoStore.GetWorkspaceByID(device.WorkspaceID)
+			if err != nil && err == mongo.ErrNoDocuments {
+				device.WorkspaceID = defaultWorkspace.ID
+				err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
+				if err != nil {
+					log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
+					continue
+				}
 			}
 		}
 	}

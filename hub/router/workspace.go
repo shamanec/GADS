@@ -137,18 +137,17 @@ func GetUserWorkspaces(c *gin.Context) {
 	}
 
 	var workspaces []models.Workspace
-	var totalCount int64
 
 	// If user is admin, return all workspaces
 	if session.User.Role == "admin" {
-		workspaces, totalCount = db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
+		workspaces, _ = db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
 	} else {
 		// For non-admin users, only return workspaces associated with the user
-		workspaces, totalCount = db.GetUserWorkspacesPaginated(session.User.Username, page, limit, searchStr)
+		workspaces = db.GlobalMongoStore.GetUserWorkspaces(session.User.Username)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"workspaces": workspaces,
-		"total":      totalCount,
+		"total":      len(workspaces),
 	})
 }
