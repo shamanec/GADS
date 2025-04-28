@@ -342,7 +342,7 @@ func appiumActivateApp(device *models.Device, appIdentifier string) (*http.Respo
 			return nil, fmt.Errorf("appiumActivateApp: Failed to marshal request body json when activating app for device `%s` - %s", device.UDID, err)
 		}
 
-		return appiumRequest(device, http.MethodPost, "appium/device/activate_app", bytes.NewReader(reqJson))
+		return wdaRequest(device, http.MethodPost, "wda/apps/activate", bytes.NewReader(reqJson))
 	case "android":
 		requestBody := struct {
 			AppId string `json:"appId"`
@@ -380,7 +380,7 @@ func appiumGetClipboard(device *models.Device) (*http.Response, error) {
 		}
 		defer activateAppResp.Body.Close()
 
-		clipboardResp, err := appiumRequest(device, http.MethodPost, "appium/device/get_clipboard", bytes.NewReader(reqJson))
+		clipboardResp, err := wdaRequest(device, http.MethodPost, "wda/getPasteboard", bytes.NewReader(reqJson))
 		if err != nil {
 			return clipboardResp, fmt.Errorf("appiumGetClipboard: Failed to execute Appium request for device `%s` - %s", device.UDID, err)
 		}

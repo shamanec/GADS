@@ -30,7 +30,7 @@ export default function DeviceControl() {
                 return api.get(infoUrl)
             })
             .then(response => {
-                setDeviceData(response.data)
+                setDeviceData(response.data.result)
                 setInterval(() => {
                     setIsLoading(false)
                 }, 1000)
