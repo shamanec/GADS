@@ -79,7 +79,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	clipboardResponse, err := appiumGetClipboard(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get device clipboard value - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, "", nil)
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get device clipboard value - %s", err), nil)
 		return
 	}
 	defer clipboardResponse.Body.Close()
@@ -88,7 +88,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	clipboardResponseBody, err := io.ReadAll(clipboardResponse.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, "", nil)
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err), nil)
 		return
 	}
 
@@ -99,7 +99,8 @@ func DeviceGetClipboard(c *gin.Context) {
 	err = json.Unmarshal(clipboardResponseBody, &valueResp)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, "", nil)
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err), nil)
+		return
 	}
 
 	// Decode the value because Appium returns it as base64 encoded string

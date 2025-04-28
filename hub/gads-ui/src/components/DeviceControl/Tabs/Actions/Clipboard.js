@@ -13,7 +13,7 @@ export default function Clipboard({ deviceData }) {
         const url = `/device/${deviceData.udid}/getClipboard`
         api.get(url)
             .then((response) => {
-                navigator.clipboard.writeText(response.data)
+                navigator.clipboard.writeText(response.data.message)
                 setIsGettingCb(false)
                 showSnackbar({
                     message: 'Device clipboard copied!',
