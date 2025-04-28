@@ -45,6 +45,54 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         streamUrl = `/device/${deviceData.udid}/android-stream-mjpeg`
     }
 
+    useEffect(() => {
+        function handleKeyDown(event) {
+            // Check if there is an active element to avoid capturing keyboard events
+            // When we want to be typing somewhere else, not send to the device
+            const activeElement = document.activeElement
+            const isInputFocused = activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.isContentEditable
+            )
+
+            // Don't process keyboard events when user is typing somewhere
+            if (isInputFocused) {
+                return
+            }
+
+            // Handle normal chars, special chars, Enter and Backspace, ignore stuff like
+            //  Shift, Ctrl, Alt, F1-F12, etc.
+            const key = event.key
+            if (key.length === 1) {
+                sendKeyPress(key)
+            } else if (key === 'Enter') {
+                sendKeyPress('\n')
+            } else if (key === 'Backspace') {
+                sendKeyPress('\b')
+            } else {
+                return
+            }
+        }
+        // Register the event listener and remove it on component unmounted
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
+    function sendKeyPress(key) {
+        // Currently handled only for iOS
+        if (deviceOS === 'ios') {
+            const deviceURL = `/device/${udid}/typeText`
+            const jsonData = JSON.stringify({ text: key })
+
+            api.post(deviceURL, jsonData)
+                .catch((error) => {
+                    console.error('Key press failed', error)
+                    showCustomSnackbarError('Key press failed!')
+                })
+        }
+    }
+
     const handleOrientationButtonClick = (isPortrait) => {
         setIsPortrait(isPortrait)
         updateCanvasDimensions(isPortrait)
@@ -130,8 +178,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         if (protocol === 'https:') {
             wsType = 'wss'
         }
-        let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
-        // let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/webrtc`
+        // let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
+        let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/webrtc`
         ws.current = new WebSocket(socketUrl)
 
         ws.current.onopen = () => {
