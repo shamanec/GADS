@@ -178,8 +178,8 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
         if (protocol === 'https:') {
             wsType = 'wss'
         }
-        // let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
-        let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/webrtc`
+        let socketUrl = `${wsType}://${window.location.host}/devices/control/${udid}/webrtc`
+        //let socketUrl = `${wsType}://192.168.1.41:10000/devices/control/${udid}/webrtc`
         ws.current = new WebSocket(socketUrl)
 
         ws.current.onopen = () => {
