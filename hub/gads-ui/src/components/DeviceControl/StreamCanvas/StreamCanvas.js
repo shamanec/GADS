@@ -58,6 +58,7 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
 
             // Don't process keyboard events when user is typing somewhere
             if (isInputFocused) {
+                console.log(`Ignoring keyboard input because we have a focused element with a tagName '${activeElement.tagName}' and editable state '${activeElement.isContentEditable}'`)
                 return
             }
 

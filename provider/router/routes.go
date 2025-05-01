@@ -314,7 +314,7 @@ func ResetDevice(c *gin.Context) {
 
 	if device, ok := devices.DBDeviceMap[udid]; ok {
 		if device.IsResetting {
-			api.GenericResponse(c, http.StatusInternalServerError, "Device setup is already being reset", nil)
+			api.GenericResponse(c, http.StatusConflict, "Device setup is already being reset", nil)
 			return
 		}
 		if device.ProviderState != "live" {

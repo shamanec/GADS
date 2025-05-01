@@ -1,7 +1,7 @@
 import { Box, Button, CircularProgress, FormControl, MenuItem, Select, Stack } from '@mui/material'
 import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import './InstallApp.css'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../../../../../services/api.js'
 import { useSnackbar } from '../../../../../contexts/SnackBarContext.js'
 
@@ -32,7 +32,11 @@ export default function UninstallApp({ udid, installedApps }) {
 
         api.post(url, body)
             .then((response) => {
-                setInstalledAppsList(response.data.result)
+                if (response.data.result) {
+                    setInstalledAppsList(response.data.result)
+                } else {
+                    setInstalledAppsList([])
+                }
                 setSelectedAppUninstall('no-app')
                 setIsUninstalling(false)
             })
