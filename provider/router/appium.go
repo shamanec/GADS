@@ -261,25 +261,37 @@ func getActiveElementID(resp *http.Response) (string, error) {
 }
 
 func appiumTypeText(device *models.Device, text string) (*http.Response, error) {
-	activeElementResp, err := appiumGetActiveElement(device)
-	if err != nil {
-		return activeElementResp, err
-	}
+	if device.OS == "ios" {
+		typeTextPayload := models.AppiumTypeText{
+			Text: text,
+		}
+		typeJSON, err := json.MarshalIndent(typeTextPayload, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+		return wdaRequest(device, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
+	} else {
+		activeElementResp, err := appiumGetActiveElement(device)
+		if err != nil {
+			return activeElementResp, err
+		}
 
-	activeElementID, err := getActiveElementID(activeElementResp)
-	if err != nil {
-		return nil, err
-	}
+		activeElementID, err := getActiveElementID(activeElementResp)
+		if err != nil {
+			return nil, err
+		}
 
-	typeTextPayload := models.AppiumTypeText{
-		Text: text,
-	}
+		typeTextPayload := models.AppiumTypeText{
+			Text: text,
+		}
 
-	typeJSON, err := json.MarshalIndent(typeTextPayload, "", "  ")
-	if err != nil {
-		return nil, err
+		typeJSON, err := json.MarshalIndent(typeTextPayload, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+
+		return appiumRequest(device, http.MethodPost, fmt.Sprintf("element/%s/value", activeElementID), bytes.NewBuffer(typeJSON))
 	}
-	return appiumRequest(device, http.MethodPost, fmt.Sprintf("element/%s/value", activeElementID), bytes.NewBuffer(typeJSON))
 }
 
 func appiumClearText(device *models.Device) (*http.Response, error) {
@@ -330,7 +342,7 @@ func appiumActivateApp(device *models.Device, appIdentifier string) (*http.Respo
 			return nil, fmt.Errorf("appiumActivateApp: Failed to marshal request body json when activating app for device `%s` - %s", device.UDID, err)
 		}
 
-		return appiumRequest(device, http.MethodPost, "appium/device/activate_app", bytes.NewReader(reqJson))
+		return wdaRequest(device, http.MethodPost, "wda/apps/activate", bytes.NewReader(reqJson))
 	case "android":
 		requestBody := struct {
 			AppId string `json:"appId"`
@@ -368,7 +380,7 @@ func appiumGetClipboard(device *models.Device) (*http.Response, error) {
 		}
 		defer activateAppResp.Body.Close()
 
-		clipboardResp, err := appiumRequest(device, http.MethodPost, "appium/device/get_clipboard", bytes.NewReader(reqJson))
+		clipboardResp, err := wdaRequest(device, http.MethodPost, "wda/getPasteboard", bytes.NewReader(reqJson))
 		if err != nil {
 			return clipboardResp, fmt.Errorf("appiumGetClipboard: Failed to execute Appium request for device `%s` - %s", device.UDID, err)
 		}

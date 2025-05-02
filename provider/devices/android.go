@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/gobwas/ws"
@@ -187,7 +188,7 @@ func GetInstalledAppsAndroid(device *models.Device) []string {
 	// Get the command output to string
 	result := strings.TrimSpace(outBuffer.String())
 	// Get all lines with package names
-	lines := strings.Split(result, "\n")
+	lines := regexp.MustCompile("\r?\n").Split(result, -1)
 
 	// Clean the package names and add them to the device installed apps
 	for _, line := range lines {

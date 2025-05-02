@@ -10,6 +10,7 @@ export default function UninstallApp({ udid, installedApps }) {
     const [selectedAppUninstall, setSelectedAppUninstall] = useState('no-app')
     const [uninstallButtonDisabled, setUninstallButtonDisabled] = useState(true)
     const [isUninstalling, setIsUninstalling] = useState(false)
+    const [installedAppsList, setInstalledAppsList] = useState(installedApps)
 
     function handleUninstallChange(event) {
         const app = event.target.value
@@ -30,7 +31,13 @@ export default function UninstallApp({ udid, installedApps }) {
         }
 
         api.post(url, body)
-            .then(() => {
+            .then((response) => {
+                if (response.data.result) {
+                    setInstalledAppsList(response.data.result)
+                } else {
+                    setInstalledAppsList([])
+                }
+                setSelectedAppUninstall('no-app')
                 setIsUninstalling(false)
             })
             .catch(error => {
@@ -65,16 +72,16 @@ export default function UninstallApp({ udid, installedApps }) {
                         id='form-control'
                     >
                         <Select
-                            defaultValue='no-app'
+                            value={selectedAppUninstall}
                             id='app-select'
                             onChange={(event) => handleUninstallChange(event)}
                         >
                             <MenuItem
                                 className='select-items'
-                                value='no-app'
+                                value={selectedAppUninstall}
                             >No app selected</MenuItem>
                             {
-                                installedApps.map((installedApp) => {
+                                installedAppsList.map((installedApp) => {
                                     return (
                                         <MenuItem
                                             className='select-items'

@@ -77,6 +77,11 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}
 
+	_, err = db.GlobalMongoStore.GetGlobalStreamSettings()
+	if err != nil {
+		log.Fatalf("Failed to get/update global stream settings - %s", err)
+	}
+
 	// Check if the default workspace exists
 	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace()
 	if err != nil {

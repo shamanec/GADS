@@ -48,16 +48,16 @@ func (m *MongoStore) GetGlobalStreamSettings() (models.StreamSettings, error) {
 		}
 	} else if err != nil {
 		return streamSettings, err
-	}
+	} else {
+		settingsBytes, err := bson.Marshal(globalSettings.Settings)
+		if err != nil {
+			return streamSettings, fmt.Errorf("failed to marshal settings: %v", err)
+		}
 
-	settingsBytes, err := bson.Marshal(globalSettings.Settings)
-	if err != nil {
-		return streamSettings, fmt.Errorf("failed to marshal settings: %v", err)
-	}
-
-	err = bson.Unmarshal(settingsBytes, &streamSettings)
-	if err != nil {
-		return streamSettings, fmt.Errorf("failed to unmarshal settings: %v", err)
+		err = bson.Unmarshal(settingsBytes, &streamSettings)
+		if err != nil {
+			return streamSettings, fmt.Errorf("failed to unmarshal settings: %v", err)
+		}
 	}
 
 	return streamSettings, nil
