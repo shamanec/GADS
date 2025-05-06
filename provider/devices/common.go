@@ -69,8 +69,16 @@ func updateProviderHub() {
 
 		mu.Lock()
 
+		updatedDevices := getDBProviderDevices()
+
 		var properJson models.ProviderData
 		for _, dbDevice := range DBDeviceMap {
+
+			// Update the WorkspaceID in dbDevice from the updatedDevices map
+			if updatedDevice, ok := updatedDevices[dbDevice.UDID]; ok {
+				dbDevice.WorkspaceID = updatedDevice.WorkspaceID
+			}
+
 			properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
 			properJson.ProviderData = *config.ProviderConfig
 		}
