@@ -112,12 +112,27 @@ func GetWorkspaces(c *gin.Context) {
 }
 
 func GetUserWorkspaces(c *gin.Context) {
-	// Get session ID from header
-	sessionID := c.GetHeader("X-Auth-Token")
+	// Get JWT token from Authorization header
+	authHeader := c.GetHeader("Authorization")
 
-	// Get user from session
-	session, exists := auth.GetSession(sessionID)
-	if !exists {
+	var username string
+	var role string
+
+	if authHeader != "" {
+		// Extract token from Bearer format
+		tokenString, err := auth.ExtractTokenFromBearer(authHeader)
+		if err == nil {
+			// Get claims from token
+			claims, err := auth.GetClaimsFromToken(tokenString)
+			if err == nil {
+				username = claims.Username
+				role = claims.Role
+			}
+		}
+	}
+
+	// If we couldn't get the user info from JWT token, try the legacy session approach
+	if username == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -139,11 +154,11 @@ func GetUserWorkspaces(c *gin.Context) {
 	var workspaces []models.Workspace
 
 	// If user is admin, return all workspaces
-	if session.User.Role == "admin" {
+	if role == "admin" {
 		workspaces, _ = db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
 	} else {
 		// For non-admin users, only return workspaces associated with the user
-		workspaces = db.GlobalMongoStore.GetUserWorkspaces(session.User.Username)
+		workspaces = db.GlobalMongoStore.GetUserWorkspaces(username)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
