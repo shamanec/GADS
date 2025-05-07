@@ -79,14 +79,6 @@ func LogoutHandler(c *gin.Context) {
 		return
 	}
 
-	// Existing behavior for sessionID
-	sessionID := c.GetHeader("X-Auth-Token")
-	if _, exists := GetSession(sessionID); exists {
-		DeleteSession(sessionID)
-		c.JSON(http.StatusOK, gin.H{"message": "success"})
-		return
-	}
-
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "session does not exist"})
 }
 
@@ -94,7 +86,13 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 
-		// First check JWT token in Authorization header
+		// Bypass authentication for specific paths
+		if strings.Contains(path, "appium") || strings.Contains(path, "stream") || strings.Contains(path, "ws") {
+			c.Next()
+			return
+		}
+
+		// Check JWT token in Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			tokenString, err := ExtractTokenFromBearer(authHeader)
@@ -132,30 +130,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Fallback to current method with sessionID (X-Auth-Token)
-		sessionID := c.GetHeader("X-Auth-Token")
-
-		if !strings.Contains(path, "appium") && !strings.Contains(path, "stream") && !strings.Contains(path, "ws") {
-			if session, exists := GetSession(sessionID); exists {
-				if session.ExpireAt.Before(time.Now()) {
-					DeleteSession(sessionID)
-					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "session expired"})
-					return
-				}
-				// Refresh the session expiry time
-				session.ExpireAt = time.Now().Add(time.Hour)
-
-				if strings.Contains(path, "admin") && session.User.Role != "admin" {
-					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you need admin privileges to access this endpoint"})
-					return
-				}
-			} else {
-				// If the session doesn't exist
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-				return
-			}
-		}
-
-		c.Next()
+		// If no valid bearer token is provided
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 	}
 }

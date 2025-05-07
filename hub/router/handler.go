@@ -19,7 +19,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	r := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type", "Authorization"}
+	config.AllowHeaders = []string{"Authorization", "Content-Type"}
 	r.Use(cors.New(config))
 
 	// Handle UI serving only if we have UI files embedded
