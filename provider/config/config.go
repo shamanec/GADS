@@ -38,7 +38,3 @@ func SetupIOSSupervisionProfileFile() error {
 func SetupWebDriverAgentFile() error {
 	return db.GlobalMongoStore.DownloadFile("WebDriverAgent.ipa", ProviderConfig.ProviderFolder)
 }
-
-func SetupGADSWebRTCAndroidApkFile() error {
-	return db.GlobalMongoStore.DownloadFile("gads-webrtc.apk", ProviderConfig.ProviderFolder)
-}

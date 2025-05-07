@@ -93,14 +93,7 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		}
 	}
 
-	if config.ProviderConfig.ProvideAndroid {
-		err = config.SetupGADSWebRTCAndroidApkFile()
-		if err != nil {
-			logger.ProviderLogger.LogWarn("provider_setup", "There is no GADS Android WebRTC apk uploaded via the Admin UI!!!")
-		}
-	}
-
-	err = extractSelectFiles(config.ProviderConfig.ProviderFolder, resourceFiles, []string{"gads-ime.apk"})
+	err = extractProviderResourceFiles(config.ProviderConfig.ProviderFolder, resourceFiles)
 	if err != nil {
 		log.Fatalf("Failed to extract embedded resource files - %s", err)
 	}
@@ -161,7 +154,8 @@ func updateProviderInDB() {
 	}
 }
 
-func extractSelectFiles(destination string, resourceFiles embed.FS, files []string) error {
+func extractProviderResourceFiles(destination string, resourceFiles embed.FS) error {
+	files := []string{"gads-ime.apk", "gads-webrtc.apk"}
 	for _, file := range files {
 		data, err := resourceFiles.ReadFile("resources/" + file)
 		if err != nil {
@@ -174,7 +168,10 @@ func extractSelectFiles(destination string, resourceFiles embed.FS, files []stri
 			return err
 		}
 
-		return os.WriteFile(outPath, data, os.ModePerm)
+		err = os.WriteFile(outPath, data, os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
