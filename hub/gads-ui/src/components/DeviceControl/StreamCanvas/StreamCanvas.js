@@ -81,17 +81,14 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
     }, [])
 
     function sendKeyPress(key) {
-        // Currently handled only for iOS
-        if (deviceOS === 'ios') {
-            const deviceURL = `/device/${udid}/typeText`
-            const jsonData = JSON.stringify({ text: key })
+        const deviceURL = `/device/${udid}/typeText`
+        const jsonData = JSON.stringify({ text: key })
 
-            api.post(deviceURL, jsonData)
-                .catch((error) => {
-                    console.error('Key press failed', error)
-                    showCustomSnackbarError('Key press failed!')
-                })
-        }
+        api.post(deviceURL, jsonData)
+            .catch((error) => {
+                console.error('Key press failed', error)
+                showCustomSnackbarError('Key press failed!')
+            })
     }
 
     const handleOrientationButtonClick = (isPortrait) => {

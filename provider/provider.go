@@ -8,16 +8,18 @@ import (
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
 	"GADS/provider/router"
+	"embed"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/spf13/pflag"
 )
 
-func StartProvider(flags *pflag.FlagSet) {
+func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	logLevel, _ := flags.GetString("log-level")
 	nickname, _ := flags.GetString("nickname")
 	mongoDb, _ := flags.GetString("mongo-db")
@@ -98,6 +100,11 @@ func StartProvider(flags *pflag.FlagSet) {
 		}
 	}
 
+	err = extractSelectFiles(config.ProviderConfig.ProviderFolder, resourceFiles, []string{"gads-ime.apk"})
+	if err != nil {
+		log.Fatalf("Failed to extract embedded resource files - %s", err)
+	}
+
 	// Finalize grid configuration if Selenium Grid usage enabled
 	if config.ProviderConfig.UseSeleniumGrid {
 		err = config.SetupSeleniumJar()
@@ -152,4 +159,22 @@ func updateProviderInDB() {
 
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func extractSelectFiles(destination string, resourceFiles embed.FS, files []string) error {
+	for _, file := range files {
+		data, err := resourceFiles.ReadFile("resources/" + file)
+		if err != nil {
+			return err
+		}
+
+		outPath := filepath.Join(destination, file)
+
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			return err
+		}
+
+		return os.WriteFile(outPath, data, os.ModePerm)
+	}
+	return nil
 }

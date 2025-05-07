@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -71,6 +72,72 @@ func installGadsWebRTCStream(device *models.Device) error {
 	return nil
 }
 
+func setupGadsAndroidIME(device *models.Device) error {
+	uninstallGadsAndroidIME(device)
+
+	err := installGadsAndroidIME(device)
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(1 * time.Second)
+
+	err = enableGadsAndroidIME(device)
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(1 * time.Second)
+
+	err = setGadsAndroidIMEAsActive(device)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func installGadsAndroidIME(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS Android IME apk on device `%v`", device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-ime.apk", config.ProviderConfig.ProviderFolder))
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("installGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
+func enableGadsAndroidIME(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Enabling GADS Android IME on device `%v`", device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "ime", "enable", "com.gads.gads_ime/.GADSKeyboardIME")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("enableGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
+func setGadsAndroidIMEAsActive(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Setting GADS Android IME as active on device `%v`", device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "ime", "set", "com.gads.gads_ime/.GADSKeyboardIME")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("setGadsAndroidIMEAsActive: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
+func uninstallGadsAndroidIME(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Uninstalling GADS Android IME from device `%v`", device.UDID))
+	return UninstallApp(device, "com.gads.gads_ime")
+}
+
 // Uninstall the GADS stream app from the Android device
 func uninstallGadsStream(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Uninstalling GADS-stream from device `%v`", device.UDID))
@@ -122,6 +189,19 @@ func forwardGadsStream(device *models.Device) error {
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("forwardGadsStream: Error executing `%s` while trying to forward GADS-stream socket to host - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
+// Forward the GADS stream tcp to a host port that is already assigned for the device
+func forwardGadsAndroidIME(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Trying to forward GADS Android IME port(1993) to host port `%v` for device `%s`", device.AndroidIMEPort, device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "forward", "tcp:"+device.AndroidIMEPort, "tcp:1993")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("forwardGadsAndroidIME: Error executing `%s` while trying to forward GADS Android IME socket to host - %s", cmd.Args, err)
 	}
 
 	return nil
