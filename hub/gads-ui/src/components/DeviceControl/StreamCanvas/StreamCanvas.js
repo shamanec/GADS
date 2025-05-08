@@ -65,6 +65,12 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
             // Handle normal chars, special chars, Enter and Backspace, ignore stuff like
             //  Shift, Ctrl, Alt, F1-F12, etc.
             const key = event.key
+
+            // Prevent typing the 'v' char when doing Ctrl/Cmd + V
+            if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === 'v') {
+                return
+            }
+
             if (key.length === 1) {
                 sendKeyPress(key)
             } else if (key === 'Enter') {
@@ -75,9 +81,34 @@ export default function StreamCanvas({ deviceData, shouldShowStream }) {
                 return
             }
         }
+
+        async function handlePaste(event) {
+            const activeElement = document.activeElement;
+            const isInputFocused = activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.isContentEditable
+            );
+
+            if (isInputFocused) {
+                return;
+            }
+
+            // Get clipboard data from the paste event
+            const pastedText = event.clipboardData?.getData('text')
+            if (pastedText) {
+                event.preventDefault()
+                sendKeyPress(pastedText) // Send the paste event text similar to typing in handleKeyDown
+            }
+        }
+
         // Register the event listener and remove it on component unmounted
         window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
+        window.addEventListener('paste', handlePaste)
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown)
+            window.removeEventListener('paste', handlePaste)
+        }
     }, [])
 
     function sendKeyPress(key) {
