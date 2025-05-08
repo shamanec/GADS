@@ -306,19 +306,27 @@ func setupAndroidDevice(device *models.Device) {
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for Appium for device `%v`", device.AppiumPort, device.UDID))
 
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking for existing GADS-stream app on device `%v`", device.UDID))
-	apps := GetInstalledAppsAndroid(device)
-	if slices.Contains(apps, "com.shamanec.stream") {
-		stopGadsStreamService(device)
-		time.Sleep(3 * time.Second)
-		err = uninstallGadsStream(device)
+	device.InstalledApps = GetInstalledAppsAndroid(device)
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
+	if slices.Contains(device.InstalledApps, "com.shamanec.stream") {
+		err = UninstallApp(device, "com.shamanec.stream")
 		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
-			ResetLocalDevice(device, "Failed to uninstall GADS-stream from Android device.")
-			return
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS mjpeg stream app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS mjpeg stream app from Android device.")
 		}
 		time.Sleep(3 * time.Second)
 	}
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked and uninstalled existing GADS-stream app on device `%v` if it was present", device.UDID))
+
+	if slices.Contains(device.InstalledApps, "com.gads.webrtc") {
+		err = UninstallApp(device, "com.gads.webrtc")
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS WebRTC stream app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS WebRTC stream app from Android device.")
+		}
+		time.Sleep(3 * time.Second)
+	}
+
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked for and uninstalled existing GADS stream apps on device `%v` if they were present", device.UDID))
 
 	if !device.UseWebRTCVideo {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Installing GADS-stream on device `%v`", device.UDID))
@@ -391,9 +399,6 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS Android IME port to host port for Android device `%v`", device.UDID))
-
-	device.InstalledApps = GetInstalledAppsAndroid(device)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
 
 	if slices.Contains(device.InstalledApps, "io.appium.settings") {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium settings on device `%s`", device.UDID))
