@@ -16,7 +16,7 @@
   [![GitHub Stars](https://img.shields.io/github/stars/shamanec/GADS?style=social)](https://github.com/shamanec/GADS/stargazers)
   [![GitHub Release](https://img.shields.io/github/v/release/shamanec/GADS)](https://github.com/shamanec/GADS/releases)
   [![GitHub Downloads](https://img.shields.io/github/downloads/shamanec/GADS/total)](https://github.com/shamanec/GADS/releases)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
   [![Discord](https://dcbadge.vercel.app/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
 
   🚀 **Self-Hosted Device Farm & Test Automation Platform** - Open Source Alternative to AWS Device Farm and Firebase Test Lab
