@@ -194,7 +194,7 @@ func forwardGadsStream(device *models.Device) error {
 	return nil
 }
 
-// Forward the GADS stream tcp to a host port that is already assigned for the device
+// Forward the GADS IME tcp to a host port that is already assigned for the device
 func forwardGadsAndroidIME(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Trying to forward GADS Android IME port(1993) to host port `%v` for device `%s`", device.AndroidIMEPort, device.UDID))
 
