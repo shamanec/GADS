@@ -9,7 +9,6 @@ export default function FilesAdministration() {
     const [webDriverAgentFileExists, setWebDriverAgentFileExists] = useState(false)
     const [pemFileExists, setPemFileExists] = useState(false)
     const [mobileProvisionFileExists, setMobileProvisionFileExists] = useState(false)
-    const [androidWebRtcFileExists, setAndroidWebRtcFileExists] = useState(false)
 
     function handleGetFileData() {
         let url = `/admin/files`
@@ -33,9 +32,6 @@ export default function FilesAdministration() {
                         }
                         if (file.name === 'profile.mobileprovision') {
                             setMobileProvisionFileExists(true)
-                        }
-                        if (file.name === 'gads-webrtc.apk') {
-                            setAndroidWebRtcFileExists(true)
                         }
                     }
                 }
@@ -78,13 +74,6 @@ export default function FilesAdministration() {
                 allowedExtensions={['ipa']}
                 fileStatus={webDriverAgentFileExists}
                 fileName='WebDriverAgent.ipa'
-            />
-            <FileUploader
-                title='Upload GADS WebRTC apk'
-                description='Upload prebuilt GADS Android WebRTC apk file'
-                allowedExtensions={['apk']}
-                fileStatus={androidWebRtcFileExists}
-                fileName='gads-webrtc.apk'
             />
         </Stack>
     )
