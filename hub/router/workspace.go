@@ -122,8 +122,11 @@ func GetUserWorkspaces(c *gin.Context) {
 		// Extract token from Bearer format
 		tokenString, err := auth.ExtractTokenFromBearer(authHeader)
 		if err == nil {
-			// Get claims from token
-			claims, err := auth.GetClaimsFromToken(tokenString)
+			// Get origin from request
+			origin := auth.GetOriginFromRequest(c)
+
+			// Get claims from token with origin
+			claims, err := auth.GetClaimsFromToken(tokenString, origin)
 			if err == nil {
 				username = claims.Username
 				role = claims.Role

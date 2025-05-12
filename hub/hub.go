@@ -3,6 +3,7 @@ package hub
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"GADS/hub/router"
 	"embed"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -70,13 +72,20 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	db.InitMongo(mongoDB, "gads")
 	defer db.GlobalMongoStore.Close()
 
+	// Initialize the secret key cache
+	secretStore := auth.NewSecretStore(db.GlobalMongoStore.GetDefaultDatabase())
+	err := auth.InitSecretCache(secretStore, 5*time.Minute)
+	if err != nil {
+		log.Fatalf("Failed to initialize secret key cache: %v", err)
+	}
+
 	devices.InitHubDevicesData()
 	// Start a goroutine that continuously gets the latest devices data from MongoDB
 	go devices.GetLatestDBDevices()
 	// Start a goroutine to clean hanging grid sessions
 	go router.UpdateExpiredGridSessions()
 
-	err := db.GlobalMongoStore.AddAdminUserIfMissing()
+	err = db.GlobalMongoStore.AddAdminUserIfMissing()
 	if err != nil {
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}

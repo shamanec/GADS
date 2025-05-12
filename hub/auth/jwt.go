@@ -3,19 +3,29 @@ package auth
 import (
 	"crypto/rsa"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// Secret key for HMAC signature (HS256)
-// In production, this should be loaded from an environment variable or secure configuration
-var hmacSecret = []byte("gads_secret_key_replace_in_production")
-
 // RSA key pair structure for RS256 signature
 var (
 	signKey   *rsa.PrivateKey
 	verifyKey *rsa.PublicKey
+)
+
+// Global cache instance with mutex for initialization
+var (
+	secretCache     *SecretCache
+	secretCacheMu   sync.Mutex
+	secretCacheInit bool
+)
+
+// Error definitions
+var (
+	ErrSecretCacheNotInitialized = errors.New("secret cache is not initialized")
+	ErrDefaultKeyRequired        = errors.New("default secret key is required but not available")
 )
 
 // JWTClaims defines the structure of claims in the JWT token
@@ -25,10 +35,77 @@ type JWTClaims struct {
 	Role     string   `json:"role"`
 	Scope    []string `json:"scope"`
 	Tenant   string   `json:"tenant"`
+	Origin   string   `json:"origin,omitempty"` // Added origin claim
 }
 
-// GenerateJWT generates a JWT token using HS256
-func GenerateJWT(username, role, tenant string, scope []string, duration time.Duration) (string, error) {
+// InitSecretCache initializes the secret cache with the database store
+func InitSecretCache(store *SecretStore, refreshInterval time.Duration) error {
+	secretCacheMu.Lock()
+	defer secretCacheMu.Unlock()
+
+	if !secretCacheInit {
+		secretCache = NewSecretCache(store, refreshInterval)
+
+		// Make sure we have a default key (the cache will handle creating one if needed)
+		err := secretCache.Refresh()
+		if err != nil {
+			return err
+		}
+
+		// Verify that we have a default key
+		if secretCache.GetDefaultKey() == nil {
+			return ErrDefaultKeyRequired
+		}
+
+		secretCacheInit = true
+	}
+
+	return nil
+}
+
+// GetSecretCache returns the global secret cache instance
+func GetSecretCache() *SecretCache {
+	secretCacheMu.Lock()
+	defer secretCacheMu.Unlock()
+
+	return secretCache
+}
+
+// getSecretKeyForOrigin returns the secret key for the given origin
+func getSecretKeyForOrigin(origin string) ([]byte, error) {
+	if secretCache == nil {
+		return nil, ErrSecretCacheNotInitialized
+	}
+
+	key := secretCache.GetKey(origin)
+	if key == nil {
+		return nil, errors.New("no key found for origin: " + origin)
+	}
+
+	return key, nil
+}
+
+// getDefaultSecretKey returns the default secret key
+func getDefaultSecretKey() ([]byte, error) {
+	if secretCache == nil {
+		return nil, ErrSecretCacheNotInitialized
+	}
+
+	key := secretCache.GetDefaultKey()
+	if key == nil {
+		return nil, ErrDefaultKeyRequired
+	}
+
+	return key, nil
+}
+
+// GenerateJWT generates a JWT token using HS256 with the appropriate secret key
+func GenerateJWT(username, role, tenant string, scope []string, duration time.Duration, origin ...string) (string, error) {
+	originValue := ""
+	if len(origin) > 0 && origin[0] != "" {
+		originValue = origin[0]
+	}
+
 	claims := JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   username,
@@ -40,10 +117,32 @@ func GenerateJWT(username, role, tenant string, scope []string, duration time.Du
 		Role:     role,
 		Scope:    scope,
 		Tenant:   tenant,
+		Origin:   originValue,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(hmacSecret)
+
+	// Use the specific key for this origin, or default if not specified
+	var secretKey []byte
+	var err error
+
+	if originValue != "" {
+		secretKey, err = getSecretKeyForOrigin(originValue)
+		if err != nil {
+			// If we can't get a key for the specific origin, try the default
+			secretKey, err = getDefaultSecretKey()
+			if err != nil {
+				return "", err
+			}
+		}
+	} else {
+		secretKey, err = getDefaultSecretKey()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	tokenString, err := token.SignedString(secretKey)
 	if err != nil {
 		return "", err
 	}
@@ -51,16 +150,55 @@ func GenerateJWT(username, role, tenant string, scope []string, duration time.Du
 	return tokenString, nil
 }
 
-// ValidateJWT validates a JWT token and returns its claims
-func ValidateJWT(tokenString string) (*JWTClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Verify if the signing method is the expected one
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("invalid signing method")
-		}
-		return hmacSecret, nil
-	})
+// ValidateJWT validates a JWT token using the appropriate secret key and returns its claims
+func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
+	var keyFunc jwt.Keyfunc
 
+	// Set up the key function based on whether we're using origin-specific keys
+	if len(origin) > 0 && origin[0] != "" {
+		// Use the specific key for this origin
+		originValue := origin[0]
+		keyFunc = func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("invalid signing method")
+			}
+
+			secretKey, err := getSecretKeyForOrigin(originValue)
+			if err != nil {
+				// Try default key if origin-specific key not found
+				secretKey, err = getDefaultSecretKey()
+				if err != nil {
+					return nil, err
+				}
+			}
+			return secretKey, nil
+		}
+	} else {
+		// Try to extract origin from token claims and use that key
+		keyFunc = func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("invalid signing method")
+			}
+
+			// Try to get the origin from claims
+			if claims, ok := token.Claims.(*JWTClaims); ok && claims.Origin != "" {
+				secretKey, err := getSecretKeyForOrigin(claims.Origin)
+				if err == nil {
+					return secretKey, nil
+				}
+				// If key for origin not found, continue to use default
+			}
+
+			// Fallback to default key
+			secretKey, err := getDefaultSecretKey()
+			if err != nil {
+				return nil, err
+			}
+			return secretKey, nil
+		}
+	}
+
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, keyFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -85,18 +223,26 @@ func ExtractTokenFromBearer(authHeader string) (string, error) {
 }
 
 // GetClaimsFromToken is a utility function that extracts the claims from a JWT token
-func GetClaimsFromToken(token string) (*JWTClaims, error) {
+func GetClaimsFromToken(token string, origin ...string) (*JWTClaims, error) {
 	if token == "" {
 		return nil, errors.New("empty token provided")
 	}
 
 	// Validate the token and get the claims
-	claims, err := ValidateJWT(token)
+	var claims *JWTClaims
+	var err error
+
+	if len(origin) > 0 && origin[0] != "" {
+		claims, err = ValidateJWT(token, origin[0])
+	} else {
+		claims, err = ValidateJWT(token)
+	}
+
 	if err != nil {
 		return nil, errors.New("failed to validate JWT token: " + err.Error())
 	}
 
-	// Verificar se os campos obrigatórios estão presentes
+	// Verify required fields
 	if claims.Username == "" {
 		return nil, errors.New("token has no username claim")
 	}

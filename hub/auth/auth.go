@@ -16,6 +16,30 @@ type AuthCreds struct {
 	Password string `json:"password"`
 }
 
+// GetOriginFromRequest extracts the origin from request headers
+func GetOriginFromRequest(c *gin.Context) string {
+	// Try to get from Origin header first (standard for CORS)
+	origin := c.GetHeader("Origin")
+	if origin != "" {
+		return origin
+	}
+
+	// Try Referer header next
+	referer := c.GetHeader("Referer")
+	if referer != "" {
+		return referer
+	}
+
+	// Try X-Origin custom header (might be set by proxies or clients)
+	xorigin := c.GetHeader("X-Origin")
+	if xorigin != "" {
+		return xorigin
+	}
+
+	// Default to unknown origin
+	return "unknown"
+}
+
 func LoginHandler(c *gin.Context) {
 	var creds AuthCreds
 	body, err := io.ReadAll(c.Request.Body)
@@ -52,8 +76,11 @@ func LoginHandler(c *gin.Context) {
 		tenant = user.WorkspaceIDs[0]
 	}
 
+	// Get the request origin
+	origin := GetOriginFromRequest(c)
+
 	// Generate JWT token with 1 hour validity
-	token, err := GenerateJWT(user.Username, user.Role, tenant, scopes, time.Hour)
+	token, err := GenerateJWT(user.Username, user.Role, tenant, scopes, time.Hour, origin)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
@@ -101,8 +128,11 @@ func AuthMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			// Validate JWT token
-			claims, err := ValidateJWT(tokenString)
+			// Get the request origin
+			origin := GetOriginFromRequest(c)
+
+			// Validate JWT token with the origin
+			claims, err := ValidateJWT(tokenString, origin)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 				return
@@ -124,6 +154,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Set("username", claims.Username)
 			c.Set("role", claims.Role)
 			c.Set("tenant", claims.Tenant)
+			c.Set("origin", claims.Origin) // Store origin in context
 
 			// Continue execution
 			c.Next()
