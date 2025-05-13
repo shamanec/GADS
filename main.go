@@ -15,7 +15,7 @@ var AppVersion = "development"
 //go:embed resources
 var resourceFiles embed.FS
 
-//go:embed hub/gads-ui/build
+//go:embed hub-ui/build
 var uiFiles embed.FS
 
 func main() {

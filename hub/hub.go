@@ -163,7 +163,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 }
 
 func setupUIFiles(uiFiles embed.FS) error {
-	embeddedDir := "hub/gads-ui/build"
+	embeddedDir := "hub-ui/build"
 	targetDir := filepath.Join(configData.FilesTempDir, "gads-ui")
 
 	fmt.Printf("Attempting to unpack embedded UI static files from `%s` to `%s`\n", embeddedDir, targetDir)
