@@ -15,9 +15,6 @@ var AppVersion = "development"
 //go:embed resources
 var resourceFiles embed.FS
 
-//go:embed hub-ui/build
-var uiFiles embed.FS
-
 func main() {
 	var rootCmd = &cobra.Command{Use: "GADS"}
 	rootCmd.PersistentFlags().String("mongo-db", "localhost:27017", "The address of the MongoDB instance")

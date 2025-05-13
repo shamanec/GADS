@@ -19,7 +19,7 @@ import (
 
 var configData *models.HubConfig
 
-func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourceFiles embed.FS) {
+func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFiles embed.FS) {
 	port, _ := flags.GetString("port")
 	if port == "" {
 		log.Fatalf("Please provide a port on which the hub instance should run through the --port flag, e.g. --port=10000")
@@ -141,9 +141,11 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 		}
 	}
 
-	err = setupUIFiles(uiFiles)
-	if err != nil {
-		log.Fatalf("Failed to unpack UI files in folder `%s` - %s", filesTempDir, err)
+	if uiFiles != nil {
+		err = setupUIFiles(uiFiles)
+		if err != nil {
+			log.Fatalf("Failed to unpack UI files in folder `%s` - %s", filesTempDir, err)
+		}
 	}
 
 	err = setupResources(resourceFiles)
@@ -162,7 +164,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles embed.FS, resourc
 	}
 }
 
-func setupUIFiles(uiFiles embed.FS) error {
+func setupUIFiles(uiFiles fs.FS) error {
 	embeddedDir := "hub-ui/build"
 	targetDir := filepath.Join(configData.FilesTempDir, "gads-ui")
 
