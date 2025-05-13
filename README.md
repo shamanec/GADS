@@ -100,11 +100,6 @@ The platform architecture consists of two main components:
 # Clone the repository
 git clone https://github.com/shamanec/GADS
 
-# Build the UI
-cd hub/gads-ui
-npm install
-npm run build
-
 # Build the application
 cd ../..
 go build .
