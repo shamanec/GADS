@@ -42,7 +42,7 @@ func main() {
 		Use:   "provider",
 		Short: "Run a provider component",
 		Run: func(cmd *cobra.Command, args []string) {
-			provider.StartProvider(cmd.Flags())
+			provider.StartProvider(cmd.Flags(), resourceFiles)
 		},
 	}
 	providerCmd.Flags().String("nickname", "", "Nickname of the provider")

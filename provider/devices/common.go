@@ -285,6 +285,16 @@ func setupAndroidDevice(device *models.Device) {
 	device.StreamPort = streamPort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS-stream for device `%v`", device.StreamPort, device.UDID))
 
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for GADS Android IME for device `%v`", device.UDID))
+	imePort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS Android IME for device `%v` - %v", device.UDID, err))
+		ResetLocalDevice(device, "Failed to allocate free host port for GADS Android IME.")
+		return
+	}
+	device.AndroidIMEPort = imePort
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS Android IME for device `%v`", device.StreamPort, device.UDID))
+
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for Appium for device `%v`", device.UDID))
 	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -296,19 +306,27 @@ func setupAndroidDevice(device *models.Device) {
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for Appium for device `%v`", device.AppiumPort, device.UDID))
 
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking for existing GADS-stream app on device `%v`", device.UDID))
-	apps := GetInstalledAppsAndroid(device)
-	if slices.Contains(apps, "com.shamanec.stream") {
-		stopGadsStreamService(device)
-		time.Sleep(3 * time.Second)
-		err = uninstallGadsStream(device)
+	device.InstalledApps = GetInstalledAppsAndroid(device)
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
+	if slices.Contains(device.InstalledApps, "com.shamanec.stream") {
+		err = UninstallApp(device, "com.shamanec.stream")
 		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS-stream from Android device - %v:\n %v", device.UDID, err))
-			ResetLocalDevice(device, "Failed to uninstall GADS-stream from Android device.")
-			return
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS mjpeg stream app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS mjpeg stream app from Android device.")
 		}
 		time.Sleep(3 * time.Second)
 	}
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked and uninstalled existing GADS-stream app on device `%v` if it was present", device.UDID))
+
+	if slices.Contains(device.InstalledApps, "com.gads.webrtc") {
+		err = UninstallApp(device, "com.gads.webrtc")
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS WebRTC stream app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS WebRTC stream app from Android device.")
+		}
+		time.Sleep(3 * time.Second)
+	}
+
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked for and uninstalled existing GADS stream apps on device `%v` if they were present", device.UDID))
 
 	if !device.UseWebRTCVideo {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Installing GADS-stream on device `%v`", device.UDID))
@@ -365,8 +383,22 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS stream port to host port for Android device `%v`", device.UDID))
 
-	device.InstalledApps = GetInstalledAppsAndroid(device)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Setup GADS Android IME for Android device `%v`", device.UDID))
+	err = setupGadsAndroidIME(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to setup GADS Android IME for Android device `%v` - \n %v", device.UDID, err))
+		ResetLocalDevice(device, "Failed to setup GADS Android IME.")
+	}
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully setup GADS Android IME for Android device `%v`", device.UDID))
+
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS Android IME port to host port for Android device `%v`", device.UDID))
+	err = forwardGadsAndroidIME(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS Android IME port to host port %v for Android device - %v:\n %v", device.StreamPort, device.UDID, err))
+		ResetLocalDevice(device, "Failed to forward GADS Android IME port to host port.")
+		return
+	}
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS Android IME port to host port for Android device `%v`", device.UDID))
 
 	if slices.Contains(device.InstalledApps, "io.appium.settings") {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium settings on device `%s`", device.UDID))

@@ -74,6 +74,7 @@ type Device struct {
 	StreamPort       string             `json:"-" bson:"-"` // port assigned to the device for the video stream
 	WDAStreamPort    string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
 	WDAPort          string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
+	AndroidIMEPort   string             `json:"-" bson:"-"` // port assigned to Android devices for the custom IME keyboard instance
 	WdaReadyChan     chan bool          `json:"-" bson:"-"` // channel for checking that WebDriverAgent is up after start
 	AppiumReadyChan  chan bool          `json:"-" bson:"-"` // channel for checking that Appium is up after start
 	Context          context.Context    `json:"-" bson:"-"` // context used to control the device set up since we have multiple goroutines

@@ -8,16 +8,18 @@ import (
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
 	"GADS/provider/router"
+	"embed"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/spf13/pflag"
 )
 
-func StartProvider(flags *pflag.FlagSet) {
+func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	logLevel, _ := flags.GetString("log-level")
 	nickname, _ := flags.GetString("nickname")
 	mongoDb, _ := flags.GetString("mongo-db")
@@ -91,11 +93,9 @@ func StartProvider(flags *pflag.FlagSet) {
 		}
 	}
 
-	if config.ProviderConfig.ProvideAndroid {
-		err = config.SetupGADSWebRTCAndroidApkFile()
-		if err != nil {
-			logger.ProviderLogger.LogWarn("provider_setup", "There is no GADS Android WebRTC apk uploaded via the Admin UI!!!")
-		}
+	err = extractProviderResourceFiles(config.ProviderConfig.ProviderFolder, resourceFiles)
+	if err != nil {
+		log.Fatalf("Failed to extract embedded resource files - %s", err)
 	}
 
 	// Finalize grid configuration if Selenium Grid usage enabled
@@ -152,4 +152,26 @@ func updateProviderInDB() {
 
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func extractProviderResourceFiles(destination string, resourceFiles embed.FS) error {
+	files := []string{"gads-ime.apk", "gads-webrtc.apk"}
+	for _, file := range files {
+		data, err := resourceFiles.ReadFile("resources/" + file)
+		if err != nil {
+			return err
+		}
+
+		outPath := filepath.Join(destination, file)
+
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			return err
+		}
+
+		err = os.WriteFile(outPath, data, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

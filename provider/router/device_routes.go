@@ -1,6 +1,7 @@
 package router
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -220,46 +221,39 @@ func DeviceTypeText(c *gin.Context) {
 	}
 
 	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Typing `%s` to active element", requestBody.TextToType))
-
-	typeResp, err := appiumTypeText(device, requestBody.TextToType)
+	typeTextPayload := models.AppiumTypeText{
+		Text: requestBody.TextToType,
+	}
+	typeJSON, err := json.MarshalIndent(typeTextPayload, "", "  ")
 	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to type `%s` to active element - %s", requestBody.TextToType, err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
+	var typeResp *http.Response
 
-	body, err := io.ReadAll(typeResp.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to type `%s` to active element - %s", requestBody.TextToType, err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-		return
+	if device.OS == "ios" {
+		typeResp, err = wdaRequest(device, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			return
+		}
+	} else {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/type", device.AndroidIMEPort), bytes.NewBuffer(typeJSON))
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			return
+		}
+		typeResp, err = netClient.Do(req)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			return
+		}
 	}
-	defer typeResp.Body.Close()
+
+	var body []byte
+	body, err = io.ReadAll(typeResp.Body)
 
 	api.GenericResponse(c, typeResp.StatusCode, string(body), nil)
-}
-
-func DeviceClearText(c *gin.Context) {
-	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
-	device.Logger.LogInfo("appium_interact", "Clearing text from active element")
-
-	clearResp, err := appiumClearText(device)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Could not clear text from active element - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-		return
-	}
-
-	body, err := io.ReadAll(clearResp.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Could not clear text from active element - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-		return
-	}
-	defer clearResp.Body.Close()
-
-	api.GenericResponse(c, clearResp.StatusCode, string(body), nil)
 }
 
 func DeviceTap(c *gin.Context) {
