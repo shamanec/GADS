@@ -85,14 +85,14 @@ The platform architecture consists of two main components:
 GADS uses a hybrid licensing model to balance open-source principles with the protection of certain proprietary components:
 
 1. **Open Source Components**:
-   The majority of this project is open source and licensed under the AGPL-3.0 License. This includes all files and directories except those explicitly listed as proprietary.
+   The Go backend is licensed under the AGPL-3.0 License. This includes all files and directories except those explicitly listed as proprietary.
 
 2. **Proprietary Components**:
    The following components, while included in the distribution, are proprietary and provided in an obfuscated form:
 
    - hub-ui
 
-   These components are integral parts of GADS but their source code is not open for modification or redistribution.
+   These components are integral parts of GADS but their source code is not open for modification or redistribution. The source code is NOT part of the AGPL-3.0 license.
 
 ### Using GADS
 
