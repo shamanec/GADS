@@ -12,8 +12,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        withSubmodules: true
-        token: ${{ secrets.GH_PAT }}
+        with:
+          submodules: true
+          token: ${{ secrets.GH_PAT }}
 
       - name: Install Go
         uses: actions/setup-go@v5
