@@ -80,6 +80,35 @@ The platform architecture consists of two main components:
 | **Linux** | ✅               | ⚠️            | Limited iOS support due to Xcode dependency |
 | **Windows** | ✅             | ⚠️            | Limited iOS support due to Xcode dependency |
 
+## Licensing
+
+GADS uses a hybrid licensing model to balance open-source principles with the protection of certain proprietary components:
+
+1. **Open Source Components**:
+   The majority of this project is open source and licensed under the AGPL-3.0 License. This includes all files and directories except those explicitly listed as proprietary.
+
+2. **Proprietary Components**:
+   The following components, while included in the distribution, are proprietary and provided in an obfuscated form:
+
+   - hub-ui
+
+   These components are integral parts of GADS but their source code is not open for modification or redistribution.
+
+### Using GADS
+
+GADS, including both open source and obfuscated proprietary components, is freely available for use under the terms specified in the license. Users can utilize all functionalities provided by GADS, including those powered by the proprietary components.
+
+### Important Notes on Proprietary Components
+
+- While the proprietary components are included in the distribution, their source code is not available for viewing, modification, or redistribution.
+- These components are provided in an obfuscated form to protect our intellectual property.
+- Users are granted the right to use these components as part of GADS, but not to decompile, reverse engineer, or attempt to extract the original source code.
+
+### Contributions and Modifications
+
+- Contributions and modifications to the open-source portions of GADS are welcome.
+- Please note that it is not possible to contribute to or modify the proprietary components due to their obfuscated nature.
+
 ## 🚀 Getting Started
 
 > ### **Prerequisites**
