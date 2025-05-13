@@ -1,0 +1,3 @@
+[submodule "hub-ui"]
+	path = hub-ui
+	url = git@github.com:shamanec/GADS-hub-ui.git
