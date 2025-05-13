@@ -3,14 +3,17 @@ package router
 import (
 	"GADS/common/models"
 	"GADS/hub/auth"
-	"path/filepath"
+	"io"
+	"io/fs"
+	"log"
+	"net/http"
+	"strings"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
-func HandleRequests(configData *models.HubConfig) *gin.Engine {
+func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// Create the router and allow all origins
 	// Allow particular headers as well
 	r := gin.Default()
@@ -19,17 +22,45 @@ func HandleRequests(configData *models.HubConfig) *gin.Engine {
 	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
 	r.Use(cors.New(config))
 
-	filesDir := filepath.Join(configData.FilesTempDir, "gads-ui")
-	indexHtmlPath := filepath.Join(filesDir, "index.html")
+	// Handle UI serving only if we have UI files embedded
+	if uiFiles != nil {
+		uiFS, err := fs.Sub(uiFiles, "hub-ui/build")
+		if err != nil {
+			log.Fatalf("Failed to get UI files filesystem: %v", err)
+		}
 
-	// Configuration for SAP applications
-	// Serve the static files from the built React app
-	r.Use(static.Serve("/", static.LocalFile(filesDir, true)))
-	// For any missing route serve the index.htm from the static files
-	// This will fix the issue with accessing particular endpoint in the browser manually or with refresh
-	r.NoRoute(func(c *gin.Context) {
-		c.File(indexHtmlPath)
-	})
+		r.Use(func(c *gin.Context) {
+			path := c.Request.URL.Path
+
+			if path != "/" {
+				_, err := uiFS.Open(strings.TrimPrefix(path, "/"))
+				if err != nil {
+					return
+				}
+			}
+
+			fileServer := http.FileServer(http.FS(uiFS))
+			fileServer.ServeHTTP(c.Writer, c.Request)
+			c.Abort()
+		})
+
+		r.NoRoute(func(c *gin.Context) {
+			indexFile, err := uiFS.Open("index.html")
+			if err != nil {
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return
+			}
+			defer indexFile.Close()
+
+			stat, err := indexFile.Stat()
+			if err != nil {
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return
+			}
+
+			http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile.(io.ReadSeeker))
+		})
+	}
 
 	authGroup := r.Group("/")
 	// Unauthenticated endpoints

@@ -141,19 +141,12 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		}
 	}
 
-	if uiFiles != nil {
-		err = setupUIFiles(uiFiles)
-		if err != nil {
-			log.Fatalf("Failed to unpack UI files in folder `%s` - %s", filesTempDir, err)
-		}
-	}
-
 	err = setupResources(resourceFiles)
 	if err != nil {
 		log.Fatalf("Failed to unpack resource files in folder `%s` - %s", filesTempDir, err)
 	}
 
-	r := router.HandleRequests(configData)
+	r := router.HandleRequests(configData, uiFiles)
 
 	// Start the GADS UI on the host IP address
 	address := fmt.Sprintf("%s:%s", configData.HostAddress, configData.Port)
@@ -162,59 +155,6 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	if err != nil {
 		log.Fatalf("Gin Run failed - %s", err)
 	}
-}
-
-func setupUIFiles(uiFiles fs.FS) error {
-	embeddedDir := "hub-ui/build"
-	targetDir := filepath.Join(configData.FilesTempDir, "gads-ui")
-
-	fmt.Printf("Attempting to unpack embedded UI static files from `%s` to `%s`\n", embeddedDir, targetDir)
-
-	err := os.RemoveAll(targetDir)
-	if err != nil {
-		return err
-	}
-
-	// Ensure the target directory exists
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	// Access the embedded directory as if it's the root
-	fsSub, err := fs.Sub(uiFiles, embeddedDir)
-	if err != nil {
-		return err
-	}
-
-	// Walk the 'virtual' root of the embedded filesystem
-	err = fs.WalkDir(fsSub, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Path here is relative to the 'virtual' root, no need to strip directories
-		outputPath := filepath.Join(targetDir, path)
-
-		if d.IsDir() {
-			// Create directory
-			return os.MkdirAll(outputPath, os.ModePerm)
-		}
-
-		// Read file data from the 'virtual' root
-		data, err := fs.ReadFile(fsSub, path)
-		if err != nil {
-			return err
-		}
-
-		// Write file data
-		return os.WriteFile(outputPath, data, os.ModePerm)
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func setupResources(resourceFiles embed.FS) error {
