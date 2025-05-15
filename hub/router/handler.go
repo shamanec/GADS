@@ -104,10 +104,15 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.DELETE("/admin/workspaces/:id", DeleteWorkspace)
 	authGroup.GET("/admin/workspaces", GetWorkspaces)
 	authGroup.GET("/workspaces", GetUserWorkspaces)
+	// Secret Keys endpoints
 	authGroup.GET("/admin/secret-keys", GetSecretKeys)
 	authGroup.POST("/admin/secret-keys", AddSecretKey)
 	authGroup.PUT("/admin/secret-keys/:id", UpdateSecretKey)
 	authGroup.DELETE("/admin/secret-keys/:id", DisableSecretKey)
+	// Secret Keys Audit History endpoints
+	authGroup.GET("/admin/secret-keys/history", GetSecretKeyHistory)
+	authGroup.GET("/admin/secret-keys/history/:id", GetSecretKeyHistoryByID)
+
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
 	appiumGroup.Any("/*path")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,23 +22,62 @@ func GetOriginFromRequest(c *gin.Context) string {
 	// Try to get from Origin header first (standard for CORS)
 	origin := c.GetHeader("Origin")
 	if origin != "" {
-		return origin
+		return normalizeOrigin(origin)
 	}
 
 	// Try Referer header next
 	referer := c.GetHeader("Referer")
 	if referer != "" {
-		return referer
+		// Extract only the origin part from the Referer URL
+		return extractOriginFromURL(referer)
 	}
 
 	// Try X-Origin custom header (might be set by proxies or clients)
 	xorigin := c.GetHeader("X-Origin")
 	if xorigin != "" {
-		return xorigin
+		return normalizeOrigin(xorigin)
 	}
 
 	// Default to unknown origin
 	return "unknown"
+}
+
+// extractOriginFromURL parses a full URL and returns only the origin part (scheme + host + port)
+func extractOriginFromURL(urlStr string) string {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		// If parsing fails, return the original string
+		return urlStr
+	}
+
+	// Ensure we have a scheme for URL construction
+	scheme := parsedURL.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+
+	// Return scheme + host (which includes port if specified)
+	return scheme + "://" + parsedURL.Host
+}
+
+// normalizeOrigin ensures the origin has the correct format
+func normalizeOrigin(origin string) string {
+	// If it's already a valid URL, just extract the origin part
+	if strings.HasPrefix(origin, "http://") || strings.HasPrefix(origin, "https://") {
+		return extractOriginFromURL(origin)
+	}
+
+	// If it looks like just a hostname or hostname:port
+	if !strings.Contains(origin, "://") {
+		// Check if it has a port number
+		if strings.Contains(origin, ":") || strings.Count(origin, ".") >= 1 {
+			// Assume it's a hostname or IP with optional port
+			return "http://" + origin
+		}
+	}
+
+	// Return as is if it doesn't match any pattern
+	return origin
 }
 
 func LoginHandler(c *gin.Context) {

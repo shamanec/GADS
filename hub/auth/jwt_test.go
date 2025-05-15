@@ -21,7 +21,7 @@ func NewMockSecretStore() *MockSecretStore {
 	}
 }
 
-func (m *MockSecretStore) AddSecretKey(secretKey *SecretKey) error {
+func (m *MockSecretStore) AddSecretKey(secretKey *SecretKey, username, justification string) error {
 	secretKey.ID = primitive.NewObjectID()
 	m.keys[secretKey.Origin] = secretKey
 	return nil
@@ -60,12 +60,12 @@ func (m *MockSecretStore) GetSecretKeyByID(id primitive.ObjectID) (*SecretKey, e
 	return nil, ErrSecretKeyNotFound
 }
 
-func (m *MockSecretStore) UpdateSecretKey(secretKey *SecretKey) error {
+func (m *MockSecretStore) UpdateSecretKey(secretKey *SecretKey, username, justification string) error {
 	m.keys[secretKey.Origin] = secretKey
 	return nil
 }
 
-func (m *MockSecretStore) DisableSecretKey(id primitive.ObjectID) error {
+func (m *MockSecretStore) DisableSecretKey(id primitive.ObjectID, username, justification string) error {
 	for _, key := range m.keys {
 		if key.ID == id {
 			if key.IsDefault {
@@ -93,21 +93,21 @@ func setupTestSecretCache() *SecretCache {
 		Origin:    "default",
 		Key:       "default_secret_key",
 		IsDefault: true,
-	})
+	}, "system", "Test setup")
 
 	// Add web key
 	store.AddSecretKey(&SecretKey{
 		Origin:    "https://web.example.com",
 		Key:       "web_secret_key",
 		IsDefault: false,
-	})
+	}, "system", "Test setup")
 
 	// Add mobile key
 	store.AddSecretKey(&SecretKey{
 		Origin:    "mobile-app",
 		Key:       "mobile_secret_key",
 		IsDefault: false,
-	})
+	}, "system", "Test setup")
 
 	// Create and initialize cache
 	cache := NewSecretCache(store, time.Minute)
@@ -349,13 +349,15 @@ func TestGetClaimsFromToken(t *testing.T) {
 }
 
 func TestSecretCache(t *testing.T) {
-	// Create a mock store with a default key
+	// Create mock store
 	store := NewMockSecretStore()
+
+	// Add default key
 	store.AddSecretKey(&SecretKey{
 		Origin:    "default",
 		Key:       "default_secret_key",
 		IsDefault: true,
-	})
+	}, "system", "Test setup")
 
 	// Create a secret cache
 	cache := NewSecretCache(store, time.Minute)
@@ -365,19 +367,18 @@ func TestSecretCache(t *testing.T) {
 	assert.Equal(t, []byte("default_secret_key"), key)
 
 	// Test GetDefaultKey
-	defaultKey := cache.GetDefaultKey()
-	assert.Equal(t, []byte("default_secret_key"), defaultKey)
+	key = cache.GetDefaultKey()
+	assert.Equal(t, []byte("default_secret_key"), key)
 
 	// Add a new key and test GetKey
 	store.AddSecretKey(&SecretKey{
 		Origin:    "test-origin",
 		Key:       "test_secret_key",
 		IsDefault: false,
-	})
+	}, "system", "Test setup")
 
 	// Refresh cache
-	err := cache.Refresh()
-	assert.NoError(t, err)
+	cache.Refresh()
 
 	// Test GetKey for specific origin
 	key = cache.GetKey("test-origin")

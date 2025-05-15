@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -36,18 +37,20 @@ var (
 
 // SecretStore provides methods to manage JWT secret keys
 type SecretStore struct {
-	db *mongo.Database
+	db         *mongo.Database
+	auditStore *SecretKeyAuditStore
 }
 
 // NewSecretStore creates a new SecretStore instance
 func NewSecretStore(database *mongo.Database) *SecretStore {
 	return &SecretStore{
-		db: database,
+		db:         database,
+		auditStore: NewSecretKeyAuditStore(database),
 	}
 }
 
 // AddSecretKey adds a new secret key for an origin
-func (s *SecretStore) AddSecretKey(secretKey *SecretKey) error {
+func (s *SecretStore) AddSecretKey(secretKey *SecretKey, username, justification string) error {
 	// Check if origin already exists
 	filter := bson.M{"origin": secretKey.Origin, "disabled": false}
 	count, err := s.db.Collection(secretKeysCollection).CountDocuments(context.Background(), filter)
@@ -73,14 +76,40 @@ func (s *SecretStore) AddSecretKey(secretKey *SecretKey) error {
 	secretKey.Disabled = false
 
 	result, err := s.db.Collection(secretKeysCollection).InsertOne(context.Background(), secretKey)
+	if err != nil {
+		return err
+	}
 
 	secretKey.ID = result.InsertedID.(primitive.ObjectID)
 
-	return err
+	// Add audit log
+	auditLog := &SecretKeyAuditLog{
+		Username:      username,
+		SecretKeyID:   secretKey.ID,
+		Origin:        secretKey.Origin,
+		Action:        "create",
+		Timestamp:     now,
+		IsDefault:     secretKey.IsDefault,
+		NewKey:        &secretKey.Key,
+		Justification: justification,
+	}
+
+	if err := s.auditStore.LogAction(auditLog); err != nil {
+		// Log error but continue - failure to audit shouldn't block the main operation
+		log.Printf("Error logging secret key audit event: %v", err)
+	}
+
+	return nil
 }
 
 // UpdateSecretKey updates an existing secret key
-func (s *SecretStore) UpdateSecretKey(secretKey *SecretKey) error {
+func (s *SecretStore) UpdateSecretKey(secretKey *SecretKey, username, justification string) error {
+	// Get current state for audit
+	currentKey, err := s.GetSecretKeyByID(secretKey.ID)
+	if err != nil {
+		return err
+	}
+
 	// If this key is being set as default, ensure no other default keys exist
 	if secretKey.IsDefault {
 		err := s.ensureNoOtherDefaultKeys(secretKey.ID)
@@ -104,11 +133,29 @@ func (s *SecretStore) UpdateSecretKey(secretKey *SecretKey) error {
 		return ErrSecretKeyNotFound
 	}
 
+	// Add audit log
+	auditLog := &SecretKeyAuditLog{
+		Username:      username,
+		SecretKeyID:   secretKey.ID,
+		Origin:        secretKey.Origin,
+		Action:        "update",
+		Timestamp:     secretKey.UpdatedAt,
+		IsDefault:     secretKey.IsDefault,
+		PreviousKey:   &currentKey.Key,
+		NewKey:        &secretKey.Key,
+		Justification: justification,
+	}
+
+	if err := s.auditStore.LogAction(auditLog); err != nil {
+		// Log error but continue - failure to audit shouldn't block the main operation
+		log.Printf("Error logging secret key audit event: %v", err)
+	}
+
 	return nil
 }
 
 // DisableSecretKey disables a secret key without deleting it
-func (s *SecretStore) DisableSecretKey(id primitive.ObjectID) error {
+func (s *SecretStore) DisableSecretKey(id primitive.ObjectID, username, justification string) error {
 	// Check if it's the default key
 	key, err := s.GetSecretKeyByID(id)
 	if err != nil {
@@ -135,6 +182,23 @@ func (s *SecretStore) DisableSecretKey(id primitive.ObjectID) error {
 
 	if result.MatchedCount == 0 {
 		return ErrSecretKeyNotFound
+	}
+
+	// Add audit log
+	auditLog := &SecretKeyAuditLog{
+		Username:      username,
+		SecretKeyID:   key.ID,
+		Origin:        key.Origin,
+		Action:        "disable",
+		Timestamp:     now,
+		IsDefault:     key.IsDefault,
+		PreviousKey:   &key.Key,
+		Justification: justification,
+	}
+
+	if err := s.auditStore.LogAction(auditLog); err != nil {
+		// Log error but continue - failure to audit shouldn't block the main operation
+		log.Printf("Error logging secret key audit event: %v", err)
 	}
 
 	return nil
@@ -245,4 +309,9 @@ func (s *SecretStore) ensureNoOtherDefaultKeys(exceptID ...primitive.ObjectID) e
 	}
 
 	return nil
+}
+
+// GetSecretKeyAuditStore returns the audit store
+func (s *SecretStore) GetSecretKeyAuditStore() *SecretKeyAuditStore {
+	return s.auditStore
 }

@@ -11,13 +11,13 @@ import (
 
 // SecretStoreInterface defines the interface for secret key storage
 type SecretStoreInterface interface {
-	AddSecretKey(secretKey *SecretKey) error
+	AddSecretKey(secretKey *SecretKey, username, justification string) error
 	GetSecretKeyByOrigin(origin string) (*SecretKey, error)
 	GetDefaultSecretKey() (*SecretKey, error)
 	GetAllSecretKeys() ([]*SecretKey, error)
 	GetSecretKeyByID(id primitive.ObjectID) (*SecretKey, error)
-	UpdateSecretKey(secretKey *SecretKey) error
-	DisableSecretKey(id primitive.ObjectID) error
+	UpdateSecretKey(secretKey *SecretKey, username, justification string) error
+	DisableSecretKey(id primitive.ObjectID, username, justification string) error
 }
 
 // SecretCache provides an in-memory cache for secret keys
@@ -70,7 +70,8 @@ func (c *SecretCache) Refresh() error {
 			IsDefault: true,
 		}
 
-		err = c.store.AddSecretKey(defaultKey)
+		// Use empty values to not associate with a specific user
+		err = c.store.AddSecretKey(defaultKey, "system", "Auto-generated default key")
 		if err != nil {
 			return err
 		}
@@ -94,7 +95,8 @@ func (c *SecretCache) Refresh() error {
 	// If no default key exists, mark the first one as default
 	if !hasDefault && len(secretKeys) > 0 {
 		secretKeys[0].IsDefault = true
-		err = c.store.UpdateSecretKey(secretKeys[0])
+		// Use empty values to not associate with a specific user
+		err = c.store.UpdateSecretKey(secretKeys[0], "system", "Auto-marked as default key")
 		if err != nil {
 			return err
 		}
