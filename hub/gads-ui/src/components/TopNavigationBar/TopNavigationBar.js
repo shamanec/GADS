@@ -8,16 +8,15 @@ import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
 
 export default function NavBar() {
-    const { userName, loading } = useContext(Auth)
+    const { userName, userRole, loading } = useContext(Auth)
 
     const [showAdmin, setShowAdmin] = useState(false)
 
     useEffect(() => {
-        const roleFromStorage = localStorage.getItem('userRole')
-        if (roleFromStorage === 'admin') {
+        if (userRole === 'admin') {
             setShowAdmin(true)
         }
-    }, [])
+    }, [userRole])
 
     let appVersion = localStorage.getItem('gadsVersion') || 'unknown'
 
@@ -66,7 +65,13 @@ export default function NavBar() {
             <div
                 className='social-buttons-wrapper'
             >
-                <p style={{ fontWeight: 'bold' }}>Welcome, {userName}</p>
+                <p style={{ fontWeight: 'bold' }}>
+                    {loading ? (
+                        <CircularProgress size={20} style={{ marginRight: '10px' }} />
+                    ) : (
+                        `Welcome, ${userName}`
+                    )}
+                </p>
                 <KoFiButton></KoFiButton>
                 <GithubButton></GithubButton>
                 <DiscordButton></DiscordButton>

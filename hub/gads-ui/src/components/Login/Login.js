@@ -29,7 +29,7 @@ export default function Login() {
         api.post(url, loginData)
             .then(response => {
                 const data = response.data
-                login(data.access_token, data.username, data.role)
+                login(data.access_token)
                 hideSnackbar()
                 navigate('/devices')
 

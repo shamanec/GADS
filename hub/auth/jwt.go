@@ -153,17 +153,17 @@ func GenerateJWT(username, role, tenant string, scope []string, duration time.Du
 // ValidateJWT validates a JWT token using the appropriate secret key and returns its claims
 func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 	var keyFunc jwt.Keyfunc
+	var usedOrigin string
 
 	// Set up the key function based on whether we're using origin-specific keys
 	if len(origin) > 0 && origin[0] != "" {
-		// Use the specific key for this origin
-		originValue := origin[0]
+		usedOrigin = origin[0]
 		keyFunc = func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("invalid signing method")
 			}
 
-			secretKey, err := getSecretKeyForOrigin(originValue)
+			secretKey, err := getSecretKeyForOrigin(usedOrigin)
 			if err != nil {
 				// Try default key if origin-specific key not found
 				secretKey, err = getDefaultSecretKey()
@@ -174,7 +174,6 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 			return secretKey, nil
 		}
 	} else {
-		// Try to extract origin from token claims and use that key
 		keyFunc = func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("invalid signing method")
@@ -182,6 +181,7 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 
 			// Try to get the origin from claims
 			if claims, ok := token.Claims.(*JWTClaims); ok && claims.Origin != "" {
+				usedOrigin = claims.Origin
 				secretKey, err := getSecretKeyForOrigin(claims.Origin)
 				if err == nil {
 					return secretKey, nil
@@ -207,11 +207,51 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 		return nil, errors.New("invalid token")
 	}
 
-	if claims, ok := token.Claims.(*JWTClaims); ok {
-		return claims, nil
+	claims, ok := token.Claims.(*JWTClaims)
+	if !ok {
+		return nil, errors.New("invalid claims")
 	}
 
-	return nil, errors.New("invalid claims")
+	// Parse token as MapClaims para acessar claims customizadas
+	parsedToken, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	var mapClaims jwt.MapClaims
+	if err == nil {
+		if mc, ok := parsedToken.Claims.(jwt.MapClaims); ok {
+			mapClaims = mc
+		}
+	}
+
+	// Buscar a secret key do origin para saber qual claim usar
+	var userIdentifierClaim string
+	store := GetSecretCache().store
+	if store != nil {
+		secretKey, err := store.GetSecretKeyByOrigin(usedOrigin)
+		if err != nil {
+			// fallback para default
+			secretKey, _ = store.GetDefaultSecretKey()
+		}
+		if secretKey != nil && secretKey.UserIdentifierClaim != "" {
+			userIdentifierClaim = secretKey.UserIdentifierClaim
+		}
+	}
+
+	// Buscar o valor da claim correta (dinâmico)
+	if userIdentifierClaim != "" && mapClaims != nil {
+		if val, ok := mapClaims[userIdentifierClaim]; ok {
+			if s, ok := val.(string); ok {
+				claims.Username = s
+			} else {
+				claims.Username = ""
+			}
+		} else {
+			switch userIdentifierClaim {
+			case "sub":
+				claims.Username = claims.Subject
+			}
+		}
+	}
+
+	return claims, nil
 }
 
 // ExtractTokenFromBearer extracts the JWT token from an Authorization Bearer header
@@ -229,23 +269,5 @@ func GetClaimsFromToken(token string, origin ...string) (*JWTClaims, error) {
 	}
 
 	// Validate the token and get the claims
-	var claims *JWTClaims
-	var err error
-
-	if len(origin) > 0 && origin[0] != "" {
-		claims, err = ValidateJWT(token, origin[0])
-	} else {
-		claims, err = ValidateJWT(token)
-	}
-
-	if err != nil {
-		return nil, errors.New("failed to validate JWT token: " + err.Error())
-	}
-
-	// Verify required fields
-	if claims.Username == "" {
-		return nil, errors.New("token has no username claim")
-	}
-
-	return claims, nil
+	return ValidateJWT(token, origin...)
 }

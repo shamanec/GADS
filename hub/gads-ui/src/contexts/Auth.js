@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSnackbar } from './SnackBarContext'
+import { api } from '../services/api'
 
 export const Auth = createContext()
 
@@ -11,14 +12,38 @@ export const AuthProvider = ({ children }) => {
     const [accessToken, setAccessToken] = useState('')
     const [userName, setUserName] = useState('')
     const [userRole, setUserRole] = useState('')
+    const [loading, setLoading] = useState(true)
 
-    function login(token, name, role) {
+    // Function to fetch user info from JWT
+    const fetchUserInfo = async (token) => {
+        try {
+            // Only proceed if we have a token
+            if (!token) {
+                setLoading(false)
+                return
+            }
+            
+            const response = await api.get('/user-info')
+            const userData = response.data
+            
+            setUserName(userData.username)
+            setUserRole(userData.role)
+            localStorage.setItem('userRole', userData.role)
+            localStorage.setItem('username', userData.username)
+        } catch (error) {
+            console.error('Failed to fetch user info:', error)
+            // If we can't get user info from JWT, clear the token
+            logout()
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    function login(token) {
         setAccessToken(token)
-        setUserName(name)
-        setUserRole(role)
         localStorage.setItem('accessToken', token)
-        localStorage.setItem('userRole', role)
-        localStorage.setItem('username', name)
+        // Fetch user info right after login
+        fetchUserInfo(token)
     }
 
     function logout() {
@@ -52,14 +77,21 @@ export const AuthProvider = ({ children }) => {
         const storedToken = localStorage.getItem('accessToken')
         if (storedToken) {
             setAccessToken(storedToken)
-        }
-        const storedUsername = localStorage.getItem('username')
-        if (storedUsername) {
-            setUserName((storedUsername))
+            fetchUserInfo(storedToken)
+        } else {
+            setLoading(false)
         }
     }, [])
 
 
-    return <Auth.Provider value={{ accessToken, userName, userRole, login, logout }}>{children}
+    return <Auth.Provider value={{ 
+        accessToken, 
+        userName, 
+        userRole, 
+        login, 
+        logout, 
+        loading 
+    }}>
+        {children}
     </Auth.Provider>
 }

@@ -22,6 +22,7 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
   const [isDefaultOriginal, setIsDefaultOriginal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [justification, setJustification] = useState('');
+  const [userIdentifierClaim, setUserIdentifierClaim] = useState('');
   const { showSnackbar } = useSnackbar();
   const { showDialog } = useDialog();
 
@@ -31,6 +32,7 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
       setSecret(''); // Don't populate for security reasons
       setIsDefault(secretKey.is_default || false);
       setIsDefaultOriginal(secretKey.is_default || false);
+      setUserIdentifierClaim(secretKey.user_identifier_claim || '');
     } else {
       // Reset the form when not in edit mode
       setOrigin('');
@@ -38,6 +40,7 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
       setIsDefault(false);
       setIsDefaultOriginal(false);
       setJustification('');
+      setUserIdentifierClaim('');
     }
   }, [editMode, secretKey]);
 
@@ -90,7 +93,8 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
       origin,
       key: secret,
       is_default: isDefault,
-      justification: justification || undefined
+      justification: justification || undefined,
+      user_identifier_claim: userIdentifierClaim || undefined
     });
   };
 
@@ -108,6 +112,10 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
     // Add justification if provided
     if (justification.trim() !== '') {
       updateData.justification = justification;
+    }
+    // Add userIdentifierClaim if provided
+    if (userIdentifierClaim.trim() !== '') {
+      updateData.user_identifier_claim = userIdentifierClaim;
     }
     
     await api.put(`/admin/secret-keys/${secretKey.id}`, updateData);
@@ -178,6 +186,16 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
             fullWidth
             size="small"
             helperText="The origin identifier (e.g., 'com.example.app')"
+          />
+          
+          <TextField
+            label="User Identifier Claim"
+            value={userIdentifierClaim}
+            onChange={(e) => setUserIdentifierClaim(e.target.value)}
+            required
+            fullWidth
+            size="small"
+            helperText="The claim name in the JWT that identifies the user (e.g., 'sub', 'username', 'email')"
           />
           
           <Box>

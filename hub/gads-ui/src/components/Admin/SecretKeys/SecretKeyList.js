@@ -150,6 +150,7 @@ export default function SecretKeyList({ secretKeys, loading, onEdit, onReload, s
             <TableHead>
               <TableRow>
                 <TableCell className="table-header">Origin</TableCell>
+                <TableCell className="table-header">User Identifier Claim</TableCell>
                 <TableCell className="table-header">Status</TableCell>
                 <TableCell className="table-header">Created At</TableCell>
                 <TableCell className="table-header">Updated At</TableCell>
@@ -160,6 +161,7 @@ export default function SecretKeyList({ secretKeys, loading, onEdit, onReload, s
               {paginatedKeys.map((secretKey) => (
                 <TableRow key={secretKey.id}>
                   <TableCell>{secretKey.origin}</TableCell>
+                  <TableCell>{secretKey.user_identifier_claim || '-'}</TableCell>
                   <TableCell>
                     {secretKey.is_default ? (
                       <Chip label="Default" color="primary" size="small" />

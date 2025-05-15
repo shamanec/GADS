@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type AuthCreds struct {
@@ -147,6 +148,104 @@ func LogoutHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "session does not exist"})
+}
+
+// GetUserInfoHandler returns user information from JWT token
+func GetUserInfoHandler(c *gin.Context) {
+	// Get the JWT token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid authorization header"})
+		return
+	}
+
+	tokenString, err := ExtractTokenFromBearer(authHeader)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token format"})
+		return
+	}
+
+	// Get the request origin
+	origin := GetOriginFromRequest(c)
+
+	// Validate JWT token with the origin (struct claims)
+	claims, err := ValidateJWT(tokenString, origin)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+		return
+	}
+
+	// Parse token as MapClaims para acessar claims customizadas
+	parsedToken, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	var mapClaims jwt.MapClaims
+	if err == nil {
+		if mc, ok := parsedToken.Claims.(jwt.MapClaims); ok {
+			mapClaims = mc
+		}
+	}
+
+	// Buscar a secret key do origin para saber qual claim usar
+	var userIdentifier string
+	var userIdentifierClaim string
+	store := GetSecretCache().store
+	if store != nil {
+		secretKey, err := store.GetSecretKeyByOrigin(origin)
+		if err != nil {
+			// fallback para default
+			secretKey, _ = store.GetDefaultSecretKey()
+		}
+		if secretKey != nil && secretKey.UserIdentifierClaim != "" {
+			userIdentifierClaim = secretKey.UserIdentifierClaim
+		}
+	}
+
+	// Buscar o valor da claim correta (dinâmico)
+	if userIdentifierClaim != "" && mapClaims != nil {
+		if val, ok := mapClaims[userIdentifierClaim]; ok {
+			if s, ok := val.(string); ok {
+				userIdentifier = s
+			} else {
+				userIdentifier = "" // ou fmt.Sprintf("%v", val)
+			}
+		} else {
+			// fallback para struct claims
+			switch userIdentifierClaim {
+			case "sub":
+				userIdentifier = claims.Subject
+			case "username":
+				userIdentifier = claims.Username
+			case "userName":
+				userIdentifier = claims.Username
+			case "email":
+				userIdentifier = claims.Username // ou claims.Email se existir
+			default:
+				userIdentifier = claims.Username
+			}
+		}
+	} else {
+		userIdentifier = claims.Username
+	}
+
+	// Definir role padrão se não houver
+	role := claims.Role
+	if role == "" {
+		role = "user"
+	}
+
+	// Definir scopes padrão se não houver
+	scopes := claims.Scope
+	if len(scopes) == 0 {
+		scopes = []string{"user"}
+	}
+
+	// Return user information from claims
+	c.JSON(http.StatusOK, gin.H{
+		"username":              userIdentifier,
+		"role":                  role,
+		"tenant":                claims.Tenant,
+		"scopes":                scopes,
+		"user_identifier_claim": userIdentifierClaim,
+	})
 }
 
 func AuthMiddleware() gin.HandlerFunc {
