@@ -125,7 +125,8 @@ GADS, including both open source and obfuscated proprietary components, is freel
 
 1. Go to the [releases page](https://github.com/shamanec/GADS/releases) and download the latest binary for your platform.
 
-#### Option 2: Build from source
+#### Option 2: Build from source for non-UI related development
+**IMPORTANT** You can freely use the Go code to your ends or provide new features/bug fixes on mainstream project but any changes to the UI should be requested from the core team.  
 
 ```bash
 # Clone the repository
@@ -134,11 +135,22 @@ git clone https://github.com/shamanec/GADS
 # Build the application without UI
 cd ../..
 go build .
+```
 
-# Or build the application with UI
+#### Option 3: Build from source for UI related development
+**IMPORTANT** You can freely use the Go code to your ends or provide new features/bug fixes on mainstream project but any changes to the UI should be requested from the core team.  
+1. Clone the repository
+```bash
+git clone https://github.com/shamanec/GADS
+```
+2. Download the prebuilt UI files zip from the latest [release](https://github.com/shamanec/GADS/releases)
+3. Unzip the file from step into your GADS folder in a new folder named `hub-ui`, your folder structure should look like `../GADS/hub-ui/build/*`
+4. Build the application
+```bash
 cd ../..
 go build -tags ui .
 ```
+
 
 ### 🛠️ Common setup
 #### 🌱 MongoDB
