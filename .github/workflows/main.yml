@@ -45,6 +45,7 @@ jobs:
             --transform-object-keys false
           rm -rf ./build/static/js/*
           cp -r ./ui-dist/static/js/* ./build/static/js
+          zip -r ../ui-files.zip ./build
 
       - name: Build binaries
         run: |

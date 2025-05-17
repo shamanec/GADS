@@ -71,7 +71,9 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("devices/control/:udid/webrtc", DeviceWebRTCWS)
 	authGroup.POST("/provider-update", ProviderUpdate)
 	// Enable authentication on the endpoints below
-	authGroup.Use(auth.AuthMiddleware())
+	if configData.AuthEnabled {
+		authGroup.Use(auth.AuthMiddleware())
+	}
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)

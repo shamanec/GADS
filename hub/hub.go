@@ -31,6 +31,9 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	mongoDB, _ := flags.GetString("mongo-db")
 	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", mongoDB)
 
+	authEnabled, _ := flags.GetBool("auth")
+	fmt.Printf("Auth enabled: %v. You can enable/disable authentication on hub endpoints with the --auth flag\n", authEnabled)
+
 	fmt.Println("Default admin username is `admin`")
 	fmt.Println("Default admin password is `password` unless you've changed it")
 
@@ -59,6 +62,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		OSTempDir:    osTempDir,
 		FilesTempDir: filesTempDir,
 		OS:           runtime.GOOS,
+		AuthEnabled:  authEnabled,
 	}
 
 	configData = &config

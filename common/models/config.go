@@ -30,4 +30,5 @@ type HubConfig struct {
 	OSTempDir            string `json:"-"`
 	FilesTempDir         string `json:"-"`
 	OS                   string `json:"os"`
+	AuthEnabled          bool   `json:"auth_enabled"`
 }
