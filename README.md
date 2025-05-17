@@ -11,7 +11,7 @@
     <img src="/docs/gads-logo.png" width="256" alt="GADS - Open Source Mobile Device Farm Platform for iOS and Android Automated Testing"/>
   </picture>
 
-  <h1>GADS - Open Source Device Farm for Mobile Testing</h1>
+  <h1>GADS - Device Farm for Mobile Testing</h1>
 
   [![GitHub Stars](https://img.shields.io/github/stars/shamanec/GADS?style=social)](https://github.com/shamanec/GADS/stargazers)
   [![GitHub Release](https://img.shields.io/github/v/release/shamanec/GADS)](https://github.com/shamanec/GADS/releases)
@@ -19,7 +19,7 @@
   [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
   [![Discord](https://dcbadge.vercel.app/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
 
-  🚀 **Self-Hosted Device Farm & Test Automation Platform** - Open Source Alternative to AWS Device Farm and Firebase Test Lab
+  🚀 **Self-Hosted Device Farm & Test Automation Platform** - Alternative to AWS Device Farm and Firebase Test Lab
 </div>
 
 ## 🎯 What is GADS?
@@ -31,7 +31,7 @@ The platform architecture consists of two main components:
 - **Provider**: Handles device setup and makes them available for remote access.
 
 ### Why Choose GADS?
-- 💰 **Free & Open Source**: Complete alternative to AWS Device Farm and Firebase Test Lab
+- 💰 **Free**: Self-hosted alternative to AWS Device Farm and Firebase Test Lab
 - 📱 **Cross-Platform**: Full support for both iOS and Android devices
 - 🎮 **Remote Control**: Real-time device control and testing capabilities
 - 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
@@ -46,6 +46,7 @@ The platform architecture consists of two main components:
 - 📱 **Device Control**
   - Real-time video streaming (MJPEG)
   - Remote interactions: tap, swipe, text input
+  - Keyboard typing
   - App installation/uninstallation
   - High-quality screenshots
   - Device reservation system
@@ -68,6 +69,7 @@ The platform architecture consists of two main components:
   - Android streaming via [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
   - Android WebRTC video stream (Experimental) - [notes](./docs/provider.md#android-webrtc-video---experimental)
   - Comprehensive Appium-based device interaction
+  - Keyboard typing (highly performant on Android, usable on iOS)
 - 🧪 **Testing Integration**
   - Individual Appium server endpoints
   - Optional Selenium Grid 4 node registration
@@ -129,9 +131,13 @@ GADS, including both open source and obfuscated proprietary components, is freel
 # Clone the repository
 git clone https://github.com/shamanec/GADS
 
-# Build the application
+# Build the application without UI
 cd ../..
 go build .
+
+# Or build the application with UI
+cd ../..
+go build -tags ui .
 ```
 
 ### 🛠️ Common setup

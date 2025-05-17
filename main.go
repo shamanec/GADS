@@ -29,7 +29,7 @@ func main() {
 	}
 	hubCmd.Flags().String("host-address", "localhost", "The IP address of the host machine")
 	hubCmd.Flags().String("port", "", "The port on which the component should run")
-	hubCmd.Flags().String("files-dir", "", "Directory where the UI static files and other resources will be unpacked."+
+	hubCmd.Flags().String("files-dir", "", "Directory where resource files will be unpacked."+
 		"\nBy default app will try to use a temp dir on the host, use this flag only if you encounter issues with the temp folder."+
 		"\nAlso you need to have created the folder in advance!")
 	rootCmd.AddCommand(hubCmd)
