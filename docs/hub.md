@@ -9,7 +9,8 @@ You can have multiple provider instances on different hosts providing devices.
 ## Starting hub instance
 Run `./GADS hub` with the following flags:
 - `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)  
-- `--port=` - port on which the UI and backend service will run  
+- `--port=` - port on which the UI and backend service will be served  
+- `--auth=` - enable/disable authentication. When disabled you can access any UI page/hub endpoint without login token validation, note that this is **highly insecure** and should be used only for development - `true/false` 
 - `--mongo-db=` - IP address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`) - tested only on local network
 - `--files-dir=` - directory where the UI static files will be unpacked and served from. By default the app tries to use a temporary folder available on the host automatically. **NB** Use this flag only if you have issues with the default behaviour.
 

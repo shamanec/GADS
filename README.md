@@ -139,6 +139,7 @@ go build .
 
 #### Option 3: Build from source for UI related development
 **IMPORTANT** You can freely use the Go code to your ends or provide new features/bug fixes on mainstream project but any changes to the UI should be requested from the core team.  
+
 1. Clone the repository
 ```bash
 git clone https://github.com/shamanec/GADS
