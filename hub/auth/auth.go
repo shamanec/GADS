@@ -39,8 +39,8 @@ func GetOriginFromRequest(c *gin.Context) string {
 		return normalizeOrigin(xorigin)
 	}
 
-	// Default to unknown origin
-	return "unknown"
+	// Default to blank origin
+	return ""
 }
 
 // extractOriginFromURL parses a full URL and returns only the origin part (scheme + host + port)
