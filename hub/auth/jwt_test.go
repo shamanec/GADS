@@ -384,3 +384,59 @@ func TestSecretCache(t *testing.T) {
 	key = cache.GetKey("test-origin")
 	assert.Equal(t, []byte("test_secret_key"), key)
 }
+
+func TestDynamicIdentifierClaims(t *testing.T) {
+	// Setup test environment
+	originalCache := secretCache
+	defer func() {
+		secretCache = originalCache
+	}()
+
+	store := NewMockSecretStore()
+
+	// Add a key with custom identifier claims
+	customKey := &SecretKey{
+		Origin:                "custom-origin",
+		Key:                   "custom_secret_key",
+		IsDefault:             false,
+		UserIdentifierClaim:   "custom_user",
+		TenantIdentifierClaim: "custom_tenant",
+	}
+	store.AddSecretKey(customKey, "system", "Test setup")
+
+	// Add default key
+	store.AddSecretKey(&SecretKey{
+		Origin:    "default",
+		Key:       "default_secret_key",
+		IsDefault: true,
+	}, "system", "Test setup")
+
+	// Initialize cache with our test store
+	secretCache = NewSecretCache(store, time.Minute)
+
+	// Create a token with custom claims
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":           "standard-subject",
+		"custom_user":   "user-from-custom-claim",
+		"custom_tenant": "tenant-from-custom-claim",
+		"username":      "standard-username",
+		"tenant":        "standard-tenant",
+		"role":          "user",
+		"scope":         []string{"user"},
+		"origin":        "custom-origin",
+		"exp":           time.Now().Add(time.Hour).Unix(),
+	})
+
+	// Sign the token with our key
+	tokenString, err := token.SignedString([]byte("custom_secret_key"))
+	assert.NoError(t, err)
+
+	// Validate and verify that custom claims are used
+	claims, err := ValidateJWT(tokenString, "custom-origin")
+	assert.NoError(t, err)
+	assert.NotNil(t, claims)
+
+	// Should use the custom identifier claims
+	assert.Equal(t, "user-from-custom-claim", claims.Username)
+	assert.Equal(t, "tenant-from-custom-claim", claims.Tenant)
+}

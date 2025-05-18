@@ -16,15 +16,16 @@ const secretKeysCollection = "secret_keys"
 
 // SecretKey represents a JWT secret key for a specific origin
 type SecretKey struct {
-	ID                  primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Origin              string             `bson:"origin" json:"origin"`
-	Key                 string             `bson:"key" json:"key"`
-	IsDefault           bool               `bson:"is_default" json:"is_default"`
-	CreatedAt           time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt           time.Time          `bson:"updated_at" json:"updated_at"`
-	Disabled            bool               `bson:"disabled" json:"disabled"`
-	DisabledAt          *time.Time         `bson:"disabled_at,omitempty" json:"disabled_at,omitempty"`
-	UserIdentifierClaim string             `bson:"user_identifier_claim,omitempty" json:"user_identifier_claim,omitempty"`
+	ID                    primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Origin                string             `bson:"origin" json:"origin"`
+	Key                   string             `bson:"key" json:"key"`
+	IsDefault             bool               `bson:"is_default" json:"is_default"`
+	CreatedAt             time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt             time.Time          `bson:"updated_at" json:"updated_at"`
+	Disabled              bool               `bson:"disabled" json:"disabled"`
+	DisabledAt            *time.Time         `bson:"disabled_at,omitempty" json:"disabled_at,omitempty"`
+	UserIdentifierClaim   string             `bson:"user_identifier_claim,omitempty" json:"user_identifier_claim,omitempty"`
+	TenantIdentifierClaim string             `bson:"tenant_identifier_claim,omitempty" json:"tenant_identifier_claim,omitempty"`
 }
 
 // Errors

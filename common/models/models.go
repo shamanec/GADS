@@ -152,6 +152,7 @@ type Workspace struct {
 	Name        string `json:"name" bson:"name"`
 	Description string `json:"description" bson:"description"`
 	IsDefault   bool   `json:"is_default" bson:"is_default"`
+	Tenant      string `json:"tenant" bson:"tenant,omitempty"`
 }
 
 type ProviderLog struct {

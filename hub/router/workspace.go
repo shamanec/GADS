@@ -96,6 +96,7 @@ func GetWorkspaces(c *gin.Context) {
 	pageStr := c.Query("page")
 	limitStr := c.Query("limit")
 	searchStr := c.Query("search")
+	tenantStr := c.Query("tenant")
 
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
@@ -108,6 +109,19 @@ func GetWorkspaces(c *gin.Context) {
 	}
 
 	workspaces, totalCount := db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
+
+	// Filter by tenant if specified
+	if tenantStr != "" {
+		var filteredWorkspaces []models.Workspace
+		for _, ws := range workspaces {
+			if ws.Tenant == tenantStr {
+				filteredWorkspaces = append(filteredWorkspaces, ws)
+			}
+		}
+		workspaces = filteredWorkspaces
+		totalCount = int64(len(filteredWorkspaces))
+	}
+
 	c.JSON(http.StatusOK, gin.H{"workspaces": workspaces, "total": totalCount})
 }
 
@@ -117,6 +131,8 @@ func GetUserWorkspaces(c *gin.Context) {
 
 	var username string
 	var role string
+	var tenant string
+	var issuer string
 
 	if authHeader != "" {
 		// Extract token from Bearer format
@@ -130,6 +146,8 @@ func GetUserWorkspaces(c *gin.Context) {
 			if err == nil {
 				username = claims.Username
 				role = claims.Role
+				tenant = claims.Tenant
+				issuer = claims.Issuer
 			}
 		}
 	}
@@ -160,8 +178,30 @@ func GetUserWorkspaces(c *gin.Context) {
 	if role == "admin" {
 		workspaces, _ = db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
 	} else {
-		// For non-admin users, only return workspaces associated with the user
-		workspaces = db.GlobalMongoStore.GetUserWorkspaces(username)
+		// Check if the token was issued by GADS itself
+		if issuer == "gads" {
+			// For internal tokens, use the standard method based on user association
+			workspaces = db.GlobalMongoStore.GetUserWorkspaces(username)
+		} else {
+			// For external tokens, get all workspaces and filter by tenant
+			allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
+
+			// If tenant is specified, filter by it
+			if tenant != "" {
+				for _, ws := range allWorkspaces {
+					if ws.Tenant == tenant {
+						workspaces = append(workspaces, ws)
+					}
+				}
+			} else {
+				// If there is no tenant in the token, show only workspaces without tenant
+				for _, ws := range allWorkspaces {
+					if ws.Tenant == "" {
+						workspaces = append(workspaces, ws)
+					}
+				}
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

@@ -26,12 +26,13 @@ func GetSecretKeys(c *gin.Context) {
 	var response []gin.H = []gin.H{}
 	for _, key := range keys {
 		response = append(response, gin.H{
-			"id":                    key.ID.Hex(),
-			"origin":                key.Origin,
-			"is_default":            key.IsDefault,
-			"created_at":            key.CreatedAt,
-			"updated_at":            key.UpdatedAt,
-			"user_identifier_claim": key.UserIdentifierClaim,
+			"id":                      key.ID.Hex(),
+			"origin":                  key.Origin,
+			"is_default":              key.IsDefault,
+			"created_at":              key.CreatedAt,
+			"updated_at":              key.UpdatedAt,
+			"user_identifier_claim":   key.UserIdentifierClaim,
+			"tenant_identifier_claim": key.TenantIdentifierClaim,
 		})
 	}
 
@@ -49,11 +50,12 @@ func AddSecretKey(c *gin.Context) {
 
 	// Parse request body
 	var request struct {
-		Origin              string `json:"origin" binding:"required"`
-		Key                 string `json:"key" binding:"required"`
-		IsDefault           bool   `json:"is_default"`
-		Justification       string `json:"justification"`
-		UserIdentifierClaim string `json:"user_identifier_claim"`
+		Origin                string `json:"origin" binding:"required"`
+		Key                   string `json:"key" binding:"required"`
+		IsDefault             bool   `json:"is_default"`
+		Justification         string `json:"justification"`
+		UserIdentifierClaim   string `json:"user_identifier_claim"`
+		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -62,12 +64,13 @@ func AddSecretKey(c *gin.Context) {
 
 	// Create secret key
 	secretKey := &auth.SecretKey{
-		Origin:              request.Origin,
-		Key:                 request.Key,
-		IsDefault:           request.IsDefault,
-		CreatedAt:           time.Now(),
-		UpdatedAt:           time.Now(),
-		UserIdentifierClaim: request.UserIdentifierClaim,
+		Origin:                request.Origin,
+		Key:                   request.Key,
+		IsDefault:             request.IsDefault,
+		CreatedAt:             time.Now(),
+		UpdatedAt:             time.Now(),
+		UserIdentifierClaim:   request.UserIdentifierClaim,
+		TenantIdentifierClaim: request.TenantIdentifierClaim,
 	}
 
 	// Add secret key to database
@@ -90,12 +93,13 @@ func AddSecretKey(c *gin.Context) {
 
 	// Return success response
 	c.JSON(http.StatusOK, gin.H{
-		"id":                    secretKey.ID.Hex(),
-		"origin":                secretKey.Origin,
-		"is_default":            secretKey.IsDefault,
-		"created_at":            secretKey.CreatedAt,
-		"updated_at":            secretKey.UpdatedAt,
-		"user_identifier_claim": secretKey.UserIdentifierClaim,
+		"id":                      secretKey.ID.Hex(),
+		"origin":                  secretKey.Origin,
+		"is_default":              secretKey.IsDefault,
+		"created_at":              secretKey.CreatedAt,
+		"updated_at":              secretKey.UpdatedAt,
+		"user_identifier_claim":   secretKey.UserIdentifierClaim,
+		"tenant_identifier_claim": secretKey.TenantIdentifierClaim,
 	})
 }
 
@@ -118,10 +122,11 @@ func UpdateSecretKey(c *gin.Context) {
 
 	// Parse request body
 	var request struct {
-		Key                 string `json:"key"`
-		IsDefault           bool   `json:"is_default"`
-		Justification       string `json:"justification"`
-		UserIdentifierClaim string `json:"user_identifier_claim"`
+		Key                   string `json:"key"`
+		IsDefault             bool   `json:"is_default"`
+		Justification         string `json:"justification"`
+		UserIdentifierClaim   string `json:"user_identifier_claim"`
+		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -150,6 +155,9 @@ func UpdateSecretKey(c *gin.Context) {
 	if request.UserIdentifierClaim != "" {
 		secretKey.UserIdentifierClaim = request.UserIdentifierClaim
 	}
+	if request.TenantIdentifierClaim != "" {
+		secretKey.TenantIdentifierClaim = request.TenantIdentifierClaim
+	}
 
 	// Save secret key to database
 	err = store.UpdateSecretKey(secretKey, username, request.Justification)
@@ -166,12 +174,13 @@ func UpdateSecretKey(c *gin.Context) {
 
 	// Return success response
 	c.JSON(http.StatusOK, gin.H{
-		"id":                    secretKey.ID.Hex(),
-		"origin":                secretKey.Origin,
-		"is_default":            secretKey.IsDefault,
-		"created_at":            secretKey.CreatedAt,
-		"updated_at":            secretKey.UpdatedAt,
-		"user_identifier_claim": secretKey.UserIdentifierClaim,
+		"id":                      secretKey.ID.Hex(),
+		"origin":                  secretKey.Origin,
+		"is_default":              secretKey.IsDefault,
+		"created_at":              secretKey.CreatedAt,
+		"updated_at":              secretKey.UpdatedAt,
+		"user_identifier_claim":   secretKey.UserIdentifierClaim,
+		"tenant_identifier_claim": secretKey.TenantIdentifierClaim,
 	})
 }
 

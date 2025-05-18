@@ -212,7 +212,7 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 		return nil, errors.New("invalid claims")
 	}
 
-	// Parse token as MapClaims para acessar claims customizadas
+	// Parse token as MapClaims to access custom claims
 	parsedToken, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
 	var mapClaims jwt.MapClaims
 	if err == nil {
@@ -221,21 +221,27 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 		}
 	}
 
-	// Buscar a secret key do origin para saber qual claim usar
+	// Get the secret key from the origin to know which claim to use
 	var userIdentifierClaim string
+	var tenantIdentifierClaim string
 	store := GetSecretCache().store
 	if store != nil {
 		secretKey, err := store.GetSecretKeyByOrigin(usedOrigin)
 		if err != nil {
-			// fallback para default
+			// fallback to default
 			secretKey, _ = store.GetDefaultSecretKey()
 		}
-		if secretKey != nil && secretKey.UserIdentifierClaim != "" {
-			userIdentifierClaim = secretKey.UserIdentifierClaim
+		if secretKey != nil {
+			if secretKey.UserIdentifierClaim != "" {
+				userIdentifierClaim = secretKey.UserIdentifierClaim
+			}
+			if secretKey.TenantIdentifierClaim != "" {
+				tenantIdentifierClaim = secretKey.TenantIdentifierClaim
+			}
 		}
 	}
 
-	// Buscar o valor da claim correta (dinâmico)
+	// Get the correct claim value for username (dynamic)
 	if userIdentifierClaim != "" && mapClaims != nil {
 		if val, ok := mapClaims[userIdentifierClaim]; ok {
 			if s, ok := val.(string); ok {
@@ -247,6 +253,17 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 			switch userIdentifierClaim {
 			case "sub":
 				claims.Username = claims.Subject
+			}
+		}
+	}
+
+	// Get the correct claim value for tenant (dynamic)
+	if tenantIdentifierClaim != "" && mapClaims != nil {
+		if val, ok := mapClaims[tenantIdentifierClaim]; ok {
+			if s, ok := val.(string); ok {
+				claims.Tenant = s
+			} else {
+				claims.Tenant = ""
 			}
 		}
 	}

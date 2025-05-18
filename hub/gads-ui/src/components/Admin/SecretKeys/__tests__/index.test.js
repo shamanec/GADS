@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SnackbarProvider } from '../../../../contexts/SnackBarContext';
 import { DialogProvider } from '../../../../contexts/DialogContext';
@@ -24,14 +24,18 @@ const mockSecretKeys = {
       origin: 'com.example.app1',
       is_default: true,
       created_at: '2023-01-01T00:00:00Z',
-      updated_at: '2023-01-01T00:00:00Z'
+      updated_at: '2023-01-01T00:00:00Z',
+      user_identifier_claim: 'sub',
+      tenant_identifier_claim: 'tenant_id'
     },
     {
       id: '2',
       origin: 'com.example.app2',
       is_default: false,
       created_at: '2023-01-02T00:00:00Z',
-      updated_at: '2023-01-02T00:00:00Z'
+      updated_at: '2023-01-02T00:00:00Z',
+      user_identifier_claim: 'email',
+      tenant_identifier_claim: null
     }
   ]
 };
@@ -65,14 +69,26 @@ describe('SecretKeys Component', () => {
     
     // Check for buttons that are now in SecretKeyList
     await waitFor(() => {
-      expect(screen.getByText('Add Secret Key')).toBeInTheDocument();
-      expect(screen.getByText('View History')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Add Secret Key/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /View History/i })).toBeInTheDocument();
     });
     
     // Ensure secret keys are displayed after loading
     await waitFor(() => {
       expect(screen.getByText('com.example.app1')).toBeInTheDocument();
       expect(screen.getByText('com.example.app2')).toBeInTheDocument();
+      
+      // Check that User Identifier Claim values are displayed
+      expect(screen.getByText('sub')).toBeInTheDocument();
+      expect(screen.getByText('email')).toBeInTheDocument();
+      
+      // Check that Tenant Identifier Claim values are displayed
+      expect(screen.getByText('tenant_id')).toBeInTheDocument();
+      expect(screen.getAllByText('-')[0]).toBeInTheDocument(); // For the null tenant identifier claim
+      
+      // Check that column headers are displayed
+      expect(screen.getByText('User Identifier Claim')).toBeInTheDocument();
+      expect(screen.getByText('Tenant Identifier Claim')).toBeInTheDocument();
     });
   });
 
@@ -101,7 +117,7 @@ describe('SecretKeys Component', () => {
     });
     
     // Click on Add Secret Key button
-    const addButton = screen.getByText('Add Secret Key');
+    const addButton = screen.getByRole('button', { name: /Add Secret Key/i });
     userEvent.click(addButton);
     
     // Check that modal is displayed
@@ -110,12 +126,26 @@ describe('SecretKeys Component', () => {
     });
     
     // Check form fields
-    expect(screen.getByLabelText(/Origin/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Secret Key/i)).toBeInTheDocument();
+    const originField = screen.getByRole('textbox', { name: /^Origin/ });
+    expect(originField).toBeInTheDocument();
+    
+    const secretKeyField = screen.getByLabelText(/^Secret Key/);
+    expect(secretKeyField).toBeInTheDocument();
+    
+    const userIdentifierClaimField = screen.getByRole('textbox', { name: /^User Identifier Claim/ });
+    expect(userIdentifierClaimField).toBeInTheDocument();
+    
+    const tenantIdentifierClaimField = screen.getByRole('textbox', { name: /^Tenant Identifier Claim/ });
+    expect(tenantIdentifierClaimField).toBeInTheDocument();
+    
+    // Check checkbox using the tooltip text
+    const checkboxLabel = screen.getByText('Set as default key');
+    expect(checkboxLabel).toBeInTheDocument();
+    
     expect(screen.getByText('Generate Secure Key')).toBeInTheDocument();
     
     // Click Cancel button
-    const cancelButton = screen.getByText('Cancel');
+    const cancelButton = screen.getByRole('button', { name: /Cancel/i });
     userEvent.click(cancelButton);
     
     // Check that modal is closed
@@ -141,7 +171,7 @@ describe('SecretKeys Component', () => {
     });
     
     // Click on history button
-    const historyButton = screen.getByText('View History');
+    const historyButton = screen.getByRole('button', { name: /View History/i });
     userEvent.click(historyButton);
     
     // Check that history view is displayed
@@ -155,7 +185,7 @@ describe('SecretKeys Component', () => {
     
     // Check that main view is displayed again
     await waitFor(() => {
-      expect(screen.getByText('Add Secret Key')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Add Secret Key/i })).toBeInTheDocument();
     });
   });
 
@@ -168,7 +198,7 @@ describe('SecretKeys Component', () => {
     });
     
     // Get all Edit buttons
-    const editButtons = screen.getAllByText('Edit');
+    const editButtons = screen.getAllByRole('button', { name: /Edit/i });
     userEvent.click(editButtons[0]);
     
     // Check that modal is displayed in edit mode
@@ -177,11 +207,20 @@ describe('SecretKeys Component', () => {
     });
     
     // Check that form is pre-filled
-    const originField = screen.getByLabelText(/Origin/i);
+    const originField = screen.getByRole('textbox', { name: /^Origin/ });
     expect(originField).toBeDisabled(); // Origin field should be disabled in edit mode
+    expect(originField).toHaveValue('com.example.app1');
+    
+    // Check that User Identifier Claim is pre-filled
+    const userIdentifierClaimField = screen.getByRole('textbox', { name: /^User Identifier Claim/ });
+    expect(userIdentifierClaimField).toHaveValue('sub');
+    
+    // Check that Tenant Identifier Claim is pre-filled
+    const tenantIdentifierClaimField = screen.getByRole('textbox', { name: /^Tenant Identifier Claim/ });
+    expect(tenantIdentifierClaimField).toHaveValue('tenant_id');
     
     // Click Cancel button
-    const cancelButton = screen.getByText('Cancel');
+    const cancelButton = screen.getByRole('button', { name: /Cancel/i });
     userEvent.click(cancelButton);
     
     // Check that modal is closed

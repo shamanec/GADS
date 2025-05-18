@@ -23,6 +23,7 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
   const [loading, setLoading] = useState(false);
   const [justification, setJustification] = useState('');
   const [userIdentifierClaim, setUserIdentifierClaim] = useState('');
+  const [tenantIdentifierClaim, setTenantIdentifierClaim] = useState('');
   const { showSnackbar } = useSnackbar();
   const { showDialog } = useDialog();
 
@@ -33,6 +34,7 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
       setIsDefault(secretKey.is_default || false);
       setIsDefaultOriginal(secretKey.is_default || false);
       setUserIdentifierClaim(secretKey.user_identifier_claim || '');
+      setTenantIdentifierClaim(secretKey.tenant_identifier_claim || '');
     } else {
       // Reset the form when not in edit mode
       setOrigin('');
@@ -41,6 +43,7 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
       setIsDefaultOriginal(false);
       setJustification('');
       setUserIdentifierClaim('');
+      setTenantIdentifierClaim('');
     }
   }, [editMode, secretKey]);
 
@@ -94,7 +97,8 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
       key: secret,
       is_default: isDefault,
       justification: justification || undefined,
-      user_identifier_claim: userIdentifierClaim || undefined
+      user_identifier_claim: userIdentifierClaim || undefined,
+      tenant_identifier_claim: tenantIdentifierClaim || undefined
     });
   };
 
@@ -116,6 +120,10 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
     // Add userIdentifierClaim if provided
     if (userIdentifierClaim.trim() !== '') {
       updateData.user_identifier_claim = userIdentifierClaim;
+    }
+    // Add tenantIdentifierClaim if provided
+    if (tenantIdentifierClaim.trim() !== '') {
+      updateData.tenant_identifier_claim = tenantIdentifierClaim;
     }
     
     await api.put(`/admin/secret-keys/${secretKey.id}`, updateData);
@@ -196,6 +204,15 @@ export default function SecretKeyForm({ editMode = false, secretKey = null, onCa
             fullWidth
             size="small"
             helperText="The claim name in the JWT that identifies the user (e.g., 'sub', 'username', 'email')"
+          />
+          
+          <TextField
+            label="Tenant Identifier Claim"
+            value={tenantIdentifierClaim}
+            onChange={(e) => setTenantIdentifierClaim(e.target.value)}
+            fullWidth
+            size="small"
+            helperText="The claim name in the JWT that identifies the tenant (e.g., 'tenant_id', 'organization')"
           />
           
           <Box>
