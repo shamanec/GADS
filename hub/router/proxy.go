@@ -29,21 +29,32 @@ func DeviceProxyHandler(c *gin.Context) {
 	udid := c.Param("udid")
 	path := c.Param("path")
 
-	devices.HubDevicesData.Mu.Lock()
-	device, ok := devices.HubDevicesData.Devices[udid]
+	var username string
 
-	// Get session token (from header or query parameter)
-	sessionID := c.GetHeader("X-Auth-Token")
-	if sessionID == "" {
-		sessionID = c.Query("X-Auth-Token")
+	authHeader := c.GetHeader("Authorization")
+
+	if authHeader != "" {
+		// Extract token from Bearer format
+		tokenString, err := auth.ExtractTokenFromBearer(authHeader)
+		if err == nil {
+			// Get origin from request
+			origin := auth.GetOriginFromRequest(c)
+
+			// Get claims from token with origin
+			claims, err := auth.GetClaimsFromToken(tokenString, origin)
+			if err == nil {
+				username = claims.Username
+			}
+		}
 	}
 
-	session, sessionExists := auth.GetSession(sessionID)
+	devices.HubDevicesData.Mu.Lock()
+	device, ok := devices.HubDevicesData.Devices[udid]
 
 	// Verify if the device is already in use by another user
 	if ok && device != nil && device.InUseBy != "" && device.InUseBy != "automation" &&
 		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
-		(!sessionExists || device.InUseBy != session.User.Username) {
+		(device.InUseBy != username) {
 
 		devices.HubDevicesData.Mu.Unlock()
 		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
