@@ -63,7 +63,12 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	device, ok := devices.DBDeviceMap[udid]
+	if !ok || device == nil {
+		logger.ProviderLogger.LogError("AndroidStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 
 	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
 	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
@@ -113,7 +118,12 @@ func IOSStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	device, ok := devices.DBDeviceMap[udid]
+	if !ok || device == nil {
+		logger.ProviderLogger.LogError("IOSStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 
 	// Read data from device
 	server := "localhost:" + device.StreamPort
@@ -168,7 +178,12 @@ func IOSStreamMJPEG(c *gin.Context) {
 
 func IOSStreamMJPEGWda(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	device, ok := devices.DBDeviceMap[udid]
+	if !ok || device == nil {
+		logger.ProviderLogger.LogError("IOSStreamMJPEGWda", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 
 	// Set the necessary headers for MJPEG streaming
 	// Note: The "boundary" is arbitrary but must be unique and consistent.
@@ -240,7 +255,13 @@ func IOSStreamMJPEGWda(c *gin.Context) {
 
 func IosStreamProxyGADS(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	device, ok := devices.DBDeviceMap[udid]
+	if !ok || device == nil {
+		logger.ProviderLogger.LogError("IosStreamProxyGADS", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
 	jpegChannel := make(chan []byte, 15)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -327,7 +348,12 @@ func IosStreamProxyGADS(c *gin.Context) {
 
 func IosStreamProxyWDA(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	device, ok := devices.DBDeviceMap[udid]
+	if !ok || device == nil {
+		logger.ProviderLogger.LogError("IosStreamProxyWDA", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {

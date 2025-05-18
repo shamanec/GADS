@@ -28,6 +28,15 @@ func DeviceProxyHandler(c *gin.Context) {
 	udid := c.Param("udid")
 	path := c.Param("path")
 
+	devices.HubDevicesData.Mu.Lock()
+	device, ok := devices.HubDevicesData.Devices[udid]
+	devices.HubDevicesData.Mu.Unlock()
+
+	if !ok || device == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with UDID `%s` not found or is nil", udid)})
+		return
+	}
+
 	// Create a new ReverseProxy instance that will forward the requests
 	// Update its scheme, host and path in the Director
 	// Limit the number of open connections for the host
