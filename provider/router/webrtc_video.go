@@ -5,6 +5,7 @@ import (
 	"GADS/provider/logger"
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,13 @@ type WebRTCMessage struct {
 func DevicesWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	device := devices.DBDeviceMap[udid]
+	device, ok := devices.DBDeviceMap[udid]
+	if !ok || device == nil {
+		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to upgrade connection to websocket for device `%s` - %s", udid, err))
