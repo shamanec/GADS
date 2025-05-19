@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../../services/api';
-import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, CircularProgress, Paper, Modal, TextField, Stack, TablePagination } from '@mui/material';
+import { Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel, CircularProgress, Paper, Modal, TextField, Stack, TablePagination, Tooltip, IconButton } from '@mui/material';
 import { useSnackbar } from '../../../contexts/SnackBarContext';
 import './WorkspacesAdministration.css';
-import { FiSearch } from 'react-icons/fi'
+import { FiSearch, FiCopy } from 'react-icons/fi'
 import { useDialog } from '../../../contexts/DialogContext';
 
 export default function WorkspacesAdministration() {
@@ -146,6 +146,41 @@ export default function WorkspacesAdministration() {
         setPage(0);
     };
 
+    const truncateText = (text, maxLength = 10) => {
+        if (!text) return '-';
+        if (text.length <= maxLength) return text;
+        
+        const start = text.substring(0, maxLength/2);
+        const end = text.substring(text.length - maxLength/2);
+        return `${start}...${end}`;
+    };
+
+    const copyToClipboard = (text) => {
+        try {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    showSnackbar({
+                    message: 'Tenant copied successfully!',
+                    severity: 'success',
+                    duration: 2000,
+                });
+            })
+            .catch((error) => {
+                showSnackbar({
+                    message: 'Failed to copy tenant.',
+                    severity: 'error',
+                    duration: 3000,
+                });
+            });
+        } catch (error) {
+            showSnackbar({
+                message: 'Failed to copy tenant.',
+                severity: 'error',
+                duration: 3000,
+            });
+        }
+    };
+
     return (
         <Stack id='outer-stack' direction='row' spacing={2}>
             <Box id='outer-box' className='workspace-managment-container'>
@@ -176,7 +211,22 @@ export default function WorkspacesAdministration() {
                                     <TableRow key={workspace.id}>
                                         <TableCell>{workspace.name}</TableCell>
                                         <TableCell>{workspace.description}</TableCell>
-                                        <TableCell>{workspace.tenant || '-'}</TableCell>
+                                        <TableCell>
+                                            {workspace.tenant ? (
+                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    <Tooltip title={workspace.tenant} arrow>
+                                                        <span>{truncateText(workspace.tenant)}</span>
+                                                    </Tooltip>
+                                                    <IconButton 
+                                                        size="small" 
+                                                        onClick={() => copyToClipboard(workspace.tenant)}
+                                                        sx={{ ml: 1 }}
+                                                    >
+                                                        <FiCopy size={16} />
+                                                    </IconButton>
+                                                </Box>
+                                            ) : '-'}
+                                        </TableCell>
                                         <TableCell>{workspace.is_default ? 'Default' : 'Custom'}</TableCell>
                                         <TableCell>
                                             <Button style={{ marginRight: '10px' }} variant='contained' onClick={() => handleEditWorkspace(workspace)}>
