@@ -63,8 +63,8 @@ export const getSecretKeyHistory = async (page = 1, limit = 10, filters = {}) =>
     if (filters.action) {
       url += `&action=${encodeURIComponent(filters.action)}`;
     }
-    if (filters.user) {
-      url += `&user_id=${encodeURIComponent(filters.user)}`;
+    if (filters.username) {
+      url += `&username=${encodeURIComponent(filters.username)}`;
     }
     if (filters.fromDate) {
       url += `&from_date=${encodeURIComponent(filters.fromDate)}`;

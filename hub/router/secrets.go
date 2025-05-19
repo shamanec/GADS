@@ -258,8 +258,8 @@ func GetSecretKeyHistory(c *gin.Context) {
 		filters["action"] = action
 	}
 
-	if userID := c.Query("user_id"); userID != "" {
-		filters["user_id"] = userID
+	if username := c.Query("username"); username != "" {
+		filters["username"] = username
 	}
 
 	// Date filters

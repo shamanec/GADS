@@ -53,7 +53,7 @@ export default function SecretKeyHistory({ onBack }) {
       const apiFilters = {};
       if (filterOrigin) apiFilters.origin = filterOrigin;
       if (filterAction) apiFilters.action = filterAction;
-      if (filterUser) apiFilters.user = filterUser;
+      if (filterUser) apiFilters.username = filterUser;
       if (filterFromDate) apiFilters.fromDate = new Date(filterFromDate).toISOString();
       if (filterToDate) apiFilters.toDate = new Date(filterToDate).toISOString();
 
