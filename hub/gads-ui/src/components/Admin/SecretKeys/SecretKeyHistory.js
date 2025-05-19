@@ -175,7 +175,7 @@ export default function SecretKeyHistory({ onBack }) {
       </div>
 
       {showAdvancedFilters && (
-        <Paper sx={{ p: 2, mb: 3 }}>
+        <Paper sx={{ p: 2, mb: 3, backgroundColor: '#f4e6cd' }} elevation={0}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
