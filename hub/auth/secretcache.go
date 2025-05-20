@@ -65,9 +65,10 @@ func (c *SecretCache) Refresh() error {
 
 		// Create a new default key
 		defaultKey := &SecretKey{
-			Origin:    "default",
-			Key:       randomKey,
-			IsDefault: true,
+			Origin:              "default",
+			Key:                 randomKey,
+			IsDefault:           true,
+			UserIdentifierClaim: "username",
 		}
 
 		// Use empty values to not associate with a specific user

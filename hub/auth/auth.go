@@ -184,14 +184,14 @@ func GetUserInfoHandler(c *gin.Context) {
 		}
 	}
 
-	// Buscar a secret key do origin para saber qual claim usar
+	// Get the secret key for the origin to know which claim to use
 	var userIdentifier string
 	var userIdentifierClaim string
 	store := GetSecretCache().store
 	if store != nil {
 		secretKey, err := store.GetSecretKeyByOrigin(origin)
 		if err != nil {
-			// fallback para default
+			// fallback to default
 			secretKey, _ = store.GetDefaultSecretKey()
 		}
 		if secretKey != nil && secretKey.UserIdentifierClaim != "" {
@@ -199,7 +199,7 @@ func GetUserInfoHandler(c *gin.Context) {
 		}
 	}
 
-	// Buscar o valor da claim correta (dinâmico)
+	// Get the user identifier from the claim
 	if userIdentifierClaim != "" && mapClaims != nil {
 		if val, ok := mapClaims[userIdentifierClaim]; ok {
 			if s, ok := val.(string); ok {
@@ -226,13 +226,13 @@ func GetUserInfoHandler(c *gin.Context) {
 		userIdentifier = claims.Username
 	}
 
-	// Definir role padrão se não houver
+	// Define default role if not set
 	role := claims.Role
 	if role == "" {
 		role = "user"
 	}
 
-	// Definir scopes padrão se não houver
+	// Define default scopes if not set
 	scopes := claims.Scope
 	if len(scopes) == 0 {
 		scopes = []string{"user"}
