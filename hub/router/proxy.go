@@ -2,6 +2,7 @@ package router
 
 import (
 	"GADS/common/db"
+	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"fmt"
 	"net/http"
@@ -30,6 +31,25 @@ func DeviceProxyHandler(c *gin.Context) {
 
 	devices.HubDevicesData.Mu.Lock()
 	device, ok := devices.HubDevicesData.Devices[udid]
+
+	// Get session token (from header or query parameter)
+	sessionID := c.GetHeader("X-Auth-Token")
+	if sessionID == "" {
+		sessionID = c.Query("X-Auth-Token")
+	}
+
+	session, sessionExists := auth.GetSession(sessionID)
+
+	// Verify if the device is already in use by another user
+	if ok && device != nil && device.InUseBy != "" && device.InUseBy != "automation" &&
+		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
+		(!sessionExists || device.InUseBy != session.User.Username) {
+
+		devices.HubDevicesData.Mu.Unlock()
+		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
+		return
+	}
+
 	devices.HubDevicesData.Mu.Unlock()
 
 	if !ok || device == nil {

@@ -3,6 +3,7 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
 	"context"
@@ -423,6 +424,27 @@ func DeviceWebRTCWS(c *gin.Context) {
 // As well as send live updates when needed - device info, release device, etc
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
+
+	// Get session token (from header or query parameter)
+	sessionID := c.GetHeader("X-Auth-Token")
+	if sessionID == "" {
+		sessionID = c.Query("X-Auth-Token")
+	}
+
+	session, sessionExists := auth.GetSession(sessionID)
+
+	// Verify if the device is already in use by another user
+	devices.HubDevicesData.Mu.Lock()
+	device, exists := devices.HubDevicesData.Devices[udid]
+	if exists && device.InUseBy != "" && device.InUseBy != "automation" &&
+		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
+		(!sessionExists || device.InUseBy != session.User.Username) {
+
+		devices.HubDevicesData.Mu.Unlock()
+		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
+		return
+	}
+	devices.HubDevicesData.Mu.Unlock()
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
