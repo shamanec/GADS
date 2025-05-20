@@ -53,7 +53,7 @@ func AddSecretKey(c *gin.Context) {
 		Origin                string `json:"origin" binding:"required"`
 		Key                   string `json:"key" binding:"required"`
 		IsDefault             bool   `json:"is_default"`
-		Justification         string `json:"justification"`
+		Justification         string `json:"justification" binding:"required"`
 		UserIdentifierClaim   string `json:"user_identifier_claim"`
 		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
 	}
@@ -124,7 +124,7 @@ func UpdateSecretKey(c *gin.Context) {
 	var request struct {
 		Key                   string `json:"key"`
 		IsDefault             bool   `json:"is_default"`
-		Justification         string `json:"justification"`
+		Justification         string `json:"justification" binding:"required"`
 		UserIdentifierClaim   string `json:"user_identifier_claim"`
 		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
 	}
@@ -203,9 +203,12 @@ func DisableSecretKey(c *gin.Context) {
 
 	// Parse request body to get justification (optional)
 	var request struct {
-		Justification string `json:"justification"`
+		Justification string `json:"justification" binding:"required"`
 	}
-	c.ShouldBindJSON(&request) // Ignoring errors here as justification is optional
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body or missing justification"})
+		return
+	}
 
 	// Disable secret key
 	store := auth.NewSecretStore(db.GlobalMongoStore.GetDefaultDatabase())
