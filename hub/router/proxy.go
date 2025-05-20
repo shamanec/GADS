@@ -32,6 +32,9 @@ func DeviceProxyHandler(c *gin.Context) {
 	var username string
 
 	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		authHeader = c.Query("token")
+	}
 
 	if authHeader != "" {
 		// Extract token from Bearer format
