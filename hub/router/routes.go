@@ -442,9 +442,13 @@ func DeviceInUseWS(c *gin.Context) {
 
 		// Get claims from token with origin
 		claims, err := auth.GetClaimsFromToken(tokenString, origin)
-		if err == nil {
-			username = claims.Username
+		if err != nil || claims.Username == "" {
+			// Return 401 for any token validation error
+			c.Status(http.StatusUnauthorized)
+			return
 		}
+
+		username = claims.Username
 	}
 
 	// Verify if the device is already in use by another user
