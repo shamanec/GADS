@@ -44,7 +44,6 @@ var netClient = &http.Client{
 var DBDeviceMap = make(map[string]*models.Device)
 
 func Listener() {
-	Setup()
 	DBDeviceMap = getDBProviderDevices()
 	setupDevices()
 
@@ -215,15 +214,6 @@ func updateDevices() {
 				ResetLocalDevice(dbDevice, "Device is no longer connected.")
 				dbDevice.Connected = false
 			}
-		}
-	}
-}
-
-func Setup() {
-	if config.ProviderConfig.ProvideAndroid {
-		err := providerutil.CheckGadsStreamAndDownload()
-		if err != nil {
-			log.Fatalf("Setup: Could not check availability of and download GADS-stream latest release - %s", err)
 		}
 	}
 }
