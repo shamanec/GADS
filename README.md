@@ -35,6 +35,7 @@ The platform architecture consists of two main components:
 - 📱 **Cross-Platform**: Full support for both iOS and Android devices
 - 🎮 **Remote Control**: Real-time device control and testing capabilities
 - 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
+- 🔑 **Flexible Authentication**: Support for multiple JWT issuers with origin-based keys
 - 🛠 **Easy Setup**: Simple installation and configuration process
 
 ## ✨ Key Features
@@ -43,6 +44,9 @@ The platform architecture consists of two main components:
 - 🔐 **Authentication System**
   - User login with session management
   - Admin user management
+  - Origin-based secret key management
+  - Multiple JWT provider support
+  - [Detailed Secret Keys Documentation](./docs/secret-keys.md)
 - 📱 **Device Control**
   - Real-time video streaming (MJPEG)
   - Remote interactions: tap, swipe, text input

@@ -29,6 +29,7 @@ func (m *MongoStore) UpdateWorkspace(workspace *models.Workspace) error {
 	update := bson.M{
 		"name":        workspace.Name,
 		"description": workspace.Description,
+		"tenant":      workspace.Tenant,
 	}
 	return PartialDocumentUpdate(m.Ctx, coll, filter, update)
 }
@@ -94,7 +95,12 @@ func (m *MongoStore) GetWorkspacesPaginated(page, limit int, search string) ([]m
 
 	filter := bson.M{}
 	if search != "" {
-		filter["name"] = bson.M{"$regex": search, "$options": "i"} // Case-insensitive search
+		// Case-insensitive search in name, description, or tenant
+		filter["$or"] = []bson.M{
+			{"name": bson.M{"$regex": search, "$options": "i"}},
+			{"description": bson.M{"$regex": search, "$options": "i"}},
+			{"tenant": bson.M{"$regex": search, "$options": "i"}},
+		}
 	}
 
 	workspaces, err := GetDocuments[models.Workspace](m.Ctx, coll, filter, options.Find().SetSkip(int64(skip)).SetLimit(int64(limit)))

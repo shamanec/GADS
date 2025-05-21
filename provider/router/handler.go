@@ -12,7 +12,7 @@ func HandleRequests() *gin.Engine {
 	r := gin.Default()
 	rConfig := cors.DefaultConfig()
 	rConfig.AllowAllOrigins = true
-	rConfig.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
+	rConfig.AllowHeaders = []string{"Authorization", "Content-Type"}
 	r.Use(cors.New(rConfig))
 
 	r.GET("/info", GetProviderData)

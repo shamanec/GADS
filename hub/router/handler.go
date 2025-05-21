@@ -19,7 +19,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	r := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"X-Auth-Token", "Content-Type"}
+	config.AllowHeaders = []string{"Authorization", "Content-Type"}
 	r.Use(cors.New(config))
 
 	// Handle UI serving only if we have UI files embedded
@@ -74,6 +74,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	if configData.AuthEnabled {
 		authGroup.Use(auth.AuthMiddleware())
 	}
+	authGroup.GET("/user-info", auth.GetUserInfoHandler)
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
@@ -104,6 +105,15 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.DELETE("/admin/workspaces/:id", DeleteWorkspace)
 	authGroup.GET("/admin/workspaces", GetWorkspaces)
 	authGroup.GET("/workspaces", GetUserWorkspaces)
+	// Secret Keys endpoints
+	authGroup.GET("/admin/secret-keys", GetSecretKeys)
+	authGroup.POST("/admin/secret-keys", AddSecretKey)
+	authGroup.PUT("/admin/secret-keys/:id", UpdateSecretKey)
+	authGroup.DELETE("/admin/secret-keys/:id", DisableSecretKey)
+	// Secret Keys Audit History endpoints
+	authGroup.GET("/admin/secret-keys/history", GetSecretKeyHistory)
+	authGroup.GET("/admin/secret-keys/history/:id", GetSecretKeyHistoryByID)
+
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
 	appiumGroup.Any("/*path")

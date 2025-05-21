@@ -425,20 +425,38 @@ func DeviceWebRTCWS(c *gin.Context) {
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
-	// Get session token (from header or query parameter)
-	sessionID := c.GetHeader("X-Auth-Token")
-	if sessionID == "" {
-		sessionID = c.Query("X-Auth-Token")
+	// Get the token from the request header
+	tokenParam := c.Query("token")
+	if tokenParam == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
 	}
 
-	session, sessionExists := auth.GetSession(sessionID)
+	var username string
+
+	// Extract token from Bearer format
+	tokenString, err := auth.ExtractTokenFromBearer(tokenParam)
+	if err == nil {
+		// Get origin from request
+		origin := auth.GetOriginFromRequest(c)
+
+		// Get claims from token with origin
+		claims, err := auth.GetClaimsFromToken(tokenString, origin)
+		if err != nil || claims.Username == "" {
+			// Return 401 for any token validation error
+			c.Status(http.StatusUnauthorized)
+			return
+		}
+
+		username = claims.Username
+	}
 
 	// Verify if the device is already in use by another user
 	devices.HubDevicesData.Mu.Lock()
 	device, exists := devices.HubDevicesData.Devices[udid]
 	if exists && device.InUseBy != "" && device.InUseBy != "automation" &&
 		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
-		(!sessionExists || device.InUseBy != session.User.Username) {
+		(device.InUseBy != username) {
 
 		devices.HubDevicesData.Mu.Unlock()
 		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
