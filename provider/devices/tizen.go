@@ -64,7 +64,7 @@ func setupTizenDevice(device *models.Device) {
 	err := cli.KillDeviceAppiumProcess(device.UDID)
 	if err != nil {
 		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
-		resetLocalDevice(device, "Failed to kill existing Appium processes.")
+		ResetLocalDevice(device, "Failed to kill existing Appium processes.")
 		return
 	}
 
