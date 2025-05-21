@@ -2,10 +2,7 @@ package providerutil
 
 import (
 	"fmt"
-	"io"
 	"net"
-	"net/http"
-	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -13,7 +10,6 @@ import (
 
 	"GADS/common"
 	"GADS/common/cli"
-	"GADS/provider/config"
 	"GADS/provider/logger"
 )
 
@@ -109,70 +105,6 @@ func RemoveAdbForwardedPorts() {
 	if err != nil {
 		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("removeAdbForwardedPorts: Could not remove `adb` forwarded ports, there was an error or no devices are connected - %s", err))
 	}
-}
-
-// Check if gads-stream.apk is available and if not - download the latest release
-func CheckGadsStreamAndDownload() error {
-	if isGadsStreamApkAvailable() {
-		logger.ProviderLogger.LogInfo("provider_setup", "GADS-stream apk is available in the provider folder, it will not be downloaded. If you want to get the latest release, delete the file from conf folder and re-run the provider")
-		return nil
-	}
-
-	err := downloadGadsStreamApk()
-	if err != nil {
-		return err
-	}
-
-	if !isGadsStreamApkAvailable() {
-		return fmt.Errorf("GADS-stream download was reported successful but the .apk was not actually downloaded")
-	}
-
-	logger.ProviderLogger.LogInfo("provider_setup", "Latest GADS-stream release apk was successfully downloaded")
-	return nil
-}
-
-// Check if the gads-stream.apk file is located in the provider folder
-func isGadsStreamApkAvailable() bool {
-	_, err := os.Stat(fmt.Sprintf("%s/gads-stream.apk", config.ProviderConfig.ProviderFolder))
-	if os.IsNotExist(err) {
-		return false
-	}
-	return err == nil
-}
-
-// Download the latest release of GADS-Android-stream and put the apk in the provider folder
-func downloadGadsStreamApk() error {
-	logger.ProviderLogger.LogInfo("provider", "Downloading latest GADS-stream release apk file")
-	outFile, err := os.Create(fmt.Sprintf("%s/gads-stream.apk", config.ProviderConfig.ProviderFolder))
-	if err != nil {
-		return fmt.Errorf("Could not create file at %s/gads-stream.apk - %s", config.ProviderConfig.ProviderFolder, err)
-	}
-	defer outFile.Close()
-
-	req, err := http.NewRequest(http.MethodGet, gadsStreamURL, nil)
-	if err != nil {
-		return fmt.Errorf("Could not create new request - %s", err)
-	}
-
-	var netClient = &http.Client{
-		Timeout: time.Second * 240,
-	}
-	resp, err := netClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("Could not execute request to download - %s", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP response error: %s", resp.Status)
-	}
-
-	_, err = io.Copy(outFile, resp.Body)
-	if err != nil {
-		return fmt.Errorf("Could not copy the response data to the file at apps/gads-stream.apk - %s", err)
-	}
-
-	return nil
 }
 
 func GetAppiumVersion() (string, error) {
