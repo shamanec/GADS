@@ -3,6 +3,7 @@ package router
 import (
 	"GADS/common/models"
 	"GADS/hub/auth"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -12,6 +13,56 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
+
+func ValidatePathParams(paramNames ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Pre-allocate slice with maximum possible size
+		missingParams := make([]string, 0, len(paramNames))
+
+		for _, param := range paramNames {
+			if strings.TrimSpace(c.Param(param)) == "" {
+				missingParams = append(missingParams, param)
+			}
+		}
+
+		if len(missingParams) > 0 {
+			errorMessage := formatErrorMessage(missingParams)
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":          errorMessage,
+				"missing_params": missingParams,
+			})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// formatErrorMessage creates an error message for missing parameters
+func formatErrorMessage(params []string) string {
+	count := len(params)
+	if count == 1 {
+		return fmt.Sprintf("Parameter '%s' is required and cannot be empty.", params[0])
+	}
+
+	var b strings.Builder
+	b.WriteString("Parameters ")
+
+	for i, param := range params {
+		b.WriteString("'")
+		b.WriteString(param)
+		b.WriteString("'")
+
+		if i < count-2 {
+			b.WriteString(", ")
+		} else if i == count-2 {
+			b.WriteString(", and ")
+		}
+	}
+
+	b.WriteString(" are required and cannot be empty.")
+	return b.String()
+}
 
 func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// Create the router and allow all origins
@@ -66,9 +117,9 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// Unauthenticated endpoints
 	authGroup.POST("/authenticate", auth.LoginHandler)
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
-	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
-	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
-	authGroup.GET("devices/control/:udid/webrtc", DeviceWebRTCWS)
+	authGroup.GET("/admin/provider/:nickname/info", ValidatePathParams("nickname"), ProviderInfoSSE)
+	authGroup.GET("/devices/control/:udid/in-use", ValidatePathParams("udid"), DeviceInUseWS)
+	authGroup.GET("devices/control/:udid/webrtc", ValidatePathParams("udid"), DeviceWebRTCWS)
 	authGroup.POST("/provider-update", ProviderUpdate)
 	// Enable authentication on the endpoints below
 	if configData.AuthEnabled {
@@ -79,17 +130,17 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/logout", auth.LogoutHandler)
-	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
-	authGroup.Any("/provider/:name/*path", ProviderProxyHandler)
+	authGroup.Any("/device/:udid/*path", ValidatePathParams("udid"), DeviceProxyHandler)
+	authGroup.Any("/provider/:name/*path", ValidatePathParams("name"), ProviderProxyHandler)
 	authGroup.GET("/admin/providers", GetProviders)
 	authGroup.POST("/admin/providers/add", AddProvider)
 	authGroup.POST("/admin/providers/update", UpdateProvider)
-	authGroup.DELETE("/admin/providers/:nickname", DeleteProvider)
+	authGroup.DELETE("/admin/providers/:nickname", ValidatePathParams("nickname"), DeleteProvider)
 	authGroup.GET("/admin/providers/logs", GetProviderLogs)
 	authGroup.POST("/admin/device", AddDevice)
 	authGroup.PUT("/admin/device", UpdateDevice)
-	authGroup.DELETE("/admin/device/:udid", DeleteDevice)
-	authGroup.POST("/admin/device/:udid/release", ReleaseUsedDevice)
+	authGroup.DELETE("/admin/device/:udid", ValidatePathParams("udid"), DeleteDevice)
+	authGroup.POST("/admin/device/:udid/release", ValidatePathParams("udid"), ReleaseUsedDevice)
 	authGroup.GET("/admin/devices", GetDevices)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.GET("/admin/users", GetUsers)
@@ -97,22 +148,22 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/admin/download-github-file", DownloadResourceFromGithubRepo)
 	authGroup.POST("/admin/upload-file", UploadFile)
 	authGroup.PUT("/admin/user", UpdateUser)
-	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
+	authGroup.DELETE("/admin/user/:nickname", ValidatePathParams("nickname"), DeleteUser)
 	authGroup.GET("/admin/global-settings", GetGlobalStreamSettings)
 	authGroup.POST("/admin/global-settings", UpdateGlobalStreamSettings)
 	authGroup.POST("/admin/workspaces", CreateWorkspace)
 	authGroup.PUT("/admin/workspaces", UpdateWorkspace)
-	authGroup.DELETE("/admin/workspaces/:id", DeleteWorkspace)
+	authGroup.DELETE("/admin/workspaces/:id", ValidatePathParams("id"), DeleteWorkspace)
 	authGroup.GET("/admin/workspaces", GetWorkspaces)
 	authGroup.GET("/workspaces", GetUserWorkspaces)
 	// Secret Keys endpoints
 	authGroup.GET("/admin/secret-keys", GetSecretKeys)
 	authGroup.POST("/admin/secret-keys", AddSecretKey)
-	authGroup.PUT("/admin/secret-keys/:id", UpdateSecretKey)
-	authGroup.DELETE("/admin/secret-keys/:id", DisableSecretKey)
+	authGroup.PUT("/admin/secret-keys/:id", ValidatePathParams("id"), UpdateSecretKey)
+	authGroup.DELETE("/admin/secret-keys/:id", ValidatePathParams("id"), DisableSecretKey)
 	// Secret Keys Audit History endpoints
 	authGroup.GET("/admin/secret-keys/history", GetSecretKeyHistory)
-	authGroup.GET("/admin/secret-keys/history/:id", GetSecretKeyHistoryByID)
+	authGroup.GET("/admin/secret-keys/history/:id", ValidatePathParams("id"), GetSecretKeyHistoryByID)
 
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
