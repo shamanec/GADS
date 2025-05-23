@@ -96,7 +96,7 @@ This repository is **dual-licensed**:
 - **Proprietary Components**:
   The `hub-ui` directory is licensed under a separate proprietary license. See [`PROPRIETARY-LICENSE.txt`](./PROPRIETARY-LICENSE.txt) for more information.
 
-Please refer to the [`LICENSE`](./LICENSE) file for a detailed overview.
+Please refer to the [`LICENSE-OVERVIEW`](./LICENSE-OVERVIEW.txt) file for a detailed overview.
 
 ### Using GADS
 
