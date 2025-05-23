@@ -11,7 +11,7 @@ Except as noted below, all files in this repository are licensed under the GNU A
 You may obtain a copy of the AGPL-3.0 license at:
 https://www.gnu.org/licenses/agpl-3.0.html
 
-A full copy of the license is also included in the LICENSE-AGPL.txt file.
+A full copy of the license is also included in the LICENSE file.
 
 2. Proprietary Components
 -------------------------
