@@ -434,10 +434,15 @@ func DeviceWebRTCWS(c *gin.Context) {
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
+	if udid == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
 	// Get the token from the request header
 	tokenParam := c.Query("token")
 	if tokenParam == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.Status(http.StatusUnauthorized)
 		return
 	}
 
@@ -463,18 +468,36 @@ func DeviceInUseWS(c *gin.Context) {
 	// Verify if the device is already in use by another user
 	devices.HubDevicesData.Mu.Lock()
 	device, exists := devices.HubDevicesData.Devices[udid]
-	if exists && device.InUseBy != "" && device.InUseBy != "automation" &&
+	if !exists {
+		devices.HubDevicesData.Mu.Unlock()
+		c.Status(http.StatusNotFound)
+		return
+	}
+
+	if device.InUseBy != "" && device.InUseBy != "automation" &&
 		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
 		(device.InUseBy != username) {
 
 		devices.HubDevicesData.Mu.Unlock()
-		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
+		c.Status(http.StatusConflict)
 		return
 	}
+
+	// Reserve the device BEFORE upgrading the WebSocket
+	// This prevents another user from passing the verification while we are upgrading the WebSocket
+	devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
+	devices.HubDevicesData.Devices[udid].InUseBy = username
 	devices.HubDevicesData.Mu.Unlock()
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
+		// Clear the reservation if the upgrade fails
+		devices.HubDevicesData.Mu.Lock()
+		devices.HubDevicesData.Devices[udid].InUseTS = 0
+		devices.HubDevicesData.Devices[udid].InUseBy = ""
+
+		devices.HubDevicesData.Mu.Unlock()
+
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
 		return
 	}
@@ -490,7 +513,11 @@ func DeviceInUseWS(c *gin.Context) {
 	defer func() {
 		conn.Close()
 		devices.HubDevicesData.Mu.Lock()
+		// Clear both the connection and the in-use status
 		devices.HubDevicesData.Devices[udid].InUseWSConnection = nil
+		devices.HubDevicesData.Devices[udid].InUseTS = 0
+		devices.HubDevicesData.Devices[udid].InUseBy = ""
+
 		devices.HubDevicesData.Mu.Unlock()
 	}()
 
