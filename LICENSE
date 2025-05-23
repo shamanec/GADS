@@ -1,38 +1,24 @@
-GADS License
+GADS Licensing Overview
+=======================
 
-GADS is dual-licensed:
+This project contains both open-source and proprietary components.
 
-1. Open Source Components License (MIT License)
+1. Open Source License (GNU AGPLv3)
+------------------------------------
 
-Copyright (c) 2022 Nikola Shabanov
+Except as noted below, all files in this repository are licensed under the GNU Affero General Public License v3.0.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+You may obtain a copy of the AGPL-3.0 license at:
+https://www.gnu.org/licenses/agpl-3.0.html
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-This license applies to all files and directories in this project except those
-listed under "Proprietary Components" below.
+A full copy of the license is also included in the LICENSE-AGPL.txt file.
 
 2. Proprietary Components
+-------------------------
 
-The following components are proprietary and subject to GADS
-Proprietary License:
-
+The following components are proprietary and licensed under the GADS Proprietary License:
 - hub-ui
 
-For the full text of the proprietary license, see the accompanying
-PROPRIETARY-LICENSE.txt file.
+For the terms of the proprietary license, see `PROPRIETARY-LICENSE.txt`.
+
+Copyright (c) 2022-2025 Nikola Shabanov
