@@ -41,27 +41,27 @@ func (a ByUDID) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByUDID) Less(i, j int) bool { return a[i].UDID < a[j].UDID }
 
 type User struct {
-	Username     string   `json:"username" bson:"username"`
-	Password     string   `json:"password" bson:"password,omitempty"`
-	Role         string   `json:"role,omitempty" bson:"role"`
-	ID           string   `json:"_id" bson:"_id,omitempty"`
-	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids"`
+	Username     string   `json:"username" bson:"username" example:"john_doe"`
+	Password     string   `json:"password" bson:"password,omitempty" example:"secure_password"`
+	Role         string   `json:"role,omitempty" bson:"role" example:"user" enums:"admin,user"`
+	ID           string   `json:"_id" bson:"_id,omitempty" example:"507f1f77bcf86cd799439011"`
+	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
 }
 
 type Device struct {
 	// DB DATA
-	UDID             string `json:"udid" bson:"udid"`                             // device UDID
-	OS               string `json:"os" bson:"os"`                                 // device OS
-	Name             string `json:"name" bson:"name"`                             // name of the device
-	OSVersion        string `json:"os_version" bson:"os_version"`                 // OS version of the device
-	Provider         string `json:"provider" bson:"provider"`                     // nickname of the device host(provider)
-	Usage            string `json:"usage" bson:"usage"`                           // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
-	ScreenWidth      string `json:"screen_width" bson:"screen_width"`             // screen width of device
-	ScreenHeight     string `json:"screen_height" bson:"screen_height"`           // screen height of device
-	DeviceType       string `json:"device_type" bson:"device_type"`               // The type of device - `real` or `emulator`
-	UseWebRTCVideo   bool   `json:"use_webrtc_video" bson:"use_webrtc_video"`     // Should the device use WebRTC video instead of MJPEG
-	WebRTCVideoCodec string `json:"webrtc_video_codec" bson:"webrtc_video_codec"` // Which video codec should the device use for WebRTC video stream
-	WorkspaceID      string `json:"workspace_id" bson:"workspace_id"`             // ID of the associated workspace
+	UDID             string `json:"udid" bson:"udid" example:"HT7B1234567"`                      // device UDID
+	OS               string `json:"os" bson:"os" example:"android"`                              // device OS
+	Name             string `json:"name" bson:"name" example:"Samsung Galaxy S21"`               // name of the device
+	OSVersion        string `json:"os_version" bson:"os_version" example:"11.0"`                 // OS version of the device
+	Provider         string `json:"provider" bson:"provider" example:"provider_1"`               // nickname of the device host(provider)
+	Usage            string `json:"usage" bson:"usage" example:"enabled"`                        // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
+	ScreenWidth      string `json:"screen_width" bson:"screen_width" example:"1080"`             // screen width of device
+	ScreenHeight     string `json:"screen_height" bson:"screen_height" example:"1920"`           // screen height of device
+	DeviceType       string `json:"device_type" bson:"device_type" example:"real"`               // The type of device - `real` or `emulator`
+	UseWebRTCVideo   bool   `json:"use_webrtc_video" bson:"use_webrtc_video" example:"false"`    // Should the device use WebRTC video instead of MJPEG
+	WebRTCVideoCodec string `json:"webrtc_video_codec" bson:"webrtc_video_codec" example:"h264"` // Which video codec should the device use for WebRTC video stream
+	WorkspaceID      string `json:"workspace_id" bson:"workspace_id" example:"workspace_id_1"`   // ID of the associated workspace
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -157,11 +157,11 @@ type StreamSettings struct {
 }
 
 type Workspace struct {
-	ID          string `json:"id" bson:"_id,omitempty"`
-	Name        string `json:"name" bson:"name"`
-	Description string `json:"description" bson:"description"`
-	IsDefault   bool   `json:"is_default" bson:"is_default"`
-	Tenant      string `json:"tenant" bson:"tenant,omitempty"`
+	ID          string `json:"id" bson:"_id,omitempty" example:"workspace_123"`
+	Name        string `json:"name" bson:"name" example:"Development Team"`
+	Description string `json:"description" bson:"description" example:"Workspace for development team testing"`
+	IsDefault   bool   `json:"is_default" bson:"is_default" example:"false"`
+	Tenant      string `json:"tenant" bson:"tenant,omitempty" example:"acme-corp"`
 }
 
 type ProviderLog struct {
