@@ -38,10 +38,32 @@ var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
 
+// HealthCheck godoc
+// @Summary      Health check endpoint
+// @Description  Check if the GADS hub is running and healthy
+// @Tags         System
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.HealthResponse
+// @Security     BearerAuth
+// @Router       /health [get]
 func HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "ok"})
 }
 
+// GetAppiumLogs godoc
+// @Summary      Get Appium logs
+// @Description  Retrieve Appium logs from a specific collection with optional limit
+// @Tags         Logs
+// @Accept       json
+// @Produce      json
+// @Param        collection  query     string  true   "Collection name"
+// @Param        logLimit    query     int     false  "Log limit (max 1000, default 100)"
+// @Success      200         {array}   models.LogEntry
+// @Failure      400         {object}  models.ErrorResponse
+// @Failure      500         {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /appium-logs [get]
 func GetAppiumLogs(c *gin.Context) {
 	logLimit, _ := strconv.Atoi(c.DefaultQuery("logLimit", "100"))
 	if logLimit > 1000 {
@@ -62,6 +84,19 @@ func GetAppiumLogs(c *gin.Context) {
 	c.JSON(200, logs)
 }
 
+// GetProviderLogs godoc
+// @Summary      Get provider logs
+// @Description  Retrieve provider logs from a specific collection with optional limit
+// @Tags         Logs
+// @Accept       json
+// @Produce      json
+// @Param        collection  query     string  true   "Collection name"
+// @Param        logLimit    query     int     false  "Log limit (max 1000, default 200)"
+// @Success      200         {array}   models.LogEntry
+// @Failure      400         {object}  models.ErrorResponse
+// @Failure      500         {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/providers/logs [get]
 func GetProviderLogs(c *gin.Context) {
 	logLimit, _ := strconv.Atoi(c.DefaultQuery("logLimit", "200"))
 	if logLimit > 1000 {
@@ -83,6 +118,19 @@ func GetProviderLogs(c *gin.Context) {
 	c.JSON(200, logs)
 }
 
+// GetAppiumSessionLogs godoc
+// @Summary      Get Appium session logs
+// @Description  Retrieve Appium logs for a specific session
+// @Tags         Logs
+// @Accept       json
+// @Produce      json
+// @Param        collection  query     string  true  "Collection name"
+// @Param        session     query     string  true  "Appium session ID"
+// @Success      200         {array}   models.LogEntry
+// @Failure      400         {object}  models.ErrorResponse
+// @Failure      500         {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /appium-session-logs [get]
 func GetAppiumSessionLogs(c *gin.Context) {
 	collectionName := c.DefaultQuery("collection", "")
 	if collectionName == "" {
@@ -104,6 +152,18 @@ func GetAppiumSessionLogs(c *gin.Context) {
 	c.JSON(200, logs)
 }
 
+// AddUser godoc
+// @Summary      Add a new user
+// @Description  Create a new user in the system
+// @Tags         Admin - Users
+// @Accept       json
+// @Produce      json
+// @Param        user  body      models.User  true  "User data"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      400   {object}  models.ErrorResponse
+// @Failure      500   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/user [post]
 func AddUser(c *gin.Context) {
 	var user models.User
 
@@ -149,6 +209,18 @@ func AddUser(c *gin.Context) {
 	OK(c, "Successfully added user")
 }
 
+// UpdateUser godoc
+// @Summary      Update an existing user
+// @Description  Update user information in the system
+// @Tags         Admin - Users
+// @Accept       json
+// @Produce      json
+// @Param        user  body      models.User  true  "User data"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      400   {object}  models.ErrorResponse
+// @Failure      500   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/user [put]
 func UpdateUser(c *gin.Context) {
 	var user models.User
 
@@ -187,6 +259,17 @@ func UpdateUser(c *gin.Context) {
 	}
 }
 
+// DeleteUser godoc
+// @Summary      Delete a user
+// @Description  Remove a user from the system
+// @Tags         Admin - Users
+// @Accept       json
+// @Produce      json
+// @Param        nickname  path      string  true  "User nickname"
+// @Success      200       {object}  models.SuccessResponse
+// @Failure      500       {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/user/{nickname} [delete]
 func DeleteUser(c *gin.Context) {
 	nickname := c.Param("nickname")
 
@@ -199,6 +282,15 @@ func DeleteUser(c *gin.Context) {
 	OK(c, "Successfully deleted user")
 }
 
+// GetProviders godoc
+// @Summary      Get all providers
+// @Description  Retrieve list of all providers in the system
+// @Tags         Admin - Providers
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  []models.Provider
+// @Security     BearerAuth
+// @Router       /admin/providers [get]
 func GetProviders(c *gin.Context) {
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	if len(providers) == 0 {
@@ -220,6 +312,18 @@ func GetProviderInfo(c *gin.Context) {
 	NotFound(c, fmt.Sprintf("No provider with name `%s` found", providerName))
 }
 
+// AddProvider godoc
+// @Summary      Add a new provider
+// @Description  Create a new provider in the system
+// @Tags         Admin - Providers
+// @Accept       json
+// @Produce      json
+// @Param        provider  body      models.Provider  true  "Provider data"
+// @Success      200       {array}   models.Provider
+// @Failure      400       {object}  models.ErrorResponse
+// @Failure      500       {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/providers/add [post]
 func AddProvider(c *gin.Context) {
 	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
@@ -272,6 +376,18 @@ func AddProvider(c *gin.Context) {
 	OkJSON(c, providersDB)
 }
 
+// UpdateProvider godoc
+// @Summary      Update a provider
+// @Description  Update an existing provider in the system
+// @Tags         Admin - Providers
+// @Accept       json
+// @Produce      json
+// @Param        provider  body      models.Provider  true  "Provider data"
+// @Success      200       {object}  models.SuccessResponse
+// @Failure      400       {object}  models.ErrorResponse
+// @Failure      500       {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/providers/update [post]
 func UpdateProvider(c *gin.Context) {
 	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
@@ -316,6 +432,17 @@ func UpdateProvider(c *gin.Context) {
 	OK(c, "Provider updated successfully")
 }
 
+// DeleteProvider godoc
+// @Summary      Delete a provider
+// @Description  Remove a provider from the system
+// @Tags         Admin - Providers
+// @Accept       json
+// @Produce      json
+// @Param        nickname  path      string  true  "Provider nickname"
+// @Success      200       {object}  models.SuccessResponse
+// @Failure      500       {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/providers/{nickname} [delete]
 func DeleteProvider(c *gin.Context) {
 	nickname := c.Param("nickname")
 
@@ -328,6 +455,16 @@ func DeleteProvider(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted provider with nickname `%s` from DB", nickname)})
 }
 
+// ProviderInfoSSE godoc
+// @Summary      Provider information stream
+// @Description  Server-sent events stream of provider information updates
+// @Tags         Admin - Providers
+// @Accept       json
+// @Produce      text/event-stream
+// @Param        nickname  path  string  true  "Provider nickname"
+// @Success      200       {object}  models.Provider
+// @Security     BearerAuth
+// @Router       /admin/provider/{nickname}/info [get]
 func ProviderInfoSSE(c *gin.Context) {
 	nickname := c.Param("nickname")
 
@@ -348,6 +485,16 @@ type WebRTCMessage struct {
 	SDP  string `json:"sdp"`
 }
 
+// DeviceWebRTCWS godoc
+// @Summary      Device WebRTC WebSocket
+// @Description  WebSocket signalling server for WebRTC communication with device
+// @Tags         Devices Control
+// @Accept       json
+// @Produce      json
+// @Param        udid  path  string  true  "Device UDID"
+// @Success      101   {string}  string  "Switching Protocols"
+// @Failure      400   {object}  models.ErrorResponse
+// @Router       /devices/control/{udid}/webrtc [get]
 // Websocket signalling server for WebRTC
 func DeviceWebRTCWS(c *gin.Context) {
 	udid := c.Param("udid")
@@ -429,6 +576,20 @@ func DeviceWebRTCWS(c *gin.Context) {
 	}
 }
 
+// DeviceInUseWS godoc
+// @Summary      Device in-use WebSocket
+// @Description  WebSocket connection to manage device usage status and control
+// @Tags         Devices Control
+// @Accept       json
+// @Produce      json
+// @Param        udid   path   string  true   "Device UDID"
+// @Param        token  query  string  true   "Bearer authentication token"
+// @Success      101    {string}  string  "Switching Protocols"
+// @Failure      400    {object}  models.ErrorResponse
+// @Failure      401    {object}  models.ErrorResponse
+// @Failure      404    {object}  models.ErrorResponse
+// @Failure      409    {object}  models.ErrorResponse
+// @Router       /devices/control/{udid}/in-use [get]
 // This websocket connection is used to both set the device in use when remotely controlled
 // As well as send live updates when needed - device info, release device, etc
 func DeviceInUseWS(c *gin.Context) {
@@ -634,6 +795,16 @@ func DeviceInUseWS(c *gin.Context) {
 	}
 }
 
+// AvailableDevicesSSE godoc
+// @Summary      Available devices stream
+// @Description  Server-sent events stream of available devices filtered by workspace
+// @Tags         Devices Control
+// @Accept       json
+// @Produce      text/event-stream
+// @Param        workspaceId  query  string  true  "Workspace ID"
+// @Success      200          {object}  []models.LocalHubDevice
+// @Failure      400          {object}  models.ErrorResponse
+// @Router       /available-devices [get]
 func AvailableDevicesSSE(c *gin.Context) {
 	// Get workspace ID from query parameter
 	workspaceID := c.Query("workspaceId")
@@ -690,8 +861,19 @@ func AvailableDevicesSSE(c *gin.Context) {
 	})
 }
 
-// Custom upload function that allows us to upload any file to Mongo
-// While providing the file name we want to use on upload regardless of the actual file name
+// UploadFile godoc
+// @Summary      Upload a file
+// @Description  Upload a file to MongoDB with custom filename
+// @Tags         Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file      formData  file    true  "File to upload"
+// @Param        fileName  formData  string  true  "Custom filename for MongoDB"
+// @Success      200       {object}  models.SuccessResponse
+// @Failure      400       {object}  models.ErrorResponse
+// @Failure      500       {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/upload-file [post]
 func UploadFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -720,6 +902,18 @@ func UploadFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("`%s` uploaded successfully", file.Filename)})
 }
 
+// AddDevice godoc
+// @Summary      Add a new device
+// @Description  Create a new device in the system
+// @Tags         Admin - Devices
+// @Accept       json
+// @Produce      json
+// @Param        device  body      models.Device  true  "Device data"
+// @Success      200     {object}  models.SuccessResponse
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/device [post]
 func AddDevice(c *gin.Context) {
 	reqBody, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -752,6 +946,19 @@ func AddDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB"})
 }
 
+// UpdateDevice godoc
+// @Summary      Update a device
+// @Description  Update an existing device in the system
+// @Tags         Admin - Devices
+// @Accept       json
+// @Produce      json
+// @Param        device  body      models.Device  true  "Device data"
+// @Success      200     {object}  models.SuccessResponse
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      404     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/device [put]
 func UpdateDevice(c *gin.Context) {
 	reqBody, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -818,6 +1025,17 @@ func UpdateDevice(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist in the DB", reqDevice.UDID)})
 }
 
+// DeleteDevice godoc
+// @Summary      Delete a device
+// @Description  Remove a device from the system
+// @Tags         Admin - Devices
+// @Accept       json
+// @Produce      json
+// @Param        udid  path      string  true  "Device UDID"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      500   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/device/{udid} [delete]
 func DeleteDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -835,6 +1053,16 @@ type AdminDeviceData struct {
 	Providers []string        `json:"providers"`
 }
 
+// GetDevices godoc
+// @Summary      Get all devices
+// @Description  Retrieve list of all devices with provider information
+// @Tags         Admin - Devices
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  AdminDeviceData
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/devices [get]
 func GetDevices(c *gin.Context) {
 	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
@@ -856,6 +1084,17 @@ func GetDevices(c *gin.Context) {
 	c.JSON(http.StatusOK, adminDeviceData)
 }
 
+// ReleaseUsedDevice godoc
+// @Summary      Release a device in use
+// @Description  Force release a device that is currently in use
+// @Tags         Admin - Devices
+// @Accept       json
+// @Produce      json
+// @Param        udid  path      string  true  "Device UDID"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      500   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/device/{udid}/release [post]
 func ReleaseUsedDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -880,6 +1119,15 @@ func ReleaseUsedDevice(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
 }
 
+// ProviderUpdate godoc
+// @Summary      Provider update
+// @Description  Receive updates from providers about device status
+// @Tags         Providers
+// @Accept       json
+// @Produce      json
+// @Param        providerData  body      models.ProviderData  true  "Provider device data"
+// @Success      200           {object}  models.SuccessResponse
+// @Router       /provider-update [post]
 func ProviderUpdate(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	defer c.Request.Body.Close()
@@ -940,6 +1188,16 @@ func ProviderUpdate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{})
 }
 
+// GetUsers godoc
+// @Summary      Get all users
+// @Description  Retrieve list of all users in the system
+// @Tags         Admin - Users
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  []models.User
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/users [get]
 func GetUsers(c *gin.Context) {
 	users, _ := db.GlobalMongoStore.GetUsers()
 	// Clean up the passwords, not that the project is very secure but let's not send them
@@ -950,12 +1208,32 @@ func GetUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
+// GetFiles godoc
+// @Summary      Get all files
+// @Description  Retrieve list of all files stored in the system
+// @Tags         Admin - Files
+// @Accept       json
+// @Produce      json
+// @Success      200  {array}  models.FileEntry
+// @Security     BearerAuth
+// @Router       /admin/files [get]
 func GetFiles(c *gin.Context) {
 	files, _ := db.GlobalMongoStore.GetFiles()
 
 	c.JSON(http.StatusOK, files)
 }
 
+// DownloadResourceFromGithubRepo godoc
+// @Summary      Download resource from GitHub repository
+// @Description  Download a resource file from the GADS GitHub repository
+// @Tags         Admin - Files
+// @Accept       json
+// @Produce      text/plain
+// @Param        fileName  query  string  true  "Name of the file to download"
+// @Success      200       {string}  string  "File downloaded successfully"
+// @Failure      500       {string}  string  "Internal server error"
+// @Security     BearerAuth
+// @Router       /admin/download-github-file [post]
 func DownloadResourceFromGithubRepo(c *gin.Context) {
 	fileName := c.Query("fileName")
 	fmt.Println("Filename " + fileName)
@@ -986,6 +1264,16 @@ func DownloadResourceFromGithubRepo(c *gin.Context) {
 	_, err = io.Copy(out, resp.Body)
 }
 
+// GetGlobalStreamSettings godoc
+// @Summary      Get global stream settings
+// @Description  Retrieve global streaming settings from the database
+// @Tags         Admin - Settings
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.StreamSettings
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/global-settings [get]
 func GetGlobalStreamSettings(c *gin.Context) {
 	// Retrieve global stream settings from the database
 	streamSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
@@ -998,6 +1286,18 @@ func GetGlobalStreamSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, streamSettings)
 }
 
+// UpdateGlobalStreamSettings godoc
+// @Summary      Update global stream settings
+// @Description  Update global streaming settings in the database
+// @Tags         Admin - Settings
+// @Accept       json
+// @Produce      json
+// @Param        settings  body      models.StreamSettings  true  "Stream settings"
+// @Success      200       {object}  models.SuccessResponse
+// @Failure      400       {object}  models.ErrorResponse
+// @Failure      500       {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/global-settings [post]
 func UpdateGlobalStreamSettings(c *gin.Context) {
 	var settings models.StreamSettings
 
