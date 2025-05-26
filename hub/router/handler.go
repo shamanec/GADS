@@ -20,12 +20,18 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// Create the router and allow all origins
 	// Allow particular headers as well
 	r := gin.Default()
+
+	// Add Swagger route
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 	config.AllowHeaders = []string{"Authorization", "Content-Type"}

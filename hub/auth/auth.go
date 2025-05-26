@@ -90,6 +90,18 @@ func normalizeOrigin(origin string) string {
 	return origin
 }
 
+// LoginHandler godoc
+// @Summary      User authentication
+// @Description  Authenticate user and return JWT token
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        credentials  body      AuthCreds  true  "User credentials"
+// @Success      200          {object}  models.AuthResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      401          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Router       /authenticate [post]
 func LoginHandler(c *gin.Context) {
 	var creds AuthCreds
 	body, err := io.ReadAll(c.Request.Body)
@@ -146,6 +158,16 @@ func LoginHandler(c *gin.Context) {
 	})
 }
 
+// LogoutHandler godoc
+// @Summary      User logout
+// @Description  Logout user (for JWT tokens, client should discard the token)
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.SuccessResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /logout [post]
 func LogoutHandler(c *gin.Context) {
 	// Check if there's a bearer token
 	authHeader := c.GetHeader("Authorization")
@@ -159,7 +181,16 @@ func LogoutHandler(c *gin.Context) {
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "session does not exist"})
 }
 
-// GetUserInfoHandler returns user information from JWT token
+// GetUserInfoHandler godoc
+// @Summary      Get user information
+// @Description  Retrieve user information from JWT token
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.UserInfoResponse
+// @Failure      401  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /user-info [get]
 func GetUserInfoHandler(c *gin.Context) {
 	// Get the JWT token from Authorization header
 	authHeader := c.GetHeader("Authorization")

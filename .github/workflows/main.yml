@@ -47,6 +47,14 @@ jobs:
           cp -r ./ui-dist/static/js/* ./build/static/js
           zip -r ../ui-files.zip ./build
 
+      - name: Install Swagger Generator
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate Swagger Documentation
+        run: |
+          swag init -g hub/hub.go -o docs
+
       - name: Build binaries
         run: |
           go get
