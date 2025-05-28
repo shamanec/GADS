@@ -148,7 +148,7 @@ func DeleteWorkspace(c *gin.Context) {
 // @Param        limit  query  int     false  "Items per page (default 10)"
 // @Param        search query  string  false  "Search term"
 // @Param        tenant query  string  false  "Filter by tenant"
-// @Success      200    {object}  models.WorkspacesResponse
+// @Success      200    {object}  models.WorkspacesWithDeviceCountResponse
 // @Security     BearerAuth
 // @Router       /admin/workspaces [get]
 func GetWorkspaces(c *gin.Context) {
@@ -167,11 +167,22 @@ func GetWorkspaces(c *gin.Context) {
 		limit = 10 // Default limit
 	}
 
-	workspaces, totalCount := db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
+	workspaces, totalCount, err := db.GlobalMongoStore.GetWorkspacesWithDeviceCount(page, limit, searchStr)
+
+	if err != nil {
+		if err == db.ErrInvalidPagination {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pagination parameters"})
+		} else if err == db.ErrAggregationFailed {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspaces"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspaces"})
+		}
+		return
+	}
 
 	// Filter by tenant if specified
 	if tenantStr != "" {
-		var filteredWorkspaces []models.Workspace
+		var filteredWorkspaces []models.WorkspaceWithDeviceCount
 		for _, ws := range workspaces {
 			if ws.Tenant == tenantStr {
 				filteredWorkspaces = append(filteredWorkspaces, ws)

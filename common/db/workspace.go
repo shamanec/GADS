@@ -11,11 +11,18 @@ package db
 
 import (
 	"GADS/common/models"
+	"errors"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/exp/slices"
+)
+
+var (
+	ErrInvalidPagination = errors.New("invalid pagination parameters")
+	ErrAggregationFailed = errors.New("aggregation query failed")
 )
 
 func (m *MongoStore) AddWorkspace(workspace *models.Workspace) error {
@@ -141,4 +148,95 @@ func (m *MongoStore) GetUserWorkspaces(username string) []models.Workspace {
 		}
 	}
 	return userWorkspaces
+}
+
+func (m *MongoStore) GetWorkspacesWithDeviceCount(page, limit int, search string) ([]models.WorkspaceWithDeviceCount, int64, error) {
+	if page < 1 || limit < 1 || limit > 1000 {
+		return nil, 0, ErrInvalidPagination
+	}
+
+	workspacesColl := m.GetCollection("workspaces")
+	skip := int64((page - 1) * limit)
+
+	matchFilter := bson.M{}
+	if search != "" {
+		regex := bson.M{"$regex": search, "$options": "i"}
+		matchFilter["$or"] = []bson.M{
+			{"name": regex},
+			{"description": regex},
+			{"tenant": regex},
+		}
+	}
+
+	pipeline := []bson.M{
+		{"$match": matchFilter},
+		{
+			"$lookup": bson.M{
+				"from": "new_devices",
+				"let":  bson.M{"workspace_id": bson.M{"$toString": "$_id"}},
+				"pipeline": []bson.M{
+					{
+						"$match": bson.M{
+							"$expr": bson.M{
+								"$eq": []interface{}{"$workspace_id", "$$workspace_id"},
+							},
+						},
+					},
+					{"$project": bson.M{"_id": 1}},
+				},
+				"as": "devices",
+			},
+		},
+		{
+			"$addFields": bson.M{
+				"device_count": bson.M{"$size": "$devices"},
+			},
+		},
+		{"$unset": "devices"},
+		{"$skip": skip},
+		{"$limit": int64(limit)},
+	}
+
+	cursor, err := workspacesColl.Aggregate(m.Ctx, pipeline)
+	if err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", ErrAggregationFailed, err)
+	}
+	defer cursor.Close(m.Ctx)
+
+	var workspaces []models.WorkspaceWithDeviceCount
+	if err = cursor.All(m.Ctx, &workspaces); err != nil {
+		return nil, 0, fmt.Errorf("%w: %v", ErrAggregationFailed, err)
+	}
+
+	var totalCount int64
+	if len(matchFilter) == 0 {
+		totalCount, err = workspacesColl.CountDocuments(m.Ctx, bson.M{})
+		if err != nil {
+			return workspaces, 0, fmt.Errorf("failed to get total count: %v", err)
+		}
+	} else {
+		countPipeline := []bson.M{
+			{"$match": matchFilter},
+			{"$count": "total"},
+		}
+
+		countCursor, err := workspacesColl.Aggregate(m.Ctx, countPipeline)
+		if err != nil {
+			return workspaces, 0, fmt.Errorf("failed to get total count: %v", err)
+		}
+		defer countCursor.Close(m.Ctx)
+
+		var countResult []bson.M
+		if err = countCursor.All(m.Ctx, &countResult); err != nil {
+			return workspaces, 0, fmt.Errorf("failed to get total count: %v", err)
+		}
+
+		if len(countResult) > 0 {
+			if count, ok := countResult[0]["total"].(int32); ok {
+				totalCount = int64(count)
+			}
+		}
+	}
+
+	return workspaces, totalCount, nil
 }
