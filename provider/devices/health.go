@@ -21,14 +21,6 @@ import (
 
 // Check if a device is healthy by checking Appium and WebDriverAgent(for iOS) services
 func GetDeviceHealth(device *models.Device) (bool, error) {
-	if device.OS == "ios" {
-		return device.Connected, nil
-	}
-	err := checkAppiumSession(device)
-	if err != nil {
-		return false, err
-	}
-
 	return device.Connected, nil
 }
 
