@@ -85,13 +85,15 @@ func deviceTap(device *models.Device, x float64, y float64) (*http.Response, err
 
 func deviceTouchAndHold(device *models.Device, x float64, y float64, delay float64) (*http.Response, error) {
 	requestBody := struct {
-		X     float64 `json:"x"`
-		Y     float64 `json:"y"`
-		Delay float64 `json:"delay"`
+		X        float64 `json:"x"`
+		Y        float64 `json:"y"`
+		Delay    float64 `json:"delay"`
+		Duration float64 `json:"duration"`
 	}{
-		X:     x,
-		Y:     y,
-		Delay: delay,
+		X:        x,
+		Y:        y,
+		Delay:    delay,
+		Duration: 1000,
 	}
 	actionJSON, err := json.MarshalIndent(requestBody, "", "  ")
 	if err != nil {

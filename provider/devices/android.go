@@ -201,10 +201,11 @@ func addGadsStreamRecordingPermissions(device *models.Device) error {
 }
 
 // Start the GADS video streaming service using adb
-func startGadsStreamApp(device *models.Device) error {
+func startGadsAndroidStreaming(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", device.UDID))
 
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "start", "-n", GetStreamServiceActivityName(device))
+	fmt.Printf("Starting activity with `%v`", cmd.Args)
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("startGadsStreamApp: Error executing `%s` - %s", cmd.Args, err)
@@ -377,21 +378,21 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 
 func GetStreamServiceName(device *models.Device) string {
 	if device.UseWebRTCVideo {
-		return "com.gads.webrtc/.ScreenCaptureService"
+		return "com.gads.settings/.WebRTCScreenCaptureService"
 	}
-	return "com.shamanec.stream/.ScreenCaptureService"
+	return "com.gads.settings/.ScreenCaptureService"
 }
 
 func GetStreamServicePackageName(device *models.Device) string {
 	if device.UseWebRTCVideo {
-		return "com.gads.webrtc"
+		return "com.gads.settings"
 	}
-	return "com.shamanec.stream"
+	return "com.gads.settings"
 }
 
 func GetStreamServiceActivityName(device *models.Device) string {
 	if device.UseWebRTCVideo {
-		return "com.gads.webrtc/com.gads.webrtc.ScreenCaptureActivity"
+		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
 	}
-	return "com.shamanec.stream/com.shamanec.stream.ScreenCaptureActivity"
+	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 }

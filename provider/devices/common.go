@@ -238,7 +238,6 @@ func setupAndroidDevice(device *models.Device) {
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
 
-	// Log before killing existing Appium processes
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
 	err := cli.KillDeviceAppiumProcess(device.UDID)
 	if err != nil {
@@ -314,50 +313,18 @@ func setupAndroidDevice(device *models.Device) {
 	device.AppiumPort = appiumPort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for Appium for device `%v`", device.AppiumPort, device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking for existing GADS-stream app on device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking for existing GADS Android apps on device `%v`", device.UDID))
 	device.InstalledApps = GetInstalledAppsAndroid(device)
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
-	if slices.Contains(device.InstalledApps, "com.shamanec.stream") {
-		err = UninstallApp(device, "com.shamanec.stream")
+	if slices.Contains(device.InstalledApps, "com.gads.settings") {
+		err = UninstallApp(device, "com.gads.settings")
 		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS mjpeg stream app from Android device - %v:\n %v", device.UDID, err))
-			ResetLocalDevice(device, "Failed to uninstall GADS mjpeg stream app from Android device.")
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS Settings app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS Settings from Android device.")
 		}
 		time.Sleep(3 * time.Second)
 	}
-
-	if slices.Contains(device.InstalledApps, "com.gads.webrtc") {
-		err = UninstallApp(device, "com.gads.webrtc")
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS WebRTC stream app from Android device - %v:\n %v", device.UDID, err))
-			ResetLocalDevice(device, "Failed to uninstall GADS WebRTC stream app from Android device.")
-		}
-		time.Sleep(3 * time.Second)
-	}
-
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked for and uninstalled existing GADS stream apps on device `%v` if they were present", device.UDID))
-
-	if !device.UseWebRTCVideo {
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Installing GADS-stream on device `%v`", device.UDID))
-		err = installGadsStream(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS-stream on Android device - %v:\n %v", device.UDID, err))
-			ResetLocalDevice(device, "Failed to install GADS-stream on Android device.")
-			return
-		}
-		time.Sleep(2 * time.Second)
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully installed GADS-stream on device `%v`", device.UDID))
-	} else {
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Installing GADS WebRTC stream on device `%v`", device.UDID))
-		err = installGadsWebRTCStream(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS WebRTC stream on Android device - %v:\n %v", device.UDID, err))
-			ResetLocalDevice(device, "Failed to install GADS WebRTC stream on Android device.")
-			return
-		}
-		time.Sleep(2 * time.Second)
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully installed GADS WebRTC stream on device `%v`", device.UDID))
-	}
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked for and uninstalled existing GADS Android apps on device `%v` if they were present", device.UDID))
 
 	err = installGadsSettingsApp(device)
 	if err != nil {
@@ -377,38 +344,34 @@ func setupAndroidDevice(device *models.Device) {
 	go startGadsRemoteControlServer(device)
 	time.Sleep(2 * time.Second)
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Setting GADS stream recording permissions on Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Adding GADS Settings stream recording permissions on Android device `%v`", device.UDID))
 	err = addGadsStreamRecordingPermissions(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not set GADS stream recording permissions on Android device - %v:\n %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to set GADS-stream recording permissions on Android device.")
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings stream recording permissions on Android device - %v:\n %v", device.UDID, err))
+		ResetLocalDevice(device, "Failed to add GADS Settings stream recording permissions on Android device.")
 		return
 	}
 	time.Sleep(2 * time.Second)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully set GADS stream recording permissions on Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully added GADS Settings stream recording permissions on Android device `%v`", device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS stream app on Android device `%v`", device.UDID))
-	err = startGadsStreamApp(device)
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS streaming on Android device `%v`", device.UDID))
+	err = startGadsAndroidStreaming(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS stream app on Android device - %v:\n %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to start GADS-stream app on Android device.")
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS streaming on Android device - %v:\n %v", device.UDID, err))
+		ResetLocalDevice(device, "Failed to start GADS streaming on Android device.")
 		return
 	}
 	time.Sleep(2 * time.Second)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully started GADS stream app on Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully started GADS streaming on Android device `%v`", device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Pressing home button on Android device `%v`", device.UDID))
-	pressHomeButton(device)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully pressed home button on Android device `%v`", device.UDID))
-
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS stream port to host port for Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS streaming port to host port for Android device `%v`", device.UDID))
 	err = forwardGadsStream(device)
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS stream port to host port %v for Android device - %v:\n %v", device.StreamPort, device.UDID, err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS streaming port to host port %v for Android device - %v:\n %v", device.StreamPort, device.UDID, err))
 		ResetLocalDevice(device, "Failed to forward GADS-stream port to host port.")
 		return
 	}
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS stream port to host port for Android device `%v`", device.UDID))
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS streaming port to host port for Android device `%v`", device.UDID))
 
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Setup GADS Android IME for Android device `%v`", device.UDID))
 	err = setupGadsAndroidIME(device)
