@@ -4,10 +4,12 @@ import (
 	"GADS/common/models"
 	"GADS/provider/config"
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"time"
 )
 
@@ -105,6 +107,28 @@ func deviceTouchAndHold(device *models.Device, x float64, y float64, delay float
 	} else {
 		return androidRemoteServerRequest(device, http.MethodPost, "touchAndHold", bytes.NewReader([]byte(actionJSON)))
 	}
+}
+
+func deviceScreenshot(device *models.Device) (string, error) {
+	if device.OS == "android" {
+		cmd := exec.Command("adb", "-s", device.UDID, "exec-out", "screencap", "-p")
+		var out bytes.Buffer
+		cmd.Stdout = &out
+
+		err := cmd.Run()
+		if err != nil {
+			return "", err
+		}
+
+		// Encode PNG bytes to Base64
+		base64Screenshot := base64.StdEncoding.EncodeToString(out.Bytes())
+
+		return base64Screenshot, nil
+	} else {
+
+	}
+
+	return "", fmt.Errorf("IOS")
 }
 
 func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Response, error) {

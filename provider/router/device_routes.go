@@ -179,18 +179,14 @@ func DeviceScreenshot(c *gin.Context) {
 	device := devices.DBDeviceMap[udid]
 	device.Logger.LogInfo("appium_interact", "Getting screenshot from device")
 
-	screenshotResp, err := appiumScreenshot(device)
-	defer screenshotResp.Body.Close()
-
-	// Read the response body
-	screenshotRespBody, err := io.ReadAll(screenshotResp.Body)
+	screenshotResp, err := deviceScreenshot(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get screenshot from device - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	api.GenericResponse(c, screenshotResp.StatusCode, string(screenshotRespBody), nil)
+	api.GenericResponse(c, http.StatusOK, screenshotResp, nil)
 }
 
 //======================================
