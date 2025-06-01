@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"os/exec"
 	"time"
+
+	"github.com/danielpaulus/go-ios/ios/instruments"
 )
 
 var controlNetClient = &http.Client{
@@ -125,10 +127,19 @@ func deviceScreenshot(device *models.Device) (string, error) {
 
 		return base64Screenshot, nil
 	} else {
+		screenshotService, err := instruments.NewScreenshotService(device.GoIOSDeviceEntry)
+		if err != nil {
+			return "", err
+		}
+		imageBytes, err := screenshotService.TakeScreenshot()
+		if err != nil {
+			return "", err
+		}
 
+		base64Screenshot := base64.StdEncoding.EncodeToString(imageBytes)
+
+		return base64Screenshot, nil
 	}
-
-	return "", fmt.Errorf("IOS")
 }
 
 func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Response, error) {
