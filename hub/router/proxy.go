@@ -80,6 +80,18 @@ func DeviceProxyHandler(c *gin.Context) {
 		return
 	}
 
+	// Check if device is available before proceeding with proxy operations
+	devices.HubDevicesData.Mu.Lock()
+	isAvailable := devices.HubDevicesData.Devices[udid].Available
+	devices.HubDevicesData.Mu.Unlock()
+
+	if !isAvailable {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": fmt.Sprintf("Device with UDID `%s` is not available", udid),
+		})
+		return
+	}
+
 	// Create a new ReverseProxy instance that will forward the requests
 	// Update its scheme, host and path in the Director
 	// Limit the number of open connections for the host

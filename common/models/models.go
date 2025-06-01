@@ -165,6 +165,15 @@ type Workspace struct {
 	Tenant      string `json:"tenant" bson:"tenant,omitempty" example:"acme-corp"`
 }
 
+type WorkspaceWithDeviceCount struct {
+	ID          string `json:"id" bson:"_id,omitempty" example:"workspace_123"`
+	Name        string `json:"name" bson:"name" example:"Development Team"`
+	Description string `json:"description" bson:"description" example:"Workspace for development team testing"`
+	IsDefault   bool   `json:"is_default" bson:"is_default" example:"false"`
+	Tenant      string `json:"tenant" bson:"tenant,omitempty" example:"acme-corp"`
+	DeviceCount int    `json:"device_count" bson:"device_count" example:"5"`
+}
+
 type ProviderLog struct {
 	EventName string `json:"eventname" bson:"eventname"`
 	Level     string `json:"level" bson:"level"`
