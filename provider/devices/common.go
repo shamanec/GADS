@@ -342,6 +342,15 @@ func setupAndroidDevice(device *models.Device) {
 		}
 		time.Sleep(3 * time.Second)
 	}
+
+	if slices.Contains(device.InstalledApps, "com.gads.gads_ime") {
+		err = UninstallApp(device, "com.gads.gads_ime")
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS IME app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS IME app from Android device.")
+		}
+		time.Sleep(3 * time.Second)
+	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked for and uninstalled existing GADS Android apps on device `%v` if they were present", device.UDID))
 
 	err = installGadsSettingsApp(device)
