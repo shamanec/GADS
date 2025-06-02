@@ -205,7 +205,7 @@ func startGadsAndroidStreaming(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", device.UDID))
 
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "start", "-n", GetStreamServiceActivityName(device))
-	fmt.Printf("Starting activity with `%v`", cmd.Args)
+	logger.ProviderLogger.LogDebug("startGadsAndroidStreaming", fmt.Sprintf("Starting activity with `%v` on device `%s`", cmd.Args, device.UDID))
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("startGadsStreamApp: Error executing `%s` - %s", cmd.Args, err)
@@ -384,9 +384,6 @@ func GetStreamServiceName(device *models.Device) string {
 }
 
 func GetStreamServicePackageName(device *models.Device) string {
-	if device.UseWebRTCVideo {
-		return "com.gads.settings"
-	}
 	return "com.gads.settings"
 }
 
