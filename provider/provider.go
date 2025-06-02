@@ -164,7 +164,7 @@ func updateProviderInDB() {
 }
 
 func extractProviderResourceFiles(destination string, resourceFiles embed.FS) error {
-	files := []string{"gads-ime.apk", "gads-webrtc.apk", "gads-stream.apk"}
+	files := []string{"gads-settings.apk"}
 	for _, file := range files {
 		data, err := resourceFiles.ReadFile("resources/" + file)
 		if err != nil {

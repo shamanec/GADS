@@ -15,6 +15,7 @@ type ActionData struct {
 	EndX       float64 `json:"endX,omitempty"`
 	EndY       float64 `json:"endY,omitempty"`
 	TextToType string  `json:"text,omitempty"`
+	Duration   float64 `json:"duration,omitempty"`
 }
 
 type DeviceAction struct {

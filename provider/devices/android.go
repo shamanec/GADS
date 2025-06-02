@@ -81,17 +81,65 @@ func installGadsWebRTCStream(device *models.Device) error {
 	return nil
 }
 
-func setupGadsAndroidIME(device *models.Device) error {
-	uninstallGadsAndroidIME(device)
+// Installs the GADS-Settings apk on Android devices.
+// The GADS-Settings provides the GADS IME and GADS mjpeg video stream service
+func installGadsSettingsApp(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS Settings apk on device `%v`", device.UDID))
 
-	err := installGadsAndroidIME(device)
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder))
+	err := cmd.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("installGadsSettingsApp: Error executing `%s` - %s", cmd.Args, err)
 	}
 
-	time.Sleep(1 * time.Second)
+	return nil
+}
 
-	err = enableGadsAndroidIME(device)
+// Pushes the GADS-Settings apk withou an extension to /data/local/tmp on Android devices.
+// This can be started as app_process which in turn contains the remote control server
+func pushGadsSettingsInTmpLocal(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Pushing GADS Settings apk to /tmp/local on device `%v`", device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "push", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder), "/data/local/tmp/gads-settings")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("installGadsSettingsInTmpLocal: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
+// Starts the GADS-Settings remote control server as app_process from /data/local/tmp.
+// The remote control server provides endpoints for tapping/swiping and other interactions independent from Appium server
+func startGadsRemoteControlServer(device *models.Device) {
+	cmd := exec.CommandContext(
+		device.Context,
+		"adb",
+		"-s",
+		device.UDID,
+		"shell",
+		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.RemoteControlServerKt 1994")
+
+	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting GADS Remote server on device `%s` with command `%s`", device.UDID, cmd.Args))
+
+	if err := cmd.Start(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
+		ResetLocalDevice(device, "Failed to execute GADS Remote server.")
+		return
+	}
+
+	if err := cmd.Wait(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
+			"startGadsRemoteControlServer: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
+			cmd.Args, device.UDID, err))
+
+		ResetLocalDevice(device, "GADS Android remote server failed.")
+	}
+}
+
+// Enables the GADS Android IME and sets it as active for the device
+func setupGadsAndroidIME(device *models.Device) error {
+	err := enableGadsAndroidIME(device)
 	if err != nil {
 		return err
 	}
@@ -106,22 +154,11 @@ func setupGadsAndroidIME(device *models.Device) error {
 	return nil
 }
 
-func installGadsAndroidIME(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS Android IME apk on device `%v`", device.UDID))
-
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-ime.apk", config.ProviderConfig.ProviderFolder))
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("installGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
-	}
-
-	return nil
-}
-
+// Enable the GADS Android IME made available via the GADS-Settings apk
 func enableGadsAndroidIME(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Enabling GADS Android IME on device `%v`", device.UDID))
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "ime", "enable", "com.gads.gads_ime/.GADSKeyboardIME")
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "ime", "enable", "com.gads.settings/.GADSKeyboardIME")
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("enableGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
@@ -130,10 +167,12 @@ func enableGadsAndroidIME(device *models.Device) error {
 	return nil
 }
 
+// Sets the GADS Android IME as the current active IME on the device
+// The GADS Android IME has a server providing endpoint for typing text remotely
 func setGadsAndroidIMEAsActive(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Setting GADS Android IME as active on device `%v`", device.UDID))
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "ime", "set", "com.gads.gads_ime/.GADSKeyboardIME")
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "ime", "set", "com.gads.settings/.GADSKeyboardIME")
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("setGadsAndroidIMEAsActive: Error executing `%s` - %s", cmd.Args, err)
@@ -142,18 +181,13 @@ func setGadsAndroidIMEAsActive(device *models.Device) error {
 	return nil
 }
 
-func uninstallGadsAndroidIME(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Uninstalling GADS Android IME from device `%v`", device.UDID))
-	return UninstallApp(device, "com.gads.gads_ime")
-}
-
 // Uninstall the GADS stream app from the Android device
 func uninstallGadsStream(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Uninstalling GADS-stream from device `%v`", device.UDID))
 	return UninstallApp(device, GetStreamServicePackageName(device))
 }
 
-// Add recording permissions to gads-stream app to avoid popup on start
+// Add recording permissions to GADS video streaming application to avoid popup on start
 func addGadsStreamRecordingPermissions(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS-stream recording permissions on device `%v`", device.UDID))
 
@@ -166,11 +200,12 @@ func addGadsStreamRecordingPermissions(device *models.Device) error {
 	return nil
 }
 
-// Start the gads-stream app using adb
-func startGadsStreamApp(device *models.Device) error {
+// Start the GADS video streaming service using adb
+func startGadsAndroidStreaming(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", device.UDID))
 
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "start", "-n", GetStreamServiceActivityName(device))
+	logger.ProviderLogger.LogDebug("startGadsAndroidStreaming", fmt.Sprintf("Starting activity with `%v` on device `%s`", cmd.Args, device.UDID))
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("startGadsStreamApp: Error executing `%s` - %s", cmd.Args, err)
@@ -179,7 +214,7 @@ func startGadsStreamApp(device *models.Device) error {
 	return nil
 }
 
-// Press the Home button using adb to hide the transparent gads-stream activity
+// Press the Home button using adb to hide the transparent GADS video streaming activity
 func pressHomeButton(device *models.Device) {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Pressing Home button with adb on device `%v`", device.UDID))
 
@@ -190,30 +225,32 @@ func pressHomeButton(device *models.Device) {
 	}
 }
 
-// Forward the GADS stream tcp to a host port that is already assigned for the device
-func forwardGadsStream(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Trying to forward GADS-stream port(1991) to host port `%v` for device `%s`", device.StreamPort, device.UDID))
+// Forward an Android device service port to a host port
+func forwardAndroidPort(device *models.Device, devicePort, hostPort string) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Trying to forward Android device port `%v` to host port `%v` for device `%s`", devicePort, hostPort, device.UDID))
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "forward", "tcp:"+device.StreamPort, "tcp:1991")
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "forward", "tcp:"+hostPort, "tcp:"+devicePort)
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("forwardGadsStream: Error executing `%s` while trying to forward GADS-stream socket to host - %s", cmd.Args, err)
+		return fmt.Errorf("forwardAndroidPort: Error executing `%s` while trying to forward Android device port to host - %s", cmd.Args, err)
 	}
 
 	return nil
 }
 
-// Forward the GADS IME tcp to a host port that is already assigned for the device
+// Forward the GADS Android stream tcp to a host port that is already assigned for the device
+func forwardGadsStream(device *models.Device) error {
+	return forwardAndroidPort(device, "1991", device.StreamPort)
+}
+
+// Forward the GADS Android IME tcp to a host port that is already assigned for the device
 func forwardGadsAndroidIME(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Trying to forward GADS Android IME port(1993) to host port `%v` for device `%s`", device.AndroidIMEPort, device.UDID))
+	return forwardAndroidPort(device, "1993", device.AndroidIMEPort)
+}
 
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "forward", "tcp:"+device.AndroidIMEPort, "tcp:1993")
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("forwardGadsAndroidIME: Error executing `%s` while trying to forward GADS Android IME socket to host - %s", cmd.Args, err)
-	}
-
-	return nil
+// Forward the GADS Android remote control server tcp to a host port that is already assigned for the device
+func forwardGadsRemoteServer(device *models.Device) error {
+	return forwardAndroidPort(device, "1994", device.AndroidRemoteServerPort)
 }
 
 // Get the Android device screen size with adb
@@ -341,21 +378,18 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 
 func GetStreamServiceName(device *models.Device) string {
 	if device.UseWebRTCVideo {
-		return "com.gads.webrtc/.ScreenCaptureService"
+		return "com.gads.settings/.WebRTCScreenCaptureService"
 	}
-	return "com.shamanec.stream/.ScreenCaptureService"
+	return "com.gads.settings/.ScreenCaptureService"
 }
 
 func GetStreamServicePackageName(device *models.Device) string {
-	if device.UseWebRTCVideo {
-		return "com.gads.webrtc"
-	}
-	return "com.shamanec.stream"
+	return "com.gads.settings"
 }
 
 func GetStreamServiceActivityName(device *models.Device) string {
 	if device.UseWebRTCVideo {
-		return "com.gads.webrtc/com.gads.webrtc.ScreenCaptureActivity"
+		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
 	}
-	return "com.shamanec.stream/com.shamanec.stream.ScreenCaptureActivity"
+	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 }
