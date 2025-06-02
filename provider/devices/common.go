@@ -324,6 +324,24 @@ func setupAndroidDevice(device *models.Device) {
 		}
 		time.Sleep(3 * time.Second)
 	}
+
+	if slices.Contains(device.InstalledApps, "com.gads.webrtc") {
+		err = UninstallApp(device, "com.gads.webrtc")
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS WebRTC stream app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS WebRTC stream app from Android device.")
+		}
+		time.Sleep(3 * time.Second)
+	}
+
+	if slices.Contains(device.InstalledApps, "com.shamanec.stream") {
+		err = UninstallApp(device, "com.shamanec.stream")
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall GADS mjpeg stream app from Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to uninstall GADS mjpeg stream app from Android device.")
+		}
+		time.Sleep(3 * time.Second)
+	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked for and uninstalled existing GADS Android apps on device `%v` if they were present", device.UDID))
 
 	err = installGadsSettingsApp(device)
@@ -782,7 +800,7 @@ func getConnectedDevicesAndroid() []string {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") && !strings.Contains(line, "emulator") {
+		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") {
 			connectedDevices = append(connectedDevices, strings.Fields(line)[0])
 		}
 	}
