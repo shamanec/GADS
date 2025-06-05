@@ -1,3 +1,17 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
 package hub
 
 import (
@@ -16,6 +30,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"github.com/swaggo/swag/example/basic/docs"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -158,6 +173,14 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	if err != nil {
 		log.Fatalf("Failed to unpack resource files in folder `%s` - %s", filesTempDir, err)
 	}
+
+	// Configure Swagger documentation
+	docs.SwaggerInfo.Title = "GADS API"
+	docs.SwaggerInfo.Description = "GADS API for device automation and management"
+	docs.SwaggerInfo.Version = appVersion
+	docs.SwaggerInfo.Host = fmt.Sprintf("%s:%s", hostAddress, port)
+	docs.SwaggerInfo.BasePath = "/"
+	docs.SwaggerInfo.Schemes = []string{"http", "https"}
 
 	r := router.HandleRequests(configData, uiFiles)
 

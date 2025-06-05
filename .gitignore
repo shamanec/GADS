@@ -5,7 +5,6 @@ GADS
 hub/gads-ui/build/*
 hub/gads-ui/node_modules
 device_*
-gads-stream.apk
 .idea
 .DS_Store
 server.crt

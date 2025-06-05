@@ -1,3 +1,12 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
 package models
 
 type ActionData struct {
@@ -6,6 +15,7 @@ type ActionData struct {
 	EndX       float64 `json:"endX,omitempty"`
 	EndY       float64 `json:"endY,omitempty"`
 	TextToType string  `json:"text,omitempty"`
+	Duration   float64 `json:"duration,omitempty"`
 }
 
 type DeviceAction struct {

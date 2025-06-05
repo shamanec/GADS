@@ -1,3 +1,12 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
 package models
 
 import (
@@ -32,11 +41,11 @@ func (a ByUDID) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByUDID) Less(i, j int) bool { return a[i].UDID < a[j].UDID }
 
 type User struct {
-	Username     string   `json:"username" bson:"username"`
-	Password     string   `json:"password" bson:"password,omitempty"`
-	Role         string   `json:"role,omitempty" bson:"role"`
-	ID           string   `json:"_id" bson:"_id,omitempty"`
-	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids"`
+	Username     string   `json:"username" bson:"username" example:"john_doe"`
+	Password     string   `json:"password" bson:"password,omitempty" example:"secure_password"`
+	Role         string   `json:"role,omitempty" bson:"role" example:"user" enums:"admin,user"`
+	ID           string   `json:"_id" bson:"_id,omitempty" example:"507f1f77bcf86cd799439011"`
+	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
 }
 
 type Device struct {
@@ -69,26 +78,27 @@ type Device struct {
 	//// RETURNABLE VALUES
 	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
 	///// NON-RETURNABLE VALUES
-	AppiumSessionID  string             `json:"-" bson:"-"` // current Appium session ID
-	WDASessionID     string             `json:"-" bson:"-"` // current WebDriverAgent session ID
-	AppiumPort       string             `json:"-" bson:"-"` // port assigned to the device for the Appium server
-	StreamPort       string             `json:"-" bson:"-"` // port assigned to the device for the video stream
-	WDAStreamPort    string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
-	WDAPort          string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
-	AndroidIMEPort   string             `json:"-" bson:"-"` // port assigned to Android devices for the custom IME keyboard instance
-	WdaReadyChan     chan bool          `json:"-" bson:"-"` // channel for checking that WebDriverAgent is up after start
-	AppiumReadyChan  chan bool          `json:"-" bson:"-"` // channel for checking that Appium is up after start
-	Context          context.Context    `json:"-" bson:"-"` // context used to control the device set up since we have multiple goroutines
-	CtxCancel        context.CancelFunc `json:"-" bson:"-"` // cancel func for the context above, can be used to stop all running device goroutines
-	GoIOSDeviceEntry ios.DeviceEntry    `json:"-" bson:"-"` // `go-ios` device entry object used for `go-ios` library interactions
-	Logger           CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
-	AppiumLogger     AppiumLogger       `json:"-" bson:"-"` // AppiumLogger object for logging appium actions
-	Mutex            sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
-	SetupMutex       sync.Mutex         `json:"-" bson:"-"` // Mutex for synchronizing device setup operations
-	GoIOSTunnel      tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
-	SemVer           *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
-	InitialSetupDone bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
-	DeviceAddress    string             `json:"-" bson:"-"`
+	AppiumSessionID         string             `json:"-" bson:"-"` // current Appium session ID
+	WDASessionID            string             `json:"-" bson:"-"` // current WebDriverAgent session ID
+	AppiumPort              string             `json:"-" bson:"-"` // port assigned to the device for the Appium server
+	StreamPort              string             `json:"-" bson:"-"` // port assigned to the device for the video stream
+	WDAStreamPort           string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
+	WDAPort                 string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
+	AndroidIMEPort          string             `json:"-" bson:"-"` // port assigned to Android devices for the custom IME keyboard instance
+	AndroidRemoteServerPort string             `json:"-" bson:"-"` // port assigned to Android devices for the custom remote control server
+	WdaReadyChan            chan bool          `json:"-" bson:"-"` // channel for checking that WebDriverAgent is up after start
+	AppiumReadyChan         chan bool          `json:"-" bson:"-"` // channel for checking that Appium is up after start
+	Context                 context.Context    `json:"-" bson:"-"` // context used to control the device set up since we have multiple goroutines
+	CtxCancel               context.CancelFunc `json:"-" bson:"-"` // cancel func for the context above, can be used to stop all running device goroutines
+	GoIOSDeviceEntry        ios.DeviceEntry    `json:"-" bson:"-"` // `go-ios` device entry object used for `go-ios` library interactions
+	Logger                  CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
+	AppiumLogger            AppiumLogger       `json:"-" bson:"-"` // AppiumLogger object for logging appium actions
+	Mutex                   sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
+	SetupMutex              sync.Mutex         `json:"-" bson:"-"` // Mutex for synchronizing device setup operations
+	GoIOSTunnel             tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
+	SemVer                  *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
+	InitialSetupDone        bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
+	DeviceAddress           string             `json:"-" bson:"-"`
 }
 
 type LocalHubDevice struct {
@@ -150,11 +160,20 @@ type StreamSettings struct {
 }
 
 type Workspace struct {
-	ID          string `json:"id" bson:"_id,omitempty"`
-	Name        string `json:"name" bson:"name"`
-	Description string `json:"description" bson:"description"`
-	IsDefault   bool   `json:"is_default" bson:"is_default"`
-	Tenant      string `json:"tenant" bson:"tenant,omitempty"`
+	ID          string `json:"id" bson:"_id,omitempty" example:"workspace_123"`
+	Name        string `json:"name" bson:"name" example:"Development Team"`
+	Description string `json:"description" bson:"description" example:"Workspace for development team testing"`
+	IsDefault   bool   `json:"is_default" bson:"is_default" example:"false"`
+	Tenant      string `json:"tenant" bson:"tenant,omitempty" example:"acme-corp"`
+}
+
+type WorkspaceWithDeviceCount struct {
+	ID          string `json:"id" bson:"_id,omitempty" example:"workspace_123"`
+	Name        string `json:"name" bson:"name" example:"Development Team"`
+	Description string `json:"description" bson:"description" example:"Workspace for development team testing"`
+	IsDefault   bool   `json:"is_default" bson:"is_default" example:"false"`
+	Tenant      string `json:"tenant" bson:"tenant,omitempty" example:"acme-corp"`
+	DeviceCount int    `json:"device_count" bson:"device_count" example:"5"`
 }
 
 type ProviderLog struct {

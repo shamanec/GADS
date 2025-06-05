@@ -1,3 +1,12 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
 package provider
 
 import (
@@ -164,7 +173,7 @@ func updateProviderInDB() {
 }
 
 func extractProviderResourceFiles(destination string, resourceFiles embed.FS) error {
-	files := []string{"gads-ime.apk", "gads-webrtc.apk"}
+	files := []string{"gads-settings.apk"}
 	for _, file := range files {
 		data, err := resourceFiles.ReadFile("resources/" + file)
 		if err != nil {

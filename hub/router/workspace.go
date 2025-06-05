@@ -1,3 +1,12 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
 package router
 
 import (
@@ -11,6 +20,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// CreateWorkspace godoc
+// @Summary      Create a new workspace
+// @Description  Create a new workspace in the system
+// @Tags         Admin - Workspaces
+// @Accept       json
+// @Produce      json
+// @Param        workspace  body      models.Workspace  true  "Workspace data"
+// @Success      200        {object}  models.Workspace
+// @Failure      400        {object}  models.ErrorResponse
+// @Failure      500        {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/workspaces [post]
 func CreateWorkspace(c *gin.Context) {
 	var workspace models.Workspace
 	if err := c.ShouldBindJSON(&workspace); err != nil {
@@ -39,6 +60,18 @@ func CreateWorkspace(c *gin.Context) {
 	c.JSON(http.StatusOK, workspace)
 }
 
+// UpdateWorkspace godoc
+// @Summary      Update a workspace
+// @Description  Update an existing workspace in the system
+// @Tags         Admin - Workspaces
+// @Accept       json
+// @Produce      json
+// @Param        workspace  body      models.Workspace  true  "Workspace data"
+// @Success      200        {object}  models.Workspace
+// @Failure      400        {object}  models.ErrorResponse
+// @Failure      500        {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/workspaces [put]
 func UpdateWorkspace(c *gin.Context) {
 	var workspace models.Workspace
 	if err := c.ShouldBindJSON(&workspace); err != nil {
@@ -65,6 +98,19 @@ func UpdateWorkspace(c *gin.Context) {
 	c.JSON(http.StatusOK, workspace)
 }
 
+// DeleteWorkspace godoc
+// @Summary      Delete a workspace
+// @Description  Remove a workspace from the system
+// @Tags         Admin - Workspaces
+// @Accept       json
+// @Produce      json
+// @Param        id  path      string  true  "Workspace ID"
+// @Success      200 {object}  models.SuccessResponse
+// @Failure      400 {object}  models.ErrorResponse
+// @Failure      404 {object}  models.ErrorResponse
+// @Failure      500 {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/workspaces/{id} [delete]
 func DeleteWorkspace(c *gin.Context) {
 	id := c.Param("id")
 
@@ -92,6 +138,19 @@ func DeleteWorkspace(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Workspace deleted"})
 }
 
+// GetWorkspaces godoc
+// @Summary      Get all workspaces
+// @Description  Retrieve list of all workspaces with pagination and filtering
+// @Tags         Admin - Workspaces
+// @Accept       json
+// @Produce      json
+// @Param        page   query  int     false  "Page number (default 1)"
+// @Param        limit  query  int     false  "Items per page (default 10)"
+// @Param        search query  string  false  "Search term"
+// @Param        tenant query  string  false  "Filter by tenant"
+// @Success      200    {object}  models.WorkspacesWithDeviceCountResponse
+// @Security     BearerAuth
+// @Router       /admin/workspaces [get]
 func GetWorkspaces(c *gin.Context) {
 	pageStr := c.Query("page")
 	limitStr := c.Query("limit")
@@ -108,11 +167,22 @@ func GetWorkspaces(c *gin.Context) {
 		limit = 10 // Default limit
 	}
 
-	workspaces, totalCount := db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
+	workspaces, totalCount, err := db.GlobalMongoStore.GetWorkspacesWithDeviceCount(page, limit, searchStr)
+
+	if err != nil {
+		if err == db.ErrInvalidPagination {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pagination parameters"})
+		} else if err == db.ErrAggregationFailed {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspaces"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspaces"})
+		}
+		return
+	}
 
 	// Filter by tenant if specified
 	if tenantStr != "" {
-		var filteredWorkspaces []models.Workspace
+		var filteredWorkspaces []models.WorkspaceWithDeviceCount
 		for _, ws := range workspaces {
 			if ws.Tenant == tenantStr {
 				filteredWorkspaces = append(filteredWorkspaces, ws)
@@ -125,6 +195,19 @@ func GetWorkspaces(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"workspaces": workspaces, "total": totalCount})
 }
 
+// GetUserWorkspaces godoc
+// @Summary      Get user workspaces
+// @Description  Retrieve workspaces accessible to the current user
+// @Tags         Workspaces
+// @Accept       json
+// @Produce      json
+// @Param        page   query  int     false  "Page number (default 1)"
+// @Param        limit  query  int     false  "Items per page (default 10)"
+// @Param        search query  string  false  "Search term"
+// @Success      200    {object}  models.WorkspacesResponse
+// @Failure      401    {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /workspaces [get]
 func GetUserWorkspaces(c *gin.Context) {
 	// Get JWT token from Authorization header
 	authHeader := c.GetHeader("Authorization")

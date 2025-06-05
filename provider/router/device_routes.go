@@ -1,3 +1,12 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
 package router
 
 import (
@@ -7,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"GADS/common/api"
 	"GADS/common/models"
@@ -14,6 +24,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+var netClient = &http.Client{
+	Timeout: time.Second * 120,
+}
 
 // Copy the headers from the original endpoint to the proxied endpoint
 func copyHeaders(destination, source http.Header) {
@@ -52,7 +66,7 @@ func DeviceHome(c *gin.Context) {
 	device.Logger.LogInfo("appium_interact", "Navigating to Home/Springboard")
 
 	// Send the request
-	homeResponse, err := appiumHome(device)
+	homeResponse, err := deviceHome(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to navigate to Home/Springboard - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, "Failed to navigate to Home/Springboard", nil)
@@ -77,7 +91,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	device.Logger.LogInfo("appium_interact", "Getting device clipboard value")
 
 	// Send the request
-	clipboardResponse, err := appiumGetClipboard(device)
+	clipboardResponse, err := deviceGetClipboard(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get device clipboard value - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get device clipboard value - %s", err), nil)
@@ -115,7 +129,7 @@ func DeviceLock(c *gin.Context) {
 	device := devices.DBDeviceMap[udid]
 	device.Logger.LogInfo("appium_interact", "Locking device")
 
-	lockResponse, err := appiumLockUnlock(device, "lock")
+	lockResponse, err := deviceLock(device, "lock")
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to lock device - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
@@ -140,7 +154,7 @@ func DeviceUnlock(c *gin.Context) {
 	device := devices.DBDeviceMap[udid]
 	device.Logger.LogInfo("appium_interact", "Unlocking device")
 
-	lockResponse, err := appiumLockUnlock(device, "unlock")
+	lockResponse, err := deviceLock(device, "unlock")
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unlock device - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
@@ -165,18 +179,14 @@ func DeviceScreenshot(c *gin.Context) {
 	device := devices.DBDeviceMap[udid]
 	device.Logger.LogInfo("appium_interact", "Getting screenshot from device")
 
-	screenshotResp, err := appiumScreenshot(device)
-	defer screenshotResp.Body.Close()
-
-	// Read the response body
-	screenshotRespBody, err := io.ReadAll(screenshotResp.Body)
+	screenshotResp, err := deviceScreenshot(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get screenshot from device - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	api.GenericResponse(c, screenshotResp.StatusCode, string(screenshotRespBody), nil)
+	api.GenericResponse(c, http.StatusOK, screenshotResp, nil)
 }
 
 //======================================
@@ -268,7 +278,7 @@ func DeviceTap(c *gin.Context) {
 
 	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Tapping at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y)))
 
-	tapResp, err := appiumTap(device, requestBody.X, requestBody.Y)
+	tapResp, err := deviceTap(device, requestBody.X, requestBody.Y)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to tap at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
@@ -299,7 +309,7 @@ func DeviceTouchAndHold(c *gin.Context) {
 
 	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Touch and hold at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y)))
 
-	touchAndHoldResp, err := appiumTouchAndHold(device, requestBody.X, requestBody.Y)
+	touchAndHoldResp, err := deviceTouchAndHold(device, requestBody.X, requestBody.Y, requestBody.Duration)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to touch and hold at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
@@ -331,7 +341,7 @@ func DeviceSwipe(c *gin.Context) {
 
 	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Swiping from X:%v Y:%v to X:%v Y:%v", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY)))
 
-	swipeResp, err := appiumSwipe(device, requestBody.X, requestBody.Y, requestBody.EndX, requestBody.EndY)
+	swipeResp, err := deviceSwipe(device, requestBody.X, requestBody.Y, requestBody.EndX, requestBody.EndY)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)

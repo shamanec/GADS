@@ -1,3 +1,12 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
 package router
 
 import (
@@ -68,6 +77,18 @@ func DeviceProxyHandler(c *gin.Context) {
 
 	if !ok || device == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with UDID `%s` not found or is nil", udid)})
+		return
+	}
+
+	// Check if device is available before proceeding with proxy operations
+	devices.HubDevicesData.Mu.Lock()
+	isAvailable := devices.HubDevicesData.Devices[udid].Available
+	devices.HubDevicesData.Mu.Unlock()
+
+	if !isAvailable {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": fmt.Sprintf("Device with UDID `%s` is not available", udid),
+		})
 		return
 	}
 

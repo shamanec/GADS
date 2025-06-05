@@ -87,19 +87,17 @@ The platform architecture consists of two main components:
 | **Linux**  | ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency                       |
 | **Windows**| ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency                       |
 
-## Licensing
+## License
 
-GADS uses a hybrid licensing model to balance open-source principles with the protection of certain proprietary components:
+This repository is **dual-licensed**:
 
-1. **Open Source Components**:
-   The Go backend is licensed under the AGPL-3.0 License. This includes all files and directories except those explicitly listed as proprietary.
+- **Open Source Components** (AGPL-3.0):
+  All source code in this repository, excluding explicitly listed proprietary components, is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0.html).
 
-2. **Proprietary Components**:
-   The following components, while included in the distribution, are proprietary and provided in an obfuscated form:
+- **Proprietary Components**:
+  The `hub-ui` directory is licensed under a separate proprietary license. See [`PROPRIETARY-LICENSE.txt`](./PROPRIETARY-LICENSE.txt) for more information.
 
-   - hub-ui
-
-   These components are integral parts of GADS but their source code is not open for modification or redistribution. The source code is NOT part of the AGPL-3.0 license.
+Please refer to the [`LICENSE-OVERVIEW`](./LICENSE-OVERVIEW.txt) file for a detailed overview.
 
 ### Using GADS
 
