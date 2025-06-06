@@ -211,6 +211,13 @@ func updateDevices() {
 			if slices.Contains(connectedDevices, dbDeviceUDID) {
 				dbDevice.Connected = true
 				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
+					// Validate device configuration before setup
+					err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
+					if err != nil {
+						logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", dbDevice.UDID, err.Error()))
+						continue
+					}
+
 					setContext(dbDevice)
 					dbDevice.AppiumReadyChan = make(chan bool, 1)
 					switch dbDevice.OS {

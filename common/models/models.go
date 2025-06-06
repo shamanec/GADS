@@ -11,7 +11,10 @@ package models
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -181,4 +184,34 @@ type ProviderLog struct {
 	Level     string `json:"level" bson:"level"`
 	Message   string `json:"message" bson:"message"`
 	Timestamp int64  `json:"timestamp" bson:"timestamp"`
+}
+
+// ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS
+func ValidateDeviceUsageForOS(os, usage string) error {
+	// Normalize OS string to lowercase for case-insensitive comparison
+	normalizedOS := strings.ToLower(strings.TrimSpace(os))
+	normalizedUsage := strings.ToLower(strings.TrimSpace(usage))
+
+	// Validate Tizen devices can only be used for automation
+	if normalizedOS == "tizen" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("tizen devices only support 'automation' usage. Current usage '%s' is not supported. Tizen devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
+	return nil
+}
+
+// ValidateDevice performs comprehensive validation on a device struct
+func ValidateDevice(device *Device) error {
+	if device == nil {
+		return errors.New("device cannot be nil")
+	}
+
+	// Validate OS and Usage combination
+	if err := ValidateDeviceUsageForOS(device.OS, device.Usage); err != nil {
+		return err
+	}
+
+	return nil
 }
