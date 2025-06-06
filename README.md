@@ -179,7 +179,7 @@ To ensure that GADS runs continuously and can be managed easily, it is recommend
 For detailed instructions on how to create a service for Linux using systemd, please refer to the [Linux Service Documentation](./docs/linux-service.md).
 
 ### 🖥️ Windows
-*Note: Service implementation for Windows is yet to be documented.*
+For detailed instructions on how to create a service for Windows using WinSW, please refer to the [Windows Service Documentation](./docs/windows-service.md).
 
 ### 🍏 macOS
 *Note: Service implementation for macOS is yet to be documented.*
