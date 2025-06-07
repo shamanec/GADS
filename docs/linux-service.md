@@ -36,8 +36,10 @@ sudo apt install logrotate -y
 ```sh
 # /etc/sysconfig/gads
 # ANDROID_HOME is only required if the provider is managing Android devices. 
+# TIZEN_HOME is only required if the provider is managing Tizen devices.
 # Adjust this value and other environment variables as necessary to match the configuration of the environment where the provider is installed.
 ANDROID_HOME=/root/.tools/android-sdk
+TIZEN_HOME=/root/.tools/tizen-studio
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 PROVIDER_NICKNAME=YOUR_PROVIDER_NICKNAME
 PROVIDER_MONGO_DB=YOUR_MONGO_DB_HOST:YOUR_MONGO_DB_PORT

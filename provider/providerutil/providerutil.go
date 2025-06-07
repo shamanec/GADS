@@ -11,14 +11,23 @@ package providerutil
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"time"
 
+	"path/filepath"
+	"runtime"
+
+	"archive/zip"
+
 	"GADS/common"
 	"GADS/common/cli"
+	"GADS/provider/config"
 	"GADS/provider/logger"
 )
 
@@ -150,4 +159,116 @@ func GetXCUITestDriverVersion() (string, error) {
 
 func GetUiAutomator2DriverVersion() (string, error) {
 	return GetAppiumDriverVersion("uiautomator2")
+}
+
+// Check if sdb is available on the host by checking its version
+func SdbAvailable() bool {
+	logger.ProviderLogger.LogInfo("provider_setup", "Checking if sdb is set up and available on the host PATH")
+
+	cmd := exec.Command("sdb", "version")
+	err := cmd.Run()
+	if err != nil {
+		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("sdbAvailable: sdb is not available or command failed - %s", err))
+		return false
+	}
+	return true
+}
+
+// Check if chromedriver is located in the drivers provider folder
+func isChromeDriverAvailable() bool {
+	var chromedriverPath string
+	if runtime.GOOS == "windows" {
+		chromedriverPath = fmt.Sprintf("%s/drivers/chromedriver.exe", config.ProviderConfig.ProviderFolder)
+	} else {
+		chromedriverPath = fmt.Sprintf("%s/drivers/chromedriver", config.ProviderConfig.ProviderFolder)
+	}
+
+	_, err := os.Stat(chromedriverPath)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil
+}
+
+func CheckChromeDriverAndDownload() error {
+	if isChromeDriverAvailable() {
+		logger.ProviderLogger.LogInfo("provider_setup", "Chromedriver is available in the drivers provider folder, it will not be downloaded.")
+		return nil
+	}
+
+	var url string
+	switch runtime.GOOS {
+	case "linux":
+		url = "https://chromedriver.storage.googleapis.com/2.36/chromedriver_linux64.zip"
+	case "darwin":
+		url = "https://chromedriver.storage.googleapis.com/2.36/chromedriver_mac64.zip"
+	case "windows":
+		url = "https://chromedriver.storage.googleapis.com/2.36/chromedriver_win32.zip"
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	// Download the zip file
+	response, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download ChromeDriver: %s", err)
+	}
+	defer response.Body.Close()
+
+	// Create a temporary file
+	tempFile, err := os.CreateTemp("", "chromedriver.zip")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %s", err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	// Write the response body to the temp file
+	_, err = io.Copy(tempFile, response.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write to temp file: %s", err)
+	}
+
+	// Define the extraction directory as the provider folder
+	extractionDir := fmt.Sprintf("%s/drivers", config.ProviderConfig.ProviderFolder)
+
+	// Extract the zip file
+	err = unzip(tempFile.Name(), extractionDir) // Specify the extraction directory
+	if err != nil {
+		return fmt.Errorf("failed to extract ChromeDriver: %s", err)
+	}
+
+	return nil
+}
+
+func unzip(src string, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	os.MkdirAll(dest, 0755)
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		fpath := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, f.Mode())
+		} else {
+			outFile, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer outFile.Close()
+			if _, err := io.Copy(outFile, rc); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

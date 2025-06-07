@@ -929,6 +929,13 @@ func AddDevice(c *gin.Context) {
 		return
 	}
 
+	// Validate device configuration before processing
+	err = models.ValidateDevice(&device)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
+		return
+	}
+
 	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == device.UDID {
@@ -1010,6 +1017,13 @@ func UpdateDevice(c *gin.Context) {
 
 			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
+			}
+
+			// Validate device configuration before saving to DB
+			err = models.ValidateDevice(&dbDevice)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
+				return
 			}
 
 			err = db.GlobalMongoStore.AddOrUpdateDevice(&dbDevice)

@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -55,6 +56,8 @@ var DBDeviceMap = make(map[string]*models.Device)
 func Listener() {
 	DBDeviceMap = getDBProviderDevices()
 	setupDevices()
+
+	Setup()
 
 	// Start updating devices each 10 seconds in a goroutine
 	go updateDevices()
@@ -197,32 +200,66 @@ func updateDevices() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		connectedDevices := GetConnectedDevicesCommon()
+	var tizenTicker *time.Ticker
+	var tizenChan <-chan time.Time
 
-	DEVICE_MAP_LOOP:
-		for dbDeviceUDID, dbDevice := range DBDeviceMap {
-			if dbDevice.Usage == "disabled" {
-				continue DEVICE_MAP_LOOP
-			}
-			if slices.Contains(connectedDevices, dbDeviceUDID) {
-				dbDevice.Connected = true
-				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
-					setContext(dbDevice)
-					dbDevice.AppiumReadyChan = make(chan bool, 1)
-					if dbDevice.OS == "ios" {
-						dbDevice.WdaReadyChan = make(chan bool, 1)
-						go setupIOSDevice(dbDevice)
-					}
+	if config.ProviderConfig.ProvideTizen {
+		tizenTicker = time.NewTicker(30 * time.Second)
+		tizenChan = tizenTicker.C
+		defer tizenTicker.Stop()
+	}
 
-					if dbDevice.OS == "android" {
-						go setupAndroidDevice(dbDevice)
-					}
+	for {
+		select {
+		case <-ticker.C:
+			connectedDevices := GetConnectedDevicesCommon()
+
+		DEVICE_MAP_LOOP:
+			for dbDeviceUDID, dbDevice := range DBDeviceMap {
+				if dbDevice.Usage == "disabled" {
+					continue DEVICE_MAP_LOOP
 				}
-			} else {
-				ResetLocalDevice(dbDevice, "Device is no longer connected.")
-				dbDevice.Connected = false
+				if slices.Contains(connectedDevices, dbDeviceUDID) {
+					dbDevice.Connected = true
+					if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
+						// Validate device configuration before setup
+						err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
+						if err != nil {
+							logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", dbDevice.UDID, err.Error()))
+							continue
+						}
+
+						setContext(dbDevice)
+						dbDevice.AppiumReadyChan = make(chan bool, 1)
+						switch dbDevice.OS {
+						case "ios":
+							dbDevice.WdaReadyChan = make(chan bool, 1)
+							go setupIOSDevice(dbDevice)
+						case "android":
+							go setupAndroidDevice(dbDevice)
+						case "tizen":
+							go setupTizenDevice(dbDevice)
+						}
+					}
+				} else {
+					ResetLocalDevice(dbDevice, "Device is no longer connected.")
+					dbDevice.Connected = false
+				}
 			}
+
+		case <-tizenChan:
+			if tizenChan != nil {
+				handleTizenAutoConnection(GetConnectedDevicesCommon())
+			}
+		}
+	}
+}
+
+func Setup() {
+	if config.ProviderConfig.ProvideTizen {
+		err := providerutil.CheckChromeDriverAndDownload()
+		if err != nil {
+			log.Fatalf("Setup: Failed to download and extract ChromeDriver - %s", err)
 		}
 	}
 }
@@ -756,6 +793,7 @@ func GetConnectedDevicesCommon() []string {
 
 	var androidDevices []string
 	var iosDevices []string
+	var tizenDevices []string
 
 	if config.ProviderConfig.ProvideAndroid {
 		androidDevices = getConnectedDevicesAndroid()
@@ -765,8 +803,13 @@ func GetConnectedDevicesCommon() []string {
 		iosDevices = getConnectedDevicesIOS()
 	}
 
+	if config.ProviderConfig.ProvideTizen {
+		tizenDevices = getConnectedDevicesTizen()
+	}
+
 	connectedDevices = append(connectedDevices, iosDevices...)
 	connectedDevices = append(connectedDevices, androidDevices...)
+	connectedDevices = append(connectedDevices, tizenDevices...)
 
 	return connectedDevices
 }
@@ -879,6 +922,21 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 			AutomationName: "UiAutomator2",
 			PlatformName:   "Android",
 			DeviceName:     device.Name,
+		}
+	} else if device.OS == "tizen" {
+		chromeDriverPath := filepath.Join(config.ProviderConfig.ProviderFolder, "drivers/chromedriver")
+		absolutePath, err := filepath.Abs(chromeDriverPath)
+		if err != nil {
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to get absolute path for ChromeDriver - %s", err))
+			return
+		}
+		capabilities = models.AppiumServerCapabilities{
+			AutomationName:         "TizenTV",
+			PlatformName:           "TizenTV",
+			UDID:                   device.UDID,
+			DeviceAddress:          device.DeviceAddress,
+			DeviceName:             device.Name,
+			ChromeDriverExecutable: absolutePath,
 		}
 	}
 
@@ -1204,4 +1262,29 @@ func applyDeviceStreamSettings(device *models.Device) error {
 	}
 
 	return nil
+}
+
+func getConnectedDevicesTizen() []string {
+	var devices []string
+	cmd := exec.Command("sdb", "devices")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to get connected Tizen devices - %s", err))
+		return devices
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "List of devices attached") || strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[1] == "device" {
+			deviceID := fields[0]
+			devices = append(devices, deviceID)
+		}
+	}
+
+	return devices
 }

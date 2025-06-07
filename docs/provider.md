@@ -13,6 +13,7 @@ The provider component is responsible for setting up the Appium servers and mana
 - [Device Notes](#device-notes)
   - [iOS Phones](#ios-phones)
   - [Android](#android-phone)
+  - [Tizen TV](#tizen-tv)
 - [Starting Provider Instance](#starting-a-provider-instance)
 - [Logging](#logging)
 
@@ -48,6 +49,10 @@ To specify a folder, create it on your machine and provide it at startup using t
 -  **Prepare** [WebDriverAgent](#build-webdriveragent-ipa-file-manually-using-xcode).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
+#### Tizen
+- **Install** [SDB (Smart Development Bridge)](#sdb---tizen-only)
+- **Enable** [Developer Mode](#developer-mode-tizen) on each Tizen TV
+
 <br>
 
 ---
@@ -64,6 +69,10 @@ To specify a folder, create it on your machine and provide it at startup using t
 - **Install** [usbmuxd](#usbmuxd) if providing iOS devices.
 - **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
+
+#### Tizen
+- **Install** [SDB (Smart Development Bridge)](#sdb---tizen-only)
+- **Enable** [Developer Mode](#developer-mode-tizen) on each Tizen TV
 
 #### ⚠️ Known Limitations - Linux, iOS
 1. The command **driver.executeScript("mobile: startPerfRecord")** cannot be executed due to the unavailability of Xcode tools.
@@ -87,6 +96,10 @@ To specify a folder, create it on your machine and provide it at startup using t
 - **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
+#### Tizen
+- **Install** [SDB (Smart Development Bridge)](#sdb---tizen-only)
+- **Enable** [Developer Mode](#developer-mode-tizen) on each Tizen TV
+
 #### ⚠️ Known Limitations - Windows, iOS
 1. The command **driver.executeScript("mobile: startPerfRecord")** cannot be executed due to the unavailability of Xcode tools.
 2. Any functionality requiring Instruments or other Xcode/macOS-exclusive tools is limited.
@@ -102,6 +115,7 @@ Installation is pretty similar for all operating systems, you just have to find 
 - Install Appium drivers
   - iOS - `appium driver install xcuitest`
   - Android - `appium driver install uiautomator2`
+  - Tizen TV - `appium driver install --source=npm appium-tizen-tv-driver`
 - Add any additional Appium dependencies like `ANDROID_HOME`(Android SDK) environment variable, Java, etc.
 - Test with `appium driver doctor uiautomator2` and `appium driver doctor xcuitest` to check for errors with the setup.
 
@@ -221,4 +235,51 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 ## Device logs
 On start a log folder and file is created for each device relative to the used provider folder - default or provided by the `--provider-folder` flag.  
 They will also be stored in MongoDB in DB `logs` and collection corresponding to the device UDID.
+
+### SDB - Tizen Only
+`sdb` (Smart Development Bridge) is mandatory when providing Tizen TV devices. You can skip installing it if no Tizen devices will be provided.
+- Download and install [Tizen Studio CLI](https://developer.tizen.org/development/tizen-studio/download)
+- Set up environment variables:
+  ```bash
+  # Add to your ~/.bashrc or equivalent
+  export TIZEN_HOME=/path/to/tizen-studio
+  export PATH=${PATH}:${TIZEN_HOME}/tools:${TIZEN_HOME}/tools/ide/bin
+  ```
+- Ensure `sdb` is available in PATH by running `sdb version` in terminal
+- Restart your terminal or run `source ~/.bashrc` to apply changes
+
+**Note**: Replace `/path/to/tizen-studio` with your actual Tizen Studio installation path. Common locations are:
+- macOS: `/Users/<username>/tizen-studio`
+- Linux: `/home/<username>/tizen-studio`
+- Windows: `C:\tizen-studio`
+
+## Tizen TV
+### Developer Mode
+* On each TV, navigate to Settings and enter the Apps menu
+* Select the "Developer mode" option
+* Enable Developer mode and enter the IP address of your development machine
+* Accept any security prompts that appear
+* The TV will restart to apply the changes
+
+### Device Connection
+* Ensure the TV and the Appium host machine are on the same local network
+* After enabling developer mode, connect to the TV using SDB:  
+  ```bash
+  sdb connect <tv-ip-address>  
+  ```
+* Verify the connection by running:  
+  ```bash
+  sdb devices
+  ```
+
+* The TV should appear in the list of connected devices with status "device"
+* First connection will require accepting a pairing request on the TV
+* For app testing:
+  - Only correctly-signed debug versions of apps can be tested
+  - Apps must be built with the appropriate Tizen TV SDK certificates
+
+### Known Limitations
+* Video streaming is not available for Tizen TV devices
+* Some remote control features may be limited due to TV-specific interactions
+* Screen dimensions are fixed based on TV resolution
 
