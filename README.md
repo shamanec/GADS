@@ -1,6 +1,6 @@
 <!--
   Title: GADS - Open Source Device Farm
-  Description: Self-hosted device farm and test automation platform for iOS and Android. Open source alternative to AWS Device Farm and Firebase Test Lab with Appium integration.
+  Description: Self-hosted device farm and test automation platform for iOS, Android, and Samsung Tizen OS smart TVs. Open source alternative to AWS Device Farm and Firebase Test Lab with Appium integration.
   Author: shamanec
   Tags: device-farm, mobile-testing, ios-testing, android-testing, appium, test-automation, qa-tools, continuous-testing, mobile-device-management, selenium-grid
   -->
@@ -11,7 +11,7 @@
     <img src="/docs/gads-logo.png" width="256" alt="GADS - Open Source Mobile Device Farm Platform for iOS and Android Automated Testing"/>
   </picture>
 
-  <h1>GADS - Device Farm for Mobile Testing</h1>
+  <h1>GADS - Device Farm for Mobile & Smart TV Testing</h1>
 
   [![GitHub Stars](https://img.shields.io/github/stars/shamanec/GADS?style=social)](https://github.com/shamanec/GADS/stargazers)
   [![GitHub Release](https://img.shields.io/github/v/release/shamanec/GADS)](https://github.com/shamanec/GADS/releases)
@@ -19,12 +19,12 @@
   [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
   [![Discord](https://dcbadge.vercel.app/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
 
-  🚀 **Self-Hosted Device Farm & Test Automation Platform** - Alternative to AWS Device Farm and Firebase Test Lab
+  🚀 **Self-Hosted Device Farm & Test Automation Platform** - Alternative to AWS Device Farm and Firebase Test Lab for Mobile & Smart TV Testing
 </div>
 
 ## 🎯 What is GADS?
 
-**GADS** is a free, open-source device farm platform that enables **remote device control** and **Appium test execution** on mobile devices. Perfect for QA teams, mobile developers, and organizations looking for a self-hosted alternative to expensive cloud testing services like AWS Device Farm and Firebase Test Lab.
+**GADS** is a free, open-source device farm platform that enables **remote device control** and **Appium test execution** on mobile devices (iOS/Android) and smart TVs (Samsung Tizen OS). Perfect for QA teams, mobile developers, and organizations looking for a self-hosted alternative to expensive cloud testing services like AWS Device Farm and Firebase Test Lab.
 
 The platform architecture consists of two main components:
 - **Hub**: A web interface for remote device control and provider management.
@@ -32,7 +32,7 @@ The platform architecture consists of two main components:
 
 ### Why Choose GADS?
 - 💰 **Free**: Self-hosted alternative to AWS Device Farm and Firebase Test Lab
-- 📱 **Cross-Platform**: Full support for both iOS and Android devices, with automated testing for Tizen OS TVs
+- 📱 **Cross-Platform**: Full support for iOS and Android devices, plus automated testing for Samsung Tizen OS smart TVs
 - 🎮 **Remote Control**: Real-time device control and testing capabilities
 - 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
 - 🔑 **Flexible Authentication**: Support for multiple JWT issuers with origin-based keys
@@ -77,7 +77,7 @@ The platform architecture consists of two main components:
 - 🧪 **Testing Integration**
   - Individual Appium server endpoints
   - Optional Selenium Grid 4 node registration
-  - Automated testing for Samsung Tizen OS TVs
+  - Automated testing for Samsung Tizen OS smart TVs (no remote control, testing only)
 
 ## 💻 Platform Support
 
@@ -86,6 +86,8 @@ The platform architecture consists of two main components:
 | **macOS**  | ✅             | ✅           | ✅ (automation only) | Full support for mobile, Tizen OS supports only automated testing |
 | **Linux**  | ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency                       |
 | **Windows**| ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency                       |
+
+**Important**: Tizen OS support is focused on **automated testing only**. Manual interaction and real-time device control available for mobile devices are not supported for smart TVs.
 
 ## License
 
@@ -216,12 +218,16 @@ https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 
 ## 💡 Use Cases
 
-- **Mobile App Testing**: Automate testing across multiple real devices
-- **Manual QA**: Remote access to physical devices for manual testing
-- **CI/CD Pipeline**: Integrate automated testing in your deployment workflow
-- **Device Lab Management**: Centralized management of your organization's mobile devices
+### Mobile Testing 📱
+- **Mobile App Testing**: Automate testing across multiple real iOS and Android devices
+- **Manual QA**: Remote access to physical devices for manual testing and debugging
 - **Cross-Browser Testing**: Test web applications across multiple mobile browsers
-- **Smart TV Testing**: Automated testing of Tizen OS applications for Samsung TVs
+- **Device Lab Management**: Centralized management of your organization's mobile devices
+
+### Smart TV Testing 📺
+- **Tizen OS App Testing**: Automated testing of applications for Samsung smart TVs
+- **TV-Specific Testing**: Validate TV app functionality, performance, and compatibility
+- **Remote-First Testing**: Test TV apps without physical access to devices
 
 ## 📊 Project Status
 
