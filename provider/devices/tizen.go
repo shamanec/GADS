@@ -107,8 +107,6 @@ func setupTizenDevice(device *models.Device) {
 		return
 	}
 
-	device.OS = "tizen"
-
 	go startAppium(device, &wg)
 	go checkAppiumUp(device)
 
