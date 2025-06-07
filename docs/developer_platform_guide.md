@@ -3,12 +3,17 @@
 This guide explains how to implement support for new platforms in the GADS provider component. It follows established patterns used for iOS, Android, and Tizen TV support.
 
 ## Table of Contents
-- [Overview](#overview)
-- [Implementation Checklist](#implementation-checklist)
-- [Core Components](#core-components)
-- [Step-by-Step Implementation](#step-by-step-implementation)
-- [Best Practices](#best-practices)
-- [Testing](#testing)
+- [Platform Support Development Guide](#platform-support-development-guide)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Implementation Checklist](#implementation-checklist)
+  - [Core Components](#core-components)
+    - [1. Configuration](#1-configuration)
+    - [2. Platform Detection](#2-platform-detection)
+    - [3. Device Setup](#3-device-setup)
+    - [4. Device Detection](#4-device-detection)
+  - [Best Practices](#best-practices)
+  - [Testing](#testing)
 
 ## Overview
 
@@ -66,6 +71,12 @@ Create a new file `devices/new_platform.go`:
 package devices
 
 func setupNewPlatformDevice(device *models.Device) {
+    device.SetupMutex.Lock()
+	defer device.SetupMutex.Unlock()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
     device.ProviderState = "preparing"
     logger.ProviderLogger.LogInfo("new_platform_setup", 
         fmt.Sprintf("Running setup for new platform device `%v`", device.UDID))
@@ -93,6 +104,9 @@ func setupNewPlatformDevice(device *models.Device) {
         resetLocalDevice(device)
         return
     }
+
+    wg.Wait()
+    device.ProviderState = "live"
 }
 ```
 
