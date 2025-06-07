@@ -200,39 +200,56 @@ func updateDevices() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		connectedDevices := GetConnectedDevicesCommon()
+	var tizenTicker *time.Ticker
+	var tizenChan <-chan time.Time
 
-	DEVICE_MAP_LOOP:
-		for dbDeviceUDID, dbDevice := range DBDeviceMap {
-			if dbDevice.Usage == "disabled" {
-				continue DEVICE_MAP_LOOP
-			}
-			if slices.Contains(connectedDevices, dbDeviceUDID) {
-				dbDevice.Connected = true
-				if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
-					// Validate device configuration before setup
-					err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
-					if err != nil {
-						logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", dbDevice.UDID, err.Error()))
-						continue
-					}
+	if config.ProviderConfig.ProvideTizen {
+		tizenTicker = time.NewTicker(30 * time.Second)
+		tizenChan = tizenTicker.C
+		defer tizenTicker.Stop()
+	}
 
-					setContext(dbDevice)
-					dbDevice.AppiumReadyChan = make(chan bool, 1)
-					switch dbDevice.OS {
-					case "ios":
-						dbDevice.WdaReadyChan = make(chan bool, 1)
-						go setupIOSDevice(dbDevice)
-					case "android":
-						go setupAndroidDevice(dbDevice)
-					case "tizen":
-						go setupTizenDevice(dbDevice)
-					}
+	for {
+		select {
+		case <-ticker.C:
+			connectedDevices := GetConnectedDevicesCommon()
+
+		DEVICE_MAP_LOOP:
+			for dbDeviceUDID, dbDevice := range DBDeviceMap {
+				if dbDevice.Usage == "disabled" {
+					continue DEVICE_MAP_LOOP
 				}
-			} else {
-				ResetLocalDevice(dbDevice, "Device is no longer connected.")
-				dbDevice.Connected = false
+				if slices.Contains(connectedDevices, dbDeviceUDID) {
+					dbDevice.Connected = true
+					if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
+						// Validate device configuration before setup
+						err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
+						if err != nil {
+							logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", dbDevice.UDID, err.Error()))
+							continue
+						}
+
+						setContext(dbDevice)
+						dbDevice.AppiumReadyChan = make(chan bool, 1)
+						switch dbDevice.OS {
+						case "ios":
+							dbDevice.WdaReadyChan = make(chan bool, 1)
+							go setupIOSDevice(dbDevice)
+						case "android":
+							go setupAndroidDevice(dbDevice)
+						case "tizen":
+							go setupTizenDevice(dbDevice)
+						}
+					}
+				} else {
+					ResetLocalDevice(dbDevice, "Device is no longer connected.")
+					dbDevice.Connected = false
+				}
+			}
+
+		case <-tizenChan:
+			if tizenChan != nil {
+				handleTizenAutoConnection(GetConnectedDevicesCommon())
 			}
 		}
 	}
