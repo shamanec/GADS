@@ -153,14 +153,14 @@ func getTizenTVInfo(device *models.Device) error {
 		return fmt.Errorf("failed to decode TV info - %s", err)
 	}
 
-	// Atualizar informações do device
+	// Update device information
 	device.Name = tvInfo.Device.Name
 	device.HardwareModel = tvInfo.Device.ModelName
 	device.OSVersion = tvInfo.Version
 	device.IPAddress = tvInfo.Device.IP
 	device.DeviceAddress = device.UDID
 
-	// Extrair dimensões da resolução
+	// Extract dimensions from resolution
 	if tvInfo.Device.Resolution != "" {
 		dimensions := strings.Split(tvInfo.Device.Resolution, "x")
 		if len(dimensions) == 2 {
