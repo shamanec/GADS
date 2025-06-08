@@ -17,42 +17,6 @@ import (
 	"GADS/provider/providerutil"
 )
 
-type TizenTVInfo struct {
-	ID        string      `json:"id"`
-	Name      string      `json:"name"`
-	Version   string      `json:"version"`
-	Device    TizenDevice `json:"device"`
-	Type      string      `json:"type"`
-	URI       string      `json:"uri"`
-	Remote    string      `json:"remote"`
-	IsSupport string      `json:"isSupport"`
-}
-
-type TizenDevice struct {
-	Type              string `json:"type"`
-	DUID              string `json:"duid"`
-	Model             string `json:"model"`
-	ModelName         string `json:"modelName"`
-	Description       string `json:"description"`
-	NetworkType       string `json:"networkType"`
-	SSID              string `json:"ssid"`
-	IP                string `json:"ip"`
-	FirmwareVersion   string `json:"firmwareVersion"`
-	Name              string `json:"name"`
-	ID                string `json:"id"`
-	UDN               string `json:"udn"`
-	Resolution        string `json:"resolution"`
-	CountryCode       string `json:"countryCode"`
-	MSFVersion        string `json:"msfVersion"`
-	SmartHubAgreement string `json:"smartHubAgreement"`
-	VoiceSupport      string `json:"VoiceSupport"`
-	GamePadSupport    string `json:"GamePadSupport"`
-	WifiMac           string `json:"wifiMac"`
-	DeveloperMode     string `json:"developerMode"`
-	DeveloperIP       string `json:"developerIP"`
-	OS                string `json:"OS"`
-}
-
 // Tizen auto-connection constants
 const (
 	tizenMaxRetries    = 5                // Maximum consecutive connection attempts
@@ -148,7 +112,7 @@ func getTizenTVInfo(device *models.Device) error {
 	}
 	defer resp.Body.Close()
 
-	var tvInfo TizenTVInfo
+	var tvInfo models.TizenTVInfo
 	if err := json.NewDecoder(resp.Body).Decode(&tvInfo); err != nil {
 		return fmt.Errorf("failed to decode TV info - %s", err)
 	}
