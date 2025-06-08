@@ -190,29 +190,11 @@ func connectTizenDevice(deviceIP string) error {
 
 // isTizenDeviceConnected checks if a Tizen device is currently connected using sdb devices
 func isTizenDeviceConnected(deviceIP string) bool {
-	cmd := exec.Command("sdb", "devices")
-	output, err := cmd.CombinedOutput()
+	connectedDevices := getConnectedDevicesTizen()
 
-	if err != nil {
-		logger.ProviderLogger.LogError("tizen_connection", fmt.Sprintf("Failed to check connected Tizen devices - %s", err))
-		return false
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "List of devices attached") || strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[1] == "device" {
-			connectedDeviceID := fields[0]
-			// Check if the connected device ID matches our device IP
-			if connectedDeviceID == deviceIP {
-				logger.ProviderLogger.LogDebug("tizen_connection", fmt.Sprintf("Tizen device %s is connected", deviceIP))
-				return true
-			}
-		}
+	if slices.Contains(connectedDevices, deviceIP) {
+		logger.ProviderLogger.LogDebug("tizen_connection", fmt.Sprintf("Tizen device %s is connected", deviceIP))
+		return true
 	}
 
 	logger.ProviderLogger.LogDebug("tizen_connection", fmt.Sprintf("Tizen device %s is not connected", deviceIP))
