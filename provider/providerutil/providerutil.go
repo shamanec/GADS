@@ -20,13 +20,11 @@ import (
 	"strconv"
 	"time"
 
-	"path/filepath"
 	"runtime"
-
-	"archive/zip"
 
 	"GADS/common"
 	"GADS/common/cli"
+	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 )
@@ -232,43 +230,10 @@ func CheckChromeDriverAndDownload() error {
 	extractionDir := fmt.Sprintf("%s/drivers", config.ProviderConfig.ProviderFolder)
 
 	// Extract the zip file
-	err = unzip(tempFile.Name(), extractionDir) // Specify the extraction directory
+	err = utils.Unzip(tempFile.Name(), extractionDir) // Specify the extraction directory
 	if err != nil {
 		return fmt.Errorf("failed to extract ChromeDriver: %s", err)
 	}
 
-	return nil
-}
-
-func unzip(src string, dest string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	os.MkdirAll(dest, 0755)
-
-	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer rc.Close()
-
-		fpath := filepath.Join(dest, f.Name)
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(fpath, f.Mode())
-		} else {
-			outFile, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-			defer outFile.Close()
-			if _, err := io.Copy(outFile, rc); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }

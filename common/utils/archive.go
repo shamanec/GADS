@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 func ListFilesInZip(zipData []byte) ([]string, error) {
@@ -87,6 +88,39 @@ func UnzipInMemory(zipData []byte, dest string) error {
 			}
 			_, err = io.Copy(uncompressedFile, rc)
 			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func Unzip(src string, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	os.MkdirAll(dest, 0755)
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		fpath := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(fpath, f.Mode())
+		} else {
+			outFile, err := os.OpenFile(fpath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer outFile.Close()
+			if _, err := io.Copy(outFile, rc); err != nil {
 				return err
 			}
 		}
