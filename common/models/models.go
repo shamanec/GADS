@@ -11,7 +11,10 @@ package models
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,18 +53,19 @@ type User struct {
 
 type Device struct {
 	// DB DATA
-	UDID             string `json:"udid" bson:"udid" example:"HT7B1234567"`                      // device UDID
-	OS               string `json:"os" bson:"os" example:"android"`                              // device OS
-	Name             string `json:"name" bson:"name" example:"Samsung Galaxy S21"`               // name of the device
-	OSVersion        string `json:"os_version" bson:"os_version" example:"11.0"`                 // OS version of the device
-	Provider         string `json:"provider" bson:"provider" example:"provider_1"`               // nickname of the device host(provider)
-	Usage            string `json:"usage" bson:"usage" example:"enabled"`                        // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
-	ScreenWidth      string `json:"screen_width" bson:"screen_width" example:"1080"`             // screen width of device
-	ScreenHeight     string `json:"screen_height" bson:"screen_height" example:"1920"`           // screen height of device
-	DeviceType       string `json:"device_type" bson:"device_type" example:"real"`               // The type of device - `real` or `emulator`
-	UseWebRTCVideo   bool   `json:"use_webrtc_video" bson:"use_webrtc_video" example:"false"`    // Should the device use WebRTC video instead of MJPEG
-	WebRTCVideoCodec string `json:"webrtc_video_codec" bson:"webrtc_video_codec" example:"h264"` // Which video codec should the device use for WebRTC video stream
-	WorkspaceID      string `json:"workspace_id" bson:"workspace_id" example:"workspace_id_1"`   // ID of the associated workspace
+	UDID             string `json:"udid" bson:"udid"`                             // device UDID
+	OS               string `json:"os" bson:"os"`                                 // device OS
+	Name             string `json:"name" bson:"name"`                             // name of the device
+	OSVersion        string `json:"os_version" bson:"os_version"`                 // OS version of the device
+	IPAddress        string `json:"ip_address" bson:"ip_address"`                 // IP address of the device
+	Provider         string `json:"provider" bson:"provider"`                     // nickname of the device host(provider)
+	Usage            string `json:"usage" bson:"usage"`                           // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
+	ScreenWidth      string `json:"screen_width" bson:"screen_width"`             // screen width of device
+	ScreenHeight     string `json:"screen_height" bson:"screen_height"`           // screen height of device
+	DeviceType       string `json:"device_type" bson:"device_type"`               // The type of device - `real` or `emulator`
+	UseWebRTCVideo   bool   `json:"use_webrtc_video" bson:"use_webrtc_video"`     // Should the device use WebRTC video instead of MJPEG
+	WebRTCVideoCodec string `json:"webrtc_video_codec" bson:"webrtc_video_codec"` // Which video codec should the device use for WebRTC video stream
+	WorkspaceID      string `json:"workspace_id" bson:"workspace_id"`             // ID of the associated workspace
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -97,6 +101,7 @@ type Device struct {
 	GoIOSTunnel             tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
 	SemVer                  *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
 	InitialSetupDone        bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
+	DeviceAddress           string             `json:"-" bson:"-"`
 }
 
 type LocalHubDevice struct {
@@ -179,4 +184,70 @@ type ProviderLog struct {
 	Level     string `json:"level" bson:"level"`
 	Message   string `json:"message" bson:"message"`
 	Timestamp int64  `json:"timestamp" bson:"timestamp"`
+}
+
+type TizenTVInfo struct {
+	ID        string      `json:"id"`
+	Name      string      `json:"name"`
+	Version   string      `json:"version"`
+	Device    TizenDevice `json:"device"`
+	Type      string      `json:"type"`
+	URI       string      `json:"uri"`
+	Remote    string      `json:"remote"`
+	IsSupport string      `json:"isSupport"`
+}
+
+type TizenDevice struct {
+	Type              string `json:"type"`
+	DUID              string `json:"duid"`
+	Model             string `json:"model"`
+	ModelName         string `json:"modelName"`
+	Description       string `json:"description"`
+	NetworkType       string `json:"networkType"`
+	SSID              string `json:"ssid"`
+	IP                string `json:"ip"`
+	FirmwareVersion   string `json:"firmwareVersion"`
+	Name              string `json:"name"`
+	ID                string `json:"id"`
+	UDN               string `json:"udn"`
+	Resolution        string `json:"resolution"`
+	CountryCode       string `json:"countryCode"`
+	MSFVersion        string `json:"msfVersion"`
+	SmartHubAgreement string `json:"smartHubAgreement"`
+	VoiceSupport      string `json:"VoiceSupport"`
+	GamePadSupport    string `json:"GamePadSupport"`
+	WifiMac           string `json:"wifiMac"`
+	DeveloperMode     string `json:"developerMode"`
+	DeveloperIP       string `json:"developerIP"`
+	OS                string `json:"OS"`
+}
+
+// ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS
+func ValidateDeviceUsageForOS(os, usage string) error {
+	// Normalize OS string to lowercase for case-insensitive comparison
+	normalizedOS := strings.ToLower(strings.TrimSpace(os))
+	normalizedUsage := strings.ToLower(strings.TrimSpace(usage))
+
+	// Validate Tizen devices can only be used for automation
+	if normalizedOS == "tizen" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("tizen devices only support 'automation' usage. Current usage '%s' is not supported. Tizen devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
+	return nil
+}
+
+// ValidateDevice performs comprehensive validation on a device struct
+func ValidateDevice(device *Device) error {
+	if device == nil {
+		return errors.New("device cannot be nil")
+	}
+
+	// Validate OS and Usage combination
+	if err := ValidateDeviceUsageForOS(device.OS, device.Usage); err != nil {
+		return err
+	}
+
+	return nil
 }

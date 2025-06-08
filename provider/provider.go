@@ -127,6 +127,15 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		providerutil.RemoveAdbForwardedPorts()
 	}
 
+	// If we want to provide Tizen devices check if sdb is available on PATH
+	if config.ProviderConfig.ProvideTizen {
+		if !providerutil.SdbAvailable() {
+			logger.ProviderLogger.LogError("provider", "sdb is not available, you need to set up the host as explained in the readme")
+			fmt.Println("sdb is not available, you need to set up the host as explained in the readme")
+			os.Exit(1)
+		}
+	}
+
 	// Start a goroutine that will start updating devices on provider start
 	go devices.Listener()
 
