@@ -29,6 +29,17 @@ func androidRemoteServerRequest(device *models.Device, method, endpoint string, 
 	return controlNetClient.Do(req)
 }
 
+func androidRemoteServerRequestJson(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+	url := fmt.Sprintf("http://localhost:%s/%s", device.AndroidRemoteServerPort, endpoint)
+	device.Logger.LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
+	req, err := http.NewRequest(method, url, requestBody)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return controlNetClient.Do(req)
+}
+
 func appiumRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", device.AppiumPort, device.AppiumSessionID, endpoint)
 	device.Logger.LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
@@ -83,7 +94,7 @@ func deviceTap(device *models.Device, x float64, y float64) (*http.Response, err
 	if device.OS == "ios" {
 		return wdaRequest(device, http.MethodPost, "wda/tap", bytes.NewReader(actionJSON))
 	} else {
-		return androidRemoteServerRequest(device, http.MethodPost, "tap", bytes.NewReader([]byte(actionJSON)))
+		return androidRemoteServerRequestJson(device, http.MethodPost, "tap", bytes.NewReader([]byte(actionJSON)))
 	}
 }
 
@@ -107,7 +118,7 @@ func deviceTouchAndHold(device *models.Device, x float64, y float64, delay float
 	if device.OS == "ios" {
 		return wdaRequest(device, http.MethodPost, "wda/tap", bytes.NewReader(actionJSON))
 	} else {
-		return androidRemoteServerRequest(device, http.MethodPost, "touchAndHold", bytes.NewReader([]byte(actionJSON)))
+		return androidRemoteServerRequestJson(device, http.MethodPost, "touchAndHold", bytes.NewReader([]byte(actionJSON)))
 	}
 }
 
@@ -180,7 +191,7 @@ func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Respons
 		if err != nil {
 			return nil, err
 		}
-		return androidRemoteServerRequest(device, http.MethodPost, "swipe", bytes.NewReader([]byte(actionJSON)))
+		return androidRemoteServerRequestJson(device, http.MethodPost, "swipe", bytes.NewReader([]byte(actionJSON)))
 	}
 }
 

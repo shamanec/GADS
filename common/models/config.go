@@ -25,6 +25,7 @@ type Provider struct {
 	LastUpdatedTimestamp int64  `json:"last_updated" bson:"last_updated"`
 	UseGadsIosStream     bool   `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
 	HubAddress           string `json:"hub_address" bson:"-"`
+	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
 }
 
 type ProviderData struct {

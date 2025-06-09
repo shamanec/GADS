@@ -82,9 +82,13 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		logger.ProviderLogger.LogInfo("provider_setup", "Created default workspace")
 	}
 
-	logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is installed and available on the host")
-	if !providerutil.AppiumAvailable() {
-		log.Fatal("Appium is not available, set it up on the host as explained in the readme")
+	if config.ProviderConfig.SetupAppiumServers {
+		logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is installed and available on the host")
+		if !providerutil.AppiumAvailable() {
+			log.Fatal("Appium is not available, set it up on the host as explained in the readme")
+		}
+	} else {
+		logger.ProviderLogger.LogInfo("provider_setup", "Provider is not configured to set up Appium servers, skipped Appium availability check")
 	}
 
 	// Download supervision profile file from MongoDB if a supervision password was supplied
