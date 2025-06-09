@@ -48,8 +48,8 @@ The platform architecture consists of two main components:
   - Multiple JWT provider support
   - [Detailed Secret Keys Documentation](./docs/secret-keys.md)
 - 📱 **Device Control**
-  - Real-time video streaming (MJPEG)
-  - Remote interactions: tap, swipe, text input
+  - Real-time video streaming (MJPEG/WebRTC)
+  - Remote interactions: tap, swipe, text input, get clipboard
   - Keyboard typing
   - App installation/uninstallation
   - High-quality screenshots
@@ -67,15 +67,15 @@ The platform architecture consists of two main components:
 - 🛠️ **Easy Setup**
   - UI-based device management
 - 🤖 **Automated Device Provisioning**
-  - Per-device Appium server configuration
+  - Per-device Appium server configuration (optional)
 - 📡 **Remote Control**
   - iOS streaming via [WebDriverAgent](https://github.com/appium/WebDriverAgent)
-  - Android streaming via [GADS-Android-stream](https://github.com/shamanec/GADS-Android-stream)
+  - Android MJPEG video streaming
   - Android WebRTC video stream (Experimental) - [notes](./docs/provider.md#android-webrtc-video---experimental)
-  - Comprehensive Appium-based device interaction
+  - Non-Appium based interaction
   - Keyboard typing (highly performant on Android, usable on iOS)
 - 🧪 **Testing Integration**
-  - Individual Appium server endpoints
+  - Individual Appium server endpoints (optional)
   - Optional Selenium Grid 4 node registration
   - Automated testing for Samsung Tizen OS smart TVs (no remote control, testing only)
 

@@ -88,6 +88,13 @@ func updateProviderHub() {
 			// Update the WorkspaceID in dbDevice from the updatedDevices map
 			if updatedDevice, ok := updatedDevices[dbDevice.UDID]; ok {
 				dbDevice.WorkspaceID = updatedDevice.WorkspaceID
+				// If the provider does not set up Appium servers
+				// Always return device usage as `control`
+				if !config.ProviderConfig.SetupAppiumServers {
+					if dbDevice.Usage != "disabled" {
+						dbDevice.Usage = "control"
+					}
+				}
 			}
 
 			properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
