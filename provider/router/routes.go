@@ -48,6 +48,12 @@ func AppiumReverseProxy(c *gin.Context) {
 	}()
 
 	udid := c.Param("udid")
+
+	if !config.ProviderConfig.SetupAppiumServers {
+		api.GenericResponse(c, http.StatusServiceUnavailable, "Appium server not available for device", nil)
+		return
+	}
+
 	device := devices.DBDeviceMap[udid]
 
 	target := "http://localhost:" + device.AppiumPort
