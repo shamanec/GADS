@@ -1133,6 +1133,29 @@ func ReleaseUsedDevice(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
 }
 
+// syncDeviceFields synchronizes device fields from source to target device
+// Only updates fields that are different between the two devices
+func syncDeviceFields(target *models.Device, source *models.Device) {
+	if target.Usage != source.Usage {
+		target.Usage = source.Usage
+	}
+	if target.Name != source.Name {
+		target.Name = source.Name
+	}
+	if target.OSVersion != source.OSVersion {
+		target.OSVersion = source.OSVersion
+	}
+	if target.ScreenWidth != source.ScreenWidth {
+		target.ScreenWidth = source.ScreenWidth
+	}
+	if target.ScreenHeight != source.ScreenHeight {
+		target.ScreenHeight = source.ScreenHeight
+	}
+	if target.Provider != source.Provider {
+		target.Provider = source.Provider
+	}
+}
+
 // ProviderUpdate godoc
 // @Summary      Provider update
 // @Description  Receive updates from providers about device status
@@ -1173,25 +1196,18 @@ func ProviderUpdate(c *gin.Context) {
 			// Set a timestamp to indicate last time info about the device was updated from the provider
 			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
-			// Check all DB related values so if you make a change in the DB for a device
-			// The provider pushing updates will not overwrite with something wrong
-			if providerDevice.Usage != hubDevice.Device.Usage {
-				providerDevice.Usage = hubDevice.Device.Usage
-			}
-			if providerDevice.Name != hubDevice.Device.Name {
-				providerDevice.Name = hubDevice.Device.Name
-			}
-			if providerDevice.OSVersion != hubDevice.Device.OSVersion {
-				providerDevice.OSVersion = hubDevice.Device.OSVersion
-			}
-			if providerDevice.ScreenWidth != hubDevice.Device.ScreenWidth {
-				providerDevice.ScreenWidth = hubDevice.Device.ScreenWidth
-			}
-			if providerDevice.ScreenHeight != hubDevice.Device.ScreenHeight {
-				providerDevice.ScreenHeight = hubDevice.Device.ScreenHeight
-			}
-			if providerDevice.Provider != hubDevice.Device.Provider {
-				providerDevice.Provider = hubDevice.Device.Provider
+			providerDeviceHasChanged := providerDevice.Provider != hubDevice.Device.Provider
+
+			// If device is "live" on provider, provider data takes precedence for operational fields
+			// Otherwise, DB data takes precedence to prevent incorrect overrides
+			if providerDevice.ProviderState == "live" && !providerDeviceHasChanged {
+				// For live devices, provider operational data takes precedence
+				// Keep provider values for Usage and Provider fields
+				// But still respect DB configuration for device metadata
+				syncDeviceFields(&hubDevice.Device, &providerDevice)
+			} else if !providerDeviceHasChanged {
+				// For non-live devices, DB data takes precedence for all fields
+				syncDeviceFields(&providerDevice, &hubDevice.Device)
 			}
 
 			hubDevice.Device = providerDevice
