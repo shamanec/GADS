@@ -366,6 +366,8 @@ func AddProvider(c *gin.Context) {
 		return
 	}
 
+	provider.RegularizeProviderState()
+
 	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
 		InternalServerError(c, "Could not create provider")
@@ -423,6 +425,8 @@ func UpdateProvider(c *gin.Context) {
 		BadRequest(c, "missing `selenium_grid` field")
 		return
 	}
+
+	provider.RegularizeProviderState()
 
 	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {

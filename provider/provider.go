@@ -131,6 +131,8 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		providerutil.RemoveAdbForwardedPorts()
 	}
 
+	config.ProviderConfig.RegularizeProviderState()
+
 	// If we want to provide Tizen devices check if sdb is available on PATH
 	if config.ProviderConfig.ProvideTizen {
 		if !providerutil.SdbAvailable() {

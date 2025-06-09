@@ -43,3 +43,11 @@ type HubConfig struct {
 	OS                   string `json:"os"`
 	AuthEnabled          bool   `json:"auth_enabled"`
 }
+
+// RegularizeProviderState applies business rules to ensure provider configuration is consistent
+// If SetupAppiumServers is false, ProvideTizen must also be false since Tizen requires Appium servers
+func (p *Provider) RegularizeProviderState() {
+	if !p.SetupAppiumServers {
+		p.ProvideTizen = false
+	}
+}
