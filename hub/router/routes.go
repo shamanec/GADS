@@ -652,6 +652,7 @@ func DeviceInUseWS(c *gin.Context) {
 	// This prevents another user from passing the verification while we are upgrading the WebSocket
 	devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
 	devices.HubDevicesData.Devices[udid].InUseBy = username
+	devices.HubDevicesData.Devices[udid].LastActionTS = time.Now().UnixMilli()
 	devices.HubDevicesData.Mu.Unlock()
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
