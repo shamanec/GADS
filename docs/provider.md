@@ -107,8 +107,9 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 
 ## Dependencies notes
-### Appium
-Appium is foundational in GADS - we use it both to create Appium servers to run UI tests against, but also to allow the interactions in the web remote control.  
+### Appium - optional 
+If you want the configured devices to each have a respective Appium server set up registered in Selenium Grid or the GADS Appium grid for test execution you need to enable this in the provider configuration in the Admin UI!!!  
+**NOTE** Appium has to be installed and set up on the provider host machine if you want to take advantage of this.  
 Installation is pretty similar for all operating systems, you just have to find the proper steps for your setup.
 - Install Node > 16
 - Install Appium with `npm install -g appium`

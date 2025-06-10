@@ -174,6 +174,14 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		log.Fatalf("Failed to unpack resource files in folder `%s` - %s", filesTempDir, err)
 	}
 
+	modifiedCount, err := db.GlobalMongoStore.InitializeProviderSetupAppiumServers()
+	if err != nil {
+		log.Warnf("Failed to update provider configurations to include the new `setup_appium_servers` property, make sure to update them by hand through Admin UI - %s", err.Error())
+	}
+	if modifiedCount > 0 {
+		log.Printf("Updated %d provider documents to include `setup_appium_servers: true` property\n", modifiedCount)
+	}
+
 	// Configure Swagger documentation
 	docs.SwaggerInfo.Title = "GADS API"
 	docs.SwaggerInfo.Description = "GADS API for device automation and management"

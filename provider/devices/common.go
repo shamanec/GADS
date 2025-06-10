@@ -88,6 +88,13 @@ func updateProviderHub() {
 			// Update the WorkspaceID in dbDevice from the updatedDevices map
 			if updatedDevice, ok := updatedDevices[dbDevice.UDID]; ok {
 				dbDevice.WorkspaceID = updatedDevice.WorkspaceID
+				// If the provider does not set up Appium servers
+				// Always return device usage as `control`
+				if !config.ProviderConfig.SetupAppiumServers {
+					if dbDevice.Usage != "disabled" {
+						dbDevice.Usage = "control"
+					}
+				}
 			}
 
 			properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
@@ -142,32 +149,41 @@ func setupDevices() {
 		}
 		dbDevice.SemVer = semver
 
-		// Check if a capped Appium logs collection already exists for the current device
-		exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs", dbDevice.UDID)
-		if err != nil {
-			logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
-		}
-
-		// If it doesn't exist - attempt to create it
-		if !exists {
-			err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs", dbDevice.UDID, 30000, 30)
+		if config.ProviderConfig.SetupAppiumServers {
+			// Check if a capped Appium logs collection already exists for the current device
+			exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs", dbDevice.UDID)
 			if err != nil {
-				logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
+				logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
+			}
+
+			// If it doesn't exist - attempt to create it
+			if !exists {
+				err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs", dbDevice.UDID, 30000, 30)
+				if err != nil {
+					logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
+					continue
+				}
+			}
+
+			// Create an index model and add it to the respective device Appium log collection
+			appiumCollectionIndexModel := mongo.IndexModel{
+				Keys: bson.D{
+					{
+						Key: "ts", Value: constants.SortAscending},
+					{
+						Key: "session_id", Value: constants.SortAscending,
+					},
+				},
+			}
+			db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
+
+			appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
+			if err != nil {
+				logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", dbDevice.UDID, err)
 				continue
 			}
+			dbDevice.AppiumLogger = appiumLogger
 		}
-
-		// Create an index model and add it to the respective device Appium log collection
-		appiumCollectionIndexModel := mongo.IndexModel{
-			Keys: bson.D{
-				{
-					Key: "ts", Value: constants.SortAscending},
-				{
-					Key: "session_id", Value: constants.SortAscending,
-				},
-			},
-		}
-		db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
 
 		// Create logs directory for the device if it doesn't already exist
 		if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
@@ -185,13 +201,6 @@ func setupDevices() {
 			continue
 		}
 		dbDevice.Logger = *deviceLogger
-
-		appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
-		if err != nil {
-			logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", dbDevice.UDID, err)
-			continue
-		}
-		dbDevice.AppiumLogger = appiumLogger
 		dbDevice.InitialSetupDone = true
 	}
 }
@@ -268,33 +277,9 @@ func setupAndroidDevice(device *models.Device) {
 	device.SetupMutex.Lock()
 	defer device.SetupMutex.Unlock()
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	device.ProviderState = "preparing"
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
-
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
-	err := cli.KillDeviceAppiumProcess(device.UDID)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to kill existing Appium processes.")
-		return
-	}
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully killed existing Appium processes for device `%s`", device.UDID))
-
-	// If Selenium Grid is used attempt to create a TOML file for the grid connection
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking if Selenium Grid is used for device `%s`", device.UDID))
-	if config.ProviderConfig.UseSeleniumGrid {
-		err := createGridTOML(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
-			ResetLocalDevice(device, "Failed to create TOML for device.")
-			return
-		}
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully created TOML for Selenium Grid for device `%s`", device.UDID))
-	}
 
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Retrieving hardware model for device `%s`", device.UDID))
 	getAndroidDeviceHardwareModel(device)
@@ -339,16 +324,6 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	device.AndroidRemoteServerPort = remoteServerPort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS Android remote control server server for device `%v`", device.StreamPort, device.UDID))
-
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for Appium for device `%v`", device.UDID))
-	appiumPort, err := providerutil.GetFreePort()
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to allocate free host port for Appium.")
-		return
-	}
-	device.AppiumPort = appiumPort
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for Appium for device `%v`", device.AppiumPort, device.UDID))
 
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking for existing GADS Android apps on device `%v`", device.UDID))
 	device.InstalledApps = GetInstalledAppsAndroid(device)
@@ -463,33 +438,6 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS Android IME port to host port for Android device `%v`", device.UDID))
 
-	if slices.Contains(device.InstalledApps, "io.appium.settings") {
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium settings on device `%s`", device.UDID))
-		err = UninstallApp(device, "io.appium.settings")
-		if err != nil {
-			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium settings on device %s - %s", device.UDID, err))
-		}
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully uninstalled Appium settings on device `%s`", device.UDID))
-	}
-
-	if slices.Contains(device.InstalledApps, "io.appium.uiautomator2.server") {
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium uiautomator2 server on device `%s`", device.UDID))
-		err = UninstallApp(device, "io.appium.uiautomator2.server")
-		if err != nil {
-			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium uiautomator2 server on device %s - %s", device.UDID, err))
-		}
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully uninstalled Appium uiautomator2 server on device `%s`", device.UDID))
-	}
-
-	if slices.Contains(device.InstalledApps, "io.appium.uiautomator2.server.test") {
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium uiautomator2 server test on device `%s`", device.UDID))
-		err = UninstallApp(device, "io.appium.uiautomator2.server.test")
-		if err != nil {
-			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium uiautomator2 server test on device %s - %s", device.UDID, err))
-		}
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully uninstalled Appium uiautomator2 server test on device `%s`", device.UDID))
-	}
-
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Applying device stream settings to device `%v`", device.UDID))
 	err = applyDeviceStreamSettings(device)
 	if err != nil {
@@ -508,21 +456,82 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully updated GADS stream settings for device `%s`", device.UDID))
 
-	go startAppium(device, &wg)
-	go checkAppiumUp(device)
+	var wg sync.WaitGroup
+	if config.ProviderConfig.SetupAppiumServers {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
+		err := cli.KillDeviceAppiumProcess(device.UDID)
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to kill existing Appium processes.")
+			return
+		}
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully killed existing Appium processes for device `%s`", device.UDID))
 
-	select {
-	case <-device.AppiumReadyChan:
-		logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
-		break
-	case <-time.After(30 * time.Second):
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-		ResetLocalDevice(device, "Failed to start Appium for device.")
-		return
-	}
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for Appium for device `%v`", device.UDID))
+		appiumPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to allocate free host port for Appium.")
+			return
+		}
+		device.AppiumPort = appiumPort
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for Appium for device `%v`", device.AppiumPort, device.UDID))
 
-	if config.ProviderConfig.UseSeleniumGrid {
-		go startGridNode(device)
+		if slices.Contains(device.InstalledApps, "io.appium.settings") {
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium settings on device `%s`", device.UDID))
+			err = UninstallApp(device, "io.appium.settings")
+			if err != nil {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium settings on device %s - %s", device.UDID, err))
+			}
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully uninstalled Appium settings on device `%s`", device.UDID))
+		}
+
+		if slices.Contains(device.InstalledApps, "io.appium.uiautomator2.server") {
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium uiautomator2 server on device `%s`", device.UDID))
+			err = UninstallApp(device, "io.appium.uiautomator2.server")
+			if err != nil {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium uiautomator2 server on device %s - %s", device.UDID, err))
+			}
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully uninstalled Appium uiautomator2 server on device `%s`", device.UDID))
+		}
+
+		if slices.Contains(device.InstalledApps, "io.appium.uiautomator2.server.test") {
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Uninstalling Appium uiautomator2 server test on device `%s`", device.UDID))
+			err = UninstallApp(device, "io.appium.uiautomator2.server.test")
+			if err != nil {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall Appium uiautomator2 server test on device %s - %s", device.UDID, err))
+			}
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully uninstalled Appium uiautomator2 server test on device `%s`", device.UDID))
+		}
+
+		wg.Add(1)
+		go startAppium(device, &wg)
+		go checkAppiumUp(device)
+
+		select {
+		case <-device.AppiumReadyChan:
+			logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+			break
+		case <-time.After(30 * time.Second):
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+			ResetLocalDevice(device, "Failed to start Appium for device.")
+			return
+		}
+
+		// If Selenium Grid is used attempt to create a TOML file for the grid connection and start the node
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking if Selenium Grid is used for device `%s`", device.UDID))
+		if config.ProviderConfig.UseSeleniumGrid {
+			err := createGridTOML(device)
+			if err != nil {
+				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
+				ResetLocalDevice(device, "Failed to create TOML for device.")
+				return
+			}
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully created TOML for Selenium Grid for device `%s`", device.UDID))
+
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s`", device.UDID))
+			go startGridNode(device)
+		}
 	}
 
 	// Mark the device as 'live'
@@ -534,20 +543,8 @@ func setupIOSDevice(device *models.Device) {
 	device.SetupMutex.Lock()
 	defer device.SetupMutex.Unlock()
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", device.UDID))
-
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
-	err := cli.KillDeviceAppiumProcess(device.UDID)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to kill existing Appium processes.")
-		return
-	}
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully killed existing Appium processes for device `%s`", device.UDID))
 
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Getting `go-ios` DeviceEntry for device `%s`", device.UDID))
 	goIosDeviceEntry, err := ios.GetDevice(device.UDID)
@@ -609,18 +606,6 @@ func setupIOSDevice(device *models.Device) {
 			return
 		}
 		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully updated screen dimensions for device `%s`", device.UDID))
-	}
-
-	// If Selenium Grid is used attempt to create a TOML file for the grid connection
-	if config.ProviderConfig.UseSeleniumGrid {
-		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Creating TOML file for Selenium Grid for device `%s`", device.UDID))
-		err := createGridTOML(device)
-		if err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
-			ResetLocalDevice(device, "Failed to create TOML for device.")
-			return
-		}
-		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully created TOML for Selenium Grid for device `%s`", device.UDID))
 	}
 
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Allocating free port for WebDriverAgent for device `%s`", device.UDID))
@@ -692,16 +677,6 @@ func setupIOSDevice(device *models.Device) {
 	device.WDAStreamPort = wdaStreamPort
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free WebDriverAgent stream port `%s` for device `%s`", wdaStreamPort, device.UDID))
 
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Allocating free Appium port for device `%s`", device.UDID))
-	appiumPort, err := providerutil.GetFreePort()
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to allocate free Appium port for device.")
-		return
-	}
-	device.AppiumPort = appiumPort
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free Appium port `%s` for device `%s`", appiumPort, device.UDID))
-
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Forwarding WebDriverAgent server and stream to the host for device `%s`", device.UDID))
 	go goIosForward(device, device.WDAPort, "8100")
 	go goIosForward(device, device.StreamPort, "9500")
@@ -760,23 +735,56 @@ func setupIOSDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully created WebDriverAgent session and updated stream settings for device `%v`", device.UDID))
 
-	go startAppium(device, &wg)
-	go checkAppiumUp(device)
+	var wg sync.WaitGroup
+	if config.ProviderConfig.SetupAppiumServers {
+		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
+		err := cli.KillDeviceAppiumProcess(device.UDID)
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to kill existing Appium processes.")
+			return
+		}
+		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully killed existing Appium processes for device `%s`", device.UDID))
 
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Waiting until Appium successfully starts for device `%s`", device.UDID))
-	select {
-	case <-device.AppiumReadyChan:
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
-		break
-	case <-time.After(30 * time.Second):
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-		ResetLocalDevice(device, "Failed to start Appium for device.")
-		return
-	}
+		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Allocating free Appium port for device `%s`", device.UDID))
+		appiumPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to allocate free Appium port for device.")
+			return
+		}
+		device.AppiumPort = appiumPort
+		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free Appium port `%s` for device `%s`", appiumPort, device.UDID))
 
-	if config.ProviderConfig.UseSeleniumGrid {
-		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s`", device.UDID))
-		go startGridNode(device)
+		wg.Add(1)
+		go startAppium(device, &wg)
+		go checkAppiumUp(device)
+
+		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Waiting until Appium successfully starts for device `%s`", device.UDID))
+		select {
+		case <-device.AppiumReadyChan:
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+			break
+		case <-time.After(30 * time.Second):
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+			ResetLocalDevice(device, "Failed to start Appium for device.")
+			return
+		}
+
+		// If Selenium Grid is used attempt to create a TOML file for the grid connection and start the node
+		if config.ProviderConfig.UseSeleniumGrid {
+			logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Creating TOML file for Selenium Grid for device `%s`", device.UDID))
+			err := createGridTOML(device)
+			if err != nil {
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
+				ResetLocalDevice(device, "Failed to create TOML for device.")
+				return
+			}
+			logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully created TOML for Selenium Grid for device `%s`", device.UDID))
+
+			logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s`", device.UDID))
+			go startGridNode(device)
+		}
 	}
 
 	device.InstalledApps = GetInstalledAppsIOS(device)

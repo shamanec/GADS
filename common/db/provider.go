@@ -47,3 +47,24 @@ func (m *MongoStore) UpdateProviderTimestamp(nickname string) error {
 	}
 	return PartialDocumentUpdate(m.Ctx, coll, filter, updates)
 }
+
+// This is a temporary function that will update all current provider configurations that do not have the new `setup_appium_servers` property.
+// It will set it to true by default so we do not break the setup for people that already have it from a previous version
+func (m *MongoStore) InitializeProviderSetupAppiumServers() (int64, error) {
+	coll := m.GetCollection("providers")
+
+	filter := bson.M{
+		"setup_appium_servers": bson.M{"$exists": false},
+	}
+
+	update := bson.M{
+		"$set": bson.M{"setup_appium_servers": true},
+	}
+
+	updateResult, err := coll.UpdateMany(m.Ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+
+	return updateResult.ModifiedCount, nil
+}

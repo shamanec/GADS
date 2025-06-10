@@ -25,6 +25,7 @@ type Provider struct {
 	LastUpdatedTimestamp int64  `json:"last_updated" bson:"last_updated"`
 	UseGadsIosStream     bool   `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
 	HubAddress           string `json:"hub_address" bson:"-"`
+	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
 }
 
 type ProviderData struct {
@@ -41,4 +42,12 @@ type HubConfig struct {
 	FilesTempDir         string `json:"-"`
 	OS                   string `json:"os"`
 	AuthEnabled          bool   `json:"auth_enabled"`
+}
+
+// RegularizeProviderState applies business rules to ensure provider configuration is consistent
+// If SetupAppiumServers is false, ProvideTizen must also be false since Tizen requires Appium servers
+func (p *Provider) RegularizeProviderState() {
+	if !p.SetupAppiumServers {
+		p.ProvideTizen = false
+	}
 }
