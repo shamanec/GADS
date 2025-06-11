@@ -156,7 +156,7 @@ git clone https://github.com/shamanec/GADS
 cd ../..
 go build -tags ui .
 ```
-
+> **Note**: Optionally before building you can update the docs.go (OpenAPI spec) by running `swag init -g hub/hub.go -o docs`
 
 ### 🛠️ Common setup
 #### 🌱 MongoDB

@@ -17,6 +17,8 @@ package hub
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+
+	"GADS/docs"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"GADS/hub/router"
@@ -30,7 +32,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"github.com/swaggo/swag/example/basic/docs"
+
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
