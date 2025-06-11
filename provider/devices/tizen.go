@@ -118,7 +118,6 @@ func getTizenTVInfo(device *models.Device) error {
 	}
 
 	// Update device information
-	device.Name = tvInfo.Device.Name
 	device.HardwareModel = tvInfo.Device.ModelName
 	device.OSVersion = tvInfo.Version
 	device.IPAddress = tvInfo.Device.IP
