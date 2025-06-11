@@ -293,15 +293,19 @@ func AuthMiddleware() gin.HandlerFunc {
 		path := c.Request.URL.Path
 
 		// Bypass authentication for specific paths
-		if strings.Contains(path, "appium") || strings.Contains(path, "stream") || strings.Contains(path, "ws") {
+		if strings.Contains(path, "appium") {
 			c.Next()
 			return
 		}
 
-		// Check JWT token in Authorization header
-		authHeader := c.GetHeader("Authorization")
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			tokenString, err := ExtractTokenFromBearer(authHeader)
+		// Check JWT token in Authorization header or query parameter
+		authToken := c.GetHeader("Authorization")
+		if authToken == "" {
+			authToken = c.Query("token")
+		}
+
+		if strings.HasPrefix(authToken, "Bearer ") {
+			tokenString, err := ExtractTokenFromBearer(authToken)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token format"})
 				return

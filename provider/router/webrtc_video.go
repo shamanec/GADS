@@ -13,6 +13,7 @@ import (
 	"GADS/provider/devices"
 	"GADS/provider/logger"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -42,6 +43,7 @@ func DevicesWebRTCSocket(c *gin.Context) {
 		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to upgrade connection to websocket for device `%s` - %s", udid, err))
 		return
 	}
+	defer conn.Close()
 
 	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
 	deviceConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
@@ -51,37 +53,85 @@ func DevicesWebRTCSocket(c *gin.Context) {
 	}
 	defer deviceConn.Close()
 
-	go func() {
-		for {
-			msg, op, err := wsutil.ReadServerData(deviceConn)
-			if err != nil {
-				logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("WebRTC websocket connection for device `%s` got disconnected.", udid))
-				return
-			}
+	logger.ProviderLogger.LogInfo("device_webrtc", fmt.Sprintf("WebRTC connection established for device `%s`", udid))
 
-			logger.ProviderLogger.LogDebug("device_webrtc", fmt.Sprintf("Received WebRTC message over socket from device `%s` - %s", udid, string(msg)))
-			if op == ws.OpText {
-				err = wsutil.WriteServerText(conn, msg)
+	done := make(chan struct{})
+
+	go func() {
+		defer func() {
+			select {
+			case <-done:
+			default:
+				close(done)
+			}
+		}()
+
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				msg, op, err := wsutil.ReadServerData(deviceConn)
 				if err != nil {
-					logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to write WebRTC message from device `%s` to hub connection - %s", udid, err))
+					logger.ProviderLogger.LogDebug("device_webrtc", fmt.Sprintf("WebRTC websocket connection for device `%s` closed - %s", udid, err))
 					return
+				}
+
+				logger.ProviderLogger.LogDebug("device_webrtc", fmt.Sprintf("Received WebRTC message from device `%s` - %s", udid, string(msg)))
+
+				if op == ws.OpText {
+					err = wsutil.WriteServerText(conn, msg)
+					if err != nil {
+						logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to write WebRTC message from device `%s` to client - %s", udid, err))
+						return
+					}
 				}
 			}
 		}
 	}()
 
 	for {
-		msg, op, err := wsutil.ReadClientData(conn)
-		if err != nil {
-			logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Hub WebRTC websocket connection for device `%s` was lost - %s", udid, err))
+		select {
+		case <-done:
 			return
-		}
-
-		logger.ProviderLogger.LogDebug("device_webrtc", fmt.Sprintf("Received WebRTC message over socket from hub for device `%s` - %s", udid, string(msg)))
-		if op == ws.OpText {
-			err = wsutil.WriteClientText(deviceConn, msg)
+		default:
+			msg, op, err := wsutil.ReadClientData(conn)
 			if err != nil {
-				logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to write WebRTC message to websocket connection of device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogDebug("device_webrtc", fmt.Sprintf("Client WebRTC websocket connection for device `%s` closed - %s", udid, err))
+				wsutil.WriteServerText(deviceConn, []byte("hangup"))
+				return
+			}
+
+			logger.ProviderLogger.LogDebug("device_webrtc", fmt.Sprintf("Received WebRTC message from client for device `%s` - %s", udid, string(msg)))
+
+			if op == ws.OpText {
+				var message WebRTCMessage
+				err = json.Unmarshal(msg, &message)
+				if err != nil {
+					logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to unmarshal WebRTC message for device `%s` - %s", udid, err))
+					wsutil.WriteServerText(deviceConn, []byte("hangup"))
+					return
+				}
+
+				switch message.Type {
+				case "offer", "answer", "candidate":
+					logger.ProviderLogger.LogDebug("device_webrtc", fmt.Sprintf("Processing WebRTC %s for device `%s`", message.Type, udid))
+					err = wsutil.WriteServerText(deviceConn, msg)
+					if err != nil {
+						logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to send WebRTC %s to device `%s` - %s", message.Type, udid, err))
+						return
+					}
+				case "hangup":
+					logger.ProviderLogger.LogInfo("device_webrtc", fmt.Sprintf("Received hangup for device `%s`", udid))
+					wsutil.WriteServerText(deviceConn, msg)
+					return
+				default:
+					err = wsutil.WriteServerText(deviceConn, msg)
+					if err != nil {
+						logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to forward message to device `%s` - %s", udid, err))
+						return
+					}
+				}
 			}
 		}
 	}

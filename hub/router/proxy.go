@@ -40,14 +40,14 @@ func DeviceProxyHandler(c *gin.Context) {
 
 	var username string
 
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		authHeader = c.Query("token")
+	authToken := c.GetHeader("Authorization")
+	if authToken == "" {
+		authToken = c.Query("token")
 	}
 
-	if authHeader != "" {
+	if authToken != "" {
 		// Extract token from Bearer format
-		tokenString, err := auth.ExtractTokenFromBearer(authHeader)
+		tokenString, err := auth.ExtractTokenFromBearer(authToken)
 		if err == nil {
 			// Get origin from request
 			origin := auth.GetOriginFromRequest(c)
