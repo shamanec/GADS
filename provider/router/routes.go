@@ -418,3 +418,23 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
+
+func DeviceFiles(c *gin.Context) {
+	udid := c.Param("udid")
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "android" {
+			responseFiles, err := devices.GetAndroidSharedStorageFileTree()
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to get shared storage file tree", responseFiles)
+				return
+			}
+			api.GenericResponse(c, http.StatusOK, "Successfully got shared storage file tree", responseFiles)
+			return
+		} else {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported on iOS", nil)
+		}
+	}
+
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}

@@ -10,15 +10,19 @@
 package devices
 
 import (
+	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/logger"
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"net/url"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -392,4 +396,61 @@ func GetStreamServiceActivityName(device *models.Device) string {
 		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
 	}
 	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+}
+
+func GetAndroidSharedStorageFileTree() (*models.AndroidFileNode, error) {
+	cmd := exec.Command("adb", "shell", "find", constants.AndroidSharedStorageRoot)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	root := &models.AndroidFileNode{
+		Name:     constants.AndroidSharedStorageRoot,
+		FullPath: constants.AndroidSharedStorageRoot,
+	}
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// skip anything hidden (e.g. /.thumbnails, /.git)
+		if strings.Contains(line, "/.") {
+			continue
+		}
+
+		// Skip directories unless they are in the allowed list
+		if utils.StringStartsWithAny(line, constants.AndroidAllowedSharedStorageFolders...) {
+			addFileTreeNode(root, line)
+		}
+	}
+	return root, nil
+}
+
+func addFileTreeNode(root *models.AndroidFileNode, fullPath string) {
+	parts := strings.Split(strings.TrimPrefix(fullPath, constants.AndroidSharedStorageRoot), "/")
+	current := root
+	currentPath := constants.AndroidSharedStorageRoot // start from root
+
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		if current.Children == nil {
+			current.Children = make(map[string]*models.AndroidFileNode)
+		}
+
+		currentPath = path.Join(currentPath, part)
+		child, exists := current.Children[part]
+		if !exists {
+			child = &models.AndroidFileNode{
+				Name:     part,
+				FullPath: currentPath,
+			}
+			current.Children[part] = child
+		}
+		if i == len(parts)-1 && !strings.HasSuffix(fullPath, "/") {
+			child.IsFile = true
+		}
+		current = child
+	}
 }
