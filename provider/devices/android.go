@@ -399,42 +399,81 @@ func GetStreamServiceActivityName(device *models.Device) string {
 }
 
 func GetAndroidSharedStorageFileTree() (*models.AndroidFileNode, error) {
-	cmd := exec.Command("adb", "shell", "find", constants.AndroidSharedStorageRoot)
-	output, err := cmd.Output()
+	// Collect file paths
+	fileCmd := exec.Command("adb", "shell", "find", constants.AndroidSharedStorageRoot, "-type", "f")
+	fileOutput, err := fileCmd.Output()
 	if err != nil {
 		return nil, err
 	}
 
+	// Collect directory paths
+	dirCmd := exec.Command("adb", "shell", "find", constants.AndroidSharedStorageRoot, "-type", "d")
+	dirOutput, err := dirCmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	fileSet := make(map[string]bool)
+	dirSet := make(map[string]bool)
+
+	// Build file set
+	scanner := bufio.NewScanner(strings.NewReader(string(fileOutput)))
+	for scanner.Scan() {
+		path := strings.TrimSpace(scanner.Text())
+		if isAndroidSharedStorageFilePathAllowed(path) {
+			fileSet[path] = true
+		}
+	}
+
+	// Build dir set
+	scanner = bufio.NewScanner(strings.NewReader(string(dirOutput)))
+	for scanner.Scan() {
+		path := strings.TrimSpace(scanner.Text())
+		if isAndroidSharedStorageFilePathAllowed(path) {
+			dirSet[path] = true
+		}
+	}
+
+	// Merge all paths
+	allPaths := make([]string, 0, len(fileSet)+len(dirSet))
+	for p := range dirSet {
+		allPaths = append(allPaths, p)
+	}
+	for p := range fileSet {
+		allPaths = append(allPaths, p)
+	}
+
+	// Build tree
 	root := &models.AndroidFileNode{
 		Name:     constants.AndroidSharedStorageRoot,
 		FullPath: constants.AndroidSharedStorageRoot,
+		IsFile:   false,
 	}
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// skip anything hidden (e.g. /.thumbnails, /.git)
-		if strings.Contains(line, "/.") {
-			continue
-		}
-
-		// Skip directories unless they are in the allowed list
-		if utils.StringStartsWithAny(line, constants.AndroidAllowedSharedStorageFolders...) {
-			addFileTreeNode(root, line)
-		}
+	for _, path := range allPaths {
+		addAndroidSharedStorageFilePathNode(root, path, fileSet)
 	}
 	return root, nil
 }
 
-func addFileTreeNode(root *models.AndroidFileNode, fullPath string) {
-	parts := strings.Split(strings.TrimPrefix(fullPath, constants.AndroidSharedStorageRoot), "/")
+func isAndroidSharedStorageFilePathAllowed(path string) bool {
+	if strings.Contains(path, "/.") {
+		return false // skip hidden dirs like .thumbnails or .cache
+	}
+	return utils.StringStartsWithAny(path, constants.AndroidAllowedSharedStorageFolders...)
+}
+
+func addAndroidSharedStorageFilePathNode(root *models.AndroidFileNode, fullPath string, fileSet map[string]bool) {
+	relativePath := strings.TrimPrefix(fullPath, constants.AndroidSharedStorageRoot)
+	parts := strings.Split(strings.TrimPrefix(relativePath, "/"), "/")
+
 	current := root
-	currentPath := constants.AndroidSharedStorageRoot // start from root
+	currentPath := constants.AndroidSharedStorageRoot
 
 	for i, part := range parts {
 		if part == "" {
 			continue
 		}
+
 		if current.Children == nil {
 			current.Children = make(map[string]*models.AndroidFileNode)
 		}
@@ -445,12 +484,17 @@ func addFileTreeNode(root *models.AndroidFileNode, fullPath string) {
 			child = &models.AndroidFileNode{
 				Name:     part,
 				FullPath: currentPath,
+				IsFile:   false, // assume folder
 			}
 			current.Children[part] = child
 		}
-		if i == len(parts)-1 && !strings.HasSuffix(fullPath, "/") {
+
+		// If this is the last segment and it's a known file, mark it
+		if i == len(parts)-1 && fileSet[fullPath] {
 			child.IsFile = true
+			child.Children = nil // remove any children from a file
 		}
+
 		current = child
 	}
 }

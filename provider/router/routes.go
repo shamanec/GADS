@@ -25,6 +25,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -434,6 +435,46 @@ func DeviceFiles(c *gin.Context) {
 		} else {
 			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported on iOS", nil)
 		}
+	}
+
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func PushFileToSharedStorage(c *gin.Context) {
+	udid := c.Param("udid")
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "ios" {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			return
+		}
+
+		destPath := c.PostForm("destPath")
+		file, err := c.FormFile("file")
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, "Missing file in form data", nil)
+			return
+		}
+
+		// Save uploaded file in a temporary folder so we can push it via adb
+		tempPath := filepath.Join(os.TempDir(), file.Filename)
+		if err := c.SaveUploadedFile(file, tempPath); err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error), nil)
+			return
+		}
+
+		// Push the file via adb to from the temporary folder to the target shared storage path
+		adbCmd := exec.Command("adb", "-s", device.UDID, "push", tempPath, destPath)
+		_, err = adbCmd.CombinedOutput()
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to push file `%s` to `%s` - %s", file.Filename, destPath, err), nil)
+			return
+		}
+
+		// Remove the temporary file, we don't want to keep it on long running hosts
+		os.Remove(tempPath)
+
+		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath), nil)
 	}
 
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
