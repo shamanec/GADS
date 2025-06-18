@@ -227,6 +227,7 @@ type AndroidFileNode struct {
 	Children map[string]*AndroidFileNode `json:"children,omitempty"`
 	IsFile   bool                        `json:"isFile"`
 	FullPath string                      `json:"fullPath"`
+	FileDate int64                       `json:"fileDate"`
 }
 
 // ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS

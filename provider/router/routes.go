@@ -425,12 +425,26 @@ func DeviceFiles(c *gin.Context) {
 
 	if device, ok := devices.DBDeviceMap[udid]; ok {
 		if device.OS == "android" {
-			responseFiles, err := devices.GetAndroidSharedStorageFileTree()
+			filesResp, err := androidRemoteServerRequest(device, http.MethodGet, "files", nil)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, "Failed to get shared storage file tree", responseFiles)
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to get shared storage file tree", nil)
 				return
 			}
-			api.GenericResponse(c, http.StatusOK, "Successfully got shared storage file tree", responseFiles)
+			defer filesResp.Body.Close()
+
+			payload, err := io.ReadAll(filesResp.Body)
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to read shared storage file tree response", nil)
+				return
+			}
+			var fileTree models.AndroidFileNode
+			err = json.Unmarshal(payload, &fileTree)
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to unmarshal storage file tree response", nil)
+				return
+			}
+
+			api.GenericResponse(c, http.StatusOK, "Successfully got shared storage file tree", fileTree)
 			return
 		} else {
 			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported on iOS", nil)
