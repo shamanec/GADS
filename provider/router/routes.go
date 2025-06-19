@@ -493,3 +493,50 @@ func PushFileToSharedStorage(c *gin.Context) {
 
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
+
+func DeleteFileFromSharedStorage(c *gin.Context) {
+	udid := c.Param("udid")
+	filePath := c.PostForm("filePath")
+	if filePath == "" {
+		api.GenericResponse(c, http.StatusBadRequest, "Missing filePath in form data", nil)
+		return
+	}
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		err := devices.DeleteAndroidSharedStorageFile(device, filePath)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete file on path `%s`", filePath), nil)
+			return
+		}
+
+		api.GenericResponse(c, http.StatusOK, "Successfully deleted file", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func PullFileFromSharedStorage(c *gin.Context) {
+	udid := c.Param("udid")
+	filePath := c.PostForm("filePath")
+
+	if filePath == "" {
+		api.GenericResponse(c, http.StatusBadRequest, "Missing filePath or fileName in form data", nil)
+		return
+	}
+	fileName := filepath.Base(filePath)
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		tempFilePath, err := devices.PullAndroidSharedStorageFile(device, filePath, fileName)
+		defer os.Remove(tempFilePath)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to pull file from path `%s` to a temporary directory", filePath), nil)
+			return
+		}
+
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
+		c.Header("Access-Control-Expose-Headers", "Content-Disposition")
+		c.File(tempFilePath)
+		return
+	}
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}

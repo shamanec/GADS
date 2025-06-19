@@ -21,8 +21,10 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -398,16 +400,38 @@ func GetStreamServiceActivityName(device *models.Device) string {
 	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 }
 
-func GetAndroidSharedStorageFileTree() (*models.AndroidFileNode, error) {
+func DeleteAndroidSharedStorageFile(device *models.Device, filePath string) error {
+	deleteFileCmd := exec.Command("adb", "-s", device.UDID, "shell", "rm", fmt.Sprintf("\"%s\"", filePath))
+	_, err := deleteFileCmd.Output()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func PullAndroidSharedStorageFile(device *models.Device, filePath string, fileName string) (string, error) {
+	var tempFilePath = filepath.Join(os.TempDir(), fileName)
+	pullFileCmd := exec.Command("adb", "-s", device.UDID, "pull", filePath, tempFilePath)
+
+	_, err := pullFileCmd.Output()
+	if err != nil {
+		return tempFilePath, err
+	}
+
+	return tempFilePath, nil
+}
+
+func GetAndroidSharedStorageFileTree(device *models.Device) (*models.AndroidFileNode, error) {
 	// Collect file paths
-	fileCmd := exec.Command("adb", "shell", "find", constants.AndroidSharedStorageRoot, "-type", "f")
+	fileCmd := exec.Command("adb", "-s", device.UDID, "shell", "find", constants.AndroidSharedStorageRoot, "-type", "f")
 	fileOutput, err := fileCmd.Output()
 	if err != nil {
 		return nil, err
 	}
 
 	// Collect directory paths
-	dirCmd := exec.Command("adb", "shell", "find", constants.AndroidSharedStorageRoot, "-type", "d")
+	dirCmd := exec.Command("adb", "-s", device.UDID, "shell", "find", constants.AndroidSharedStorageRoot, "-type", "d")
 	dirOutput, err := dirCmd.Output()
 	if err != nil {
 		return nil, err
