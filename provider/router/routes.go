@@ -538,6 +538,11 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 	}
 
 	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "ios" {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			return
+		}
+
 		err := devices.DeleteAndroidSharedStorageFile(device, filePath)
 		if err != nil {
 			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete file on path `%s`", filePath), nil)
@@ -573,6 +578,11 @@ func PullFileFromSharedStorage(c *gin.Context) {
 	fileName := filepath.Base(filePath)
 
 	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "ios" {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			return
+		}
+
 		tempFilePath, err := devices.PullAndroidSharedStorageFile(device, filePath, fileName)
 		defer os.Remove(tempFilePath)
 		if err != nil {
