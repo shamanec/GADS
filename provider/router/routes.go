@@ -420,6 +420,16 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
 
+// DeviceFiles godoc
+// @Summary      Android shared storage directories/files
+// @Description  Returns a list of shared storage directories/files on Android devices
+// @Tags         Devices - Files
+// @Produce      json
+// @Param        udid   path   string  true   "Device UDID"
+// @Success      200   {object}  models.AndroidFileNodeResponse
+// @Failure      400   {object}  models.APIResponse
+// @Failure      500   {object}  models.APIResponse
+// @Router       /device/{udid}/files [get]
 func DeviceFiles(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -454,6 +464,19 @@ func DeviceFiles(c *gin.Context) {
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
 
+// PushFileToSharedStorage godoc
+// @Summary      Push a file to Android device shared storage
+// @Description  Uploads a file via multipart/form-data and pushes it to the target shared storage path using ADB
+// @Tags         Devices - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        udid      path      string  true   "Device UDID"
+// @Param        destPath  formData  string  true   "Path on shared storage where file should be pushed to"
+// @Param        file      formData  file    true   "File to push"
+// @Success      200       {object}  models.APIResponse
+// @Failure      400       {object}  models.APIResponse
+// @Failure      500       {object}  models.APIResponse
+// @Router       /device/{udid}/files/push [post]
 func PushFileToSharedStorage(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -472,6 +495,9 @@ func PushFileToSharedStorage(c *gin.Context) {
 
 		// Save uploaded file in a temporary folder so we can push it via adb
 		tempPath := filepath.Join(os.TempDir(), file.Filename)
+
+		// Remove the temporary file, we don't want to keep it on long running hosts
+		os.Remove(tempPath)
 		if err := c.SaveUploadedFile(file, tempPath); err != nil {
 			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error), nil)
 			return
@@ -485,15 +511,24 @@ func PushFileToSharedStorage(c *gin.Context) {
 			return
 		}
 
-		// Remove the temporary file, we don't want to keep it on long running hosts
-		os.Remove(tempPath)
-
 		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath), nil)
 	}
 
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
 
+// DeleteFileFromSharedStorage godoc
+// @Summary      Delete a file from Android shared storage
+// @Description  Deletes a file on the Android device's shared storage via ADB
+// @Tags         Devices - Files
+// @Accept       application/x-www-form-urlencoded
+// @Produce      json
+// @Param        udid      path      string  true  "Device UDID"
+// @Param        filePath  formData  string  true  "Full shared storage path to the file to be deleted"
+// @Success      200       {object}  models.APIResponse
+// @Failure      400       {object}  models.APIResponse
+// @Failure      500       {object}  models.APIResponse
+// @Router       /device/{udid}/files/delete [delete]
 func DeleteFileFromSharedStorage(c *gin.Context) {
 	udid := c.Param("udid")
 	filePath := c.PostForm("filePath")
@@ -515,6 +550,18 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
 
+// PullFileFromSharedStorage godoc
+// @Summary      Pull a file from Android shared storage
+// @Description  Pulls a file from the Android device's shared storage via ADB and downloads it
+// @Tags         Devices - Files
+// @Accept       application/x-www-form-urlencoded
+// @Produce      application/octet-stream
+// @Param        udid      path      string  true  "Device UDID"
+// @Param        filePath  formData  string  true  "Full shared storage path to the file to be downloaded"
+// @Success      200       {file}    file
+// @Failure      400       {object}  models.APIResponse
+// @Failure      500       {object}  models.APIResponse
+// @Router       /device/{udid}/files/pull [post]
 func PullFileFromSharedStorage(c *gin.Context) {
 	udid := c.Param("udid")
 	filePath := c.PostForm("filePath")

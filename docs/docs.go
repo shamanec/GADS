@@ -1678,6 +1678,207 @@ const docTemplate = `{
                 }
             }
         },
+        "/device/{udid}/files": {
+            "get": {
+                "description": "Returns a list of shared storage directories/files on Android devices",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices - Files"
+                ],
+                "summary": "Android shared storage directories/files",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "udid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.AndroidFileNodeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/{udid}/files/delete": {
+            "delete": {
+                "description": "Deletes a file on the Android device's shared storage via ADB",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices - Files"
+                ],
+                "summary": "Delete a file from Android shared storage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "udid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full shared storage path to the file to be deleted",
+                        "name": "filePath",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/{udid}/files/pull": {
+            "post": {
+                "description": "Pulls a file from the Android device's shared storage via ADB and downloads it",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "Devices - Files"
+                ],
+                "summary": "Pull a file from Android shared storage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "udid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Full shared storage path to the file to be downloaded",
+                        "name": "filePath",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/{udid}/files/push": {
+            "post": {
+                "description": "Uploads a file via multipart/form-data and pushes it to the target shared storage path using ADB",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices - Files"
+                ],
+                "summary": "Push a file to Android device shared storage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device UDID",
+                        "name": "udid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Path on shared storage where file should be pushed to",
+                        "name": "destPath",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File to push",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/devices/control/{udid}/in-use": {
             "get": {
                 "description": "WebSocket connection to manage device usage status and control",
@@ -1935,6 +2136,49 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "models.APIResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "result": {}
+            }
+        },
+        "models.AndroidFileNode": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/models.AndroidFileNode"
+                    }
+                },
+                "fileDate": {
+                    "type": "integer"
+                },
+                "fullPath": {
+                    "type": "string"
+                },
+                "isFile": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.AndroidFileNodeResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/models.AndroidFileNode"
                 }
             }
         },

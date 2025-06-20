@@ -9,15 +9,14 @@
 
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"GADS/common/models"
 
-type APIResponse struct {
-	Message string      `json:"message,omitempty"`
-	Result  interface{} `json:"result,omitempty"`
-}
+	"github.com/gin-gonic/gin"
+)
 
 func GenericResponse(c *gin.Context, statusCode int, message string, result interface{}) {
-	c.JSON(statusCode, APIResponse{
+	c.JSON(statusCode, models.APIResponse{
 		Message: message,
 		Result:  result,
 	})
