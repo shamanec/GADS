@@ -222,6 +222,26 @@ type TizenDevice struct {
 	OS                string `json:"OS"`
 }
 
+type AndroidFileNode struct {
+	Name     string                      `json:"name"`
+	Children map[string]*AndroidFileNode `json:"children,omitempty"`
+	IsFile   bool                        `json:"isFile"`
+	FullPath string                      `json:"fullPath"`
+	FileDate int64                       `json:"fileDate"`
+}
+
+// API Responses
+
+type APIResponse struct {
+	Message string      `json:"message,omitempty"`
+	Result  interface{} `json:"result,omitempty"`
+}
+
+type AndroidFileNodeResponse struct {
+	Message string          `json:"message,omitempty"`
+	Result  AndroidFileNode `json:"result,omitempty"`
+}
+
 // ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS
 func ValidateDeviceUsageForOS(os, usage string) error {
 	// Normalize OS string to lowercase for case-insensitive comparison

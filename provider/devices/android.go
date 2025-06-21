@@ -10,15 +10,21 @@
 package devices
 
 import (
+	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/logger"
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -392,4 +398,127 @@ func GetStreamServiceActivityName(device *models.Device) string {
 		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
 	}
 	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+}
+
+func DeleteAndroidSharedStorageFile(device *models.Device, filePath string) error {
+	deleteFileCmd := exec.Command("adb", "-s", device.UDID, "shell", "rm", fmt.Sprintf("\"%s\"", filePath))
+	_, err := deleteFileCmd.Output()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func PullAndroidSharedStorageFile(device *models.Device, filePath string, fileName string) (string, error) {
+	var tempFilePath = filepath.Join(os.TempDir(), fileName)
+	pullFileCmd := exec.Command("adb", "-s", device.UDID, "pull", filePath, tempFilePath)
+
+	_, err := pullFileCmd.Output()
+	if err != nil {
+		return tempFilePath, err
+	}
+
+	return tempFilePath, nil
+}
+
+func GetAndroidSharedStorageFileTree(device *models.Device) (*models.AndroidFileNode, error) {
+	// Collect file paths
+	fileCmd := exec.Command("adb", "-s", device.UDID, "shell", "find", constants.AndroidSharedStorageRoot, "-type", "f")
+	fileOutput, err := fileCmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect directory paths
+	dirCmd := exec.Command("adb", "-s", device.UDID, "shell", "find", constants.AndroidSharedStorageRoot, "-type", "d")
+	dirOutput, err := dirCmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	fileSet := make(map[string]bool)
+	dirSet := make(map[string]bool)
+
+	// Build file set
+	scanner := bufio.NewScanner(strings.NewReader(string(fileOutput)))
+	for scanner.Scan() {
+		path := strings.TrimSpace(scanner.Text())
+		if isAndroidSharedStorageFilePathAllowed(path) {
+			fileSet[path] = true
+		}
+	}
+
+	// Build dir set
+	scanner = bufio.NewScanner(strings.NewReader(string(dirOutput)))
+	for scanner.Scan() {
+		path := strings.TrimSpace(scanner.Text())
+		if isAndroidSharedStorageFilePathAllowed(path) {
+			dirSet[path] = true
+		}
+	}
+
+	// Merge all paths
+	allPaths := make([]string, 0, len(fileSet)+len(dirSet))
+	for p := range dirSet {
+		allPaths = append(allPaths, p)
+	}
+	for p := range fileSet {
+		allPaths = append(allPaths, p)
+	}
+
+	// Build tree
+	root := &models.AndroidFileNode{
+		Name:     constants.AndroidSharedStorageRoot,
+		FullPath: constants.AndroidSharedStorageRoot,
+		IsFile:   false,
+	}
+	for _, path := range allPaths {
+		addAndroidSharedStorageFilePathNode(root, path, fileSet)
+	}
+	return root, nil
+}
+
+func isAndroidSharedStorageFilePathAllowed(path string) bool {
+	if strings.Contains(path, "/.") {
+		return false // skip hidden dirs like .thumbnails or .cache
+	}
+	return utils.StringStartsWithAny(path, constants.AndroidAllowedSharedStorageFolders...)
+}
+
+func addAndroidSharedStorageFilePathNode(root *models.AndroidFileNode, fullPath string, fileSet map[string]bool) {
+	relativePath := strings.TrimPrefix(fullPath, constants.AndroidSharedStorageRoot)
+	parts := strings.Split(strings.TrimPrefix(relativePath, "/"), "/")
+
+	current := root
+	currentPath := constants.AndroidSharedStorageRoot
+
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+
+		if current.Children == nil {
+			current.Children = make(map[string]*models.AndroidFileNode)
+		}
+
+		currentPath = path.Join(currentPath, part)
+		child, exists := current.Children[part]
+		if !exists {
+			child = &models.AndroidFileNode{
+				Name:     part,
+				FullPath: currentPath,
+				IsFile:   false, // assume folder
+			}
+			current.Children[part] = child
+		}
+
+		// If this is the last segment and it's a known file, mark it
+		if i == len(parts)-1 && fileSet[fullPath] {
+			child.IsFile = true
+			child.Children = nil // remove any children from a file
+		}
+
+		current = child
+	}
 }

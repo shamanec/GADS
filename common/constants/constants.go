@@ -14,9 +14,19 @@ import "GADS/common/models"
 type IndexSort int
 
 const (
-	SortAscending  IndexSort = 1
-	SortDescending IndexSort = -1
+	SortAscending            IndexSort = 1
+	SortDescending           IndexSort = -1
+	AndroidSharedStorageRoot           = "/storage/emulated/0"
 )
+
+var AndroidAllowedSharedStorageFolders = []string{
+	AndroidSharedStorageRoot + "/DCIM",
+	AndroidSharedStorageRoot + "/Documents",
+	AndroidSharedStorageRoot + "/Download",
+	AndroidSharedStorageRoot + "/Movies",
+	AndroidSharedStorageRoot + "/Music",
+	AndroidSharedStorageRoot + "/Pictures",
+}
 
 var AndroidVersionToSDK = map[string]string{
 	"23": "6",

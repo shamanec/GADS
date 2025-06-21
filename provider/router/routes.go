@@ -25,6 +25,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -416,5 +417,136 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 		return
 	}
 
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func DeviceFiles(c *gin.Context) {
+	udid := c.Param("udid")
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "android" {
+			filesResp, err := androidRemoteServerRequest(device, http.MethodGet, "files", nil)
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to get shared storage file tree", nil)
+				return
+			}
+			defer filesResp.Body.Close()
+
+			payload, err := io.ReadAll(filesResp.Body)
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to read shared storage file tree response", nil)
+				return
+			}
+			var fileTree models.AndroidFileNode
+			err = json.Unmarshal(payload, &fileTree)
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to unmarshal storage file tree response", nil)
+				return
+			}
+
+			api.GenericResponse(c, http.StatusOK, "Successfully got shared storage file tree", fileTree)
+			return
+		} else {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported on iOS", nil)
+		}
+	}
+
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func PushFileToSharedStorage(c *gin.Context) {
+	udid := c.Param("udid")
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "ios" {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			return
+		}
+
+		destPath := c.PostForm("destPath")
+		file, err := c.FormFile("file")
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, "Missing file in form data", nil)
+			return
+		}
+
+		// Save uploaded file in a temporary folder so we can push it via adb
+		tempPath := filepath.Join(os.TempDir(), file.Filename)
+
+		// Remove the temporary file, we don't want to keep it on long running hosts
+		defer os.Remove(tempPath)
+		if err := c.SaveUploadedFile(file, tempPath); err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error), nil)
+			return
+		}
+
+		// Push the file via adb to from the temporary folder to the target shared storage path
+		adbCmd := exec.Command("adb", "-s", device.UDID, "push", tempPath, destPath)
+		_, err = adbCmd.CombinedOutput()
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to push file `%s` to `%s` - %s", file.Filename, destPath, err), nil)
+			return
+		}
+
+		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath), nil)
+	}
+
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func DeleteFileFromSharedStorage(c *gin.Context) {
+	udid := c.Param("udid")
+	filePath := c.PostForm("filePath")
+	if filePath == "" {
+		api.GenericResponse(c, http.StatusBadRequest, "Missing filePath in form data", nil)
+		return
+	}
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "ios" {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			return
+		}
+
+		err := devices.DeleteAndroidSharedStorageFile(device, filePath)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete file on path `%s`", filePath), nil)
+			return
+		}
+
+		api.GenericResponse(c, http.StatusOK, "Successfully deleted file", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func PullFileFromSharedStorage(c *gin.Context) {
+	udid := c.Param("udid")
+	filePath := c.PostForm("filePath")
+
+	if filePath == "" {
+		api.GenericResponse(c, http.StatusBadRequest, "Missing filePath or fileName in form data", nil)
+		return
+	}
+	fileName := filepath.Base(filePath)
+
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "ios" {
+			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			return
+		}
+
+		tempFilePath, err := devices.PullAndroidSharedStorageFile(device, filePath, fileName)
+		defer os.Remove(tempFilePath)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to pull file from path `%s` to a temporary directory", filePath), nil)
+			return
+		}
+
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
+		c.Header("Access-Control-Expose-Headers", "Content-Disposition")
+		c.File(tempFilePath)
+		return
+	}
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
