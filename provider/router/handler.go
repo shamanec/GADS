@@ -49,7 +49,7 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.GET("/info", DeviceInfo)
 	deviceGroup.GET("/files", DeviceFiles)
 	deviceGroup.POST("/files/push", PushFileToSharedStorage)
-	deviceGroup.DELETE("/files/delete", DeleteFileFromSharedStorage)
+	deviceGroup.POST("/files/delete", DeleteFileFromSharedStorage)
 	deviceGroup.POST("/files/pull", PullFileFromSharedStorage)
 	deviceGroup.GET("/apps", DeviceInstalledApps)
 	deviceGroup.GET("/health", DeviceHealth)
