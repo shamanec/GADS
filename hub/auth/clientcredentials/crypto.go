@@ -14,6 +14,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -37,7 +38,13 @@ func GenerateClientIDWithPrefix(prefix string) string {
 	randomBytes := make([]byte, 8)
 	rand.Read(randomBytes) // Ignore error for simplicity, crypto/rand is reliable
 
-	suffix := base64.URLEncoding.EncodeToString(randomBytes)[:8] // 8 chars, no padding
+	suffix := base64.URLEncoding.EncodeToString(randomBytes)
+	// Remove padding characters and limit to 8 chars
+	suffix = strings.TrimRight(suffix, "=")
+	if len(suffix) > 8 {
+		suffix = suffix[:8]
+	}
+
 	return fmt.Sprintf("%s_%d_%s", prefix, timestamp, suffix)
 }
 
