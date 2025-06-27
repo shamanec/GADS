@@ -11,13 +11,13 @@ package db
 
 import (
 	"GADS/common/models"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
+	"GADS/hub/auth/clientcredentials"
 	"fmt"
+	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -45,14 +45,16 @@ func (m *MongoStore) GetClientCredentialsByTenant(tenant string) ([]models.Clien
 
 // CreateClientCredential creates a new client credential with generated client_id and secret
 func (m *MongoStore) CreateClientCredential(name, description, userID, tenant string) (models.ClientCredentials, error) {
-	clientID, err := generateClientID()
-	if err != nil {
-		return models.ClientCredentials{}, fmt.Errorf("failed to generate client ID: %w", err)
-	}
+	clientID := clientcredentials.GenerateClientIDWithPrefix(getClientIDPrefix())
 
-	clientSecret, hashedSecret, err := generateClientSecret()
+	clientSecret, err := clientcredentials.GenerateClientSecret()
 	if err != nil {
 		return models.ClientCredentials{}, fmt.Errorf("failed to generate client secret: %w", err)
+	}
+
+	hashedSecret, err := clientcredentials.HashSecret(clientSecret)
+	if err != nil {
+		return models.ClientCredentials{}, fmt.Errorf("failed to hash client secret: %w", err)
 	}
 
 	credential := models.ClientCredentials{
@@ -68,9 +70,13 @@ func (m *MongoStore) CreateClientCredential(name, description, userID, tenant st
 	}
 
 	coll := m.GetCollection("client_credentials")
-	err = InsertDocument(m.Ctx, coll, credential)
+	result, err := InsertDocumentWithResult(m.Ctx, coll, credential)
 	if err != nil {
 		return models.ClientCredentials{}, fmt.Errorf("failed to create client credential: %w", err)
+	}
+
+	if oid, ok := result.InsertedID.(primitive.ObjectID); ok {
+		credential.ID = oid.Hex()
 	}
 
 	// Return credential with unhashed secret for client to save
@@ -129,7 +135,7 @@ func (m *MongoStore) ValidateClientCredentials(clientID, clientSecret string) (m
 	}
 
 	// Verify secret hash
-	if !verifyClientSecret(clientSecret, credential.ClientSecret) {
+	if !clientcredentials.ValidateSecret(clientSecret, credential.ClientSecret) {
 		return models.ClientCredentials{}, fmt.Errorf("invalid client credentials")
 	}
 
@@ -175,31 +181,10 @@ func (m *MongoStore) CreateClientCredentialIndexes() error {
 
 // Helper functions
 
-func generateClientID() (string, error) {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
+func getClientIDPrefix() string {
+	prefix := os.Getenv("GADS_CLIENT_ID_PREFIX")
+	if prefix == "" {
+		return "gads"
 	}
-	return "gads_" + hex.EncodeToString(bytes), nil
-}
-
-func generateClientSecret() (string, string, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", "", err
-	}
-
-	secret := hex.EncodeToString(bytes)
-	hash := hashClientSecret(secret)
-
-	return secret, hash, nil
-}
-
-func hashClientSecret(secret string) string {
-	hash := sha256.Sum256([]byte(secret))
-	return hex.EncodeToString(hash[:])
-}
-
-func verifyClientSecret(secret, hash string) bool {
-	return hashClientSecret(secret) == hash
+	return prefix
 }

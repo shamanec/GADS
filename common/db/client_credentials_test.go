@@ -162,24 +162,53 @@ func TestGetClientCredentialsByUser(t *testing.T) {
 	}
 }
 
-func TestGenerateClientID(t *testing.T) {
-	id1, err := generateClientID()
-	require.NoError(t, err)
-	assert.Contains(t, id1, "gads_")
+func TestClientIDGeneration(t *testing.T) {
+	store := setupTestMongo(t)
 
-	id2, err := generateClientID()
+	// Test default prefix
+	cred1, err := store.CreateClientCredential("Test 1", "Desc 1", "user1", "tenant1")
 	require.NoError(t, err)
-	assert.Contains(t, id2, "gads_")
+	assert.Contains(t, cred1.ClientID, "gads_")
+
+	// Create another to test uniqueness
+	cred2, err := store.CreateClientCredential("Test 2", "Desc 2", "user1", "tenant1")
+	require.NoError(t, err)
+	assert.Contains(t, cred2.ClientID, "gads_")
 
 	// Should be unique
-	assert.NotEqual(t, id1, id2)
+	assert.NotEqual(t, cred1.ClientID, cred2.ClientID)
 }
 
-func TestHashAndVerifyClientSecret(t *testing.T) {
-	secret := "test-secret-123"
-	hash := hashClientSecret(secret)
+func TestClientIDPrefixConfiguration(t *testing.T) {
+	store := setupTestMongo(t)
 
-	assert.NotEqual(t, secret, hash)
-	assert.True(t, verifyClientSecret(secret, hash))
-	assert.False(t, verifyClientSecret("wrong-secret", hash))
+	// Test custom prefix
+	t.Setenv("GADS_CLIENT_ID_PREFIX", "myorg")
+	cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+	require.NoError(t, err)
+	assert.Contains(t, cred.ClientID, "myorg_")
+	assert.NotContains(t, cred.ClientID, "gads_")
+
+	// Test empty prefix falls back to default
+	t.Setenv("GADS_CLIENT_ID_PREFIX", "")
+	cred2, err := store.CreateClientCredential("Test 2", "Desc 2", "user1", "tenant1")
+	require.NoError(t, err)
+	assert.Contains(t, cred2.ClientID, "gads_")
+}
+
+func TestClientSecretValidation(t *testing.T) {
+	store := setupTestMongo(t)
+
+	// Create credential with secret
+	cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+	require.NoError(t, err)
+
+	// Original secret should validate
+	validated, err := store.ValidateClientCredentials(cred.ClientID, cred.ClientSecret)
+	require.NoError(t, err)
+	assert.Equal(t, cred.ClientID, validated.ClientID)
+
+	// Wrong secret should not validate
+	_, err = store.ValidateClientCredentials(cred.ClientID, "wrong-secret")
+	require.Error(t, err)
 }
