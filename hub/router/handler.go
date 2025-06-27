@@ -84,6 +84,8 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
 	authGroup.POST("/provider-update", ProviderUpdate)
+	// OAuth2 endpoints (unauthenticated)
+	authGroup.POST("/oauth/token", OAuth2TokenEndpoint)
 	// Enable authentication on the endpoints below
 	if configData.AuthEnabled {
 		authGroup.Use(auth.AuthMiddleware())
@@ -127,6 +129,12 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// Secret Keys Audit History endpoints
 	authGroup.GET("/admin/secret-keys/history", GetSecretKeyHistory)
 	authGroup.GET("/admin/secret-keys/history/:id", GetSecretKeyHistoryByID)
+	// Client Credentials endpoints
+	authGroup.POST("/client-credentials", CreateClientCredential)
+	authGroup.GET("/client-credentials", ListClientCredentials)
+	authGroup.GET("/client-credentials/:id", GetClientCredential)
+	authGroup.PUT("/client-credentials/:id", UpdateClientCredential)
+	authGroup.DELETE("/client-credentials/:id", RevokeClientCredential)
 
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())

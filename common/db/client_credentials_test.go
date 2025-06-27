@@ -10,205 +10,524 @@
 package db
 
 import (
+	"GADS/hub/auth/clientcredentials"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 )
 
-func setupTestMongo(t *testing.T) *MongoStore {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	require.NoError(t, err)
-
-	store := &MongoStore{
-		Client:       client,
-		DatabaseName: "gads_test",
-		Ctx:          ctx,
-		CtxCancel:    cancel,
-	}
-
-	// Clean up test data
-	coll := store.GetCollection("client_credentials")
-	coll.DeleteMany(ctx, bson.M{})
-
-	return store
-}
-
 func TestCreateClientCredential(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	credential, err := store.CreateClientCredential(
-		"Test Client",
-		"Test Description",
-		"user123",
-		"test-tenant",
-	)
+	mt.Run("success", func(mt *mtest.T) {
+		// Mock the InsertOne response
+		insertOneResult := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		mt.AddMockResponses(insertOneResult)
 
-	require.NoError(t, err)
-	assert.NotEmpty(t, credential.ID)
-	assert.NotEmpty(t, credential.ClientID)
-	assert.Contains(t, credential.ClientID, "gads_")
-	assert.NotEmpty(t, credential.ClientSecret)
-	assert.Equal(t, "Test Client", credential.Name)
-	assert.Equal(t, "user123", credential.UserID)
-	assert.Equal(t, "test-tenant", credential.Tenant)
-	assert.True(t, credential.IsActive)
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		credential, err := store.CreateClientCredential(
+			"Test Client",
+			"Test Description",
+			"user123",
+			"test-tenant",
+		)
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, credential.ID)
+		assert.NotEmpty(t, credential.ClientID)
+		assert.Contains(t, credential.ClientID, "gads_")
+		assert.NotEmpty(t, credential.ClientSecret)
+		assert.Equal(t, "Test Client", credential.Name)
+		assert.Equal(t, "user123", credential.UserID)
+		assert.Equal(t, "test-tenant", credential.Tenant)
+		assert.True(t, credential.IsActive)
+	})
 }
 
 func TestGetClientCredential(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	// Create a test credential
-	created, err := store.CreateClientCredential(
-		"Test Client",
-		"Test Description",
-		"user123",
-		"test-tenant",
-	)
-	require.NoError(t, err)
+	mt.Run("success", func(mt *mtest.T) {
+		clientID := "gads_123456"
+		clientSecretHash, _ := clientcredentials.HashSecret("test-secret")
+		now := time.Now()
 
-	// Retrieve it
-	retrieved, err := store.GetClientCredential(created.ClientID)
-	require.NoError(t, err)
+		// Mock the FindOne response
+		findResponse := mtest.CreateCursorResponse(
+			1,
+			"gads_test.client_credentials",
+			mtest.FirstBatch,
+			bson.D{
+				{Key: "_id", Value: primitive.NewObjectID()},
+				{Key: "client_id", Value: clientID},
+				{Key: "client_secret", Value: clientSecretHash},
+				{Key: "name", Value: "Test Client"},
+				{Key: "description", Value: "Test Description"},
+				{Key: "user_id", Value: "user123"},
+				{Key: "tenant", Value: "test-tenant"},
+				{Key: "is_active", Value: true},
+				{Key: "created_at", Value: now},
+				{Key: "updated_at", Value: now},
+			},
+		)
+		mt.AddMockResponses(findResponse)
 
-	assert.Equal(t, created.ClientID, retrieved.ClientID)
-	assert.Equal(t, created.Name, retrieved.Name)
-	assert.Equal(t, created.UserID, retrieved.UserID)
-	assert.Equal(t, created.Tenant, retrieved.Tenant)
-	// Note: ClientSecret in retrieved will be the hash, not the original
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		retrieved, err := store.GetClientCredential(clientID)
+		require.NoError(t, err)
+
+		assert.Equal(t, clientID, retrieved.ClientID)
+		assert.Equal(t, "Test Client", retrieved.Name)
+		assert.Equal(t, "user123", retrieved.UserID)
+		assert.Equal(t, "test-tenant", retrieved.Tenant)
+		assert.Equal(t, clientSecretHash, retrieved.ClientSecret)
+	})
+
+	mt.Run("not_found", func(mt *mtest.T) {
+		// Mock a not found response
+		mt.AddMockResponses(mtest.CreateCommandErrorResponse(mtest.CommandError{
+			Code:    11000,
+			Message: "not found",
+		}))
+
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		_, err := store.GetClientCredential("non_existent_id")
+		require.Error(t, err)
+	})
 }
 
 func TestValidateClientCredentials(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	// Create a test credential
-	created, err := store.CreateClientCredential(
-		"Test Client",
-		"Test Description",
-		"user123",
-		"test-tenant",
-	)
-	require.NoError(t, err)
+	mt.Run("valid_credentials", func(mt *mtest.T) {
+		clientID := "gads_123456"
+		clientSecret := "test-secret"
+		clientSecretHash, _ := clientcredentials.HashSecret(clientSecret)
+		now := time.Now()
 
-	// Test valid credentials
-	validated, err := store.ValidateClientCredentials(created.ClientID, created.ClientSecret)
-	require.NoError(t, err)
-	assert.Equal(t, created.ClientID, validated.ClientID)
+		// Mock the FindOne response for GetClientCredential
+		findResponse := mtest.CreateCursorResponse(
+			1,
+			"gads_test.client_credentials",
+			mtest.FirstBatch,
+			bson.D{
+				{Key: "_id", Value: primitive.NewObjectID()},
+				{Key: "client_id", Value: clientID},
+				{Key: "client_secret", Value: clientSecretHash},
+				{Key: "name", Value: "Test Client"},
+				{Key: "description", Value: "Test Description"},
+				{Key: "user_id", Value: "user123"},
+				{Key: "tenant", Value: "test-tenant"},
+				{Key: "is_active", Value: true},
+				{Key: "created_at", Value: now},
+				{Key: "updated_at", Value: now},
+			},
+		)
 
-	// Test invalid secret
-	_, err = store.ValidateClientCredentials(created.ClientID, "wrong-secret")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid client credentials")
+		// Mock the UpdateOne response for UpdateClientCredentialLastUsed
+		updateResponse := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "nModified", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
 
-	// Test invalid client ID
-	_, err = store.ValidateClientCredentials("wrong-id", created.ClientSecret)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid client credentials")
+		// Add both responses
+		mt.AddMockResponses(findResponse, updateResponse)
+
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		validated, err := store.ValidateClientCredentials(clientID, clientSecret)
+		require.NoError(t, err)
+		assert.Equal(t, clientID, validated.ClientID)
+	})
+
+	mt.Run("invalid_secret", func(mt *mtest.T) {
+		clientID := "gads_123456"
+		clientSecret := "test-secret"
+		clientSecretHash, _ := clientcredentials.HashSecret("different-secret") // Different secret
+		now := time.Now()
+
+		// Mock the FindOne response
+		findResponse := mtest.CreateCursorResponse(
+			1,
+			"gads_test.client_credentials",
+			mtest.FirstBatch,
+			bson.D{
+				{Key: "_id", Value: primitive.NewObjectID()},
+				{Key: "client_id", Value: clientID},
+				{Key: "client_secret", Value: clientSecretHash},
+				{Key: "name", Value: "Test Client"},
+				{Key: "description", Value: "Test Description"},
+				{Key: "user_id", Value: "user123"},
+				{Key: "tenant", Value: "test-tenant"},
+				{Key: "is_active", Value: true},
+				{Key: "created_at", Value: now},
+				{Key: "updated_at", Value: now},
+			},
+		)
+		mt.AddMockResponses(findResponse)
+
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		_, err := store.ValidateClientCredentials(clientID, clientSecret)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid client credentials")
+	})
+
+	mt.Run("invalid_client_id", func(mt *mtest.T) {
+		// Mock a not found response
+		mt.AddMockResponses(mtest.CreateCommandErrorResponse(mtest.CommandError{
+			Code:    11000,
+			Message: "not found",
+		}))
+
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		_, err := store.ValidateClientCredentials("wrong-id", "any-secret")
+		require.Error(t, err)
+	})
+
+	mt.Run("inactive_credential", func(mt *mtest.T) {
+		clientID := "gads_123456"
+		clientSecret := "test-secret"
+		clientSecretHash, _ := clientcredentials.HashSecret(clientSecret)
+		now := time.Now()
+
+		// Mock the FindOne response with inactive credential
+		findResponse := mtest.CreateCursorResponse(
+			1,
+			"gads_test.client_credentials",
+			mtest.FirstBatch,
+			bson.D{
+				{Key: "_id", Value: primitive.NewObjectID()},
+				{Key: "client_id", Value: clientID},
+				{Key: "client_secret", Value: clientSecretHash},
+				{Key: "name", Value: "Test Client"},
+				{Key: "description", Value: "Test Description"},
+				{Key: "user_id", Value: "user123"},
+				{Key: "tenant", Value: "test-tenant"},
+				{Key: "is_active", Value: false}, // Inactive
+				{Key: "created_at", Value: now},
+				{Key: "updated_at", Value: now},
+			},
+		)
+		mt.AddMockResponses(findResponse)
+
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		_, err := store.ValidateClientCredentials(clientID, clientSecret)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "inactive")
+	})
 }
 
 func TestDeactivateClientCredential(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	// Create a test credential
-	created, err := store.CreateClientCredential(
-		"Test Client",
-		"Test Description",
-		"user123",
-		"test-tenant",
-	)
-	require.NoError(t, err)
+	mt.Run("success", func(mt *mtest.T) {
+		clientID := "gads_123456"
 
-	// Deactivate it
-	err = store.DeactivateClientCredential(created.ClientID)
-	require.NoError(t, err)
+		// Mock the UpdateOne response
+		updateResponse := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "nModified", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		mt.AddMockResponses(updateResponse)
 
-	// Try to validate - should fail
-	_, err = store.ValidateClientCredentials(created.ClientID, created.ClientSecret)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "inactive")
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		err := store.DeactivateClientCredential(clientID)
+		require.NoError(t, err)
+	})
 }
 
 func TestGetClientCredentialsByUser(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	userID := "user123"
+	mt.Run("success", func(mt *mtest.T) {
+		userID := "user123"
+		now := time.Now()
+		objID1 := primitive.NewObjectID()
+		objID2 := primitive.NewObjectID()
 
-	// Create multiple credentials for the same user
-	_, err := store.CreateClientCredential("Client 1", "Desc 1", userID, "tenant1")
-	require.NoError(t, err)
+		// Create mock response for Find operation with two credentials
+		firstBatch := mtest.CreateCursorResponse(
+			1,
+			"gads_test.client_credentials",
+			mtest.FirstBatch,
+			bson.D{
+				{Key: "_id", Value: objID1},
+				{Key: "client_id", Value: "gads_123456"},
+				{Key: "client_secret", Value: "hashed_secret_1"},
+				{Key: "name", Value: "Client 1"},
+				{Key: "description", Value: "Desc 1"},
+				{Key: "user_id", Value: userID},
+				{Key: "tenant", Value: "tenant1"},
+				{Key: "is_active", Value: true},
+				{Key: "created_at", Value: now},
+				{Key: "updated_at", Value: now},
+			},
+			bson.D{
+				{Key: "_id", Value: objID2},
+				{Key: "client_id", Value: "gads_789012"},
+				{Key: "client_secret", Value: "hashed_secret_2"},
+				{Key: "name", Value: "Client 2"},
+				{Key: "description", Value: "Desc 2"},
+				{Key: "user_id", Value: userID},
+				{Key: "tenant", Value: "tenant1"},
+				{Key: "is_active", Value: true},
+				{Key: "created_at", Value: now},
+				{Key: "updated_at", Value: now},
+			},
+		)
 
-	_, err = store.CreateClientCredential("Client 2", "Desc 2", userID, "tenant1")
-	require.NoError(t, err)
+		// Create end of cursor response
+		killCursors := mtest.CreateCursorResponse(
+			0,
+			"gads_test.client_credentials",
+			mtest.NextBatch,
+		)
 
-	// Create credential for different user
-	_, err = store.CreateClientCredential("Client 3", "Desc 3", "user456", "tenant1")
-	require.NoError(t, err)
+		mt.AddMockResponses(firstBatch, killCursors)
 
-	// Get credentials for user123
-	credentials, err := store.GetClientCredentialsByUser(userID)
-	require.NoError(t, err)
-	assert.Len(t, credentials, 2)
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
 
-	for _, cred := range credentials {
-		assert.Equal(t, userID, cred.UserID)
-		assert.True(t, cred.IsActive)
-	}
+		credentials, err := store.GetClientCredentialsByUser(userID)
+		require.NoError(t, err)
+		assert.Len(t, credentials, 2)
+
+		for _, cred := range credentials {
+			assert.Equal(t, userID, cred.UserID)
+			assert.True(t, cred.IsActive)
+		}
+	})
+
+	mt.Run("no_credentials", func(mt *mtest.T) {
+		// Create empty cursor response
+		emptyBatch := mtest.CreateCursorResponse(
+			0,
+			"gads_test.client_credentials",
+			mtest.FirstBatch,
+		)
+
+		mt.AddMockResponses(emptyBatch)
+
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		credentials, err := store.GetClientCredentialsByUser("user_with_no_credentials")
+		require.NoError(t, err)
+		assert.Len(t, credentials, 0)
+	})
 }
 
 func TestClientIDGeneration(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	// Test default prefix
-	cred1, err := store.CreateClientCredential("Test 1", "Desc 1", "user1", "tenant1")
-	require.NoError(t, err)
-	assert.Contains(t, cred1.ClientID, "gads_")
+	mt.Run("default_prefix_and_uniqueness", func(mt *mtest.T) {
+		// Mock two InsertOne responses
+		insertResponse1 := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		insertResponse2 := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		mt.AddMockResponses(insertResponse1, insertResponse2)
 
-	// Create another to test uniqueness
-	cred2, err := store.CreateClientCredential("Test 2", "Desc 2", "user1", "tenant1")
-	require.NoError(t, err)
-	assert.Contains(t, cred2.ClientID, "gads_")
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
 
-	// Should be unique
-	assert.NotEqual(t, cred1.ClientID, cred2.ClientID)
+		// Test default prefix
+		cred1, err := store.CreateClientCredential("Test 1", "Desc 1", "user1", "tenant1")
+		require.NoError(t, err)
+		assert.Contains(t, cred1.ClientID, "gads_")
+
+		// Create another to test uniqueness
+		cred2, err := store.CreateClientCredential("Test 2", "Desc 2", "user1", "tenant1")
+		require.NoError(t, err)
+		assert.Contains(t, cred2.ClientID, "gads_")
+
+		// Should be unique
+		assert.NotEqual(t, cred1.ClientID, cred2.ClientID)
+	})
 }
 
 func TestClientIDPrefixConfiguration(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	// Test custom prefix
-	t.Setenv("GADS_CLIENT_ID_PREFIX", "myorg")
-	cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
-	require.NoError(t, err)
-	assert.Contains(t, cred.ClientID, "myorg_")
-	assert.NotContains(t, cred.ClientID, "gads_")
+	mt.Run("custom_prefix", func(mt *mtest.T) {
+		// Mock InsertOne response
+		insertResponse := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		mt.AddMockResponses(insertResponse)
 
-	// Test empty prefix falls back to default
-	t.Setenv("GADS_CLIENT_ID_PREFIX", "")
-	cred2, err := store.CreateClientCredential("Test 2", "Desc 2", "user1", "tenant1")
-	require.NoError(t, err)
-	assert.Contains(t, cred2.ClientID, "gads_")
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		// Test custom prefix
+		t.Setenv("GADS_CLIENT_ID_PREFIX", "myorg")
+		cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+		require.NoError(t, err)
+		assert.Contains(t, cred.ClientID, "myorg_")
+		assert.NotContains(t, cred.ClientID, "gads_")
+	})
+
+	mt.Run("empty_prefix_fallback", func(mt *mtest.T) {
+		// Mock InsertOne response
+		insertResponse := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		mt.AddMockResponses(insertResponse)
+
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
+
+		// Test empty prefix falls back to default
+		t.Setenv("GADS_CLIENT_ID_PREFIX", "")
+		cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+		require.NoError(t, err)
+		assert.Contains(t, cred.ClientID, "gads_")
+	})
 }
 
 func TestClientSecretValidation(t *testing.T) {
-	store := setupTestMongo(t)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	// Create credential with secret
-	cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
-	require.NoError(t, err)
+	mt.Run("end_to_end_validation", func(mt *mtest.T) {
+		// Mock InsertOne response for CreateClientCredential
+		insertResponse := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		
+		store := &MongoStore{
+			Client:       mt.Client,
+			DatabaseName: "gads_test",
+			Ctx:          context.Background(),
+		}
 
-	// Original secret should validate
-	validated, err := store.ValidateClientCredentials(cred.ClientID, cred.ClientSecret)
-	require.NoError(t, err)
-	assert.Equal(t, cred.ClientID, validated.ClientID)
-
-	// Wrong secret should not validate
-	_, err = store.ValidateClientCredentials(cred.ClientID, "wrong-secret")
-	require.Error(t, err)
+		// First, create a credential and capture the generated secret
+		mt.AddMockResponses(insertResponse)
+		cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+		require.NoError(t, err)
+		
+		// The stored hash should validate with the returned secret
+		generatedSecret := cred.ClientSecret
+		storedHash, _ := clientcredentials.HashSecret(generatedSecret)
+		
+		// Mock FindOne for successful validation
+		findResponse := mtest.CreateCursorResponse(
+			1,
+			"gads_test.client_credentials",
+			mtest.FirstBatch,
+			bson.D{
+				{Key: "_id", Value: primitive.NewObjectID()},
+				{Key: "client_id", Value: cred.ClientID},
+				{Key: "client_secret", Value: storedHash},
+				{Key: "name", Value: "Test"},
+				{Key: "description", Value: "Desc"},
+				{Key: "user_id", Value: "user1"},
+				{Key: "tenant", Value: "tenant1"},
+				{Key: "is_active", Value: true},
+				{Key: "created_at", Value: time.Now()},
+				{Key: "updated_at", Value: time.Now()},
+			},
+		)
+		
+		// Mock UpdateOne for last used timestamp
+		updateResponse := mtest.CreateSuccessResponse(
+			bson.E{Key: "n", Value: 1},
+			bson.E{Key: "nModified", Value: 1},
+			bson.E{Key: "ok", Value: 1},
+		)
+		
+		mt.AddMockResponses(findResponse, updateResponse)
+		
+		// Original secret should validate
+		validated, err := store.ValidateClientCredentials(cred.ClientID, generatedSecret)
+		require.NoError(t, err)
+		assert.Equal(t, cred.ClientID, validated.ClientID)
+		
+		// Mock FindOne for failed validation (wrong secret)
+		mt.AddMockResponses(findResponse)
+		
+		// Wrong secret should not validate
+		_, err = store.ValidateClientCredentials(cred.ClientID, "wrong-secret")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid client credentials")
+	})
 }

@@ -141,7 +141,7 @@ func RevokeCredential(ctx context.Context, store CredentialStore, clientID strin
 }
 
 func ValidateCredentials(ctx context.Context, store CredentialStore, clientID, clientSecret, tenant string) (*models.ClientCredentials, error) {
-	if clientID == "" || clientSecret == "" {
+	if clientID == "" || clientSecret == "" || tenant == "" {
 		return nil, errors.New("invalid credentials")
 	}
 

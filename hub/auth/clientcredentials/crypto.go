@@ -41,6 +41,8 @@ func GenerateClientIDWithPrefix(prefix string) string {
 	suffix := base64.URLEncoding.EncodeToString(randomBytes)
 	// Remove padding characters and limit to 8 chars
 	suffix = strings.TrimRight(suffix, "=")
+	// Replace underscores to avoid issues with splitting
+	suffix = strings.ReplaceAll(suffix, "_", "-")
 	if len(suffix) > 8 {
 		suffix = suffix[:8]
 	}
