@@ -12,10 +12,17 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/hub/auth"
+	"GADS/hub/auth/clientcredentials"
 	"GADS/hub/devices"
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +32,39 @@ var proxyTransport = &http.Transport{
 	MaxIdleConnsPerHost: 10,
 	DisableCompression:  true,
 	IdleConnTimeout:     60 * time.Second,
+}
+
+// Get capability prefix from environment variable, default to "gads"
+var capabilityPrefix = getEnvOrDefault("GADS_CAPABILITY_PREFIX", "gads")
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// extractGADSCredentials extracts client credentials from Appium session request
+func extractGADSCredentials(sessionReq map[string]interface{}, prefix string) (clientID, clientSecret, tenant string) {
+	// Check capabilities.alwaysMatch (W3C format)
+	if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
+		if alwaysMatch, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
+			clientID, _ = alwaysMatch[prefix+":clientId"].(string)
+			clientSecret, _ = alwaysMatch[prefix+":clientSecret"].(string)
+			tenant, _ = alwaysMatch[prefix+":tenant"].(string)
+		}
+	}
+
+	// Also check desiredCapabilities for backward compatibility
+	if clientID == "" {
+		if desired, ok := sessionReq["desiredCapabilities"].(map[string]interface{}); ok {
+			clientID, _ = desired[prefix+":clientId"].(string)
+			clientSecret, _ = desired[prefix+":clientSecret"].(string)
+			tenant, _ = desired[prefix+":tenant"].(string)
+		}
+	}
+
+	return
 }
 
 // This is a proxy handler for device interaction endpoints
@@ -39,23 +79,78 @@ func DeviceProxyHandler(c *gin.Context) {
 	path := c.Param("path")
 
 	var username string
+	var credentialsValidated bool
 
-	authToken := c.GetHeader("Authorization")
-	if authToken == "" {
-		authToken = c.Query("token")
+	// Check if this is a Appium session creation request
+	if c.Request.Method == "POST" && strings.HasSuffix(path, "/session") {
+		// Read request body
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+			return
+		}
+		// Restore request body for subsequent processing
+		c.Request.Body = io.NopCloser(bytes.NewReader(body))
+
+		// Extract capabilities
+		var sessionReq map[string]interface{}
+		if err := json.Unmarshal(body, &sessionReq); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON in request body"})
+			return
+		}
+
+		// Extract credentials from capabilities
+		clientID, clientSecret, tenant := extractGADSCredentials(sessionReq, capabilityPrefix)
+
+		if clientID != "" && clientSecret != "" && tenant != "" {
+			// Validate client credentials including tenant
+			ctx := context.Background()
+			credential, err := clientcredentials.ValidateCredentials(ctx, db.GlobalMongoStore, clientID, clientSecret, tenant)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"value": gin.H{
+						"error":      "invalid argument",
+						"message":    "Invalid client credentials",
+						"stacktrace": "",
+					},
+				})
+				return
+			}
+
+			// Set username from credential's user ID for device tracking
+			username = credential.UserID
+			credentialsValidated = true
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"value": gin.H{
+					"error":      "invalid argument",
+					"message":    fmt.Sprintf("Client credentials are required. Provide %[1]s:clientId, %[1]s:clientSecret and %[1]s:tenant in the capabilities.", capabilityPrefix),
+					"stacktrace": "",
+				},
+			})
+			return
+		}
 	}
 
-	if authToken != "" {
-		// Extract token from Bearer format
-		tokenString, err := auth.ExtractTokenFromBearer(authToken)
-		if err == nil {
-			// Get origin from request
-			origin := auth.GetOriginFromRequest(c)
+	// If not a session creation or no credentials in capabilities, check for bearer token
+	if !credentialsValidated {
+		authToken := c.GetHeader("Authorization")
+		if authToken == "" {
+			authToken = c.Query("token")
+		}
 
-			// Get claims from token with origin
-			claims, err := auth.GetClaimsFromToken(tokenString, origin)
+		if authToken != "" {
+			// Extract token from Bearer format
+			tokenString, err := auth.ExtractTokenFromBearer(authToken)
 			if err == nil {
-				username = claims.Username
+				// Get origin from request
+				origin := auth.GetOriginFromRequest(c)
+
+				// Get claims from token with origin
+				claims, err := auth.GetClaimsFromToken(tokenString, origin)
+				if err == nil {
+					username = claims.Username
+				}
 			}
 		}
 	}
@@ -86,10 +181,21 @@ func DeviceProxyHandler(c *gin.Context) {
 	devices.HubDevicesData.Mu.Unlock()
 
 	if !isAvailable {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"error": fmt.Sprintf("Device with UDID `%s` is not available", udid),
-		})
-		return
+		if c.Request.Method == "POST" && strings.HasSuffix(path, "/session") {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"value": gin.H{
+					"error":      "invalid argument",
+					"message":    fmt.Sprintf("Device `%s` is not available", udid),
+					"stacktrace": "",
+				},
+			})
+			return
+		} else {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"error": fmt.Sprintf("Device `%s` is not available", udid),
+			})
+			return
+		}
 	}
 
 	// Create a new ReverseProxy instance that will forward the requests
@@ -105,7 +211,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		},
 		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
-			for headerName, _ := range resp.Header {
+			for headerName := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {
 					resp.Header.Del(headerName)
 				}
@@ -152,7 +258,7 @@ func ProviderProxyHandler(c *gin.Context) {
 		},
 		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
-			for headerName, _ := range resp.Header {
+			for headerName := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {
 					resp.Header.Del(headerName)
 				}
