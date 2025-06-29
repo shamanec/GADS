@@ -144,13 +144,14 @@ type CredentialResponse struct {
 }
 
 type CreateCredentialResponse struct {
-	ClientID     string `json:"client_id" example:"cc_1234567890abcdef"`
-	ClientSecret string `json:"client_secret" example:"cs_abcdef1234567890"`
-	Tenant       string `json:"tenant" example:"acme-corp"`
-	Name         string `json:"name" example:"My API Client"`
-	Description  string `json:"description" example:"Client credentials for my application"`
-	IsActive     bool   `json:"is_active" example:"true"`
-	CreatedAt    string `json:"created_at" example:"2023-01-01T00:00:00Z"`
+	ClientID         string `json:"client_id" example:"cc_1234567890abcdef"`
+	ClientSecret     string `json:"client_secret" example:"cs_abcdef1234567890"`
+	Tenant           string `json:"tenant" example:"acme-corp"`
+	Name             string `json:"name" example:"My API Client"`
+	Description      string `json:"description" example:"Client credentials for my application"`
+	IsActive         bool   `json:"is_active" example:"true"`
+	CreatedAt        string `json:"created_at" example:"2023-01-01T00:00:00Z"`
+	CapabilityPrefix string `json:"capability_prefix" example:"gads"`
 }
 
 type ClientCredentialsListResponse struct {

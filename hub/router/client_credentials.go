@@ -66,13 +66,14 @@ func CreateClientCredential(c *gin.Context) {
 	}
 
 	response := models.CreateCredentialResponse{
-		ClientID:     credential.ClientID,
-		ClientSecret: credential.ClientSecret,
-		Tenant:       credential.Tenant,
-		Name:         credential.Name,
-		Description:  credential.Description,
-		IsActive:     credential.IsActive,
-		CreatedAt:    credential.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ClientID:         credential.ClientID,
+		ClientSecret:     credential.ClientSecret,
+		Tenant:           credential.Tenant,
+		Name:             credential.Name,
+		Description:      credential.Description,
+		IsActive:         credential.IsActive,
+		CreatedAt:        credential.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CapabilityPrefix: capabilityPrefix,
 	}
 
 	c.JSON(http.StatusCreated, response)
