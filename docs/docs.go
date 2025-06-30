@@ -2330,6 +2330,10 @@ const docTemplate = `{
         "models.CreateCredentialResponse": {
             "type": "object",
             "properties": {
+                "capability_prefix": {
+                    "type": "string",
+                    "example": "gads"
+                },
                 "client_id": {
                     "type": "string",
                     "example": "cc_1234567890abcdef"
