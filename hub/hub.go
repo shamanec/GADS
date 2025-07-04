@@ -107,6 +107,12 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		log.Fatalf("Failed adding admin user on start - %s", err)
 	}
 
+	// Create database indexes for client credentials
+	err = db.GlobalMongoStore.CreateClientCredentialIndexes()
+	if err != nil {
+		log.Warnf("Failed to create client credential indexes - %s", err)
+	}
+
 	_, err = db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
 		log.Fatalf("Failed to get/update global stream settings - %s", err)
