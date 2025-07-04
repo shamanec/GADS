@@ -2350,10 +2350,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Client credentials for my application"
                 },
-                "is_active": {
-                    "type": "boolean",
-                    "example": true
-                },
                 "name": {
                     "type": "string",
                     "example": "My API Client"
@@ -2379,9 +2375,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Client credentials for my application"
                 },
-                "is_active": {
-                    "type": "boolean",
-                    "example": true
+                "last_used_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
                 },
                 "name": {
                     "type": "string",
