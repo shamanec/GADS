@@ -12,10 +12,8 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/hub/auth"
-	"GADS/hub/auth/clientcredentials"
 	"GADS/hub/devices"
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,27 +42,25 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-// extractGADSCredentials extracts client credentials from Appium session request
-func extractGADSCredentials(sessionReq map[string]interface{}, prefix string) (clientID, clientSecret, tenant string) {
+// extractGADSSecret extracts client secret from Appium session request
+func extractGADSSecret(sessionReq map[string]interface{}, prefix string) string {
 	// Check capabilities.alwaysMatch (W3C format)
 	if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
 		if alwaysMatch, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
-			clientID, _ = alwaysMatch[prefix+":clientId"].(string)
-			clientSecret, _ = alwaysMatch[prefix+":clientSecret"].(string)
-			tenant, _ = alwaysMatch[prefix+":tenant"].(string)
+			if secret, ok := alwaysMatch[prefix+":clientSecret"].(string); ok {
+				return secret
+			}
 		}
 	}
 
 	// Also check desiredCapabilities for backward compatibility
-	if clientID == "" {
-		if desired, ok := sessionReq["desiredCapabilities"].(map[string]interface{}); ok {
-			clientID, _ = desired[prefix+":clientId"].(string)
-			clientSecret, _ = desired[prefix+":clientSecret"].(string)
-			tenant, _ = desired[prefix+":tenant"].(string)
+	if desired, ok := sessionReq["desiredCapabilities"].(map[string]interface{}); ok {
+		if secret, ok := desired[prefix+":clientSecret"].(string); ok {
+			return secret
 		}
 	}
 
-	return
+	return ""
 }
 
 // This is a proxy handler for device interaction endpoints
@@ -99,13 +95,11 @@ func DeviceProxyHandler(c *gin.Context) {
 			return
 		}
 
-		// Extract credentials from capabilities
-		clientID, clientSecret, tenant := extractGADSCredentials(sessionReq, capabilityPrefix)
+		// Extract client secret from capabilities
+		clientSecret := extractGADSSecret(sessionReq, capabilityPrefix)
 
-		if clientID != "" && clientSecret != "" && tenant != "" {
-			// Validate client credentials including tenant
-			ctx := context.Background()
-			credential, err := clientcredentials.ValidateCredentials(ctx, db.GlobalMongoStore, clientID, clientSecret, tenant)
+		if clientSecret != "" {
+			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"value": gin.H{
@@ -124,7 +118,7 @@ func DeviceProxyHandler(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"value": gin.H{
 					"error":      "invalid argument",
-					"message":    fmt.Sprintf("Client credentials are required. Provide %[1]s:clientId, %[1]s:clientSecret and %[1]s:tenant in the capabilities.", capabilityPrefix),
+					"message":    fmt.Sprintf("Client credentials are required. Provide %[1]s:clientSecret in the capabilities.", capabilityPrefix),
 					"stacktrace": "",
 				},
 			})

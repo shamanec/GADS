@@ -166,7 +166,8 @@ type StreamSettings struct {
 type ClientCredentials struct {
 	ID           string     `json:"id" bson:"_id,omitempty"`
 	ClientID     string     `json:"client_id" bson:"client_id"`
-	ClientSecret string     `json:"-" bson:"client_secret"` // Never return in JSON
+	ClientSecret string     `json:"-" bson:"client_secret"` // Never return in JSON (bcrypt hash)
+	SecretLookup string     `json:"-" bson:"secret_lookup"` // SHA256 hash for efficient secret lookup
 	Name         string     `json:"name" bson:"name"`
 	Description  string     `json:"description" bson:"description"`
 	UserID       string     `json:"user_id" bson:"user_id"`

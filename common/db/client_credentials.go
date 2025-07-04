@@ -12,6 +12,8 @@ package db
 import (
 	"GADS/common/models"
 	"GADS/hub/auth/clientcredentials"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -59,7 +61,8 @@ func (m *MongoStore) CreateClientCredential(name, description, userID, tenant st
 
 	credential := models.ClientCredentials{
 		ClientID:     clientID,
-		ClientSecret: hashedSecret, // Store hashed version
+		ClientSecret: hashedSecret,                           // Store hashed version
+		SecretLookup: generateSecretLookupHash(clientSecret), // Store SHA256 for lookup
 		Name:         name,
 		Description:  description,
 		UserID:       userID,
@@ -145,6 +148,33 @@ func (m *MongoStore) ValidateClientCredentials(clientID, clientSecret string) (m
 	return credential, nil
 }
 
+// GetClientCredentialBySecret retrieves and validates a client credential by secret only
+func (m *MongoStore) GetClientCredentialBySecret(clientSecret string) (models.ClientCredentials, error) {
+	coll := m.GetCollection("client_credentials")
+
+	// Generate lookup hash for the provided secret
+	lookupHash := generateSecretLookupHash(clientSecret)
+
+	// Find credential by lookup hash
+	filter := bson.D{
+		{Key: "secret_lookup", Value: lookupHash},
+		{Key: "is_active", Value: true},
+	}
+
+	credential, err := GetDocument[models.ClientCredentials](m.Ctx, coll, filter)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return models.ClientCredentials{}, fmt.Errorf("invalid client credentials")
+		}
+		return models.ClientCredentials{}, err
+	}
+
+	// Update last used timestamp
+	go m.UpdateClientCredentialLastUsed(credential.ClientID)
+
+	return credential, nil
+}
+
 // CreateClientCredentialIndexes creates database indexes for performance
 func (m *MongoStore) CreateClientCredentialIndexes() error {
 	coll := m.GetCollection("client_credentials")
@@ -152,6 +182,14 @@ func (m *MongoStore) CreateClientCredentialIndexes() error {
 	// Unique index on client_id
 	clientIDIndex := mongo.IndexModel{
 		Keys: bson.D{{Key: "client_id", Value: 1}},
+		Options: &options.IndexOptions{
+			Unique: &[]bool{true}[0],
+		},
+	}
+
+	// Unique index on secret_lookup for fast secret-based authentication
+	secretLookupIndex := mongo.IndexModel{
+		Keys: bson.D{{Key: "secret_lookup", Value: 1}},
 		Options: &options.IndexOptions{
 			Unique: &[]bool{true}[0],
 		},
@@ -173,7 +211,7 @@ func (m *MongoStore) CreateClientCredentialIndexes() error {
 		},
 	}
 
-	indexes := []mongo.IndexModel{clientIDIndex, userActiveIndex, tenantActiveIndex}
+	indexes := []mongo.IndexModel{clientIDIndex, secretLookupIndex, userActiveIndex, tenantActiveIndex}
 
 	_, err := coll.Indexes().CreateMany(m.Ctx, indexes)
 	return err
@@ -187,4 +225,10 @@ func getClientIDPrefix() string {
 		return "gads"
 	}
 	return prefix
+}
+
+// generateSecretLookupHash generates a SHA256 hash of the secret for efficient lookup
+func generateSecretLookupHash(secret string) string {
+	hash := sha256.Sum256([]byte(secret))
+	return hex.EncodeToString(hash[:])
 }
