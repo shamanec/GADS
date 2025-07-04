@@ -138,7 +138,6 @@ type CredentialResponse struct {
 	ClientID    string `json:"client_id" example:"cc_1234567890abcdef"`
 	Name        string `json:"name" example:"My API Client"`
 	Description string `json:"description" example:"Client credentials for my application"`
-	IsActive    bool   `json:"is_active" example:"true"`
 	CreatedAt   string `json:"created_at" example:"2023-01-01T00:00:00Z"`
 	UpdatedAt   string `json:"updated_at" example:"2023-01-01T00:00:00Z"`
 	LastUsedAt  string `json:"last_used_at" example:"2023-01-01T00:00:00Z"`
@@ -150,7 +149,6 @@ type CreateCredentialResponse struct {
 	Tenant           string `json:"tenant" example:"acme-corp"`
 	Name             string `json:"name" example:"My API Client"`
 	Description      string `json:"description" example:"Client credentials for my application"`
-	IsActive         bool   `json:"is_active" example:"true"`
 	CreatedAt        string `json:"created_at" example:"2023-01-01T00:00:00Z"`
 	CapabilityPrefix string `json:"capability_prefix" example:"gads"`
 }
