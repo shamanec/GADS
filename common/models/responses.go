@@ -141,6 +141,7 @@ type CredentialResponse struct {
 	IsActive    bool   `json:"is_active" example:"true"`
 	CreatedAt   string `json:"created_at" example:"2023-01-01T00:00:00Z"`
 	UpdatedAt   string `json:"updated_at" example:"2023-01-01T00:00:00Z"`
+	LastUsedAt  string `json:"last_used_at" example:"2023-01-01T00:00:00Z"`
 }
 
 type CreateCredentialResponse struct {

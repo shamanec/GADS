@@ -116,6 +116,10 @@ func ListClientCredentials(c *gin.Context) {
 
 	credentialResponses := []models.CredentialResponse{}
 	for _, cred := range credentials {
+		lastUsedAt := ""
+		if cred.LastUsedAt != nil {
+			lastUsedAt = cred.LastUsedAt.Format("2006-01-02T15:04:05Z")
+		}
 		credentialResponses = append(credentialResponses, models.CredentialResponse{
 			ClientID:    cred.ClientID,
 			Name:        cred.Name,
@@ -123,6 +127,7 @@ func ListClientCredentials(c *gin.Context) {
 			IsActive:    cred.IsActive,
 			CreatedAt:   cred.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			UpdatedAt:   cred.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			LastUsedAt:  lastUsedAt,
 		})
 	}
 
@@ -183,6 +188,10 @@ func GetClientCredential(c *gin.Context) {
 		return
 	}
 
+	lastUsedAt := ""
+	if credential.LastUsedAt != nil {
+		lastUsedAt = credential.LastUsedAt.Format("2006-01-02T15:04:05Z")
+	}
 	response := models.CredentialResponse{
 		ClientID:    credential.ClientID,
 		Name:        credential.Name,
@@ -190,6 +199,7 @@ func GetClientCredential(c *gin.Context) {
 		IsActive:    credential.IsActive,
 		CreatedAt:   credential.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:   credential.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		LastUsedAt:  lastUsedAt,
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -266,6 +276,10 @@ func UpdateClientCredential(c *gin.Context) {
 		return
 	}
 
+	lastUsedAt := ""
+	if credential.LastUsedAt != nil {
+		lastUsedAt = credential.LastUsedAt.Format("2006-01-02T15:04:05Z")
+	}
 	response := models.CredentialResponse{
 		ClientID:    credential.ClientID,
 		Name:        credential.Name,
@@ -273,6 +287,7 @@ func UpdateClientCredential(c *gin.Context) {
 		IsActive:    credential.IsActive,
 		CreatedAt:   credential.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:   credential.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		LastUsedAt:  lastUsedAt,
 	}
 
 	c.JSON(http.StatusOK, response)
