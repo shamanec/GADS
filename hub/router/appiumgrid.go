@@ -24,25 +24,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Capabilities struct {
-	FirstMatch  []CommonCapabilities `json:"firstMatch"`
-	AlwaysMatch CommonCapabilities   `json:"alwaysMatch"`
-}
-
-type CommonCapabilities struct {
-	AutomationName    string `json:"appium:automationName"`
-	BundleID          string `json:"appium:bundleId"`
-	PlatformVersion   string `json:"appium:platformVersion"`
-	PlatformName      string `json:"platformName"`
-	DeviceUDID        string `json:"appium:udid"`
-	NewCommandTimeout int64  `json:"appium:newCommandTimeout"`
-	SessionTimeout    int64  `json:"appium:sessionTimeout"`
-}
-
-type AppiumSession struct {
-	Capabilities        Capabilities       `json:"capabilities"`
-	DesiredCapabilities CommonCapabilities `json:"desiredCapabilities"`
-}
 
 type AppiumSessionValue struct {
 	SessionID string `json:"sessionId"`
@@ -99,14 +80,14 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			defer c.Request.Body.Close()
 
 			// Unmarshal the request sessionRequestBody []byte to <AppiumSession>
-			var appiumSessionBody AppiumSession
+			var appiumSessionBody models.AppiumSession
 			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "", err.Error()))
 				return
 			}
 
-			var capsToUse CommonCapabilities
+			var capsToUse models.CommonCapabilities
 
 			if appiumSessionBody.DesiredCapabilities.PlatformName != "" && appiumSessionBody.DesiredCapabilities.AutomationName != "" {
 				capsToUse = appiumSessionBody.DesiredCapabilities
@@ -414,7 +395,7 @@ func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
 	return nil, fmt.Errorf("No device with udid `%s` was found in the local devices map", udid)
 }
 
-func findAvailableDevice(caps CommonCapabilities) (*models.LocalHubDevice, error) {
+func findAvailableDevice(caps models.CommonCapabilities) (*models.LocalHubDevice, error) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
 

@@ -11,6 +11,7 @@ package router
 
 import (
 	"GADS/common/db"
+	"GADS/common/models"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"bytes"
@@ -42,26 +43,6 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-// extractGADSSecret extracts client secret from Appium session request
-func extractGADSSecret(sessionReq map[string]interface{}, prefix string) string {
-	// Check capabilities.alwaysMatch (W3C format)
-	if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
-		if alwaysMatch, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
-			if secret, ok := alwaysMatch[prefix+":clientSecret"].(string); ok {
-				return secret
-			}
-		}
-	}
-
-	// Also check desiredCapabilities for backward compatibility
-	if desired, ok := sessionReq["desiredCapabilities"].(map[string]interface{}); ok {
-		if secret, ok := desired[prefix+":clientSecret"].(string); ok {
-			return secret
-		}
-	}
-
-	return ""
-}
 
 // This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
@@ -96,7 +77,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		}
 
 		// Extract client secret from capabilities
-		clientSecret := extractGADSSecret(sessionReq, capabilityPrefix)
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
 
 		if clientSecret != "" {
 			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)

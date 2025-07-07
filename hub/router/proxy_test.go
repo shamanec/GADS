@@ -220,7 +220,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 
 }
 
-func TestExtractGADSSecret(t *testing.T) {
+func TestExtractClientSecretFromSession(t *testing.T) {
 	t.Run("Extract from capabilities.alwaysMatch", func(t *testing.T) {
 		sessionReq := map[string]interface{}{
 			"capabilities": map[string]interface{}{
@@ -230,7 +230,7 @@ func TestExtractGADSSecret(t *testing.T) {
 			},
 		}
 
-		clientSecret := extractGADSSecret(sessionReq, "gads")
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
 		assert.Equal(t, "test-secret", clientSecret)
 	})
 
@@ -241,7 +241,7 @@ func TestExtractGADSSecret(t *testing.T) {
 			},
 		}
 
-		clientSecret := extractGADSSecret(sessionReq, "gads")
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
 		assert.Equal(t, "test-secret", clientSecret)
 	})
 
@@ -254,7 +254,7 @@ func TestExtractGADSSecret(t *testing.T) {
 			},
 		}
 
-		clientSecret := extractGADSSecret(sessionReq, "custom")
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "custom")
 		assert.Equal(t, "test-secret", clientSecret)
 	})
 
@@ -263,7 +263,7 @@ func TestExtractGADSSecret(t *testing.T) {
 			"someOtherField": "value",
 		}
 
-		clientSecret := extractGADSSecret(sessionReq, "gads")
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
 		assert.Empty(t, clientSecret)
 	})
 
@@ -272,7 +272,7 @@ func TestExtractGADSSecret(t *testing.T) {
 			"capabilities": "not a map",
 		}
 
-		clientSecret := extractGADSSecret(sessionReq, "gads")
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
 		assert.Empty(t, clientSecret)
 	})
 
@@ -288,7 +288,7 @@ func TestExtractGADSSecret(t *testing.T) {
 			},
 		}
 
-		clientSecret := extractGADSSecret(sessionReq, "gads")
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
 		assert.Equal(t, "secret-alwaysMatch", clientSecret)
 	})
 }
