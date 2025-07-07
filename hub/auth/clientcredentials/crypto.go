@@ -28,6 +28,19 @@ func GenerateClientID() string {
 
 // GenerateClientIDWithPrefix generates a unique client identifier with custom prefix
 // Format: <prefix>_<timestamp>_<random_suffix>
+//
+// The configurable prefix provides flexibility for:
+// 1. Environment-specific naming: Different environments (dev, staging, prod) can use
+//    distinct prefixes (e.g., "gads-dev", "gads-staging", "gads-prod") to clearly
+//    identify resources and prevent cross-environment conflicts.
+// 2. Multi-tenant scenarios: Organizations running multiple GADS instances can
+//    differentiate them using custom prefixes, making it easier to manage capabilities
+//    and client IDs across different teams or projects.
+// 3. Integration requirements: Some organizations may have existing naming conventions
+//    or security policies that require specific prefixes for service identities.
+//
+// While "gads" works perfectly as a sensible default, the configurability ensures GADS
+// can adapt to diverse deployment scenarios without requiring code modifications.
 func GenerateClientIDWithPrefix(prefix string) string {
 	if prefix == "" {
 		prefix = "gads" // Fallback to default if empty
