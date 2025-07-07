@@ -14,6 +14,8 @@ import (
 	"context"
 	"errors"
 	"log"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // CredentialStore defines the interface for client credential storage operations
@@ -21,7 +23,7 @@ type CredentialStore interface {
 	CreateClientCredential(name, description, userID, tenant string) (models.ClientCredentials, error)
 	GetClientCredential(clientID string) (models.ClientCredentials, error)
 	GetClientCredentialsByUser(userID string) ([]models.ClientCredentials, error)
-	UpdateClientCredential(clientID string, updates map[string]interface{}) error
+	UpdateClientCredential(clientID string, updates bson.M) error
 	DeactivateClientCredential(clientID string) error
 	ValidateClientCredentials(clientID, clientSecret string) (models.ClientCredentials, error)
 }

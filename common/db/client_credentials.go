@@ -88,7 +88,7 @@ func (m *MongoStore) CreateClientCredential(name, description, userID, tenant st
 }
 
 // UpdateClientCredential updates an existing client credential
-func (m *MongoStore) UpdateClientCredential(clientID string, updates map[string]interface{}) error {
+func (m *MongoStore) UpdateClientCredential(clientID string, updates bson.M) error {
 	coll := m.GetCollection("client_credentials")
 	filter := bson.D{{Key: "client_id", Value: clientID}}
 
@@ -111,7 +111,7 @@ func (m *MongoStore) UpdateClientCredentialLastUsed(clientID string) error {
 
 // DeactivateClientCredential marks a client credential as inactive
 func (m *MongoStore) DeactivateClientCredential(clientID string) error {
-	return m.UpdateClientCredential(clientID, map[string]interface{}{
+	return m.UpdateClientCredential(clientID, bson.M{
 		"is_active": false,
 	})
 }

@@ -15,6 +15,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // MockCredentialStore implements a simple mock for testing
@@ -94,7 +96,7 @@ func (m *MockCredentialStore) GetClientCredentialsByTenant(tenant string) ([]mod
 	return result, nil
 }
 
-func (m *MockCredentialStore) UpdateClientCredential(clientID string, updates map[string]interface{}) error {
+func (m *MockCredentialStore) UpdateClientCredential(clientID string, updates bson.M) error {
 	if m.shouldError {
 		return errors.New("mock error")
 	}
