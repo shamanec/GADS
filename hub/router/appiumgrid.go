@@ -24,7 +24,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 type AppiumSessionValue struct {
 	SessionID string `json:"sessionId"`
 }
@@ -149,7 +148,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			devices.HubDevicesData.Mu.Unlock()
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", "localhost:10000", foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
