@@ -67,7 +67,7 @@ func UpdateExpiredGridSessions() {
 	}
 }
 
-func AppiumGridMiddleware() gin.HandlerFunc {
+func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
 			// Read the request sessionRequestBody
@@ -147,8 +147,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			devices.HubDevicesData.Mu.Unlock()
 
-			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
+			// Create a new request to the device target URL
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s:%s/device/%s/appium%s", config.HostAddress, config.Port, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
@@ -289,8 +289,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(
 				c.Request.Method,
-				fmt.Sprintf("http://%s/device/%s/appium%s",
-					foundDevice.Device.Host,
+				fmt.Sprintf("http://%s:%s/device/%s/appium%s",
+					config.HostAddress,
+					config.Port,
 					foundDevice.Device.UDID,
 					strings.Replace(c.Request.URL.Path, "/grid", "", -1)),
 				bytes.NewBuffer(origRequestBody),

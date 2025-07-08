@@ -137,7 +137,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.DELETE("/client-credentials/:id", RevokeClientCredential)
 
 	appiumGroup := r.Group("/grid")
-	appiumGroup.Use(AppiumGridMiddleware())
+	appiumGroup.Use(AppiumGridMiddleware(configData))
 	appiumGroup.Any("/*path")
 
 	return r
