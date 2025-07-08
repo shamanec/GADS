@@ -145,6 +145,21 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	// Start a goroutine that will start updating devices on provider start
 	go devices.Listener()
 
+	go func() {
+		time.Sleep(5 * time.Second)
+		for {
+			if device, ok := devices.DBDeviceMap["WCR7N18B14002300"]; ok {
+				fmt.Println("--------------------")
+				fmt.Println(device.IsAppiumUp)
+				fmt.Println(device.AppiumSessionID)
+				fmt.Println(device.AppiumLastPingTS)
+				fmt.Println("--------------------")
+				time.Sleep(2 * time.Second)
+			}
+
+		}
+	}()
+
 	// Start the provider server
 	err = startHTTPServer()
 	if err != nil {

@@ -47,3 +47,9 @@ func (m *MongoStore) GetAppiumSessionLogs(collectionName, sessionID string) ([]m
 
 	return GetDocuments[models.AppiumLog](m.Ctx, coll, filter, findOptions)
 }
+
+func (m *MongoStore) AddAppiumLog(collectionName string, log models.AppiumPluginLog) error {
+	coll := m.GetCollectionWithDB(appiumLogDB, collectionName)
+
+	return InsertDocument[models.AppiumPluginLog](m.Ctx, coll, log)
+}

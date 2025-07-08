@@ -78,6 +78,12 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.POST("/reset", ResetDevice)
 	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
 	deviceGroup.GET("/webrtc", DevicesWebRTCSocket)
+	deviceAppiumPluginGroup := deviceGroup.Group("/appium-plugin")
+	deviceAppiumPluginGroup.POST("/log", AppiumPluginLog)
+	deviceAppiumPluginGroup.POST("/register", AppiumPluginRegister)
+	deviceAppiumPluginGroup.POST("/session/add/:session_id", AppiumPluginAddSession)
+	deviceAppiumPluginGroup.POST("/session/remove", AppiumPluginRemoveSession)
+	deviceAppiumPluginGroup.POST("/ping", AppiumPluginPing)
 
 	return r
 }
