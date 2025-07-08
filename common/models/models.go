@@ -77,11 +77,15 @@ type Device struct {
 	StreamTargetFPS      int    `json:"stream_target_fps,omitempty" bson:"-"`     // The target FPS for the MJPEG video streams
 	StreamJpegQuality    int    `json:"stream_jpeg_quality,omitempty" bson:"-"`   // The target JPEG quality for the MJPEG video streams
 	StreamScalingFactor  int    `json:"stream_scaling_factor,omitempty" bson:"-"` // The target scaling factor for the MJPEG video streams
+	AppiumLastPingTS     int64  `json:"appium_last_ts" bson:"-"`                  // The last time the Appium server pinged the provider - the plugin sends regular pings while up
+	AppiumSessionID      string `json:"appium_session_id" bson:"-"`               // Current Appium session ID - the plugin sends a request for this when a session is created, also the session ID is available for all logs
+	IsAppiumUp           bool   `json:"is_appium_up" bson:"-"`                    // Reflects if Appium server is up or not - the plugin sends a request for this
+	HasAppiumSession     bool   `json:"has_appium_session" bson:"-"`              // This is a "just in case" property - it will be set to `true` when the plugin sends a new session registration request and to `false` when the plugin sends a remove session request
 	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES
 	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
 	///// NON-RETURNABLE VALUES
-	AppiumSessionID         string             `json:"-" bson:"-"` // current Appium session ID
+
 	WDASessionID            string             `json:"-" bson:"-"` // current WebDriverAgent session ID
 	AppiumPort              string             `json:"-" bson:"-"` // port assigned to the device for the Appium server
 	StreamPort              string             `json:"-" bson:"-"` // port assigned to the device for the video stream
