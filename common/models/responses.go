@@ -115,3 +115,45 @@ type FileEntry struct {
 	UploadDate string `json:"upload_date" example:"2023-01-01T00:00:00Z"`
 	Size       int64  `json:"size,omitempty" example:"1048576"`
 }
+
+// Client Credentials Request structures
+type CreateCredentialRequest struct {
+	Name        string `json:"name" binding:"required" example:"My API Client"`
+	Description string `json:"description" example:"Client credentials for my application"`
+}
+
+type UpdateCredentialRequest struct {
+	Name        string `json:"name" example:"Updated API Client"`
+	Description string `json:"description" example:"Updated description for my application"`
+}
+
+type OAuth2TokenRequest struct {
+	ClientID     string `json:"client_id" binding:"required" example:"cc_1234567890abcdef"`
+	ClientSecret string `json:"client_secret" binding:"required" example:"cs_abcdef1234567890"`
+	Tenant       string `json:"tenant,omitempty" example:"acme-corp"`
+}
+
+// Client Credentials Response structures
+type CredentialResponse struct {
+	ClientID    string `json:"client_id" example:"cc_1234567890abcdef"`
+	Name        string `json:"name" example:"My API Client"`
+	Description string `json:"description" example:"Client credentials for my application"`
+	CreatedAt   string `json:"created_at" example:"2023-01-01T00:00:00Z"`
+	UpdatedAt   string `json:"updated_at" example:"2023-01-01T00:00:00Z"`
+	LastUsedAt  string `json:"last_used_at" example:"2023-01-01T00:00:00Z"`
+}
+
+type CreateCredentialResponse struct {
+	ClientID         string `json:"client_id" example:"cc_1234567890abcdef"`
+	ClientSecret     string `json:"client_secret" example:"cs_abcdef1234567890"`
+	Tenant           string `json:"tenant" example:"acme-corp"`
+	Name             string `json:"name" example:"My API Client"`
+	Description      string `json:"description" example:"Client credentials for my application"`
+	CreatedAt        string `json:"created_at" example:"2023-01-01T00:00:00Z"`
+	CapabilityPrefix string `json:"capability_prefix" example:"gads"`
+}
+
+type ClientCredentialsListResponse struct {
+	Credentials []CredentialResponse `json:"credentials"`
+	Total       int64                `json:"total" example:"5"`
+}

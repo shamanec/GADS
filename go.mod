@@ -96,6 +96,6 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	go.mongodb.org/mongo-driver v1.12.1
 	golang.org/x/arch v0.16.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/crypto v0.38.0
 	google.golang.org/protobuf v1.36.6 // indirect
 )

@@ -12,7 +12,9 @@ package router
 import (
 	"GADS/common/models"
 	"GADS/hub/devices"
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -94,7 +96,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		var response map[string]string
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, "Device with UDID `test-device-unavailable` is not available", response["error"])
+		assert.Equal(t, "Device `test-device-unavailable` is not available", response["error"])
 
 		// Cleanup
 		devices.HubDevicesData.Mu.Lock()
@@ -156,5 +158,137 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDevicesData.Mu.Lock()
 		delete(devices.HubDevicesData.Devices, udid)
 		devices.HubDevicesData.Mu.Unlock()
+	})
+
+	t.Run("Missing Client Credentials - Should Return W3C Error Format", func(t *testing.T) {
+		// Setup a device
+		udid := "test-device-no-credentials"
+		devices.HubDevicesData.Mu.Lock()
+		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
+			Device: models.Device{
+				UDID: udid,
+				Host: "localhost:8080",
+			},
+			Available: true,
+		}
+		devices.HubDevicesData.Mu.Unlock()
+
+		// Create request WITHOUT credentials
+		router := gin.New()
+		router.POST("/device/:udid/*path", DeviceProxyHandler)
+
+		sessionReq := map[string]interface{}{
+			"capabilities": map[string]interface{}{
+				"alwaysMatch": map[string]interface{}{
+					"platformName": "iOS",
+					// Note: NO client credentials provided
+				},
+			},
+		}
+		jsonData, _ := json.Marshal(sessionReq)
+
+		req, _ := http.NewRequest("POST", "/device/"+udid+"/session", bytes.NewBuffer(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		// Execute request
+		router.ServeHTTP(w, req)
+
+		// Verify status code
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+		// Verify W3C error format
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+
+		// Check W3C structure
+		assert.Contains(t, response, "value")
+		value, ok := response["value"].(map[string]interface{})
+		assert.True(t, ok, "value should be a map")
+
+		assert.Equal(t, "invalid argument", value["error"])
+		expectedMsg := fmt.Sprintf("Client credentials are required. Provide %[1]s:clientSecret in the capabilities.", capabilityPrefix)
+		assert.Equal(t, expectedMsg, value["message"])
+		assert.Equal(t, "", value["stacktrace"])
+
+		// Cleanup
+		devices.HubDevicesData.Mu.Lock()
+		delete(devices.HubDevicesData.Devices, udid)
+		devices.HubDevicesData.Mu.Unlock()
+	})
+
+}
+
+func TestExtractClientSecretFromSession(t *testing.T) {
+	t.Run("Extract from capabilities.alwaysMatch", func(t *testing.T) {
+		sessionReq := map[string]interface{}{
+			"capabilities": map[string]interface{}{
+				"alwaysMatch": map[string]interface{}{
+					"gads:clientSecret": "test-secret",
+				},
+			},
+		}
+
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
+		assert.Equal(t, "test-secret", clientSecret)
+	})
+
+	t.Run("Extract from desiredCapabilities", func(t *testing.T) {
+		sessionReq := map[string]interface{}{
+			"desiredCapabilities": map[string]interface{}{
+				"gads:clientSecret": "test-secret",
+			},
+		}
+
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
+		assert.Equal(t, "test-secret", clientSecret)
+	})
+
+	t.Run("Custom prefix extraction", func(t *testing.T) {
+		sessionReq := map[string]interface{}{
+			"capabilities": map[string]interface{}{
+				"alwaysMatch": map[string]interface{}{
+					"custom:clientSecret": "test-secret",
+				},
+			},
+		}
+
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "custom")
+		assert.Equal(t, "test-secret", clientSecret)
+	})
+
+	t.Run("Missing capabilities structure", func(t *testing.T) {
+		sessionReq := map[string]interface{}{
+			"someOtherField": "value",
+		}
+
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
+		assert.Empty(t, clientSecret)
+	})
+
+	t.Run("Invalid type for capabilities", func(t *testing.T) {
+		sessionReq := map[string]interface{}{
+			"capabilities": "not a map",
+		}
+
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
+		assert.Empty(t, clientSecret)
+	})
+
+	t.Run("Capabilities.alwaysMatch takes precedence over desiredCapabilities", func(t *testing.T) {
+		sessionReq := map[string]interface{}{
+			"capabilities": map[string]interface{}{
+				"alwaysMatch": map[string]interface{}{
+					"gads:clientSecret": "secret-alwaysMatch",
+				},
+			},
+			"desiredCapabilities": map[string]interface{}{
+				"gads:clientSecret": "secret-desired",
+			},
+		}
+
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, "gads")
+		assert.Equal(t, "secret-alwaysMatch", clientSecret)
 	})
 }

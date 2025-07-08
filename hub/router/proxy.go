@@ -11,11 +11,17 @@ package router
 
 import (
 	"GADS/common/db"
+	"GADS/common/models"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +32,17 @@ var proxyTransport = &http.Transport{
 	DisableCompression:  true,
 	IdleConnTimeout:     60 * time.Second,
 }
+
+// Get capability prefix from environment variable, default to "gads"
+var capabilityPrefix = getEnvOrDefault("GADS_CAPABILITY_PREFIX", "gads")
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 
 // This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
@@ -39,23 +56,76 @@ func DeviceProxyHandler(c *gin.Context) {
 	path := c.Param("path")
 
 	var username string
+	var credentialsValidated bool
 
-	authToken := c.GetHeader("Authorization")
-	if authToken == "" {
-		authToken = c.Query("token")
+	// Check if this is a Appium session creation request
+	if c.Request.Method == "POST" && strings.HasSuffix(path, "/session") {
+		// Read request body
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+			return
+		}
+		// Restore request body for subsequent processing
+		c.Request.Body = io.NopCloser(bytes.NewReader(body))
+
+		// Extract capabilities
+		var sessionReq map[string]interface{}
+		if err := json.Unmarshal(body, &sessionReq); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON in request body"})
+			return
+		}
+
+		// Extract client secret from capabilities
+		clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
+
+		if clientSecret != "" {
+			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"value": gin.H{
+						"error":      "invalid argument",
+						"message":    "Invalid client credentials",
+						"stacktrace": "",
+					},
+				})
+				return
+			}
+
+			// Set username from credential's user ID for device tracking
+			username = credential.UserID
+			credentialsValidated = true
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"value": gin.H{
+					"error":      "invalid argument",
+					"message":    fmt.Sprintf("Client credentials are required. Provide %[1]s:clientSecret in the capabilities.", capabilityPrefix),
+					"stacktrace": "",
+				},
+			})
+			return
+		}
 	}
 
-	if authToken != "" {
-		// Extract token from Bearer format
-		tokenString, err := auth.ExtractTokenFromBearer(authToken)
-		if err == nil {
-			// Get origin from request
-			origin := auth.GetOriginFromRequest(c)
+	// If not a session creation or no credentials in capabilities, check for bearer token
+	if !credentialsValidated {
+		authToken := c.GetHeader("Authorization")
+		if authToken == "" {
+			authToken = c.Query("token")
+		}
 
-			// Get claims from token with origin
-			claims, err := auth.GetClaimsFromToken(tokenString, origin)
+		if authToken != "" {
+			// Extract token from Bearer format
+			tokenString, err := auth.ExtractTokenFromBearer(authToken)
 			if err == nil {
-				username = claims.Username
+				// Get origin from request
+				origin := auth.GetOriginFromRequest(c)
+
+				// Get claims from token with origin
+				claims, err := auth.GetClaimsFromToken(tokenString, origin)
+				if err == nil {
+					username = claims.Username
+				}
 			}
 		}
 	}
@@ -86,10 +156,21 @@ func DeviceProxyHandler(c *gin.Context) {
 	devices.HubDevicesData.Mu.Unlock()
 
 	if !isAvailable {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"error": fmt.Sprintf("Device with UDID `%s` is not available", udid),
-		})
-		return
+		if c.Request.Method == "POST" && strings.HasSuffix(path, "/session") {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"value": gin.H{
+					"error":      "invalid argument",
+					"message":    fmt.Sprintf("Device `%s` is not available", udid),
+					"stacktrace": "",
+				},
+			})
+			return
+		} else {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"error": fmt.Sprintf("Device `%s` is not available", udid),
+			})
+			return
+		}
 	}
 
 	// Create a new ReverseProxy instance that will forward the requests
@@ -105,7 +186,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		},
 		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
-			for headerName, _ := range resp.Header {
+			for headerName := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {
 					resp.Header.Del(headerName)
 				}
@@ -152,7 +233,7 @@ func ProviderProxyHandler(c *gin.Context) {
 		},
 		Transport: proxyTransport,
 		ModifyResponse: func(resp *http.Response) error {
-			for headerName, _ := range resp.Header {
+			for headerName := range resp.Header {
 				if headerName == "Access-Control-Allow-Origin" {
 					resp.Header.Del(headerName)
 				}

@@ -46,7 +46,9 @@ The platform architecture consists of two main components:
   - Admin user management
   - Origin-based secret key management
   - Multiple JWT provider support
+  - OAuth2 client credentials for Appium (requires `gads:clientSecret` capability)
   - [Detailed Secret Keys Documentation](./docs/secret-keys.md)
+  - [Appium Credentials Documentation](./docs/appium-credentials.md)
 - 📱 **Device Control**
   - Real-time video streaming (MJPEG/WebRTC)
   - Remote interactions: tap, swipe, text input, get clipboard

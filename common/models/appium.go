@@ -111,3 +111,44 @@ type WDAMjpegProperties struct {
 	MjpegServerScreenshotQuality int `json:"mjpegServerScreenshotQuality,omitempty"`
 	MjpegServerScalingFactor     int `json:"mjpegScalingFactor,omitempty"`
 }
+
+type CommonCapabilities struct {
+	AutomationName    string `json:"appium:automationName"`
+	BundleID          string `json:"appium:bundleId"`
+	PlatformVersion   string `json:"appium:platformVersion"`
+	PlatformName      string `json:"platformName"`
+	DeviceUDID        string `json:"appium:udid"`
+	NewCommandTimeout int64  `json:"appium:newCommandTimeout"`
+	SessionTimeout    int64  `json:"appium:sessionTimeout"`
+}
+
+type Capabilities struct {
+	FirstMatch  []CommonCapabilities `json:"firstMatch"`
+	AlwaysMatch CommonCapabilities   `json:"alwaysMatch"`
+}
+
+type AppiumSession struct {
+	Capabilities        Capabilities       `json:"capabilities"`
+	DesiredCapabilities CommonCapabilities `json:"desiredCapabilities"`
+}
+
+// ExtractClientSecretFromSession extracts client secret from Appium session request
+func ExtractClientSecretFromSession(sessionReq map[string]interface{}, prefix string) string {
+	// Check capabilities.alwaysMatch (W3C format)
+	if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
+		if alwaysMatch, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
+			if secret, ok := alwaysMatch[prefix+":clientSecret"].(string); ok {
+				return secret
+			}
+		}
+	}
+
+	// Also check desiredCapabilities for backward compatibility
+	if desired, ok := sessionReq["desiredCapabilities"].(map[string]interface{}); ok {
+		if secret, ok := desired[prefix+":clientSecret"].(string); ok {
+			return secret
+		}
+	}
+
+	return ""
+}
