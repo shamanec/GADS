@@ -83,6 +83,7 @@ func AppiumPluginPing(c *gin.Context) {
 	udid := c.Param("udid")
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		dev.AppiumLastPingTS = time.Now().UnixMilli()
+		dev.IsAppiumUp = true
 		api.GenericResponse(c, http.StatusOK, "Ping for Appium server availability successful", nil)
 		return
 	}
