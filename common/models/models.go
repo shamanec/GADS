@@ -235,8 +235,9 @@ type AndroidFileNode struct {
 }
 
 type AppiumPluginConfiguration struct {
-	ProviderUrl  string                   `json:"providerUrl"`
-	DeviceConfig AppiumPluginDeviceConfig `json:"configuration"`
+	ProviderUrl       string                   `json:"providerUrl"`
+	DeviceConfig      AppiumPluginDeviceConfig `json:"configuration"`
+	HeartBeatInterval string                   `json:"heartbeatIntervalMs"`
 }
 
 type AppiumPluginDeviceConfig struct {
