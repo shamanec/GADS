@@ -43,9 +43,6 @@ func setupTizenDevice(device *models.Device) {
 	device.SetupMutex.Lock()
 	defer device.SetupMutex.Unlock()
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	device.ProviderState = "preparing"
 	logger.ProviderLogger.LogInfo("tizen_device_setup", fmt.Sprintf("Running setup for Tizen device `%v`", device.UDID))
 
@@ -71,21 +68,26 @@ func setupTizenDevice(device *models.Device) {
 		return
 	}
 
-	go startAppium(device, &wg)
-	go checkAppiumUp(device)
+	go startAppium(device)
 
-	select {
-	case <-device.AppiumReadyChan:
-		logger.ProviderLogger.LogInfo("tizen_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
-		break
-	case <-time.After(30 * time.Second):
-		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-		ResetLocalDevice(device, "Appium did not start within the expected time.")
-		return
+	timeout := time.After(30 * time.Second)
+	tick := time.Tick(200 * time.Millisecond)
+AppiumLoop:
+	for {
+		select {
+		case <-timeout:
+			logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+			ResetLocalDevice(device, "Failed to start Appium for device.")
+			return
+		case <-tick:
+			if device.IsAppiumUp {
+				logger.ProviderLogger.LogInfo("tizen_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+				break AppiumLoop
+			}
+		}
 	}
 
 	device.ProviderState = "live"
-	wg.Wait()
 }
 
 func getTizenTVHost(tvID string) (string, error) {
