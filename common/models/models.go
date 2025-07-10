@@ -251,6 +251,15 @@ type AndroidFileNode struct {
 	FileDate int64                       `json:"fileDate"`
 }
 
+type AppiumPluginConfiguration struct {
+	ProviderUrl  string                   `json:"providerUrl"`
+	DeviceConfig AppiumPluginDeviceConfig `json:"configuration"`
+}
+
+type AppiumPluginDeviceConfig struct {
+	UDID string `json:"udid"`
+}
+
 // API Responses
 
 type APIResponse struct {
