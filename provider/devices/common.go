@@ -959,7 +959,8 @@ func startAppium(device *models.Device) {
 	capabilitiesJson, _ := json.Marshal(capabilities)
 
 	pluginConfig := models.AppiumPluginConfiguration{
-		ProviderUrl: fmt.Sprintf("http://%s:$v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port),
+		ProviderUrl:       fmt.Sprintf("http://%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port),
+		HeartBeatInterval: "2000",
 		DeviceConfig: models.AppiumPluginDeviceConfig{
 			UDID: device.UDID,
 		},
@@ -973,7 +974,7 @@ func startAppium(device *models.Device) {
 		device.AppiumPort,
 		"--log-timestamp",
 		"--use-plugin=gads",
-		fmt.Sprintf("--plugin-gads-config='%s'", string(pluginConfigJson)),
+		fmt.Sprintf("--plugin-gads-config=%s", string(pluginConfigJson)),
 		"--session-override",
 		"--log-no-colors",
 		"--relaxed-security",
