@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"bytes"
@@ -99,11 +100,51 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				return
 			}
 
+			// Extract client secret from capabilities and get allowed workspaces
+			var allowedWorkspaceIDs []string
+			var sessionReq map[string]interface{}
+			json.Unmarshal(sessionRequestBody, &sessionReq)
+			capabilityPrefix := getEnvOrDefault("GADS_CAPABILITY_PREFIX", "gads")
+			clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
+
+			if clientSecret == "" {
+				c.JSON(http.StatusUnauthorized, createErrorResponse(
+					fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix),
+					"session not created",
+					""))
+				return
+			}
+
+			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
+			if err != nil || !credential.IsActive {
+				c.JSON(http.StatusUnauthorized, createErrorResponse("Invalid client credentials", "session not created", ""))
+				return
+			}
+
+			if credential.Tenant != "" {
+				defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
+				if credential.Tenant == defaultTenant {
+					if credential.UserID != "" {
+						userWorkspaces := db.GlobalMongoStore.GetUserWorkspaces(credential.UserID)
+						for _, ws := range userWorkspaces {
+							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
+						}
+					}
+				} else {
+					allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
+					for _, ws := range allWorkspaces {
+						if ws.Tenant == credential.Tenant {
+							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
+						}
+					}
+				}
+			}
+
 			// Check for available device
 			var foundDevice *models.LocalHubDevice
 			var deviceErr error
 
-			foundDevice, deviceErr = findAvailableDevice(capsToUse)
+			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs)
 
 			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
 				c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
@@ -120,7 +161,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, deviceErr = findAvailableDevice(capsToUse)
+						foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
@@ -429,7 +470,7 @@ func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
 	return nil, fmt.Errorf("No device with udid `%s` was found", udid)
 }
 
-func findAvailableDevice(caps models.CommonCapabilities) (*models.LocalHubDevice, error) {
+func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string) (*models.LocalHubDevice, error) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
 
@@ -445,6 +486,21 @@ func findAvailableDevice(caps models.CommonCapabilities) (*models.LocalHubDevice
 		if err != nil {
 			return nil, err
 		}
+
+		// Check if device is in allowed workspaces
+		if len(allowedWorkspaceIDs) > 0 {
+			deviceAllowed := false
+			for _, wsID := range allowedWorkspaceIDs {
+				if foundDevice.Device.WorkspaceID == wsID {
+					deviceAllowed = true
+					break
+				}
+			}
+			if !deviceAllowed {
+				return nil, fmt.Errorf("No device with udid `%s` was found", deviceUDID)
+			}
+		}
+
 		if foundDevice.IsAvailableForAutomation {
 			foundDevice.IsAvailableForAutomation = false
 			return foundDevice, nil
@@ -469,6 +525,21 @@ func findAvailableDevice(caps models.CommonCapabilities) (*models.LocalHubDevice
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&
 					localDevice.Device.Usage != "disabled" {
+
+					// Check if device is in allowed workspaces
+					if len(allowedWorkspaceIDs) > 0 {
+						deviceAllowed := false
+						for _, wsID := range allowedWorkspaceIDs {
+							if localDevice.Device.WorkspaceID == wsID {
+								deviceAllowed = true
+								break
+							}
+						}
+						if !deviceAllowed {
+							continue
+						}
+					}
+
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
@@ -486,6 +557,21 @@ func findAvailableDevice(caps models.CommonCapabilities) (*models.LocalHubDevice
 					localDevice.IsAvailableForAutomation &&
 					localDevice.Device.Usage != "control" &&
 					localDevice.Device.Usage != "disabled" {
+
+					// Check if device is in allowed workspaces
+					if len(allowedWorkspaceIDs) > 0 {
+						deviceAllowed := false
+						for _, wsID := range allowedWorkspaceIDs {
+							if localDevice.Device.WorkspaceID == wsID {
+								deviceAllowed = true
+								break
+							}
+						}
+						if !deviceAllowed {
+							continue
+						}
+					}
+
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
