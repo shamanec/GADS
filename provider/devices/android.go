@@ -118,6 +118,12 @@ func pushGadsSettingsInTmpLocal(device *models.Device) error {
 // Starts the GADS-Settings remote control server as app_process from /data/local/tmp.
 // The remote control server provides endpoints for tapping/swiping and other interactions independent from Appium server
 func startGadsRemoteControlServer(device *models.Device) {
+	// Kill existing process first
+	killCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "pkill -f RemoteControlServerKt")
+	_ = killCmd.Run() // Ignore error - process might not exist
+
+	time.Sleep(1 * time.Second)
+
 	cmd := exec.CommandContext(
 		device.Context,
 		"adb",
