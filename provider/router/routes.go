@@ -44,14 +44,14 @@ func AppiumReverseProxy(c *gin.Context) {
 				fmt.Println("Appium Reverse Proxy panic:", r)
 			}
 
-			api.GenericResponse(c, http.StatusInternalServerError, "Internal server error", nil)
+			c.JSON(http.StatusInternalServerError, createAppiumErrorResponse("Internal server error"))
 		}
 	}()
 
 	udid := c.Param("udid")
 
 	if !config.ProviderConfig.SetupAppiumServers {
-		api.GenericResponse(c, http.StatusServiceUnavailable, "Appium server not available for device", nil)
+		c.JSON(http.StatusServiceUnavailable, createAppiumErrorResponse("Appium server not available for device"))
 		return
 	}
 
@@ -518,6 +518,16 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 		return
 	}
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func createAppiumErrorResponse(message string) gin.H {
+	return gin.H{
+		"value": gin.H{
+			"error":      "unknown error",
+			"message":    message,
+			"stacktrace": "",
+		},
+	}
 }
 
 func PullFileFromSharedStorage(c *gin.Context) {

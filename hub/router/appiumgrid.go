@@ -73,7 +73,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			// Read the request sessionRequestBody
 			sessionRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read session request sessionRequestBody", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read session request sessionRequestBody", "session not created", err.Error()))
 				return
 			}
 			defer c.Request.Body.Close()
@@ -82,7 +82,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			var appiumSessionBody models.AppiumSession
 			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "session not created", err.Error()))
 				return
 			}
 
@@ -95,14 +95,21 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			} else if appiumSessionBody.Capabilities.AlwaysMatch.PlatformName != "" && appiumSessionBody.Capabilities.AlwaysMatch.AutomationName != "" {
 				capsToUse = appiumSessionBody.Capabilities.AlwaysMatch
 			} else {
-				c.JSON(http.StatusBadRequest, createErrorResponse("GADS did not find any suitable capabilities object in the session request, check your setup or open an issues on the project Github page", "", ""))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS did not find any suitable capabilities object in the session request, check your setup or open an issues on the project Github page", "session not created", ""))
 				return
 			}
 
 			// Check for available device
 			var foundDevice *models.LocalHubDevice
+			var deviceErr error
 
-			foundDevice, _ = findAvailableDevice(capsToUse)
+			foundDevice, deviceErr = findAvailableDevice(capsToUse)
+
+			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
+				c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
+				return
+			}
+
 			// If no device is available start checking each second for 60 seconds
 			// If no device is available after 60 seconds - return error
 			if foundDevice == nil {
@@ -113,13 +120,17 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, _ = findAvailableDevice(capsToUse)
+						foundDevice, deviceErr = findAvailableDevice(capsToUse)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
 					case <-timeout:
 						ticker.Stop()
-						c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "", ""))
+						if deviceErr != nil {
+							c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
+						} else {
+							c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
+						}
 						return
 					case <-notify:
 						ticker.Stop()
@@ -129,6 +140,11 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			}
 
 			if foundDevice == nil {
+				if deviceErr != nil {
+					c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
+				} else {
+					c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
+				}
 				return
 			}
 
@@ -154,7 +170,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "session not created", err.Error()))
 				return
 			}
 
@@ -171,25 +187,43 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium session endpoint", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium session endpoint", "session not created", err.Error()))
 				return
 			}
 			defer resp.Body.Close()
 
-			if resp.StatusCode == http.StatusInternalServerError {
-				// Start a goroutine that will release the device after 5 seconds if no other actions were taken
-				go func() {
-					time.Sleep(10 * time.Second)
-					devices.HubDevicesData.Mu.Lock()
-					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 5000) {
-						foundDevice.IsAvailableForAutomation = true
-						foundDevice.SessionID = ""
-						foundDevice.IsRunningAutomation = false
-						foundDevice.InUseBy = ""
-					}
-					devices.HubDevicesData.Mu.Unlock()
-				}()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS got an internal server error from the proxy session request to the device respective provider Appium endpoint", "", ""))
+			if resp.StatusCode >= 400 {
+				// Release device for any error status
+				devices.HubDevicesData.Mu.Lock()
+				foundDevice.IsAvailableForAutomation = true
+				foundDevice.IsRunningAutomation = false
+				if resp.StatusCode != http.StatusInternalServerError {
+					foundDevice.InUseBy = ""
+				}
+				devices.HubDevicesData.Mu.Unlock()
+
+				// For 500 errors, keep the existing behavior with goroutine
+				if resp.StatusCode == http.StatusInternalServerError {
+					go func() {
+						time.Sleep(10 * time.Second)
+						devices.HubDevicesData.Mu.Lock()
+						if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 5000) {
+							foundDevice.IsAvailableForAutomation = true
+							foundDevice.SessionID = ""
+							foundDevice.IsRunningAutomation = false
+							foundDevice.InUseBy = ""
+						}
+						devices.HubDevicesData.Mu.Unlock()
+					}()
+				}
+
+				// Read and pass the error response
+				proxiedResponseBody, _ := readBody(resp.Body)
+				for k, v := range resp.Header {
+					c.Writer.Header()[k] = v
+				}
+				c.Writer.WriteHeader(resp.StatusCode)
+				c.Writer.Write(proxiedResponseBody)
 				return
 			}
 
@@ -200,7 +234,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
 				return
 			}
 
@@ -212,7 +246,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request "+err.Error(), "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
 				return
 			}
 
@@ -383,7 +417,7 @@ func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
 			return localDevice, nil
 		}
 	}
-	return nil, fmt.Errorf("No device with session ID `%s` was found in the local devices map", sessionID)
+	return nil, fmt.Errorf("No device with session ID `%s` was found", sessionID)
 }
 
 func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
@@ -392,7 +426,7 @@ func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
 			return localDevice, nil
 		}
 	}
-	return nil, fmt.Errorf("No device with udid `%s` was found in the local devices map", udid)
+	return nil, fmt.Errorf("No device with udid `%s` was found", udid)
 }
 
 func findAvailableDevice(caps models.CommonCapabilities) (*models.LocalHubDevice, error) {
@@ -407,7 +441,10 @@ func findAvailableDevice(caps models.CommonCapabilities) (*models.LocalHubDevice
 	}
 
 	if deviceUDID != "" {
-		foundDevice, _ := getDeviceByUDID(deviceUDID)
+		foundDevice, err := getDeviceByUDID(deviceUDID)
+		if err != nil {
+			return nil, err
+		}
 		if foundDevice.IsAvailableForAutomation {
 			foundDevice.IsAvailableForAutomation = false
 			return foundDevice, nil
