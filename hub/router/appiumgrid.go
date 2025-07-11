@@ -151,11 +151,11 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				return
 			}
 
-			// If no device is available start checking each second for 60 seconds
-			// If no device is available after 60 seconds - return error
+			// If no device is available start checking each second for 10 seconds
+			// If no device is available after 10 seconds - return error
 			if foundDevice == nil {
 				ticker := time.NewTicker(100 * time.Millisecond)
-				timeout := time.After(60 * time.Second)
+				timeout := time.After(10 * time.Second)
 				notify := c.Writer.CloseNotify()
 			FOR_LOOP:
 				for {
@@ -395,11 +395,11 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
 				devices.HubDevicesData.Mu.Unlock()
-				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
+				// Start a goroutine that will release the device after 1 second if no other actions were taken
 				go func() {
-					time.Sleep(10 * time.Second)
+					time.Sleep(1 * time.Second)
 					devices.HubDevicesData.Mu.Lock()
-					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
+					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
 						foundDevice.SessionID = ""
 						foundDevice.IsRunningAutomation = false
 						foundDevice.InUseBy = ""
