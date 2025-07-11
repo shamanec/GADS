@@ -118,6 +118,12 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		log.Fatalf("Failed to get/update global stream settings - %s", err)
 	}
 
+	// Get the default tenant
+	defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
+	if err != nil {
+		log.Fatalf("Failed to get default tenant - %s", err)
+	}
+
 	// Check if the default workspace exists
 	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace()
 	if err != nil {
@@ -126,10 +132,18 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 			Name:        "Default Workspace",
 			Description: "This is the default workspace.",
 			IsDefault:   true,
+			Tenant:      defaultTenant,
 		}
 		err := db.GlobalMongoStore.AddWorkspace(&defaultWorkspace)
 		if err != nil {
 			log.Fatalf("Failed to create default workspace - %s", err)
+		}
+	} else if defaultWorkspace.Tenant == "" {
+		// Update existing default workspace to have tenant if missing
+		defaultWorkspace.Tenant = defaultTenant
+		err := db.GlobalMongoStore.UpdateWorkspace(&defaultWorkspace)
+		if err != nil {
+			log.Printf("Failed to update default workspace with tenant - %s", err)
 		}
 	}
 
@@ -173,6 +187,19 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 					log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
 					continue
 				}
+			}
+		}
+	}
+
+	// Update all workspaces without tenant to use default tenant
+	workspaces, _ := db.GlobalMongoStore.GetWorkspaces()
+	for _, workspace := range workspaces {
+		if workspace.Tenant == "" {
+			workspace.Tenant = defaultTenant
+			err := db.GlobalMongoStore.UpdateWorkspace(&workspace)
+			if err != nil {
+				log.Printf("Failed to update workspace %s with default tenant - %s", workspace.Name, err)
+				continue
 			}
 		}
 	}

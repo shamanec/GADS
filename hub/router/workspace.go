@@ -20,6 +20,19 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// ensureWorkspaceTenant ensures the workspace has a tenant, using default if empty
+func ensureWorkspaceTenant(workspace *models.Workspace, c *gin.Context) error {
+	if workspace.Tenant == "" {
+		defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get default tenant"})
+			return err
+		}
+		workspace.Tenant = defaultTenant
+	}
+	return nil
+}
+
 // CreateWorkspace godoc
 // @Summary      Create a new workspace
 // @Description  Create a new workspace in the system
@@ -40,6 +53,10 @@ func CreateWorkspace(c *gin.Context) {
 	}
 
 	workspace.IsDefault = false
+
+	if err := ensureWorkspaceTenant(&workspace, c); err != nil {
+		return
+	}
 
 	// Validate unique name
 	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
@@ -76,6 +93,10 @@ func UpdateWorkspace(c *gin.Context) {
 	var workspace models.Workspace
 	if err := c.ShouldBindJSON(&workspace); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	if err := ensureWorkspaceTenant(&workspace, c); err != nil {
 		return
 	}
 
