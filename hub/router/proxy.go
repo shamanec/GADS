@@ -50,6 +50,18 @@ func DeviceProxyHandler(c *gin.Context) {
 	udid := c.Param("udid")
 	path := c.Param("path")
 
+	// Block legacy Appium endpoint and instruct to use /grid
+	if strings.Contains(path, "/appium") {
+		c.JSON(http.StatusGone, gin.H{
+			"value": gin.H{
+				"error":      "unknown method",
+				"message":    "The legacy endpoint /device/{udid}/appium is deprecated. Please use /grid endpoint instead.",
+				"stacktrace": "",
+			},
+		})
+		return
+	}
+
 	var username string
 	var tenant string
 
