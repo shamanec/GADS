@@ -203,7 +203,7 @@ func GetWorkspaces(c *gin.Context) {
 
 	// Filter by tenant if specified
 	if tenantStr != "" {
-		var filteredWorkspaces []models.WorkspaceWithDeviceCount
+		var filteredWorkspaces []models.WorkspaceWithDeviceCount = make([]models.WorkspaceWithDeviceCount, 0)
 		for _, ws := range workspaces {
 			if ws.Tenant == tenantStr {
 				filteredWorkspaces = append(filteredWorkspaces, ws)
@@ -276,7 +276,7 @@ func GetUserWorkspaces(c *gin.Context) {
 		limit = 10 // Default limit
 	}
 
-	var workspaces []models.Workspace
+	var workspaces []models.Workspace = make([]models.Workspace, 0)
 
 	// If user is admin, return all workspaces
 	if role == "admin" {
@@ -286,6 +286,9 @@ func GetUserWorkspaces(c *gin.Context) {
 		if issuer == "gads" {
 			// For internal tokens, use the standard method based on user association
 			workspaces = db.GlobalMongoStore.GetUserWorkspaces(username)
+			if workspaces == nil {
+				workspaces = make([]models.Workspace, 0)
+			}
 		} else {
 			// For external tokens, get all workspaces and filter by tenant
 			allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
