@@ -58,8 +58,10 @@ func UpdateExpiredGridSessions() {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
-				if hubDevice.InUseBy == "automation" {
+				if hubDevice.InUseBy != "" {
 					hubDevice.InUseBy = ""
+					hubDevice.InUseByTenant = ""
+					hubDevice.InUseTS = 0
 				}
 			}
 		}
@@ -144,7 +146,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			var foundDevice *models.LocalHubDevice
 			var deviceErr error
 
-			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs)
+			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 
 			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
 				c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
@@ -161,7 +163,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs)
+						foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
@@ -205,7 +207,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			devices.HubDevicesData.Mu.Unlock()
 
 			// Create a new request to the device target URL
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s:%s/device/%s/appium%s", config.HostAddress, config.Port, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
@@ -239,7 +241,12 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				if resp.StatusCode != http.StatusInternalServerError {
-					foundDevice.InUseBy = ""
+					// Only clear user info if no manual session is active
+					if foundDevice.InUseWSConnection == nil {
+						foundDevice.InUseBy = ""
+						foundDevice.InUseByTenant = ""
+						foundDevice.InUseTS = 0
+					}
 				}
 				devices.HubDevicesData.Mu.Unlock()
 
@@ -252,7 +259,12 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 							foundDevice.IsAvailableForAutomation = true
 							foundDevice.SessionID = ""
 							foundDevice.IsRunningAutomation = false
-							foundDevice.InUseBy = ""
+							// Only clear user info if no manual session is active
+							if foundDevice.InUseWSConnection == nil {
+								foundDevice.InUseBy = ""
+								foundDevice.InUseByTenant = ""
+								foundDevice.InUseTS = 0
+							}
 						}
 						devices.HubDevicesData.Mu.Unlock()
 					}()
@@ -303,7 +315,17 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			c.Writer.Write(proxiedSessionResponseBody)
 			devices.HubDevicesData.Mu.Lock()
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			foundDevice.InUseBy = "automation"
+			// Set InUseBy with user ID and tenant for tracking
+			automationUser := credential.UserID
+			if automationUser == "" {
+				automationUser = "unknown"
+			}
+			// Only update InUseBy if no manual session is active
+			if foundDevice.InUseWSConnection == nil {
+				foundDevice.InUseBy = automationUser
+				foundDevice.InUseByTenant = credential.Tenant
+				foundDevice.InUseTS = time.Now().UnixMilli()
+			}
 			devices.HubDevicesData.Mu.Unlock()
 		} else {
 			// If this is not a request for a new session
@@ -364,9 +386,8 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(
 				c.Request.Method,
-				fmt.Sprintf("http://%s:%s/device/%s/appium%s",
-					config.HostAddress,
-					config.Port,
+				fmt.Sprintf("http://%s/device/%s/appium%s",
+					foundDevice.Device.Host,
 					foundDevice.Device.UDID,
 					strings.Replace(c.Request.URL.Path, "/grid", "", -1)),
 				bytes.NewBuffer(origRequestBody),
@@ -402,7 +423,12 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
 						foundDevice.SessionID = ""
 						foundDevice.IsRunningAutomation = false
-						foundDevice.InUseBy = ""
+						// Only clear user info if no manual session is active
+						if foundDevice.InUseWSConnection == nil {
+							foundDevice.InUseBy = ""
+							foundDevice.InUseByTenant = ""
+							foundDevice.InUseTS = 0
+						}
 					}
 					devices.HubDevicesData.Mu.Unlock()
 				}()
@@ -417,7 +443,12 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 						foundDevice.SessionID = ""
 						foundDevice.IsAvailableForAutomation = true
 						foundDevice.IsRunningAutomation = false
-						foundDevice.InUseBy = ""
+						// Only clear user info if no manual session is active
+						if foundDevice.InUseWSConnection == nil {
+							foundDevice.InUseBy = ""
+							foundDevice.InUseByTenant = ""
+							foundDevice.InUseTS = 0
+						}
 					}
 					devices.HubDevicesData.Mu.Unlock()
 				}()
@@ -470,7 +501,7 @@ func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
 	return nil, fmt.Errorf("No device with udid `%s` was found", udid)
 }
 
-func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string) (*models.LocalHubDevice, error) {
+func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*models.LocalHubDevice, error) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
 
@@ -518,7 +549,6 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 			// Also device should not be disabled or for remote control only
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "ios") &&
-					!localDevice.InUse &&
 					localDevice.Device.Connected &&
 					localDevice.Device.ProviderState == "live" &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
@@ -540,6 +570,17 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 						}
 					}
 
+					// Check if device is in use by another user
+					if localDevice.InUseBy != "" && localDevice.InUseByTenant != "" {
+						currentUser := userID
+						if currentUser == "" {
+							currentUser = "unknown"
+						}
+						if localDevice.InUseBy != currentUser || localDevice.InUseByTenant != userTenant {
+							continue
+						}
+					}
+
 					availableDevices = append(availableDevices, localDevice)
 				}
 			}
@@ -550,7 +591,6 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 			// Also device should not be disabled or for remote control only
 			for _, localDevice := range devices.HubDevicesData.Devices {
 				if strings.EqualFold(localDevice.Device.OS, "android") &&
-					!localDevice.InUse &&
 					localDevice.Device.Connected &&
 					localDevice.Device.ProviderState == "live" &&
 					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
@@ -568,6 +608,17 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 							}
 						}
 						if !deviceAllowed {
+							continue
+						}
+					}
+
+					// Check if device is in use by another user
+					if localDevice.InUseBy != "" && localDevice.InUseByTenant != "" {
+						currentUser := userID
+						if currentUser == "" {
+							currentUser = "unknown"
+						}
+						if localDevice.InUseBy != currentUser || localDevice.InUseByTenant != userTenant {
 							continue
 						}
 					}

@@ -11,13 +11,9 @@ package router
 
 import (
 	"GADS/common/db"
-	"GADS/common/models"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -43,7 +39,6 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-
 // This is a proxy handler for device interaction endpoints
 func DeviceProxyHandler(c *gin.Context) {
 	// Not really sure its needed anymore now that the stream comes over ws, but I'll keep it just in case
@@ -56,76 +51,26 @@ func DeviceProxyHandler(c *gin.Context) {
 	path := c.Param("path")
 
 	var username string
-	var credentialsValidated bool
-
-	// Check if this is a Appium session creation request
-	if c.Request.Method == "POST" && strings.HasSuffix(path, "/session") {
-		// Read request body
-		body, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
-			return
-		}
-		// Restore request body for subsequent processing
-		c.Request.Body = io.NopCloser(bytes.NewReader(body))
-
-		// Extract capabilities
-		var sessionReq map[string]interface{}
-		if err := json.Unmarshal(body, &sessionReq); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON in request body"})
-			return
-		}
-
-		// Extract client secret from capabilities
-		clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
-
-		if clientSecret != "" {
-			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
-			if err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"value": gin.H{
-						"error":      "invalid argument",
-						"message":    "Invalid client credentials",
-						"stacktrace": "",
-					},
-				})
-				return
-			}
-
-			// Set username from credential's user ID for device tracking
-			username = credential.UserID
-			credentialsValidated = true
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"value": gin.H{
-					"error":      "invalid argument",
-					"message":    fmt.Sprintf("Client credentials are required. Provide %[1]s:clientSecret in the capabilities.", capabilityPrefix),
-					"stacktrace": "",
-				},
-			})
-			return
-		}
-	}
+	var tenant string
 
 	// If not a session creation or no credentials in capabilities, check for bearer token
-	if !credentialsValidated {
-		authToken := c.GetHeader("Authorization")
-		if authToken == "" {
-			authToken = c.Query("token")
-		}
+	authToken := c.GetHeader("Authorization")
+	if authToken == "" {
+		authToken = c.Query("token")
+	}
 
-		if authToken != "" {
-			// Extract token from Bearer format
-			tokenString, err := auth.ExtractTokenFromBearer(authToken)
+	if authToken != "" {
+		// Extract token from Bearer format
+		tokenString, err := auth.ExtractTokenFromBearer(authToken)
+		if err == nil {
+			// Get origin from request
+			origin := auth.GetOriginFromRequest(c)
+
+			// Get claims from token with origin
+			claims, err := auth.GetClaimsFromToken(tokenString, origin)
 			if err == nil {
-				// Get origin from request
-				origin := auth.GetOriginFromRequest(c)
-
-				// Get claims from token with origin
-				claims, err := auth.GetClaimsFromToken(tokenString, origin)
-				if err == nil {
-					username = claims.Username
-				}
+				username = claims.Username
+				tenant = claims.Tenant
 			}
 		}
 	}
@@ -134,9 +79,9 @@ func DeviceProxyHandler(c *gin.Context) {
 	device, ok := devices.HubDevicesData.Devices[udid]
 
 	// Verify if the device is already in use by another user
-	if ok && device != nil && device.InUseBy != "" && device.InUseBy != "automation" &&
+	if ok && device != nil && device.InUseBy != "" &&
 		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
-		(device.InUseBy != username) {
+		(device.InUseBy != username || device.InUseByTenant != tenant) {
 
 		devices.HubDevicesData.Mu.Unlock()
 		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})

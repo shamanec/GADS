@@ -111,6 +111,7 @@ type LocalHubDevice struct {
 	LastAutomationActionTS   int64    `json:"last_automation_action_ts"`
 	InUse                    bool     `json:"in_use"`
 	InUseBy                  string   `json:"in_use_by"`
+	InUseByTenant            string   `json:"in_use_by_tenant"`
 	InUseTS                  int64    `json:"in_use_ts"`
 	AppiumNewCommandTimeout  int64    `json:"appium_new_command_timeout"`
 	IsAvailableForAutomation bool     `json:"is_available_for_automation"`

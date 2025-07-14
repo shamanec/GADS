@@ -514,6 +514,7 @@ func DeviceInUseWS(c *gin.Context) {
 	}
 
 	var username string
+	var userTenant string
 
 	// Extract token from Bearer format
 	tokenString, err := auth.ExtractTokenFromBearer(tokenParam)
@@ -530,6 +531,7 @@ func DeviceInUseWS(c *gin.Context) {
 		}
 
 		username = claims.Username
+		userTenant = claims.Tenant
 	}
 
 	// Verify if the device is already in use by another user
@@ -541,19 +543,31 @@ func DeviceInUseWS(c *gin.Context) {
 		return
 	}
 
-	if device.InUseBy != "" && device.InUseBy != "automation" &&
-		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
-		(device.InUseBy != username) {
+	// Check if device is in use by another user
+	if device.InUseBy != "" {
+		// Check if it's the same user (including tenant)
+		isSameUser := device.InUseBy == username && device.InUseByTenant == userTenant
 
-		devices.HubDevicesData.Mu.Unlock()
-		c.Status(http.StatusConflict)
-		return
+		// If not the same user AND there's an active WebSocket connection, always deny
+		if !isSameUser && device.InUseWSConnection != nil {
+			devices.HubDevicesData.Mu.Unlock()
+			c.Status(http.StatusConflict)
+			return
+		}
+
+		// If not the same user and device was used recently, also deny
+		if !isSameUser && (time.Now().UnixMilli()-device.InUseTS) < 3000 {
+			devices.HubDevicesData.Mu.Unlock()
+			c.Status(http.StatusConflict)
+			return
+		}
 	}
 
 	// Reserve the device BEFORE upgrading the WebSocket
 	// This prevents another user from passing the verification while we are upgrading the WebSocket
 	devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
 	devices.HubDevicesData.Devices[udid].InUseBy = username
+	devices.HubDevicesData.Devices[udid].InUseByTenant = userTenant
 	devices.HubDevicesData.Devices[udid].LastActionTS = time.Now().UnixMilli()
 	devices.HubDevicesData.Mu.Unlock()
 
@@ -563,7 +577,7 @@ func DeviceInUseWS(c *gin.Context) {
 		devices.HubDevicesData.Mu.Lock()
 		devices.HubDevicesData.Devices[udid].InUseTS = 0
 		devices.HubDevicesData.Devices[udid].InUseBy = ""
-
+		devices.HubDevicesData.Devices[udid].InUseByTenant = ""
 		devices.HubDevicesData.Mu.Unlock()
 
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
@@ -581,11 +595,15 @@ func DeviceInUseWS(c *gin.Context) {
 	defer func() {
 		conn.Close()
 		devices.HubDevicesData.Mu.Lock()
-		// Clear both the connection and the in-use status
+		// Clear the connection
 		devices.HubDevicesData.Devices[udid].InUseWSConnection = nil
-		devices.HubDevicesData.Devices[udid].InUseTS = 0
-		devices.HubDevicesData.Devices[udid].InUseBy = ""
 
+		// Only clear user info if not running automation
+		if !devices.HubDevicesData.Devices[udid].IsRunningAutomation {
+			devices.HubDevicesData.Devices[udid].InUseTS = 0
+			devices.HubDevicesData.Devices[udid].InUseBy = ""
+			devices.HubDevicesData.Devices[udid].InUseByTenant = ""
+		}
 		devices.HubDevicesData.Mu.Unlock()
 	}()
 
@@ -616,7 +634,7 @@ func DeviceInUseWS(c *gin.Context) {
 				// So we send it to the messageReceived channel
 				if string(data) != "" {
 					// Check if device is currently being used by someone
-					if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {
+					if devices.HubDevicesData.Devices[udid].InUseBy != "" {
 						// If it is being used check if the any action was performed in the last 30 minutes
 						if (time.Now().UnixMilli() - devices.HubDevicesData.Devices[udid].LastActionTS) > (1800 * 1000) {
 							// Send to the websocket a message that the session expired
@@ -629,6 +647,7 @@ func DeviceInUseWS(c *gin.Context) {
 							devices.HubDevicesData.Mu.Lock()
 							devices.HubDevicesData.Devices[udid].InUseTS = 0
 							devices.HubDevicesData.Devices[udid].InUseBy = ""
+							devices.HubDevicesData.Devices[udid].InUseByTenant = ""
 							devices.HubDevicesData.Mu.Unlock()
 							// Cancel the current websocket goroutines and stuff
 							cancel()
@@ -688,9 +707,11 @@ func DeviceInUseWS(c *gin.Context) {
 		// And remove the name of the person that was using it
 		case <-timer.C:
 			devices.HubDevicesData.Mu.Lock()
-			devices.HubDevicesData.Devices[udid].InUseTS = 0
-			if devices.HubDevicesData.Devices[udid].InUseBy != "automation" {
+			// Only clear user info if not running automation
+			if !devices.HubDevicesData.Devices[udid].IsRunningAutomation {
+				devices.HubDevicesData.Devices[udid].InUseTS = 0
 				devices.HubDevicesData.Devices[udid].InUseBy = ""
+				devices.HubDevicesData.Devices[udid].InUseByTenant = ""
 			}
 			devices.HubDevicesData.Mu.Unlock()
 			return
@@ -1036,6 +1057,7 @@ func ReleaseUsedDevice(c *gin.Context) {
 	devices.HubDevicesData.Devices[udid].InUseWSConnection.Close()
 	devices.HubDevicesData.Devices[udid].InUseTS = 0
 	devices.HubDevicesData.Devices[udid].InUseBy = ""
+	devices.HubDevicesData.Devices[udid].InUseByTenant = ""
 
 	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
 }
