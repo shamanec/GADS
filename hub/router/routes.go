@@ -697,6 +697,7 @@ func DeviceInUseWS(c *gin.Context) {
 			devices.HubDevicesData.Mu.Lock()
 			devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
 			devices.HubDevicesData.Devices[udid].InUseBy = userName
+			devices.HubDevicesData.Devices[udid].InUseByTenant = userTenant
 			devices.HubDevicesData.Mu.Unlock()
 			if !timer.Stop() {
 				<-timer.C
