@@ -252,13 +252,9 @@ type AndroidFileNode struct {
 }
 
 type AppiumPluginConfiguration struct {
-	ProviderUrl       string                   `json:"providerUrl"`
-	DeviceConfig      AppiumPluginDeviceConfig `json:"configuration"`
-	HeartBeatInterval string                   `json:"heartbeatIntervalMs"`
-}
-
-type AppiumPluginDeviceConfig struct {
-	UDID string `json:"udid"`
+	ProviderUrl       string `json:"providerUrl"`
+	UDID              string `json:"udid"`
+	HeartBeatInterval string `json:"heartbeatIntervalMs"`
 }
 
 // API Responses

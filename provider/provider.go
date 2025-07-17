@@ -87,6 +87,18 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		if !providerutil.AppiumAvailable() {
 			log.Fatal("Appium is not available, set it up on the host as explained in the readme")
 		}
+
+		logger.ProviderLogger.LogInfo("provider_setup", "Checking if GADS Appium plugin is installed on the host NPM")
+		if !providerutil.CheckAppiumPluginInstalledNPM() {
+			err = providerutil.InstallAppiumPluginNPM()
+			if err != nil {
+				log.Fatalf("Failed to install GADS Appium plugin on NPM - %s", err)
+			}
+		}
+		err = providerutil.InstallAppiumPlugin()
+		if err != nil {
+			log.Fatalf("Failed to install GADS plugin on Appium - %s", err)
+		}
 	} else {
 		logger.ProviderLogger.LogInfo("provider_setup", "Provider is not configured to set up Appium servers, skipped Appium availability check")
 	}
@@ -144,21 +156,6 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 
 	// Start a goroutine that will start updating devices on provider start
 	go devices.Listener()
-
-	go func() {
-		time.Sleep(5 * time.Second)
-		for {
-			if device, ok := devices.DBDeviceMap["WCR7N18B14002300"]; ok {
-				fmt.Println("--------------------")
-				fmt.Println(device.IsAppiumUp)
-				fmt.Println(device.AppiumSessionID)
-				fmt.Println(device.AppiumLastPingTS)
-				fmt.Println("--------------------")
-				time.Sleep(2 * time.Second)
-			}
-
-		}
-	}()
 
 	// Start the provider server
 	err = startHTTPServer()

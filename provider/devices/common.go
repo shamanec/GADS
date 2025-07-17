@@ -961,9 +961,7 @@ func startAppium(device *models.Device) {
 	pluginConfig := models.AppiumPluginConfiguration{
 		ProviderUrl:       fmt.Sprintf("http://%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port),
 		HeartBeatInterval: "2000",
-		DeviceConfig: models.AppiumPluginDeviceConfig{
-			UDID: device.UDID,
-		},
+		UDID:              device.UDID,
 	}
 	pluginConfigJson, _ := json.Marshal(pluginConfig)
 
