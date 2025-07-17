@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"runtime"
@@ -110,6 +111,57 @@ func AppiumAvailable() bool {
 		return false
 	}
 	return true
+}
+
+// Check if the GADS Appium plugin is installed on NPM
+func CheckAppiumPluginInstalledNPM() bool {
+	cmd := exec.Command("npm", "list", "-g", "appium-gads", "--depth=0")
+	err := cmd.Run()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+// Get the version of the Appium plugin currently installed on NPM
+func GetAppiumPluginNPMVersion() (string, error) {
+	cmd := exec.Command("npm", "list", "-g", "appium-gads", "--depth=0")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "appium-gads@") {
+			parts := strings.Split(line, "@")
+			if len(parts) == 2 {
+				return strings.TrimSpace(parts[1]), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("Could not get GADS Appium plugin version on NPM")
+}
+
+// Install the GADS Appium plugin on NPM
+func InstallAppiumPluginNPM() error {
+	cmd := exec.Command("npm", "install", "-g", "appium-gads")
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Install the GADS Appium plugin on Appium
+func InstallAppiumPlugin() error {
+	cmd := exec.Command("appium", "plugin", "install", "--source=npm", "appium-gads")
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Remove all adb forwarded ports(if any) on provider start
