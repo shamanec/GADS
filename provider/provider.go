@@ -90,14 +90,25 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 
 		logger.ProviderLogger.LogInfo("provider_setup", "Checking if GADS Appium plugin is installed on the host NPM")
 		if !providerutil.CheckAppiumPluginInstalledNPM() {
+			logger.ProviderLogger.LogInfo("provider_setup", "Installing GADS Appium plugin globally on host NPM")
 			err = providerutil.InstallAppiumPluginNPM()
 			if err != nil {
 				log.Fatalf("Failed to install GADS Appium plugin on NPM - %s", err)
 			}
+			logger.ProviderLogger.LogInfo("provider_setup", "Successfully installed GADS Appium plugin globally on host NPM")
+		} else {
+			logger.ProviderLogger.LogInfo("provider_setup", "GADS Appium plugin already installed on host NPM")
 		}
-		err = providerutil.InstallAppiumPlugin()
-		if err != nil {
-			log.Fatalf("Failed to install GADS plugin on Appium - %s", err)
+		logger.ProviderLogger.LogInfo("provider_setup", "Checking if GADS plugin is installed on Appium")
+		if !providerutil.CheckAppiumPluginInstalled() {
+			logger.ProviderLogger.LogInfo("provider_setup", "Installing GADS plugin on Appium")
+			err = providerutil.InstallAppiumPlugin()
+			if err != nil {
+				log.Fatalf("Failed to install GADS plugin on Appium - %s", err)
+			}
+			logger.ProviderLogger.LogInfo("provider_setup", "Successfully installed GADS plugin on Appium")
+		} else {
+			logger.ProviderLogger.LogInfo("provider_setup", "GADS plugin already installed on Appium")
 		}
 	} else {
 		logger.ProviderLogger.LogInfo("provider_setup", "Provider is not configured to set up Appium servers, skipped Appium availability check")

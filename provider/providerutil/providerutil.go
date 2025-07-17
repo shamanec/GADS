@@ -153,12 +153,29 @@ func InstallAppiumPluginNPM() error {
 	return nil
 }
 
+// Check if the GADS plugin is installed on Appium
+func CheckAppiumPluginInstalled() bool {
+	cmd := exec.Command("appium", "plugin", "list")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "gads") {
+			return true
+		}
+	}
+	return false
+}
+
 // Install the GADS Appium plugin on Appium
 func InstallAppiumPlugin() error {
 	cmd := exec.Command("appium", "plugin", "install", "--source=npm", "appium-gads")
 
-	err := cmd.Run()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
+		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to install GADS Appium plugin - %s", string(out)))
 		return err
 	}
 	return nil
