@@ -512,6 +512,10 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 		deviceUDID = caps.DeviceUDID
 	}
 
+	if len(allowedWorkspaceIDs) == 0 {
+		return nil, fmt.Errorf("No device with udid `%s` was found in allowed workspaces", deviceUDID)
+	}
+
 	if deviceUDID != "" {
 		foundDevice, err := getDeviceByUDID(deviceUDID)
 		if err != nil {
@@ -519,17 +523,15 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 		}
 
 		// Check if device is in allowed workspaces
-		if len(allowedWorkspaceIDs) > 0 {
-			deviceAllowed := false
-			for _, wsID := range allowedWorkspaceIDs {
-				if foundDevice.Device.WorkspaceID == wsID {
-					deviceAllowed = true
-					break
-				}
+		deviceAllowed := false
+		for _, wsID := range allowedWorkspaceIDs {
+			if foundDevice.Device.WorkspaceID == wsID {
+				deviceAllowed = true
+				break
 			}
-			if !deviceAllowed {
-				return nil, fmt.Errorf("No device with udid `%s` was found", deviceUDID)
-			}
+		}
+		if !deviceAllowed {
+			return nil, fmt.Errorf("No device with udid `%s` was found", deviceUDID)
 		}
 
 		if foundDevice.IsAvailableForAutomation {
@@ -557,17 +559,15 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 					localDevice.Device.Usage != "disabled" {
 
 					// Check if device is in allowed workspaces
-					if len(allowedWorkspaceIDs) > 0 {
-						deviceAllowed := false
-						for _, wsID := range allowedWorkspaceIDs {
-							if localDevice.Device.WorkspaceID == wsID {
-								deviceAllowed = true
-								break
-							}
+					deviceAllowed := false
+					for _, wsID := range allowedWorkspaceIDs {
+						if localDevice.Device.WorkspaceID == wsID {
+							deviceAllowed = true
+							break
 						}
-						if !deviceAllowed {
-							continue
-						}
+					}
+					if !deviceAllowed {
+						continue
 					}
 
 					// Check if device is in use by another user
@@ -599,17 +599,15 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 					localDevice.Device.Usage != "disabled" {
 
 					// Check if device is in allowed workspaces
-					if len(allowedWorkspaceIDs) > 0 {
-						deviceAllowed := false
-						for _, wsID := range allowedWorkspaceIDs {
-							if localDevice.Device.WorkspaceID == wsID {
-								deviceAllowed = true
-								break
-							}
+					deviceAllowed := false
+					for _, wsID := range allowedWorkspaceIDs {
+						if localDevice.Device.WorkspaceID == wsID {
+							deviceAllowed = true
+							break
 						}
-						if !deviceAllowed {
-							continue
-						}
+					}
+					if !deviceAllowed {
+						continue
 					}
 
 					// Check if device is in use by another user
