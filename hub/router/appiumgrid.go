@@ -125,14 +125,28 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 
 			if credential.Tenant != "" {
 				defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
-				if credential.Tenant == defaultTenant {
-					if credential.UserID != "" {
+				useAllTenantWorkspaces := true
+
+				// Check if we need to filter by user workspaces
+				if credential.Tenant == defaultTenant && credential.UserID != "" {
+					user, err := db.GlobalMongoStore.GetUser(credential.UserID)
+					if err != nil {
+						c.JSON(http.StatusUnauthorized, createErrorResponse("User not found", "session not created", ""))
+						return
+					}
+
+					if user.Role != "admin" {
+						// Regular user: only assigned workspaces
+						useAllTenantWorkspaces = false
 						userWorkspaces := db.GlobalMongoStore.GetUserWorkspaces(credential.UserID)
 						for _, ws := range userWorkspaces {
 							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
 						}
 					}
-				} else {
+				}
+
+				// Admin users or non-default tenant: all workspaces of the tenant
+				if useAllTenantWorkspaces {
 					allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
 					for _, ws := range allWorkspaces {
 						if ws.Tenant == credential.Tenant {
