@@ -151,14 +151,14 @@ func setupDevices() {
 
 		if config.ProviderConfig.SetupAppiumServers {
 			// Check if a capped Appium logs collection already exists for the current device
-			exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs", dbDevice.UDID)
+			exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs_new", dbDevice.UDID)
 			if err != nil {
-				logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
+				logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err)
 			}
 
 			// If it doesn't exist - attempt to create it
 			if !exists {
-				err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs", dbDevice.UDID, 30000, 30)
+				err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs_new", dbDevice.UDID, 30000, 30)
 				if err != nil {
 					logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
 					continue
@@ -169,20 +169,17 @@ func setupDevices() {
 			appiumCollectionIndexModel := mongo.IndexModel{
 				Keys: bson.D{
 					{
-						Key: "ts", Value: constants.SortAscending},
+						Key: "ts", Value: constants.SortAscending,
+					},
 					{
 						Key: "session_id", Value: constants.SortAscending,
 					},
+					{
+						Key: "sequenceNumber", Value: constants.SortAscending,
+					},
 				},
 			}
-			db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
-
-			appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
-			if err != nil {
-				logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", dbDevice.UDID, err)
-				continue
-			}
-			dbDevice.AppiumLogger = appiumLogger
+			db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs_new", dbDevice.UDID, appiumCollectionIndexModel)
 		}
 
 		// Create logs directory for the device if it doesn't already exist
@@ -993,46 +990,6 @@ func startAppium(device *models.Device) {
 			cmd.Args, device.UDID, err))
 
 		ResetLocalDevice(device, "Appium command errored out or device was disconnected.")
-	}
-}
-
-func processStream(scanner *bufio.Scanner, device *models.Device, isErrorStream bool) {
-	linesChan := make(chan string)
-
-	// Goroutine responsible for reading from the scanner and sending lines to the channel
-	go func() {
-		defer close(linesChan)
-		for scanner.Scan() {
-			linesChan <- scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("processStream: %v scanner error - %v", device.UDID, err))
-			return
-		}
-	}()
-
-	// Main loop that listens to the lines channel and the device context
-	for {
-		select {
-		case <-device.Context.Done():
-			return // Exit if the device context is canceled
-		case line, ok := <-linesChan:
-			if !ok {
-				return // Exit if the channel is closed (EOF reached)
-			}
-			// If it's an error stream, split the line if it contains multiple lines and log each separately
-			if isErrorStream {
-				lines := strings.Split(line, "\n")
-				for _, l := range lines {
-					logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: %v Appium error - %v", device.UDID, l))
-				}
-			} else {
-				device.AppiumLogger.Log(device, line)
-			}
-		case <-time.After(500 * time.Millisecond):
-			// On timeout, continue the loop waiting for new lines
-			continue
-		}
 	}
 }
 

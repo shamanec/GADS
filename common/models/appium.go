@@ -56,14 +56,6 @@ type AndroidKeycodePayload struct {
 	Keycode int `json:"keycode"`
 }
 
-type AppiumLog struct {
-	SystemTS  int64  `json:"ts" bson:"ts"`
-	Message   string `json:"msg" bson:"msg"`
-	AppiumTS  string `json:"appium_ts" bson:"appium_ts"`
-	Type      string `json:"log_type" bson:"log_type"`
-	SessionID string `json:"session_id" bson:"session_id"`
-}
-
 type AppiumServerCapabilities struct {
 	UDID                   string `json:"appium:udid"`
 	WdaMjpegPort           string `json:"appium:mjpegServerPort,omitempty"`

@@ -99,7 +99,6 @@ type Device struct {
 	CtxCancel               context.CancelFunc `json:"-" bson:"-"` // cancel func for the context above, can be used to stop all running device goroutines
 	GoIOSDeviceEntry        ios.DeviceEntry    `json:"-" bson:"-"` // `go-ios` device entry object used for `go-ios` library interactions
 	Logger                  CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
-	AppiumLogger            AppiumLogger       `json:"-" bson:"-"` // AppiumLogger object for logging appium actions
 	Mutex                   sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
 	SetupMutex              sync.Mutex         `json:"-" bson:"-"` // Mutex for synchronizing device setup operations
 	GoIOSTunnel             tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+

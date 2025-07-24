@@ -17,17 +17,20 @@ import (
 )
 
 const (
-	appiumLogDB   = "appium_logs"
+	appiumLogDB   = "appium_logs_new"
 	providerLogDB = "logs"
 )
 
-func (m *MongoStore) GetAppiumLogs(collectionName string, logLimit int) ([]models.AppiumLog, error) {
+func (m *MongoStore) GetAppiumLogs(collectionName string, logLimit int) ([]models.AppiumPluginLog, error) {
 	coll := m.GetCollectionWithDB(appiumLogDB, collectionName)
 	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
+	findOptions.SetSort(bson.D{
+		{Key: "timestamp", Value: -1},
+		{Key: "sequenceNumber", Value: -1},
+	})
 	findOptions.SetLimit(int64(logLimit))
 
-	return GetDocuments[models.AppiumLog](m.Ctx, coll, bson.D{{}}, findOptions)
+	return GetDocuments[models.AppiumPluginLog](m.Ctx, coll, bson.D{{}}, findOptions)
 }
 
 func (m *MongoStore) GetProviderLogs(collectionName string, logLimit int) ([]models.ProviderLog, error) {
@@ -39,13 +42,13 @@ func (m *MongoStore) GetProviderLogs(collectionName string, logLimit int) ([]mod
 	return GetDocuments[models.ProviderLog](m.Ctx, coll, bson.D{{}}, findOptions)
 }
 
-func (m *MongoStore) GetAppiumSessionLogs(collectionName, sessionID string) ([]models.AppiumLog, error) {
+func (m *MongoStore) GetAppiumSessionLogs(collectionName, sessionID string) ([]models.AppiumPluginLog, error) {
 	coll := m.GetCollectionWithDB(appiumLogDB, collectionName)
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
-	filter := bson.D{{"session_id", sessionID}}
+	filter := bson.D{{Key: "session_id", Value: sessionID}}
 
-	return GetDocuments[models.AppiumLog](m.Ctx, coll, filter, findOptions)
+	return GetDocuments[models.AppiumPluginLog](m.Ctx, coll, filter, findOptions)
 }
 
 func (m *MongoStore) AddAppiumLog(collectionName string, log models.AppiumPluginLog) error {
