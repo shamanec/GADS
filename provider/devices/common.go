@@ -169,7 +169,7 @@ func setupDevices() {
 			appiumCollectionIndexModel := mongo.IndexModel{
 				Keys: bson.D{
 					{
-						Key: "ts", Value: constants.SortAscending,
+						Key: "timestamp", Value: constants.SortAscending,
 					},
 					{
 						Key: "session_id", Value: constants.SortAscending,

@@ -45,7 +45,7 @@ func (m *MongoStore) GetProviderLogs(collectionName string, logLimit int) ([]mod
 func (m *MongoStore) GetAppiumSessionLogs(collectionName, sessionID string) ([]models.AppiumPluginLog, error) {
 	coll := m.GetCollectionWithDB(appiumLogDB, collectionName)
 	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "ts", Value: -1}})
+	findOptions.SetSort(bson.D{{Key: "timestamp", Value: -1}})
 	filter := bson.D{{Key: "session_id", Value: sessionID}}
 
 	return GetDocuments[models.AppiumPluginLog](m.Ctx, coll, filter, findOptions)
