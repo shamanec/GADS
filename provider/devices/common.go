@@ -151,14 +151,14 @@ func setupDevices() {
 
 		if config.ProviderConfig.SetupAppiumServers {
 			// Check if a capped Appium logs collection already exists for the current device
-			exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs", dbDevice.UDID)
+			exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs_new", dbDevice.UDID)
 			if err != nil {
-				logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs` db, will attempt to create it either way - %s", err)
+				logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err)
 			}
 
 			// If it doesn't exist - attempt to create it
 			if !exists {
-				err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs", dbDevice.UDID, 30000, 30)
+				err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs_new", dbDevice.UDID, 30000, 30)
 				if err != nil {
 					logger.ProviderLogger.Errorf("updateDevices: Failed to create capped collection for device `%s` - %s", dbDevice, err)
 					continue
@@ -169,20 +169,17 @@ func setupDevices() {
 			appiumCollectionIndexModel := mongo.IndexModel{
 				Keys: bson.D{
 					{
-						Key: "ts", Value: constants.SortAscending},
+						Key: "timestamp", Value: constants.SortAscending,
+					},
 					{
 						Key: "session_id", Value: constants.SortAscending,
 					},
+					{
+						Key: "sequenceNumber", Value: constants.SortAscending,
+					},
 				},
 			}
-			db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs", dbDevice.UDID, appiumCollectionIndexModel)
-
-			appiumLogger, err := logger.NewAppiumLogger(fmt.Sprintf("%s/device_%s/appium.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
-			if err != nil {
-				logger.ProviderLogger.Errorf("updateDevices: Could not create Appium logger for device `%s` - %s\n", dbDevice.UDID, err)
-				continue
-			}
-			dbDevice.AppiumLogger = appiumLogger
+			db.GlobalMongoStore.AddCollectionIndexWithDB("appium_logs_new", dbDevice.UDID, appiumCollectionIndexModel)
 		}
 
 		// Create logs directory for the device if it doesn't already exist
@@ -456,7 +453,6 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully updated GADS stream settings for device `%s`", device.UDID))
 
-	var wg sync.WaitGroup
 	if config.ProviderConfig.SetupAppiumServers {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
 		err := cli.KillDeviceAppiumProcess(device.UDID)
@@ -504,18 +500,27 @@ func setupAndroidDevice(device *models.Device) {
 			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully uninstalled Appium uiautomator2 server test on device `%s`", device.UDID))
 		}
 
-		wg.Add(1)
-		go startAppium(device, &wg)
-		go checkAppiumUp(device)
+		go startAppium(device)
 
-		select {
-		case <-device.AppiumReadyChan:
-			logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
-			break
-		case <-time.After(30 * time.Second):
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-			ResetLocalDevice(device, "Failed to start Appium for device.")
-			return
+		timeout := time.After(30 * time.Second)
+		tick := time.Tick(200 * time.Millisecond)
+	AppiumLoop:
+		for {
+			select {
+			case <-timeout:
+				{
+					logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 30 seconds", device.UDID))
+					ResetLocalDevice(device, "Failed to start Appium for device.")
+					break AppiumLoop
+				}
+			case <-tick:
+				{
+					if device.IsAppiumUp {
+						logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+						break AppiumLoop
+					}
+				}
+			}
 		}
 
 		// If Selenium Grid is used attempt to create a TOML file for the grid connection and start the node
@@ -536,7 +541,6 @@ func setupAndroidDevice(device *models.Device) {
 
 	// Mark the device as 'live'
 	device.ProviderState = "live"
-	wg.Wait()
 }
 
 func setupIOSDevice(device *models.Device) {
@@ -735,7 +739,6 @@ func setupIOSDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully created WebDriverAgent session and updated stream settings for device `%v`", device.UDID))
 
-	var wg sync.WaitGroup
 	if config.ProviderConfig.SetupAppiumServers {
 		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
 		err := cli.KillDeviceAppiumProcess(device.UDID)
@@ -756,19 +759,23 @@ func setupIOSDevice(device *models.Device) {
 		device.AppiumPort = appiumPort
 		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free Appium port `%s` for device `%s`", appiumPort, device.UDID))
 
-		wg.Add(1)
-		go startAppium(device, &wg)
-		go checkAppiumUp(device)
+		go startAppium(device)
 
-		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Waiting until Appium successfully starts for device `%s`", device.UDID))
-		select {
-		case <-device.AppiumReadyChan:
-			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
-			break
-		case <-time.After(30 * time.Second):
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
-			ResetLocalDevice(device, "Failed to start Appium for device.")
-			return
+		timeout := time.After(30 * time.Second)
+		tick := time.Tick(200 * time.Millisecond)
+	AppiumLoop:
+		for {
+			select {
+			case <-timeout:
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 60 seconds", device.UDID))
+				ResetLocalDevice(device, "Failed to start Appium for device.")
+				return
+			case <-tick:
+				if device.IsAppiumUp {
+					logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+					break AppiumLoop
+				}
+			}
 		}
 
 		// If Selenium Grid is used attempt to create a TOML file for the grid connection and start the node
@@ -792,7 +799,6 @@ func setupIOSDevice(device *models.Device) {
 
 	// Mark the device as 'live'
 	device.ProviderState = "live"
-	wg.Wait()
 }
 
 // Gets all connected iOS and Android devices to the host
@@ -907,7 +913,7 @@ func setContext(device *models.Device) {
 	device.Context = ctx
 }
 
-func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
+func startAppium(device *models.Device) {
 	var capabilities models.AppiumServerCapabilities
 
 	if device.OS == "ios" {
@@ -947,57 +953,35 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 			ChromeDriverExecutable: absolutePath,
 		}
 	}
-
 	capabilitiesJson, _ := json.Marshal(capabilities)
+
+	pluginConfig := models.AppiumPluginConfiguration{
+		ProviderUrl:       fmt.Sprintf("http://%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port),
+		HeartBeatInterval: "2000",
+		UDID:              device.UDID,
+	}
+	pluginConfigJson, _ := json.Marshal(pluginConfig)
+
 	cmd := exec.CommandContext(
 		device.Context,
 		"appium",
 		"-p",
 		device.AppiumPort,
 		"--log-timestamp",
+		"--use-plugin=gads",
+		fmt.Sprintf("--plugin-gads-config=%s", string(pluginConfigJson)),
 		"--session-override",
 		"--log-no-colors",
 		"--relaxed-security",
 		"--default-capabilities", string(capabilitiesJson))
 
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", device.UDID, cmd.Args))
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stdoutpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
-		ResetLocalDevice(device, "Failed to create stdoutpipe on Appium command.")
-		return
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: Error creating stderrpipe on `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
-		ResetLocalDevice(device, "Failed to create stderrpipe on Appium command.")
-		return
-	}
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
 		ResetLocalDevice(device, "Failed to execute Appium command.")
 		return
 	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Process stdout
-	go func() {
-		defer wg.Done()
-		processStream(bufio.NewScanner(stdout), device, false)
-	}()
-
-	// Process stderr
-	go func() {
-		defer wg.Done()
-		processStream(bufio.NewScanner(stderr), device, true)
-	}()
-
-	// Wait for stdout and stderr processing to finish
-	wg.Wait()
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
@@ -1006,47 +990,6 @@ func startAppium(device *models.Device, deviceSetupWg *sync.WaitGroup) {
 			cmd.Args, device.UDID, err))
 
 		ResetLocalDevice(device, "Appium command errored out or device was disconnected.")
-		deviceSetupWg.Done()
-	}
-}
-
-func processStream(scanner *bufio.Scanner, device *models.Device, isErrorStream bool) {
-	linesChan := make(chan string)
-
-	// Goroutine responsible for reading from the scanner and sending lines to the channel
-	go func() {
-		defer close(linesChan)
-		for scanner.Scan() {
-			linesChan <- scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("processStream: %v scanner error - %v", device.UDID, err))
-			return
-		}
-	}()
-
-	// Main loop that listens to the lines channel and the device context
-	for {
-		select {
-		case <-device.Context.Done():
-			return // Exit if the device context is canceled
-		case line, ok := <-linesChan:
-			if !ok {
-				return // Exit if the channel is closed (EOF reached)
-			}
-			// If it's an error stream, split the line if it contains multiple lines and log each separately
-			if isErrorStream {
-				lines := strings.Split(line, "\n")
-				for _, l := range lines {
-					logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("startAppium: %v Appium error - %v", device.UDID, l))
-				}
-			} else {
-				device.AppiumLogger.Log(device, line)
-			}
-		case <-time.After(500 * time.Millisecond):
-			// On timeout, continue the loop waiting for new lines
-			continue
-		}
 	}
 }
 
@@ -1203,31 +1146,6 @@ func getAndroidDeviceHardwareModel(device *models.Device) {
 	model := outBuffer.String()
 
 	device.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
-}
-
-func checkAppiumUp(device *models.Device) {
-	var netClient = &http.Client{
-		Timeout: time.Second * 30,
-	}
-
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.AppiumPort), nil)
-
-	loops := 0
-	for {
-		if loops >= 30 {
-			return
-		}
-		resp, err := netClient.Do(req)
-		if err != nil {
-			time.Sleep(1 * time.Second)
-		} else {
-			if resp.StatusCode == http.StatusOK {
-				device.AppiumReadyChan <- true
-				return
-			}
-		}
-		loops++
-	}
 }
 
 func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {
