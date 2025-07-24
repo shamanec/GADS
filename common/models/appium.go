@@ -71,6 +71,7 @@ type AppiumServerCapabilities struct {
 	WdaLaunchTimeout       string `json:"appium:wdaLaunchTimeout,omitempty"`
 	WdaConnectionTimeout   string `json:"appium:wdaConnectionTimeout,omitempty"`
 	DeviceAddress          string `json:"appium:deviceAddress,omitempty"`
+	DeviceHost             string `json:"appium:deviceHost,omitempty"`
 	ChromeDriverExecutable string `json:"appium:chromedriverExecutable,omitempty"`
 }
 

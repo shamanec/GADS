@@ -14,6 +14,7 @@ The provider component is responsible for setting up the Appium servers and mana
   - [iOS Phones](#ios-phones)
   - [Android](#android-phone)
   - [Tizen TV](#tizen-tv)
+  - [WebOS TV](#webos-tv)
 - [Starting Provider Instance](#starting-a-provider-instance)
 - [Logging](#logging)
 
@@ -53,6 +54,10 @@ To specify a folder, create it on your machine and provide it at startup using t
 - **Install** [SDB (Smart Development Bridge)](#sdb---tizen-only)
 - **Enable** [Developer Mode](#developer-mode-tizen) on each Tizen TV
 
+#### WebOS
+- **Install** [WebOS CLI](#webos-cli---webos-only)
+- **Enable** [Developer Mode](#developer-mode---webos) on each WebOS TV
+
 <br>
 
 ---
@@ -73,6 +78,10 @@ To specify a folder, create it on your machine and provide it at startup using t
 #### Tizen
 - **Install** [SDB (Smart Development Bridge)](#sdb---tizen-only)
 - **Enable** [Developer Mode](#developer-mode-tizen) on each Tizen TV
+
+#### WebOS
+- **Install** [WebOS CLI](#webos-cli---webos-only)
+- **Enable** [Developer Mode](#developer-mode---webos) on each WebOS TV
 
 #### ⚠️ Known Limitations - Linux, iOS
 1. The command **driver.executeScript("mobile: startPerfRecord")** cannot be executed due to the unavailability of Xcode tools.
@@ -100,6 +109,10 @@ To specify a folder, create it on your machine and provide it at startup using t
 - **Install** [SDB (Smart Development Bridge)](#sdb---tizen-only)
 - **Enable** [Developer Mode](#developer-mode-tizen) on each Tizen TV
 
+#### WebOS
+- **Install** [WebOS CLI](#webos-cli---webos-only)
+- **Enable** [Developer Mode](#developer-mode---webos) on each WebOS TV
+
 #### ⚠️ Known Limitations - Windows, iOS
 1. The command **driver.executeScript("mobile: startPerfRecord")** cannot be executed due to the unavailability of Xcode tools.
 2. Any functionality requiring Instruments or other Xcode/macOS-exclusive tools is limited.
@@ -117,6 +130,7 @@ Installation is pretty similar for all operating systems, you just have to find 
   - iOS - `appium driver install xcuitest`
   - Android - `appium driver install uiautomator2`
   - Tizen TV - `appium driver install --source=npm appium-tizen-tv-driver`
+  - WebOS TV - `appium driver install --source=npm appium-lg-webos-driver`
 - Add any additional Appium dependencies like `ANDROID_HOME`(Android SDK) environment variable, Java, etc.
 - Test with `appium driver doctor uiautomator2` and `appium driver doctor xcuitest` to check for errors with the setup.
 
@@ -283,4 +297,66 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 * Video streaming is not available for Tizen TV devices
 * Some remote control features may be limited due to TV-specific interactions
 * Screen dimensions are fixed based on TV resolution
+
+### WebOS CLI - WebOS Only
+`WebOS CLI` is mandatory when providing WebOS TV devices. You can skip installing it if no WebOS devices will be provided.
+- Download the [WebOS TV CLI](https://webostv.developer.lge.com/develop/tools/webos-tv-cli-installation) (v1.12.4 recommended)
+- Extract the downloaded CLI archive and place the extracted contents in `${LG_WEBOS_TV_SDK_HOME}/CLI`
+- Set up environment variables:
+  ```bash
+  # Add to your ~/.bashrc or equivalent
+  export LG_WEBOS_TV_SDK_HOME=/path/to/webOS_TV_SDK
+  export WEBOS_CLI_TV=${LG_WEBOS_TV_SDK_HOME}/CLI
+  export PATH=${PATH}:${WEBOS_CLI_TV}/bin
+  ```
+- Ensure `ares` commands are available in PATH by running `ares -V` in terminal
+- Restart your terminal or run `source ~/.bashrc` to apply changes
+
+**Note**: Replace `/path/to/webOS_TV_SDK` with your actual WebOS TV SDK installation path. Common locations are:
+- macOS: `/Users/<username>/webOS_TV_SDK`
+- Linux: `/home/<username>/webOS_TV_SDK`
+- Windows: `C:\webOS_TV_SDK`
+
+## WebOS TV
+### Developer Mode - WebOS
+* Install the Developer Mode app from LG Content Store
+* Sign in with your LG Developer account (create one at https://webostv.developer.lge.com if needed)
+* Enable Developer Mode by clicking the Dev Mode Status button
+* The TV will reboot automatically
+
+### Device Connection
+* Ensure the TV and the provider host machine are on the same network
+* Add the TV as a device using the WebOS CLI:
+  ```bash
+  ares-setup-device --add target -i "host=10.123.45.67" -i "port=9922" -i "username=prisoner" -i "default=true"
+  ```
+  > **⚠️ IMPORTANT**: The device name (e.g., `target` in the example above) must be:
+  > - Descriptive and meaningful for your setup
+  > - **EXACTLY the same** as the device name registered in GADS
+  > - If the names don't match, there will be configuration issues with the provisioned Appium server for the TV
+  
+  - Default port is 9922
+  - Default username is "prisoner"
+  - Leave password empty
+* For first-time connections, you'll need to accept the pairing request on the TV
+* Verify the connection by running:
+  ```bash
+  ares-setup-device --list
+  ```
+* The TV should appear in the list with its IP:PORT identifier
+
+### Chromedriver Requirements
+* WebOS TVs require Chromedriver 2.36 for compatibility
+* GADS will manage the Chromedriver installation automatically
+* The driver path will be configured in Appium capabilities
+
+### Device UDID Format
+* WebOS devices use the format `IP:PORT` as their UDID (e.g., `192.168.1.100:9922`)
+* This UDID must be registered in the GADS database before the device can be used
+
+### Known Limitations
+* Video streaming is not available for WebOS TV devices
+* Remote control features are limited compared to mobile devices
+* Only web-based TV apps can be automated (native apps have limited support)
+* Developer Mode has a 1000-hour time limit and needs periodic renewal
 

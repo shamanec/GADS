@@ -241,6 +241,19 @@ func SdbAvailable() bool {
 	return true
 }
 
+// Check if ares-setup-device is available on the host by checking its version
+func AresAvailable() bool {
+	logger.ProviderLogger.LogInfo("provider_setup", "Checking if ares-setup-device is set up and available on the host PATH")
+
+	cmd := exec.Command("ares", "-V")
+	err := cmd.Run()
+	if err != nil {
+		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("aresAvailable: ares-setup-device is not available or command failed - %s", err))
+		return false
+	}
+	return true
+}
+
 // Check if chromedriver is located in the drivers provider folder
 func isChromeDriverAvailable() bool {
 	var chromedriverPath string
