@@ -165,6 +165,15 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		}
 	}
 
+	// If we want to provide WebOS devices check if ares-setup-device is available on PATH
+	if config.ProviderConfig.ProvideWebOS {
+		if !providerutil.AresAvailable() {
+			logger.ProviderLogger.LogError("provider", "ares-setup-device is not available, you need to set up the host as explained in the readme")
+			fmt.Println("ares-setup-device is not available, you need to set up the host as explained in the readme")
+			os.Exit(1)
+		}
+	}
+
 	// Start a goroutine that will start updating devices on provider start
 	go devices.Listener()
 
