@@ -19,6 +19,7 @@ type Provider struct {
 	ProvideAndroid       bool   `json:"provide_android" bson:"provide_android"`
 	ProvideIOS           bool   `json:"provide_ios" bson:"provide_ios"`
 	ProvideTizen         bool   `json:"provide_tizen" bson:"provide_tizen"`
+	ProvideWebOS         bool   `json:"provide_webos" bson:"provide_webos"`
 	WdaBundleID          string `json:"wda_bundle_id" bson:"wda_bundle_id"`
 	SupervisionPassword  string `json:"supervision_password" bson:"supervision_password"`
 	ProviderFolder       string `json:"-" bson:"-"`
@@ -45,9 +46,10 @@ type HubConfig struct {
 }
 
 // RegularizeProviderState applies business rules to ensure provider configuration is consistent
-// If SetupAppiumServers is false, ProvideTizen must also be false since Tizen requires Appium servers
+// If SetupAppiumServers is false, ProvideTizen and ProvideWebOS must also be false since they require Appium servers
 func (p *Provider) RegularizeProviderState() {
 	if !p.SetupAppiumServers {
 		p.ProvideTizen = false
+		p.ProvideWebOS = false
 	}
 }

@@ -531,6 +531,11 @@ func getTargetOSFromCaps(caps models.CommonCapabilities) string {
 		return "tizen"
 	}
 
+	if strings.EqualFold(caps.PlatformName, "lgtv") ||
+		strings.EqualFold(caps.AutomationName, "webos") {
+		return "webos"
+	}
+
 	return ""
 }
 

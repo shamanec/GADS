@@ -281,6 +281,13 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 		}
 	}
 
+	// Validate WebOS devices can only be used for automation
+	if normalizedOS == "webos" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("webos devices only support 'automation' usage. Current usage '%s' is not supported. WebOS devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
 	return nil
 }
 
