@@ -37,6 +37,29 @@ func AppiumPluginLog(c *gin.Context) {
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
 
+// AppiumPluginSessionLog The plugin sends session action logs so we can store them in Mongo for Appium execution reporting
+func AppiumPluginSessionLog(c *gin.Context) {
+	udid := c.Param("udid")
+	if _, ok := devices.DBDeviceMap[udid]; ok {
+		// Read the log request body
+		body, err := io.ReadAll(c.Request.Body)
+		defer c.Request.Body.Close()
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read log request body - %s", err), nil)
+			return
+		}
+		fmt.Println(string(body))
+
+		var appiumPluginSessionLog models.AppiumPluginSessionLog
+		err = json.Unmarshal(body, &appiumPluginSessionLog)
+
+		db.GlobalMongoStore.AddAppiumSessionLog(appiumPluginSessionLog.Tenant, appiumPluginSessionLog)
+		api.GenericResponse(c, http.StatusOK, "Logged successfully", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+}
+
 // AppiumPluginRegister The plugin sends a notification request when the server is started
 func AppiumPluginRegister(c *gin.Context) {
 	udid := c.Param("udid")

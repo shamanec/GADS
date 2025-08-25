@@ -10,6 +10,7 @@
 package db
 
 import (
+	"GADS/common/constants"
 	"fmt"
 	"slices"
 
@@ -105,4 +106,27 @@ func (m *MongoStore) CreateCappedCollectionWithDB(dbName, collectionName string,
 	collectionOptions.SetSizeInBytes(mb * 1024 * 1024)
 
 	return m.CreateCollectionWithDB(dbName, collectionName, collectionOptions)
+}
+
+func (m *MongoStore) CreateAppiumTenantLogsCollection(dbName, collectionName string, maxDocuments, mb int64) error {
+	err := m.CreateCappedCollectionWithDB(dbName, collectionName, maxDocuments, mb)
+	if err != nil {
+		return fmt.Errorf("failed creating capped logs collection for tenant `%s`", collectionName)
+	}
+
+	appiumCollectionSessionIdIndex := mongo.IndexModel{
+		Keys: bson.D{
+			{
+				Key: "session_id", Value: constants.SortAscending,
+			},
+			{
+				Key: "sequence_number", Value: constants.SortDescending,
+			},
+		},
+	}
+	err = m.AddCollectionIndexWithDB(dbName, collectionName, appiumCollectionSessionIdIndex)
+	if err != nil {
+		return fmt.Errorf("failed adding collection index on logs collection for tenant `%s`", collectionName)
+	}
+	return nil
 }

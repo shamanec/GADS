@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/common/api"
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth"
@@ -148,6 +149,17 @@ func GetAppiumSessionLogs(c *gin.Context) {
 	}
 
 	c.JSON(200, logs)
+}
+
+func GetAppiumSessionsTenant(c *gin.Context) {
+	tenant := c.Param("tenant")
+	sessionsData, err := db.GlobalMongoStore.ListAppiumSessions(tenant, nil, nil, 100)
+	if err != nil {
+		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "Got logs", sessionsData)
 }
 
 // AddUser godoc

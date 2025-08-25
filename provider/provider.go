@@ -28,6 +28,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
+var targetAppiumPluginVersion = "0.0.3"
+
 func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	logLevel, _ := flags.GetString("log-level")
 	nickname, _ := flags.GetString("nickname")
@@ -83,35 +85,62 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	}
 
 	if config.ProviderConfig.SetupAppiumServers {
+		// First we check if Appium is available at all
 		logger.ProviderLogger.LogInfo("provider_setup", "Checking if Appium is installed and available on the host")
 		if !providerutil.AppiumAvailable() {
 			log.Fatal("Appium is not available, set it up on the host as explained in the readme")
 		}
 
+		// Then we check if the GADS Appium plugin is available on NPM at all and install it if not using the target version
+		// In case it is already installed but its version is different from the target version we re-install it with the target version
+		// In both cases we set a flag that we updated it on NPM so we can update it properly in the Appium plugins after
+		var didUpdateAppiumPluginNPM = false
 		logger.ProviderLogger.LogInfo("provider_setup", "Checking if GADS Appium plugin is installed on the host NPM")
-		if !providerutil.CheckAppiumPluginInstalledNPM() {
-			logger.ProviderLogger.LogInfo("provider_setup", "Installing GADS Appium plugin globally on host NPM")
-			err = providerutil.InstallAppiumPluginNPM()
+		if !providerutil.IsAppiumPluginInstalledNPM() {
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Installing GADS Appium plugin version `%s` globally on host NPM", targetAppiumPluginVersion))
+			err = providerutil.InstallAppiumPluginNPM(targetAppiumPluginVersion)
 			if err != nil {
-				log.Fatalf("Failed to install GADS Appium plugin on NPM - %s", err)
+				log.Fatalf("Failed to install GADS Appium plugin version `%s` on NPM - %s", targetAppiumPluginVersion, err)
 			}
-			logger.ProviderLogger.LogInfo("provider_setup", "Successfully installed GADS Appium plugin globally on host NPM")
-		} else {
-			logger.ProviderLogger.LogInfo("provider_setup", "GADS Appium plugin already installed on host NPM")
+			didUpdateAppiumPluginNPM = true
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully installed GADS Appium plugin version `%s` globally on host NPM", targetAppiumPluginVersion))
+		} else if providerutil.ShouldUpdateAppiumPluginNPM(targetAppiumPluginVersion) {
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Updating GADS Appium plugin to version `%s` globally on host NPM", targetAppiumPluginVersion))
+			err = providerutil.InstallAppiumPluginNPM(targetAppiumPluginVersion)
+			if err != nil {
+				log.Fatalf("Failed to update GADS Appium plugin to version `%s` on NPM - %s", targetAppiumPluginVersion, err)
+			}
+			didUpdateAppiumPluginNPM = true
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully update GADS Appium plugin to version `%s` globally on host NPM", targetAppiumPluginVersion))
 		}
+
+		// Lastly we check if the GADS plugin is installed on Appium at all and install it if not
+		// In case the plugin is installed but we did an update of the version on NPM then we uninstall it from the Appium plugins and then install it again using the target version
 		logger.ProviderLogger.LogInfo("provider_setup", "Checking if GADS plugin is installed on Appium")
-		if !providerutil.CheckAppiumPluginInstalled() {
-			logger.ProviderLogger.LogInfo("provider_setup", "Installing GADS plugin on Appium")
-			err = providerutil.InstallAppiumPlugin()
+		if !providerutil.IsAppiumPluginInstalled() {
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("GADS plugin version `%s` is not installed on Appium, installing", targetAppiumPluginVersion))
+			err = providerutil.InstallAppiumPlugin(targetAppiumPluginVersion)
 			if err != nil {
-				log.Fatalf("Failed to install GADS plugin on Appium - %s", err)
+				log.Fatalf("Failed to install GADS plugin version `%s` on Appium - %s", targetAppiumPluginVersion, err)
 			}
-			logger.ProviderLogger.LogInfo("provider_setup", "Successfully installed GADS plugin on Appium")
-		} else {
-			logger.ProviderLogger.LogInfo("provider_setup", "GADS plugin already installed on Appium")
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully installed GADS plugin version `%s` on Appium", targetAppiumPluginVersion))
+		} else if didUpdateAppiumPluginNPM {
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("GADS plugin was updated on NPM to version `%s` and is already installed on Appium, updating for Appium", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfo("provider_setup", "Uninstalling current plugin in case GADS plugin version was downgraded or update will not work")
+			err = providerutil.UninstallAppiumPlugin()
+			if err != nil {
+				log.Fatalf("Failed to uninstall GADS plugin on Appium - %s", err)
+			}
+
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Installing GADS plugin version `%s` on Appium", targetAppiumPluginVersion))
+			err = providerutil.InstallAppiumPlugin(targetAppiumPluginVersion)
+			if err != nil {
+				log.Fatalf("Failed to install GADS plugin version `%s` on Appium - %s", targetAppiumPluginVersion, err)
+			}
+			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully installed GADS plugin version `%s` on Appium", targetAppiumPluginVersion))
 		}
 	} else {
-		logger.ProviderLogger.LogInfo("provider_setup", "Provider is not configured to set up Appium servers, skipped Appium availability check")
+		logger.ProviderLogger.LogInfo("provider_setup", "Provider is not configured to set up Appium servers, skipped Appium and GADS Appium plugin checks")
 	}
 
 	// Download supervision profile file from MongoDB if a supervision password was supplied

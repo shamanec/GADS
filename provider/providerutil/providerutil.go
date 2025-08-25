@@ -28,6 +28,8 @@ import (
 	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/logger"
+
+	"github.com/Masterminds/semver"
 )
 
 var UsedPorts = make(map[string]bool)
@@ -114,7 +116,7 @@ func AppiumAvailable() bool {
 }
 
 // Check if the GADS Appium plugin is installed on NPM
-func CheckAppiumPluginInstalledNPM() bool {
+func IsAppiumPluginInstalledNPM() bool {
 	cmd := exec.Command("npm", "list", "-g", "appium-gads", "--depth=0")
 	err := cmd.Run()
 	if err != nil {
@@ -142,9 +144,23 @@ func GetAppiumPluginNPMVersion() (string, error) {
 	return "", fmt.Errorf("Could not get GADS Appium plugin version on NPM")
 }
 
+// Check if the currently installed Appium GADS plugin version corresponds to the expected one for the current GADS binary
+func ShouldUpdateAppiumPluginNPM(targetVersion string) bool {
+	currentVersion, err := GetAppiumPluginNPMVersion()
+	if err != nil {
+		return false
+	}
+
+	targetSemver := semver.MustParse(targetVersion)
+	currentSemver := semver.MustParse(currentVersion)
+	versionCompareResult := targetSemver.Compare(currentSemver)
+
+	return versionCompareResult != 0
+}
+
 // Install the GADS Appium plugin on NPM
-func InstallAppiumPluginNPM() error {
-	cmd := exec.Command("npm", "install", "-g", "appium-gads")
+func InstallAppiumPluginNPM(targetVersion string) error {
+	cmd := exec.Command("npm", "install", "-g", fmt.Sprintf("appium-gads@%s", targetVersion))
 
 	err := cmd.Run()
 	if err != nil {
@@ -154,7 +170,7 @@ func InstallAppiumPluginNPM() error {
 }
 
 // Check if the GADS plugin is installed on Appium
-func CheckAppiumPluginInstalled() bool {
+func IsAppiumPluginInstalled() bool {
 	cmd := exec.Command("appium", "plugin", "list")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -170,8 +186,32 @@ func CheckAppiumPluginInstalled() bool {
 }
 
 // Install the GADS Appium plugin on Appium
-func InstallAppiumPlugin() error {
-	cmd := exec.Command("appium", "plugin", "install", "--source=npm", "appium-gads")
+func InstallAppiumPlugin(targetVersion string) error {
+	cmd := exec.Command("appium", "plugin", "install", "--source=npm", fmt.Sprintf("appium-gads@%s", targetVersion))
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to install GADS Appium plugin - %s", string(out)))
+		return err
+	}
+	return nil
+}
+
+// Uninstall the GADS Appium plugin from Appium
+func UninstallAppiumPlugin() error {
+	cmd := exec.Command("appium", "plugin", "uninstall", "gads")
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to uninstall GADS Appium plugin - %s", string(out)))
+		return err
+	}
+	return nil
+}
+
+// Update the GADS Appium plugin on Appium
+func UpdateAppiumPlugin() error {
+	cmd := exec.Command("appium", "plugin", "update", "gads")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

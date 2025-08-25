@@ -93,6 +93,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/user-info", auth.GetUserInfoHandler)
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
+	authGroup.GET("/appium-sessions/:tenant", GetAppiumSessionsTenant)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)

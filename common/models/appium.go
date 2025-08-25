@@ -109,10 +109,13 @@ type CommonCapabilities struct {
 	AutomationName    string `json:"appium:automationName"`
 	BundleID          string `json:"appium:bundleId"`
 	PlatformVersion   string `json:"appium:platformVersion"`
-	PlatformName      string `json:"platformName"`
+	PlatformName      string `json:"platformName,omitempty"`
 	DeviceUDID        string `json:"appium:udid"`
 	NewCommandTimeout int64  `json:"appium:newCommandTimeout"`
 	SessionTimeout    int64  `json:"appium:sessionTimeout"`
+	GadsTenant        string `json:"gads:tenant,omitempty"`   // Tenant name for test report filtering
+	GadsBuildId       string `json:"gads:buildId,omitempty"`  // Custom build identifier for test reports
+	GadsTestName      string `json:"gads:testName,omitempty"` // Custom test name for test reports
 }
 
 type Capabilities struct {
@@ -154,4 +157,37 @@ type AppiumPluginLog struct {
 	Prefix         string `json:"prefix,omitempty" bson:"prefix"`         // The Appium log prefix - `AndroidUiautomator2Driver@60a2` or `Logcat` etc
 	Timestamp      int64  `json:"timestamp" bson:"timestamp"`             // The timestamp in milliseconds when the log was sent via the plugin
 	SequenceNumber int64  `json:"sequenceNumber" bson:"sequenceNumber"`   // Sequence number of the log - because plugin might send multiple logs at the same millisecond we can use this to sort logs in their actual order
+}
+
+type AppiumPluginSessionLog struct {
+	Timestamp           int64    `json:"timestamp" bson:"timestamp"`
+	SessionID           string   `json:"session_id" bson:"session_id"`
+	DeviceUDID          string   `json:"udid" bson:"udid"`
+	Action              string   `json:"action" bson:"action"`
+	Command             string   `json:"command" bson:"command"`
+	Source              string   `json:"source" bson:"source"`
+	Duration            int      `json:"duration_ms" bson:"duration_ms"`
+	Success             bool     `json:"success" bson:"success"`
+	Error               string   `json:"error,omitempty" bson:"error,omitempty"`
+	Args                []string `json:"args" bson:"args"`
+	SequenceNumber      int64    `json:"sequence_number" bson:"sequence_number"`
+	Tenant              string   `json:"tenant" bson:"tenant"`
+	BuildID             string   `json:"build_id" bson:"build_id"`
+	TestName            string   `json:"test_name" bson:"test_name"`
+	LocatorUsing        string   `json:"locator_using" bson:"locator_using"`
+	LocatorValue        string   `json:"locator_value" bson:"locator_value"`
+	DeviceName          string   `json:"device_name" bson:"device_name"`
+	AndroidAppPackage   string   `json:"app_package" bson:"app_package"`
+	IOSBundleIdentifier string   `json:"bundle_identifier" bson:"bundle_identifier"`
+	PlatformName        string   `json:"platform_name" bson:"platform_name"`
+}
+
+// SessionLogsSummary is the compact record we will show in tests report table
+type SessionLogsSummary struct {
+	SessionID    string `bson:"session_id" json:"session_id"`                       // The unique session id
+	PlatformName string `bson:"platform_name" json:"platform_name"`                 // Android, iOS, Tizen etc
+	UDID         string `bson:"udid" json:"udid"`                                   // The device UDID
+	BuildID      string `bson:"build_id" json:"build_id"`                           // Build identifier provided via capabilities
+	DeviceName   string `bson:"device_name,omitempty" json:"device_name,omitempty"` // GADS device name
+	Count        int64  `bson:"count" json:"count"`                                 // Number of logs for the current session
 }

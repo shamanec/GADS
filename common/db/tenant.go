@@ -42,12 +42,12 @@ func (m *MongoStore) GetOrCreateDefaultTenant() (string, error) {
 			Settings:    tenant,
 			LastUpdated: time.Now(),
 		}
-		
-		err = UpsertDocument(m.Ctx, coll, filter, settings)
+
+		err = InsertDocument(m.Ctx, coll, settings)
 		if err != nil {
 			return "", fmt.Errorf("failed to save default tenant: %w", err)
 		}
-		
+
 		return tenant, nil
 	} else if err != nil {
 		return "", fmt.Errorf("failed to get default tenant: %w", err)

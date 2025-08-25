@@ -124,6 +124,16 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			}
 
 			if credential.Tenant != "" {
+				// Create Appium action logs collection for the current tenant if needed
+				actionLogsCollectionExists, _ := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_session_logs", credential.Tenant)
+				if !actionLogsCollectionExists {
+					err = db.GlobalMongoStore.CreateAppiumTenantLogsCollection("appium_session_logs", credential.Tenant, 1_000_000, 500)
+					if err != nil {
+						c.JSON(http.StatusUnauthorized, createErrorResponse("Failed creating Appium action logs collection in MongoDB", "session not created", ""))
+						return
+					}
+				}
+
 				defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
 				useAllTenantWorkspaces := true
 
@@ -220,8 +230,15 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			}
 			devices.HubDevicesData.Mu.Unlock()
 
+			// Add the tenant to the session request we proxy to the Appium server
+			if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
+				if always, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
+					always["gads:tenant"] = credential.Tenant
+				}
+			}
+			updatedSessionBody, _ := json.Marshal(sessionReq)
 			// Create a new request to the device target URL
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(updatedSessionBody))
 			if err != nil {
 				devices.HubDevicesData.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true

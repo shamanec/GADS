@@ -1,0 +1,44 @@
+{
+    "name": "appium-gads",
+    "version": "0.0.3",
+    "type": "module",
+    "main": "gads-appium-plugin.js",
+    "keywords": [
+        "gads",
+        "appium",
+        "appium-plugin"
+    ],
+    "peerDependencies": {
+        "appium": "^2.0.0"
+    },
+    "dependencies": {
+        "@appium/base-plugin": "^2.3.5"
+    },
+    "appium": {
+        "pluginName": "gads",
+        "mainClass": "GadsAppium",
+        "keywords": [
+            "appium",
+            "appium-plugin"
+        ],
+        "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "config": {
+                    "type": "string",
+                    "description": "Path to a JSON file, or a JSON string, containing your plugin settings"
+                }
+            },
+            "required": [
+                "config"
+            ]
+        }
+    },
+    "devDependencies": {
+        "appium-uiautomator2-driver": "^4.2.1"
+    },
+    "author": "Nikola Shabanov",
+    "license": "AGPL-3.0-only"
+}
