@@ -135,15 +135,10 @@ func (m *MongoStore) GetBuildReports(tenant string, limit int64) ([]models.Build
 			{Key: "build_id", Value: bson.D{{Key: "$ne", Value: ""}}},
 		}}},
 
-		// Group by build_id and build_run_id first
+		// Group by build_id
 		{{Key: "$group", Value: bson.D{
-			{Key: "_id", Value: bson.D{
-				{Key: "build_id", Value: "$build_id"},
-				{Key: "build_run_id", Value: "$build_run_id"},
-			}},
+			{Key: "_id", Value: "$build_id"},
 			{Key: "build_id", Value: bson.D{{Key: "$first", Value: "$build_id"}}},
-			{Key: "build_run_id", Value: bson.D{{Key: "$first", Value: "$build_run_id"}}},
-			{Key: "build_run_timestamp", Value: bson.D{{Key: "$first", Value: "$build_run_timestamp"}}},
 			{Key: "session_ids", Value: bson.D{{Key: "$addToSet", Value: "$session_id"}}},
 			{Key: "test_names", Value: bson.D{{Key: "$addToSet", Value: "$test_name"}}},
 			{Key: "device_names", Value: bson.D{{Key: "$addToSet", Value: "$device_name"}}},
@@ -156,34 +151,8 @@ func (m *MongoStore) GetBuildReports(tenant string, limit int64) ([]models.Build
 			{Key: "session_count", Value: bson.D{{Key: "$size", Value: "$session_ids"}}},
 		}}},
 
-		// Group by build_id to aggregate all runs
-		{{Key: "$group", Value: bson.D{
-			{Key: "_id", Value: "$build_id"},
-			{Key: "build_id", Value: bson.D{{Key: "$first", Value: "$build_id"}}},
-			{Key: "total_runs", Value: bson.D{{Key: "$sum", Value: 1}}},
-			{Key: "latest_run", Value: bson.D{{Key: "$max", Value: "$build_run_timestamp"}}},
-			{Key: "build_runs", Value: bson.D{{Key: "$push", Value: bson.D{
-				{Key: "build_run_id", Value: "$build_run_id"},
-				{Key: "build_run_timestamp", Value: "$build_run_timestamp"},
-				{Key: "session_count", Value: "$session_count"},
-				{Key: "session_ids", Value: "$session_ids"},
-				{Key: "test_names", Value: "$test_names"},
-				{Key: "device_names", Value: "$device_names"},
-				{Key: "first_action", Value: "$first_action"},
-				{Key: "last_action", Value: "$last_action"},
-			}}}},
-		}}},
-
-		// Sort build runs within each build by timestamp (newest first)
-		{{Key: "$addFields", Value: bson.D{
-			{Key: "build_runs", Value: bson.D{{Key: "$sortArray", Value: bson.D{
-				{Key: "input", Value: "$build_runs"},
-				{Key: "sortBy", Value: bson.D{{Key: "build_run_timestamp", Value: -1}}},
-			}}}},
-		}}},
-
-		// Sort builds by latest run timestamp (newest first)
-		{{Key: "$sort", Value: bson.D{{Key: "latest_run", Value: -1}}}},
+		// Sort by latest action timestamp (newest first)
+		{{Key: "$sort", Value: bson.D{{Key: "last_action", Value: -1}}}},
 
 		// Limit results
 		{{Key: "$limit", Value: limit}},

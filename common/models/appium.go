@@ -180,8 +180,6 @@ type AppiumPluginSessionLog struct {
 	AndroidAppPackage   string   `json:"app_package" bson:"app_package"`
 	IOSBundleIdentifier string   `json:"bundle_identifier" bson:"bundle_identifier"`
 	PlatformName        string   `json:"platform_name" bson:"platform_name"`
-	BuildRunId          string   `json:"build_run_id" bson:"build_run_id"`
-	BuildRunTimestamp   int64    `json:"build_run_timestamp" bson:"build_run_timestamp"`
 }
 
 // SessionLogsSummary is the compact record we will show in tests report table
@@ -195,19 +193,11 @@ type SessionLogsSummary struct {
 }
 
 type BuildReport struct {
-	BuildID   string         `json:"build_id" bson:"build_id"`
-	TotalRuns int            `json:"total_runs" bson:"total_runs"`
-	BuildRuns []BuildRunInfo `json:"build_runs" bson:"build_runs"`
-	LatestRun int64          `json:"latest_run" bson:"latest_run"`
-}
-
-type BuildRunInfo struct {
-	BuildRunID        string   `json:"build_run_id" bson:"build_run_id"`
-	BuildRunTimestamp int64    `json:"build_run_timestamp" bson:"build_run_timestamp"`
-	SessionCount      int      `json:"session_count" bson:"session_count"`
-	SessionIDs        []string `json:"session_ids" bson:"session_ids"`
-	TestNames         []string `json:"test_names" bson:"test_names"`
-	DeviceNames       []string `json:"device_names" bson:"device_names"`
-	FirstAction       int64    `json:"first_action" bson:"first_action"`
-	LastAction        int64    `json:"last_action" bson:"last_action"`
+	BuildID      string   `json:"build_id" bson:"build_id"`
+	SessionCount int      `json:"session_count" bson:"session_count"`
+	SessionIDs   []string `json:"session_ids" bson:"session_ids"`
+	TestNames    []string `json:"test_names" bson:"test_names"`
+	DeviceNames  []string `json:"device_names" bson:"device_names"`
+	FirstAction  int64    `json:"first_action" bson:"first_action"`
+	LastAction   int64    `json:"last_action" bson:"last_action"`
 }

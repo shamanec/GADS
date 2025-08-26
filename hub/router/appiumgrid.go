@@ -234,6 +234,8 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
 				if always, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
 					always["gads:tenant"] = credential.Tenant
+					always["gads:deviceName"] = foundDevice.Device.Name
+					always["platformName"] = foundDevice.Device.OS
 				}
 			}
 			updatedSessionBody, _ := json.Marshal(sessionReq)
