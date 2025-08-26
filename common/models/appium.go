@@ -201,3 +201,15 @@ type BuildReport struct {
 	FirstAction  int64    `json:"first_action" bson:"first_action"`
 	LastAction   int64    `json:"last_action" bson:"last_action"`
 }
+
+type SessionReport struct {
+	SessionID     string `json:"session_id" bson:"session_id"`
+	TestName      string `json:"test_name" bson:"test_name"`
+	DeviceName    string `json:"device_name" bson:"device_name"`
+	DeviceUDID    string `json:"device_udid" bson:"device_udid"`
+	PlatformName  string `json:"platform_name" bson:"platform_name"`
+	LogCount      int    `json:"log_count" bson:"log_count"`
+	FailedActions int    `json:"failed_actions" bson:"failed_actions"`
+	FirstAction   int64  `json:"first_action" bson:"first_action"`
+	LastAction    int64  `json:"last_action" bson:"last_action"`
+}

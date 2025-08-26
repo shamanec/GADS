@@ -138,7 +138,8 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.DELETE("/client-credentials/:id", RevokeClientCredential)
 	// Appium reports endpoints
 	reportsGroup := r.Group("/reports")
-	reportsGroup.GET("/test", GetBuildReports)
+	reportsGroup.GET("/builds", GetBuildReports)
+	reportsGroup.GET("/builds/:build_id/sessions", GetBuildSessions)
 
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware(configData))

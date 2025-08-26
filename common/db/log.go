@@ -174,3 +174,53 @@ func (m *MongoStore) GetBuildReports(tenant string, limit int64) ([]models.Build
 
 	return buildReports, nil
 }
+
+func (m *MongoStore) GetBuildSessions(tenant string, buildID string) ([]models.SessionReport, error) {
+	coll := m.GetCollectionWithDB(appiumSessionLogsDB, tenant)
+
+	pipeline := mongo.Pipeline{
+		// Match by tenant and build_id
+		{{Key: "$match", Value: bson.D{
+			{Key: "tenant", Value: tenant},
+			{Key: "build_id", Value: buildID},
+		}}},
+
+		// Group by session_id to get session-level data
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$session_id"},
+			{Key: "session_id", Value: bson.D{{Key: "$first", Value: "$session_id"}}},
+			{Key: "test_name", Value: bson.D{{Key: "$first", Value: "$test_name"}}},
+			{Key: "device_name", Value: bson.D{{Key: "$first", Value: "$device_name"}}},
+			{Key: "device_udid", Value: bson.D{{Key: "$first", Value: "$udid"}}},
+			{Key: "platform_name", Value: bson.D{{Key: "$first", Value: "$platform_name"}}},
+			{Key: "log_count", Value: bson.D{{Key: "$sum", Value: 1}}},
+			{Key: "first_action", Value: bson.D{{Key: "$min", Value: "$timestamp"}}},
+			{Key: "last_action", Value: bson.D{{Key: "$max", Value: "$timestamp"}}},
+			{Key: "failed_actions", Value: bson.D{{Key: "$sum", Value: bson.D{
+				{Key: "$cond", Value: []interface{}{
+					bson.D{{Key: "$eq", Value: []interface{}{"$success", false}}},
+					1, 0,
+				}},
+			}}}},
+		}}},
+
+		// Sort by first action timestamp (newest first)
+		{{Key: "$sort", Value: bson.D{{Key: "first_action", Value: -1}}}},
+
+		// Clean up _id field
+		{{Key: "$project", Value: bson.D{{Key: "_id", Value: 0}}}},
+	}
+
+	cursor, err := coll.Aggregate(m.Ctx, pipeline)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate session reports: %w", err)
+	}
+	defer cursor.Close(m.Ctx)
+
+	var sessionReports []models.SessionReport
+	if err = cursor.All(m.Ctx, &sessionReports); err != nil {
+		return nil, fmt.Errorf("failed to decode session reports: %w", err)
+	}
+
+	return sessionReports, nil
+}
