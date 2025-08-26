@@ -111,27 +111,31 @@ const log = logger.getLogger(NAME); // Appium-support logger, namespaced to "GAD
  */
 class GadsAppium extends BasePlugin {
     static api = null;
-
     // Static property to hold the current session ID across all instances
     static currentSessionId = "";
     // Static property to hold the current driver
     static activeDriver = null;
 
-    static actionLogSequence = 0;
-    static actionLogTenant = '';
-    static actionLogBuildId = '';
-    static actionLogTestName = '';
-    static actionLogPlatformName = '';
-    static actionLogDeviceName = '';
-    static actionLogAppPackage = '';
-    static actionLogBundleId = '';
+    static lastBuildUniqueId = ''; // The ID of the last executed build run - comes from session capabilities
+    static actionLogSequence = 0; // Unique step counter per session so we can properly order logs
+    static actionLogTenant = ''; // The tenant of the user creating the session for report filtering and access
+    static actionLogBuildId = ''; // The ID of the current build run - comes from session capabilities
+    static actionLogTestName = ''; // The name of the current test - comes from session capabilities
+    static actionLogPlatformName = ''; // Name of the platform where tests are executed - Android, iOS, Tizen, etc
+    static actionLogDeviceName = ''; // The name of the device on which the current session runs - comes from GADS in session capabilities
+    static actionLogAppPackage = ''; // Android app package name for more info in reports - comes from session capabilities
+    static actionLogBundleId = ''; // iOS app bundle identifier for more info in reports - comes from session capabilities
+    static actionLogRunId = ''; // Unique build run ID - in case the same BuildId is used we want to be able to filter even further
+    static actionLogRunTimestamp = null; // Timestamp of when the current build run has started
 
+    // New endpoints on the Appium server from the plugin itself
     static newMethodMap = {
         '/gads/source': {
             GET: { command: 'getSourceNoSession', neverProxy: true }, // never proxy → Appium handles it
         },
     };
 
+    // Clear the action log data on session end or whatever
     async clearActionLogData() {
         GadsAppium.actionLogSequence = 0;
         GadsAppium.actionLogTenant = '';
@@ -140,7 +144,11 @@ class GadsAppium extends BasePlugin {
         GadsAppium.actionLogPlatformName = '';
         GadsAppium.actionLogAppPackage = '';
         GadsAppium.actionLogBundleId = '';
-        GadsAppium.actiongLogDeviceName = '';
+        GadsAppium.actionLogDeviceName = '';
+        GadsAppium.actionLogRunId = '';
+        GadsAppium.actionLogRunTimestamp = null;
+        GadsAppium.lastBuildUniqueId = '';
+        GadsAppium.actionLogRunTimestamp = null;
     }
 
     /**
@@ -237,14 +245,64 @@ class GadsAppium extends BasePlugin {
                     throw new Error(`GADS - Add session failed, provider down - ${e.message}`)
                 })
         }
+
+        // We get the build id from capabilities
+        const buildId = w3cCapabilities?.alwaysMatch?.['gads:buildId'];
+        if (buildId) {
+            // We store the build ID for the report logs
+            GadsAppium.actionLogBuildId = buildId
+
+            // Check if this is a new build
+            if (buildId !== GadsAppium.lastBuildUniqueId) {
+                // If its a new build ID - create new run ID using current timestamp
+                // And store it in lastBuildUniqueId
+                GadsAppium.actionLogRunId = `${buildId}_${Date.now()}`;
+                GadsAppium.lastBuildUniqueId = buildId;
+                GadsAppium.actionLogRunTimestamp = Date.now();
+
+                log.info(`GADS: New build detected - ${buildId}, assigned run ID: ${GadsAppium.actionLogRunId}`);
+            } else {
+                if (!GadsAppium.actionLogRunId) {
+                    // This can happen if server restarted and we lost the run ID
+                    GadsAppium.actionLogRunId = `${buildId}_${Date.now()}`;
+                    GadsAppium.actionLogRunTimestamp = Date.now();
+                    log.info(`GADS: Recovered run ID for continuing build: ${GadsAppium.actionLogRunId}`);
+                } else {
+                    log.info(`GADS: Continuing build run: ${GadsAppium.actionLogRunId}`);
+                }
+            }
+        } else {
+            // If we don't have a build ID we preventively clear the static action log data
+            // So we don't save log
+            this.clearActionLogData()
+        }
+
         GadsAppium.actionLogSequence = 0;
-        GadsAppium.actionLogTenant = w3cCapabilities?.alwaysMatch?.['gads:tenant']
-        GadsAppium.actionLogBuildId = w3cCapabilities?.alwaysMatch?.['gads:buildId']
-        GadsAppium.actionLogTestName = w3cCapabilities?.alwaysMatch?.['gads:testName']
-        GadsAppium.actionLogPlatformName = w3cCapabilities?.alwaysMatch?.['platformName']
-        GadsAppium.actionLogAppPackage = w3cCapabilities?.alwaysMatch?.['appium:appPackage']
-        GadsAppium.actionLogBundleId = w3cCapabilities?.alwaysMatch?.['appium:bundleId']
-        GadsAppium.actionLogDeviceName = w3cCapabilities?.alwaysMatch?.['gads:deviceName']
+        const tenant = w3cCapabilities?.alwaysMatch?.['gads:tenant']
+        if (tenant) {
+            GadsAppium.actionLogTenant = tenant
+        }
+        const testName = w3cCapabilities?.alwaysMatch?.['gads:testName']
+        if (testName) {
+            GadsAppium.actionLogTestName = testName
+        }
+        const platformName = w3cCapabilities?.alwaysMatch?.['platformName']
+        if (platformName) {
+            GadsAppium.actionLogPlatformName = platformName
+        }
+        const appPackage = w3cCapabilities?.alwaysMatch?.['appium:appPackage']
+        if (appPackage) {
+            GadsAppium.actionLogAppPackage = appPackage
+        }
+        const bundleId = w3cCapabilities?.alwaysMatch?.['appium:bundleId']
+        if (bundleId) {
+            GadsAppium.actionLogBundleId = bundleId
+        }
+        const deviceName = w3cCapabilities?.alwaysMatch?.['gads:deviceName']
+        if (deviceName) {
+            GadsAppium.actionLogDeviceName = deviceName
+        }
+
         return createSessionResult;
     }
 
@@ -327,6 +385,8 @@ class GadsAppium extends BasePlugin {
                         app_package: GadsAppium.actionLogAppPackage,
                         bundle_identifier: GadsAppium.actionLogBundleId,
                         platform_name: GadsAppium.actionLogPlatformName,
+                        build_run_id: GadsAppium.actionLogRunId,
+                        build_run_timestamp: GadsAppium.actionLogRunTimestamp
                     };
                     await GadsAppium.api.post(`/log-session`, body).catch(() => { });
                 }

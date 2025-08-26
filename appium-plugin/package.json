@@ -1,6 +1,6 @@
 {
     "name": "appium-gads",
-    "version": "0.0.3",
+    "version": "0.0.6",
     "type": "module",
     "main": "gads-appium-plugin.js",
     "keywords": [
@@ -9,10 +9,10 @@
         "appium-plugin"
     ],
     "peerDependencies": {
-        "appium": "^2.0.0"
+        "appium": "^2.0.0 || ^3.0.0"
     },
     "dependencies": {
-        "@appium/base-plugin": "^2.3.5"
+        "@appium/base-plugin": "^2.3.7"
     },
     "appium": {
         "pluginName": "gads",
