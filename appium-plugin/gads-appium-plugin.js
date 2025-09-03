@@ -1,78 +1,10 @@
 import { BasePlugin } from '@appium/base-plugin';
 import { logger } from '@appium/support';
-import path from 'node:path';
-import fs from 'node:fs';
-import axios from 'axios';
+import { loadConfig } from './src/config/loader.js';
+import { createApiClient, GadsApiClient } from './src/api/client.js';
+import { classify } from './src/utils/classifier.js';
 
-/**
- * loadConfig
- *
- * Reads the plugin configuration from either:
- *  1. An inline JSON string
- *  2. A file path pointing to a JSON config file
- *
- * @param {string|undefined} input  Inline JSON or path to JSON file
- * @returns {object}  Parsed configuration object
- * @throws {Error}  When no config is provided, or parsing/reading fails
- */
-function loadConfig(input) {
-    if (!input) {
-        throw new Error(
-            'GADS: config is required – supply --plugin-gads-config with an in-line json or path to json file'
-        );
-    }
 
-    // Normalize and trim the input string
-    const txt = String(input).trim();
-
-    // Case 1: Inline JSON (starts with '{')
-    if (txt.startsWith('{')) {
-        try {
-            // Parse and return the JSON
-            return JSON.parse(txt);
-        } catch (err) {
-            throw new Error(`GADS: failed to parse inline JSON config – ${err.message}`);
-        }
-    }
-
-    // Case 2: File path to a JSON file
-    const filePath = path.resolve(txt);
-    if (!fs.existsSync(filePath)) {
-        throw new Error(`GADS: config file not found at ${filePath}`);
-    }
-    try {
-        // Read file contents and parse as JSON
-        const fileContents = fs.readFileSync(filePath, 'utf8');
-        return JSON.parse(fileContents);
-    } catch (err) {
-        throw new Error(`GADS: failed to parse config file at ${filePath} – ${err.message}`);
-    }
-}
-
-/**
-     * This function classifies the type of action performed that we can use for session logging
-     * @param {string} commandName The name of the execute command
-     * @param {*} args The arguments for the command
-     * @returns 
-     */
-function classify(commandName, args) {
-    log.info(`Classifying command ${commandName}`)
-    switch (commandName) {
-        case 'click': return { action: 'Tap', source: 'click' };
-        case 'setValue': return { action: 'Type', source: 'setValue' };
-        case 'performActions': return { action: 'Gesture', source: 'performActions' };
-        case 'executeScript': {
-            const script = args?.[0];
-            if (typeof script === 'string' && script.startsWith('mobile:')) {
-                return { action: 'Mobile-command', source: script };
-            }
-            return null;
-        }
-        case 'findElement': return { action: 'Find Element', source: 'findElement' }
-        case 'findElements': return { action: 'Find Elements', source: 'findElements' }
-        default: return null;
-    }
-}
 
 /**
  * This function redacts sensitive data from logs like when typing text
@@ -110,7 +42,7 @@ const log = logger.getLogger(NAME); // Appium-support logger, namespaced to "GAD
  *  - Mirrors all server logs to that hub, tagged by session
  */
 class GadsAppium extends BasePlugin {
-    static api = null;
+    static apiClient = null;
     // Static property to hold the current session ID across all instances
     static currentSessionId = "";
     // Static property to hold the current driver
@@ -159,22 +91,16 @@ class GadsAppium extends BasePlugin {
         const cfg = loadConfig(
             cliArgs.pluginGadsConfig ?? cliArgs.plugin?.gads?.config
         );
-        if (!cfg.providerUrl) throw new Error("GADS - 'providerUrl' missing in config");
-
-        // Set baseURL dynamically
-        GadsAppium.api = axios.create({
-            baseURL: `${cfg.providerUrl}/device/${cfg.udid}/appium-plugin`
-        });
+        // Create API client
+        const axiosInstance = createApiClient(cfg);
+        GadsAppium.apiClient = new GadsApiClient(axiosInstance);
 
         // Save config globally
         GadsAppium.cfg = cfg;
 
         // Attempt to register this Appium instance with the GADS hub
         try {
-            await GadsAppium.api.post(`/register`, cfg)
-                .catch((e) => {
-                    throw new Error(`GADS - Registration session failed, provider down - ${e.message}`)
-                })
+            await GadsAppium.apiClient.register(cfg);
             log.info(`Registering device at -> ${cfg.providerUrl}/register`);
         } catch (e) {
             log.warn(`Device registration failed: ${e.message}`);
@@ -188,24 +114,22 @@ class GadsAppium extends BasePlugin {
         npmlog.on('log', ({ level, message, prefix }) => {
             const seq = logSeq++;
 
-            GadsAppium.api.post(`/log`, {
+            GadsAppium.apiClient.sendLog({
                 level: level,
                 message: message,
                 session_id: GadsAppium.currentSessionId,
                 prefix: prefix,
                 timestamp: Date.now(),
                 sequenceNumber: seq
-            }).catch(() => { });
+            });
         });
         log.info(`Mirroring logs to -> ${cfg.providerUrl}/logs`)
 
         setInterval(() => {
-            GadsAppium.api.post(`/ping`, {
+            GadsAppium.apiClient.sendPing({
                 timestamp: Date.now(),
                 session_id: GadsAppium.currentSessionId
-            }).catch((e) => {
-                throw new Error(`GADS - Heartbeat failed, provider down - ${e.message}`)
-            })
+            });
         }, cfg.heartbeatIntervalMs)
     }
 
@@ -233,10 +157,7 @@ class GadsAppium extends BasePlugin {
         const sessionId = createSessionResult?.value?.[0];
         if (sessionId) {
             GadsAppium.currentSessionId = sessionId;
-            GadsAppium.api.post(`/session/add/${GadsAppium.currentSessionId}`)
-                .catch((e) => {
-                    throw new Error(`GADS - Add session failed, provider down - ${e.message}`)
-                })
+            await GadsAppium.apiClient.addSession(GadsAppium.currentSessionId);
         }
 
         // We get the build id from capabilities
@@ -297,10 +218,7 @@ class GadsAppium extends BasePlugin {
         }
         GadsAppium.activeDriver = null;
         const deleteSessionResult = await driver.deleteSession?.(sessionId);
-        GadsAppium.api.post(`/session/remove`)
-            .catch((e) => {
-                throw new Error(`GADS - Remove session failed, provider down - ${e.message}`)
-            })
+        await GadsAppium.apiClient.removeSession();
         return deleteSessionResult
     }
 
@@ -344,7 +262,6 @@ class GadsAppium extends BasePlugin {
                         udid: cfg.udid,
                         action: info.action,
                         command: commandName,
-                        source: info.source,
                         duration_ms: Date.now() - t0,
                         success: !error,
                         error: error ? String(error.message || error) : undefined,
@@ -360,7 +277,7 @@ class GadsAppium extends BasePlugin {
                         bundle_identifier: GadsAppium.actionLogBundleId,
                         platform_name: GadsAppium.actionLogPlatformName,
                     };
-                    await GadsAppium.api.post(`/log-session`, body).catch(() => { });
+                    await GadsAppium.apiClient.sendSessionLog(body);
                 }
             }
         } catch (e) {
@@ -385,10 +302,7 @@ class GadsAppium extends BasePlugin {
         GadsAppium.activeDriver = null
         this.clearActionLogData()
 
-        GadsAppium.api.post(`/session/remove`)
-            .catch((e) => {
-                throw new Error(`GADS - Remove session failed, provider down - ${e.message}`)
-            })
+        await GadsAppium.apiClient.removeSession();
     }
 
     /**x
