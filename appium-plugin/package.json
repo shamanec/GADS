@@ -1,6 +1,6 @@
 {
     "name": "appium-gads",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "type": "module",
     "main": "gads-appium-plugin.js",
     "keywords": [

@@ -224,3 +224,28 @@ func (m *MongoStore) GetBuildSessions(tenant string, buildID string) ([]models.S
 
 	return sessionReports, nil
 }
+
+func (m *MongoStore) GetSessionLogs(tenant string, sessionID string) ([]models.SessionActionLog, error) {
+	coll := m.GetCollectionWithDB(appiumSessionLogsDB, tenant)
+
+	filter := bson.D{
+		{Key: "tenant", Value: tenant},
+		{Key: "session_id", Value: sessionID},
+	}
+
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{Key: "sequence_number", Value: 1}})
+
+	cursor, err := coll.Find(m.Ctx, filter, findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find session logs: %w", err)
+	}
+	defer cursor.Close(m.Ctx)
+
+	var sessionLogs []models.SessionActionLog
+	if err = cursor.All(m.Ctx, &sessionLogs); err != nil {
+		return nil, fmt.Errorf("failed to decode session logs: %w", err)
+	}
+
+	return sessionLogs, nil
+}

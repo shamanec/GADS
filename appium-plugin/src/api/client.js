@@ -13,7 +13,7 @@ export function createApiClient(config) {
 
     return axios.create({
         baseURL: `${config.providerUrl}/device/${config.udid}/appium-plugin`
-    });
+    })
 }
 
 /**
@@ -21,17 +21,19 @@ export function createApiClient(config) {
  */
 export class GadsApiClient {
     constructor(axiosInstance) {
-        this.api = axiosInstance;
+        this.api = axiosInstance
     }
 
+    // Register the current device Appium server to the GADS provider instance
     async register(config) {
         try {
-            await this.api.post('/register', config);
+            await this.api.post('/register', config)
         } catch (e) {
-            throw new Error(`GADS - Registration session failed, provider down - ${e.message}`);
+            throw new Error(`GADS - Registration session failed, provider down - ${e.message}`)
         }
     }
 
+    // Notify provider about the currently live session
     async addSession(sessionId) {
         try {
             await this.api.post(`/session/add/${sessionId}`);
@@ -40,35 +42,39 @@ export class GadsApiClient {
         }
     }
 
+    // Notify provider a session was ended
     async removeSession() {
         try {
             await this.api.post('/session/remove');
         } catch (e) {
-            throw new Error(`GADS - Remove session failed, provider down - ${e.message}`);
+            throw new Error(`GADS - Remove session failed, provider down - ${e.message}`)
         }
     }
 
+    // Send Appium log to provider instance
     async sendLog(logData) {
         try {
-            await this.api.post('/log', logData);
+            await this.api.post('/log', logData)
         } catch (e) {
             // Silent fail for logs to avoid disrupting main flow
         }
     }
 
+    // Send Appium action log to provider instance
     async sendSessionLog(sessionLogData) {
         try {
-            await this.api.post('/log-session', sessionLogData);
+            await this.api.post('/log-session', sessionLogData)
         } catch (e) {
             // Silent fail for session logs to avoid disrupting main flow
         }
     }
 
+    // Ping to notify provider that the Appium server is live and running
     async sendPing(pingData) {
         try {
             await this.api.post('/ping', pingData);
         } catch (e) {
-            throw new Error(`GADS - Heartbeat failed, provider down - ${e.message}`);
+            throw new Error(`GADS - Heartbeat failed, provider down - ${e.message}`)
         }
     }
 }

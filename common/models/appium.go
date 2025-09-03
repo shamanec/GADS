@@ -160,26 +160,23 @@ type AppiumPluginLog struct {
 }
 
 type AppiumPluginSessionLog struct {
-	Timestamp           int64    `json:"timestamp" bson:"timestamp"`
-	SessionID           string   `json:"session_id" bson:"session_id"`
-	DeviceUDID          string   `json:"udid" bson:"udid"`
-	Action              string   `json:"action" bson:"action"`
-	Command             string   `json:"command" bson:"command"`
-	Source              string   `json:"source" bson:"source"`
-	Duration            int      `json:"duration_ms" bson:"duration_ms"`
-	Success             bool     `json:"success" bson:"success"`
-	Error               string   `json:"error,omitempty" bson:"error,omitempty"`
-	Args                []string `json:"args" bson:"args"`
-	SequenceNumber      int64    `json:"sequence_number" bson:"sequence_number"`
-	Tenant              string   `json:"tenant" bson:"tenant"`
-	BuildID             string   `json:"build_id" bson:"build_id"`
-	TestName            string   `json:"test_name" bson:"test_name"`
-	LocatorUsing        string   `json:"locator_using" bson:"locator_using"`
-	LocatorValue        string   `json:"locator_value" bson:"locator_value"`
-	DeviceName          string   `json:"device_name" bson:"device_name"`
-	AndroidAppPackage   string   `json:"app_package" bson:"app_package"`
-	IOSBundleIdentifier string   `json:"bundle_identifier" bson:"bundle_identifier"`
-	PlatformName        string   `json:"platform_name" bson:"platform_name"`
+	Timestamp      int64  `json:"timestamp" bson:"timestamp"`             // Timestamp in milliseconds of the Appium command execution
+	SessionID      string `json:"session_id" bson:"session_id"`           // Appium session ID
+	DeviceUDID     string `json:"udid" bson:"udid"`                       // UDID of the device
+	Action         string `json:"action" bson:"action"`                   // Human readable name of the executed command
+	Command        string `json:"command" bson:"command"`                 // Actual Appium command name
+	Duration       int    `json:"duration_ms" bson:"duration_ms"`         // Time taken to execute the command
+	Success        bool   `json:"success" bson:"success"`                 // Command successful or not
+	Error          string `json:"error" bson:"error"`                     // Command error string if any
+	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"` // Sequence number of the commands, provided by the plugin for proper ordering of the logs
+	Tenant         string `json:"tenant" bson:"tenant"`                   // Test execution target tenant - `gads:tenant`
+	BuildID        string `json:"build_id" bson:"build_id"`               // Test run build identifier - `gads:buildId`
+	TestName       string `json:"test_name" bson:"test_name"`             // Name of the currently executed test if any - `gads:testName`
+	LocatorUsing   string `json:"locator_using" bson:"locator_using"`     // Type of Appium locator used on findElement/findElements
+	LocatorValue   string `json:"locator_value" bson:"locator_value"`     // Actual locator value used on findElement/findElements
+	DeviceName     string `json:"device_name" bson:"device_name"`         // Name of the device from GADS registered devices database
+	PlatformName   string `json:"platform_name" bson:"platform_name"`     // Target platform - iOS/Android/Tizen/WebOS
+	AdditionalInfo string `json:"additional_info" bson:"additional_info"` // Additional Appium command info parsed from command arguments in human-readable output
 }
 
 // SessionLogsSummary is the compact record we will show in tests report table
@@ -212,4 +209,16 @@ type SessionReport struct {
 	FailedActions int    `json:"failed_actions" bson:"failed_actions"`
 	FirstAction   int64  `json:"first_action" bson:"first_action"`
 	LastAction    int64  `json:"last_action" bson:"last_action"`
+}
+
+type SessionActionLog struct {
+	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"`
+	Timestamp      int64  `json:"timestamp" bson:"timestamp"`
+	Action         string `json:"action" bson:"action"`
+	Duration       int    `json:"duration_ms" bson:"duration_ms"`
+	LocatorUsing   string `json:"locator_using,omitempty" bson:"locator_using"`
+	LocatorValue   string `json:"locator_value,omitempty" bson:"locator_value"`
+	AdditionalInfo string `json:"additional_info,omitempty" bson:"additional_info"`
+	Success        bool   `json:"success" bson:"success"`
+	Error          string `json:"error,omitempty" bson:"error"`
 }

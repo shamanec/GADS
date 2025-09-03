@@ -3,8 +3,7 @@ import { logger } from '@appium/support';
 import { loadConfig } from './src/config/loader.js';
 import { createApiClient, GadsApiClient } from './src/api/client.js';
 import { classify } from './src/utils/classifier.js';
-
-
+import { handleArgs } from './src/utils/commandArgsHandler.js';
 
 /**
  * This function redacts sensitive data from logs like when typing text
@@ -43,19 +42,18 @@ const log = logger.getLogger(NAME); // Appium-support logger, namespaced to "GAD
  */
 class GadsAppium extends BasePlugin {
     static apiClient = null;
-    // Static property to hold the current session ID across all instances
+    // Static property to hold the current Appium session ID
     static currentSessionId = "";
     // Static property to hold the current driver
     static activeDriver = null;
 
+    // Static properties for the action logs we send to GADS
     static actionLogSequence = 0; // Unique step counter per session so we can properly order logs
     static actionLogTenant = ''; // The tenant of the user creating the session for report filtering and access
     static actionLogBuildId = ''; // The ID of the current build run - comes from session capabilities
     static actionLogTestName = ''; // The name of the current test - comes from session capabilities
     static actionLogPlatformName = ''; // Name of the platform where tests are executed - Android, iOS, Tizen, etc
     static actionLogDeviceName = ''; // The name of the device on which the current session runs - comes from GADS in session capabilities
-    static actionLogAppPackage = ''; // Android app package name for more info in reports - comes from session capabilities
-    static actionLogBundleId = ''; // iOS app bundle identifier for more info in reports - comes from session capabilities
 
     // New endpoints on the Appium server from the plugin itself
     static newMethodMap = {
@@ -71,8 +69,6 @@ class GadsAppium extends BasePlugin {
         GadsAppium.actionLogBuildId = '';
         GadsAppium.actionLogTestName = '';
         GadsAppium.actionLogPlatformName = '';
-        GadsAppium.actionLogAppPackage = '';
-        GadsAppium.actionLogBundleId = '';
         GadsAppium.actionLogDeviceName = '';
     }
 
@@ -90,29 +86,35 @@ class GadsAppium extends BasePlugin {
         // Load config from --plugin-gads-config or legacy --plugin.gads.config
         const cfg = loadConfig(
             cliArgs.pluginGadsConfig ?? cliArgs.plugin?.gads?.config
-        );
+        )
+
         // Create API client
-        const axiosInstance = createApiClient(cfg);
-        GadsAppium.apiClient = new GadsApiClient(axiosInstance);
+        const axiosInstance = createApiClient(cfg)
+        GadsAppium.apiClient = new GadsApiClient(axiosInstance)
 
         // Save config globally
-        GadsAppium.cfg = cfg;
+        GadsAppium.cfg = cfg
 
         // Attempt to register this Appium instance with the GADS hub
         try {
             await GadsAppium.apiClient.register(cfg);
-            log.info(`Registering device at -> ${cfg.providerUrl}/register`);
+            log.info(`Registering device at -> ${cfg.providerUrl}/register`)
         } catch (e) {
-            log.warn(`Device registration failed: ${e.message}`);
+            log.warn(`Device registration failed: ${e.message}`)
         }
 
         // Hook into npm‐log (the global logger Appium uses) to forward logs
-        const npmlog = /** @type {import('npmlog')} */ (global._global_npmlog);
-        npmlog.disableColor();
-        // For each log event, POST to /log endpoint (fire-and-forget)
-        let logSeq = 0;
+        const npmlog = /** @type {import('npmlog')} */ (global._global_npmlog)
+        npmlog.disableColor()
+
+        // On server start setup a sequence number for proper ordering of logs
+        // Because its possible that Appium sends multiple logs with the same timestamp
+        let logSeq = 0
+
+        // For each log event, POST to GADS provider /log endpoint (fire-and-forget)
         npmlog.on('log', ({ level, message, prefix }) => {
-            const seq = logSeq++;
+            // Increment the sequence number to ensure ordering of the logs when presented by GADS from the db
+            const seq = logSeq++
 
             GadsAppium.apiClient.sendLog({
                 level: level,
@@ -121,8 +123,8 @@ class GadsAppium extends BasePlugin {
                 prefix: prefix,
                 timestamp: Date.now(),
                 sequenceNumber: seq
-            });
-        });
+            })
+        })
         log.info(`Mirroring logs to -> ${cfg.providerUrl}/logs`)
 
         setInterval(() => {
@@ -148,31 +150,36 @@ class GadsAppium extends BasePlugin {
    */
     async createSession(next, driver, jsonwpCaps, reqCaps, w3cCapabilities) {
         // Make sure instance has access to the loaded config
-        this.cfg = GadsAppium.cfg;
+        this.cfg = GadsAppium.cfg
 
         // Call through to the driver’s createSession
-        const createSessionResult = await driver.createSession?.(jsonwpCaps, reqCaps, w3cCapabilities);
-        GadsAppium.activeDriver = driver;
+        const createSessionResult = await driver.createSession?.(jsonwpCaps, reqCaps, w3cCapabilities)
+
+        // Store the active driver in case we need it for something
+        GadsAppium.activeDriver = driver
+
         // Extract the sessionId
-        const sessionId = createSessionResult?.value?.[0];
+        const sessionId = createSessionResult?.value?.[0]
         if (sessionId) {
             GadsAppium.currentSessionId = sessionId;
-            await GadsAppium.apiClient.addSession(GadsAppium.currentSessionId);
+            await GadsAppium.apiClient.addSession(GadsAppium.currentSessionId)
         }
 
-        // We get the build id from capabilities
-        const buildId = w3cCapabilities?.alwaysMatch?.['gads:buildId'];
+        // Get the test run build ID from capabilities
+        const buildId = w3cCapabilities?.alwaysMatch?.['gads:buildId']
         if (buildId) {
-            // We store the build ID for the report logs
+            // Store the build ID for the report logs
             GadsAppium.actionLogBuildId = buildId
-            log.info(`GADS: Build ID set to: ${buildId}`);
+            log.info(`GADS: Build ID set to: ${buildId}`)
         } else {
             // If we don't have a build ID we preventively clear the static action log data
-            // So we don't save log
+            // So we don't save logs
             this.clearActionLogData()
         }
 
-        GadsAppium.actionLogSequence = 0;
+        // On a new session reset the action log sequence number
+        GadsAppium.actionLogSequence = 0
+        // Get the additional capabilities for extending the log information
         const tenant = w3cCapabilities?.alwaysMatch?.['gads:tenant']
         if (tenant) {
             GadsAppium.actionLogTenant = tenant
@@ -185,20 +192,12 @@ class GadsAppium extends BasePlugin {
         if (platformName) {
             GadsAppium.actionLogPlatformName = platformName
         }
-        const appPackage = w3cCapabilities?.alwaysMatch?.['appium:appPackage']
-        if (appPackage) {
-            GadsAppium.actionLogAppPackage = appPackage
-        }
-        const bundleId = w3cCapabilities?.alwaysMatch?.['appium:bundleId']
-        if (bundleId) {
-            GadsAppium.actionLogBundleId = bundleId
-        }
         const deviceName = w3cCapabilities?.alwaysMatch?.['gads:deviceName']
         if (deviceName) {
             GadsAppium.actionLogDeviceName = deviceName
         }
 
-        return createSessionResult;
+        return createSessionResult
     }
 
     /**
@@ -211,14 +210,22 @@ class GadsAppium extends BasePlugin {
      * @param {string} sessionId    The sessionId to delete
    */
     async deleteSession(next, driver, sessionId) {
+        // Clear all action log properties
         this.clearActionLogData()
-        // If we’re deleting the active session, clear it
+
+        // If we’re deleting the active session, clear it from the properties
         if (GadsAppium.currentSessionId === sessionId) {
-            GadsAppium.currentSessionId = "";
+            GadsAppium.currentSessionId = ''
         }
+        // Reset the active driver object
         GadsAppium.activeDriver = null;
-        const deleteSessionResult = await driver.deleteSession?.(sessionId);
-        await GadsAppium.apiClient.removeSession();
+
+        // Call through to the driver's deleteSession
+        const deleteSessionResult = await driver.deleteSession?.(sessionId)
+
+        // Notify GADS the session was deleted
+        await GadsAppium.apiClient.removeSession()
+
         return deleteSessionResult
     }
 
@@ -231,78 +238,96 @@ class GadsAppium extends BasePlugin {
      * @returns 
      */
     async handle(next, driver, commandName, ...args) {
+        // Do not handle the commands below at all, directly call through to next()
         if (['createSession', 'deleteSession', 'getSessions'].includes(commandName)) {
-            return await next();
+            return await next()
         }
 
-        const t0 = Date.now();
+        // Get the command start timestamp
+        const commandStartTS = Date.now()
         let result, error;
 
+        // Execute the command, saving result and/or error
         try {
-            result = await next();
+            result = await next()
         } catch (e) {
-            error = e;
+            error = e
         }
 
         try {
-            const cfg = GadsAppium.cfg || this.cfg;
+            const cfg = GadsAppium.cfg || this.cfg
             if (cfg?.providerUrl && cfg?.udid) {
-                const info = classify(commandName, args);
+                // Classify the command turning the Appium command name into a human-readable report-friendly command name
+                const info = classify(commandName, args)
+
+                // We log actions only if command was classified and `gads:buildId` capability is provided
                 if (info && GadsAppium.actionLogBuildId) {
-                    GadsAppium.actionLogSequence += 1;
+                    // Increment the sequence number on each command we log
+                    GadsAppium.actionLogSequence += 1
+
+                    // Parse element locator data for findElement/findElements commands
                     let findElementUsing = null;
                     let findElementSelector = null;
                     if (commandName === 'findElement' || commandName === 'findElements') {
                         findElementUsing = args?.[0]
                         findElementSelector = args?.[1]
                     }
+
+                    // Parse specific commands arguments into human readable output
+                    const commandAdditionalInfo = handleArgs(commandName, args)
+
+                    // Build the body of the log we send to GADS
                     const body = {
-                        timestamp: Date.now(),
-                        session_id: GadsAppium.currentSessionId || null,
-                        udid: cfg.udid,
-                        action: info.action,
-                        command: commandName,
-                        duration_ms: Date.now() - t0,
-                        success: !error,
-                        error: error ? String(error.message || error) : undefined,
-                        args: redact(args),
-                        sequence_number: GadsAppium.actionLogSequence,
-                        tenant: GadsAppium.actionLogTenant,
-                        build_id: GadsAppium.actionLogBuildId,
-                        test_name: GadsAppium.actionLogTestName,
-                        locator_using: findElementUsing,
-                        locator_value: findElementSelector,
-                        device_name: GadsAppium.actionLogDeviceName,
-                        app_package: GadsAppium.actionLogAppPackage,
-                        bundle_identifier: GadsAppium.actionLogBundleId,
-                        platform_name: GadsAppium.actionLogPlatformName,
-                    };
-                    await GadsAppium.apiClient.sendSessionLog(body);
+                        timestamp: commandStartTS, // Start time of the command
+                        session_id: GadsAppium.currentSessionId || null, // Appium current session id
+                        udid: cfg.udid, // Target device UDID
+                        action: info.action, // Human-readable report-friendly command name
+                        command: commandName, // Actual Appium command name
+                        duration_ms: Date.now() - commandStartTS, // Time taken to execute the command
+                        success: !error, // Is the command successful or not
+                        error: error ? String(error.message || error) : null, // Error string if any
+                        sequence_number: GadsAppium.actionLogSequence, // Log sequence number for proper logs ordering
+                        tenant: GadsAppium.actionLogTenant, // Test execution target tenant name from GADS - `gads:tenant`
+                        build_id: GadsAppium.actionLogBuildId, // Test execution build identifier - `gads:buildId`
+                        test_name: GadsAppium.actionLogTestName, // Name of target test if any - `gads:testName`
+                        locator_using: findElementUsing, // Type of target element locator for findElement/findElements
+                        locator_value: findElementSelector, // Value of the target element locator for findElement/findElements
+                        device_name: GadsAppium.actionLogDeviceName, // Target device name from GADS
+                        platform_name: GadsAppium.actionLogPlatformName, // Target test platform name - iOS/Android/Tizen/WebOS
+                        additional_info: commandAdditionalInfo, // Human-readable report-friendly additional info for specific commands
+                    }
+
+                    // Send the log to GADS
+                    await GadsAppium.apiClient.sendSessionLog(body)
                 }
             }
         } catch (e) {
-            log.error(`Something failed - ${e}`);
+            log.error(`Something failed - ${e}`)
         }
 
-        if (error) throw error;
-        return result;
+        // Keep the usual Appium handling - throw error or return result
+        if (error) throw error
+        return result
     }
 
     /**
      * onUnexpectedShutdown
      *
-     * Wraps onUnexpectedShutdown which detects that the session's driver crashed (e.g., emulator dies, App quits abruptly) etc and notifies the provider
+     * Wraps onUnexpectedShutdown which detects that the session's driver crashed (e.g., emulator dies, app quits abruptly) etc and notifies the provider
      *
      * @param {object} driver   Тhe underlying driver instance
      * @param {string} cause    The cause of the shutdown
    */
     async onUnexpectedShutdown(driver, cause) {
         log.warn(`GADS: Session ${GadsAppium.currentSessionId} crashed unexpectedly`)
+
+        // Clear the session id, active driver and the static action log properties
         GadsAppium.currentSessionId = ""
         GadsAppium.activeDriver = null
         this.clearActionLogData()
 
-        await GadsAppium.apiClient.removeSession();
+        // Notify GADS the driver crashed by clearing the session on GADS side
+        await GadsAppium.apiClient.removeSession()
     }
 
     /**x

@@ -140,6 +140,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	reportsGroup := r.Group("/reports")
 	reportsGroup.GET("/builds", GetBuildReports)
 	reportsGroup.GET("/builds/:build_id/sessions", GetBuildSessions)
+	reportsGroup.GET("/sessions/:session_id/logs", GetSessionLogs)
 
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware(configData))

@@ -20,28 +20,28 @@ export function loadConfig(input) {
     }
 
     // Normalize and trim the input string
-    const txt = String(input).trim();
+    const txt = String(input).trim()
 
     // Case 1: Inline JSON (starts with '{')
     if (txt.startsWith('{')) {
         try {
             // Parse and return the JSON
-            return JSON.parse(txt);
+            return JSON.parse(txt)
         } catch (err) {
-            throw new Error(`GADS: failed to parse inline JSON config – ${err.message}`);
+            throw new Error(`GADS: failed to parse inline JSON config – ${err.message}`)
         }
     }
 
     // Case 2: File path to a JSON file
     const filePath = path.resolve(txt);
     if (!fs.existsSync(filePath)) {
-        throw new Error(`GADS: config file not found at ${filePath}`);
+        throw new Error(`GADS: config file not found at ${filePath}`)
     }
     try {
         // Read file contents and parse as JSON
-        const fileContents = fs.readFileSync(filePath, 'utf8');
-        return JSON.parse(fileContents);
+        const fileContents = fs.readFileSync(filePath, 'utf8')
+        return JSON.parse(fileContents)
     } catch (err) {
-        throw new Error(`GADS: failed to parse config file at ${filePath} – ${err.message}`);
+        throw new Error(`GADS: failed to parse config file at ${filePath} – ${err.message}`)
     }
 }
