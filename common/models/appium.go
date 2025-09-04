@@ -222,3 +222,16 @@ type SessionActionLog struct {
 	Success        bool   `json:"success" bson:"success"`
 	Error          string `json:"error,omitempty" bson:"error"`
 }
+
+type AppiumTestResult struct {
+	Timestamp    int64  `json:"timestamp" bson:"timestamp"`           // Timestamp in milliseconds when test result was submitted
+	SessionID    string `json:"session_id" bson:"session_id"`         // Appium session ID
+	DeviceUDID   string `json:"udid" bson:"udid"`                     // UDID of the device
+	Tenant       string `json:"tenant" bson:"tenant"`                 // Test execution target tenant
+	BuildID      string `json:"build_id" bson:"build_id"`             // Test run build identifier
+	TestName     string `json:"test_name,omitempty" bson:"test_name"` // Name of the test (optional)
+	DeviceName   string `json:"device_name" bson:"device_name"`       // Name of the device from GADS
+	PlatformName string `json:"platform_name" bson:"platform_name"`   // Target platform - iOS/Android/Tizen/WebOS
+	TestStatus   string `json:"status" bson:"status"`                 // Test status - pass, fail, skip, etc.
+	TestMessage  string `json:"message,omitempty" bson:"message"`     // Test result message or error
+}

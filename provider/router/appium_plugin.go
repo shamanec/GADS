@@ -101,6 +101,37 @@ func AppiumPluginRemoveSession(c *gin.Context) {
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
 
+// AppiumPluginTestResult The plugin can send test results when tests are completed
+// if the expected executeScript command is called on Appium driver instance
+func AppiumPluginTestResult(c *gin.Context) {
+	udid := c.Param("udid")
+	if _, ok := devices.DBDeviceMap[udid]; ok {
+		body, err := io.ReadAll(c.Request.Body)
+		defer c.Request.Body.Close()
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read test result request body - %s", err), nil)
+			return
+		}
+
+		var appiumTestResult models.AppiumTestResult
+		err = json.Unmarshal(body, &appiumTestResult)
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Failed to unmarshal test result - %s", err), nil)
+			return
+		}
+
+		err = db.GlobalMongoStore.AddAppiumTestResult(appiumTestResult.Tenant, appiumTestResult)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to store test result - %s", err), nil)
+			return
+		}
+
+		api.GenericResponse(c, http.StatusOK, "Test result stored successfully", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+}
+
 // AppiumPluginPing The plugin periodically sends pings so we can keep track if the server is up
 func AppiumPluginPing(c *gin.Context) {
 	udid := c.Param("udid")

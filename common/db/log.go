@@ -21,6 +21,7 @@ import (
 const (
 	appiumLogDB         = "appium_logs_new"
 	appiumSessionLogsDB = "appium_session_logs"
+	appiumTestResultsDB = "appium_test_results"
 	providerLogDB       = "logs"
 )
 
@@ -55,6 +56,12 @@ func (m *MongoStore) AddAppiumSessionLog(collectionName string, log models.Appiu
 	coll := m.GetCollectionWithDB(appiumSessionLogsDB, collectionName)
 
 	return InsertDocument[models.AppiumPluginSessionLog](m.Ctx, coll, log)
+}
+
+func (m *MongoStore) AddAppiumTestResult(collectionName string, testResult models.AppiumTestResult) error {
+	coll := m.GetCollectionWithDB(appiumTestResultsDB, collectionName)
+
+	return InsertDocument[models.AppiumTestResult](m.Ctx, coll, testResult)
 }
 
 func (m *MongoStore) GetBuildReports(tenant string, limit int64) ([]models.BuildReport, error) {

@@ -62,6 +62,7 @@ class GadsAppium extends BasePlugin {
         },
     };
 
+
     // Clear the action log data on session end or whatever
     async clearActionLogData() {
         GadsAppium.actionLogSequence = 0;
@@ -243,6 +244,48 @@ class GadsAppium extends BasePlugin {
             return await next()
         }
 
+        // Handle execute command for test results before passing to driver
+        if (commandName === 'execute') {
+            const script = args?.[0]
+            // First we check if the script is for storing test result for GADS
+            // If not we just proceed with the usual handling
+            if (typeof script === 'string' && script.includes('gads:testResult')) {
+                try {
+                    const cfg = GadsAppium.cfg || this.cfg
+                    if (cfg?.providerUrl && cfg?.udid && GadsAppium.actionLogBuildId) {
+                        // For executeScript, arguments are in an array as the second parameter
+                        // So we parse the test results from there
+                        const scriptArgs = args?.[1]
+                        const testResult = Array.isArray(scriptArgs) ? scriptArgs[0] : scriptArgs
+                        // We check if the test result is an object - probably can't be other but just in case
+                        if (testResult && typeof testResult === 'object') {
+                            // We build the test result body for storing the information in Mongo
+                            const testResultBody = {
+                                timestamp: Date.now(),
+                                session_id: GadsAppium.currentSessionId || null,
+                                udid: cfg.udid,
+                                tenant: GadsAppium.actionLogTenant,
+                                build_id: GadsAppium.actionLogBuildId,
+                                test_name: GadsAppium.actionLogTestName || testResult.testName,
+                                device_name: GadsAppium.actionLogDeviceName,
+                                platform_name: GadsAppium.actionLogPlatformName,
+                                status: testResult.status || 'unknown',
+                                message: testResult.message || testResult.error || ''
+                            }
+
+                            // Send the test result to the provider for storing in Mongo
+                            await GadsAppium.apiClient.sendTestResult(testResultBody)
+                        }
+                    }
+                } catch (e) {
+                    log.error(`Failed to process test result: ${e}`);
+                }
+
+                // Return success for gads:testResult scripts without calling next()
+                return { value: 'Test result processed' };
+            }
+        }
+
         // Get the command start timestamp
         const commandStartTS = Date.now()
         let result, error;
@@ -300,6 +343,7 @@ class GadsAppium extends BasePlugin {
                     // Send the log to GADS
                     await GadsAppium.apiClient.sendSessionLog(body)
                 }
+
             }
         } catch (e) {
             log.error(`Something failed - ${e}`)
