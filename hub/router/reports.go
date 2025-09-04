@@ -8,19 +8,19 @@ import (
 )
 
 func GetBuildReports(c *gin.Context) {
-	// tenantInterface, exists := c.Get("tenant")
-	// if !exists {
-	// 	api.GenericResponse(c, 401, "Tenant not found in token", nil)
-	// 	return
-	// }
+	tenantInterface, exists := c.Get("tenant")
+	if !exists {
+		api.GenericResponse(c, 401, "Tenant not found in token", nil)
+		return
+	}
 
-	// tenant, ok := tenantInterface.(string)
-	// if !ok {
-	// 	api.GenericResponse(c, 500, "Invalid tenant format", nil)
-	// 	return
-	// }
+	tenant, ok := tenantInterface.(string)
+	if !ok {
+		api.GenericResponse(c, 500, "Invalid tenant format", nil)
+		return
+	}
 
-	buildReports, err := db.GlobalMongoStore.GetBuildReports("dge8WM7G7DTcbAjAwvtoHUNxRllTfa_xsFUl8f7778c=", 50)
+	buildReports, err := db.GlobalMongoStore.GetBuildReports(tenant, 50)
 	if err != nil {
 		api.GenericResponse(c, 500, err.Error(), nil)
 		return
@@ -36,19 +36,19 @@ func GetBuildSessions(c *gin.Context) {
 		return
 	}
 
-	// tenantInterface, exists := c.Get("tenant")
-	// if !exists {
-	// 	api.GenericResponse(c, 401, "Tenant not found in token", nil)
-	// 	return
-	// }
+	tenantInterface, exists := c.Get("tenant")
+	if !exists {
+		api.GenericResponse(c, 401, "Tenant not found in token", nil)
+		return
+	}
 
-	// tenant, ok := tenantInterface.(string)
-	// if !ok {
-	// 	api.GenericResponse(c, 500, "Invalid tenant format", nil)
-	// 	return
-	// }
+	tenant, ok := tenantInterface.(string)
+	if !ok {
+		api.GenericResponse(c, 500, "Invalid tenant format", nil)
+		return
+	}
 
-	sessionReports, err := db.GlobalMongoStore.GetBuildSessions("dge8WM7G7DTcbAjAwvtoHUNxRllTfa_xsFUl8f7778c=", buildID)
+	sessionReports, err := db.GlobalMongoStore.GetBuildSessions(tenant, buildID)
 	if err != nil {
 		api.GenericResponse(c, 500, err.Error(), nil)
 		return
@@ -64,19 +64,19 @@ func GetSessionLogs(c *gin.Context) {
 		return
 	}
 
-	// tenantInterface, exists := c.Get("tenant")
-	// if !exists {
-	// 	api.GenericResponse(c, 401, "Tenant not found in token", nil)
-	// 	return
-	// }
+	tenantInterface, exists := c.Get("tenant")
+	if !exists {
+		api.GenericResponse(c, 401, "Tenant not found in token", nil)
+		return
+	}
 
-	// tenant, ok := tenantInterface.(string)
-	// if !ok {
-	// 	api.GenericResponse(c, 500, "Invalid tenant format", nil)
-	// 	return
-	// }
+	tenant, ok := tenantInterface.(string)
+	if !ok {
+		api.GenericResponse(c, 500, "Invalid tenant format", nil)
+		return
+	}
 
-	sessionLogs, err := db.GlobalMongoStore.GetSessionLogs("dge8WM7G7DTcbAjAwvtoHUNxRllTfa_xsFUl8f7778c=", sessionID)
+	sessionLogs, err := db.GlobalMongoStore.GetSessionLogs(tenant, sessionID)
 	if err != nil {
 		api.GenericResponse(c, 500, err.Error(), nil)
 		return

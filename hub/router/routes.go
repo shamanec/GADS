@@ -10,7 +10,6 @@
 package router
 
 import (
-	"GADS/common/api"
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth"
@@ -115,51 +114,6 @@ func GetProviderLogs(c *gin.Context) {
 	}
 
 	c.JSON(200, logs)
-}
-
-// GetAppiumSessionLogs godoc
-// @Summary      Get Appium session logs
-// @Description  Retrieve Appium logs for a specific session
-// @Tags         Logs
-// @Accept       json
-// @Produce      json
-// @Param        collection  query     string  true  "Collection name"
-// @Param        session     query     string  true  "Appium session ID"
-// @Success      200         {array}   models.LogEntry
-// @Failure      400         {object}  models.ErrorResponse
-// @Failure      500         {object}  models.ErrorResponse
-// @Security     BearerAuth
-// @Router       /appium-session-logs [get]
-func GetAppiumSessionLogs(c *gin.Context) {
-	collectionName := c.DefaultQuery("collection", "")
-	if collectionName == "" {
-		BadRequest(c, "Empty collection name provided")
-		return
-	}
-
-	sessionID := c.DefaultQuery("session", "")
-	if sessionID == "" {
-		BadRequest(c, "Empty Appium session ID provided")
-		return
-	}
-
-	logs, err := db.GlobalMongoStore.GetAppiumSessionLogs(collectionName, sessionID)
-	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
-	}
-
-	c.JSON(200, logs)
-}
-
-func GetAppiumSessionsTenant(c *gin.Context) {
-	tenant := c.Param("tenant")
-	sessionsData, err := db.GlobalMongoStore.ListAppiumSessions(tenant, nil, nil, 100)
-	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
-		return
-	}
-
-	api.GenericResponse(c, http.StatusOK, "Got logs", sessionsData)
 }
 
 // AddUser godoc

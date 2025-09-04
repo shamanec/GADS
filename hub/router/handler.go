@@ -92,8 +92,6 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	}
 	authGroup.GET("/user-info", auth.GetUserInfoHandler)
 	authGroup.GET("/appium-logs", GetAppiumLogs)
-	authGroup.GET("/appium-session-logs", GetAppiumSessionLogs)
-	authGroup.GET("/appium-sessions/:tenant", GetAppiumSessionsTenant)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
@@ -137,7 +135,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.PUT("/client-credentials/:id", UpdateClientCredential)
 	authGroup.DELETE("/client-credentials/:id", RevokeClientCredential)
 	// Appium reports endpoints
-	reportsGroup := r.Group("/reports")
+	reportsGroup := authGroup.Group("/reports")
 	reportsGroup.GET("/builds", GetBuildReports)
 	reportsGroup.GET("/builds/:build_id/sessions", GetBuildSessions)
 	reportsGroup.GET("/sessions/:session_id/logs", GetSessionLogs)
