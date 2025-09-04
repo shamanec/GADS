@@ -160,23 +160,23 @@ type AppiumPluginLog struct {
 }
 
 type AppiumPluginSessionLog struct {
-	Timestamp      int64  `json:"timestamp" bson:"timestamp"`             // Timestamp in milliseconds of the Appium command execution
-	SessionID      string `json:"session_id" bson:"session_id"`           // Appium session ID
-	DeviceUDID     string `json:"udid" bson:"udid"`                       // UDID of the device
-	Action         string `json:"action" bson:"action"`                   // Human readable name of the executed command
-	Command        string `json:"command" bson:"command"`                 // Actual Appium command name
-	Duration       int    `json:"duration_ms" bson:"duration_ms"`         // Time taken to execute the command
-	Success        bool   `json:"success" bson:"success"`                 // Command successful or not
-	Error          string `json:"error" bson:"error"`                     // Command error string if any
-	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"` // Sequence number of the commands, provided by the plugin for proper ordering of the logs
-	Tenant         string `json:"tenant" bson:"tenant"`                   // Test execution target tenant - `gads:tenant`
-	BuildID        string `json:"build_id" bson:"build_id"`               // Test run build identifier - `gads:buildId`
-	TestName       string `json:"test_name" bson:"test_name"`             // Name of the currently executed test if any - `gads:testName`
-	LocatorUsing   string `json:"locator_using" bson:"locator_using"`     // Type of Appium locator used on findElement/findElements
-	LocatorValue   string `json:"locator_value" bson:"locator_value"`     // Actual locator value used on findElement/findElements
-	DeviceName     string `json:"device_name" bson:"device_name"`         // Name of the device from GADS registered devices database
-	PlatformName   string `json:"platform_name" bson:"platform_name"`     // Target platform - iOS/Android/Tizen/WebOS
-	AdditionalInfo string `json:"additional_info" bson:"additional_info"` // Additional Appium command info parsed from command arguments in human-readable output
+	Timestamp      int64  `json:"timestamp" bson:"timestamp"`                       // Timestamp in milliseconds of the Appium command execution
+	SessionID      string `json:"session_id" bson:"session_id"`                     // Appium session ID
+	DeviceUDID     string `json:"udid" bson:"udid"`                                 // UDID of the device
+	Action         string `json:"action" bson:"action"`                             // Human readable name of the executed command
+	Command        string `json:"command" bson:"command"`                           // Actual Appium command name
+	Duration       int    `json:"duration_ms" bson:"duration_ms"`                   // Time taken to execute the command
+	Success        bool   `json:"success" bson:"success"`                           // Command successful or not
+	Error          string `json:"error" bson:"error,omitempty"`                     // Command error string if any
+	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"`           // Sequence number of the commands, provided by the plugin for proper ordering of the logs
+	Tenant         string `json:"tenant" bson:"tenant"`                             // Test execution target tenant - `gads:tenant`
+	BuildID        string `json:"build_id" bson:"build_id"`                         // Test run build identifier - `gads:buildId`
+	TestName       string `json:"test_name" bson:"test_name,omitempty"`             // Name of the currently executed test if any - `gads:testName`
+	LocatorUsing   string `json:"locator_using" bson:"locator_using,omitempty"`     // Type of Appium locator used on findElement/findElements
+	LocatorValue   string `json:"locator_value" bson:"locator_value,omitempty"`     // Actual locator value used on findElement/findElements
+	DeviceName     string `json:"device_name" bson:"device_name"`                   // Name of the device from GADS registered devices database
+	PlatformName   string `json:"platform_name" bson:"platform_name"`               // Target platform - iOS/Android/Tizen/WebOS
+	AdditionalInfo string `json:"additional_info" bson:"additional_info,omitempty"` // Additional Appium command info parsed from command arguments in human-readable output
 }
 
 // SessionLogsSummary is the compact record we will show in tests report table

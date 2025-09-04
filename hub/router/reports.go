@@ -3,6 +3,7 @@ package router
 import (
 	"GADS/common/api"
 	"GADS/common/db"
+	"GADS/common/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +27,9 @@ func GetBuildReports(c *gin.Context) {
 		return
 	}
 
+	if buildReports == nil {
+		buildReports = []models.BuildReport{}
+	}
 	api.GenericResponse(c, 200, "Got reports", buildReports)
 }
 
