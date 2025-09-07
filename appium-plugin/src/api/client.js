@@ -69,14 +69,6 @@ export class GadsApiClient {
         }
     }
 
-    // Send test result to provider instance
-    async sendTestResult(testResultData) {
-        try {
-            await this.api.post('/test-result', testResultData);
-        } catch (e) {
-            // Silent fail for test results to avoid disrupting main flow
-        }
-    }
 
     // Ping to notify provider that the Appium server is live and running
     async sendPing(pingData) {

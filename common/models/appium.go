@@ -177,6 +177,8 @@ type AppiumPluginSessionLog struct {
 	DeviceName     string `json:"device_name" bson:"device_name"`                   // Name of the device from GADS registered devices database
 	PlatformName   string `json:"platform_name" bson:"platform_name"`               // Target platform - iOS/Android/Tizen/WebOS
 	AdditionalInfo string `json:"additional_info" bson:"additional_info,omitempty"` // Additional Appium command info parsed from command arguments in human-readable output
+	TestStatus     string `json:"test_status,omitempty" bson:"test_status,omitempty"` // Test status (pass, fail, skip) - only for test result logs
+	TestMessage    string `json:"test_message,omitempty" bson:"test_message,omitempty"` // Test message or error - only for test result logs
 }
 
 // SessionLogsSummary is the compact record we will show in tests report table
@@ -190,13 +192,17 @@ type SessionLogsSummary struct {
 }
 
 type BuildReport struct {
-	BuildID      string   `json:"build_id" bson:"build_id"`
-	SessionCount int      `json:"session_count" bson:"session_count"`
-	SessionIDs   []string `json:"session_ids" bson:"session_ids"`
-	TestNames    []string `json:"test_names" bson:"test_names"`
-	DeviceNames  []string `json:"device_names" bson:"device_names"`
-	FirstAction  int64    `json:"first_action" bson:"first_action"`
-	LastAction   int64    `json:"last_action" bson:"last_action"`
+	BuildID         string   `json:"build_id" bson:"build_id"`
+	SessionCount    int      `json:"session_count" bson:"session_count"`
+	SessionIDs      []string `json:"session_ids" bson:"session_ids"`
+	TestNames       []string `json:"test_names" bson:"test_names"`
+	DeviceNames     []string `json:"device_names" bson:"device_names"`
+	FirstAction     int64    `json:"first_action" bson:"first_action"`
+	LastAction      int64    `json:"last_action" bson:"last_action"`
+	PassedTests     int      `json:"passed_tests" bson:"passed_tests"`
+	FailedTests     int      `json:"failed_tests" bson:"failed_tests"`
+	SkippedTests    int      `json:"skipped_tests" bson:"skipped_tests"`
+	NoResultTests   int      `json:"no_result_tests" bson:"no_result_tests"`
 }
 
 type SessionReport struct {
@@ -209,6 +215,9 @@ type SessionReport struct {
 	FailedActions int    `json:"failed_actions" bson:"failed_actions"`
 	FirstAction   int64  `json:"first_action" bson:"first_action"`
 	LastAction    int64  `json:"last_action" bson:"last_action"`
+	Status        string `json:"status,omitempty" bson:"status,omitempty"`
+	Message       string `json:"message,omitempty" bson:"message,omitempty"`
+	Timestamp     int64  `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
 }
 
 type SessionActionLog struct {
@@ -223,15 +232,3 @@ type SessionActionLog struct {
 	Error          string `json:"error,omitempty" bson:"error"`
 }
 
-type AppiumTestResult struct {
-	Timestamp    int64  `json:"timestamp" bson:"timestamp"`           // Timestamp in milliseconds when test result was submitted
-	SessionID    string `json:"session_id" bson:"session_id"`         // Appium session ID
-	DeviceUDID   string `json:"udid" bson:"udid"`                     // UDID of the device
-	Tenant       string `json:"tenant" bson:"tenant"`                 // Test execution target tenant
-	BuildID      string `json:"build_id" bson:"build_id"`             // Test run build identifier
-	TestName     string `json:"test_name,omitempty" bson:"test_name"` // Name of the test (optional)
-	DeviceName   string `json:"device_name" bson:"device_name"`       // Name of the device from GADS
-	PlatformName string `json:"platform_name" bson:"platform_name"`   // Target platform - iOS/Android/Tizen/WebOS
-	TestStatus   string `json:"status" bson:"status"`                 // Test status - pass, fail, skip, etc.
-	TestMessage  string `json:"message,omitempty" bson:"message"`     // Test result message or error
-}

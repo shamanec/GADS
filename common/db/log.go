@@ -21,7 +21,6 @@ import (
 const (
 	appiumLogDB         = "appium_logs_new"
 	appiumSessionLogsDB = "appium_session_logs"
-	appiumTestResultsDB = "appium_test_results"
 	providerLogDB       = "logs"
 )
 
@@ -58,15 +57,11 @@ func (m *MongoStore) AddAppiumSessionLog(collectionName string, log models.Appiu
 	return InsertDocument[models.AppiumPluginSessionLog](m.Ctx, coll, log)
 }
 
-func (m *MongoStore) AddAppiumTestResult(collectionName string, testResult models.AppiumTestResult) error {
-	coll := m.GetCollectionWithDB(appiumTestResultsDB, collectionName)
-
-	return InsertDocument[models.AppiumTestResult](m.Ctx, coll, testResult)
-}
 
 func (m *MongoStore) GetBuildReports(tenant string, limit int64) ([]models.BuildReport, error) {
-	coll := m.GetCollectionWithDB(appiumSessionLogsDB, tenant)
+	sessionLogsColl := m.GetCollectionWithDB(appiumSessionLogsDB, tenant)
 
+	// First query: Get build reports from session logs
 	pipeline := mongo.Pipeline{
 		// Match by tenant and only records with build_id
 		{{Key: "$match", Value: bson.D{
@@ -100,7 +95,7 @@ func (m *MongoStore) GetBuildReports(tenant string, limit int64) ([]models.Build
 		{{Key: "$project", Value: bson.D{{Key: "_id", Value: 0}}}},
 	}
 
-	cursor, err := coll.Aggregate(m.Ctx, pipeline)
+	cursor, err := sessionLogsColl.Aggregate(m.Ctx, pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("failed to aggregate build reports: %w", err)
 	}
@@ -111,12 +106,118 @@ func (m *MongoStore) GetBuildReports(tenant string, limit int64) ([]models.Build
 		return nil, fmt.Errorf("failed to decode build reports: %w", err)
 	}
 
+	// If no builds found, return empty slice
+	if len(buildReports) == 0 {
+		return buildReports, nil
+	}
+
+	// Second query: Get test results counts from session logs where action = "Test Result"
+	// Extract build IDs for the test results query
+	buildIDs := make([]string, len(buildReports))
+	for i, build := range buildReports {
+		buildIDs[i] = build.BuildID
+	}
+
+	// Aggregate test results from session logs by build_id and test status
+	testResultsPipeline := mongo.Pipeline{
+		// Match by build IDs and test result actions
+		{{Key: "$match", Value: bson.D{
+			{Key: "tenant", Value: tenant},
+			{Key: "build_id", Value: bson.D{{Key: "$in", Value: buildIDs}}},
+			{Key: "action", Value: "Test Result"},
+		}}},
+
+		// Group by build_id and count test statuses
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$build_id"},
+			{Key: "build_id", Value: bson.D{{Key: "$first", Value: "$build_id"}}},
+			{Key: "total_sessions_with_results", Value: bson.D{{Key: "$addToSet", Value: "$session_id"}}},
+			{Key: "passed_tests", Value: bson.D{{Key: "$sum", Value: bson.D{
+				{Key: "$cond", Value: []interface{}{
+					bson.D{{Key: "$regexMatch", Value: bson.D{
+						{Key: "input", Value: bson.D{{Key: "$toLower", Value: "$test_status"}}},
+						{Key: "regex", Value: "pass"},
+					}}},
+					1, 0,
+				}},
+			}}}},
+			{Key: "failed_tests", Value: bson.D{{Key: "$sum", Value: bson.D{
+				{Key: "$cond", Value: []interface{}{
+					bson.D{{Key: "$regexMatch", Value: bson.D{
+						{Key: "input", Value: bson.D{{Key: "$toLower", Value: "$test_status"}}},
+						{Key: "regex", Value: "fail"},
+					}}},
+					1, 0,
+				}},
+			}}}},
+			{Key: "skipped_tests", Value: bson.D{{Key: "$sum", Value: bson.D{
+				{Key: "$cond", Value: []interface{}{
+					bson.D{{Key: "$regexMatch", Value: bson.D{
+						{Key: "input", Value: bson.D{{Key: "$toLower", Value: "$test_status"}}},
+						{Key: "regex", Value: "skip"},
+					}}},
+					1, 0,
+				}},
+			}}}},
+		}}},
+
+		// Calculate sessions with results count
+		{{Key: "$addFields", Value: bson.D{
+			{Key: "sessions_with_results_count", Value: bson.D{{Key: "$size", Value: "$total_sessions_with_results"}}},
+		}}},
+
+		// Clean up fields
+		{{Key: "$project", Value: bson.D{
+			{Key: "_id", Value: 0},
+			{Key: "total_sessions_with_results", Value: 0},
+		}}},
+	}
+
+	testResultsCursor, err := sessionLogsColl.Aggregate(m.Ctx, testResultsPipeline)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate test results: %w", err)
+	}
+	defer testResultsCursor.Close(m.Ctx)
+
+	type TestCounts struct {
+		BuildID                   string `bson:"build_id"`
+		SessionsWithResultsCount  int    `bson:"sessions_with_results_count"`
+		PassedTests               int    `bson:"passed_tests"`
+		FailedTests               int    `bson:"failed_tests"`
+		SkippedTests              int    `bson:"skipped_tests"`
+	}
+
+	var testCounts []TestCounts
+	if err = testResultsCursor.All(m.Ctx, &testCounts); err != nil {
+		return nil, fmt.Errorf("failed to decode test counts: %w", err)
+	}
+
+	// Create a map of test counts by build_id for quick lookup
+	testCountsMap := make(map[string]TestCounts)
+	for _, counts := range testCounts {
+		testCountsMap[counts.BuildID] = counts
+	}
+
+	// Enhance build reports with test counts
+	for i := range buildReports {
+		if counts, exists := testCountsMap[buildReports[i].BuildID]; exists {
+			buildReports[i].PassedTests = counts.PassedTests
+			buildReports[i].FailedTests = counts.FailedTests
+			buildReports[i].SkippedTests = counts.SkippedTests
+			buildReports[i].NoResultTests = buildReports[i].SessionCount - counts.SessionsWithResultsCount
+		} else {
+			// No test results found, all sessions have no results
+			buildReports[i].NoResultTests = buildReports[i].SessionCount
+		}
+	}
+
 	return buildReports, nil
 }
 
 func (m *MongoStore) GetBuildSessions(tenant string, buildID string) ([]models.SessionReport, error) {
-	coll := m.GetCollectionWithDB(appiumSessionLogsDB, tenant)
+	sessionLogsColl := m.GetCollectionWithDB(appiumSessionLogsDB, tenant)
 
+	// First query: Get session reports from action logs
 	pipeline := mongo.Pipeline{
 		// Match by tenant and build_id
 		{{Key: "$match", Value: bson.D{
@@ -150,7 +251,7 @@ func (m *MongoStore) GetBuildSessions(tenant string, buildID string) ([]models.S
 		{{Key: "$project", Value: bson.D{{Key: "_id", Value: 0}}}},
 	}
 
-	cursor, err := coll.Aggregate(m.Ctx, pipeline)
+	cursor, err := sessionLogsColl.Aggregate(m.Ctx, pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("failed to aggregate session reports: %w", err)
 	}
@@ -159,6 +260,58 @@ func (m *MongoStore) GetBuildSessions(tenant string, buildID string) ([]models.S
 	var sessionReports []models.SessionReport
 	if err = cursor.All(m.Ctx, &sessionReports); err != nil {
 		return nil, fmt.Errorf("failed to decode session reports: %w", err)
+	}
+
+	// If no sessions found, return empty slice
+	if len(sessionReports) == 0 {
+		return sessionReports, nil
+	}
+
+	// Second query: Get test results from session logs where action = "Test Result"
+	// Extract session IDs for the test results query
+	sessionIDs := make([]string, len(sessionReports))
+	for i, session := range sessionReports {
+		sessionIDs[i] = session.SessionID
+	}
+
+	// Query test result session logs by session IDs
+	testResultsFilter := bson.D{
+		{Key: "tenant", Value: tenant},
+		{Key: "session_id", Value: bson.D{{Key: "$in", Value: sessionIDs}}},
+		{Key: "action", Value: "Test Result"},
+	}
+
+	testResultsCursor, err := sessionLogsColl.Find(m.Ctx, testResultsFilter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find test results: %w", err)
+	}
+	defer testResultsCursor.Close(m.Ctx)
+
+	type TestResultLog struct {
+		SessionID   string `bson:"session_id"`
+		TestStatus  string `bson:"test_status"`
+		TestMessage string `bson:"test_message"`
+		Timestamp   int64  `bson:"timestamp"`
+	}
+
+	var testResults []TestResultLog
+	if err = testResultsCursor.All(m.Ctx, &testResults); err != nil {
+		return nil, fmt.Errorf("failed to decode test results: %w", err)
+	}
+
+	// Create a map of test results by session_id for quick lookup
+	testResultsMap := make(map[string]TestResultLog)
+	for _, result := range testResults {
+		testResultsMap[result.SessionID] = result
+	}
+
+	// Enhance session reports with test results
+	for i := range sessionReports {
+		if testResult, exists := testResultsMap[sessionReports[i].SessionID]; exists {
+			sessionReports[i].Status = testResult.TestStatus
+			sessionReports[i].Message = testResult.TestMessage
+			sessionReports[i].Timestamp = testResult.Timestamp
+		}
 	}
 
 	return sessionReports, nil

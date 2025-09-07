@@ -244,57 +244,20 @@ class GadsAppium extends BasePlugin {
             return await next()
         }
 
-        // Handle execute command for test results before passing to driver
-        if (commandName === 'execute') {
-            const script = args?.[0]
-            // First we check if the script is for storing test result for GADS
-            // If not we just proceed with the usual handling
-            if (typeof script === 'string' && script.includes('gads:testResult')) {
-                try {
-                    const cfg = GadsAppium.cfg || this.cfg
-                    if (cfg?.providerUrl && cfg?.udid && GadsAppium.actionLogBuildId) {
-                        // For executeScript, arguments are in an array as the second parameter
-                        // So we parse the test results from there
-                        const scriptArgs = args?.[1]
-                        const testResult = Array.isArray(scriptArgs) ? scriptArgs[0] : scriptArgs
-                        // We check if the test result is an object - probably can't be other but just in case
-                        if (testResult && typeof testResult === 'object') {
-                            // We build the test result body for storing the information in Mongo
-                            const testResultBody = {
-                                timestamp: Date.now(),
-                                session_id: GadsAppium.currentSessionId || null,
-                                udid: cfg.udid,
-                                tenant: GadsAppium.actionLogTenant,
-                                build_id: GadsAppium.actionLogBuildId,
-                                test_name: GadsAppium.actionLogTestName || testResult.testName,
-                                device_name: GadsAppium.actionLogDeviceName,
-                                platform_name: GadsAppium.actionLogPlatformName,
-                                status: testResult.status || 'unknown',
-                                message: testResult.message || testResult.error || ''
-                            }
-
-                            // Send the test result to the provider for storing in Mongo
-                            await GadsAppium.apiClient.sendTestResult(testResultBody)
-                        }
-                    }
-                } catch (e) {
-                    log.error(`Failed to process test result: ${e}`);
-                }
-
-                // Return success for gads:testResult scripts without calling next()
-                return { value: 'Test result processed' };
-            }
-        }
-
         // Get the command start timestamp
         const commandStartTS = Date.now()
         let result, error;
 
         // Execute the command, saving result and/or error
-        try {
-            result = await next()
-        } catch (e) {
-            error = e
+        if (commandName === 'execute' && args?.[0] && typeof args[0] === 'string' && args[0].includes('gads:testResult')) {
+            // Skip calling next() for test result commands to avoid unimplemented execute
+            result = { value: 'Test result processed' }
+        } else {
+            try {
+                result = await next()
+            } catch (e) {
+                error = e
+            }
         }
 
         try {
@@ -319,12 +282,24 @@ class GadsAppium extends BasePlugin {
                     // Parse specific commands arguments into human readable output
                     const commandAdditionalInfo = handleArgs(commandName, args)
 
+                    // Check if this is a test result execute command
+                    let testStatus = null;
+                    let testMessage = null;
+                    if (commandName === 'execute' && args?.[0] && typeof args[0] === 'string' && args[0].includes('gads:testResult')) {
+                        const scriptArgs = args?.[1];
+                        const testResult = Array.isArray(scriptArgs) ? scriptArgs[0] : scriptArgs;
+                        if (testResult && typeof testResult === 'object') {
+                            testStatus = testResult.status || 'unknown';
+                            testMessage = testResult.message || testResult.error || '';
+                        }
+                    }
+
                     // Build the body of the log we send to GADS
                     const body = {
                         timestamp: commandStartTS, // Start time of the command
                         session_id: GadsAppium.currentSessionId || null, // Appium current session id
                         udid: cfg.udid, // Target device UDID
-                        action: info.action, // Human-readable report-friendly command name
+                        action: info.action, // Use "Test Result" for test result logs
                         command: commandName, // Actual Appium command name
                         duration_ms: Date.now() - commandStartTS, // Time taken to execute the command
                         success: !error, // Is the command successful or not
@@ -337,7 +312,17 @@ class GadsAppium extends BasePlugin {
                         locator_value: findElementSelector, // Value of the target element locator for findElement/findElements
                         device_name: GadsAppium.actionLogDeviceName, // Target device name from GADS
                         platform_name: GadsAppium.actionLogPlatformName, // Target test platform name - iOS/Android/Tizen/WebOS
-                        additional_info: commandAdditionalInfo, // Human-readable report-friendly additional info for specific commands
+                        additional_info: commandAdditionalInfo, // Use test message for test result logs
+                    }
+
+                    // Add test result fields only if they have values (to avoid empty fields in mongo)
+                    if (testStatus) {
+                        body.test_status = testStatus
+                        body.action = 'Test Result'
+                    }
+                    if (testMessage) {
+                        body.test_message = testMessage;
+                        body.additional_info = testStatus
                     }
 
                     // Send the log to GADS
