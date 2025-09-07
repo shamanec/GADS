@@ -322,7 +322,7 @@ class GadsAppium extends BasePlugin {
                     }
                     if (testMessage) {
                         body.test_message = testMessage;
-                        body.additional_info = testStatus
+                        body.additional_info = testMessage
                     }
 
                     // Send the log to GADS

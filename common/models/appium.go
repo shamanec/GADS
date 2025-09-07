@@ -160,24 +160,24 @@ type AppiumPluginLog struct {
 }
 
 type AppiumPluginSessionLog struct {
-	Timestamp      int64  `json:"timestamp" bson:"timestamp"`                       // Timestamp in milliseconds of the Appium command execution
-	SessionID      string `json:"session_id" bson:"session_id"`                     // Appium session ID
-	DeviceUDID     string `json:"udid" bson:"udid"`                                 // UDID of the device
-	Action         string `json:"action" bson:"action"`                             // Human readable name of the executed command
-	Command        string `json:"command" bson:"command"`                           // Actual Appium command name
-	Duration       int    `json:"duration_ms" bson:"duration_ms"`                   // Time taken to execute the command
-	Success        bool   `json:"success" bson:"success"`                           // Command successful or not
-	Error          string `json:"error" bson:"error,omitempty"`                     // Command error string if any
-	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"`           // Sequence number of the commands, provided by the plugin for proper ordering of the logs
-	Tenant         string `json:"tenant" bson:"tenant"`                             // Test execution target tenant - `gads:tenant`
-	BuildID        string `json:"build_id" bson:"build_id"`                         // Test run build identifier - `gads:buildId`
-	TestName       string `json:"test_name" bson:"test_name,omitempty"`             // Name of the currently executed test if any - `gads:testName`
-	LocatorUsing   string `json:"locator_using" bson:"locator_using,omitempty"`     // Type of Appium locator used on findElement/findElements
-	LocatorValue   string `json:"locator_value" bson:"locator_value,omitempty"`     // Actual locator value used on findElement/findElements
-	DeviceName     string `json:"device_name" bson:"device_name"`                   // Name of the device from GADS registered devices database
-	PlatformName   string `json:"platform_name" bson:"platform_name"`               // Target platform - iOS/Android/Tizen/WebOS
-	AdditionalInfo string `json:"additional_info" bson:"additional_info,omitempty"` // Additional Appium command info parsed from command arguments in human-readable output
-	TestStatus     string `json:"test_status,omitempty" bson:"test_status,omitempty"` // Test status (pass, fail, skip) - only for test result logs
+	Timestamp      int64  `json:"timestamp" bson:"timestamp"`                           // Timestamp in milliseconds of the Appium command execution
+	SessionID      string `json:"session_id" bson:"session_id"`                         // Appium session ID
+	DeviceUDID     string `json:"udid" bson:"udid"`                                     // UDID of the device
+	Action         string `json:"action" bson:"action"`                                 // Human readable name of the executed command
+	Command        string `json:"command" bson:"command"`                               // Actual Appium command name
+	Duration       int    `json:"duration_ms" bson:"duration_ms"`                       // Time taken to execute the command
+	Success        bool   `json:"success" bson:"success"`                               // Command successful or not
+	Error          string `json:"error" bson:"error,omitempty"`                         // Command error string if any
+	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"`               // Sequence number of the commands, provided by the plugin for proper ordering of the logs
+	Tenant         string `json:"tenant" bson:"tenant"`                                 // Test execution target tenant - `gads:tenant`
+	BuildID        string `json:"build_id" bson:"build_id"`                             // Test run build identifier - `gads:buildId`
+	TestName       string `json:"test_name" bson:"test_name,omitempty"`                 // Name of the currently executed test if any - `gads:testName`
+	LocatorUsing   string `json:"locator_using" bson:"locator_using,omitempty"`         // Type of Appium locator used on findElement/findElements
+	LocatorValue   string `json:"locator_value" bson:"locator_value,omitempty"`         // Actual locator value used on findElement/findElements
+	DeviceName     string `json:"device_name" bson:"device_name"`                       // Name of the device from GADS registered devices database
+	PlatformName   string `json:"platform_name" bson:"platform_name"`                   // Target platform - iOS/Android/Tizen/WebOS
+	AdditionalInfo string `json:"additional_info" bson:"additional_info,omitempty"`     // Additional Appium command info parsed from command arguments in human-readable output
+	TestStatus     string `json:"test_status,omitempty" bson:"test_status,omitempty"`   // Test status (pass, fail, skip) - only for test result logs
 	TestMessage    string `json:"test_message,omitempty" bson:"test_message,omitempty"` // Test message or error - only for test result logs
 }
 
@@ -192,17 +192,17 @@ type SessionLogsSummary struct {
 }
 
 type BuildReport struct {
-	BuildID         string   `json:"build_id" bson:"build_id"`
-	SessionCount    int      `json:"session_count" bson:"session_count"`
-	SessionIDs      []string `json:"session_ids" bson:"session_ids"`
-	TestNames       []string `json:"test_names" bson:"test_names"`
-	DeviceNames     []string `json:"device_names" bson:"device_names"`
-	FirstAction     int64    `json:"first_action" bson:"first_action"`
-	LastAction      int64    `json:"last_action" bson:"last_action"`
-	PassedTests     int      `json:"passed_tests" bson:"passed_tests"`
-	FailedTests     int      `json:"failed_tests" bson:"failed_tests"`
-	SkippedTests    int      `json:"skipped_tests" bson:"skipped_tests"`
-	NoResultTests   int      `json:"no_result_tests" bson:"no_result_tests"`
+	BuildID       string   `json:"build_id" bson:"build_id"`
+	SessionCount  int      `json:"session_count" bson:"session_count"`
+	SessionIDs    []string `json:"session_ids" bson:"session_ids"`
+	TestNames     []string `json:"test_names" bson:"test_names"`
+	DeviceNames   []string `json:"device_names" bson:"device_names"`
+	FirstAction   int64    `json:"first_action" bson:"first_action"`
+	LastAction    int64    `json:"last_action" bson:"last_action"`
+	PassedTests   int      `json:"passed_tests" bson:"passed_tests"`
+	FailedTests   int      `json:"failed_tests" bson:"failed_tests"`
+	SkippedTests  int      `json:"skipped_tests" bson:"skipped_tests"`
+	NoResultTests int      `json:"no_result_tests" bson:"no_result_tests"`
 }
 
 type SessionReport struct {
@@ -219,16 +219,3 @@ type SessionReport struct {
 	Message       string `json:"message,omitempty" bson:"message,omitempty"`
 	Timestamp     int64  `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
 }
-
-type SessionActionLog struct {
-	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"`
-	Timestamp      int64  `json:"timestamp" bson:"timestamp"`
-	Action         string `json:"action" bson:"action"`
-	Duration       int    `json:"duration_ms" bson:"duration_ms"`
-	LocatorUsing   string `json:"locator_using,omitempty" bson:"locator_using"`
-	LocatorValue   string `json:"locator_value,omitempty" bson:"locator_value"`
-	AdditionalInfo string `json:"additional_info,omitempty" bson:"additional_info"`
-	Success        bool   `json:"success" bson:"success"`
-	Error          string `json:"error,omitempty" bson:"error"`
-}
-

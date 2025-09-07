@@ -317,7 +317,7 @@ func (m *MongoStore) GetBuildSessions(tenant string, buildID string) ([]models.S
 	return sessionReports, nil
 }
 
-func (m *MongoStore) GetSessionLogs(tenant string, sessionID string) ([]models.SessionActionLog, error) {
+func (m *MongoStore) GetSessionLogs(tenant string, sessionID string) ([]models.AppiumPluginSessionLog, error) {
 	coll := m.GetCollectionWithDB(appiumSessionLogsDB, tenant)
 
 	filter := bson.D{
@@ -334,7 +334,7 @@ func (m *MongoStore) GetSessionLogs(tenant string, sessionID string) ([]models.S
 	}
 	defer cursor.Close(m.Ctx)
 
-	var sessionLogs []models.SessionActionLog
+	var sessionLogs []models.AppiumPluginSessionLog
 	if err = cursor.All(m.Ctx, &sessionLogs); err != nil {
 		return nil, fmt.Errorf("failed to decode session logs: %w", err)
 	}
