@@ -127,11 +127,22 @@ type AppiumSession struct {
 
 // ExtractClientSecretFromSession extracts client secret from Appium session request
 func ExtractClientSecretFromSession(sessionReq map[string]interface{}, prefix string) string {
-	// Check capabilities.alwaysMatch (W3C format)
+	// Check capabilities (W3C format)
 	if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
+		// Check capabilities.alwaysMatch (W3C format)
 		if alwaysMatch, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
 			if secret, ok := alwaysMatch[prefix+":clientSecret"].(string); ok {
 				return secret
+			}
+		}
+        // Check capabilities.firstMatch (W3C format)
+		if firstMatch, ok := caps["firstMatch"].([]interface{}); ok {
+			for _, item := range firstMatch {
+				if firstCaps, ok := item.(map[string]interface{}); ok {
+					if secret, ok := firstCaps[prefix+":clientSecret"].(string); ok {
+						return secret
+					}
+				}
 			}
 		}
 	}
