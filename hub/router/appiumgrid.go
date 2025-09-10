@@ -171,6 +171,79 @@ func createAppiumError(code, message, errorType string, statusCode int, cause er
 	}
 }
 
+// Device cleanup utility functions
+
+// releaseDevice immediately releases a device from automation use
+func releaseDevice(device *models.LocalHubDevice) {
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	
+	device.IsAvailableForAutomation = true
+	device.IsRunningAutomation = false
+}
+
+// releaseDeviceWithUserCleanup releases a device and optionally clears user info
+func releaseDeviceWithUserCleanup(device *models.LocalHubDevice, clearUserInfo bool) {
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	
+	device.IsAvailableForAutomation = true
+	device.IsRunningAutomation = false
+	
+	// Only clear user info if requested and no manual session is active
+	if clearUserInfo && device.InUseWSConnection == nil {
+		device.InUseBy = ""
+		device.InUseByTenant = ""
+		device.InUseTS = 0
+	}
+}
+
+// releaseDeviceCompletely fully releases a device including session ID and user info
+func releaseDeviceCompletely(device *models.LocalHubDevice) {
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	
+	device.IsAvailableForAutomation = true
+	device.IsRunningAutomation = false
+	device.SessionID = ""
+	
+	// Only clear user info if no manual session is active
+	if device.InUseWSConnection == nil {
+		device.InUseBy = ""
+		device.InUseByTenant = ""
+		device.InUseTS = 0
+	}
+}
+
+// conditionalDeviceRelease releases device only if the last action timestamp meets the condition
+func conditionalDeviceRelease(device *models.LocalHubDevice, timeThresholdMs int64, includeSessionID bool) {
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	
+	if device.LastAutomationActionTS <= (time.Now().UnixMilli() - timeThresholdMs) {
+		device.IsAvailableForAutomation = true
+		device.IsRunningAutomation = false
+		
+		if includeSessionID {
+			device.SessionID = ""
+		}
+		
+		// Only clear user info if no manual session is active
+		if device.InUseWSConnection == nil {
+			device.InUseBy = ""
+			device.InUseByTenant = ""
+			device.InUseTS = 0
+		}
+	}
+}
+
+// setDeviceAvailable sets device as available for automation
+func setDeviceAvailable(device *models.LocalHubDevice) {
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	device.IsAvailableForAutomation = true
+}
+
 // Every 3 seconds check the devices
 // And clean the automation session if no action was taken in the timeout limit
 func UpdateExpiredGridSessions() {
@@ -350,10 +423,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			// Create a new request to the device target URL
 			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				releaseDevice(foundDevice)
 				respondWithAppiumError(c, ErrCreateProxyRequest.WithCause(err))
 				return
 			}
@@ -367,47 +437,22 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			client := &http.Client{}
 			resp, err := client.Do(proxyReq)
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				releaseDevice(foundDevice)
 				respondWithAppiumError(c, ErrExecuteProxyRequest.WithCause(err))
 				return
 			}
 			defer resp.Body.Close()
 
 			if resp.StatusCode >= 400 {
-				// Release device for any error status
-				devices.HubDevicesData.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				if resp.StatusCode != http.StatusInternalServerError {
-					// Only clear user info if no manual session is active
-					if foundDevice.InUseWSConnection == nil {
-						foundDevice.InUseBy = ""
-						foundDevice.InUseByTenant = ""
-						foundDevice.InUseTS = 0
-					}
-				}
-				devices.HubDevicesData.Mu.Unlock()
+				// Release device for any error status, clear user info only for non-500 errors
+				clearUserInfo := resp.StatusCode != http.StatusInternalServerError
+				releaseDeviceWithUserCleanup(foundDevice, clearUserInfo)
 
 				// For 500 errors, keep the existing behavior with goroutine
 				if resp.StatusCode == http.StatusInternalServerError {
 					go func() {
 						time.Sleep(10 * time.Second)
-						devices.HubDevicesData.Mu.Lock()
-						if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 5000) {
-							foundDevice.IsAvailableForAutomation = true
-							foundDevice.SessionID = ""
-							foundDevice.IsRunningAutomation = false
-							// Only clear user info if no manual session is active
-							if foundDevice.InUseWSConnection == nil {
-								foundDevice.InUseBy = ""
-								foundDevice.InUseByTenant = ""
-								foundDevice.InUseTS = 0
-							}
-						}
-						devices.HubDevicesData.Mu.Unlock()
+						conditionalDeviceRelease(foundDevice, 5000, true)
 					}()
 				}
 
@@ -424,10 +469,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			// Read the response sessionRequestBody from the proxied request
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				releaseDevice(foundDevice)
 				respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
 				return
 			}
@@ -436,10 +478,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			var proxySessionResponse AppiumSessionResponse
 			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				releaseDevice(foundDevice)
 				respondWithAppiumError(c, ErrUnmarshalProxyResponse.WithCause(err))
 				return
 			}
@@ -556,24 +595,11 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 
 			// If the request succeeded and was a delete request, remove the session ID from the map
 			if c.Request.Method == http.MethodDelete {
-				devices.HubDevicesData.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				devices.HubDevicesData.Mu.Unlock()
+				setDeviceAvailable(foundDevice)
 				// Start a goroutine that will release the device after 1 second if no other actions were taken
 				go func() {
 					time.Sleep(1 * time.Second)
-					devices.HubDevicesData.Mu.Lock()
-					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
-						foundDevice.SessionID = ""
-						foundDevice.IsRunningAutomation = false
-						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
-							foundDevice.InUseBy = ""
-							foundDevice.InUseByTenant = ""
-							foundDevice.InUseTS = 0
-						}
-					}
-					devices.HubDevicesData.Mu.Unlock()
+					conditionalDeviceRelease(foundDevice, 1000, true)
 				}()
 			}
 
@@ -581,19 +607,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
 				go func() {
 					time.Sleep(10 * time.Second)
-					devices.HubDevicesData.Mu.Lock()
-					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
-						foundDevice.SessionID = ""
-						foundDevice.IsAvailableForAutomation = true
-						foundDevice.IsRunningAutomation = false
-						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
-							foundDevice.InUseBy = ""
-							foundDevice.InUseByTenant = ""
-							foundDevice.InUseTS = 0
-						}
-					}
-					devices.HubDevicesData.Mu.Unlock()
+					conditionalDeviceRelease(foundDevice, 10000, true)
 				}()
 				customErr := createAppiumError("PROXY_SERVER_ERROR", "Internal server error from device provider", ErrInternalServerError, http.StatusInternalServerError, nil)
 				respondWithAppiumError(c, customErr)
