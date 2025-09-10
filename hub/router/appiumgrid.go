@@ -61,66 +61,66 @@ func (e *AppiumError) Error() string {
 
 // Predefined error types
 var (
-	ErrSessionNotCreated        = "session not created"
-	ErrSessionNotFound          = "session not found"
-	ErrInvalidRequest          = "invalid request"
-	ErrDeviceNotFound          = "device not found"
-	ErrUnauthorized            = "unauthorized"
-	ErrInternalServerError     = "internal server error"
+	ErrSessionNotCreated   = "session not created"
+	ErrSessionNotFound     = "session not found"
+	ErrInvalidRequest      = "invalid request"
+	ErrDeviceNotFound      = "device not found"
+	ErrUnauthorized        = "unauthorized"
+	ErrInternalServerError = "internal server error"
 )
 
 // Common Appium Grid errors
 var (
 	ErrReadRequestBody = &AppiumError{
-		Code: "REQUEST_READ_FAILED", Message: "Failed to read request body", 
+		Code: "REQUEST_READ_FAILED", Message: "Failed to read request body",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
 	}
 	ErrUnmarshalRequest = &AppiumError{
-		Code: "REQUEST_UNMARSHAL_FAILED", Message: "Failed to unmarshal request body", 
+		Code: "REQUEST_UNMARSHAL_FAILED", Message: "Failed to unmarshal request body",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
 	}
 	ErrNoSuitableCapabilities = &AppiumError{
-		Code: "INVALID_CAPABILITIES", Message: "No suitable capabilities found in session request", 
+		Code: "INVALID_CAPABILITIES", Message: "No suitable capabilities found in session request",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
 	}
 	ErrMissingClientCredentials = &AppiumError{
-		Code: "MISSING_CREDENTIALS", Message: "Client credentials required", 
+		Code: "MISSING_CREDENTIALS", Message: "Client credentials required",
 		StatusCode: http.StatusUnauthorized, ErrorType: ErrSessionNotCreated,
 	}
 	ErrInvalidClientCredentials = &AppiumError{
-		Code: "INVALID_CREDENTIALS", Message: "Invalid client credentials", 
+		Code: "INVALID_CREDENTIALS", Message: "Invalid client credentials",
 		StatusCode: http.StatusUnauthorized, ErrorType: ErrSessionNotCreated,
 	}
 	ErrUserNotFound = &AppiumError{
-		Code: "USER_NOT_FOUND", Message: "User not found", 
+		Code: "USER_NOT_FOUND", Message: "User not found",
 		StatusCode: http.StatusUnauthorized, ErrorType: ErrSessionNotCreated,
 	}
 	ErrNoAvailableDevice = &AppiumError{
-		Code: "NO_DEVICE_AVAILABLE", Message: "No available device found", 
+		Code: "NO_DEVICE_AVAILABLE", Message: "No available device found",
 		StatusCode: http.StatusNotFound, ErrorType: ErrSessionNotCreated,
 	}
 	ErrCreateProxyRequest = &AppiumError{
-		Code: "PROXY_REQUEST_CREATE_FAILED", Message: "Failed to create proxy request", 
+		Code: "PROXY_REQUEST_CREATE_FAILED", Message: "Failed to create proxy request",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
 	}
 	ErrExecuteProxyRequest = &AppiumError{
-		Code: "PROXY_REQUEST_EXECUTE_FAILED", Message: "Failed to execute proxy request", 
+		Code: "PROXY_REQUEST_EXECUTE_FAILED", Message: "Failed to execute proxy request",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
 	}
 	ErrReadProxyResponse = &AppiumError{
-		Code: "PROXY_RESPONSE_READ_FAILED", Message: "Failed to read proxy response", 
+		Code: "PROXY_RESPONSE_READ_FAILED", Message: "Failed to read proxy response",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
 	}
 	ErrUnmarshalProxyResponse = &AppiumError{
-		Code: "PROXY_RESPONSE_UNMARSHAL_FAILED", Message: "Failed to unmarshal proxy response", 
+		Code: "PROXY_RESPONSE_UNMARSHAL_FAILED", Message: "Failed to unmarshal proxy response",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
 	}
 	ErrSessionIDExtraction = &AppiumError{
-		Code: "SESSION_ID_EXTRACTION_FAILED", Message: "Failed to extract session ID from request", 
+		Code: "SESSION_ID_EXTRACTION_FAILED", Message: "Failed to extract session ID from request",
 		StatusCode: http.StatusInternalServerError, ErrorType: ErrInvalidRequest,
 	}
 	ErrSessionIDNotFound = &AppiumError{
-		Code: "SESSION_ID_NOT_FOUND", Message: "Session ID not found or expired", 
+		Code: "SESSION_ID_NOT_FOUND", Message: "Session ID not found or expired",
 		StatusCode: http.StatusNotFound, ErrorType: ErrSessionNotFound,
 	}
 )
@@ -155,7 +155,7 @@ func respondWithAppiumError(c *gin.Context, err *AppiumError) {
 	if err.Cause != nil {
 		stackTrace = err.Cause.Error()
 	}
-	
+
 	response := createErrorResponse(err.Message, err.ErrorType, stackTrace)
 	c.JSON(err.StatusCode, response)
 }
@@ -177,7 +177,7 @@ func createAppiumError(code, message, errorType string, statusCode int, cause er
 func releaseDevice(device *models.LocalHubDevice) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
-	
+
 	device.IsAvailableForAutomation = true
 	device.IsRunningAutomation = false
 }
@@ -186,10 +186,10 @@ func releaseDevice(device *models.LocalHubDevice) {
 func releaseDeviceWithUserCleanup(device *models.LocalHubDevice, clearUserInfo bool) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
-	
+
 	device.IsAvailableForAutomation = true
 	device.IsRunningAutomation = false
-	
+
 	// Only clear user info if requested and no manual session is active
 	if clearUserInfo && device.InUseWSConnection == nil {
 		device.InUseBy = ""
@@ -202,11 +202,11 @@ func releaseDeviceWithUserCleanup(device *models.LocalHubDevice, clearUserInfo b
 func releaseDeviceCompletely(device *models.LocalHubDevice) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
-	
+
 	device.IsAvailableForAutomation = true
 	device.IsRunningAutomation = false
 	device.SessionID = ""
-	
+
 	// Only clear user info if no manual session is active
 	if device.InUseWSConnection == nil {
 		device.InUseBy = ""
@@ -219,15 +219,15 @@ func releaseDeviceCompletely(device *models.LocalHubDevice) {
 func conditionalDeviceRelease(device *models.LocalHubDevice, timeThresholdMs int64, includeSessionID bool) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
-	
+
 	if device.LastAutomationActionTS <= (time.Now().UnixMilli() - timeThresholdMs) {
 		device.IsAvailableForAutomation = true
 		device.IsRunningAutomation = false
-		
+
 		if includeSessionID {
 			device.SessionID = ""
 		}
-		
+
 		// Only clear user info if no manual session is active
 		if device.InUseWSConnection == nil {
 			device.InUseBy = ""
@@ -242,6 +242,113 @@ func setDeviceAvailable(device *models.LocalHubDevice) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
 	device.IsAvailableForAutomation = true
+}
+
+// Request parsing utility functions
+
+// SessionRequest contains the parsed session request data
+type SessionRequest struct {
+	Body            []byte
+	AppiumSession   models.AppiumSession
+	Capabilities    models.CommonCapabilities
+	ClientSecret    string
+	RawCapabilities map[string]interface{}
+}
+
+// parseSessionRequest parses and validates an Appium session creation request
+func parseSessionRequest(c *gin.Context) (*SessionRequest, *AppiumError) {
+	// Read request body
+	sessionRequestBody, err := readBody(c.Request.Body)
+	if err != nil {
+		return nil, ErrReadRequestBody.WithCause(err)
+	}
+	defer c.Request.Body.Close()
+
+	// Parse Appium session structure
+	var appiumSessionBody models.AppiumSession
+	err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
+	if err != nil {
+		return nil, ErrUnmarshalRequest.WithCause(err)
+	}
+
+	// Extract capabilities to use
+	var capsToUse models.CommonCapabilities
+	if appiumSessionBody.DesiredCapabilities.PlatformName != "" && appiumSessionBody.DesiredCapabilities.AutomationName != "" {
+		capsToUse = appiumSessionBody.DesiredCapabilities
+	} else if len(appiumSessionBody.Capabilities.FirstMatch) > 0 && appiumSessionBody.Capabilities.FirstMatch[0].PlatformName != "" && appiumSessionBody.Capabilities.FirstMatch[0].AutomationName != "" {
+		capsToUse = appiumSessionBody.Capabilities.FirstMatch[0]
+	} else if appiumSessionBody.Capabilities.AlwaysMatch.PlatformName != "" && appiumSessionBody.Capabilities.AlwaysMatch.AutomationName != "" {
+		capsToUse = appiumSessionBody.Capabilities.AlwaysMatch
+	} else {
+		return nil, ErrNoSuitableCapabilities
+	}
+
+	// Parse raw capabilities for client secret extraction
+	var sessionReq map[string]interface{}
+	json.Unmarshal(sessionRequestBody, &sessionReq)
+	capabilityPrefix := getEnvOrDefault("GADS_CAPABILITY_PREFIX", "gads")
+	clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
+
+	if clientSecret == "" {
+		customErr := ErrMissingClientCredentials.WithMessage(
+			fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix))
+		return nil, customErr
+	}
+
+	return &SessionRequest{
+		Body:            sessionRequestBody,
+		AppiumSession:   appiumSessionBody,
+		Capabilities:    capsToUse,
+		ClientSecret:    clientSecret,
+		RawCapabilities: sessionReq,
+	}, nil
+}
+
+// extractSessionID extracts session ID from URL path
+func extractSessionID(urlPath string, isDelete bool) (string, *AppiumError) {
+	if !strings.Contains(urlPath, "/session/") {
+		return "", ErrSessionIDExtraction
+	}
+
+	var startIndex, endIndex int
+
+	if isDelete {
+		// Find the start and end of the session ID
+		startIndex = strings.Index(urlPath, "/session/") + len("/session/")
+		endIndex = len(urlPath)
+	} else {
+		// Find the start and end of the session ID
+		startIndex = strings.Index(urlPath, "/session/") + len("/session/")
+		endIndex = strings.Index(urlPath[startIndex:], "/") + startIndex
+	}
+
+	if startIndex == -1 || endIndex == -1 {
+		customErr := ErrSessionIDExtraction.WithMessage(fmt.Sprintf("No session ID could be extracted from the request - %s", urlPath))
+		return "", customErr
+	}
+
+	sessionID := urlPath[startIndex:endIndex]
+	if sessionID == "" {
+		return "", ErrSessionIDExtraction
+	}
+
+	return sessionID, nil
+}
+
+// createProxyURL creates the target URL for proxying requests
+func createProxyURL(deviceHost, deviceUDID, originalPath string) string {
+	cleanPath := strings.Replace(originalPath, "/grid", "", -1)
+	return fmt.Sprintf("http://%s/device/%s/appium%s", deviceHost, deviceUDID, cleanPath)
+}
+
+// parseAppiumSessionResponse parses the Appium session response to extract session ID
+func parseAppiumSessionResponse(responseBody []byte) (string, *AppiumError) {
+	var proxySessionResponse AppiumSessionResponse
+	err := json.Unmarshal(responseBody, &proxySessionResponse)
+	if err != nil {
+		return "", ErrUnmarshalProxyResponse.WithCause(err)
+	}
+	return proxySessionResponse.Value.SessionID, nil
 }
 
 // Every 3 seconds check the devices
@@ -274,50 +381,17 @@ func UpdateExpiredGridSessions() {
 func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
-			// Read the request sessionRequestBody
-			sessionRequestBody, err := readBody(c.Request.Body)
-			if err != nil {
-				respondWithAppiumError(c, ErrReadRequestBody.WithCause(err))
-				return
-			}
-			defer c.Request.Body.Close()
-
-			// Unmarshal the request sessionRequestBody []byte to <AppiumSession>
-			var appiumSessionBody models.AppiumSession
-			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
-			if err != nil {
-				respondWithAppiumError(c, ErrUnmarshalRequest.WithCause(err))
+			// Parse session creation request
+			sessionReq, appiumErr := parseSessionRequest(c)
+			if appiumErr != nil {
+				respondWithAppiumError(c, appiumErr)
 				return
 			}
 
-			var capsToUse models.CommonCapabilities
-
-			if appiumSessionBody.DesiredCapabilities.PlatformName != "" && appiumSessionBody.DesiredCapabilities.AutomationName != "" {
-				capsToUse = appiumSessionBody.DesiredCapabilities
-			} else if appiumSessionBody.Capabilities.FirstMatch[0].PlatformName != "" && appiumSessionBody.Capabilities.FirstMatch[0].AutomationName != "" {
-				capsToUse = appiumSessionBody.Capabilities.FirstMatch[0]
-			} else if appiumSessionBody.Capabilities.AlwaysMatch.PlatformName != "" && appiumSessionBody.Capabilities.AlwaysMatch.AutomationName != "" {
-				capsToUse = appiumSessionBody.Capabilities.AlwaysMatch
-			} else {
-				respondWithAppiumError(c, ErrNoSuitableCapabilities)
-				return
-			}
-
-			// Extract client secret from capabilities and get allowed workspaces
+			// Extract client secret and get allowed workspaces
 			var allowedWorkspaceIDs []string
-			var sessionReq map[string]interface{}
-			json.Unmarshal(sessionRequestBody, &sessionReq)
-			capabilityPrefix := getEnvOrDefault("GADS_CAPABILITY_PREFIX", "gads")
-			clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
 
-			if clientSecret == "" {
-				customErr := ErrMissingClientCredentials.WithMessage(
-					fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix))
-				respondWithAppiumError(c, customErr)
-				return
-			}
-
-			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
+			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(sessionReq.ClientSecret)
 			if err != nil || !credential.IsActive {
 				respondWithAppiumError(c, ErrInvalidClientCredentials.WithCause(err))
 				return
@@ -360,7 +434,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			var foundDevice *models.LocalHubDevice
 			var deviceErr error
 
-			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+			foundDevice, deviceErr = findAvailableDevice(sessionReq.Capabilities, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 
 			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
 				respondWithAppiumError(c, ErrNoAvailableDevice.WithCause(deviceErr))
@@ -377,7 +451,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+						foundDevice, deviceErr = findAvailableDevice(sessionReq.Capabilities, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
@@ -413,15 +487,16 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			foundDevice.IsAvailableForAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			// Update the session timeout values if none were provided
-			if capsToUse.NewCommandTimeout != 0 {
-				foundDevice.AppiumNewCommandTimeout = capsToUse.NewCommandTimeout * 1000
+			if sessionReq.Capabilities.NewCommandTimeout != 0 {
+				foundDevice.AppiumNewCommandTimeout = sessionReq.Capabilities.NewCommandTimeout * 1000
 			} else {
 				foundDevice.AppiumNewCommandTimeout = 60000
 			}
 			devices.HubDevicesData.Mu.Unlock()
 
 			// Create a new request to the device target URL
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(sessionRequestBody))
+			proxyURL := createProxyURL(foundDevice.Device.Host, foundDevice.Device.UDID, c.Request.URL.Path)
+			proxyReq, err := http.NewRequest(c.Request.Method, proxyURL, bytes.NewBuffer(sessionReq.Body))
 			if err != nil {
 				releaseDevice(foundDevice)
 				respondWithAppiumError(c, ErrCreateProxyRequest.WithCause(err))
@@ -466,7 +541,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				return
 			}
 
-			// Read the response sessionRequestBody from the proxied request
+			// Read and parse the response from the proxied request
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
 				releaseDevice(foundDevice)
@@ -474,17 +549,16 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				return
 			}
 
-			// Unmarshal the response sessionRequestBody to AppiumSessionResponse
-			var proxySessionResponse AppiumSessionResponse
-			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
-			if err != nil {
+			// Parse session ID from response
+			sessionID, parseErr := parseAppiumSessionResponse(proxiedSessionResponseBody)
+			if parseErr != nil {
 				releaseDevice(foundDevice)
-				respondWithAppiumError(c, ErrUnmarshalProxyResponse.WithCause(err))
+				respondWithAppiumError(c, parseErr)
 				return
 			}
 
 			devices.HubDevicesData.Mu.Lock()
-			foundDevice.SessionID = proxySessionResponse.Value.SessionID
+			foundDevice.SessionID = sessionID
 			devices.HubDevicesData.Mu.Unlock()
 
 			// Copy the response back to the original client
@@ -508,37 +582,11 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			}
 			devices.HubDevicesData.Mu.Unlock()
 		} else {
-			// If this is not a request for a new session
-			var sessionID = ""
-
-			// Check if the call uses session ID
-			if strings.Contains(c.Request.URL.Path, "/session/") {
-				var startIndex int
-				var endIndex int
-
-				// Extract the session ID from the call URL path
-				if c.Request.Method == http.MethodDelete {
-					// Find the start and end of the session ID
-					startIndex = strings.Index(c.Request.URL.Path, "/session/") + len("/session/")
-					endIndex = len(c.Request.URL.Path)
-				} else {
-					// Find the start and end of the session ID
-					startIndex = strings.Index(c.Request.URL.Path, "/session/") + len("/session/")
-					endIndex = strings.Index(c.Request.URL.Path[startIndex:], "/") + startIndex
-				}
-
-				if startIndex == -1 || endIndex == -1 {
-					customErr := ErrSessionIDExtraction.WithMessage(fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path))
-					respondWithAppiumError(c, customErr)
-					return
-				}
-
-				sessionID = c.Request.URL.Path[startIndex:endIndex]
-			}
-
-			// If no session ID could be parsed from the request
-			if sessionID == "" {
-				respondWithAppiumError(c, ErrSessionIDExtraction)
+			// Handle non-session creation requests
+			isDelete := c.Request.Method == http.MethodDelete
+			sessionID, sessionErr := extractSessionID(c.Request.URL.Path, isDelete)
+			if sessionErr != nil {
+				respondWithAppiumError(c, sessionErr)
 				return
 			}
 
@@ -566,14 +614,8 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			}()
 
 			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(
-				c.Request.Method,
-				fmt.Sprintf("http://%s/device/%s/appium%s",
-					foundDevice.Device.Host,
-					foundDevice.Device.UDID,
-					strings.Replace(c.Request.URL.Path, "/grid", "", -1)),
-				bytes.NewBuffer(origRequestBody),
-			)
+			proxyURL := createProxyURL(foundDevice.Device.Host, foundDevice.Device.UDID, c.Request.URL.Path)
+			proxyReq, err := http.NewRequest(c.Request.Method, proxyURL, bytes.NewBuffer(origRequestBody))
 			if err != nil {
 				respondWithAppiumError(c, ErrCreateProxyRequest.WithCause(err))
 				return
