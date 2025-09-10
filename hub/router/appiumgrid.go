@@ -43,6 +43,210 @@ type SeleniumSessionErrorResponseValue struct {
 	StackTrace string `json:"stacktrace"`
 }
 
+// Service layer interfaces
+
+// AuthService handles authentication and workspace access control
+type AuthService interface {
+	ValidateCredentials(clientSecret string) (*models.ClientCredentials, *AppiumError)
+	GetAllowedWorkspaces(credential *models.ClientCredentials) ([]string, *AppiumError)
+}
+
+// DeviceService handles device allocation and state management
+type DeviceService interface {
+	FindAndReserveDevice(caps models.CommonCapabilities, workspaceIDs []string, userID, tenant string) (*models.LocalHubDevice, *AppiumError)
+	ReleaseDevice(device *models.LocalHubDevice)
+	ReleaseDeviceWithCleanup(device *models.LocalHubDevice, clearUserInfo bool)
+	SetDeviceInUse(device *models.LocalHubDevice, userID, tenant string)
+}
+
+// SessionService handles session lifecycle operations  
+type SessionService interface {
+	CreateProxyRequest(device *models.LocalHubDevice, originalReq *http.Request, body []byte) (*http.Request, *AppiumError)
+	ExecuteProxyRequest(req *http.Request) (*http.Response, *AppiumError)
+	ExtractSessionID(responseBody []byte) (string, *AppiumError)
+	FindDeviceBySessionID(sessionID string) (*models.LocalHubDevice, *AppiumError)
+}
+
+// Service implementations
+
+// authService implements AuthService interface
+type authService struct{}
+
+func (s *authService) ValidateCredentials(clientSecret string) (*models.ClientCredentials, *AppiumError) {
+	credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
+	if err != nil || !credential.IsActive {
+		return nil, ErrInvalidClientCredentials.WithCause(err)
+	}
+	return &credential, nil
+}
+
+func (s *authService) GetAllowedWorkspaces(credential *models.ClientCredentials) ([]string, *AppiumError) {
+	var allowedWorkspaceIDs []string
+	
+	if credential.Tenant != "" {
+		defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
+		useAllTenantWorkspaces := true
+
+		// Check if we need to filter by user workspaces
+		if credential.Tenant == defaultTenant && credential.UserID != "" {
+			user, err := db.GlobalMongoStore.GetUser(credential.UserID)
+			if err != nil {
+				return nil, ErrUserNotFound.WithCause(err)
+			}
+
+			if user.Role != "admin" {
+				// Regular user: only assigned workspaces
+				useAllTenantWorkspaces = false
+				userWorkspaces := db.GlobalMongoStore.GetUserWorkspaces(credential.UserID)
+				for _, ws := range userWorkspaces {
+					allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
+				}
+			}
+		}
+
+		// Admin users or non-default tenant: all workspaces of the tenant
+		if useAllTenantWorkspaces {
+			allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
+			for _, ws := range allWorkspaces {
+				if ws.Tenant == credential.Tenant {
+					allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
+				}
+			}
+		}
+	}
+	
+	return allowedWorkspaceIDs, nil
+}
+
+// deviceService implements DeviceService interface
+type deviceService struct{}
+
+func (s *deviceService) FindAndReserveDevice(caps models.CommonCapabilities, workspaceIDs []string, userID, tenant string) (*models.LocalHubDevice, *AppiumError) {
+	foundDevice, err := findAvailableDevice(caps, workspaceIDs, userID, tenant)
+	if err != nil {
+		if strings.Contains(err.Error(), "No device with udid") {
+			return nil, ErrNoAvailableDevice.WithCause(err)
+		}
+		return nil, ErrNoAvailableDevice.WithCause(err)
+	}
+
+	if foundDevice == nil {
+		// Wait up to 10 seconds for a device to become available
+		ticker := time.NewTicker(100 * time.Millisecond)
+		timeout := time.After(10 * time.Second)
+		
+		for {
+			select {
+			case <-ticker.C:
+				foundDevice, err = findAvailableDevice(caps, workspaceIDs, userID, tenant)
+				if foundDevice != nil {
+					ticker.Stop()
+					goto deviceFound
+				}
+			case <-timeout:
+				ticker.Stop()
+				if err != nil {
+					return nil, ErrNoAvailableDevice.WithCause(err)
+				}
+				return nil, ErrNoAvailableDevice
+			}
+		}
+	}
+
+deviceFound:
+	if foundDevice == nil {
+		return nil, ErrNoAvailableDevice
+	}
+
+	// Reserve the device
+	devices.HubDevicesData.Mu.Lock()
+	foundDevice.IsRunningAutomation = true
+	foundDevice.IsAvailableForAutomation = false
+	foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+	if caps.NewCommandTimeout != 0 {
+		foundDevice.AppiumNewCommandTimeout = caps.NewCommandTimeout * 1000
+	} else {
+		foundDevice.AppiumNewCommandTimeout = 60000
+	}
+	devices.HubDevicesData.Mu.Unlock()
+
+	return foundDevice, nil
+}
+
+func (s *deviceService) ReleaseDevice(device *models.LocalHubDevice) {
+	releaseDevice(device)
+}
+
+func (s *deviceService) ReleaseDeviceWithCleanup(device *models.LocalHubDevice, clearUserInfo bool) {
+	releaseDeviceWithUserCleanup(device, clearUserInfo)
+}
+
+func (s *deviceService) SetDeviceInUse(device *models.LocalHubDevice, userID, tenant string) {
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+	
+	device.LastAutomationActionTS = time.Now().UnixMilli()
+	automationUser := userID
+	if automationUser == "" {
+		automationUser = "unknown"
+	}
+	// Only update InUseBy if no manual session is active
+	if device.InUseWSConnection == nil {
+		device.InUseBy = automationUser
+		device.InUseByTenant = tenant
+		device.InUseTS = time.Now().UnixMilli()
+	}
+}
+
+// sessionService implements SessionService interface
+type sessionService struct{}
+
+func (s *sessionService) CreateProxyRequest(device *models.LocalHubDevice, originalReq *http.Request, body []byte) (*http.Request, *AppiumError) {
+	proxyURL := createProxyURL(device.Device.Host, device.Device.UDID, originalReq.URL.Path)
+	proxyReq, err := http.NewRequest(originalReq.Method, proxyURL, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, ErrCreateProxyRequest.WithCause(err)
+	}
+
+	// Copy headers from the original request to the new request
+	for k, v := range originalReq.Header {
+		proxyReq.Header[k] = v
+	}
+
+	return proxyReq, nil
+}
+
+func (s *sessionService) ExecuteProxyRequest(req *http.Request) (*http.Response, *AppiumError) {
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, ErrExecuteProxyRequest.WithCause(err)
+	}
+	return resp, nil
+}
+
+func (s *sessionService) ExtractSessionID(responseBody []byte) (string, *AppiumError) {
+	return parseAppiumSessionResponse(responseBody)
+}
+
+func (s *sessionService) FindDeviceBySessionID(sessionID string) (*models.LocalHubDevice, *AppiumError) {
+	devices.HubDevicesData.Mu.Lock()
+	foundDevice, err := getDeviceBySessionID(sessionID)
+	devices.HubDevicesData.Mu.Unlock()
+	if err != nil {
+		customErr := ErrSessionIDNotFound.WithMessage(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID))
+		return nil, customErr
+	}
+	return foundDevice, nil
+}
+
+// Service instances
+var (
+	AuthSvc    AuthService    = &authService{}
+	DeviceSvc  DeviceService  = &deviceService{}
+	SessionSvc SessionService = &sessionService{}
+)
+
 // AppiumError represents a structured error for Appium Grid operations
 type AppiumError struct {
 	Code       string
@@ -378,298 +582,13 @@ func UpdateExpiredGridSessions() {
 	}
 }
 
+// AppiumGridMiddleware coordinates between session creation and session requests
 func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
-			// Parse session creation request
-			sessionReq, appiumErr := parseSessionRequest(c)
-			if appiumErr != nil {
-				respondWithAppiumError(c, appiumErr)
-				return
-			}
-
-			// Extract client secret and get allowed workspaces
-			var allowedWorkspaceIDs []string
-
-			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(sessionReq.ClientSecret)
-			if err != nil || !credential.IsActive {
-				respondWithAppiumError(c, ErrInvalidClientCredentials.WithCause(err))
-				return
-			}
-
-			if credential.Tenant != "" {
-				defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
-				useAllTenantWorkspaces := true
-
-				// Check if we need to filter by user workspaces
-				if credential.Tenant == defaultTenant && credential.UserID != "" {
-					user, err := db.GlobalMongoStore.GetUser(credential.UserID)
-					if err != nil {
-						respondWithAppiumError(c, ErrUserNotFound.WithCause(err))
-						return
-					}
-
-					if user.Role != "admin" {
-						// Regular user: only assigned workspaces
-						useAllTenantWorkspaces = false
-						userWorkspaces := db.GlobalMongoStore.GetUserWorkspaces(credential.UserID)
-						for _, ws := range userWorkspaces {
-							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
-						}
-					}
-				}
-
-				// Admin users or non-default tenant: all workspaces of the tenant
-				if useAllTenantWorkspaces {
-					allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
-					for _, ws := range allWorkspaces {
-						if ws.Tenant == credential.Tenant {
-							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
-						}
-					}
-				}
-			}
-
-			// Check for available device
-			var foundDevice *models.LocalHubDevice
-			var deviceErr error
-
-			foundDevice, deviceErr = findAvailableDevice(sessionReq.Capabilities, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
-
-			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
-				respondWithAppiumError(c, ErrNoAvailableDevice.WithCause(deviceErr))
-				return
-			}
-
-			// If no device is available start checking each second for 10 seconds
-			// If no device is available after 10 seconds - return error
-			if foundDevice == nil {
-				ticker := time.NewTicker(100 * time.Millisecond)
-				timeout := time.After(10 * time.Second)
-				notify := c.Writer.CloseNotify()
-			FOR_LOOP:
-				for {
-					select {
-					case <-ticker.C:
-						foundDevice, deviceErr = findAvailableDevice(sessionReq.Capabilities, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
-						if foundDevice != nil {
-							break FOR_LOOP
-						}
-					case <-timeout:
-						ticker.Stop()
-						if deviceErr != nil {
-							respondWithAppiumError(c, ErrNoAvailableDevice.WithCause(deviceErr))
-						} else {
-							respondWithAppiumError(c, ErrNoAvailableDevice)
-						}
-						return
-					case <-notify:
-						ticker.Stop()
-						return
-					}
-				}
-			}
-
-			if foundDevice == nil {
-				if deviceErr != nil {
-					respondWithAppiumError(c, ErrNoAvailableDevice.WithCause(deviceErr))
-				} else {
-					respondWithAppiumError(c, ErrNoAvailableDevice)
-				}
-				return
-			}
-
-			devices.HubDevicesData.Mu.Lock()
-			// Set device found as running automation and is not available for automation
-			// Before even starting the Appium session creation request
-			// Also set an automation action timestamp so that the goroutine does not reset it while session is being created
-			foundDevice.IsRunningAutomation = true
-			foundDevice.IsAvailableForAutomation = false
-			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			// Update the session timeout values if none were provided
-			if sessionReq.Capabilities.NewCommandTimeout != 0 {
-				foundDevice.AppiumNewCommandTimeout = sessionReq.Capabilities.NewCommandTimeout * 1000
-			} else {
-				foundDevice.AppiumNewCommandTimeout = 60000
-			}
-			devices.HubDevicesData.Mu.Unlock()
-
-			// Create a new request to the device target URL
-			proxyURL := createProxyURL(foundDevice.Device.Host, foundDevice.Device.UDID, c.Request.URL.Path)
-			proxyReq, err := http.NewRequest(c.Request.Method, proxyURL, bytes.NewBuffer(sessionReq.Body))
-			if err != nil {
-				releaseDevice(foundDevice)
-				respondWithAppiumError(c, ErrCreateProxyRequest.WithCause(err))
-				return
-			}
-
-			// Copy headers from the original request to the new request
-			for k, v := range c.Request.Header {
-				proxyReq.Header[k] = v
-			}
-
-			// Send the request
-			client := &http.Client{}
-			resp, err := client.Do(proxyReq)
-			if err != nil {
-				releaseDevice(foundDevice)
-				respondWithAppiumError(c, ErrExecuteProxyRequest.WithCause(err))
-				return
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode >= 400 {
-				// Release device for any error status, clear user info only for non-500 errors
-				clearUserInfo := resp.StatusCode != http.StatusInternalServerError
-				releaseDeviceWithUserCleanup(foundDevice, clearUserInfo)
-
-				// For 500 errors, keep the existing behavior with goroutine
-				if resp.StatusCode == http.StatusInternalServerError {
-					go func() {
-						time.Sleep(10 * time.Second)
-						conditionalDeviceRelease(foundDevice, 5000, true)
-					}()
-				}
-
-				// Read and pass the error response
-				proxiedResponseBody, _ := readBody(resp.Body)
-				for k, v := range resp.Header {
-					c.Writer.Header()[k] = v
-				}
-				c.Writer.WriteHeader(resp.StatusCode)
-				c.Writer.Write(proxiedResponseBody)
-				return
-			}
-
-			// Read and parse the response from the proxied request
-			proxiedSessionResponseBody, err := readBody(resp.Body)
-			if err != nil {
-				releaseDevice(foundDevice)
-				respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
-				return
-			}
-
-			// Parse session ID from response
-			sessionID, parseErr := parseAppiumSessionResponse(proxiedSessionResponseBody)
-			if parseErr != nil {
-				releaseDevice(foundDevice)
-				respondWithAppiumError(c, parseErr)
-				return
-			}
-
-			devices.HubDevicesData.Mu.Lock()
-			foundDevice.SessionID = sessionID
-			devices.HubDevicesData.Mu.Unlock()
-
-			// Copy the response back to the original client
-			for k, v := range resp.Header {
-				c.Writer.Header()[k] = v
-			}
-			c.Writer.WriteHeader(resp.StatusCode)
-			c.Writer.Write(proxiedSessionResponseBody)
-			devices.HubDevicesData.Mu.Lock()
-			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			// Set InUseBy with user ID and tenant for tracking
-			automationUser := credential.UserID
-			if automationUser == "" {
-				automationUser = "unknown"
-			}
-			// Only update InUseBy if no manual session is active
-			if foundDevice.InUseWSConnection == nil {
-				foundDevice.InUseBy = automationUser
-				foundDevice.InUseByTenant = credential.Tenant
-				foundDevice.InUseTS = time.Now().UnixMilli()
-			}
-			devices.HubDevicesData.Mu.Unlock()
+			handleSessionCreation(c)
 		} else {
-			// Handle non-session creation requests
-			isDelete := c.Request.Method == http.MethodDelete
-			sessionID, sessionErr := extractSessionID(c.Request.URL.Path, isDelete)
-			if sessionErr != nil {
-				respondWithAppiumError(c, sessionErr)
-				return
-			}
-
-			// Read the request origRequestBody
-			origRequestBody, err := readBody(c.Request.Body)
-			if err != nil {
-				respondWithAppiumError(c, ErrReadRequestBody.WithCause(err))
-				return
-			}
-			defer c.Request.Body.Close()
-
-			// Check if there is a device in the local session map for that session ID
-			devices.HubDevicesData.Mu.Lock()
-			foundDevice, err := getDeviceBySessionID(sessionID)
-			devices.HubDevicesData.Mu.Unlock()
-			if err != nil {
-				customErr := ErrSessionIDNotFound.WithMessage(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID))
-				respondWithAppiumError(c, customErr)
-				return
-			}
-
-			// Set the device last automation action timestamp when call returns
-			defer func() {
-				foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			}()
-
-			// Create a new request to the device target URL on its provider instance
-			proxyURL := createProxyURL(foundDevice.Device.Host, foundDevice.Device.UDID, c.Request.URL.Path)
-			proxyReq, err := http.NewRequest(c.Request.Method, proxyURL, bytes.NewBuffer(origRequestBody))
-			if err != nil {
-				respondWithAppiumError(c, ErrCreateProxyRequest.WithCause(err))
-				return
-			}
-
-			// Copy headers
-			for k, v := range c.Request.Header {
-				proxyReq.Header[k] = v
-			}
-
-			// Send the request
-			client := &http.Client{}
-			resp, err := client.Do(proxyReq)
-			if err != nil {
-				respondWithAppiumError(c, ErrExecuteProxyRequest.WithCause(err))
-				return
-			}
-			defer resp.Body.Close()
-
-			// If the request succeeded and was a delete request, remove the session ID from the map
-			if c.Request.Method == http.MethodDelete {
-				setDeviceAvailable(foundDevice)
-				// Start a goroutine that will release the device after 1 second if no other actions were taken
-				go func() {
-					time.Sleep(1 * time.Second)
-					conditionalDeviceRelease(foundDevice, 1000, true)
-				}()
-			}
-
-			if resp.StatusCode == http.StatusInternalServerError {
-				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
-				go func() {
-					time.Sleep(10 * time.Second)
-					conditionalDeviceRelease(foundDevice, 10000, true)
-				}()
-				customErr := createAppiumError("PROXY_SERVER_ERROR", "Internal server error from device provider", ErrInternalServerError, http.StatusInternalServerError, nil)
-				respondWithAppiumError(c, customErr)
-				return
-			}
-
-			// Read the response origRequestBody of the proxied request
-			proxiedRequestBody, err := readBody(resp.Body)
-			if err != nil {
-				respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
-				return
-			}
-
-			// Copy the response back to the original client
-			for k, v := range resp.Header {
-				c.Writer.Header()[k] = v
-			}
-			c.Writer.WriteHeader(resp.StatusCode)
-			c.Writer.Write(proxiedRequestBody)
-			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+			handleSessionRequest(c)
 		}
 	}
 }
@@ -864,4 +783,189 @@ func createErrorResponse(msg string, err string, stacktrace string) SeleniumSess
 			StackTrace: stacktrace,
 		},
 	}
+}
+
+// handleSessionCreation processes Appium session creation requests
+func handleSessionCreation(c *gin.Context) {
+	// Parse session creation request
+	sessionReq, appiumErr := parseSessionRequest(c)
+	if appiumErr != nil {
+		respondWithAppiumError(c, appiumErr)
+		return
+	}
+
+	// Validate credentials using AuthService
+	credential, authErr := AuthSvc.ValidateCredentials(sessionReq.ClientSecret)
+	if authErr != nil {
+		respondWithAppiumError(c, authErr)
+		return
+	}
+
+	// Get allowed workspaces using AuthService
+	allowedWorkspaceIDs, workspaceErr := AuthSvc.GetAllowedWorkspaces(credential)
+	if workspaceErr != nil {
+		respondWithAppiumError(c, workspaceErr)
+		return
+	}
+
+	// Find and reserve device using DeviceService
+	foundDevice, deviceErr := DeviceSvc.FindAndReserveDevice(sessionReq.Capabilities, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+	if deviceErr != nil {
+		respondWithAppiumError(c, deviceErr)
+		return
+	}
+
+	// Create proxy request using SessionService
+	proxyReq, proxyErr := SessionSvc.CreateProxyRequest(foundDevice, c.Request, sessionReq.Body)
+	if proxyErr != nil {
+		DeviceSvc.ReleaseDevice(foundDevice)
+		respondWithAppiumError(c, proxyErr)
+		return
+	}
+
+	// Execute proxy request using SessionService
+	resp, execErr := SessionSvc.ExecuteProxyRequest(proxyReq)
+	if execErr != nil {
+		DeviceSvc.ReleaseDevice(foundDevice)
+		respondWithAppiumError(c, execErr)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		// Release device for any error status, clear user info only for non-500 errors
+		clearUserInfo := resp.StatusCode != http.StatusInternalServerError
+		DeviceSvc.ReleaseDeviceWithCleanup(foundDevice, clearUserInfo)
+
+		// For 500 errors, keep the existing behavior with goroutine
+		if resp.StatusCode == http.StatusInternalServerError {
+			go func() {
+				time.Sleep(10 * time.Second)
+				conditionalDeviceRelease(foundDevice, 5000, true)
+			}()
+		}
+
+		// Read and pass the error response
+		proxiedResponseBody, _ := readBody(resp.Body)
+		for k, v := range resp.Header {
+			c.Writer.Header()[k] = v
+		}
+		c.Writer.WriteHeader(resp.StatusCode)
+		c.Writer.Write(proxiedResponseBody)
+		return
+	}
+
+	// Read and parse the response from the proxied request
+	proxiedSessionResponseBody, err := readBody(resp.Body)
+	if err != nil {
+		DeviceSvc.ReleaseDevice(foundDevice)
+		respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
+		return
+	}
+
+	// Extract session ID using SessionService
+	sessionID, parseErr := SessionSvc.ExtractSessionID(proxiedSessionResponseBody)
+	if parseErr != nil {
+		DeviceSvc.ReleaseDevice(foundDevice)
+		respondWithAppiumError(c, parseErr)
+		return
+	}
+
+	// Update device with session ID
+	devices.HubDevicesData.Mu.Lock()
+	foundDevice.SessionID = sessionID
+	devices.HubDevicesData.Mu.Unlock()
+
+	// Copy the response back to the original client
+	for k, v := range resp.Header {
+		c.Writer.Header()[k] = v
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+	c.Writer.Write(proxiedSessionResponseBody)
+
+	// Set device in use using DeviceService
+	DeviceSvc.SetDeviceInUse(foundDevice, credential.UserID, credential.Tenant)
+}
+
+// handleSessionRequest processes Appium session-related requests (non-creation)
+func handleSessionRequest(c *gin.Context) {
+	// Extract session ID from request
+	isDelete := c.Request.Method == http.MethodDelete
+	sessionID, sessionErr := extractSessionID(c.Request.URL.Path, isDelete)
+	if sessionErr != nil {
+		respondWithAppiumError(c, sessionErr)
+		return
+	}
+
+	// Read the request body
+	origRequestBody, err := readBody(c.Request.Body)
+	if err != nil {
+		respondWithAppiumError(c, ErrReadRequestBody.WithCause(err))
+		return
+	}
+	defer c.Request.Body.Close()
+
+	// Find device by session ID using SessionService
+	foundDevice, deviceErr := SessionSvc.FindDeviceBySessionID(sessionID)
+	if deviceErr != nil {
+		respondWithAppiumError(c, deviceErr)
+		return
+	}
+
+	// Set the device last automation action timestamp when call returns
+	defer func() {
+		foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+	}()
+
+	// Create proxy request using SessionService
+	proxyReq, proxyErr := SessionSvc.CreateProxyRequest(foundDevice, c.Request, origRequestBody)
+	if proxyErr != nil {
+		respondWithAppiumError(c, proxyErr)
+		return
+	}
+
+	// Execute proxy request using SessionService
+	resp, execErr := SessionSvc.ExecuteProxyRequest(proxyReq)
+	if execErr != nil {
+		respondWithAppiumError(c, execErr)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Handle session deletion
+	if c.Request.Method == http.MethodDelete {
+		setDeviceAvailable(foundDevice)
+		// Start a goroutine that will release the device after 1 second if no other actions were taken
+		go func() {
+			time.Sleep(1 * time.Second)
+			conditionalDeviceRelease(foundDevice, 1000, true)
+		}()
+	}
+
+	// Handle server errors
+	if resp.StatusCode == http.StatusInternalServerError {
+		// Start a goroutine that will release the device after 10 seconds if no other actions were taken
+		go func() {
+			time.Sleep(10 * time.Second)
+			conditionalDeviceRelease(foundDevice, 10000, true)
+		}()
+		customErr := createAppiumError("PROXY_SERVER_ERROR", "Internal server error from device provider", ErrInternalServerError, http.StatusInternalServerError, nil)
+		respondWithAppiumError(c, customErr)
+		return
+	}
+
+	// Read the response body of the proxied request
+	proxiedRequestBody, err := readBody(resp.Body)
+	if err != nil {
+		respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
+		return
+	}
+
+	// Copy the response back to the original client
+	for k, v := range resp.Header {
+		c.Writer.Header()[k] = v
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+	c.Writer.Write(proxiedRequestBody)
+	foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 }
