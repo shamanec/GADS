@@ -43,6 +43,134 @@ type SeleniumSessionErrorResponseValue struct {
 	StackTrace string `json:"stacktrace"`
 }
 
+// AppiumError represents a structured error for Appium Grid operations
+type AppiumError struct {
+	Code       string
+	Message    string
+	StatusCode int
+	Cause      error
+	ErrorType  string
+}
+
+func (e *AppiumError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Cause)
+	}
+	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
+}
+
+// Predefined error types
+var (
+	ErrSessionNotCreated        = "session not created"
+	ErrSessionNotFound          = "session not found"
+	ErrInvalidRequest          = "invalid request"
+	ErrDeviceNotFound          = "device not found"
+	ErrUnauthorized            = "unauthorized"
+	ErrInternalServerError     = "internal server error"
+)
+
+// Common Appium Grid errors
+var (
+	ErrReadRequestBody = &AppiumError{
+		Code: "REQUEST_READ_FAILED", Message: "Failed to read request body", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
+	}
+	ErrUnmarshalRequest = &AppiumError{
+		Code: "REQUEST_UNMARSHAL_FAILED", Message: "Failed to unmarshal request body", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
+	}
+	ErrNoSuitableCapabilities = &AppiumError{
+		Code: "INVALID_CAPABILITIES", Message: "No suitable capabilities found in session request", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
+	}
+	ErrMissingClientCredentials = &AppiumError{
+		Code: "MISSING_CREDENTIALS", Message: "Client credentials required", 
+		StatusCode: http.StatusUnauthorized, ErrorType: ErrSessionNotCreated,
+	}
+	ErrInvalidClientCredentials = &AppiumError{
+		Code: "INVALID_CREDENTIALS", Message: "Invalid client credentials", 
+		StatusCode: http.StatusUnauthorized, ErrorType: ErrSessionNotCreated,
+	}
+	ErrUserNotFound = &AppiumError{
+		Code: "USER_NOT_FOUND", Message: "User not found", 
+		StatusCode: http.StatusUnauthorized, ErrorType: ErrSessionNotCreated,
+	}
+	ErrNoAvailableDevice = &AppiumError{
+		Code: "NO_DEVICE_AVAILABLE", Message: "No available device found", 
+		StatusCode: http.StatusNotFound, ErrorType: ErrSessionNotCreated,
+	}
+	ErrCreateProxyRequest = &AppiumError{
+		Code: "PROXY_REQUEST_CREATE_FAILED", Message: "Failed to create proxy request", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
+	}
+	ErrExecuteProxyRequest = &AppiumError{
+		Code: "PROXY_REQUEST_EXECUTE_FAILED", Message: "Failed to execute proxy request", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
+	}
+	ErrReadProxyResponse = &AppiumError{
+		Code: "PROXY_RESPONSE_READ_FAILED", Message: "Failed to read proxy response", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
+	}
+	ErrUnmarshalProxyResponse = &AppiumError{
+		Code: "PROXY_RESPONSE_UNMARSHAL_FAILED", Message: "Failed to unmarshal proxy response", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrSessionNotCreated,
+	}
+	ErrSessionIDExtraction = &AppiumError{
+		Code: "SESSION_ID_EXTRACTION_FAILED", Message: "Failed to extract session ID from request", 
+		StatusCode: http.StatusInternalServerError, ErrorType: ErrInvalidRequest,
+	}
+	ErrSessionIDNotFound = &AppiumError{
+		Code: "SESSION_ID_NOT_FOUND", Message: "Session ID not found or expired", 
+		StatusCode: http.StatusNotFound, ErrorType: ErrSessionNotFound,
+	}
+)
+
+// Helper functions for error handling
+
+// WithCause creates a new AppiumError with a cause
+func (e *AppiumError) WithCause(cause error) *AppiumError {
+	return &AppiumError{
+		Code:       e.Code,
+		Message:    e.Message,
+		StatusCode: e.StatusCode,
+		ErrorType:  e.ErrorType,
+		Cause:      cause,
+	}
+}
+
+// WithMessage creates a new AppiumError with a custom message
+func (e *AppiumError) WithMessage(message string) *AppiumError {
+	return &AppiumError{
+		Code:       e.Code,
+		Message:    message,
+		StatusCode: e.StatusCode,
+		ErrorType:  e.ErrorType,
+		Cause:      e.Cause,
+	}
+}
+
+// respondWithAppiumError sends an AppiumError as JSON response
+func respondWithAppiumError(c *gin.Context, err *AppiumError) {
+	stackTrace := ""
+	if err.Cause != nil {
+		stackTrace = err.Cause.Error()
+	}
+	
+	response := createErrorResponse(err.Message, err.ErrorType, stackTrace)
+	c.JSON(err.StatusCode, response)
+}
+
+// createAppiumError creates a new AppiumError with custom values
+func createAppiumError(code, message, errorType string, statusCode int, cause error) *AppiumError {
+	return &AppiumError{
+		Code:       code,
+		Message:    message,
+		StatusCode: statusCode,
+		ErrorType:  errorType,
+		Cause:      cause,
+	}
+}
+
 // Every 3 seconds check the devices
 // And clean the automation session if no action was taken in the timeout limit
 func UpdateExpiredGridSessions() {
@@ -76,7 +204,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			// Read the request sessionRequestBody
 			sessionRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read session request sessionRequestBody", "session not created", err.Error()))
+				respondWithAppiumError(c, ErrReadRequestBody.WithCause(err))
 				return
 			}
 			defer c.Request.Body.Close()
@@ -85,7 +213,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			var appiumSessionBody models.AppiumSession
 			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "session not created", err.Error()))
+				respondWithAppiumError(c, ErrUnmarshalRequest.WithCause(err))
 				return
 			}
 
@@ -98,7 +226,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			} else if appiumSessionBody.Capabilities.AlwaysMatch.PlatformName != "" && appiumSessionBody.Capabilities.AlwaysMatch.AutomationName != "" {
 				capsToUse = appiumSessionBody.Capabilities.AlwaysMatch
 			} else {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS did not find any suitable capabilities object in the session request, check your setup or open an issues on the project Github page", "session not created", ""))
+				respondWithAppiumError(c, ErrNoSuitableCapabilities)
 				return
 			}
 
@@ -110,16 +238,15 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
 
 			if clientSecret == "" {
-				c.JSON(http.StatusUnauthorized, createErrorResponse(
-					fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix),
-					"session not created",
-					""))
+				customErr := ErrMissingClientCredentials.WithMessage(
+					fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix))
+				respondWithAppiumError(c, customErr)
 				return
 			}
 
 			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
 			if err != nil || !credential.IsActive {
-				c.JSON(http.StatusUnauthorized, createErrorResponse("Invalid client credentials", "session not created", ""))
+				respondWithAppiumError(c, ErrInvalidClientCredentials.WithCause(err))
 				return
 			}
 
@@ -131,7 +258,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				if credential.Tenant == defaultTenant && credential.UserID != "" {
 					user, err := db.GlobalMongoStore.GetUser(credential.UserID)
 					if err != nil {
-						c.JSON(http.StatusUnauthorized, createErrorResponse("User not found", "session not created", ""))
+						respondWithAppiumError(c, ErrUserNotFound.WithCause(err))
 						return
 					}
 
@@ -163,7 +290,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 
 			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
-				c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
+				respondWithAppiumError(c, ErrNoAvailableDevice.WithCause(deviceErr))
 				return
 			}
 
@@ -184,9 +311,9 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 					case <-timeout:
 						ticker.Stop()
 						if deviceErr != nil {
-							c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
+							respondWithAppiumError(c, ErrNoAvailableDevice.WithCause(deviceErr))
 						} else {
-							c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
+							respondWithAppiumError(c, ErrNoAvailableDevice)
 						}
 						return
 					case <-notify:
@@ -198,9 +325,9 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 
 			if foundDevice == nil {
 				if deviceErr != nil {
-					c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
+					respondWithAppiumError(c, ErrNoAvailableDevice.WithCause(deviceErr))
 				} else {
-					c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
+					respondWithAppiumError(c, ErrNoAvailableDevice)
 				}
 				return
 			}
@@ -227,7 +354,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "session not created", err.Error()))
+				respondWithAppiumError(c, ErrCreateProxyRequest.WithCause(err))
 				return
 			}
 
@@ -244,7 +371,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium session endpoint", "session not created", err.Error()))
+				respondWithAppiumError(c, ErrExecuteProxyRequest.WithCause(err))
 				return
 			}
 			defer resp.Body.Close()
@@ -301,7 +428,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
+				respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
 				return
 			}
 
@@ -313,7 +440,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				devices.HubDevicesData.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
+				respondWithAppiumError(c, ErrUnmarshalProxyResponse.WithCause(err))
 				return
 			}
 
@@ -362,7 +489,8 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				}
 
 				if startIndex == -1 || endIndex == -1 {
-					c.JSON(http.StatusInternalServerError, createErrorResponse(fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path), "", ""))
+					customErr := ErrSessionIDExtraction.WithMessage(fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path))
+					respondWithAppiumError(c, customErr)
 					return
 				}
 
@@ -371,14 +499,14 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 
 			// If no session ID could be parsed from the request
 			if sessionID == "" {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("No session ID could be extracted from the request", "", ""))
+				respondWithAppiumError(c, ErrSessionIDExtraction)
 				return
 			}
 
 			// Read the request origRequestBody
 			origRequestBody, err := readBody(c.Request.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the proxied Appium request origRequestBody", "", err.Error()))
+				respondWithAppiumError(c, ErrReadRequestBody.WithCause(err))
 				return
 			}
 			defer c.Request.Body.Close()
@@ -388,7 +516,8 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			foundDevice, err := getDeviceBySessionID(sessionID)
 			devices.HubDevicesData.Mu.Unlock()
 			if err != nil {
-				c.JSON(http.StatusNotFound, createErrorResponse(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID), "", ""))
+				customErr := ErrSessionIDNotFound.WithMessage(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID))
+				respondWithAppiumError(c, customErr)
 				return
 			}
 
@@ -407,7 +536,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 				bytes.NewBuffer(origRequestBody),
 			)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create proxy request for this call", "", err.Error()))
+				respondWithAppiumError(c, ErrCreateProxyRequest.WithCause(err))
 				return
 			}
 
@@ -420,7 +549,7 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 			client := &http.Client{}
 			resp, err := client.Do(proxyReq)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium endpoint", "", err.Error()))
+				respondWithAppiumError(c, ErrExecuteProxyRequest.WithCause(err))
 				return
 			}
 			defer resp.Body.Close()
@@ -466,14 +595,15 @@ func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
 					}
 					devices.HubDevicesData.Mu.Unlock()
 				}()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS got an internal server error from the proxy request to the device respective provider Appium endpoint", "", ""))
+				customErr := createAppiumError("PROXY_SERVER_ERROR", "Internal server error from device provider", ErrInternalServerError, http.StatusInternalServerError, nil)
+				respondWithAppiumError(c, customErr)
 				return
 			}
 
 			// Read the response origRequestBody of the proxied request
 			proxiedRequestBody, err := readBody(resp.Body)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response origRequestBody of the proxied Appium request", "", err.Error()))
+				respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
 				return
 			}
 
