@@ -43,36 +43,9 @@ type SeleniumSessionErrorResponseValue struct {
 	StackTrace string `json:"stacktrace"`
 }
 
-// Service layer interfaces
+// Authentication functions
 
-// AuthService handles authentication and workspace access control
-type AuthService interface {
-	ValidateCredentials(clientSecret string) (*models.ClientCredentials, *AppiumError)
-	GetAllowedWorkspaces(credential *models.ClientCredentials) ([]string, *AppiumError)
-}
-
-// DeviceService handles device allocation and state management
-type DeviceService interface {
-	FindAndReserveDevice(caps models.CommonCapabilities, workspaceIDs []string, userID, tenant string) (*models.LocalHubDevice, *AppiumError)
-	ReleaseDevice(device *models.LocalHubDevice)
-	ReleaseDeviceWithCleanup(device *models.LocalHubDevice, clearUserInfo bool)
-	SetDeviceInUse(device *models.LocalHubDevice, userID, tenant string)
-}
-
-// SessionService handles session lifecycle operations  
-type SessionService interface {
-	CreateProxyRequest(device *models.LocalHubDevice, originalReq *http.Request, body []byte) (*http.Request, *AppiumError)
-	ExecuteProxyRequest(req *http.Request) (*http.Response, *AppiumError)
-	ExtractSessionID(responseBody []byte) (string, *AppiumError)
-	FindDeviceBySessionID(sessionID string) (*models.LocalHubDevice, *AppiumError)
-}
-
-// Service implementations
-
-// authService implements AuthService interface
-type authService struct{}
-
-func (s *authService) ValidateCredentials(clientSecret string) (*models.ClientCredentials, *AppiumError) {
+func validateCredentials(clientSecret string) (*models.ClientCredentials, *AppiumError) {
 	credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
 	if err != nil || !credential.IsActive {
 		return nil, ErrInvalidClientCredentials.WithCause(err)
@@ -80,7 +53,7 @@ func (s *authService) ValidateCredentials(clientSecret string) (*models.ClientCr
 	return &credential, nil
 }
 
-func (s *authService) GetAllowedWorkspaces(credential *models.ClientCredentials) ([]string, *AppiumError) {
+func getAllowedWorkspaces(credential *models.ClientCredentials) ([]string, *AppiumError) {
 	var allowedWorkspaceIDs []string
 	
 	if credential.Tenant != "" {
@@ -118,10 +91,9 @@ func (s *authService) GetAllowedWorkspaces(credential *models.ClientCredentials)
 	return allowedWorkspaceIDs, nil
 }
 
-// deviceService implements DeviceService interface
-type deviceService struct{}
+// Device management functions
 
-func (s *deviceService) FindAndReserveDevice(caps models.CommonCapabilities, workspaceIDs []string, userID, tenant string) (*models.LocalHubDevice, *AppiumError) {
+func findAndReserveDevice(caps models.CommonCapabilities, workspaceIDs []string, userID, tenant string) (*models.LocalHubDevice, *AppiumError) {
 	foundDevice, err := findAvailableDevice(caps, workspaceIDs, userID, tenant)
 	if err != nil {
 		if strings.Contains(err.Error(), "No device with udid") {
@@ -173,15 +145,7 @@ deviceFound:
 	return foundDevice, nil
 }
 
-func (s *deviceService) ReleaseDevice(device *models.LocalHubDevice) {
-	releaseDevice(device)
-}
-
-func (s *deviceService) ReleaseDeviceWithCleanup(device *models.LocalHubDevice, clearUserInfo bool) {
-	releaseDeviceWithUserCleanup(device, clearUserInfo)
-}
-
-func (s *deviceService) SetDeviceInUse(device *models.LocalHubDevice, userID, tenant string) {
+func setDeviceInUse(device *models.LocalHubDevice, userID, tenant string) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
 	
@@ -198,10 +162,9 @@ func (s *deviceService) SetDeviceInUse(device *models.LocalHubDevice, userID, te
 	}
 }
 
-// sessionService implements SessionService interface
-type sessionService struct{}
+// Session management functions
 
-func (s *sessionService) CreateProxyRequest(device *models.LocalHubDevice, originalReq *http.Request, body []byte) (*http.Request, *AppiumError) {
+func createProxyRequest(device *models.LocalHubDevice, originalReq *http.Request, body []byte) (*http.Request, *AppiumError) {
 	proxyURL := createProxyURL(device.Device.Host, device.Device.UDID, originalReq.URL.Path)
 	proxyReq, err := http.NewRequest(originalReq.Method, proxyURL, bytes.NewBuffer(body))
 	if err != nil {
@@ -216,7 +179,7 @@ func (s *sessionService) CreateProxyRequest(device *models.LocalHubDevice, origi
 	return proxyReq, nil
 }
 
-func (s *sessionService) ExecuteProxyRequest(req *http.Request) (*http.Response, *AppiumError) {
+func executeProxyRequest(req *http.Request) (*http.Response, *AppiumError) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -225,11 +188,11 @@ func (s *sessionService) ExecuteProxyRequest(req *http.Request) (*http.Response,
 	return resp, nil
 }
 
-func (s *sessionService) ExtractSessionID(responseBody []byte) (string, *AppiumError) {
+func extractSessionIDFromResponse(responseBody []byte) (string, *AppiumError) {
 	return parseAppiumSessionResponse(responseBody)
 }
 
-func (s *sessionService) FindDeviceBySessionID(sessionID string) (*models.LocalHubDevice, *AppiumError) {
+func findDeviceBySessionID(sessionID string) (*models.LocalHubDevice, *AppiumError) {
 	devices.HubDevicesData.Mu.Lock()
 	foundDevice, err := getDeviceBySessionID(sessionID)
 	devices.HubDevicesData.Mu.Unlock()
@@ -240,12 +203,6 @@ func (s *sessionService) FindDeviceBySessionID(sessionID string) (*models.LocalH
 	return foundDevice, nil
 }
 
-// Service instances
-var (
-	AuthSvc    AuthService    = &authService{}
-	DeviceSvc  DeviceService  = &deviceService{}
-	SessionSvc SessionService = &sessionService{}
-)
 
 // AppiumError represents a structured error for Appium Grid operations
 type AppiumError struct {
@@ -794,39 +751,39 @@ func handleSessionCreation(c *gin.Context) {
 		return
 	}
 
-	// Validate credentials using AuthService
-	credential, authErr := AuthSvc.ValidateCredentials(sessionReq.ClientSecret)
+	// Validate credentials
+	credential, authErr := validateCredentials(sessionReq.ClientSecret)
 	if authErr != nil {
 		respondWithAppiumError(c, authErr)
 		return
 	}
 
-	// Get allowed workspaces using AuthService
-	allowedWorkspaceIDs, workspaceErr := AuthSvc.GetAllowedWorkspaces(credential)
+	// Get allowed workspaces
+	allowedWorkspaceIDs, workspaceErr := getAllowedWorkspaces(credential)
 	if workspaceErr != nil {
 		respondWithAppiumError(c, workspaceErr)
 		return
 	}
 
-	// Find and reserve device using DeviceService
-	foundDevice, deviceErr := DeviceSvc.FindAndReserveDevice(sessionReq.Capabilities, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+	// Find and reserve device
+	foundDevice, deviceErr := findAndReserveDevice(sessionReq.Capabilities, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 	if deviceErr != nil {
 		respondWithAppiumError(c, deviceErr)
 		return
 	}
 
-	// Create proxy request using SessionService
-	proxyReq, proxyErr := SessionSvc.CreateProxyRequest(foundDevice, c.Request, sessionReq.Body)
+	// Create proxy request
+	proxyReq, proxyErr := createProxyRequest(foundDevice, c.Request, sessionReq.Body)
 	if proxyErr != nil {
-		DeviceSvc.ReleaseDevice(foundDevice)
+		releaseDevice(foundDevice)
 		respondWithAppiumError(c, proxyErr)
 		return
 	}
 
-	// Execute proxy request using SessionService
-	resp, execErr := SessionSvc.ExecuteProxyRequest(proxyReq)
+	// Execute proxy request
+	resp, execErr := executeProxyRequest(proxyReq)
 	if execErr != nil {
-		DeviceSvc.ReleaseDevice(foundDevice)
+		releaseDevice(foundDevice)
 		respondWithAppiumError(c, execErr)
 		return
 	}
@@ -835,7 +792,7 @@ func handleSessionCreation(c *gin.Context) {
 	if resp.StatusCode >= 400 {
 		// Release device for any error status, clear user info only for non-500 errors
 		clearUserInfo := resp.StatusCode != http.StatusInternalServerError
-		DeviceSvc.ReleaseDeviceWithCleanup(foundDevice, clearUserInfo)
+		releaseDeviceWithUserCleanup(foundDevice, clearUserInfo)
 
 		// For 500 errors, keep the existing behavior with goroutine
 		if resp.StatusCode == http.StatusInternalServerError {
@@ -858,15 +815,15 @@ func handleSessionCreation(c *gin.Context) {
 	// Read and parse the response from the proxied request
 	proxiedSessionResponseBody, err := readBody(resp.Body)
 	if err != nil {
-		DeviceSvc.ReleaseDevice(foundDevice)
+		releaseDevice(foundDevice)
 		respondWithAppiumError(c, ErrReadProxyResponse.WithCause(err))
 		return
 	}
 
-	// Extract session ID using SessionService
-	sessionID, parseErr := SessionSvc.ExtractSessionID(proxiedSessionResponseBody)
+	// Extract session ID
+	sessionID, parseErr := extractSessionIDFromResponse(proxiedSessionResponseBody)
 	if parseErr != nil {
-		DeviceSvc.ReleaseDevice(foundDevice)
+		releaseDevice(foundDevice)
 		respondWithAppiumError(c, parseErr)
 		return
 	}
@@ -883,8 +840,8 @@ func handleSessionCreation(c *gin.Context) {
 	c.Writer.WriteHeader(resp.StatusCode)
 	c.Writer.Write(proxiedSessionResponseBody)
 
-	// Set device in use using DeviceService
-	DeviceSvc.SetDeviceInUse(foundDevice, credential.UserID, credential.Tenant)
+	// Set device in use
+	setDeviceInUse(foundDevice, credential.UserID, credential.Tenant)
 }
 
 // handleSessionRequest processes Appium session-related requests (non-creation)
@@ -905,8 +862,8 @@ func handleSessionRequest(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	// Find device by session ID using SessionService
-	foundDevice, deviceErr := SessionSvc.FindDeviceBySessionID(sessionID)
+	// Find device by session ID
+	foundDevice, deviceErr := findDeviceBySessionID(sessionID)
 	if deviceErr != nil {
 		respondWithAppiumError(c, deviceErr)
 		return
@@ -917,15 +874,15 @@ func handleSessionRequest(c *gin.Context) {
 		foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 	}()
 
-	// Create proxy request using SessionService
-	proxyReq, proxyErr := SessionSvc.CreateProxyRequest(foundDevice, c.Request, origRequestBody)
+	// Create proxy request
+	proxyReq, proxyErr := createProxyRequest(foundDevice, c.Request, origRequestBody)
 	if proxyErr != nil {
 		respondWithAppiumError(c, proxyErr)
 		return
 	}
 
-	// Execute proxy request using SessionService
-	resp, execErr := SessionSvc.ExecuteProxyRequest(proxyReq)
+	// Execute proxy request
+	resp, execErr := executeProxyRequest(proxyReq)
 	if execErr != nil {
 		respondWithAppiumError(c, execErr)
 		return
