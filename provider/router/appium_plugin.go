@@ -101,7 +101,6 @@ func AppiumPluginRemoveSession(c *gin.Context) {
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
 
-
 // AppiumPluginPing The plugin periodically sends pings so we can keep track if the server is up
 func AppiumPluginPing(c *gin.Context) {
 	udid := c.Param("udid")

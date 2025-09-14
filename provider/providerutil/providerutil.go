@@ -209,18 +209,6 @@ func UninstallAppiumPlugin() error {
 	return nil
 }
 
-// Update the GADS Appium plugin on Appium
-func UpdateAppiumPlugin() error {
-	cmd := exec.Command("appium", "plugin", "update", "gads")
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to install GADS Appium plugin - %s", string(out)))
-		return err
-	}
-	return nil
-}
-
 // Remove all adb forwarded ports(if any) on provider start
 func RemoveAdbForwardedPorts() {
 	logger.ProviderLogger.LogInfo("provider_setup", "Attempting to remove all `adb` forwarded ports on provider start")
