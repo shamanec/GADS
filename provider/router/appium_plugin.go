@@ -3,9 +3,9 @@ package router
 import (
 	"GADS/common/api"
 	"GADS/common/db"
+	"GADS/common/minio"
 	"GADS/common/models"
 	"GADS/provider/devices"
-	"GADS/provider/minio"
 	"encoding/json"
 	"fmt"
 	"io"
