@@ -138,7 +138,7 @@ func ExtractClientSecretFromSession(sessionReq map[string]interface{}, prefix st
 				return secret
 			}
 		}
-        // Check capabilities.firstMatch (W3C format)
+		// Check capabilities.firstMatch (W3C format)
 		if firstMatch, ok := caps["firstMatch"].([]interface{}); ok {
 			for _, item := range firstMatch {
 				if firstCaps, ok := item.(map[string]interface{}); ok {
@@ -190,6 +190,17 @@ type AppiumPluginSessionLog struct {
 	AdditionalInfo string `json:"additional_info" bson:"additional_info,omitempty"`     // Additional Appium command info parsed from command arguments in human-readable output
 	TestStatus     string `json:"test_status,omitempty" bson:"test_status,omitempty"`   // Test status (pass, fail, skip) - only for test result logs
 	TestMessage    string `json:"test_message,omitempty" bson:"test_message,omitempty"` // Test message or error - only for test result logs
+}
+
+type AppiumPluginScreenshotRequest struct {
+	SessionID      string `json:"session_id"`
+	BuildID        string `json:"build_id"`
+	SequenceNumber string `json:"sequence_number"`
+	IsAfterCommand bool   `json:"is_after_command"`
+}
+
+type AppiumPluginScreenshotResponse struct {
+	Screenshot string `json:"screenshot"`
 }
 
 // SessionLogsSummary is the compact record we will show in tests report table

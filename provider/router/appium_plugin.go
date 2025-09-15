@@ -48,7 +48,6 @@ func AppiumPluginSessionLog(c *gin.Context) {
 			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read log request body - %s", err), nil)
 			return
 		}
-		fmt.Println(string(body))
 
 		var appiumPluginSessionLog models.AppiumPluginSessionLog
 		err = json.Unmarshal(body, &appiumPluginSessionLog)
@@ -56,6 +55,58 @@ func AppiumPluginSessionLog(c *gin.Context) {
 		db.GlobalMongoStore.AddAppiumSessionLog(appiumPluginSessionLog.Tenant, appiumPluginSessionLog)
 		api.GenericResponse(c, http.StatusOK, "Logged successfully", nil)
 		return
+	}
+	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+}
+
+// AppiumPluginScreenshot The plugin sends a screenshot request for particular commands, provider gets a screenshot from device and stores it in Minio in the respective buildId/sessionId bucket
+// to show in reports later
+func AppiumPluginScreenshot(c *gin.Context) {
+	udid := c.Param("udid")
+	if device, ok := devices.DBDeviceMap[udid]; ok {
+		if device.OS == "ios" {
+			return
+		}
+
+		// Read the request body
+		requestBody, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, "Failed to read screenshot request body", nil)
+			return
+		}
+
+		// Try to unmarshal the request body
+		var screenshotReq models.AppiumPluginScreenshotRequest
+		err = json.Unmarshal(requestBody, &screenshotReq)
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, "Failed to unmarshal screenshot request body", nil)
+			return
+		}
+
+		// Try to get a screenshot from the Android GADS server app
+		screenshotResp, err := androidRemoteServerRequest(device, http.MethodPost, "/screenshot", nil)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, "Failed to take screenshot from Android server app", nil)
+			return
+		}
+
+		// Read the screenshot response body
+		bodyBytes, err := io.ReadAll(screenshotResp.Body)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, "Failed to read screenshot response from Android server app", nil)
+			return
+		}
+
+		// Try to unmarshal the screenshot response
+		var screenshotResponse models.AppiumPluginScreenshotResponse
+		err = json.Unmarshal(bodyBytes, &screenshotResponse)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, "Failed to marshal screenshot response from Android server app", nil)
+			return
+		}
+
+		// Store the screenshot in Minio
+
 	}
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
