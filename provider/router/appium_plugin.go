@@ -5,6 +5,7 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/provider/devices"
+	"GADS/provider/minio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -84,7 +85,7 @@ func AppiumPluginScreenshot(c *gin.Context) {
 		}
 
 		// Try to get a screenshot from the Android GADS server app
-		screenshotResp, err := androidRemoteServerRequest(device, http.MethodPost, "/screenshot", nil)
+		screenshotResp, err := androidRemoteServerRequest(device, http.MethodGet, "screenshot", nil)
 		if err != nil {
 			api.GenericResponse(c, http.StatusInternalServerError, "Failed to take screenshot from Android server app", nil)
 			return
@@ -106,7 +107,20 @@ func AppiumPluginScreenshot(c *gin.Context) {
 		}
 
 		// Store the screenshot in Minio
+		filename := screenshotReq.SequenceNumber
+		if screenshotReq.IsAfterCommand {
+			filename += "_after"
+		}
+		filename += ".jpg"
 
+		objectPath, err := minio.GlobalMinioClient.StoreScreenshot(screenshotReq.BuildID, screenshotReq.SessionID, filename, screenshotResponse.Screenshot)
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to store screenshot in Minio: %s", err), nil)
+			return
+		}
+
+		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("Screenshot stored successfully at %s", objectPath), nil)
+		return
 	}
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }

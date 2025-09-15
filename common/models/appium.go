@@ -187,9 +187,11 @@ type AppiumPluginSessionLog struct {
 	LocatorValue   string `json:"locator_value" bson:"locator_value,omitempty"`         // Actual locator value used on findElement/findElements
 	DeviceName     string `json:"device_name" bson:"device_name"`                       // Name of the device from GADS registered devices database
 	PlatformName   string `json:"platform_name" bson:"platform_name"`                   // Target platform - iOS/Android/Tizen/WebOS
-	AdditionalInfo string `json:"additional_info" bson:"additional_info,omitempty"`     // Additional Appium command info parsed from command arguments in human-readable output
-	TestStatus     string `json:"test_status,omitempty" bson:"test_status,omitempty"`   // Test status (pass, fail, skip) - only for test result logs
-	TestMessage    string `json:"test_message,omitempty" bson:"test_message,omitempty"` // Test message or error - only for test result logs
+	AdditionalInfo       string `json:"additional_info" bson:"additional_info,omitempty"`           // Additional Appium command info parsed from command arguments in human-readable output
+	TestStatus           string `json:"test_status,omitempty" bson:"test_status,omitempty"`         // Test status (pass, fail, skip) - only for test result logs
+	TestMessage          string `json:"test_message,omitempty" bson:"test_message,omitempty"`       // Test message or error - only for test result logs
+	HasScreenshot        bool   `json:"has_screenshot" bson:"has_screenshot"`                       // Whether a screenshot was taken before the command
+	HasScreenshotAfter   bool   `json:"has_screenshot_after" bson:"has_screenshot_after"`           // Whether a screenshot was taken after the command
 }
 
 type AppiumPluginScreenshotRequest struct {

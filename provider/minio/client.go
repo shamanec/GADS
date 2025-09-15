@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -24,15 +23,11 @@ func init() {
 }
 
 func InitMinioClient() {
-	endpoint := os.Getenv("MINIO_ENDPOINT")
-	accessKeyID := os.Getenv("MINIO_ACCESS_KEY")
-	secretAccessKey := os.Getenv("MINIO_SECRET_KEY")
-	bucketName := os.Getenv("MINIO_BUCKET")
-	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
-
-	if endpoint == "" || accessKeyID == "" || secretAccessKey == "" || bucketName == "" {
-		log.Fatal("Missing required Minio environment variables")
-	}
+	endpoint := "localhost:9000"
+	accessKeyID := "minioadmin"
+	secretAccessKey := "minioadmin"
+	bucketName := "appium-report-screenshots"
+	useSSL := false
 
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
