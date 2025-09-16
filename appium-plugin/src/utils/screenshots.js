@@ -62,12 +62,10 @@ export function takeAfterScreenshot(GadsAppium, commandName, apiClient) {
         return false
     }
 
-    // Use the next sequence number (which will be assigned to the main log)
-    const nextSequence = GadsAppium.actionLogSequence + 1
     const errorScreenshotData = {
         session_id: GadsAppium.currentSessionId,
         build_id: GadsAppium.actionLogBuildId,
-        sequence_number: nextSequence.toString(),
+        sequence_number: GadsAppium.actionLogSequence.toString(),
         is_after_command: true
     }
 
