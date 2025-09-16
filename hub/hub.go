@@ -16,6 +16,7 @@ package hub
 
 import (
 	"GADS/common/db"
+	"GADS/common/minio"
 	"GADS/common/models"
 
 	"GADS/docs"
@@ -89,9 +90,28 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	db.InitMongo(mongoDB, "gads")
 	defer db.GlobalMongoStore.Close()
 
+	// Initialize MinIO client based on configuration
+	fmt.Println("Checking MinIO configuration...")
+	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
+	if err != nil {
+		fmt.Printf("Failed to get MinIO configuration from database: %v\n", err)
+		configData.MinioAvailable = false
+	} else if !minioConfig.Enabled {
+		fmt.Println("MinIO is disabled in configuration")
+		configData.MinioAvailable = false
+	} else {
+		fmt.Println("Initializing MinIO client...")
+		err = minio.InitMinioClientWithConfig(minioConfig.Endpoint, minioConfig.AccessKeyID, minioConfig.SecretAccessKey, minioConfig.UseSSL)
+		if err != nil {
+			log.Fatalf("MinIO is enabled in configuration but client initialization failed: %v", err)
+		}
+		fmt.Println("MinIO client initialized successfully")
+		configData.MinioAvailable = true
+	}
+
 	// Initialize the secret key cache
 	secretStore := auth.NewSecretStore(db.GlobalMongoStore.GetDefaultDatabase())
-	err := auth.InitSecretCache(secretStore, 5*time.Minute)
+	err = auth.InitSecretCache(secretStore, 5*time.Minute)
 	if err != nil {
 		log.Fatalf("Failed to initialize secret key cache: %v", err)
 	}

@@ -115,6 +115,8 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
 	authGroup.GET("/admin/global-settings", GetGlobalStreamSettings)
 	authGroup.POST("/admin/global-settings", UpdateGlobalStreamSettings)
+	authGroup.GET("/admin/minio-config", GetMinioConfig)
+	authGroup.POST("/admin/minio-config", UpdateMinioConfig)
 	authGroup.POST("/admin/workspaces", CreateWorkspace)
 	authGroup.PUT("/admin/workspaces", UpdateWorkspace)
 	authGroup.DELETE("/admin/workspaces/:id", DeleteWorkspace)
@@ -139,6 +141,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	reportsGroup.GET("/builds", GetBuildReports)
 	reportsGroup.GET("/builds/:build_id/sessions", GetBuildSessions)
 	reportsGroup.GET("/sessions/:session_id/logs", GetSessionLogs)
+	reportsGroup.GET("/screenshots/:build_id/:session_id/:filename", GetScreenshot)
 
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware(configData))

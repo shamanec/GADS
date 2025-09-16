@@ -113,7 +113,7 @@ func AppiumPluginScreenshot(c *gin.Context) {
 		}
 		filename += ".jpg"
 
-		objectPath, err := minio.GlobalMinioClient.StoreScreenshot(screenshotReq.BuildID, screenshotReq.SessionID, filename, screenshotResponse.Screenshot)
+		objectPath, err := minio.GlobalMinioClient.StoreAppiumScreenshot(screenshotReq.BuildID, screenshotReq.SessionID, filename, screenshotResponse.Screenshot)
 		if err != nil {
 			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to store screenshot in Minio: %s", err), nil)
 			return
