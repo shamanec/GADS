@@ -37,7 +37,8 @@
         }
     },
     "devDependencies": {
-        "appium-uiautomator2-driver": "^4.2.1"
+        "appium-uiautomator2-driver": "^4.2.1",
+        "appium-xcuitest-driver": "^9.10.5"
     },
     "author": "Nikola Shabanov",
     "license": "AGPL-3.0-only"

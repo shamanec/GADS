@@ -81,6 +81,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// Unauthenticated endpoints
 	authGroup.POST("/authenticate", auth.LoginHandler)
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
+	authGroup.GET("/reports/screenshots/:build_id/:session_id/:filename", GetScreenshot)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
 	authGroup.POST("/provider-update", ProviderUpdate)
@@ -141,7 +142,6 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	reportsGroup.GET("/builds", GetBuildReports)
 	reportsGroup.GET("/builds/:build_id/sessions", GetBuildSessions)
 	reportsGroup.GET("/sessions/:session_id/logs", GetSessionLogs)
-	reportsGroup.GET("/screenshots/:build_id/:session_id/:filename", GetScreenshot)
 
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware(configData))

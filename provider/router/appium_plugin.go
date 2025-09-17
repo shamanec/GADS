@@ -65,7 +65,7 @@ func AppiumPluginSessionLog(c *gin.Context) {
 func AppiumPluginScreenshot(c *gin.Context) {
 	udid := c.Param("udid")
 	if device, ok := devices.DBDeviceMap[udid]; ok {
-		if device.OS == "ios" {
+		if device.OS == "tizen" || device.OS == "webos" {
 			return
 		}
 
@@ -84,11 +84,21 @@ func AppiumPluginScreenshot(c *gin.Context) {
 			return
 		}
 
-		// Try to get a screenshot from the Android GADS server app
-		screenshotResp, err := androidRemoteServerRequest(device, http.MethodGet, "screenshot", nil)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, "Failed to take screenshot from Android server app", nil)
-			return
+		var screenshotResp *http.Response
+
+		if device.OS == "ios" {
+			screenshotResp, err = wdaRequest(device, http.MethodGet, "screenshot-lq", nil)
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to take screenshot from Android server app", nil)
+				return
+			}
+		} else {
+			// Try to get a screenshot from the Android GADS server app
+			screenshotResp, err = androidRemoteServerRequest(device, http.MethodGet, "screenshot", nil)
+			if err != nil {
+				api.GenericResponse(c, http.StatusInternalServerError, "Failed to take screenshot from Android server app", nil)
+				return
+			}
 		}
 
 		// Read the screenshot response body
@@ -106,6 +116,17 @@ func AppiumPluginScreenshot(c *gin.Context) {
 			return
 		}
 
+		screenshotBase64 := screenshotResponse.Screenshot
+		if screenshotBase64 == "" {
+			screenshotBase64 = screenshotResponse.Value.Screenshot
+		}
+
+		// Return an error if we don't have a base64 encoded string for screenshot from GADS Android server or WebDriverAgent
+		if screenshotBase64 == "" {
+			api.GenericResponse(c, http.StatusInternalServerError, "No base64 encoded string for screenshot was received", nil)
+			return
+		}
+
 		// Store the screenshot in Minio
 		filename := screenshotReq.SequenceNumber
 		if screenshotReq.IsAfterCommand {
@@ -113,7 +134,7 @@ func AppiumPluginScreenshot(c *gin.Context) {
 		}
 		filename += ".jpg"
 
-		objectPath, err := minio.GlobalMinioClient.StoreAppiumScreenshot(screenshotReq.BuildID, screenshotReq.SessionID, filename, screenshotResponse.Screenshot)
+		objectPath, err := minio.GlobalMinioClient.StoreAppiumScreenshot(screenshotReq.BuildID, screenshotReq.SessionID, filename, screenshotBase64)
 		if err != nil {
 			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to store screenshot in Minio: %s", err), nil)
 			return
