@@ -1311,6 +1311,72 @@ func UpdateMinioConfig(c *gin.Context) {
 	api.GenericResponse(c, http.StatusOK, "MinIO configuration updated successfully", "Configuration saved")
 }
 
+// GetSystemStatus godoc
+// @Summary      Get system status messages
+// @Description  Retrieve system status messages for administrators
+// @Tags         Admin - System
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.SystemStatusAPIResponse
+// @Failure      500  {object}  models.APIResponse
+// @Security     BearerAuth
+// @Router       /admin/system-status [get]
+func GetSystemStatus(c *gin.Context) {
+	var messages []models.SystemStatusMessage
+
+	// Check MinIO configuration
+	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
+	if err != nil {
+		// Check if it's a "not found" error (no config exists)
+		if err == mongo.ErrNoDocuments {
+			messages = append(messages, models.SystemStatusMessage{
+				Type:    "minio_not_configured",
+				Message: "MinIO is not configured. Screenshot storage and file uploads will not work.",
+				Action:  "Configure MinIO in Admin -> Global Settings",
+			})
+		} else {
+			// Other database error
+			api.InternalServerErrorResponse(c, "Failed to retrieve MinIO configuration", nil)
+			return
+		}
+	} else {
+		// Config exists, check if it's enabled
+		if !minioConfig.Enabled {
+			messages = append(messages, models.SystemStatusMessage{
+				Type:    "minio_disabled",
+				Message: "MinIO is disabled. Screenshot storage and file uploads will not work.",
+				Action:  "Enable MinIO in Admin -> Global Settings",
+			})
+		}
+	}
+
+	// Check if any devices are configured
+	devices, _ := db.GlobalMongoStore.GetDevices()
+	if len(devices) == 0 {
+		messages = append(messages, models.SystemStatusMessage{
+			Type:    "no_devices",
+			Message: "No devices configured.",
+			Action:  "Add devices in Admin -> Devices",
+		})
+	}
+
+	// Check if any providers are configured
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
+	if len(providers) == 0 {
+		messages = append(messages, models.SystemStatusMessage{
+			Type:    "no_providers",
+			Message: "No providers configured.",
+			Action:  "Add providers in Admin -> Providers",
+		})
+	}
+
+	response := models.SystemStatusResponse{
+		Messages: messages,
+	}
+
+	api.OKResponse(c, "System status retrieved successfully", response)
+}
+
 // GetScreenshot godoc
 // @Summary      Get screenshot for Appium session
 // @Description  Retrieve screenshot from Minio storage for specific build/session

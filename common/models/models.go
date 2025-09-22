@@ -257,18 +257,6 @@ type AppiumPluginConfiguration struct {
 	MinioEnabled      bool   `json:"minioEnabled"`
 }
 
-// API Responses
-
-type APIResponse struct {
-	Message string      `json:"message,omitempty"`
-	Result  interface{} `json:"result,omitempty"`
-}
-
-type AndroidFileNodeResponse struct {
-	Message string          `json:"message,omitempty"`
-	Result  AndroidFileNode `json:"result,omitempty"`
-}
-
 // ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS
 func ValidateDeviceUsageForOS(os, usage string) error {
 	// Normalize OS string to lowercase for case-insensitive comparison

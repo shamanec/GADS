@@ -47,6 +47,11 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 		r.Use(func(c *gin.Context) {
 			path := c.Request.URL.Path
 
+			// Skip UI serving for swagger routes
+			if strings.HasPrefix(path, "/swagger/") {
+				return
+			}
+
 			if path != "/" {
 				_, err := uiFS.Open(strings.TrimPrefix(path, "/"))
 				if err != nil {
@@ -118,6 +123,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/admin/global-settings", UpdateGlobalStreamSettings)
 	authGroup.GET("/admin/minio-config", GetMinioConfig)
 	authGroup.POST("/admin/minio-config", UpdateMinioConfig)
+	authGroup.GET("/admin/system-status", GetSystemStatus)
 	authGroup.POST("/admin/workspaces", CreateWorkspace)
 	authGroup.PUT("/admin/workspaces", UpdateWorkspace)
 	authGroup.DELETE("/admin/workspaces/:id", DeleteWorkspace)
