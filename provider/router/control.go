@@ -98,17 +98,18 @@ func deviceTap(device *models.Device, x float64, y float64) (*http.Response, err
 	}
 }
 
-func deviceTouchAndHold(device *models.Device, x float64, y float64, delay float64) (*http.Response, error) {
+func deviceTouchAndHold(device *models.Device, x float64, y float64, duration float64) (*http.Response, error) {
+	if device.OS == "ios" {
+		duration = float64(duration) / 1000
+	}
 	requestBody := struct {
 		X        float64 `json:"x"`
 		Y        float64 `json:"y"`
-		Delay    float64 `json:"delay"`
 		Duration float64 `json:"duration"`
 	}{
 		X:        x,
 		Y:        y,
-		Delay:    delay,
-		Duration: 1000,
+		Duration: duration,
 	}
 	actionJSON, err := json.MarshalIndent(requestBody, "", "  ")
 	if err != nil {
@@ -116,7 +117,7 @@ func deviceTouchAndHold(device *models.Device, x float64, y float64, delay float
 	}
 
 	if device.OS == "ios" {
-		return wdaRequest(device, http.MethodPost, "wda/tap", bytes.NewReader(actionJSON))
+		return wdaRequest(device, http.MethodPost, "wda/touchAndHold", bytes.NewReader(actionJSON))
 	} else {
 		return androidRemoteServerRequestJson(device, http.MethodPost, "touchAndHold", bytes.NewReader([]byte(actionJSON)))
 	}
