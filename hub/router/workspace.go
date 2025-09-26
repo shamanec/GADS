@@ -188,7 +188,7 @@ func GetWorkspaces(c *gin.Context) {
 		limit = 10 // Default limit
 	}
 
-	workspaces, totalCount, err := db.GlobalMongoStore.GetWorkspacesWithDeviceCount(page, limit, searchStr)
+	workspaces, totalCount, err := db.GlobalMongoStore.GetWorkspacesWithDeviceCount(page, limit, searchStr, tenantStr)
 
 	if err != nil {
 		if err == db.ErrInvalidPagination {
@@ -199,18 +199,6 @@ func GetWorkspaces(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspaces"})
 		}
 		return
-	}
-
-	// Filter by tenant if specified
-	if tenantStr != "" {
-		var filteredWorkspaces []models.WorkspaceWithDeviceCount = make([]models.WorkspaceWithDeviceCount, 0)
-		for _, ws := range workspaces {
-			if ws.Tenant == tenantStr {
-				filteredWorkspaces = append(filteredWorkspaces, ws)
-			}
-		}
-		workspaces = filteredWorkspaces
-		totalCount = int64(len(filteredWorkspaces))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"workspaces": workspaces, "total": totalCount})
