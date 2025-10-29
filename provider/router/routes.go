@@ -89,7 +89,7 @@ func UploadAndInstallApp(c *gin.Context) {
 		return
 	}
 
-	allowedExtensions := []string{"ipa", "zip", "apk"}
+	allowedExtensions := []string{"ipa", "zip", "apk", "wgt", "ipk"}
 	// Check file extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	isAllowed := false

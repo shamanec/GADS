@@ -2,12 +2,15 @@ package devices
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 
 	"GADS/common/cli"
 	"GADS/common/models"
+	"GADS/common/utils"
+	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
 )
@@ -112,4 +115,72 @@ func getConnectedDevicesWebOS() []string {
 	}
 
 	return connectedDevices
+}
+
+func installAppWebOS(device *models.Device, appName string) error {
+	appPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName)
+
+	if strings.HasSuffix(appName, ".ipk") {
+		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing .ipk file directly on device %s", device.UDID))
+
+		installCmd := exec.Command("ares-install", "--device", device.Name, appPath)
+		output, err := installCmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to install .ipk: %s. Output: %s", err, string(output))
+		}
+
+		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", device.UDID))
+		return nil
+	}
+
+	tempDir := fmt.Sprintf("%s/webos_temp_%s", os.TempDir(), device.UDID)
+
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Extracting source code for device %s", device.UDID))
+
+	if err := utils.ExtractZipToDir(appPath, tempDir); err != nil {
+		return fmt.Errorf("failed to extract app file: %w", err)
+	}
+
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Packaging app for device %s", device.UDID))
+
+	packageCmd := exec.Command("ares-package", tempDir)
+	output, err := packageCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to package app: %s. Output: %s", err, string(output))
+	}
+
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		return fmt.Errorf("failed to read current directory: %s", err)
+	}
+
+	var ipkFile string
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".ipk") {
+			ipkFile = entry.Name()
+			break
+		}
+	}
+
+	if ipkFile == "" {
+		return fmt.Errorf("no .ipk file found after packaging")
+	}
+
+	defer os.Remove(ipkFile)
+
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing app on device %s", device.UDID))
+
+	installCmd := exec.Command("ares-install", "--device", device.Name, ipkFile)
+	output, err = installCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to install app: %s. Output: %s", err, string(output))
+	}
+
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", device.UDID))
+	return nil
 }

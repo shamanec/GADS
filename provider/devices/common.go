@@ -1139,10 +1139,22 @@ func InstallApp(device *models.Device, app string) error {
 			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
-	} else {
+	} else if device.OS == "android" {
 		err := installAppAndroid(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_android", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
+			return err
+		}
+	} else if device.OS == "tizen" {
+		err := installAppTizen(device, app)
+		if err != nil {
+			device.Logger.LogError("install_app_tizen", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
+			return err
+		}
+	} else if device.OS == "webos" {
+		err := installAppWebOS(device, app)
+		if err != nil {
+			device.Logger.LogError("install_app_webos", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
 	}
