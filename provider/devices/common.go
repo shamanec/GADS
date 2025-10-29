@@ -10,6 +10,7 @@
 package devices
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"context"
@@ -1139,10 +1140,22 @@ func InstallApp(device *models.Device, app string) error {
 			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
-	} else {
+	} else if device.OS == "android" {
 		err := installAppAndroid(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_android", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
+			return err
+		}
+	} else if device.OS == "tizen" {
+		err := installAppTizen(device, app)
+		if err != nil {
+			device.Logger.LogError("install_app_tizen", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
+			return err
+		}
+	} else if device.OS == "webos" {
+		err := installAppWebOS(device, app)
+		if err != nil {
+			device.Logger.LogError("install_app_webos", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
 	}
@@ -1236,4 +1249,53 @@ func getConnectedDevicesTizen() []string {
 	}
 
 	return devices
+}
+
+func extractZipToDir(zipPath, destDir string) error {
+	fileData, err := os.ReadFile(zipPath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	zipReader, err := zip.NewReader(bytes.NewReader(fileData), int64(len(fileData)))
+	if err != nil {
+		return fmt.Errorf("failed to open archive: %w", err)
+	}
+
+	for _, file := range zipReader.File {
+		filePath := filepath.Join(destDir, file.Name)
+
+		if file.FileInfo().IsDir() {
+			if err := os.MkdirAll(filePath, 0755); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", filePath, err)
+			}
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directory for %s: %w", filePath, err)
+		}
+
+		srcFile, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("failed to open file %s in archive: %w", file.Name, err)
+		}
+
+		dstFile, err := os.Create(filePath)
+		if err != nil {
+			srcFile.Close()
+			return fmt.Errorf("failed to create file %s: %w", filePath, err)
+		}
+
+		if _, err := io.Copy(dstFile, srcFile); err != nil {
+			srcFile.Close()
+			dstFile.Close()
+			return fmt.Errorf("failed to extract file %s: %w", file.Name, err)
+		}
+
+		srcFile.Close()
+		dstFile.Close()
+	}
+
+	return nil
 }

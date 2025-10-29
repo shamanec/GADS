@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"slices"
@@ -13,6 +14,7 @@ import (
 
 	"GADS/common/cli"
 	"GADS/common/models"
+	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
 )
@@ -32,7 +34,7 @@ var (
 
 // tizenRetryState tracks connection attempts for a Tizen device
 type tizenRetryState struct {
-	deviceIP    string
+	deviceID    string
 	retryCount  int
 	lastAttempt time.Time
 	isPaused    bool
@@ -138,46 +140,51 @@ func getTizenTVInfo(device *models.Device) error {
 }
 
 // connectTizenDevice establishes a connection to a Tizen device using sdb connect
-func connectTizenDevice(deviceIP string) error {
-	logger.ProviderLogger.LogInfo("tizen_connection", fmt.Sprintf("Attempting to connect to Tizen device at %s", deviceIP))
+func connectTizenDevice(deviceUDID string) error {
+	deviceIP, err := getTizenTVHost(deviceUDID)
+	if err != nil {
+		return fmt.Errorf("failed to extract IP from device UDID %s: %s", deviceUDID, err)
+	}
+
+	logger.ProviderLogger.LogInfo("tizen_connection", fmt.Sprintf("Attempting to connect to Tizen device %s (IP: %s)", deviceUDID, deviceIP))
 
 	cmd := exec.Command("sdb", "connect", deviceIP)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		logger.ProviderLogger.LogError("tizen_connection", fmt.Sprintf("Failed to connect to Tizen device %s - %s. Output: %s", deviceIP, err, string(output)))
-		return fmt.Errorf("failed to connect to Tizen device %s: %s", deviceIP, err)
+		logger.ProviderLogger.LogError("tizen_connection", fmt.Sprintf("Failed to connect to Tizen device %s (IP: %s) - %s. Output: %s", deviceUDID, deviceIP, err, string(output)))
+		return fmt.Errorf("failed to connect to Tizen device %s: %s", deviceUDID, err)
 	}
 
-	logger.ProviderLogger.LogInfo("tizen_connection", fmt.Sprintf("Successfully connected to Tizen device %s. Output: %s", deviceIP, string(output)))
+	logger.ProviderLogger.LogInfo("tizen_connection", fmt.Sprintf("Successfully connected to Tizen device %s (IP: %s). Output: %s", deviceUDID, deviceIP, string(output)))
 	return nil
 }
 
 // isTizenDeviceConnected checks if a Tizen device is currently connected using sdb devices
-func isTizenDeviceConnected(deviceIP string) bool {
+func isTizenDeviceConnected(deviceUDID string) bool {
 	connectedDevices := getConnectedDevicesTizen()
 
-	if slices.Contains(connectedDevices, deviceIP) {
-		logger.ProviderLogger.LogDebug("tizen_connection", fmt.Sprintf("Tizen device %s is connected", deviceIP))
+	if slices.Contains(connectedDevices, deviceUDID) {
+		logger.ProviderLogger.LogDebug("tizen_connection", fmt.Sprintf("Tizen device %s is connected", deviceUDID))
 		return true
 	}
 
-	logger.ProviderLogger.LogDebug("tizen_connection", fmt.Sprintf("Tizen device %s is not connected", deviceIP))
+	logger.ProviderLogger.LogDebug("tizen_connection", fmt.Sprintf("Tizen device %s is not connected", deviceUDID))
 	return false
 }
 
-func getTizenRetryState(deviceIP string) *tizenRetryState {
+func getTizenRetryState(deviceID string) *tizenRetryState {
 	tizenRetryMutex.RLock()
 	defer tizenRetryMutex.RUnlock()
-	return tizenRetryTracker[deviceIP]
+	return tizenRetryTracker[deviceID]
 }
 
-func updateTizenRetryState(deviceIP string, retryCount int, lastAttempt time.Time, isPaused bool, pauseUntil time.Time) {
+func updateTizenRetryState(deviceID string, retryCount int, lastAttempt time.Time, isPaused bool, pauseUntil time.Time) {
 	tizenRetryMutex.Lock()
 	defer tizenRetryMutex.Unlock()
 
-	tizenRetryTracker[deviceIP] = &tizenRetryState{
-		deviceIP:    deviceIP,
+	tizenRetryTracker[deviceID] = &tizenRetryState{
+		deviceID:    deviceID,
 		retryCount:  retryCount,
 		lastAttempt: lastAttempt,
 		isPaused:    isPaused,
@@ -185,13 +192,13 @@ func updateTizenRetryState(deviceIP string, retryCount int, lastAttempt time.Tim
 	}
 }
 
-func resetTizenRetryState(deviceIP string) {
+func resetTizenRetryState(deviceID string) {
 	tizenRetryMutex.Lock()
 	defer tizenRetryMutex.Unlock()
 
-	if _, exists := tizenRetryTracker[deviceIP]; exists {
-		tizenRetryTracker[deviceIP] = &tizenRetryState{
-			deviceIP:    deviceIP,
+	if _, exists := tizenRetryTracker[deviceID]; exists {
+		tizenRetryTracker[deviceID] = &tizenRetryState{
+			deviceID:    deviceID,
 			retryCount:  0,
 			lastAttempt: time.Time{},
 			isPaused:    false,
@@ -200,13 +207,13 @@ func resetTizenRetryState(deviceIP string) {
 	}
 }
 
-func shouldAttemptTizenConnection(deviceIP string) bool {
-	state := getTizenRetryState(deviceIP)
+func shouldAttemptTizenConnection(deviceID string) bool {
+	state := getTizenRetryState(deviceID)
 	now := time.Now()
 
 	if state == nil {
 		// First time seeing this device, initialize state
-		updateTizenRetryState(deviceIP, 0, time.Time{}, false, time.Time{})
+		updateTizenRetryState(deviceID, 0, time.Time{}, false, time.Time{})
 		return true
 	}
 
@@ -216,15 +223,15 @@ func shouldAttemptTizenConnection(deviceIP string) bool {
 			return false // Still in pause period
 		}
 		// Pause period ended, reset retry count
-		updateTizenRetryState(deviceIP, 0, time.Time{}, false, time.Time{})
+		updateTizenRetryState(deviceID, 0, time.Time{}, false, time.Time{})
 		return true
 	}
 
 	if state.retryCount >= tizenMaxRetries {
 		// Max retries reached, enter pause mode
 		pauseUntil := now.Add(tizenPauseAfterMax)
-		updateTizenRetryState(deviceIP, state.retryCount, state.lastAttempt, true, pauseUntil)
-		logger.ProviderLogger.LogWarn("tizen_auto_connect", fmt.Sprintf("Tizen device %s reached max retries (%d), pausing until %v", deviceIP, tizenMaxRetries, pauseUntil))
+		updateTizenRetryState(deviceID, state.retryCount, state.lastAttempt, true, pauseUntil)
+		logger.ProviderLogger.LogWarn("tizen_auto_connect", fmt.Sprintf("Tizen device %s reached max retries (%d), pausing until %v", deviceID, tizenMaxRetries, pauseUntil))
 		return false
 	}
 
@@ -244,55 +251,134 @@ func handleTizenAutoConnection(connectedDevices []string) {
 			continue
 		}
 
-		deviceIP, err := getTizenTVHost(dbDevice.UDID)
-		if err != nil {
-			logger.ProviderLogger.LogError("tizen_auto_connect", fmt.Sprintf("Failed to extract IP from device UDID %s: %v", dbDevice.UDID, err))
-			continue
-		}
-
-		isConnectedViaSdb := isTizenDeviceConnected(deviceIP)
+		isConnectedViaSdb := isTizenDeviceConnected(dbDevice.UDID)
 
 		isInConnectedList := slices.Contains(connectedDevices, dbDevice.UDID)
 
 		if isConnectedViaSdb {
-			state := getTizenRetryState(deviceIP)
+			state := getTizenRetryState(dbDevice.UDID)
 			if state != nil && state.retryCount > 0 {
-				logger.ProviderLogger.LogInfo("tizen_auto_connect", fmt.Sprintf("Tizen device %s (%s) is now connected, resetting retry count", dbDevice.UDID, deviceIP))
-				resetTizenRetryState(deviceIP)
+				logger.ProviderLogger.LogInfo("tizen_auto_connect", fmt.Sprintf("Tizen device %s is now connected, resetting retry count", dbDevice.UDID))
+				resetTizenRetryState(dbDevice.UDID)
 			}
 		} else if !isInConnectedList {
-			if shouldAttemptTizenConnection(deviceIP) {
-				attemptTizenConnection(deviceIP, dbDevice.UDID)
+			if shouldAttemptTizenConnection(dbDevice.UDID) {
+				attemptTizenConnection(dbDevice.UDID)
 			}
 		}
 	}
 }
 
 // attemptTizenConnection tries to connect to a Tizen device and updates retry state
-func attemptTizenConnection(deviceIP, deviceUDID string) {
-	state := getTizenRetryState(deviceIP)
+func attemptTizenConnection(deviceUDID string) {
+	state := getTizenRetryState(deviceUDID)
 	if state == nil {
-		updateTizenRetryState(deviceIP, 0, time.Time{}, false, time.Time{})
-		state = getTizenRetryState(deviceIP)
+		updateTizenRetryState(deviceUDID, 0, time.Time{}, false, time.Time{})
+		state = getTizenRetryState(deviceUDID)
 	}
 
 	now := time.Now()
 	newRetryCount := state.retryCount + 1
 
-	logger.ProviderLogger.LogInfo("tizen_auto_connect", fmt.Sprintf("Attempting to connect to Tizen device %s (%s) - attempt %d/%d", deviceUDID, deviceIP, newRetryCount, tizenMaxRetries))
+	logger.ProviderLogger.LogInfo("tizen_auto_connect", fmt.Sprintf("Attempting to connect to Tizen device %s - attempt %d/%d", deviceUDID, newRetryCount, tizenMaxRetries))
 
-	err := connectTizenDevice(deviceIP)
+	err := connectTizenDevice(deviceUDID)
 	if err != nil {
-		logger.ProviderLogger.LogWarn("tizen_auto_connect", fmt.Sprintf("Failed to connect to Tizen device %s (%s) - attempt %d/%d: %v", deviceUDID, deviceIP, newRetryCount, tizenMaxRetries, err))
-		updateTizenRetryState(deviceIP, newRetryCount, now, false, time.Time{})
+		logger.ProviderLogger.LogWarn("tizen_auto_connect", fmt.Sprintf("Failed to connect to Tizen device %s - attempt %d/%d: %v", deviceUDID, newRetryCount, tizenMaxRetries, err))
+		updateTizenRetryState(deviceUDID, newRetryCount, now, false, time.Time{})
 
 		if newRetryCount >= tizenMaxRetries {
 			pauseUntil := now.Add(tizenPauseAfterMax)
-			updateTizenRetryState(deviceIP, newRetryCount, now, true, pauseUntil)
-			logger.ProviderLogger.LogWarn("tizen_auto_connect", fmt.Sprintf("Tizen device %s (%s) reached max retries (%d), pausing until %v", deviceUDID, deviceIP, tizenMaxRetries, pauseUntil))
+			updateTizenRetryState(deviceUDID, newRetryCount, now, true, pauseUntil)
+			logger.ProviderLogger.LogWarn("tizen_auto_connect", fmt.Sprintf("Tizen device %s reached max retries (%d), pausing until %v", deviceUDID, tizenMaxRetries, pauseUntil))
 		}
 	} else {
-		logger.ProviderLogger.LogInfo("tizen_auto_connect", fmt.Sprintf("Successfully connected to Tizen device %s (%s)", deviceUDID, deviceIP))
-		resetTizenRetryState(deviceIP)
+		logger.ProviderLogger.LogInfo("tizen_auto_connect", fmt.Sprintf("Successfully connected to Tizen device %s", deviceUDID))
+		resetTizenRetryState(deviceUDID)
 	}
+}
+
+func getTizenCertificateName() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %s", err)
+	}
+
+	certDir := fmt.Sprintf("%s/SamsungCertificate", homeDir)
+
+	entries, err := os.ReadDir(certDir)
+	if err != nil {
+		return "", fmt.Errorf("tizen certificate not found in %s. Please configure certificate as per documentation: %s", certDir, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			logger.ProviderLogger.LogInfo("tizen_certificate", fmt.Sprintf("Using Tizen certificate: %s", entry.Name()))
+			return entry.Name(), nil
+		}
+	}
+
+	return "", fmt.Errorf("no certificate directory found in %s. Please configure certificate as per documentation", certDir)
+}
+
+func installAppTizen(device *models.Device, appName string) error {
+	certName, err := getTizenCertificateName()
+	if err != nil {
+		logger.ProviderLogger.LogError("tizen_install_app", err.Error())
+		return err
+	}
+
+	appPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName)
+	tempDir := fmt.Sprintf("%s/tizen_temp_%s", os.TempDir(), device.UDID)
+
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	if strings.HasSuffix(appName, ".wgt") {
+		logger.ProviderLogger.LogInfo("tizen_install_app", fmt.Sprintf("Extracting .wgt file for device %s", device.UDID))
+
+		if err := extractZipToDir(appPath, tempDir); err != nil {
+			return fmt.Errorf("failed to extract .wgt file: %w", err)
+		}
+	} else {
+		return fmt.Errorf("unsupported file format: %s. Expected .wgt", appName)
+	}
+
+	logger.ProviderLogger.LogInfo("tizen_install_app", fmt.Sprintf("Packaging app with certificate %s for device %s", certName, device.UDID))
+
+	packageCmd := exec.Command("tizen", "package", "-t", "wgt", "-s", certName, "--", tempDir)
+	output, err := packageCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to package app: %s. Output: %s", err, string(output))
+	}
+
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		return fmt.Errorf("failed to read temp directory: %s", err)
+	}
+
+	var wgtFile string
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".wgt") {
+			wgtFile = fmt.Sprintf("%s/%s", tempDir, entry.Name())
+			break
+		}
+	}
+
+	if wgtFile == "" {
+		return fmt.Errorf("no .wgt file found after packaging")
+	}
+
+	logger.ProviderLogger.LogInfo("tizen_install_app", fmt.Sprintf("Installing app on device %s", device.UDID))
+
+	installCmd := exec.Command("tizen", "install", "-n", wgtFile, "-s", device.UDID)
+	output, err = installCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to install app: %s. Output: %s", err, string(output))
+	}
+
+	logger.ProviderLogger.LogInfo("tizen_install_app", fmt.Sprintf("Successfully installed app on device %s", device.UDID))
+	return nil
 }
