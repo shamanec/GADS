@@ -9,6 +9,7 @@ import (
 
 	"GADS/common/cli"
 	"GADS/common/models"
+	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
@@ -141,7 +142,7 @@ func installAppWebOS(device *models.Device, appName string) error {
 
 	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Extracting source code for device %s", device.UDID))
 
-	if err := extractZipToDir(appPath, tempDir); err != nil {
+	if err := utils.ExtractZipToDir(appPath, tempDir); err != nil {
 		return fmt.Errorf("failed to extract app file: %w", err)
 	}
 

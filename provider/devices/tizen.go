@@ -14,6 +14,7 @@ import (
 
 	"GADS/common/cli"
 	"GADS/common/models"
+	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
@@ -339,7 +340,7 @@ func installAppTizen(device *models.Device, appName string) error {
 	if strings.HasSuffix(appName, ".wgt") {
 		logger.ProviderLogger.LogInfo("tizen_install_app", fmt.Sprintf("Extracting .wgt file for device %s", device.UDID))
 
-		if err := extractZipToDir(appPath, tempDir); err != nil {
+		if err := utils.ExtractZipToDir(appPath, tempDir); err != nil {
 			return fmt.Errorf("failed to extract .wgt file: %w", err)
 		}
 	} else {
