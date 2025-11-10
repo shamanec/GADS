@@ -10,8 +10,8 @@
 package router
 
 import (
-	"GADS/common/models"
 	"GADS/hub/auth"
+	"GADS/hub/config"
 	"io"
 	"io/fs"
 	"log"
@@ -24,7 +24,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
+func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	// Create the router and allow all origins
 	// Allow particular headers as well
 	r := gin.Default()
@@ -32,10 +32,10 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// Add Swagger route
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"Authorization", "Content-Type"}
-	r.Use(cors.New(config))
+	ginConfig := cors.DefaultConfig()
+	ginConfig.AllowAllOrigins = true
+	ginConfig.AllowHeaders = []string{"Authorization", "Content-Type"}
+	r.Use(cors.New(ginConfig))
 
 	// Handle UI serving only if we have UI files embedded
 	if uiFiles != nil {
@@ -93,7 +93,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	// OAuth2 endpoints (unauthenticated)
 	authGroup.POST("/oauth/token", OAuth2TokenEndpoint)
 	// Enable authentication on the endpoints below
-	if configData.AuthEnabled {
+	if config.GlobalHubConfig.AuthEnabled {
 		authGroup.Use(auth.AuthMiddleware())
 	}
 	authGroup.GET("/user-info", auth.GetUserInfoHandler)
@@ -150,7 +150,7 @@ func HandleRequests(configData *models.HubConfig, uiFiles fs.FS) *gin.Engine {
 	reportsGroup.GET("/sessions/:session_id/logs", GetSessionLogs)
 
 	appiumGroup := r.Group("/grid")
-	appiumGroup.Use(AppiumGridMiddleware(configData))
+	appiumGroup.Use(AppiumGridMiddleware())
 	appiumGroup.Any("/*path")
 
 	return r

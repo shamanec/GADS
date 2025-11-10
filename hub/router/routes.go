@@ -15,6 +15,7 @@ import (
 	"GADS/common/minio"
 	"GADS/common/models"
 	"GADS/hub/auth"
+	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
 	"context"
@@ -1399,6 +1400,12 @@ func GetScreenshot(c *gin.Context) {
 	// Validate parameters
 	if buildID == "" || sessionID == "" || filename == "" {
 		BadRequest(c, "Missing required parameters: build_id, session_id, or filename")
+		return
+	}
+
+	// Check if MinIO is available
+	if !config.GlobalHubConfig.MinioAvailable {
+		NotFound(c, "Screenshot storage is not available - MinIO is not configured or enabled")
 		return
 	}
 
