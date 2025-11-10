@@ -254,18 +254,23 @@ func DeviceInfo(c *gin.Context) {
 
 func DeviceInstalledApps(c *gin.Context) {
 	udid := c.Param("udid")
-	var installedApps []string
+	var installedApps interface{}
 
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		if dev.OS == "ios" {
+		switch dev.OS {
+		case "ios":
 			installedApps = devices.GetInstalledAppsIOS(dev)
-		} else {
+		case "android":
 			installedApps = devices.GetInstalledAppsAndroid(dev)
+		case "tizen":
+			installedApps = devices.GetInstalledAppsTizen(dev)
+		case "webos":
+			installedApps = devices.GetInstalledAppsWebOS(dev)
 		}
 		api.GenericResponse(c, http.StatusOK, "", installedApps)
 		return
 	}
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), installedApps)
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 }
 
 func DevicesInfo(c *gin.Context) {
@@ -281,10 +286,32 @@ type ProcessApp struct {
 	App string `json:"app"`
 }
 
+func getInstalledAppIDs(device *models.Device) []string {
+	var installedApps []string
+
+	switch device.OS {
+	case "ios":
+		installedApps = devices.GetInstalledAppsIOS(device)
+	case "android":
+		installedApps = devices.GetInstalledAppsAndroid(device)
+	case "tizen":
+		tizenApps := devices.GetInstalledAppsTizen(device)
+		for _, app := range tizenApps {
+			installedApps = append(installedApps, app.AppID)
+		}
+	case "webos":
+		webosApps := devices.GetInstalledAppsWebOS(device)
+		for _, app := range webosApps {
+			installedApps = append(installedApps, app.AppID)
+		}
+	}
+
+	return installedApps
+}
+
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
 
-	var installedApps []string
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -299,11 +326,7 @@ func UninstallApp(c *gin.Context) {
 			return
 		}
 
-		if dev.OS == "ios" {
-			installedApps = devices.GetInstalledAppsIOS(dev)
-		} else {
-			installedApps = devices.GetInstalledAppsAndroid(dev)
-		}
+		installedApps := getInstalledAppIDs(dev)
 
 		if slices.Contains(installedApps, payloadJson.App) {
 			err = devices.UninstallApp(dev, payloadJson.App)
@@ -319,6 +342,100 @@ func UninstallApp(c *gin.Context) {
 			return
 		}
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App), installedApps)
+		return
+	}
+
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func LaunchApp(c *gin.Context) {
+	udid := c.Param("udid")
+
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
+		payload, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			return
+		}
+
+		var payloadJson ProcessApp
+		err = json.Unmarshal(payload, &payloadJson)
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			return
+		}
+
+		installedApps := getInstalledAppIDs(dev)
+
+		if !slices.Contains(installedApps, payloadJson.App) {
+			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App), installedApps)
+			return
+		}
+
+		var launchErr error
+		switch dev.OS {
+		case "tizen":
+			launchErr = devices.LaunchAppTizen(dev, payloadJson.App)
+		case "webos":
+			launchErr = devices.LaunchAppWebOS(dev, payloadJson.App)
+		default:
+			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Launch app not supported for OS: %s", dev.OS), nil)
+			return
+		}
+
+		if launchErr != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to launch app `%s`: %v", payloadJson.App, launchErr), nil)
+			return
+		}
+
+		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("Successfully launched app `%s`", payloadJson.App), installedApps)
+		return
+	}
+
+	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func CloseApp(c *gin.Context) {
+	udid := c.Param("udid")
+
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
+		payload, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			return
+		}
+
+		var payloadJson ProcessApp
+		err = json.Unmarshal(payload, &payloadJson)
+		if err != nil {
+			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			return
+		}
+
+		installedApps := getInstalledAppIDs(dev)
+
+		if !slices.Contains(installedApps, payloadJson.App) {
+			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App), installedApps)
+			return
+		}
+
+		var closeErr error
+		switch dev.OS {
+		case "tizen":
+			closeErr = devices.CloseAppTizen(dev, payloadJson.App)
+		case "webos":
+			closeErr = devices.CloseAppWebOS(dev, payloadJson.App)
+		default:
+			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Close app not supported for OS: %s", dev.OS), nil)
+			return
+		}
+
+		if closeErr != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to close app `%s`: %v", payloadJson.App, closeErr), nil)
+			return
+		}
+
+		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("Successfully closed app `%s`", payloadJson.App), installedApps)
 		return
 	}
 

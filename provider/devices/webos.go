@@ -184,3 +184,101 @@ func installAppWebOS(device *models.Device, appName string) error {
 	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", device.UDID))
 	return nil
 }
+
+type WebOSApp struct {
+	AppID   string `json:"appId"`
+	Title   string `json:"title"`
+	Version string `json:"version"`
+}
+
+func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
+	apps := []WebOSApp{}
+
+	cmd := exec.Command("ares-install", "--device", device.Name, "--listfull")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("webos_list_apps", fmt.Sprintf("Failed to list apps for device %s: %v. Output: %s", device.UDID, err, string(output)))
+		return apps
+	}
+
+	lines := strings.Split(string(output), "\n")
+	var currentApp WebOSApp
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "" {
+			if currentApp.AppID != "" {
+				apps = append(apps, currentApp)
+				currentApp = WebOSApp{}
+			}
+			continue
+		}
+
+		if strings.Contains(line, " : ") {
+			parts := strings.SplitN(line, " : ", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+
+				switch key {
+				case "id":
+					currentApp.AppID = value
+				case "title":
+					currentApp.Title = value
+				case "version":
+					currentApp.Version = value
+				}
+			}
+		}
+	}
+
+	if currentApp.AppID != "" {
+		apps = append(apps, currentApp)
+	}
+
+	logger.ProviderLogger.LogInfo("webos_list_apps", fmt.Sprintf("Found %d installed apps on device %s", len(apps), device.UDID))
+	return apps
+}
+
+func LaunchAppWebOS(device *models.Device, appID string) error {
+	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Launching app %s on device %s", appID, device.UDID))
+
+	cmd := exec.Command("ares-launch", "--device", device.Name, appID)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("webos_launch_app", fmt.Sprintf("Failed to launch app %s on device %s: %v. Output: %s", appID, device.UDID, err, string(output)))
+		return fmt.Errorf("failed to launch app %s: %w", appID, err)
+	}
+
+	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Successfully launched app %s on device %s", appID, device.UDID))
+	return nil
+}
+
+func CloseAppWebOS(device *models.Device, appID string) error {
+	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Closing app %s on device %s", appID, device.UDID))
+
+	cmd := exec.Command("ares-launch", "--device", device.Name, "--close", appID)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("webos_close_app", fmt.Sprintf("Failed to close app %s on device %s: %v. Output: %s", appID, device.UDID, err, string(output)))
+		return fmt.Errorf("failed to close app %s: %w", appID, err)
+	}
+
+	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Successfully closed app %s on device %s", appID, device.UDID))
+	return nil
+}
+
+func uninstallAppWebOS(device *models.Device, appID string) error {
+	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Uninstalling app %s from device %s", appID, device.UDID))
+
+	cmd := exec.Command("ares-install", "--device", device.Name, "--remove", appID)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("webos_uninstall_app", fmt.Sprintf("Failed to uninstall app %s from device %s: %v. Output: %s", appID, device.UDID, err, string(output)))
+		return fmt.Errorf("failed to uninstall app %s: %w", appID, err)
+	}
+
+	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Successfully uninstalled app %s from device %s", appID, device.UDID))
+	return nil
+}

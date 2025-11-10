@@ -1117,16 +1117,15 @@ func UpdateInstalledApps(device *models.Device) {
 }
 
 func UninstallApp(device *models.Device, app string) error {
-	if device.OS == "ios" {
-		err := uninstallAppIOS(device, app)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := uninstallAppAndroid(device, app)
-		if err != nil {
-			return err
-		}
+	switch device.OS {
+	case "ios":
+		return uninstallAppIOS(device, app)
+	case "android":
+		return uninstallAppAndroid(device, app)
+	case "tizen":
+		return uninstallAppTizen(device, app)
+	case "webos":
+		return uninstallAppWebOS(device, app)
 	}
 
 	return nil
