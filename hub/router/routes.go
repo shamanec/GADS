@@ -1029,26 +1029,20 @@ func ReleaseUsedDevice(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
 }
 
-// syncDeviceFields synchronizes device fields from source to target device
+// syncDeviceFields synchronizes operational fields from provider to hub device
 // Only updates fields that are different between the two devices
 func syncDeviceFields(target *models.Device, source *models.Device) {
-	if target.Usage != source.Usage {
-		target.Usage = source.Usage
+	if target.Connected != source.Connected {
+		target.Connected = source.Connected
 	}
-	if target.Name != source.Name {
-		target.Name = source.Name
+	if target.ProviderState != source.ProviderState {
+		target.ProviderState = source.ProviderState
 	}
-	if target.OSVersion != source.OSVersion {
-		target.OSVersion = source.OSVersion
+	if target.LastUpdatedTimestamp != source.LastUpdatedTimestamp {
+		target.LastUpdatedTimestamp = source.LastUpdatedTimestamp
 	}
-	if target.ScreenWidth != source.ScreenWidth {
-		target.ScreenWidth = source.ScreenWidth
-	}
-	if target.ScreenHeight != source.ScreenHeight {
-		target.ScreenHeight = source.ScreenHeight
-	}
-	if target.Provider != source.Provider {
-		target.Provider = source.Provider
+	if target.Host != source.Host {
+		target.Host = source.Host
 	}
 }
 
@@ -1092,21 +1086,8 @@ func ProviderUpdate(c *gin.Context) {
 			// Set a timestamp to indicate last time info about the device was updated from the provider
 			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
-			providerDeviceHasChanged := providerDevice.Provider != hubDevice.Device.Provider
-
-			// If device is "live" on provider, provider data takes precedence for operational fields
-			// Otherwise, DB data takes precedence to prevent incorrect overrides
-			if providerDevice.ProviderState == "live" && !providerDeviceHasChanged {
-				// For live devices, provider operational data takes precedence
-				// Keep provider values for Usage and Provider fields
-				// But still respect DB configuration for device metadata
-				syncDeviceFields(&hubDevice.Device, &providerDevice)
-			} else if !providerDeviceHasChanged {
-				// For non-live devices, DB data takes precedence for all fields
-				syncDeviceFields(&providerDevice, &hubDevice.Device)
-			}
-
-			hubDevice.Device = providerDevice
+			// Update only operational fields from provider
+			syncDeviceFields(&hubDevice.Device, &providerDevice)
 		}
 		devices.HubDevicesData.Mu.Unlock()
 	}

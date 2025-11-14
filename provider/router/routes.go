@@ -107,7 +107,11 @@ func UploadAndInstallApp(c *gin.Context) {
 
 	udid := c.Param("udid")
 	// Check if the target device is currently provisioned
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	dev, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		// If the uploaded file is not a zip archive
 		if ext != ".zip" {
 			// Create file destination based on the provider dir and file name
@@ -230,10 +234,12 @@ func UploadAndInstallApp(c *gin.Context) {
 func GetProviderData(c *gin.Context) {
 	var providerData models.ProviderData
 
+	devices.DbDeviceMapMutex.RLock()
 	deviceData := []models.Device{}
 	for _, device := range devices.DBDeviceMap {
 		deviceData = append(deviceData, *device)
 	}
+	devices.DbDeviceMapMutex.RUnlock()
 
 	providerData.ProviderData = *config.ProviderConfig
 	providerData.DeviceData = deviceData
@@ -244,7 +250,11 @@ func GetProviderData(c *gin.Context) {
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	dev, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		devices.UpdateInstalledApps(dev)
 		api.GenericResponse(c, http.StatusOK, "", dev)
 		return
@@ -276,9 +286,12 @@ func DeviceInstalledApps(c *gin.Context) {
 func DevicesInfo(c *gin.Context) {
 	deviceList := []*models.Device{}
 
+	devices.DbDeviceMapMutex.RLock()
 	for _, device := range devices.DBDeviceMap {
 		deviceList = append(deviceList, device)
 	}
+	devices.DbDeviceMapMutex.RUnlock()
+
 	api.GenericResponse(c, http.StatusOK, "", deviceList)
 }
 
@@ -312,7 +325,12 @@ func getInstalledAppIDs(device *models.Device) []string {
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	dev, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	var installedApps []string
+	if ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
@@ -326,7 +344,7 @@ func UninstallApp(c *gin.Context) {
 			return
 		}
 
-		installedApps := getInstalledAppIDs(dev)
+		installedApps = getInstalledAppIDs(dev)
 
 		if slices.Contains(installedApps, payloadJson.App) {
 			err = devices.UninstallApp(dev, payloadJson.App)
@@ -445,7 +463,11 @@ func CloseApp(c *gin.Context) {
 func ResetDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if device, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	device, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		if device.IsResetting {
 			api.GenericResponse(c, http.StatusConflict, "Device setup is already being reset", nil)
 			return
@@ -467,7 +489,11 @@ func ResetDevice(c *gin.Context) {
 func UpdateDeviceStreamSettings(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if device, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	device, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
@@ -540,7 +566,11 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 func DeviceFiles(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if device, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	device, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		if device.OS == "android" {
 			filesResp, err := androidRemoteServerRequest(device, http.MethodGet, "files", nil)
 			if err != nil {
@@ -574,7 +604,11 @@ func DeviceFiles(c *gin.Context) {
 func PushFileToSharedStorage(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if device, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	device, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		if device.OS == "ios" {
 			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
 			return
@@ -619,7 +653,11 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 		return
 	}
 
-	if device, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	device, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		if device.OS == "ios" {
 			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
 			return
@@ -657,7 +695,11 @@ func PullFileFromSharedStorage(c *gin.Context) {
 	}
 	fileName := filepath.Base(filePath)
 
-	if device, ok := devices.DBDeviceMap[udid]; ok {
+	devices.DbDeviceMapMutex.RLock()
+	device, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+
+	if ok {
 		if device.OS == "ios" {
 			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
 			return

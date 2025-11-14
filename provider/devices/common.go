@@ -51,7 +51,11 @@ import (
 var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
-var DBDeviceMap = make(map[string]*models.Device)
+
+var (
+	DBDeviceMap      = make(map[string]*models.Device)
+	DbDeviceMapMutex sync.RWMutex
+)
 
 func Listener() {
 	DBDeviceMap = getDBProviderDevices()
@@ -70,7 +74,6 @@ func updateProviderHub() {
 		Timeout: 5 * time.Second,
 	}
 	var updateFailureCounter = 1
-	var mu sync.Mutex
 
 	for {
 		if updateFailureCounter >= 30 {
@@ -78,16 +81,49 @@ func updateProviderHub() {
 		}
 		time.Sleep(1 * time.Second)
 
-		mu.Lock()
-
 		updatedDevices := getDBProviderDevices()
 
-		var properJson models.ProviderData
-		for _, dbDevice := range DBDeviceMap {
+		DbDeviceMapMutex.Lock()
 
-			// Update the WorkspaceID in dbDevice from the updatedDevices map
-			if updatedDevice, ok := updatedDevices[dbDevice.UDID]; ok {
-				dbDevice.WorkspaceID = updatedDevice.WorkspaceID
+		// Track devices to remove (deleted from DB)
+		var devicesToRemove []string
+
+		var properJson models.ProviderData
+		for udid, dbDevice := range DBDeviceMap {
+			// Check if device still exists in DB
+			if updatedDevice, ok := updatedDevices[udid]; ok {
+				// Update configuration fields from DB
+				if dbDevice.ScreenWidth != updatedDevice.ScreenWidth {
+					dbDevice.ScreenWidth = updatedDevice.ScreenWidth
+				}
+				if dbDevice.ScreenHeight != updatedDevice.ScreenHeight {
+					dbDevice.ScreenHeight = updatedDevice.ScreenHeight
+				}
+				if dbDevice.Name != updatedDevice.Name {
+					dbDevice.Name = updatedDevice.Name
+				}
+				if dbDevice.OSVersion != updatedDevice.OSVersion {
+					dbDevice.OSVersion = updatedDevice.OSVersion
+				}
+				if dbDevice.Usage != updatedDevice.Usage {
+					dbDevice.Usage = updatedDevice.Usage
+				}
+				if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
+					dbDevice.WorkspaceID = updatedDevice.WorkspaceID
+				}
+				webrtcChanged := false
+				if dbDevice.UseWebRTCVideo != updatedDevice.UseWebRTCVideo {
+					dbDevice.UseWebRTCVideo = updatedDevice.UseWebRTCVideo
+					webrtcChanged = true
+				}
+				if dbDevice.WebRTCVideoCodec != updatedDevice.WebRTCVideoCodec {
+					dbDevice.WebRTCVideoCodec = updatedDevice.WebRTCVideoCodec
+					webrtcChanged = true
+				}
+				if webrtcChanged {
+					ResetLocalDevice(dbDevice, "WebRTC configuration changed, reprovisioning device")
+				}
+
 				// If the provider does not set up Appium servers
 				// Always return device usage as `control`
 				if !config.ProviderConfig.SetupAppiumServers {
@@ -95,12 +131,25 @@ func updateProviderHub() {
 						dbDevice.Usage = "control"
 					}
 				}
+
+				properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
+			} else {
+				// Device no longer exists in DB, mark for removal
+				devicesToRemove = append(devicesToRemove, udid)
 			}
 
-			properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
 			properJson.ProviderData = *config.ProviderConfig
 		}
-		mu.Unlock()
+
+		// Remove devices that no longer exist in DB
+		for _, udid := range devicesToRemove {
+			if device, ok := DBDeviceMap[udid]; ok {
+				ResetLocalDevice(device, "Device removed from DB")
+				delete(DBDeviceMap, udid)
+			}
+		}
+
+		DbDeviceMapMutex.Unlock()
 		jsonData, err := json.Marshal(properJson)
 		if err != nil {
 			updateFailureCounter++
@@ -220,8 +269,16 @@ func updateDevices() {
 		case <-ticker.C:
 			connectedDevices := GetConnectedDevicesCommon()
 
+			// Create a copy of devices to iterate over (with read lock)
+			DbDeviceMapMutex.RLock()
+			devicesCopy := make(map[string]*models.Device, len(DBDeviceMap))
+			for udid, device := range DBDeviceMap {
+				devicesCopy[udid] = device
+			}
+			DbDeviceMapMutex.RUnlock()
+
 		DEVICE_MAP_LOOP:
-			for dbDeviceUDID, dbDevice := range DBDeviceMap {
+			for dbDeviceUDID, dbDevice := range devicesCopy {
 				if dbDevice.Usage == "disabled" {
 					continue DEVICE_MAP_LOOP
 				}
