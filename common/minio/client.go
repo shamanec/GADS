@@ -13,6 +13,10 @@ import (
 
 var GlobalMinioClient *MinioClient
 
+const (
+	appiumReportScreenshotsBucket = "appium-report-screenshots"
+)
+
 type MinioClient struct {
 	client *minio.Client
 }
@@ -72,10 +76,8 @@ func (mc *MinioClient) EnsureBucket(bucketName string) error {
 }
 
 func (mc *MinioClient) StoreAppiumScreenshot(buildID, sessionID, filename string, base64Data string) (string, error) {
-	bucketName := "appium-report-screenshots"
-
 	// Ensure bucket exists
-	if err := mc.EnsureBucket(bucketName); err != nil {
+	if err := mc.EnsureBucket(appiumReportScreenshotsBucket); err != nil {
 		return "", err
 	}
 	// Decode base64 to bytes
@@ -89,7 +91,7 @@ func (mc *MinioClient) StoreAppiumScreenshot(buildID, sessionID, filename string
 
 	// Upload to Minio
 	ctx := context.Background()
-	_, err = mc.client.PutObject(ctx, bucketName, objectPath, bytes.NewReader(imageData), int64(len(imageData)), minio.PutObjectOptions{
+	_, err = mc.client.PutObject(ctx, appiumReportScreenshotsBucket, objectPath, bytes.NewReader(imageData), int64(len(imageData)), minio.PutObjectOptions{
 		ContentType: "image/jpeg",
 	})
 	if err != nil {
@@ -100,14 +102,12 @@ func (mc *MinioClient) StoreAppiumScreenshot(buildID, sessionID, filename string
 }
 
 func (mc *MinioClient) GetAppiumScreenshot(buildID, sessionID, filename string) (io.ReadCloser, error) {
-	bucketName := "appium-report-screenshots"
-
 	// Create object path: buildID/sessionID/filename
 	objectPath := fmt.Sprintf("%s/%s/%s", buildID, sessionID, filename)
 
 	// Check if object exists first
 	ctx := context.Background()
-	_, err := mc.client.StatObject(ctx, bucketName, objectPath, minio.StatObjectOptions{})
+	_, err := mc.client.StatObject(ctx, appiumReportScreenshotsBucket, objectPath, minio.StatObjectOptions{})
 	if err != nil {
 		// Check if it's a not found error
 		if err.Error() == "The specified key does not exist." {
@@ -117,7 +117,7 @@ func (mc *MinioClient) GetAppiumScreenshot(buildID, sessionID, filename string) 
 	}
 
 	// Get object from Minio
-	reader, err := mc.client.GetObject(ctx, bucketName, objectPath, minio.GetObjectOptions{})
+	reader, err := mc.client.GetObject(ctx, appiumReportScreenshotsBucket, objectPath, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get screenshot from Minio: %v", err)
 	}
