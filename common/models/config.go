@@ -27,6 +27,7 @@ type Provider struct {
 	UseGadsIosStream     bool   `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
 	HubAddress           string `json:"hub_address" bson:"-"`
 	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
+	MinioAvailable       bool   `json:"minio_available" bson:"-"`
 }
 
 type ProviderData struct {
@@ -43,6 +44,15 @@ type HubConfig struct {
 	FilesTempDir         string `json:"-"`
 	OS                   string `json:"os"`
 	AuthEnabled          bool   `json:"auth_enabled"`
+	MinioAvailable       bool   `json:"minio_available"`
+}
+
+type MinioConfig struct {
+	Endpoint        string `json:"endpoint" bson:"endpoint"`
+	AccessKeyID     string `json:"access_key_id" bson:"access_key_id"`
+	SecretAccessKey string `json:"secret_access_key" bson:"secret_access_key"`
+	UseSSL          bool   `json:"use_ssl" bson:"use_ssl"`
+	Enabled         bool   `json:"enabled" bson:"enabled"`
 }
 
 // RegularizeProviderState applies business rules to ensure provider configuration is consistent

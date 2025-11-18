@@ -16,10 +16,12 @@ package hub
 
 import (
 	"GADS/common/db"
+	"GADS/common/minio"
 	"GADS/common/models"
 
 	"GADS/docs"
 	"GADS/hub/auth"
+	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/hub/router"
 	"embed"
@@ -35,8 +37,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 )
-
-var configData *models.HubConfig
 
 func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFiles embed.FS) {
 	port, _ := flags.GetString("port")
@@ -74,7 +74,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		filesTempDir = osTempDir
 	}
 
-	config := models.HubConfig{
+	hubConfig := models.HubConfig{
 		HostAddress:  hostAddress,
 		Port:         port,
 		MongoDB:      mongoDB,
@@ -84,14 +84,34 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		AuthEnabled:  authEnabled,
 	}
 
-	configData = &config
+	// Set the global config for other hub packages to use
+	config.GlobalHubConfig = &hubConfig
 
 	db.InitMongo(mongoDB, "gads")
 	defer db.GlobalMongoStore.Close()
 
+	// Initialize MinIO client based on configuration
+	fmt.Println("Checking MinIO configuration...")
+	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
+	if err != nil {
+		fmt.Printf("Failed to get MinIO configuration from database: %v\n", err)
+		config.GlobalHubConfig.MinioAvailable = false
+	} else if !minioConfig.Enabled {
+		fmt.Println("MinIO is disabled in configuration")
+		config.GlobalHubConfig.MinioAvailable = false
+	} else {
+		fmt.Println("Initializing MinIO client...")
+		err = minio.InitMinioClientWithConfig(minioConfig.Endpoint, minioConfig.AccessKeyID, minioConfig.SecretAccessKey, minioConfig.UseSSL)
+		if err != nil {
+			log.Fatalf("MinIO is enabled in configuration but client initialization failed: %v", err)
+		}
+		fmt.Println("MinIO client initialized successfully")
+		config.GlobalHubConfig.MinioAvailable = true
+	}
+
 	// Initialize the secret key cache
 	secretStore := auth.NewSecretStore(db.GlobalMongoStore.GetDefaultDatabase())
-	err := auth.InitSecretCache(secretStore, 5*time.Minute)
+	err = auth.InitSecretCache(secretStore, 5*time.Minute)
 	if err != nil {
 		log.Fatalf("Failed to initialize secret key cache: %v", err)
 	}
@@ -225,10 +245,10 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	docs.SwaggerInfo.BasePath = "/"
 	docs.SwaggerInfo.Schemes = []string{"http", "https"}
 
-	r := router.HandleRequests(configData, uiFiles)
+	r := router.HandleRequests(uiFiles)
 
 	// Start the GADS UI on the host IP address
-	address := fmt.Sprintf("%s:%s", configData.HostAddress, configData.Port)
+	address := fmt.Sprintf("%s:%s", config.GlobalHubConfig.HostAddress, config.GlobalHubConfig.Port)
 	//err = r.RunTLS(address, "./server.crt", "./server.key")
 	err = r.Run(address)
 	if err != nil {
@@ -238,7 +258,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 
 func setupResources(resourceFiles embed.FS) error {
 	embeddedDir := "resources"
-	targetDir := filepath.Join(configData.FilesTempDir, "resources")
+	targetDir := filepath.Join(config.GlobalHubConfig.FilesTempDir, "resources")
 
 	fmt.Printf("Attempting to unpack embedded resource files from `%s` to `%s`\n", embeddedDir, targetDir)
 

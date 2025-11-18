@@ -254,18 +254,7 @@ type AppiumPluginConfiguration struct {
 	ProviderUrl       string `json:"providerUrl"`
 	UDID              string `json:"udid"`
 	HeartBeatInterval string `json:"heartbeatIntervalMs"`
-}
-
-// API Responses
-
-type APIResponse struct {
-	Message string      `json:"message,omitempty"`
-	Result  interface{} `json:"result,omitempty"`
-}
-
-type AndroidFileNodeResponse struct {
-	Message string          `json:"message,omitempty"`
-	Result  AndroidFileNode `json:"result,omitempty"`
+	MinioEnabled      bool   `json:"minioEnabled"`
 }
 
 // ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS

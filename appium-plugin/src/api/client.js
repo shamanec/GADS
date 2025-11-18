@@ -69,6 +69,15 @@ export class GadsApiClient {
         }
     }
 
+    // Send screenshot request to provider instance
+    async sendScreenshotRequest(screenshotData) {
+        try {
+            await this.api.post('/screenshot', screenshotData)
+        } catch (e) {
+            // Silent fail for screenshots to avoid disrupting main flow
+        }
+    }
+
 
     // Ping to notify provider that the Appium server is live and running
     async sendPing(pingData) {

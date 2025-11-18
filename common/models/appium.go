@@ -138,7 +138,7 @@ func ExtractClientSecretFromSession(sessionReq map[string]interface{}, prefix st
 				return secret
 			}
 		}
-        // Check capabilities.firstMatch (W3C format)
+		// Check capabilities.firstMatch (W3C format)
 		if firstMatch, ok := caps["firstMatch"].([]interface{}); ok {
 			for _, item := range firstMatch {
 				if firstCaps, ok := item.(map[string]interface{}); ok {
@@ -171,25 +171,43 @@ type AppiumPluginLog struct {
 }
 
 type AppiumPluginSessionLog struct {
-	Timestamp      int64  `json:"timestamp" bson:"timestamp"`                           // Timestamp in milliseconds of the Appium command execution
-	SessionID      string `json:"session_id" bson:"session_id"`                         // Appium session ID
-	DeviceUDID     string `json:"udid" bson:"udid"`                                     // UDID of the device
-	Action         string `json:"action" bson:"action"`                                 // Human readable name of the executed command
-	Command        string `json:"command" bson:"command"`                               // Actual Appium command name
-	Duration       int    `json:"duration_ms" bson:"duration_ms"`                       // Time taken to execute the command
-	Success        bool   `json:"success" bson:"success"`                               // Command successful or not
-	Error          string `json:"error" bson:"error,omitempty"`                         // Command error string if any
-	SequenceNumber int64  `json:"sequence_number" bson:"sequence_number"`               // Sequence number of the commands, provided by the plugin for proper ordering of the logs
-	Tenant         string `json:"tenant" bson:"tenant"`                                 // Test execution target tenant - `gads:tenant`
-	BuildID        string `json:"build_id" bson:"build_id"`                             // Test run build identifier - `gads:buildId`
-	TestName       string `json:"test_name" bson:"test_name,omitempty"`                 // Name of the currently executed test if any - `gads:testName`
-	LocatorUsing   string `json:"locator_using" bson:"locator_using,omitempty"`         // Type of Appium locator used on findElement/findElements
-	LocatorValue   string `json:"locator_value" bson:"locator_value,omitempty"`         // Actual locator value used on findElement/findElements
-	DeviceName     string `json:"device_name" bson:"device_name"`                       // Name of the device from GADS registered devices database
-	PlatformName   string `json:"platform_name" bson:"platform_name"`                   // Target platform - iOS/Android/Tizen/WebOS
-	AdditionalInfo string `json:"additional_info" bson:"additional_info,omitempty"`     // Additional Appium command info parsed from command arguments in human-readable output
-	TestStatus     string `json:"test_status,omitempty" bson:"test_status,omitempty"`   // Test status (pass, fail, skip) - only for test result logs
-	TestMessage    string `json:"test_message,omitempty" bson:"test_message,omitempty"` // Test message or error - only for test result logs
+	Timestamp          int64  `json:"timestamp" bson:"timestamp"`                           // Timestamp in milliseconds of the Appium command execution
+	SessionID          string `json:"session_id" bson:"session_id"`                         // Appium session ID
+	DeviceUDID         string `json:"udid" bson:"udid"`                                     // UDID of the device
+	Action             string `json:"action" bson:"action"`                                 // Human readable name of the executed command
+	Command            string `json:"command" bson:"command"`                               // Actual Appium command name
+	Duration           int    `json:"duration_ms" bson:"duration_ms"`                       // Time taken to execute the command
+	Success            bool   `json:"success" bson:"success"`                               // Command successful or not
+	Error              string `json:"error" bson:"error,omitempty"`                         // Command error string if any
+	SequenceNumber     int64  `json:"sequence_number" bson:"sequence_number"`               // Sequence number of the commands, provided by the plugin for proper ordering of the logs
+	Tenant             string `json:"tenant" bson:"tenant"`                                 // Test execution target tenant - `gads:tenant`
+	BuildID            string `json:"build_id" bson:"build_id"`                             // Test run build identifier - `gads:buildId`
+	TestName           string `json:"test_name" bson:"test_name,omitempty"`                 // Name of the currently executed test if any - `gads:testName`
+	LocatorUsing       string `json:"locator_using" bson:"locator_using,omitempty"`         // Type of Appium locator used on findElement/findElements
+	LocatorValue       string `json:"locator_value" bson:"locator_value,omitempty"`         // Actual locator value used on findElement/findElements
+	DeviceName         string `json:"device_name" bson:"device_name"`                       // Name of the device from GADS registered devices database
+	PlatformName       string `json:"platform_name" bson:"platform_name"`                   // Target platform - iOS/Android/Tizen/WebOS
+	AdditionalInfo     string `json:"additional_info" bson:"additional_info,omitempty"`     // Additional Appium command info parsed from command arguments in human-readable output
+	TestStatus         string `json:"test_status,omitempty" bson:"test_status,omitempty"`   // Test status (pass, fail, skip) - only for test result logs
+	TestMessage        string `json:"test_message,omitempty" bson:"test_message,omitempty"` // Test message or error - only for test result logs
+	HasScreenshot      bool   `json:"has_screenshot" bson:"has_screenshot"`                 // Whether a screenshot was taken before the command
+	HasScreenshotAfter bool   `json:"has_screenshot_after" bson:"has_screenshot_after"`     // Whether a screenshot was taken after the command
+}
+
+type AppiumPluginScreenshotRequest struct {
+	SessionID      string `json:"session_id"`
+	BuildID        string `json:"build_id"`
+	SequenceNumber string `json:"sequence_number"`
+	IsAfterCommand bool   `json:"is_after_command"`
+}
+
+// GADS Android app returns response with `screenshot` property
+// WebDriverAgent returns response compliant with WebDriver that is `{"value": {"screenshot"}}`
+type AppiumPluginScreenshotResponse struct {
+	Screenshot string `json:"screenshot"`
+	Value      struct {
+		Screenshot string `json:"screenshot"`
+	} `json:"value"`
 }
 
 // SessionLogsSummary is the compact record we will show in tests report table

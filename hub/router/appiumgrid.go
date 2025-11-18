@@ -70,7 +70,7 @@ func UpdateExpiredGridSessions() {
 	}
 }
 
-func AppiumGridMiddleware(config *models.HubConfig) gin.HandlerFunc {
+func AppiumGridMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasSuffix(c.Request.URL.Path, "/session") {
 			// Read the request sessionRequestBody

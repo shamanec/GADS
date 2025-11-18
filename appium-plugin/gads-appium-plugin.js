@@ -4,6 +4,7 @@ import { loadConfig } from './src/config/loader.js';
 import { createApiClient, GadsApiClient } from './src/api/client.js';
 import { classify } from './src/utils/classifier.js';
 import { handleArgs } from './src/utils/commandArgsHandler.js';
+import { takeBeforeScreenshot, takeAfterScreenshot } from './src/utils/screenshots.js';
 
 /**
  * This function redacts sensitive data from logs like when typing text
@@ -248,6 +249,9 @@ class GadsAppium extends BasePlugin {
         const commandStartTS = Date.now()
         let result, error;
 
+        // Take screenshot BEFORE command execution for specific commands
+        const hasBeforeScreenshot = takeBeforeScreenshot(GadsAppium, commandName, GadsAppium.apiClient)
+
         // Execute the command, saving result and/or error
         if (commandName === 'execute' && args?.[0] && typeof args[0] === 'string' && args[0].includes('gads:testResult')) {
             // Skip calling next() for test result commands to avoid unimplemented execute
@@ -294,6 +298,12 @@ class GadsAppium extends BasePlugin {
                         }
                     }
 
+                    // Take screenshot for any failed command
+                    let hasAfterScreenshot = false
+                    if (error) {
+                        hasAfterScreenshot = takeAfterScreenshot(GadsAppium, commandName, GadsAppium.apiClient)
+                    }
+
                     // Build the body of the log we send to GADS
                     const body = {
                         timestamp: commandStartTS, // Start time of the command
@@ -313,6 +323,8 @@ class GadsAppium extends BasePlugin {
                         device_name: GadsAppium.actionLogDeviceName, // Target device name from GADS
                         platform_name: GadsAppium.actionLogPlatformName, // Target test platform name - iOS/Android/Tizen/WebOS
                         additional_info: commandAdditionalInfo, // Use test message for test result logs
+                        has_screenshot: hasBeforeScreenshot, // Whether a screenshot was taken before the command
+                        has_screenshot_after: hasAfterScreenshot, // Whether a screenshot was taken after the command
                     }
 
                     // Add test result fields only if they have values (to avoid empty fields in mongo)

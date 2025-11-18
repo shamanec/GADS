@@ -1039,6 +1039,7 @@ func startAppium(device *models.Device) {
 		ProviderUrl:       fmt.Sprintf("http://%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port),
 		HeartBeatInterval: "2000",
 		UDID:              device.UDID,
+		MinioEnabled:      config.ProviderConfig.MinioAvailable,
 	}
 	pluginConfigJson, _ := json.Marshal(pluginConfig)
 

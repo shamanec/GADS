@@ -10,9 +10,12 @@
 package router
 
 import (
+	"GADS/common/api"
 	"GADS/common/db"
+	"GADS/common/minio"
 	"GADS/common/models"
 	"GADS/hub/auth"
+	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
 	"context"
@@ -1221,4 +1224,194 @@ func UpdateGlobalStreamSettings(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
+}
+
+// GetMinioConfig godoc
+// @Summary      Get MinIO configuration
+// @Description  Retrieve MinIO configuration settings from the database
+// @Tags         Admin - Settings
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.APIResponse{result=models.MinioConfig}
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/minio-config [get]
+func GetMinioConfig(c *gin.Context) {
+	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
+	if err != nil {
+		InternalServerError(c, "Failed to retrieve MinIO configuration")
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "MinIO configuration retrieved successfully", minioConfig)
+}
+
+// UpdateMinioConfig godoc
+// @Summary      Update MinIO configuration
+// @Description  Update MinIO configuration settings in the database
+// @Tags         Admin - Settings
+// @Accept       json
+// @Produce      json
+// @Param        config  body      models.MinioConfig  true  "MinIO configuration"
+// @Success      200     {object}  models.APIResponse{result=string}
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/minio-config [post]
+func UpdateMinioConfig(c *gin.Context) {
+	var config models.MinioConfig
+
+	if err := c.ShouldBindJSON(&config); err != nil {
+		BadRequest(c, "Invalid input")
+		return
+	}
+
+	// Basic validation
+	if config.Enabled {
+		if config.Endpoint == "" {
+			BadRequest(c, "Endpoint is required when MinIO is enabled")
+			return
+		}
+
+		if config.AccessKeyID == "" {
+			BadRequest(c, "Access Key ID is required when MinIO is enabled")
+			return
+		}
+
+		if config.SecretAccessKey == "" {
+			BadRequest(c, "Secret Access Key is required when MinIO is enabled")
+			return
+		}
+	}
+
+	err := db.GlobalMongoStore.UpdateMinioConfig(config)
+	if err != nil {
+		InternalServerError(c, "Failed to save MinIO configuration")
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "MinIO configuration updated successfully", "Configuration saved")
+}
+
+// GetSystemStatus godoc
+// @Summary      Get system status messages
+// @Description  Retrieve system status messages for administrators
+// @Tags         Admin - System
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.SystemStatusAPIResponse
+// @Failure      500  {object}  models.APIResponse
+// @Security     BearerAuth
+// @Router       /admin/system-status [get]
+func GetSystemStatus(c *gin.Context) {
+	var messages []models.SystemStatusMessage
+
+	// Check MinIO configuration
+	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
+	if err != nil {
+		// Check if it's a "not found" error (no config exists)
+		if err == mongo.ErrNoDocuments {
+			messages = append(messages, models.SystemStatusMessage{
+				Type:    "minio_not_configured",
+				Message: "MinIO is not configured. Screenshot storage and file uploads will not work.",
+				Action:  "Configure MinIO in Admin -> Global Settings",
+			})
+		} else {
+			// Other database error
+			api.InternalServerErrorResponse(c, "Failed to retrieve MinIO configuration", nil)
+			return
+		}
+	} else {
+		// Config exists, check if it's enabled
+		if !minioConfig.Enabled {
+			messages = append(messages, models.SystemStatusMessage{
+				Type:    "minio_disabled",
+				Message: "MinIO is disabled. Screenshot storage and file uploads will not work.",
+				Action:  "Enable MinIO in Admin -> Global Settings",
+			})
+		}
+	}
+
+	// Check if any devices are configured
+	devices, _ := db.GlobalMongoStore.GetDevices()
+	if len(devices) == 0 {
+		messages = append(messages, models.SystemStatusMessage{
+			Type:    "no_devices",
+			Message: "No devices configured.",
+			Action:  "Add devices in Admin -> Devices",
+		})
+	}
+
+	// Check if any providers are configured
+	providers, _ := db.GlobalMongoStore.GetAllProviders()
+	if len(providers) == 0 {
+		messages = append(messages, models.SystemStatusMessage{
+			Type:    "no_providers",
+			Message: "No providers configured.",
+			Action:  "Add providers in Admin -> Providers",
+		})
+	}
+
+	response := models.SystemStatusResponse{
+		Messages: messages,
+	}
+
+	api.OKResponse(c, "System status retrieved successfully", response)
+}
+
+// GetScreenshot godoc
+// @Summary      Get screenshot for Appium session
+// @Description  Retrieve screenshot from Minio storage for specific build/session
+// @Tags         Reports
+// @Accept       json
+// @Produce      image/jpeg
+// @Param        build_id   path  string  true  "Build ID"
+// @Param        session_id path  string  true  "Session ID"
+// @Param        filename   path  string  true  "Screenshot filename"
+// @Success      200        {file}  binary  "Screenshot image"
+// @Failure      404        {object}  models.ErrorResponse
+// @Failure      500        {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /reports/screenshots/{build_id}/{session_id}/{filename} [get]
+func GetScreenshot(c *gin.Context) {
+	buildID := c.Param("build_id")
+	sessionID := c.Param("session_id")
+	filename := c.Param("filename")
+
+	// Validate parameters
+	if buildID == "" || sessionID == "" || filename == "" {
+		BadRequest(c, "Missing required parameters: build_id, session_id, or filename")
+		return
+	}
+
+	// Check if MinIO is available
+	if !config.GlobalHubConfig.MinioAvailable {
+		NotFound(c, "Screenshot storage is not available - MinIO is not configured or enabled")
+		return
+	}
+
+	// Get screenshot from Minio
+	reader, err := minio.GlobalMinioClient.GetAppiumScreenshot(buildID, sessionID, filename)
+	if err != nil {
+		// Check if it's a not found error or other error
+		if err.Error() == "The specified key does not exist." {
+			NotFound(c, "Screenshot not found")
+		} else {
+			InternalServerError(c, fmt.Sprintf("Failed to retrieve screenshot: %s", err))
+		}
+		return
+	}
+	defer reader.Close()
+
+	// Set appropriate headers for image content
+	c.Header("Content-Type", "image/jpeg")
+	c.Header("Cache-Control", "public, max-age=3600") // Cache for 1 hour
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filename))
+
+	// Stream the image data to the response
+	_, err = io.Copy(c.Writer, reader)
+	if err != nil {
+		// Log error but response is already started, can't return error response
+		fmt.Printf("Error streaming screenshot: %v\n", err)
+	}
 }
