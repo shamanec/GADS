@@ -475,32 +475,50 @@ func DeviceInUseWS(c *gin.Context) {
 		return
 	}
 
-	// Get the token from the request header
-	tokenParam := c.Query("token")
-	if tokenParam == "" {
-		c.Status(http.StatusUnauthorized)
-		return
-	}
-
 	var username string
 	var userTenant string
 
-	// Extract token from Bearer format
-	tokenString, err := auth.ExtractTokenFromBearer(tokenParam)
-	if err == nil {
-		// Get origin from request
-		origin := auth.GetOriginFromRequest(c)
-
-		// Get claims from token with origin
-		claims, err := auth.GetClaimsFromToken(tokenString, origin)
-		if err != nil || claims.Username == "" {
-			// Return 401 for any token validation error
+	// First priority: Check context (set by DefaultUserMiddleware when auth is disabled)
+	if contextUsername, exists := c.Get("username"); exists {
+		if us, ok := contextUsername.(string); ok {
+			username = us
+		}
+		if contextTenant, exists := c.Get("tenant"); exists {
+			if ts, ok := contextTenant.(string); ok {
+				userTenant = ts
+			}
+		}
+	} else {
+		// Second priority: Extract from JWT token (when auth is enabled)
+		tokenParam := c.Query("token")
+		if tokenParam == "" {
 			c.Status(http.StatusUnauthorized)
 			return
 		}
 
-		username = claims.Username
-		userTenant = claims.Tenant
+		// Extract token from Bearer format
+		tokenString, err := auth.ExtractTokenFromBearer(tokenParam)
+		if err == nil {
+			// Get origin from request
+			origin := auth.GetOriginFromRequest(c)
+
+			// Get claims from token with origin
+			claims, err := auth.GetClaimsFromToken(tokenString, origin)
+			if err != nil || claims.Username == "" {
+				// Return 401 for any token validation error
+				c.Status(http.StatusUnauthorized)
+				return
+			}
+
+			username = claims.Username
+			userTenant = claims.Tenant
+		}
+
+		// If we still don't have username, return unauthorized
+		if username == "" {
+			c.Status(http.StatusUnauthorized)
+			return
+		}
 	}
 
 	// Verify if the device is already in use by another user
@@ -1414,4 +1432,18 @@ func GetScreenshot(c *gin.Context) {
 		// Log error but response is already started, can't return error response
 		fmt.Printf("Error streaming screenshot: %v\n", err)
 	}
+}
+
+// GetConfig godoc
+// @Summary      Get system configuration
+// @Description  Retrieve system configuration including authentication status
+// @Tags         System
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.ConfigResponse
+// @Router       /config [get]
+func GetConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, models.ConfigResponse{
+		AuthEnabled: config.GlobalHubConfig.AuthEnabled,
+	})
 }

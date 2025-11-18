@@ -230,36 +230,54 @@ func GetWorkspaces(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /workspaces [get]
 func GetUserWorkspaces(c *gin.Context) {
-	// Get JWT token from Authorization header
-	authHeader := c.GetHeader("Authorization")
-
 	var username string
 	var role string
 	var tenant string
 	var issuer string
 
-	if authHeader != "" {
-		// Extract token from Bearer format
-		tokenString, err := auth.ExtractTokenFromBearer(authHeader)
-		if err == nil {
-			// Get origin from request
-			origin := auth.GetOriginFromRequest(c)
-
-			// Get claims from token with origin
-			claims, err := auth.GetClaimsFromToken(tokenString, origin)
-			if err == nil {
-				username = claims.Username
-				role = claims.Role
-				tenant = claims.Tenant
-				issuer = claims.Issuer
+	// First priority: Check context (set by DefaultUserMiddleware when auth is disabled)
+	if contextUsername, exists := c.Get("username"); exists {
+		if us, ok := contextUsername.(string); ok {
+			username = us
+		}
+		if contextRole, exists := c.Get("role"); exists {
+			if rs, ok := contextRole.(string); ok {
+				role = rs
 			}
 		}
-	}
+		if contextTenant, exists := c.Get("tenant"); exists {
+			if ts, ok := contextTenant.(string); ok {
+				tenant = ts
+			}
+		}
+		issuer = "local"
+	} else {
+		// Second priority: Extract from JWT token (when auth is enabled)
+		authHeader := c.GetHeader("Authorization")
 
-	// If we couldn't get the user info from JWT token, try the legacy session approach
-	if username == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
+		if authHeader != "" {
+			// Extract token from Bearer format
+			tokenString, err := auth.ExtractTokenFromBearer(authHeader)
+			if err == nil {
+				// Get origin from request
+				origin := auth.GetOriginFromRequest(c)
+
+				// Get claims from token with origin
+				claims, err := auth.GetClaimsFromToken(tokenString, origin)
+				if err == nil {
+					username = claims.Username
+					role = claims.Role
+					tenant = claims.Tenant
+					issuer = claims.Issuer
+				}
+			}
+		}
+
+		// If we couldn't get the user info from JWT token, return unauthorized
+		if username == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
 	}
 
 	pageStr := c.Query("page")

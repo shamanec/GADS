@@ -157,3 +157,8 @@ type ClientCredentialsListResponse struct {
 	Credentials []CredentialResponse `json:"credentials"`
 	Total       int64                `json:"total" example:"5"`
 }
+
+// ConfigResponse represents the system configuration response
+type ConfigResponse struct {
+	AuthEnabled bool `json:"authEnabled" example:"true"`
+}
