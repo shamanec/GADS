@@ -156,7 +156,6 @@ func updateProviderHub() {
 				DBDeviceMap[udid] = updatedDevice
 				if err := initializeDevice(updatedDevice); err != nil {
 					logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Failed to initialize new device `%s` - %s", udid, err))
-					delete(DBDeviceMap, udid)
 					continue
 				}
 				properJson.DeviceData = append(properJson.DeviceData, *updatedDevice)
