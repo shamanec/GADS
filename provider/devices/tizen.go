@@ -385,9 +385,11 @@ func installAppTizen(device *models.Device, appName string) error {
 }
 
 type TizenApp struct {
-	AppID   string `json:"appId"`
-	Title   string `json:"title"`
-	Version string `json:"version"`
+	AppID       string `json:"appId"`
+	Title       string `json:"title"`
+	Version     string `json:"version"`
+	IsDevApp    bool   `json:"isDevApp"`    // true if installed via dev/sideload
+	IsSystemApp bool   `json:"isSystemApp"` // always false (cannot determine system apps reliably)
 }
 
 func GetInstalledAppsTizen(device *models.Device) []TizenApp {
@@ -403,6 +405,8 @@ func GetInstalledAppsTizen(device *models.Device) []TizenApp {
 	lines := strings.Split(string(output), "\n")
 
 	var currentApp TizenApp
+	var appType string
+	var installedSourceType string
 	inAppBlock := false
 
 	for _, line := range lines {
@@ -410,9 +414,13 @@ func GetInstalledAppsTizen(device *models.Device) []TizenApp {
 
 		if strings.HasPrefix(trimmed, "----") && len(trimmed) > 50 && !strings.Contains(line, "=") {
 			if inAppBlock && currentApp.AppID != "" {
+				currentApp.IsDevApp = (appType == "user" || installedSourceType == "0")
+				currentApp.IsSystemApp = false
 				apps = append(apps, currentApp)
 			}
 			currentApp = TizenApp{}
+			appType = ""
+			installedSourceType = ""
 			inAppBlock = true
 			continue
 		}
@@ -430,12 +438,18 @@ func GetInstalledAppsTizen(device *models.Device) []TizenApp {
 					currentApp.Title = value
 				case "app_version":
 					currentApp.Version = value
+				case "type":
+					appType = value
+				case "installed_source_type":
+					installedSourceType = value
 				}
 			}
 		}
 	}
 
 	if inAppBlock && currentApp.AppID != "" {
+		currentApp.IsDevApp = (appType == "user" || installedSourceType == "0")
+		currentApp.IsSystemApp = false
 		apps = append(apps, currentApp)
 	}
 

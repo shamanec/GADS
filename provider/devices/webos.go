@@ -186,9 +186,11 @@ func installAppWebOS(device *models.Device, appName string) error {
 }
 
 type WebOSApp struct {
-	AppID   string `json:"appId"`
-	Title   string `json:"title"`
-	Version string `json:"version"`
+	AppID     string `json:"appId"`
+	Title     string `json:"title"`
+	Version   string `json:"version"`
+	IsDevApp  bool   `json:"isDevApp"`  // always true (ares-install lists only dev apps)
+	SystemApp bool   `json:"systemApp"` // parsed from output (always false for CLI apps)
 }
 
 func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
@@ -209,6 +211,7 @@ func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
 
 		if trimmed == "" {
 			if currentApp.AppID != "" {
+				currentApp.IsDevApp = true
 				apps = append(apps, currentApp)
 				currentApp = WebOSApp{}
 			}
@@ -228,12 +231,15 @@ func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
 					currentApp.Title = value
 				case "version":
 					currentApp.Version = value
+				case "systemApp":
+					currentApp.SystemApp = (value == "true")
 				}
 			}
 		}
 	}
 
 	if currentApp.AppID != "" {
+		currentApp.IsDevApp = true
 		apps = append(apps, currentApp)
 	}
 
