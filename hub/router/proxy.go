@@ -65,24 +65,36 @@ func DeviceProxyHandler(c *gin.Context) {
 	var username string
 	var tenant string
 
-	// If not a session creation or no credentials in capabilities, check for bearer token
-	authToken := c.GetHeader("Authorization")
-	if authToken == "" {
-		authToken = c.Query("token")
-	}
+	// First priority: Check context (set by DefaultUserMiddleware when auth is disabled)
+	if contextUsername, exists := c.Get("username"); exists {
+		if us, ok := contextUsername.(string); ok {
+			username = us
+		}
+		if contextTenant, exists := c.Get("tenant"); exists {
+			if ts, ok := contextTenant.(string); ok {
+				tenant = ts
+			}
+		}
+	} else {
+		// Second priority: Extract from JWT token (when auth is enabled)
+		authToken := c.GetHeader("Authorization")
+		if authToken == "" {
+			authToken = c.Query("token")
+		}
 
-	if authToken != "" {
-		// Extract token from Bearer format
-		tokenString, err := auth.ExtractTokenFromBearer(authToken)
-		if err == nil {
-			// Get origin from request
-			origin := auth.GetOriginFromRequest(c)
-
-			// Get claims from token with origin
-			claims, err := auth.GetClaimsFromToken(tokenString, origin)
+		if authToken != "" {
+			// Extract token from Bearer format
+			tokenString, err := auth.ExtractTokenFromBearer(authToken)
 			if err == nil {
-				username = claims.Username
-				tenant = claims.Tenant
+				// Get origin from request
+				origin := auth.GetOriginFromRequest(c)
+
+				// Get claims from token with origin
+				claims, err := auth.GetClaimsFromToken(tokenString, origin)
+				if err == nil {
+					username = claims.Username
+					tenant = claims.Tenant
+				}
 			}
 		}
 	}

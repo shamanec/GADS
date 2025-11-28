@@ -33,6 +33,12 @@ import (
 // @Security     BearerAuth
 // @Router       /admin/secret-keys [get]
 func GetSecretKeys(c *gin.Context) {
+	// Secret keys management requires authentication to be enabled
+	if _, isDefault := c.Get("is_default_user"); isDefault {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Secret keys management requires authentication to be enabled"})
+		return
+	}
+
 	// Get secret keys from database
 	store := auth.NewSecretStore(db.GlobalMongoStore.GetDefaultDatabase())
 	keys, err := store.GetAllSecretKeys()
@@ -71,6 +77,12 @@ func GetSecretKeys(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /admin/secret-keys [post]
 func AddSecretKey(c *gin.Context) {
+	// Secret keys management requires authentication to be enabled
+	if _, isDefault := c.Get("is_default_user"); isDefault {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Secret keys management requires authentication to be enabled"})
+		return
+	}
+
 	// Get username from user claims for audit
 	username, exists := getUsernameFromContext(c)
 	if !exists {
@@ -148,6 +160,12 @@ func AddSecretKey(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/{id} [put]
 func UpdateSecretKey(c *gin.Context) {
+	// Secret keys management requires authentication to be enabled
+	if _, isDefault := c.Get("is_default_user"); isDefault {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Secret keys management requires authentication to be enabled"})
+		return
+	}
+
 	// Get username from user claims for audit
 	username, exists := getUsernameFromContext(c)
 	if !exists {
@@ -242,6 +260,12 @@ func UpdateSecretKey(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/{id} [delete]
 func DisableSecretKey(c *gin.Context) {
+	// Secret keys management requires authentication to be enabled
+	if _, isDefault := c.Get("is_default_user"); isDefault {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Secret keys management requires authentication to be enabled"})
+		return
+	}
+
 	// Get username from user claims for audit
 	username, exists := getUsernameFromContext(c)
 	if !exists {
@@ -310,6 +334,12 @@ func DisableSecretKey(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/history [get]
 func GetSecretKeyHistory(c *gin.Context) {
+	// Secret keys management requires authentication to be enabled
+	if _, isDefault := c.Get("is_default_user"); isDefault {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Secret keys management requires authentication to be enabled"})
+		return
+	}
+
 	// Extract pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
@@ -378,6 +408,12 @@ func GetSecretKeyHistory(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/history/{id} [get]
 func GetSecretKeyHistoryByID(c *gin.Context) {
+	// Secret keys management requires authentication to be enabled
+	if _, isDefault := c.Get("is_default_user"); isDefault {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Secret keys management requires authentication to be enabled"})
+		return
+	}
+
 	// Extract ID from URL
 	id := c.Param("id")
 	if id == "" {

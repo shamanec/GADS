@@ -193,6 +193,45 @@ func LogoutHandler(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /user-info [get]
 func GetUserInfoHandler(c *gin.Context) {
+	// When authentication is disabled, return default user from context
+	if username, exists := c.Get("username"); exists {
+		tenant, _ := c.Get("tenant")
+		role, _ := c.Get("role")
+		origin, _ := c.Get("origin")
+
+		// Convert to strings with defaults
+		usernameStr := "admin"
+		if us, ok := username.(string); ok && us != "" {
+			usernameStr = us
+		}
+
+		roleStr := "admin"
+		if rs, ok := role.(string); ok && rs != "" {
+			roleStr = rs
+		}
+
+		tenantStr := ""
+		if ts, ok := tenant.(string); ok {
+			tenantStr = ts
+		}
+
+		originStr := "local"
+		if os, ok := origin.(string); ok && os != "" {
+			originStr = os
+		}
+
+		// Return default user info
+		c.JSON(http.StatusOK, gin.H{
+			"username":              usernameStr,
+			"role":                  roleStr,
+			"tenant":                tenantStr,
+			"scopes":                []string{"admin"},
+			"user_identifier_claim": "",
+			"origin":                originStr,
+		})
+		return
+	}
+
 	// Get the JWT token from Authorization header
 	authHeader := c.GetHeader("Authorization")
 	if !strings.HasPrefix(authHeader, "Bearer ") {

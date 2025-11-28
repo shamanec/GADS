@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/common/db"
 	"GADS/hub/auth"
 	"GADS/hub/config"
 	"io"
@@ -23,6 +24,30 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+// DefaultUserMiddleware injects default user context when authentication is disabled.
+// This allows all features that depend on username/tenant to function properly.
+func DefaultUserMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !config.GlobalHubConfig.AuthEnabled {
+			// Get the real default tenant from the system
+			defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get default tenant"})
+				c.Abort()
+				return
+			}
+
+			// Set default admin user context
+			c.Set("username", "admin")
+			c.Set("tenant", defaultTenant)
+			c.Set("role", "admin")
+			c.Set("origin", "local")
+			c.Set("is_default_user", true)
+		}
+		c.Next()
+	}
+}
 
 func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	// Create the router and allow all origins
@@ -83,7 +108,12 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	}
 
 	authGroup := r.Group("/")
+	// Inject default user context when authentication is disabled
+	// This middleware must be applied BEFORE any endpoints are registered
+	authGroup.Use(DefaultUserMiddleware())
+
 	// Unauthenticated endpoints
+	authGroup.GET("/config", GetConfig)
 	authGroup.POST("/authenticate", auth.LoginHandler)
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
 	authGroup.GET("/reports/screenshots/:build_id/:session_id/:filename", GetScreenshot)
