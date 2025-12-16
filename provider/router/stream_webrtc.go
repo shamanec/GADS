@@ -52,7 +52,7 @@ func NewWDAJPEGExtractor(device *models.Device) (*WDAJPEGExtractor, error) {
 
 	extractor := &WDAJPEGExtractor{
 		device:      device,
-		jpegChannel: make(chan []byte, 30), // Buffer for 30 frames
+		jpegChannel: make(chan []byte, 5), // Smaller buffer for lower latency
 		ctx:         ctx,
 		cancel:      cancel,
 	}
@@ -173,46 +173,61 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 	encoder := &FFmpegH264Encoder{
 		device:     device,
 		jpegInput:  jpegInput,
-		h264Output: make(chan []byte, 30),
+		h264Output: make(chan []byte, 10), // Smaller buffer for lower latency
 		ctx:        ctx,
 		cancel:     cancel,
 	}
 
-	// Create FFmpeg command for JPEG to H.264 encoding
+	// Create FFmpeg command for JPEG to H.264 encoding with minimal latency
+	// -probesize 32: minimal probing to reduce startup delay
+	// -fflags nobuffer: disable buffering
+	// -flags low_delay: optimize for low delay
 	// -f image2pipe: input is a stream of images
-	// -framerate 30: assume 30fps input (adjust based on device settings)
+	// -framerate 30: assume 30fps input
 	// -i -: read from stdin
 	// -c:v libx264: use H.264 encoder
-	// -preset ultrafast: minimize encoding latency
-	// -tune zerolatency: optimize for low-latency streaming
+	// -preset ultrafast: fastest encoding preset
+	// -tune zerolatency: optimize for zero latency streaming
 	// -pix_fmt yuv420p: compatible pixel format
-	// -g 60: keyframe every 2 seconds (more frequent for better seeking/recovery)
-	// -keyint_min 30: minimum keyframe interval
-	// -x264opts: additional x264 options for better streaming
-	//   - no-scenecut: disable scene change detection (more predictable keyframes)
-	//   - bframes=0: no B-frames for lower latency
+	// -g 30: keyframe every 1 second (more frequent for lower latency)
+	// -keyint_min 15: minimum keyframe interval
+	// -x264opts: low-latency x264 options
+	//   - no-scenecut: disable scene detection
+	//   - rc-lookahead=0: disable lookahead (critical for latency)
+	//   - sync-lookahead=0: disable sync lookahead
+	//   - sliced-threads: reduce threading latency
+	//   - bframes=0: no B-frames
 	// -bf 0: no B-frames
-	// -refs 1: single reference frame for speed
+	// -refs 1: single reference frame
+	// -sc_threshold 0: disable scene change detection
 	// -profile:v baseline: most compatible profile
 	// -level 3.1: compatibility level
+	// -max_delay 0: no buffering delay
+	// -fflags nobuffer+flush_packets: disable buffering and flush immediately
 	// -f h264: output raw H.264 stream
 	// -: write to stdout
 	cmd := exec.CommandContext(ctx,
 		"ffmpeg",
+		"-probesize", "32",
+		"-fflags", "nobuffer",
+		"-flags", "low_delay",
 		"-f", "image2pipe",
-		"-framerate", "30",
+		"-framerate", fmt.Sprintf("%v", device.StreamTargetFPS),
 		"-i", "-",
 		"-c:v", "libx264",
 		"-preset", "ultrafast",
 		"-tune", "zerolatency",
 		"-pix_fmt", "yuv420p",
-		"-g", "60",
-		"-keyint_min", "30",
-		"-x264opts", "no-scenecut:bframes=0",
+		"-g", "30",
+		"-keyint_min", "15",
+		"-x264opts", "no-scenecut:rc-lookahead=0:sync-lookahead=0:sliced-threads:bframes=0",
 		"-bf", "0",
 		"-refs", "1",
+		"-sc_threshold", "0",
 		"-profile:v", "baseline",
 		"-level", "3.1",
+		"-max_delay", "0",
+		"-fflags", "+nobuffer+flush_packets",
 		"-f", "h264",
 		"-",
 	)
@@ -394,16 +409,16 @@ func (e *FFmpegH264Encoder) Close() {
 
 // WebRTCSession manages a single WebRTC peer connection for streaming
 type WebRTCSession struct {
-	device          *models.Device
-	peerConnection  *webrtc.PeerConnection
-	videoTrack      *webrtc.TrackLocalStaticSample
-	extractor       *WDAJPEGExtractor
-	encoder         *FFmpegH264Encoder
-	ctx             context.Context
-	cancel          context.CancelFunc
-	mu              sync.Mutex
-	iceCandidates   []webrtc.ICECandidateInit
-	pendingOffer    *webrtc.SessionDescription
+	device         *models.Device
+	peerConnection *webrtc.PeerConnection
+	videoTrack     *webrtc.TrackLocalStaticSample
+	extractor      *WDAJPEGExtractor
+	encoder        *FFmpegH264Encoder
+	ctx            context.Context
+	cancel         context.CancelFunc
+	mu             sync.Mutex
+	iceCandidates  []webrtc.ICECandidateInit
+	pendingOffer   *webrtc.SessionDescription
 }
 
 // NewWebRTCSession creates a new WebRTC session for device streaming
@@ -605,9 +620,9 @@ func (s *WebRTCSession) Close() {
 
 // WebRTCSignalingMessage represents WebRTC signaling messages
 type WebRTCSignalingMessage struct {
-	Type      string                     `json:"type"`
-	SDP       string                     `json:"sdp,omitempty"`
-	Candidate *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
+	Type      string                   `json:"type"`
+	SDP       string                   `json:"sdp,omitempty"`
+	Candidate *webrtc.ICECandidateInit `json:"candidate,omitempty"`
 }
 
 // IOSWebRTCSocket handles WebRTC signaling for iOS devices
