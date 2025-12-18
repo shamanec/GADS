@@ -62,31 +62,6 @@ func stopGadsStreamService(device *models.Device) {
 	}
 }
 
-// Install gads-stream.apk on the device
-func installGadsStream(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS-stream apk on device `%v`", device.UDID))
-
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-stream.apk", config.ProviderConfig.ProviderFolder))
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("installGadsStream: Error executing `%s` - %s", cmd.Args, err)
-	}
-
-	return nil
-}
-
-func installGadsWebRTCStream(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS WebRTC stream apk on device `%v`", device.UDID))
-
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-webrtc.apk", config.ProviderConfig.ProviderFolder))
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("installGadsWebRTCStream: Error executing `%s` - %s", cmd.Args, err)
-	}
-
-	return nil
-}
-
 // Installs the GADS-Settings apk on Android devices.
 // The GADS-Settings provides the GADS IME and GADS mjpeg video stream service
 func installGadsSettingsApp(device *models.Device) error {
@@ -191,12 +166,6 @@ func setGadsAndroidIMEAsActive(device *models.Device) error {
 	}
 
 	return nil
-}
-
-// Uninstall the GADS stream app from the Android device
-func uninstallGadsStream(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Uninstalling GADS-stream from device `%v`", device.UDID))
-	return UninstallApp(device, GetStreamServicePackageName(device))
 }
 
 // Add recording permissions to GADS video streaming application to avoid popup on start
@@ -390,7 +359,7 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 
 func GetStreamServiceName(device *models.Device) string {
 	if device.UseWebRTCVideo {
-		return "com.gads.settings/.WebRTCScreenCaptureService"
+		return "com.gads.settings/.H264ScreenCaptureService"
 	}
 	return "com.gads.settings/.ScreenCaptureService"
 }
@@ -401,7 +370,7 @@ func GetStreamServicePackageName(device *models.Device) string {
 
 func GetStreamServiceActivityName(device *models.Device) string {
 	if device.UseWebRTCVideo {
-		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
+		return "com.gads.settings/com.gads.settings.streaming.H264ScreenCaptureActivity"
 	}
 	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 }

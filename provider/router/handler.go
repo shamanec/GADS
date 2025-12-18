@@ -75,6 +75,7 @@ func HandleRequests() *gin.Engine {
 		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEGWda)
 	}
 	deviceGroup.GET("/ios-webrtc", IOSWebRTCSocket)
+	deviceGroup.GET("/android-webrtc", AndroidWebRTCSocket)
 	deviceGroup.POST("/uninstallApp", UninstallApp)
 	deviceGroup.POST("/launchApp", LaunchApp)
 	deviceGroup.POST("/closeApp", CloseApp)
