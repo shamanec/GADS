@@ -35,10 +35,6 @@ type AndroidH264Extractor struct {
 	h264Channel chan []byte
 	ctx         context.Context
 	cancel      context.CancelFunc
-	spsPps      []byte // SPS/PPS configuration frames (extracted from stream)
-	sps         []byte // SPS NAL unit
-	pps         []byte // PPS NAL unit
-	mu          sync.Mutex
 }
 
 // NewAndroidH264Extractor creates a new H.264 extractor for Android WebSocket stream
@@ -64,63 +60,9 @@ func NewAndroidH264Extractor(device *models.Device) (*AndroidH264Extractor, erro
 
 	extractor.conn = conn
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android H.264 stream for device %s", device.UDID))
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android H.264 stream for device %s (Android sends SPS/PPS with keyframes)", device.UDID))
 
-	// CRITICAL: Read first message IMMEDIATELY and SYNCHRONOUSLY (like Python script)
-	// Android sends SPS/PPS in onOpen handler, must read before any goroutine delay
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Reading first message immediately for device %s", device.UDID))
-
-	// Read the first message synchronously (Android sends SPS/PPS in onOpen)
-	firstMsg, _, err := wsutil.ReadServerData(conn)
-	if err != nil {
-		cancel()
-		conn.Close()
-		return nil, fmt.Errorf("failed to read first message (SPS/PPS): %w", err)
-	}
-
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Received first message (%d bytes) for device %s", len(firstMsg), device.UDID))
-
-	// Log first bytes for debugging
-	if len(firstMsg) >= 20 {
-		preview := fmt.Sprintf("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-			firstMsg[0], firstMsg[1], firstMsg[2], firstMsg[3], firstMsg[4], firstMsg[5], firstMsg[6], firstMsg[7],
-			firstMsg[8], firstMsg[9], firstMsg[10], firstMsg[11], firstMsg[12], firstMsg[13], firstMsg[14], firstMsg[15],
-			firstMsg[16], firstMsg[17], firstMsg[18], firstMsg[19])
-		logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("First 20 bytes: %s", preview))
-	}
-
-	// Extract SPS/PPS from the first message
-	if len(firstMsg) > 0 {
-		nalUnits := extractNALUnits(firstMsg)
-		logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Found %d NAL units in first message for device %s", len(nalUnits), device.UDID))
-
-		for i, nal := range nalUnits {
-			if len(nal) < 5 {
-				logger.ProviderLogger.LogDebug("stream_webrtc", fmt.Sprintf("NAL #%d too short (%d bytes), skipping", i+1, len(nal)))
-				continue
-			}
-			nalType := nal[4] & 0x1F
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("NAL #%d: type %d, size %d bytes", i+1, nalType, len(nal)))
-
-			if nalType == 7 { // SPS
-				extractor.sps = make([]byte, len(nal))
-				copy(extractor.sps, nal)
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Extracted SPS (%d bytes) from first message for device %s", len(nal), device.UDID))
-			} else if nalType == 8 { // PPS
-				extractor.pps = make([]byte, len(nal))
-				copy(extractor.pps, nal)
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Extracted PPS (%d bytes) from first message for device %s", len(nal), device.UDID))
-			}
-		}
-
-		// Build combined SPS/PPS if we have both
-		if extractor.sps != nil && extractor.pps != nil {
-			extractor.spsPps = append(extractor.sps, extractor.pps...)
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Built SPS/PPS configuration (%d bytes) for device %s", len(extractor.spsPps), device.UDID))
-		}
-	}
-
-	// Now start reading subsequent messages in goroutine
+	// Start reading frames from WebSocket
 	go extractor.extractH264Frames()
 
 	return extractor, nil
@@ -159,6 +101,7 @@ func extractNALUnits(data []byte) [][]byte {
 }
 
 // extractH264Frames reads H.264 frames from WebSocket and sends to channel
+// Android sends complete frames with SPS/PPS prepended to keyframes
 func (e *AndroidH264Extractor) extractH264Frames() {
 	defer close(e.h264Channel)
 	defer e.conn.Close()
@@ -186,55 +129,11 @@ func (e *AndroidH264Extractor) extractH264Frames() {
 				continue
 			}
 
-			// Extract SPS/PPS if we haven't already
-			e.mu.Lock()
-			needsSPS := e.sps == nil || e.pps == nil
-			e.mu.Unlock()
-
-			if needsSPS {
-				// Parse NAL units to find SPS and PPS
-				nalUnits := extractNALUnits(msg)
-				for _, nal := range nalUnits {
-					if len(nal) < 5 {
-						continue
-					}
-					nalType := nal[4] & 0x1F
-
-					e.mu.Lock()
-					if nalType == 7 && e.sps == nil { // SPS
-						e.sps = make([]byte, len(nal))
-						copy(e.sps, nal)
-						logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Extracted SPS (%d bytes) for device %s", len(nal), e.device.UDID))
-					} else if nalType == 8 && e.pps == nil { // PPS
-						e.pps = make([]byte, len(nal))
-						copy(e.pps, nal)
-						logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Extracted PPS (%d bytes) for device %s", len(nal), e.device.UDID))
-					}
-
-					// Build combined SPS/PPS once we have both
-					if e.sps != nil && e.pps != nil && e.spsPps == nil {
-						e.spsPps = append(e.sps, e.pps...)
-						logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Built SPS/PPS configuration (%d bytes) for device %s", len(e.spsPps), e.device.UDID))
-					}
-					e.mu.Unlock()
-				}
-			}
-
-			// Log receiving video frame
 			frameCount++
+
+			// Log every 30 frames
 			if frameCount%30 == 0 {
-				// Log NAL unit type (byte after start code 0x00 0x00 0x00 0x01)
-				nalType := "unknown"
-				preview := ""
-				if len(msg) >= 8 {
-					preview = fmt.Sprintf("%02x %02x %02x %02x %02x %02x %02x %02x",
-						msg[0], msg[1], msg[2], msg[3], msg[4], msg[5], msg[6], msg[7])
-					if msg[0] == 0x00 && msg[1] == 0x00 && msg[2] == 0x00 && msg[3] == 0x01 {
-						nalUnitType := msg[4] & 0x1F
-						nalType = fmt.Sprintf("NAL type %d", nalUnitType)
-					}
-				}
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Received frame #%d (%d bytes) from Android stream for device %s, %s, first bytes: %s", frameCount, len(msg), e.device.UDID, nalType, preview))
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Received frame #%d (%d bytes) from Android for device %s", frameCount, len(msg), e.device.UDID))
 			}
 
 			// Send H.264 frame to channel (non-blocking)
@@ -253,19 +152,6 @@ func (e *AndroidH264Extractor) extractH264Frames() {
 // GetH264Channel returns the channel that receives H.264 frames
 func (e *AndroidH264Extractor) GetH264Channel() <-chan []byte {
 	return e.h264Channel
-}
-
-// GetSPSPPS returns the SPS/PPS configuration frames
-func (e *AndroidH264Extractor) GetSPSPPS() []byte {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.spsPps == nil {
-		return nil
-	}
-	// Return a copy to prevent external modification
-	spsPpsCopy := make([]byte, len(e.spsPps))
-	copy(spsPpsCopy, e.spsPps)
-	return spsPpsCopy
 }
 
 // Close stops the extractor and cleans up resources
