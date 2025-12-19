@@ -467,6 +467,18 @@ func setupAndroidDevice(device *models.Device) {
 	time.Sleep(2 * time.Second)
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully added GADS Settings stream recording permissions on Android device `%v`", device.UDID))
 
+	// Do not attempt to add POST_NOTIFICATIONS permission on devices below Android 15
+	if device.SemVer.Major() >= 15 {
+		err = addGadsStreamPostNotificationsPermission(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings POST_NOTIFICATIONS permissions on Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to add GADS Settings POST_NOTIFICATIONS permissions on Android device.")
+			return
+		}
+		time.Sleep(1 * time.Second)
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully added GADS Settings POST_NOTIFICATIONS permissions on Android device `%v`", device.UDID))
+	}
+
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS streaming on Android device `%v`", device.UDID))
 	err = startGadsAndroidStreaming(device)
 	if err != nil {

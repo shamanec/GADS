@@ -181,6 +181,19 @@ func addGadsStreamRecordingPermissions(device *models.Device) error {
 	return nil
 }
 
+// Add POST_NOTIFICATIONS permission to the stream app because on some devices with newer Android startForeground() might throw an exception without it
+func addGadsStreamPostNotificationsPermission(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS app post notification permissions on device `%v`", device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "pm", "grant", GetStreamServicePackageName(device), "android.permission.POST_NOTIFICATIONS")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("addGadsStreamRecordingPermissions: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
 // Start the GADS video streaming service using adb
 func startGadsAndroidStreaming(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", device.UDID))

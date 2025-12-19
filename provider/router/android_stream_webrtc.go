@@ -261,7 +261,7 @@ func (s *AndroidWebRTCSession) writeH264ToTrack() {
 	h264Channel := s.extractor.GetH264Channel()
 
 	// Calculate frame duration based on device settings (default 30fps)
-	fps := 30
+	fps := 60
 	if s.device.StreamTargetFPS > 0 {
 		fps = s.device.StreamTargetFPS
 	}
