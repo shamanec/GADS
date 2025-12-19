@@ -43,7 +43,7 @@ func NewAndroidH264Extractor(device *models.Device) (*AndroidH264Extractor, erro
 
 	extractor := &AndroidH264Extractor{
 		device:      device,
-		h264Channel: make(chan []byte, 10), // Buffer for H.264 frames
+		h264Channel: make(chan []byte, 30), // Buffer for H.264 frames (increased for better handling of backlog)
 		ctx:         ctx,
 		cancel:      cancel,
 	}
@@ -255,6 +255,21 @@ func (s *AndroidWebRTCSession) Start() error {
 	return nil
 }
 
+// isKeyframe checks if frame contains SPS/PPS (indicating a keyframe)
+func isKeyframe(data []byte) bool {
+	nalUnits := extractNALUnits(data)
+	for _, nal := range nalUnits {
+		if len(nal) >= 5 {
+			nalType := nal[4] & 0x1F
+			// SPS = 7, PPS = 8, IDR = 5
+			if nalType == 7 || nalType == 8 || nalType == 5 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // writeH264ToTrack reads H.264 data and writes to WebRTC video track
 // Android sends SPS/PPS before every keyframe, so we just pass through all NAL units
 func (s *AndroidWebRTCSession) writeH264ToTrack() {
@@ -270,8 +285,8 @@ func (s *AndroidWebRTCSession) writeH264ToTrack() {
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s (Android handles SPS/PPS with keyframes)", s.device.UDID))
 
 	frameCount := 0
+	droppedCount := 0
 
-	// Simple pass-through: Android sends complete frames with SPS/PPS before keyframes
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -284,38 +299,73 @@ func (s *AndroidWebRTCSession) writeH264ToTrack() {
 
 			frameCount++
 
-			// Split frame into individual NAL units (Android sends properly formatted Annex-B)
-			nalUnits := extractNALUnits(h264Data)
-
-			if len(nalUnits) == 0 {
+			// Write the entire frame as a single sample (h264Data already contains all NAL units)
+			// This ensures proper timing - one sample per frame, not per NAL unit
+			if len(h264Data) < 5 {
 				continue
 			}
 
-			// Send each NAL unit as a separate RTP packet
-			for _, nalUnit := range nalUnits {
-				if len(nalUnit) < 5 {
-					continue
+			// Check if there's a backlog in the channel (frames piling up)
+			// If so, skip to the most recent keyframe to reduce latency
+			channelLen := len(h264Channel)
+			if channelLen > 3 {
+				// We're falling behind - drain to the latest keyframe
+				drained := 0
+				var latestKeyframe []byte
+				foundKeyframe := false
+
+				// Drain the channel looking for keyframes
+				for channelLen > 0 {
+					select {
+					case nextFrame := <-h264Channel:
+						drained++
+						if isKeyframe(nextFrame) {
+							latestKeyframe = nextFrame
+							foundKeyframe = true
+						}
+						channelLen = len(h264Channel)
+					default:
+						channelLen = 0
+					}
 				}
 
-				// Write NAL unit to WebRTC track
-				if err := s.videoTrack.WriteSample(media.Sample{
-					Data:     nalUnit,
-					Duration: frameDuration,
-				}); err != nil {
-					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write NAL unit to track for device %s: %s", s.device.UDID, err))
-					return
+				if foundKeyframe && latestKeyframe != nil {
+					// Skip current frame and use the latest keyframe instead
+					h264Data = latestKeyframe
+					droppedCount += drained
+					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Detected backlog for device %s, drained %d frames and jumped to keyframe (total dropped: %d)", s.device.UDID, drained, droppedCount))
 				}
+			}
 
-				// Log first frame for debugging
-				if frameCount == 1 {
-					nalType := nalUnit[4] & 0x1F
-					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame #1 NAL type=%d, size=%d bytes for device %s", nalType, len(nalUnit), s.device.UDID))
+			// Write complete frame to WebRTC track
+			if err := s.videoTrack.WriteSample(media.Sample{
+				Data:     h264Data,
+				Duration: frameDuration,
+			}); err != nil {
+				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write frame to track for device %s: %s", s.device.UDID, err))
+				return
+			}
+
+			// Log first frame for debugging
+			if frameCount == 1 {
+				// Split to analyze NAL types
+				nalUnits := extractNALUnits(h264Data)
+				nalTypes := ""
+				for i, nalUnit := range nalUnits {
+					if len(nalUnit) >= 5 {
+						nalType := nalUnit[4] & 0x1F
+						if i > 0 {
+							nalTypes += ", "
+						}
+						nalTypes += fmt.Sprintf("%d", nalType)
+					}
 				}
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame #1 NAL types=[%s], total size=%d bytes for device %s", nalTypes, len(h264Data), s.device.UDID))
 			}
 
 			// Log every 30 frames
 			if frameCount%30 == 0 {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Sent frame #%d (%d NAL units, %d bytes) to WebRTC for device %s", frameCount, len(nalUnits), len(h264Data), s.device.UDID))
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Sent frame #%d (%d bytes, %d dropped) to WebRTC for device %s", frameCount, len(h264Data), droppedCount, s.device.UDID))
 			}
 		}
 	}
