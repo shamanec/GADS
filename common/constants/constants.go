@@ -19,6 +19,41 @@ const (
 	AndroidSharedStorageRoot           = "/storage/emulated/0"
 )
 
+var MJPEGStreamType = models.StreamType{
+	Name:     "MJPEG",
+	ID:       "mjpeg",
+	DeviceOS: "both",
+}
+
+var IOSWebRTCFFMpegStreamType = models.StreamType{
+	Name:     "WebRTC - FFMpeg",
+	ID:       "webrtc_ffmpeg",
+	DeviceOS: "ios",
+}
+
+var AndroidWebRTCGadsStreamType = models.StreamType{
+	Name:     "WebRTC - GADS",
+	ID:       "webrtc_gads",
+	DeviceOS: "android",
+}
+
+var AndroidWebRTCGetStreamStreamType = models.StreamType{
+	Name:     "WebRTC - GetStream",
+	ID:       "webrtc_getstream",
+	DeviceOS: "android",
+}
+
+var IOSStreamTypes = []models.StreamType{
+	MJPEGStreamType,
+	IOSWebRTCFFMpegStreamType,
+}
+
+var AndroidStreamTypes = []models.StreamType{
+	MJPEGStreamType,
+	AndroidWebRTCGadsStreamType,
+	AndroidWebRTCGetStreamStreamType,
+}
+
 var AndroidAllowedSharedStorageFolders = []string{
 	AndroidSharedStorageRoot + "/DCIM",
 	AndroidSharedStorageRoot + "/Documents",

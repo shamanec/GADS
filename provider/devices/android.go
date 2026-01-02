@@ -371,10 +371,16 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 }
 
 func GetStreamServiceName(device *models.Device) string {
-	if device.UseWebRTCVideo {
+	switch device.StreamType {
+	case "mjpeg":
+		return "com.gads.settings/.ScreenCaptureService"
+	case "webrtc_gads":
 		return "com.gads.settings/.H264ScreenCaptureService"
+	case "webrtc_getstream":
+		return "com.gads.settings/.WebRTCScreenCaptureService"
+	default:
+		return "com.gads.settings/.ScreenCaptureService"
 	}
-	return "com.gads.settings/.ScreenCaptureService"
 }
 
 func GetStreamServicePackageName(device *models.Device) string {
@@ -382,10 +388,16 @@ func GetStreamServicePackageName(device *models.Device) string {
 }
 
 func GetStreamServiceActivityName(device *models.Device) string {
-	if device.UseWebRTCVideo {
+	switch device.StreamType {
+	case "mjpeg":
+		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+	case "webrtc_gads":
 		return "com.gads.settings/com.gads.settings.streaming.H264ScreenCaptureActivity"
+	case "webrtc_getstream":
+		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
+	default:
+		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 	}
-	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 }
 
 func DeleteAndroidSharedStorageFile(device *models.Device, filePath string) error {

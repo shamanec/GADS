@@ -11,6 +11,7 @@ package router
 
 import (
 	"GADS/common/api"
+	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/minio"
 	"GADS/common/models"
@@ -906,11 +907,8 @@ func UpdateDevice(c *gin.Context) {
 			if reqDevice.Usage != "" && reqDevice.Usage != dbDevice.Usage {
 				dbDevice.Usage = reqDevice.Usage
 			}
-			if reqDevice.UseWebRTCVideo != dbDevice.UseWebRTCVideo {
-				dbDevice.UseWebRTCVideo = reqDevice.UseWebRTCVideo
-			}
-			if reqDevice.WebRTCVideoCodec != dbDevice.WebRTCVideoCodec {
-				dbDevice.WebRTCVideoCodec = reqDevice.WebRTCVideoCodec
+			if reqDevice.StreamType != dbDevice.StreamType {
+				dbDevice.StreamType = reqDevice.StreamType
 			}
 
 			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
@@ -961,8 +959,9 @@ func DeleteDevice(c *gin.Context) {
 }
 
 type AdminDeviceData struct {
-	Devices   []models.Device `json:"devices"`
-	Providers []string        `json:"providers"`
+	Devices           []models.Device     `json:"devices"`
+	Providers         []string            `json:"providers"`
+	DeviceStreamTypes []models.StreamType `json:"device_stream_types"`
 }
 
 // GetDevices godoc
@@ -988,9 +987,23 @@ func GetDevices(c *gin.Context) {
 		dbDevices = []models.Device{}
 	}
 
+	for index, dbDevice := range dbDevices {
+		if dbDevice.OS == "ios" {
+			dbDevices[index].SupportedStreamTypes = constants.IOSStreamTypes
+		} else if dbDevice.OS == "android" {
+			dbDevices[index].SupportedStreamTypes = constants.AndroidStreamTypes
+		}
+	}
+
 	var adminDeviceData = AdminDeviceData{
 		Devices:   dbDevices,
 		Providers: providerNames,
+		DeviceStreamTypes: []models.StreamType{
+			constants.MJPEGStreamType,
+			constants.IOSWebRTCFFMpegStreamType,
+			constants.AndroidWebRTCGadsStreamType,
+			constants.AndroidWebRTCGetStreamStreamType,
+		},
 	}
 
 	c.JSON(http.StatusOK, adminDeviceData)

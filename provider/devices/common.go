@@ -113,16 +113,12 @@ func updateProviderHub() {
 				if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
 					dbDevice.WorkspaceID = updatedDevice.WorkspaceID
 				}
-				webrtcChanged := false
-				if dbDevice.UseWebRTCVideo != updatedDevice.UseWebRTCVideo {
-					dbDevice.UseWebRTCVideo = updatedDevice.UseWebRTCVideo
-					webrtcChanged = true
+				streamTypeChanged := false
+				if dbDevice.StreamType != updatedDevice.StreamType {
+					dbDevice.StreamType = updatedDevice.StreamType
+					streamTypeChanged = true
 				}
-				if dbDevice.WebRTCVideoCodec != updatedDevice.WebRTCVideoCodec {
-					dbDevice.WebRTCVideoCodec = updatedDevice.WebRTCVideoCodec
-					webrtcChanged = true
-				}
-				if webrtcChanged {
+				if streamTypeChanged {
 					ResetLocalDevice(dbDevice, "WebRTC configuration changed, reprovisioning device")
 				}
 
