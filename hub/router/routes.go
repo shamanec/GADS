@@ -11,7 +11,6 @@ package router
 
 import (
 	"GADS/common/api"
-	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/minio"
 	"GADS/common/models"
@@ -989,9 +988,9 @@ func GetDevices(c *gin.Context) {
 
 	for index, dbDevice := range dbDevices {
 		if dbDevice.OS == "ios" {
-			dbDevices[index].SupportedStreamTypes = constants.IOSStreamTypes
+			dbDevices[index].SupportedStreamTypes = models.IOSStreamTypes
 		} else if dbDevice.OS == "android" {
-			dbDevices[index].SupportedStreamTypes = constants.AndroidStreamTypes
+			dbDevices[index].SupportedStreamTypes = models.AndroidStreamTypes
 		}
 	}
 
@@ -999,10 +998,10 @@ func GetDevices(c *gin.Context) {
 		Devices:   dbDevices,
 		Providers: providerNames,
 		DeviceStreamTypes: []models.StreamType{
-			constants.MJPEGStreamType,
-			constants.IOSWebRTCFFMpegStreamType,
-			constants.AndroidWebRTCGadsStreamType,
-			constants.AndroidWebRTCGetStreamStreamType,
+			models.MJPEGStreamType,
+			models.IOSWebRTCFFMpegStreamType,
+			models.AndroidWebRTCGadsStreamType,
+			models.AndroidWebRTCGetStreamStreamType,
 		},
 	}
 

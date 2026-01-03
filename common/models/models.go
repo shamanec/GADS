@@ -43,19 +43,19 @@ type User struct {
 
 type Device struct {
 	// DB DATA
-	UDID           string `json:"udid" bson:"udid"`                         // device UDID
-	OS             string `json:"os" bson:"os"`                             // device OS
-	Name           string `json:"name" bson:"name"`                         // name of the device
-	OSVersion      string `json:"os_version" bson:"os_version"`             // OS version of the device
-	IPAddress      string `json:"ip_address" bson:"ip_address"`             // IP address of the device
-	Provider       string `json:"provider" bson:"provider"`                 // nickname of the device host(provider)
-	Usage          string `json:"usage" bson:"usage"`                       // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
-	ScreenWidth    string `json:"screen_width" bson:"screen_width"`         // screen width of device
-	ScreenHeight   string `json:"screen_height" bson:"screen_height"`       // screen height of device
-	DeviceType     string `json:"device_type" bson:"device_type"`           // The type of device - `real` or `emulator`
-	UseWebRTCVideo bool   `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
-	WorkspaceID    string `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
-	StreamType     string `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
+	UDID           string        `json:"udid" bson:"udid"`                         // device UDID
+	OS             string        `json:"os" bson:"os"`                             // device OS
+	Name           string        `json:"name" bson:"name"`                         // name of the device
+	OSVersion      string        `json:"os_version" bson:"os_version"`             // OS version of the device
+	IPAddress      string        `json:"ip_address" bson:"ip_address"`             // IP address of the device
+	Provider       string        `json:"provider" bson:"provider"`                 // nickname of the device host(provider)
+	Usage          string        `json:"usage" bson:"usage"`                       // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
+	ScreenWidth    string        `json:"screen_width" bson:"screen_width"`         // screen width of device
+	ScreenHeight   string        `json:"screen_height" bson:"screen_height"`       // screen height of device
+	DeviceType     string        `json:"device_type" bson:"device_type"`           // The type of device - `real` or `emulator`
+	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
+	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
+	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string       `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -100,9 +100,79 @@ type Device struct {
 
 // Device stream type - mjpeg, webrtc, etc
 type StreamType struct {
-	Name     string `json:"name" bson:"-"`
-	ID       string `json:"id" bson:"-"`
-	DeviceOS string `json:"device_os" bson:"-"`
+	Name     string        `json:"name" bson:"-"`
+	ID       StreamingType `json:"id" bson:"-"`
+	DeviceOS string        `json:"device_os" bson:"-"`
+}
+
+// Custom type for DB streaming type property
+type StreamingType string
+
+const (
+	MJPEGStreamTypeId                  StreamingType = "mjpeg"
+	IOSWebRTCFFMpegStreamTypeId        StreamingType = "ios_webrtc_ffmpeg"
+	AndroidWebRTCGadsStreamTypeId      StreamingType = "android_webrtc_gads"
+	AndroidWebRTCGetStreamStreamTypeId StreamingType = "android_webrtc_getstream"
+	AndroidWebRTCGadsH264StreamTypeId  StreamingType = "android_webrtc_gads_h264"
+)
+
+func (st StreamingType) Description() string {
+	switch st {
+	case MJPEGStreamTypeId:
+		return "MJPEG"
+	case IOSWebRTCFFMpegStreamTypeId:
+		return "WebRTC - FFMpeg"
+	case AndroidWebRTCGadsStreamTypeId:
+		return "Android WebRTC GADS"
+	case AndroidWebRTCGetStreamStreamTypeId:
+		return "Android WebRTC GetStream"
+	case AndroidWebRTCGadsH264StreamTypeId:
+		return "Android WebRTC GADS H264"
+	default:
+		return "Unknown"
+	}
+}
+
+var MJPEGStreamType = StreamType{
+	Name:     MJPEGStreamTypeId.Description(),
+	ID:       MJPEGStreamTypeId,
+	DeviceOS: "both",
+}
+
+var IOSWebRTCFFMpegStreamType = StreamType{
+	Name:     IOSWebRTCFFMpegStreamTypeId.Description(),
+	ID:       IOSWebRTCFFMpegStreamTypeId,
+	DeviceOS: "ios",
+}
+
+var AndroidWebRTCGadsStreamType = StreamType{
+	Name:     AndroidWebRTCGadsStreamTypeId.Description(),
+	ID:       AndroidWebRTCGadsStreamTypeId,
+	DeviceOS: "android",
+}
+
+var AndroidWebRTCGetStreamStreamType = StreamType{
+	Name:     AndroidWebRTCGetStreamStreamTypeId.Description(),
+	ID:       AndroidWebRTCGetStreamStreamTypeId,
+	DeviceOS: "android",
+}
+
+var AndroidWebRTCGadsH264StreamType = StreamType{
+	Name:     AndroidWebRTCGadsH264StreamTypeId.Description(),
+	ID:       AndroidWebRTCGadsH264StreamTypeId,
+	DeviceOS: "android",
+}
+
+var IOSStreamTypes = []StreamType{
+	MJPEGStreamType,
+	IOSWebRTCFFMpegStreamType,
+}
+
+var AndroidStreamTypes = []StreamType{
+	MJPEGStreamType,
+	AndroidWebRTCGadsStreamType,
+	AndroidWebRTCGetStreamStreamType,
+	AndroidWebRTCGadsH264StreamType,
 }
 
 type LocalHubDevice struct {

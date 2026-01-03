@@ -10,7 +10,6 @@
 package db
 
 import (
-	"GADS/common/constants"
 	"GADS/common/models"
 	"fmt"
 
@@ -60,13 +59,13 @@ func (m *MongoStore) EnsureDevicesHaveStreamType() error {
 			if dbDevice.OS == "android" {
 				// Check if the device was previously set to use webrtc and set it to the currently used GetStream sdk WebRTC, else use MJPEG
 				if dbDevice.UseWebRTCVideo {
-					dbDevices[index].StreamType = constants.AndroidWebRTCGetStreamStreamType.ID
+					dbDevices[index].StreamType = models.AndroidWebRTCGetStreamStreamType.ID
 				} else {
-					dbDevices[index].StreamType = constants.MJPEGStreamType.ID
+					dbDevices[index].StreamType = models.MJPEGStreamType.ID
 				}
 			} else if dbDevice.OS == "ios" {
 				// For iOS set MJPEG
-				dbDevices[index].StreamType = constants.MJPEGStreamType.ID
+				dbDevices[index].StreamType = models.MJPEGStreamType.ID
 			}
 
 			err = m.AddOrUpdateDevice(&dbDevices[index])

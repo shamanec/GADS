@@ -228,7 +228,7 @@ func addGadsStreamPostNotificationsPermission(device *models.Device) error {
 	return nil
 }
 
-// Start the GADS video streaming service using adb
+// Start the GADS video streaming foreground service using adb
 func startGadsAndroidStreaming(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", device.UDID))
 
@@ -395,9 +395,15 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 	socketMsg := fmt.Sprintf("targetFPS=%v:jpegQuality=%v:scalingFactor=%v",
 		device.StreamTargetFPS, device.StreamJpegQuality, device.StreamScalingFactor)
 
+	if device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+		socketMsg = fmt.Sprintf("targetFPS=%v:scalingFactor=%v",
+			device.StreamTargetFPS, device.StreamScalingFactor)
+	}
+
 	// Send the message over the WebSocket
 	err = wsutil.WriteServerMessage(destConn, ws.OpText, []byte(socketMsg))
 	if err != nil {
+		fmt.Printf("failed sending stream settings to stream websocket - %s\n", err)
 		return fmt.Errorf("failed sending stream settings to stream websocket - %s", err)
 	}
 
@@ -406,11 +412,11 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 
 func GetStreamServiceName(device *models.Device) string {
 	switch device.StreamType {
-	case "mjpeg":
+	case models.MJPEGStreamTypeId:
 		return "com.gads.settings/.ScreenCaptureService"
-	case "webrtc_gads":
+	case models.AndroidWebRTCGadsStreamTypeId:
 		return "com.gads.settings/.H264ScreenCaptureService"
-	case "webrtc_getstream":
+	case models.AndroidWebRTCGetStreamStreamTypeId:
 		return "com.gads.settings/.WebRTCScreenCaptureService"
 	default:
 		return "com.gads.settings/.ScreenCaptureService"
@@ -423,11 +429,11 @@ func GetStreamServicePackageName(device *models.Device) string {
 
 func GetStreamServiceActivityName(device *models.Device) string {
 	switch device.StreamType {
-	case "mjpeg":
+	case models.MJPEGStreamTypeId:
 		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
-	case "webrtc_gads":
+	case models.AndroidWebRTCGadsStreamTypeId:
 		return "com.gads.settings/com.gads.settings.streaming.H264ScreenCaptureActivity"
-	case "webrtc_getstream":
+	case models.AndroidWebRTCGetStreamStreamTypeId:
 		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
 	default:
 		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
