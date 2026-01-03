@@ -476,7 +476,9 @@ func setupAndroidDevice(device *models.Device) {
 	}
 
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS streaming on Android device `%v`", device.UDID))
-	err = startGadsAndroidStreaming(device)
+
+	// TODO - handle foreground service streaming with startGadsAndroidStreaming
+	go startGadsSettingsStream(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS streaming on Android device - %v:\n %v", device.UDID, err))
 		ResetLocalDevice(device, "Failed to start GADS streaming on Android device.")

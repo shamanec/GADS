@@ -124,6 +124,40 @@ func startGadsRemoteControlServer(device *models.Device) {
 	}
 }
 
+// Starts the GADS-Settings H264 server as app_process from /data/local/tmp.
+// The H264 server provides h264 frames from the device screen over a websocket for Pion to serve WebRTC
+func startGadsSettingsStream(device *models.Device) {
+	// Kill existing process first
+	killCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "pkill -f H264Server")
+	_ = killCmd.Run() // Ignore error - process might not exist
+
+	time.Sleep(1 * time.Second)
+
+	cmd := exec.CommandContext(
+		device.Context,
+		"adb",
+		"-s",
+		device.UDID,
+		"shell",
+		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.server.H264Server")
+
+	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting GADS Remote server on device `%s` with command `%s`", device.UDID, cmd.Args))
+
+	if err := cmd.Start(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
+		ResetLocalDevice(device, "Failed to execute GADS Remote server.")
+		return
+	}
+
+	if err := cmd.Wait(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
+			"startGadsRemoteControlServer: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
+			cmd.Args, device.UDID, err))
+
+		ResetLocalDevice(device, "GADS Android remote server failed.")
+	}
+}
+
 // Enables the GADS Android IME and sets it as active for the device
 func setupGadsAndroidIME(device *models.Device) error {
 	err := enableGadsAndroidIME(device)
