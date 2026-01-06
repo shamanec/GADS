@@ -1000,7 +1000,7 @@ func GetDevices(c *gin.Context) {
 		DeviceStreamTypes: []models.StreamType{
 			models.MJPEGStreamType,
 			models.IOSWebRTCFFMpegStreamType,
-			models.AndroidWebRTCGadsStreamType,
+			models.AndroidWebRTCGadsH264StreamType,
 			models.AndroidWebRTCGetStreamStreamType,
 		},
 	}

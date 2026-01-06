@@ -111,7 +111,6 @@ type StreamingType string
 const (
 	MJPEGStreamTypeId                  StreamingType = "mjpeg"
 	IOSWebRTCFFMpegStreamTypeId        StreamingType = "ios_webrtc_ffmpeg"
-	AndroidWebRTCGadsStreamTypeId      StreamingType = "android_webrtc_gads"
 	AndroidWebRTCGetStreamStreamTypeId StreamingType = "android_webrtc_getstream"
 	AndroidWebRTCGadsH264StreamTypeId  StreamingType = "android_webrtc_gads_h264"
 )
@@ -122,8 +121,6 @@ func (st StreamingType) Description() string {
 		return "MJPEG"
 	case IOSWebRTCFFMpegStreamTypeId:
 		return "WebRTC - FFMpeg"
-	case AndroidWebRTCGadsStreamTypeId:
-		return "Android WebRTC GADS"
 	case AndroidWebRTCGetStreamStreamTypeId:
 		return "Android WebRTC GetStream"
 	case AndroidWebRTCGadsH264StreamTypeId:
@@ -145,12 +142,6 @@ var IOSWebRTCFFMpegStreamType = StreamType{
 	DeviceOS: "ios",
 }
 
-var AndroidWebRTCGadsStreamType = StreamType{
-	Name:     AndroidWebRTCGadsStreamTypeId.Description(),
-	ID:       AndroidWebRTCGadsStreamTypeId,
-	DeviceOS: "android",
-}
-
 var AndroidWebRTCGetStreamStreamType = StreamType{
 	Name:     AndroidWebRTCGetStreamStreamTypeId.Description(),
 	ID:       AndroidWebRTCGetStreamStreamTypeId,
@@ -170,7 +161,6 @@ var IOSStreamTypes = []StreamType{
 
 var AndroidStreamTypes = []StreamType{
 	MJPEGStreamType,
-	AndroidWebRTCGadsStreamType,
 	AndroidWebRTCGetStreamStreamType,
 	AndroidWebRTCGadsH264StreamType,
 }

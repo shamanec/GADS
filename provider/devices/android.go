@@ -151,10 +151,10 @@ func startGadsSettingsStream(device *models.Device) {
 
 	if err := cmd.Wait(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
-			"startGadsRemoteControlServer: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
+			"startGadsSettingsStream: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
 			cmd.Args, device.UDID, err))
 
-		ResetLocalDevice(device, "GADS Android remote server failed.")
+		ResetLocalDevice(device, "GADS Android H264 server failed.")
 	}
 }
 
@@ -414,8 +414,6 @@ func GetStreamServiceName(device *models.Device) string {
 	switch device.StreamType {
 	case models.MJPEGStreamTypeId:
 		return "com.gads.settings/.ScreenCaptureService"
-	case models.AndroidWebRTCGadsStreamTypeId:
-		return "com.gads.settings/.H264ScreenCaptureService"
 	case models.AndroidWebRTCGetStreamStreamTypeId:
 		return "com.gads.settings/.WebRTCScreenCaptureService"
 	default:
@@ -431,8 +429,6 @@ func GetStreamServiceActivityName(device *models.Device) string {
 	switch device.StreamType {
 	case models.MJPEGStreamTypeId:
 		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
-	case models.AndroidWebRTCGadsStreamTypeId:
-		return "com.gads.settings/com.gads.settings.streaming.H264ScreenCaptureActivity"
 	case models.AndroidWebRTCGetStreamStreamTypeId:
 		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
 	default:
