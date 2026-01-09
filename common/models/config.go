@@ -55,6 +55,14 @@ type MinioConfig struct {
 	Enabled         bool   `json:"enabled" bson:"enabled"`
 }
 
+type TURNConfig struct {
+	Server   string `json:"server" bson:"server"`
+	Port     int    `json:"port" bson:"port"`
+	Username string `json:"username" bson:"username"`
+	Password string `json:"password" bson:"password"`
+	Enabled  bool   `json:"enabled" bson:"enabled"`
+}
+
 // RegularizeProviderState applies business rules to ensure provider configuration is consistent
 // If SetupAppiumServers is false, ProvideTizen and ProvideWebOS must also be false since they require Appium servers
 func (p *Provider) RegularizeProviderState() {

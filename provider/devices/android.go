@@ -460,6 +460,50 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 	return nil
 }
 
+func UpdateWebRTCTURNConfig(device *models.Device) error {
+	// Get TURN config from MongoDB
+	turnConfig, err := db.GlobalMongoStore.GetTURNConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get TURN config from DB - %s", err)
+	}
+
+	if !turnConfig.Enabled {
+		device.Logger.LogDebug("webrtc_turn",
+			fmt.Sprintf("TURN not enabled, skipping for device `%s`", device.UDID))
+		return nil
+	}
+
+	// Validate TURN config
+	if turnConfig.Server == "" || turnConfig.Username == "" || turnConfig.Password == "" {
+		return fmt.Errorf("TURN config incomplete: server=%s, username=%s",
+			turnConfig.Server, turnConfig.Username)
+	}
+
+	// Connect to device WebSocket (use forwarded port from device.StreamPort)
+	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
+
+	destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+	if err != nil {
+		return fmt.Errorf("failed connecting to WebRTC service WebSocket - %s", err)
+	}
+	defer destConn.Close()
+
+	// Send TURN config as JSON
+	turnMsg := fmt.Sprintf(`{"type":"turn","server":"%s","port":%d,"username":"%s","password":"%s"}`,
+		turnConfig.Server, turnConfig.Port, turnConfig.Username, turnConfig.Password)
+
+	err = wsutil.WriteServerMessage(destConn, ws.OpText, []byte(turnMsg))
+	if err != nil {
+		return fmt.Errorf("failed sending TURN config to WebSocket - %s", err)
+	}
+
+	device.Logger.LogInfo("webrtc_turn",
+		fmt.Sprintf("TURN config sent to device `%s`: %s:%d",
+			device.UDID, turnConfig.Server, turnConfig.Port))
+
+	return nil
+}
+
 func GetStreamServiceName(device *models.Device) string {
 	switch device.StreamType {
 	case models.MJPEGStreamTypeId:

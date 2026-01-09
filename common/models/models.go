@@ -118,6 +118,13 @@ const (
 	AndroidWebRTCGadsH264StreamTypeId  StreamingType = "android_webrtc_gads_h264"
 )
 
+// IsWebRTCStreamType checks if the given StreamType is a WebRTC-based stream
+func IsWebRTCStreamType(st StreamingType) bool {
+	return st == AndroidWebRTCGetStreamStreamTypeId ||
+		st == AndroidWebRTCGadsH264StreamTypeId ||
+		st == IOSWebRTCFFMpegStreamTypeId
+}
+
 func (st StreamingType) Description() string {
 	switch st {
 	case MJPEGStreamTypeId:
