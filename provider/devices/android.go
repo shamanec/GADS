@@ -10,6 +10,7 @@
 package devices
 
 import (
+	"GADS/common/auth"
 	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
@@ -474,10 +475,17 @@ func UpdateWebRTCTURNConfig(device *models.Device) error {
 	}
 
 	// Validate TURN config
-	if turnConfig.Server == "" || turnConfig.Username == "" || turnConfig.Password == "" {
-		return fmt.Errorf("TURN config incomplete: server=%s, username=%s",
-			turnConfig.Server, turnConfig.Username)
+	if turnConfig.Server == "" || turnConfig.SharedSecret == "" {
+		return fmt.Errorf("TURN config incomplete: server=%s, shared_secret configured=%t",
+			turnConfig.Server, turnConfig.SharedSecret != "")
 	}
+
+	// Generate ephemeral TURN credentials
+	ttl := turnConfig.TTL
+	if ttl == 0 {
+		ttl = 3600 // Default: 1 hour
+	}
+	username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl)
 
 	// Connect to device WebSocket (use forwarded port from device.StreamPort)
 	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
@@ -488,9 +496,9 @@ func UpdateWebRTCTURNConfig(device *models.Device) error {
 	}
 	defer destConn.Close()
 
-	// Send TURN config as JSON
+	// Send TURN config with ephemeral credentials as JSON
 	turnMsg := fmt.Sprintf(`{"type":"turn","server":"%s","port":%d,"username":"%s","password":"%s"}`,
-		turnConfig.Server, turnConfig.Port, turnConfig.Username, turnConfig.Password)
+		turnConfig.Server, turnConfig.Port, username, password)
 
 	err = wsutil.WriteServerMessage(destConn, ws.OpText, []byte(turnMsg))
 	if err != nil {
@@ -498,7 +506,7 @@ func UpdateWebRTCTURNConfig(device *models.Device) error {
 	}
 
 	device.Logger.LogInfo("webrtc_turn",
-		fmt.Sprintf("TURN config sent to device `%s`: %s:%d",
+		fmt.Sprintf("TURN config sent to device `%s`: %s:%d (ephemeral credentials)",
 			device.UDID, turnConfig.Server, turnConfig.Port))
 
 	return nil

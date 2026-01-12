@@ -56,11 +56,11 @@ type MinioConfig struct {
 }
 
 type TURNConfig struct {
-	Server   string `json:"server" bson:"server"`
-	Port     int    `json:"port" bson:"port"`
-	Username string `json:"username" bson:"username"`
-	Password string `json:"password" bson:"password"`
-	Enabled  bool   `json:"enabled" bson:"enabled"`
+	Server       string `json:"server" bson:"server"`
+	Port         int    `json:"port" bson:"port"`
+	SharedSecret string `json:"shared_secret" bson:"shared_secret"`
+	TTL          int    `json:"ttl" bson:"ttl"` // Time-to-live in seconds (default: 3600)
+	Enabled      bool   `json:"enabled" bson:"enabled"`
 }
 
 // RegularizeProviderState applies business rules to ensure provider configuration is consistent

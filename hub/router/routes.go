@@ -1345,7 +1345,7 @@ func UpdateTURNConfig(c *gin.Context) {
 		return
 	}
 
-	// Validation: if enabled, all fields are required
+	// Validation: if enabled, validate required fields
 	if config.Enabled {
 		if config.Server == "" {
 			BadRequest(c, "Server is required when TURN is enabled")
@@ -1357,14 +1357,14 @@ func UpdateTURNConfig(c *gin.Context) {
 			return
 		}
 
-		if config.Username == "" {
-			BadRequest(c, "Username is required when TURN is enabled")
+		if config.SharedSecret == "" {
+			BadRequest(c, "Shared secret is required when TURN is enabled")
 			return
 		}
 
-		if config.Password == "" {
-			BadRequest(c, "Password is required when TURN is enabled")
-			return
+		// Set default TTL if not provided
+		if config.TTL == 0 {
+			config.TTL = 3600 // Default: 1 hour
 		}
 	}
 
