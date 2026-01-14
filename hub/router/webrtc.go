@@ -27,7 +27,7 @@ import (
 // @Success      200  {object}  map[string]interface{}
 // @Failure      412  {object}  models.ErrorResponse
 // @Failure      500  {object}  models.ErrorResponse
-// @Router       /api/ice-config [get]
+// @Router       /ice-config [get]
 func GetICEConfig(c *gin.Context) {
 	// Always include STUN server as fallback
 	iceServers := []map[string]interface{}{

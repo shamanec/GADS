@@ -125,7 +125,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/admin/minio-config", UpdateMinioConfig)
 	authGroup.GET("/admin/turn-config", GetTURNConfig)
 	authGroup.POST("/admin/turn-config", UpdateTURNConfig)
-	authGroup.GET("/api/ice-config", GetICEConfig)
+	authGroup.GET("/ice-config", GetICEConfig)
 	authGroup.GET("/admin/system-status", GetSystemStatus)
 	authGroup.POST("/admin/workspaces", CreateWorkspace)
 	authGroup.PUT("/admin/workspaces", UpdateWorkspace)
