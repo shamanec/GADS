@@ -46,6 +46,7 @@ func HandleRequests() *gin.Engine {
 	}
 
 	deviceGroup := r.Group("/device/:udid")
+	deviceGroup.POST("/rotation", DeviceChangeRotation)
 	deviceGroup.GET("/info", DeviceInfo)
 	deviceGroup.GET("/files", DeviceFiles)
 	deviceGroup.POST("/files/push", PushFileToSharedStorage)

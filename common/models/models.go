@@ -71,6 +71,7 @@ type Device struct {
 	AppiumSessionID      string       `json:"appium_session_id" bson:"-"`               // Current Appium session ID - the plugin sends a request for this when a session is created, also the session ID is available for all logs
 	IsAppiumUp           bool         `json:"is_appium_up" bson:"-"`                    // Reflects if Appium server is up or not - the plugin sends a request for this
 	HasAppiumSession     bool         `json:"has_appium_session" bson:"-"`              // This is a "just in case" property - it will be set to `true` when the plugin sends a new session registration request and to `false` when the plugin sends a remove session request
+	CurrentRotation      string       `json:"current_rotation" bson:"-"`                // The device current rotation - portrait/landscape
 	SupportedStreamTypes []StreamType `json:"supported_stream_types" bson:"-"`
 	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES

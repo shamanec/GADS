@@ -33,17 +33,74 @@ import (
 	"github.com/pion/webrtc/v3/pkg/media"
 )
 
+// parseJPEGDimensions extracts width and height from JPEG data
+// JPEG format: SOI (FFD8) followed by markers (FF XX)
+// SOF0 (FFC0) or SOF2 (FFC2) contains dimensions: length(2) + precision(1) + height(2) + width(2)
+func parseJPEGDimensions(data []byte) (width, height int, err error) {
+	if len(data) < 2 || data[0] != 0xFF || data[1] != 0xD8 {
+		return 0, 0, fmt.Errorf("invalid JPEG: missing SOI marker")
+	}
+
+	offset := 2
+	for offset < len(data)-1 {
+		// Find marker
+		if data[offset] != 0xFF {
+			offset++
+			continue
+		}
+
+		marker := data[offset+1]
+		offset += 2
+
+		// Skip padding bytes
+		if marker == 0xFF {
+			continue
+		}
+
+		// SOI, EOI, RST markers have no length
+		if marker == 0xD8 || marker == 0xD9 || (marker >= 0xD0 && marker <= 0xD7) {
+			continue
+		}
+
+		// Need at least 2 bytes for length
+		if offset+2 > len(data) {
+			break
+		}
+
+		length := int(data[offset])<<8 | int(data[offset+1])
+
+		// SOF markers (C0-CF except C4, C8, CC)
+		if (marker >= 0xC0 && marker <= 0xCF) && marker != 0xC4 && marker != 0xC8 && marker != 0xCC {
+			if offset+7 > len(data) {
+				return 0, 0, fmt.Errorf("invalid JPEG: truncated SOF segment")
+			}
+			// Skip length (2 bytes) and precision (1 byte)
+			height = int(data[offset+3])<<8 | int(data[offset+4])
+			width = int(data[offset+5])<<8 | int(data[offset+6])
+			return width, height, nil
+		}
+
+		offset += length
+	}
+
+	return 0, 0, fmt.Errorf("invalid JPEG: no SOF marker found")
+}
+
 // WDAJPEGExtractor handles extracting JPEG frames from WebDriverAgent MJPEG stream
 type WDAJPEGExtractor struct {
-	device       *models.Device
-	httpResp     *http.Response
-	multiReader  *multipart.Reader
-	jpegChannel  chan []byte
-	ctx          context.Context
-	cancel       context.CancelFunc
-	ffmpegCmd    *exec.Cmd
-	ffmpegStdin  io.WriteCloser
-	ffmpegStdout io.ReadCloser
+	device             *models.Device
+	httpResp           *http.Response
+	multiReader        *multipart.Reader
+	jpegChannel        chan []byte
+	ctx                context.Context
+	cancel             context.CancelFunc
+	ffmpegCmd          *exec.Cmd
+	ffmpegStdin        io.WriteCloser
+	ffmpegStdout       io.ReadCloser
+	currentWidth       int
+	currentHeight      int
+	orientationChanged chan struct{}
+	frameCount         int
 }
 
 // NewWDAJPEGExtractor creates a new JPEG extractor for WebDriverAgent stream
@@ -51,10 +108,11 @@ func NewWDAJPEGExtractor(device *models.Device) (*WDAJPEGExtractor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	extractor := &WDAJPEGExtractor{
-		device:      device,
-		jpegChannel: make(chan []byte, 5), // Smaller buffer for lower latency
-		ctx:         ctx,
-		cancel:      cancel,
+		device:             device,
+		jpegChannel:        make(chan []byte, 5), // Smaller buffer for lower latency
+		ctx:                ctx,
+		cancel:             cancel,
+		orientationChanged: make(chan struct{}, 1),
 	}
 
 	// Connect to WDA MJPEG stream
@@ -128,6 +186,31 @@ func (e *WDAJPEGExtractor) extractJPEGs() {
 				continue
 			}
 
+			// Only check dimensions every 30 frames (~1 second at 30fps) to reduce overhead
+			e.frameCount++
+			if e.frameCount >= 30 {
+				e.frameCount = 0
+				width, height, err := parseJPEGDimensions(jpegData)
+				if err == nil {
+					// Check if orientation changed (portrait <-> landscape)
+					if e.currentWidth > 0 && e.currentHeight > 0 {
+						wasLandscape := e.currentWidth > e.currentHeight
+						isLandscape := width > height
+						if wasLandscape != isLandscape {
+							logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Orientation changed for device %s: %dx%d -> %dx%d", e.device.UDID, e.currentWidth, e.currentHeight, width, height))
+							// Non-blocking send to orientation change channel
+							select {
+							case e.orientationChanged <- struct{}{}:
+							default:
+								// Channel full, skip (already notified)
+							}
+						}
+					}
+					e.currentWidth = width
+					e.currentHeight = height
+				}
+			}
+
 			// Send JPEG to channel (non-blocking)
 			select {
 			case e.jpegChannel <- jpegData:
@@ -144,6 +227,11 @@ func (e *WDAJPEGExtractor) extractJPEGs() {
 // GetJPEGChannel returns the channel that receives JPEG frames
 func (e *WDAJPEGExtractor) GetJPEGChannel() <-chan []byte {
 	return e.jpegChannel
+}
+
+// GetOrientationChangeChannel returns the channel that signals orientation changes
+func (e *WDAJPEGExtractor) GetOrientationChangeChannel() <-chan struct{} {
+	return e.orientationChanged
 }
 
 // Close stops the extractor and cleans up resources
@@ -409,16 +497,17 @@ func (e *FFmpegH264Encoder) Close() {
 
 // WebRTCSession manages a single WebRTC peer connection for streaming
 type WebRTCSession struct {
-	device         *models.Device
-	peerConnection *webrtc.PeerConnection
-	videoTrack     *webrtc.TrackLocalStaticSample
-	extractor      *WDAJPEGExtractor
-	encoder        *FFmpegH264Encoder
-	ctx            context.Context
-	cancel         context.CancelFunc
-	mu             sync.Mutex
-	iceCandidates  []webrtc.ICECandidateInit
-	pendingOffer   *webrtc.SessionDescription
+	device                  *models.Device
+	peerConnection          *webrtc.PeerConnection
+	videoTrack              *webrtc.TrackLocalStaticSample
+	extractor               *WDAJPEGExtractor
+	encoder                 *FFmpegH264Encoder
+	ctx                     context.Context
+	cancel                  context.CancelFunc
+	mu                      sync.Mutex
+	iceCandidates           []webrtc.ICECandidateInit
+	pendingOffer            *webrtc.SessionDescription
+	onOrientationChangeFunc func()
 }
 
 // NewWebRTCSession creates a new WebRTC session for device streaming
@@ -507,6 +596,9 @@ func (s *WebRTCSession) Start() error {
 	// Start writing H.264 to WebRTC track
 	go s.writeH264ToTrack()
 
+	// Start watching for orientation changes to signal client
+	go s.watchOrientationChanges()
+
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Started streaming pipeline for device %s", s.device.UDID))
 	return nil
 }
@@ -542,6 +634,34 @@ func (s *WebRTCSession) writeH264ToTrack() {
 			}
 		}
 	}
+}
+
+// watchOrientationChanges monitors for orientation changes and signals the client to reconnect
+func (s *WebRTCSession) watchOrientationChanges() {
+	orientationChan := s.extractor.GetOrientationChangeChannel()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case _, ok := <-orientationChan:
+			if !ok {
+				return
+			}
+
+			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Orientation changed for device %s, signaling client to reconnect", s.device.UDID))
+
+			// Signal the client to reconnect via callback
+			if s.onOrientationChangeFunc != nil {
+				s.onOrientationChangeFunc()
+			}
+		}
+	}
+}
+
+// OnOrientationChange sets callback for orientation changes
+func (s *WebRTCSession) OnOrientationChange(handler func()) {
+	s.onOrientationChangeFunc = handler
 }
 
 // HandleOffer processes SDP offer from client
@@ -689,6 +809,14 @@ func IOSWebRTCSocket(c *gin.Context) {
 
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
 			conn.Close()
+		}
+	})
+
+	// Handle orientation changes - signal client to reconnect
+	session.OnOrientationChange(func() {
+		msg := `{"type":"orientation_changed"}`
+		if err := wsutil.WriteServerText(conn, []byte(msg)); err != nil {
+			logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to send orientation change for device %s: %s", udid, err))
 		}
 	})
 

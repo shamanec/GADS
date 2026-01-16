@@ -382,6 +382,56 @@ func installAppAndroid(device *models.Device, appName string) error {
 	return nil
 }
 
+func disableAutoRotationAndroid(device *models.Device) error {
+	// 0 disable, 1 enable
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "settings", "put", "system", "accelerometer_rotation", "0")
+
+	if err := cmd.Run(); err != nil {
+		device.Logger.LogError("ChangeRotationAndroid", fmt.Sprintf("ChangeRotationAndroid: Error executing `%s` trying to change device rotation - %v", cmd.Args, err))
+		return err
+	}
+	return nil
+}
+
+func GetCurrentRotationAndroid(device *models.Device) (string, error) {
+	// 0 portrait, 1 landscape
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "settings", "get", "system", "user_rotation")
+
+	var outBuffer bytes.Buffer
+	cmd.Stdout = &outBuffer
+	if err := cmd.Run(); err != nil {
+		device.Logger.LogError("getCurrentRotationAndroid", fmt.Sprintf("getCurrentRotationAndroid: Error executing `%s` trying to get current device rotation - %v", cmd.Args, err))
+		return "portrait", err
+	}
+
+	// Get the command output to string
+	result := strings.TrimSpace(outBuffer.String())
+
+	// Return the parsed rotation string
+	if result == "1" {
+		return "landscape", nil
+	} else {
+		return "portrait", nil
+	}
+}
+
+// Change screen rotation on Android device
+func ChangeRotationAndroid(device *models.Device, rotation string) error {
+	// 0 is for portrait, 1 is for landscape
+	var adbRotationValue = "0"
+	if rotation == "landscape" {
+		adbRotationValue = "1"
+	}
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "settings", "put", "system", "user_rotation", adbRotationValue)
+
+	if err := cmd.Run(); err != nil {
+		device.Logger.LogError("ChangeRotationAndroid", fmt.Sprintf("ChangeRotationAndroid: Error executing `%s` trying to change device rotation - %v", cmd.Args, err))
+		return err
+	}
+	return nil
+}
+
 func UpdateGadsStreamSettings(device *models.Device) error {
 	// Prepare the WebSocket URL
 	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}

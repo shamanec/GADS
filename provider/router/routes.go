@@ -247,6 +247,10 @@ func GetProviderData(c *gin.Context) {
 	api.GenericResponse(c, http.StatusOK, "", providerData)
 }
 
+type WdaOrientationResponse struct {
+	Orientation string `json:"value"`
+}
+
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -256,6 +260,28 @@ func DeviceInfo(c *gin.Context) {
 
 	if ok {
 		devices.UpdateInstalledApps(dev)
+		if dev.OS == "android" {
+			devices.UpdateCurrentRotation(dev)
+		} else if dev.OS == "ios" {
+			wdaResp, err := wdaRequest(dev, http.MethodGet, "orientation", nil)
+			if err != nil {
+				dev.CurrentRotation = "portrait"
+				api.GenericResponse(c, http.StatusOK, "", dev)
+				return
+			}
+			defer wdaResp.Body.Close()
+
+			responseBody, _ := io.ReadAll(wdaResp.Body)
+			var responseJson WdaOrientationResponse
+			err = json.Unmarshal(responseBody, &responseJson)
+			if err != nil {
+				dev.CurrentRotation = "portrait"
+				api.GenericResponse(c, http.StatusOK, "", dev)
+				return
+			}
+			dev.CurrentRotation = strings.ToLower(responseJson.Orientation)
+		}
+
 		api.GenericResponse(c, http.StatusOK, "", dev)
 		return
 	}
@@ -281,6 +307,43 @@ func DeviceInstalledApps(c *gin.Context) {
 		return
 	}
 	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+}
+
+func DeviceChangeRotation(c *gin.Context) {
+	udid := c.Param("udid")
+
+	devices.DbDeviceMapMutex.RLock()
+	dev, ok := devices.DBDeviceMap[udid]
+	devices.DbDeviceMapMutex.RUnlock()
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+		return
+	}
+
+	var requestBody models.DeviceRotation
+	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
+		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+
+	if dev.OS == "android" {
+		devices.ChangeRotationAndroid(dev, requestBody.Rotation)
+	} else {
+		requestBody := struct {
+			Orientation string `json:"orientation"`
+		}{
+			Orientation: strings.ToUpper(requestBody.Rotation),
+		}
+		orientationJson, err := json.MarshalIndent(requestBody, "", "  ")
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			return
+		}
+		_, err = wdaRequest(dev, http.MethodPost, "orientation", bytes.NewReader(orientationJson))
+		if err != nil {
+			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		}
+	}
 }
 
 func DevicesInfo(c *gin.Context) {
