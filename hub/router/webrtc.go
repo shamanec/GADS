@@ -31,7 +31,7 @@ import (
 func GetICEConfig(c *gin.Context) {
 	// Always include STUN server as fallback
 	iceServers := []map[string]interface{}{
-		// {"urls": "stun:stun.l.google.com:19302"},
+		{"urls": "stun:stun.l.google.com:19302"},
 	}
 
 	// Fetch TURN configuration from MongoDB
