@@ -360,18 +360,6 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 	}()
 	encoder.ffmpegStdout = stdout
 
-	// Get stderr pipe for reading FFmpeg error messages
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
-	}
-	defer func() {
-		if !success {
-			stderr.Close()
-		}
-	}()
-	encoder.ffmpegStderr = stderr
-
 	// Start FFmpeg process
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start ffmpeg: %w", err)
@@ -388,7 +376,6 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 func (e *FFmpegH264Encoder) Start() {
 	go e.writeJPEGsToFFmpeg()
 	go e.readH264FromFFmpeg()
-	go e.readStderrFromFFmpeg()
 	go e.waitForFFmpeg()
 }
 
@@ -500,29 +487,6 @@ func (e *FFmpegH264Encoder) sendNALUnit(nalUnit []byte) {
 	}
 }
 
-// readStderrFromFFmpeg reads FFmpeg stderr output for debugging
-func (e *FFmpegH264Encoder) readStderrFromFFmpeg() {
-	buf := make([]byte, 4096)
-	for {
-		select {
-		case <-e.ctx.Done():
-			return
-		default:
-			n, err := e.ffmpegStderr.Read(buf)
-			if err != nil {
-				if err != io.EOF {
-					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading FFmpeg stderr for device %s: %s", e.device.UDID, err))
-				}
-				return
-			}
-			if n > 0 {
-				// Log FFmpeg output (can be verbose, so using debug level)
-				logger.ProviderLogger.LogDebug("stream_webrtc", fmt.Sprintf("FFmpeg stderr for device %s: %s", e.device.UDID, string(buf[:n])))
-			}
-		}
-	}
-}
-
 // waitForFFmpeg waits for FFmpeg process to exit
 func (e *FFmpegH264Encoder) waitForFFmpeg() {
 	if err := e.ffmpegCmd.Wait(); err != nil {
@@ -560,9 +524,6 @@ func (e *FFmpegH264Encoder) Close() {
 	}
 	if e.ffmpegStdout != nil {
 		e.ffmpegStdout.Close()
-	}
-	if e.ffmpegStderr != nil {
-		e.ffmpegStderr.Close()
 	}
 }
 
