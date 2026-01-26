@@ -106,6 +106,12 @@ type WDAJPEGExtractor struct {
 // NewWDAJPEGExtractor creates a new JPEG extractor for WebDriverAgent stream
 func NewWDAJPEGExtractor(device *models.Device) (*WDAJPEGExtractor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	success := false
+	defer func() {
+		if !success {
+			cancel()
+		}
+	}()
 
 	extractor := &WDAJPEGExtractor{
 		device:             device,
@@ -119,29 +125,28 @@ func NewWDAJPEGExtractor(device *models.Device) (*WDAJPEGExtractor, error) {
 	streamUrl := "http://localhost:" + device.WDAStreamPort
 	req, err := http.NewRequestWithContext(ctx, "GET", streamUrl, nil)
 	if err != nil {
-		cancel()
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		cancel()
 		return nil, fmt.Errorf("failed to connect to WDA stream: %w", err)
 	}
+	defer func() {
+		if !success && resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}()
 
 	extractor.httpResp = resp
 
 	// Parse multipart boundary
 	mediaType, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if err != nil {
-		cancel()
-		resp.Body.Close()
 		return nil, fmt.Errorf("failed to parse content-type: %w", err)
 	}
 
 	if !strings.HasPrefix(mediaType, "multipart/") {
-		cancel()
-		resp.Body.Close()
 		return nil, fmt.Errorf("invalid media type: %s", mediaType)
 	}
 
@@ -151,6 +156,7 @@ func NewWDAJPEGExtractor(device *models.Device) (*WDAJPEGExtractor, error) {
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to WDA MJPEG stream for device %s", device.UDID))
 
+	success = true
 	return extractor, nil
 }
 
@@ -191,7 +197,10 @@ func (e *WDAJPEGExtractor) extractJPEGs() {
 			if e.frameCount >= 30 {
 				e.frameCount = 0
 				width, height, err := parseJPEGDimensions(jpegData)
-				if err == nil {
+				if err != nil {
+					logger.ProviderLogger.LogDebug("stream_webrtc",
+						fmt.Sprintf("Failed to parse JPEG dimensions for device %s: %s", e.device.UDID, err))
+				} else {
 					// Check if orientation changed (portrait <-> landscape)
 					if e.currentWidth > 0 && e.currentHeight > 0 {
 						wasLandscape := e.currentWidth > e.currentHeight
@@ -257,6 +266,12 @@ type FFmpegH264Encoder struct {
 // NewFFmpegH264Encoder creates a new H.264 encoder using FFmpeg
 func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmpegH264Encoder, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	success := false
+	defer func() {
+		if !success {
+			cancel()
+		}
+	}()
 
 	encoder := &FFmpegH264Encoder{
 		device:     device,
@@ -302,6 +317,7 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 		"-f", "image2pipe",
 		"-framerate", fmt.Sprintf("%v", device.StreamTargetFPS),
 		"-i", "-",
+		"-vf", "scale='trunc(iw/2)*2:trunc(ih/2)*2'",
 		"-c:v", "libx264",
 		"-preset", "ultrafast",
 		"-tune", "zerolatency",
@@ -323,31 +339,48 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 	// Get stdin pipe for writing JPEGs
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		cancel()
 		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
+	defer func() {
+		if !success {
+			stdin.Close()
+		}
+	}()
 	encoder.ffmpegStdin = stdin
 
 	// Get stdout pipe for reading H.264 stream
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		cancel()
-		stdin.Close()
 		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
+	defer func() {
+		if !success {
+			stdout.Close()
+		}
+	}()
 	encoder.ffmpegStdout = stdout
+
+	// Get stderr pipe for reading FFmpeg error messages
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+	defer func() {
+		if !success {
+			stderr.Close()
+		}
+	}()
+	encoder.ffmpegStderr = stderr
 
 	// Start FFmpeg process
 	if err := cmd.Start(); err != nil {
-		cancel()
-		stdin.Close()
-		stdout.Close()
 		return nil, fmt.Errorf("failed to start ffmpeg: %w", err)
 	}
 
 	encoder.ffmpegCmd = cmd
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Started FFmpeg H.264 encoder for device %s", device.UDID))
 
+	success = true
 	return encoder, nil
 }
 
@@ -355,6 +388,7 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 func (e *FFmpegH264Encoder) Start() {
 	go e.writeJPEGsToFFmpeg()
 	go e.readH264FromFFmpeg()
+	go e.readStderrFromFFmpeg()
 	go e.waitForFFmpeg()
 }
 
@@ -466,6 +500,29 @@ func (e *FFmpegH264Encoder) sendNALUnit(nalUnit []byte) {
 	}
 }
 
+// readStderrFromFFmpeg reads FFmpeg stderr output for debugging
+func (e *FFmpegH264Encoder) readStderrFromFFmpeg() {
+	buf := make([]byte, 4096)
+	for {
+		select {
+		case <-e.ctx.Done():
+			return
+		default:
+			n, err := e.ffmpegStderr.Read(buf)
+			if err != nil {
+				if err != io.EOF {
+					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading FFmpeg stderr for device %s: %s", e.device.UDID, err))
+				}
+				return
+			}
+			if n > 0 {
+				// Log FFmpeg output (can be verbose, so using debug level)
+				logger.ProviderLogger.LogDebug("stream_webrtc", fmt.Sprintf("FFmpeg stderr for device %s: %s", e.device.UDID, string(buf[:n])))
+			}
+		}
+	}
+}
+
 // waitForFFmpeg waits for FFmpeg process to exit
 func (e *FFmpegH264Encoder) waitForFFmpeg() {
 	if err := e.ffmpegCmd.Wait(); err != nil {
@@ -483,15 +540,29 @@ func (e *FFmpegH264Encoder) GetH264Channel() <-chan []byte {
 
 // Close stops the encoder and cleans up resources
 func (e *FFmpegH264Encoder) Close() {
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Closing FFmpeg encoder for device %s", e.device.UDID))
+
+	// Cancel context first to signal goroutines
 	e.cancel()
+
+	// Kill FFmpeg process - this will unblock any pending Read/Write operations
+	if e.ffmpegCmd != nil && e.ffmpegCmd.Process != nil {
+		if err := e.ffmpegCmd.Process.Kill(); err != nil {
+			logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to kill FFmpeg process for device %s: %s", e.device.UDID, err))
+		} else {
+			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Killed FFmpeg process for device %s", e.device.UDID))
+		}
+	}
+
+	// Close pipes after killing process
 	if e.ffmpegStdin != nil {
 		e.ffmpegStdin.Close()
 	}
 	if e.ffmpegStdout != nil {
 		e.ffmpegStdout.Close()
 	}
-	if e.ffmpegCmd != nil && e.ffmpegCmd.Process != nil {
-		e.ffmpegCmd.Process.Kill()
+	if e.ffmpegStderr != nil {
+		e.ffmpegStderr.Close()
 	}
 }
 
@@ -807,7 +878,8 @@ func IOSWebRTCSocket(c *gin.Context) {
 	session.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		logger.ProviderLogger.LogInfo("ios_webrtc", fmt.Sprintf("WebRTC connection state for device %s: %s", udid, state.String()))
 
-		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
+		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed || state == webrtc.PeerConnectionStateDisconnected {
+			logger.ProviderLogger.LogInfo("ios_webrtc", fmt.Sprintf("WebRTC connection ended for device %s, closing websocket", udid))
 			conn.Close()
 		}
 	})
