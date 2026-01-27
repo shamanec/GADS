@@ -274,21 +274,6 @@ func (s *AndroidWebRTCSession) Start() error {
 	return nil
 }
 
-// isKeyframe checks if frame contains SPS/PPS (indicating a keyframe)
-func isKeyframe(data []byte) bool {
-	nalUnits := extractNALUnits(data)
-	for _, nal := range nalUnits {
-		if len(nal) >= 5 {
-			nalType := nal[4] & 0x1F
-			// SPS = 7, PPS = 8, IDR = 5
-			if nalType == 7 || nalType == 8 || nalType == 5 {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // writeH264ToTrack reads H.264 data and writes to WebRTC video track
 // Uses presentation timestamps from MediaCodec for accurate frame timing
 func (s *AndroidWebRTCSession) writeH264ToTrack() {
