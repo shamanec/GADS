@@ -33,16 +33,6 @@ type CustomLogger interface {
 	LogPanic(eventName string, message string)
 }
 
-type AppiumLogger interface {
-	Log(device *Device, logLine string)
-}
-
-type ByUDID []Device
-
-func (a ByUDID) Len() int           { return len(a) }
-func (a ByUDID) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByUDID) Less(i, j int) bool { return a[i].UDID < a[j].UDID }
-
 type User struct {
 	Username     string   `json:"username" bson:"username" example:"john_doe"`
 	Password     string   `json:"password" bson:"password,omitempty" example:"secure_password"`
@@ -53,34 +43,38 @@ type User struct {
 
 type Device struct {
 	// DB DATA
-	UDID             string `json:"udid" bson:"udid"`                             // device UDID
-	OS               string `json:"os" bson:"os"`                                 // device OS
-	Name             string `json:"name" bson:"name"`                             // name of the device
-	OSVersion        string `json:"os_version" bson:"os_version"`                 // OS version of the device
-	IPAddress        string `json:"ip_address" bson:"ip_address"`                 // IP address of the device
-	Provider         string `json:"provider" bson:"provider"`                     // nickname of the device host(provider)
-	Usage            string `json:"usage" bson:"usage"`                           // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
-	ScreenWidth      string `json:"screen_width" bson:"screen_width"`             // screen width of device
-	ScreenHeight     string `json:"screen_height" bson:"screen_height"`           // screen height of device
-	DeviceType       string `json:"device_type" bson:"device_type"`               // The type of device - `real` or `emulator`
-	UseWebRTCVideo   bool   `json:"use_webrtc_video" bson:"use_webrtc_video"`     // Should the device use WebRTC video instead of MJPEG
-	WebRTCVideoCodec string `json:"webrtc_video_codec" bson:"webrtc_video_codec"` // Which video codec should the device use for WebRTC video stream
-	WorkspaceID      string `json:"workspace_id" bson:"workspace_id"`             // ID of the associated workspace
+	UDID         string `json:"udid" bson:"udid"`                   // device UDID
+	OS           string `json:"os" bson:"os"`                       // device OS
+	Name         string `json:"name" bson:"name"`                   // name of the device
+	OSVersion    string `json:"os_version" bson:"os_version"`       // OS version of the device
+	IPAddress    string `json:"ip_address" bson:"ip_address"`       // IP address of the device
+	Provider     string `json:"provider" bson:"provider"`           // nickname of the device host(provider)
+	Usage        string `json:"usage" bson:"usage"`                 // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
+	ScreenWidth  string `json:"screen_width" bson:"screen_width"`   // screen width of device
+	ScreenHeight string `json:"screen_height" bson:"screen_height"` // screen height of device
+	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
+	// DEPRECATED: UseWebRTCVideo will be deprecated, use StreamType instead.
+	// This field will be removed in next major version release. Only kept for backward compatibility during migration.
+	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
+	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
+	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
 	// NON-DB DATA
 	/// COMMON VALUES
-	Host                 string `json:"host" bson:"-"`                            // IP address of the device host(provider)
-	HardwareModel        string `json:"hardware_model" bson:"-"`                  // hardware model of device
-	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"-"`          // last time the device data was updated
-	Connected            bool   `json:"connected" bson:"-"`                       // if device is currently connected
-	IsResetting          bool   `json:"is_resetting" bson:"-"`                    // if device setup is currently being reset
-	ProviderState        string `json:"provider_state" bson:"-"`                  // current state of the device on the provider - init, preparing, live
-	StreamTargetFPS      int    `json:"stream_target_fps,omitempty" bson:"-"`     // The target FPS for the MJPEG video streams
-	StreamJpegQuality    int    `json:"stream_jpeg_quality,omitempty" bson:"-"`   // The target JPEG quality for the MJPEG video streams
-	StreamScalingFactor  int    `json:"stream_scaling_factor,omitempty" bson:"-"` // The target scaling factor for the MJPEG video streams
-	AppiumLastPingTS     int64  `json:"appium_last_ts" bson:"-"`                  // The last time the Appium server pinged the provider - the plugin sends regular pings while up
-	AppiumSessionID      string `json:"appium_session_id" bson:"-"`               // Current Appium session ID - the plugin sends a request for this when a session is created, also the session ID is available for all logs
-	IsAppiumUp           bool   `json:"is_appium_up" bson:"-"`                    // Reflects if Appium server is up or not - the plugin sends a request for this
-	HasAppiumSession     bool   `json:"has_appium_session" bson:"-"`              // This is a "just in case" property - it will be set to `true` when the plugin sends a new session registration request and to `false` when the plugin sends a remove session request
+	Host                 string       `json:"host" bson:"-"`                            // IP address of the device host(provider)
+	HardwareModel        string       `json:"hardware_model" bson:"-"`                  // hardware model of device
+	LastUpdatedTimestamp int64        `json:"last_updated_timestamp" bson:"-"`          // last time the device data was updated
+	Connected            bool         `json:"connected" bson:"-"`                       // if device is currently connected
+	IsResetting          bool         `json:"is_resetting" bson:"-"`                    // if device setup is currently being reset
+	ProviderState        string       `json:"provider_state" bson:"-"`                  // current state of the device on the provider - init, preparing, live
+	StreamTargetFPS      int          `json:"stream_target_fps,omitempty" bson:"-"`     // The target FPS for the MJPEG video streams
+	StreamJpegQuality    int          `json:"stream_jpeg_quality,omitempty" bson:"-"`   // The target JPEG quality for the MJPEG video streams
+	StreamScalingFactor  int          `json:"stream_scaling_factor,omitempty" bson:"-"` // The target scaling factor for the MJPEG video streams
+	AppiumLastPingTS     int64        `json:"appium_last_ts" bson:"-"`                  // The last time the Appium server pinged the provider - the plugin sends regular pings while up
+	AppiumSessionID      string       `json:"appium_session_id" bson:"-"`               // Current Appium session ID - the plugin sends a request for this when a session is created, also the session ID is available for all logs
+	IsAppiumUp           bool         `json:"is_appium_up" bson:"-"`                    // Reflects if Appium server is up or not - the plugin sends a request for this
+	HasAppiumSession     bool         `json:"has_appium_session" bson:"-"`              // This is a "just in case" property - it will be set to `true` when the plugin sends a new session registration request and to `false` when the plugin sends a remove session request
+	CurrentRotation      string       `json:"current_rotation" bson:"-"`                // The device current rotation - portrait/landscape
+	SupportedStreamTypes []StreamType `json:"supported_stream_types" bson:"-"`
 	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES
 	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
@@ -105,6 +99,73 @@ type Device struct {
 	SemVer                  *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
 	InitialSetupDone        bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
 	DeviceAddress           string             `json:"-" bson:"-"`
+}
+
+// Device stream type - mjpeg, webrtc, etc
+type StreamType struct {
+	Name     string        `json:"name" bson:"-"`
+	ID       StreamingType `json:"id" bson:"-"`
+	DeviceOS string        `json:"device_os" bson:"-"`
+}
+
+// Custom type for DB streaming type property
+type StreamingType string
+
+const (
+	MJPEGStreamTypeId                  StreamingType = "mjpeg"
+	IOSWebRTCFFMpegStreamTypeId        StreamingType = "ios_webrtc_ffmpeg"
+	AndroidWebRTCGetStreamStreamTypeId StreamingType = "android_webrtc_getstream"
+	AndroidWebRTCGadsH264StreamTypeId  StreamingType = "android_webrtc_gads_h264"
+)
+
+func (st StreamingType) Description() string {
+	switch st {
+	case MJPEGStreamTypeId:
+		return "MJPEG"
+	case IOSWebRTCFFMpegStreamTypeId:
+		return "WebRTC - FFMpeg"
+	case AndroidWebRTCGetStreamStreamTypeId:
+		return "Android WebRTC GetStream"
+	case AndroidWebRTCGadsH264StreamTypeId:
+		return "Android WebRTC GADS H264"
+	default:
+		return "Unknown"
+	}
+}
+
+var MJPEGStreamType = StreamType{
+	Name:     MJPEGStreamTypeId.Description(),
+	ID:       MJPEGStreamTypeId,
+	DeviceOS: "both",
+}
+
+var IOSWebRTCFFMpegStreamType = StreamType{
+	Name:     IOSWebRTCFFMpegStreamTypeId.Description(),
+	ID:       IOSWebRTCFFMpegStreamTypeId,
+	DeviceOS: "ios",
+}
+
+var AndroidWebRTCGetStreamStreamType = StreamType{
+	Name:     AndroidWebRTCGetStreamStreamTypeId.Description(),
+	ID:       AndroidWebRTCGetStreamStreamTypeId,
+	DeviceOS: "android",
+}
+
+var AndroidWebRTCGadsH264StreamType = StreamType{
+	Name:     AndroidWebRTCGadsH264StreamTypeId.Description(),
+	ID:       AndroidWebRTCGadsH264StreamTypeId,
+	DeviceOS: "android",
+}
+
+var IOSStreamTypes = []StreamType{
+	MJPEGStreamType,
+	IOSWebRTCFFMpegStreamType,
+}
+
+var AndroidStreamTypes = []StreamType{
+	MJPEGStreamType,
+	AndroidWebRTCGetStreamStreamType,
+	AndroidWebRTCGadsH264StreamType,
 }
 
 type LocalHubDevice struct {

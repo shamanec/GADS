@@ -18,6 +18,10 @@ type ActionData struct {
 	Duration   float64 `json:"duration,omitempty"`
 }
 
+type DeviceRotation struct {
+	Rotation string `json:"rotation"`
+}
+
 type DeviceAction struct {
 	Type     string  `json:"type"`
 	Duration int     `json:"duration"`

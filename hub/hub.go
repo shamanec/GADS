@@ -90,6 +90,12 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	db.InitMongo(mongoDB, "gads")
 	defer db.GlobalMongoStore.Close()
 
+	// Update existing devices with new stream type property
+	err := db.GlobalMongoStore.EnsureDevicesHaveStreamType()
+	if err != nil {
+		fmt.Println("Failed updating device stream types " + err.Error())
+	}
+
 	// Initialize MinIO client based on configuration
 	fmt.Println("Checking MinIO configuration...")
 	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()

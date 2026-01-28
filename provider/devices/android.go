@@ -62,31 +62,6 @@ func stopGadsStreamService(device *models.Device) {
 	}
 }
 
-// Install gads-stream.apk on the device
-func installGadsStream(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS-stream apk on device `%v`", device.UDID))
-
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-stream.apk", config.ProviderConfig.ProviderFolder))
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("installGadsStream: Error executing `%s` - %s", cmd.Args, err)
-	}
-
-	return nil
-}
-
-func installGadsWebRTCStream(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS WebRTC stream apk on device `%v`", device.UDID))
-
-	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "install", "-r", fmt.Sprintf("%s/gads-webrtc.apk", config.ProviderConfig.ProviderFolder))
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("installGadsWebRTCStream: Error executing `%s` - %s", cmd.Args, err)
-	}
-
-	return nil
-}
-
 // Installs the GADS-Settings apk on Android devices.
 // The GADS-Settings provides the GADS IME and GADS mjpeg video stream service
 func installGadsSettingsApp(device *models.Device) error {
@@ -149,6 +124,40 @@ func startGadsRemoteControlServer(device *models.Device) {
 	}
 }
 
+// Starts the GADS-Settings H264 server as app_process from /data/local/tmp.
+// The H264 server provides h264 frames from the device screen over a websocket for Pion to serve WebRTC
+func startGadsSettingsStream(device *models.Device) {
+	// Kill existing process first
+	killCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "pkill -f H264Server")
+	_ = killCmd.Run() // Ignore error - process might not exist
+
+	time.Sleep(1 * time.Second)
+
+	cmd := exec.CommandContext(
+		device.Context,
+		"adb",
+		"-s",
+		device.UDID,
+		"shell",
+		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.server.H264Server")
+
+	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting GADS Remote server on device `%s` with command `%s`", device.UDID, cmd.Args))
+
+	if err := cmd.Start(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
+		ResetLocalDevice(device, "Failed to execute GADS Remote server.")
+		return
+	}
+
+	if err := cmd.Wait(); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
+			"startGadsSettingsStream: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
+			cmd.Args, device.UDID, err))
+
+		ResetLocalDevice(device, "GADS Android H264 server failed.")
+	}
+}
+
 // Enables the GADS Android IME and sets it as active for the device
 func setupGadsAndroidIME(device *models.Device) error {
 	err := enableGadsAndroidIME(device)
@@ -193,12 +202,6 @@ func setGadsAndroidIMEAsActive(device *models.Device) error {
 	return nil
 }
 
-// Uninstall the GADS stream app from the Android device
-func uninstallGadsStream(device *models.Device) error {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Uninstalling GADS-stream from device `%v`", device.UDID))
-	return UninstallApp(device, GetStreamServicePackageName(device))
-}
-
 // Add recording permissions to GADS video streaming application to avoid popup on start
 func addGadsStreamRecordingPermissions(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS-stream recording permissions on device `%v`", device.UDID))
@@ -212,7 +215,20 @@ func addGadsStreamRecordingPermissions(device *models.Device) error {
 	return nil
 }
 
-// Start the GADS video streaming service using adb
+// Add POST_NOTIFICATIONS permission to the stream app because on some devices with newer Android startForeground() might throw an exception without it
+func addGadsStreamPostNotificationsPermission(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS app post notification permissions on device `%v`", device.UDID))
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "pm", "grant", GetStreamServicePackageName(device), "android.permission.POST_NOTIFICATIONS")
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("addGadsStreamRecordingPermissions: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	return nil
+}
+
+// Start the GADS video streaming foreground service using adb
 func startGadsAndroidStreaming(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", device.UDID))
 
@@ -366,6 +382,56 @@ func installAppAndroid(device *models.Device, appName string) error {
 	return nil
 }
 
+func disableAutoRotationAndroid(device *models.Device) error {
+	// 0 disable, 1 enable
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "settings", "put", "system", "accelerometer_rotation", "0")
+
+	if err := cmd.Run(); err != nil {
+		device.Logger.LogError("ChangeRotationAndroid", fmt.Sprintf("ChangeRotationAndroid: Error executing `%s` trying to change device rotation - %v", cmd.Args, err))
+		return err
+	}
+	return nil
+}
+
+func GetCurrentRotationAndroid(device *models.Device) (string, error) {
+	// 0 portrait, 1 landscape
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "settings", "get", "system", "user_rotation")
+
+	var outBuffer bytes.Buffer
+	cmd.Stdout = &outBuffer
+	if err := cmd.Run(); err != nil {
+		device.Logger.LogError("getCurrentRotationAndroid", fmt.Sprintf("getCurrentRotationAndroid: Error executing `%s` trying to get current device rotation - %v", cmd.Args, err))
+		return "portrait", err
+	}
+
+	// Get the command output to string
+	result := strings.TrimSpace(outBuffer.String())
+
+	// Return the parsed rotation string
+	if result == "1" {
+		return "landscape", nil
+	} else {
+		return "portrait", nil
+	}
+}
+
+// Change screen rotation on Android device
+func ChangeRotationAndroid(device *models.Device, rotation string) error {
+	// 0 is for portrait, 1 is for landscape
+	var adbRotationValue = "0"
+	if rotation == "landscape" {
+		adbRotationValue = "1"
+	}
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "settings", "put", "system", "user_rotation", adbRotationValue)
+
+	if err := cmd.Run(); err != nil {
+		device.Logger.LogError("ChangeRotationAndroid", fmt.Sprintf("ChangeRotationAndroid: Error executing `%s` trying to change device rotation - %v", cmd.Args, err))
+		return err
+	}
+	return nil
+}
+
 func UpdateGadsStreamSettings(device *models.Device) error {
 	// Prepare the WebSocket URL
 	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
@@ -379,9 +445,15 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 	socketMsg := fmt.Sprintf("targetFPS=%v:jpegQuality=%v:scalingFactor=%v",
 		device.StreamTargetFPS, device.StreamJpegQuality, device.StreamScalingFactor)
 
+	if device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+		socketMsg = fmt.Sprintf("targetFPS=%v:scalingFactor=%v",
+			device.StreamTargetFPS, device.StreamScalingFactor)
+	}
+
 	// Send the message over the WebSocket
 	err = wsutil.WriteServerMessage(destConn, ws.OpText, []byte(socketMsg))
 	if err != nil {
+		fmt.Printf("failed sending stream settings to stream websocket - %s\n", err)
 		return fmt.Errorf("failed sending stream settings to stream websocket - %s", err)
 	}
 
@@ -389,10 +461,14 @@ func UpdateGadsStreamSettings(device *models.Device) error {
 }
 
 func GetStreamServiceName(device *models.Device) string {
-	if device.UseWebRTCVideo {
+	switch device.StreamType {
+	case models.MJPEGStreamTypeId:
+		return "com.gads.settings/.ScreenCaptureService"
+	case models.AndroidWebRTCGetStreamStreamTypeId:
 		return "com.gads.settings/.WebRTCScreenCaptureService"
+	default:
+		return "com.gads.settings/.ScreenCaptureService"
 	}
-	return "com.gads.settings/.ScreenCaptureService"
 }
 
 func GetStreamServicePackageName(device *models.Device) string {
@@ -400,10 +476,14 @@ func GetStreamServicePackageName(device *models.Device) string {
 }
 
 func GetStreamServiceActivityName(device *models.Device) string {
-	if device.UseWebRTCVideo {
+	switch device.StreamType {
+	case models.MJPEGStreamTypeId:
+		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+	case models.AndroidWebRTCGetStreamStreamTypeId:
 		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
+	default:
+		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 	}
-	return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
 }
 
 func DeleteAndroidSharedStorageFile(device *models.Device, filePath string) error {

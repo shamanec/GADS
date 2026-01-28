@@ -46,6 +46,7 @@ func HandleRequests() *gin.Engine {
 	}
 
 	deviceGroup := r.Group("/device/:udid")
+	deviceGroup.POST("/rotation", DeviceChangeRotation)
 	deviceGroup.GET("/info", DeviceInfo)
 	deviceGroup.GET("/files", DeviceFiles)
 	deviceGroup.POST("/files/push", PushFileToSharedStorage)
@@ -74,6 +75,8 @@ func HandleRequests() *gin.Engine {
 		deviceGroup.GET("/ios-stream", IosStreamProxyWDA)
 		deviceGroup.GET("/ios-stream-mjpeg", IOSStreamMJPEGWda)
 	}
+	deviceGroup.GET("/ios-webrtc", IOSWebRTCSocket)
+	deviceGroup.GET("/android-webrtc", AndroidWebRTCSocket)
 	deviceGroup.POST("/uninstallApp", UninstallApp)
 	deviceGroup.POST("/launchApp", LaunchApp)
 	deviceGroup.POST("/closeApp", CloseApp)

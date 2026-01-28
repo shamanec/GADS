@@ -113,16 +113,12 @@ func updateProviderHub() {
 				if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
 					dbDevice.WorkspaceID = updatedDevice.WorkspaceID
 				}
-				webrtcChanged := false
-				if dbDevice.UseWebRTCVideo != updatedDevice.UseWebRTCVideo {
-					dbDevice.UseWebRTCVideo = updatedDevice.UseWebRTCVideo
-					webrtcChanged = true
+				streamTypeChanged := false
+				if dbDevice.StreamType != updatedDevice.StreamType {
+					dbDevice.StreamType = updatedDevice.StreamType
+					streamTypeChanged = true
 				}
-				if dbDevice.WebRTCVideoCodec != updatedDevice.WebRTCVideoCodec {
-					dbDevice.WebRTCVideoCodec = updatedDevice.WebRTCVideoCodec
-					webrtcChanged = true
-				}
-				if webrtcChanged {
+				if streamTypeChanged {
 					ResetLocalDevice(dbDevice, "WebRTC configuration changed, reprovisioning device")
 				}
 
@@ -358,6 +354,7 @@ func setupAndroidDevice(device *models.Device) {
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Retrieving hardware model for device `%s`", device.UDID))
 	getAndroidDeviceHardwareModel(device)
 
+	// Get the device screen and height from adb if they are not supplied in the device configuration
 	if device.ScreenHeight == "" || device.ScreenWidth == "" {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updating screen dimensions for device `%v`", device.UDID))
 		err := updateAndroidScreenSizeADB(device)
@@ -369,6 +366,17 @@ func setupAndroidDevice(device *models.Device) {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully updated screen dimensions for device `%v`", device.UDID))
 	}
 
+	// Disable auto-rotation on the device so we can control it with adb
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Disabling auto-rotation for device `%v`", device.UDID))
+	err := disableAutoRotationAndroid(device)
+	if err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not disable auto-rotation for device `%v` - %v", device.UDID, err))
+		ResetLocalDevice(device, "Failed to disable auto-rotation.")
+		return
+	}
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully disabled auto-rotation for device `%v`", device.UDID))
+
+	// Allocate a free port on the host for the device video stream
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for GADS-stream for device `%v`", device.UDID))
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -379,6 +387,7 @@ func setupAndroidDevice(device *models.Device) {
 	device.StreamPort = streamPort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS-stream for device `%v`", device.StreamPort, device.UDID))
 
+	// Allocate a free port on the host for the IME server
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for GADS Android IME for device `%v`", device.UDID))
 	imePort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -389,6 +398,7 @@ func setupAndroidDevice(device *models.Device) {
 	device.AndroidIMEPort = imePort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS Android IME for device `%v`", device.StreamPort, device.UDID))
 
+	// Allocate a free port on the host for the GADS-Settings remote control server
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for GADS Android remote control server for device `%v`", device.UDID))
 	remoteServerPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -399,9 +409,11 @@ func setupAndroidDevice(device *models.Device) {
 	device.AndroidRemoteServerPort = remoteServerPort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS Android remote control server server for device `%v`", device.StreamPort, device.UDID))
 
+	// Get the currently installed appes on the device
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking for existing GADS Android apps on device `%v`", device.UDID))
 	device.InstalledApps = GetInstalledAppsAndroid(device)
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
+	// Uninstall the GADS-Settings app if present
 	if slices.Contains(device.InstalledApps, "com.gads.settings") {
 		err = UninstallApp(device, "com.gads.settings")
 		if err != nil {
@@ -411,6 +423,7 @@ func setupAndroidDevice(device *models.Device) {
 		time.Sleep(3 * time.Second)
 	}
 
+	// Uninstall the GADS-WebRTC app if present
 	if slices.Contains(device.InstalledApps, "com.gads.webrtc") {
 		err = UninstallApp(device, "com.gads.webrtc")
 		if err != nil {
@@ -420,6 +433,7 @@ func setupAndroidDevice(device *models.Device) {
 		time.Sleep(3 * time.Second)
 	}
 
+	// Uninstall the GADS-Stream app if present
 	if slices.Contains(device.InstalledApps, "com.shamanec.stream") {
 		err = UninstallApp(device, "com.shamanec.stream")
 		if err != nil {
@@ -429,6 +443,7 @@ func setupAndroidDevice(device *models.Device) {
 		time.Sleep(3 * time.Second)
 	}
 
+	// Uninstall the GADS-IME app if present
 	if slices.Contains(device.InstalledApps, "com.gads.gads_ime") {
 		err = UninstallApp(device, "com.gads.gads_ime")
 		if err != nil {
@@ -439,6 +454,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checked for and uninstalled existing GADS Android apps on device `%v` if they were present", device.UDID))
 
+	// Install the GADS-Settings app on the device
 	err = installGadsSettingsApp(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS Settings on Android device - %v:\n %v", device.UDID, err))
@@ -446,6 +462,7 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 
+	// Push the GADS-Settings app to /tmp/local for the remote control server app_process
 	err = pushGadsSettingsInTmpLocal(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not push GADS Settings on Android device - %v:\n %v", device.UDID, err))
@@ -454,29 +471,49 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	time.Sleep(2 * time.Second)
 
+	// Start the remote control server from /tmp/local
 	go startGadsRemoteControlServer(device)
 	time.Sleep(2 * time.Second)
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Adding GADS Settings stream recording permissions on Android device `%v`", device.UDID))
-	err = addGadsStreamRecordingPermissions(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings stream recording permissions on Android device - %v:\n %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to add GADS Settings stream recording permissions on Android device.")
-		return
-	}
-	time.Sleep(2 * time.Second)
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully added GADS Settings stream recording permissions on Android device `%v`", device.UDID))
+	// Start the respective video stream
+	if device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS app process H264 streaming on Android device `%v`", device.UDID))
+		go startGadsSettingsStream(device)
+	} else {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Adding GADS Settings stream recording permissions on Android device `%v`", device.UDID))
+		err = addGadsStreamRecordingPermissions(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings stream recording permissions on Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to add GADS Settings stream recording permissions on Android device.")
+			return
+		}
+		time.Sleep(2 * time.Second)
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully added GADS Settings stream recording permissions on Android device `%v`", device.UDID))
 
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS streaming on Android device `%v`", device.UDID))
-	err = startGadsAndroidStreaming(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS streaming on Android device - %v:\n %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to start GADS streaming on Android device.")
-		return
+		// Do not attempt to add POST_NOTIFICATIONS permission on devices below Android 15
+		if device.SemVer.Major() >= 15 {
+			err = addGadsStreamPostNotificationsPermission(device)
+			if err != nil {
+				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings POST_NOTIFICATIONS permissions on Android device - %v:\n %v", device.UDID, err))
+				ResetLocalDevice(device, "Failed to add GADS Settings POST_NOTIFICATIONS permissions on Android device.")
+				return
+			}
+			time.Sleep(1 * time.Second)
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully added GADS Settings POST_NOTIFICATIONS permissions on Android device `%v`", device.UDID))
+		}
+
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Starting GADS streaming on Android device `%v`", device.UDID))
+		err = startGadsAndroidStreaming(device)
+		if err != nil {
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS streaming on Android device - %v:\n %v", device.UDID, err))
+			ResetLocalDevice(device, "Failed to start GADS streaming on Android device.")
+			return
+		}
 	}
 	time.Sleep(2 * time.Second)
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully started GADS streaming on Android device `%v`", device.UDID))
 
+	// Forward the video stream to the host
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS streaming port to host port for Android device `%v`", device.UDID))
 	err = forwardGadsStream(device)
 	if err != nil {
@@ -486,6 +523,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS streaming port to host port for Android device `%v`", device.UDID))
 
+	// Enable the GADS-Settings IME and set it as default
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Setup GADS Android IME for Android device `%v`", device.UDID))
 	err = setupGadsAndroidIME(device)
 	if err != nil {
@@ -494,6 +532,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully setup GADS Android IME for Android device `%v`", device.UDID))
 
+	// Forward the GADS-Settings IME server to the host
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS Android IME port to host port for Android device `%v`", device.UDID))
 	err = forwardGadsAndroidIME(device)
 	if err != nil {
@@ -503,6 +542,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS Android IME port to host port for Android device `%v`", device.UDID))
 
+	// Forward the GADS-Settings remote control server to the host
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS Android Settings port to host port for Android device `%v`", device.UDID))
 	err = forwardGadsRemoteServer(device)
 	if err != nil {
@@ -512,6 +552,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS Android IME port to host port for Android device `%v`", device.UDID))
 
+	// Apply the configured video stream settings
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Applying device stream settings to device `%v`", device.UDID))
 	err = applyDeviceStreamSettings(device)
 	if err != nil {
@@ -521,6 +562,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully applied device stream settings to device `%v`", device.UDID))
 
+	// Update the configured video stream settings on the device
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updating GADS stream settings for device `%s`", device.UDID))
 	err = UpdateGadsStreamSettings(device)
 	if err != nil {
@@ -530,6 +572,7 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully updated GADS stream settings for device `%s`", device.UDID))
 
+	// Setup Appium server for the device is the provider is configured for it
 	if config.ProviderConfig.SetupAppiumServers {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Attempting to kill existing Appium processes for device `%s`", device.UDID))
 		err := cli.KillDeviceAppiumProcess(device.UDID)
@@ -1189,6 +1232,12 @@ func UpdateInstalledApps(device *models.Device) {
 		device.InstalledApps = GetInstalledAppsIOS(device)
 	} else {
 		device.InstalledApps = GetInstalledAppsAndroid(device)
+	}
+}
+
+func UpdateCurrentRotation(device *models.Device) {
+	if device.OS == "android" {
+		device.CurrentRotation, _ = GetCurrentRotationAndroid(device)
 	}
 }
 
