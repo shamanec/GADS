@@ -42,6 +42,7 @@ func main() {
 	hubCmd.Flags().String("files-dir", "", "Directory where resource files will be unpacked."+
 		"\nBy default app will try to use a temp dir on the host, use this flag only if you encounter issues with the temp folder."+
 		"\nAlso you need to have created the folder in advance!")
+	hubCmd.Flags().String("turn-username-suffix", "gads", "Suffix to append to TURN usernames (format: timestamp:suffix)")
 	rootCmd.AddCommand(hubCmd)
 
 	// Provider Command
@@ -56,6 +57,7 @@ func main() {
 	providerCmd.Flags().String("provider-folder", ".", "The folder where logs and other data will be stored")
 	providerCmd.Flags().String("log-level", "info", "The verbosity of the logs of the provider instance")
 	providerCmd.Flags().String("hub", "", "The address of the GADS hub instance")
+	providerCmd.Flags().String("turn-username-suffix", "gads", "Suffix to append to TURN usernames (format: timestamp:suffix)")
 	rootCmd.AddCommand(providerCmd)
 
 	var versionCmd = &cobra.Command{

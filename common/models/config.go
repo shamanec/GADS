@@ -28,6 +28,7 @@ type Provider struct {
 	HubAddress           string `json:"hub_address" bson:"-"`
 	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
 	MinioAvailable       bool   `json:"minio_available" bson:"-"`
+	TURNUsernameSuffix   string `json:"-" bson:"-"`
 }
 
 type ProviderData struct {
@@ -45,6 +46,7 @@ type HubConfig struct {
 	OS                   string `json:"os"`
 	AuthEnabled          bool   `json:"auth_enabled"`
 	MinioAvailable       bool   `json:"minio_available"`
+	TURNUsernameSuffix   string `json:"-"`
 }
 
 type MinioConfig struct {

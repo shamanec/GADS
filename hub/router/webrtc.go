@@ -12,6 +12,7 @@ package router
 import (
 	"GADS/common/auth"
 	"GADS/common/db"
+	"GADS/hub/config"
 	"fmt"
 	"net/http"
 
@@ -40,7 +41,7 @@ func GetICEConfig(c *gin.Context) {
 		if ttl == 0 {
 			ttl = 3600 // Default: 1 hour
 		}
-		username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl)
+		username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl, config.GlobalHubConfig.TURNUsernameSuffix)
 
 		// Add TURN server as fallback for restrictive networks
 		turnServer := map[string]interface{}{

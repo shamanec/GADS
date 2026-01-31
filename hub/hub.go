@@ -53,6 +53,9 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	authEnabled, _ := flags.GetBool("auth")
 	fmt.Printf("Auth enabled: %v. You can enable/disable authentication on hub endpoints with the --auth flag\n", authEnabled)
 
+	turnUsernameSuffix, _ := flags.GetString("turn-username-suffix")
+	fmt.Printf("TURN username suffix: %s. You can change it with the --turn-username-suffix flag\n", turnUsernameSuffix)
+
 	fmt.Println("Default admin username is `admin`")
 	fmt.Println("Default admin password is `password` unless you've changed it")
 
@@ -75,13 +78,14 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	}
 
 	hubConfig := models.HubConfig{
-		HostAddress:  hostAddress,
-		Port:         port,
-		MongoDB:      mongoDB,
-		OSTempDir:    osTempDir,
-		FilesTempDir: filesTempDir,
-		OS:           runtime.GOOS,
-		AuthEnabled:  authEnabled,
+		HostAddress:        hostAddress,
+		Port:               port,
+		MongoDB:            mongoDB,
+		OSTempDir:          osTempDir,
+		FilesTempDir:       filesTempDir,
+		OS:                 runtime.GOOS,
+		AuthEnabled:        authEnabled,
+		TURNUsernameSuffix: turnUsernameSuffix,
 	}
 
 	// Set the global config for other hub packages to use

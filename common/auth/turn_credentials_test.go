@@ -20,7 +20,7 @@ func TestGenerateTURNCredentials(t *testing.T) {
 	secret := "test-secret"
 	ttl := 3600
 
-	username, password, expiresAt := GenerateTURNCredentials(secret, ttl)
+	username, password, expiresAt := GenerateTURNCredentials(secret, ttl, "gads")
 
 	// Verify username format contains ":gads"
 	if !strings.Contains(username, ":gads") {
@@ -51,8 +51,8 @@ func TestGenerateTURNCredentials(t *testing.T) {
 func TestGenerateTURNCredentials_DifferentSecrets(t *testing.T) {
 	ttl := 3600
 
-	username1, password1, _ := GenerateTURNCredentials("secret1", ttl)
-	username2, password2, _ := GenerateTURNCredentials("secret2", ttl)
+	username1, password1, _ := GenerateTURNCredentials("secret1", ttl, "gads")
+	username2, password2, _ := GenerateTURNCredentials("secret2", ttl, "gads")
 
 	// Same TTL should generate similar timestamps (usernames may be identical)
 	// but different secrets should generate different passwords
@@ -76,8 +76,8 @@ func TestGenerateTURNCredentials_DifferentSecrets(t *testing.T) {
 func TestGenerateTURNCredentials_DifferentTTL(t *testing.T) {
 	secret := "test-secret"
 
-	username1, _, expiresAt1 := GenerateTURNCredentials(secret, 3600)
-	username2, _, expiresAt2 := GenerateTURNCredentials(secret, 7200)
+	username1, _, expiresAt1 := GenerateTURNCredentials(secret, 3600, "gads")
+	username2, _, expiresAt2 := GenerateTURNCredentials(secret, 7200, "gads")
 
 	// Different TTL should generate different expiration times
 	timeDiff := expiresAt2 - expiresAt1
@@ -96,9 +96,9 @@ func TestGenerateTURNCredentials_Consistency(t *testing.T) {
 	ttl := 3600
 
 	// Generate credentials twice with same parameters at approximately same time
-	username1, password1, expiresAt1 := GenerateTURNCredentials(secret, ttl)
+	username1, password1, expiresAt1 := GenerateTURNCredentials(secret, ttl, "gads")
 	time.Sleep(1 * time.Millisecond) // Small delay
-	username2, password2, expiresAt2 := GenerateTURNCredentials(secret, ttl)
+	username2, password2, expiresAt2 := GenerateTURNCredentials(secret, ttl, "gads")
 
 	// Timestamps should be very close (within 1 second)
 	timeDiff := expiresAt2 - expiresAt1
@@ -124,13 +124,10 @@ func TestGenerateTURNCredentials_Consistency(t *testing.T) {
 }
 
 func TestGenerateTURNCredentials_CustomSuffix(t *testing.T) {
-	// Test with custom username suffix (following GADS_CAPABILITY_PREFIX pattern)
-	t.Setenv("GADS_TURN_USERNAME_SUFFIX", "myorg")
-
 	secret := "test-secret"
 	ttl := 3600
 
-	username, password, expiresAt := GenerateTURNCredentials(secret, ttl)
+	username, password, expiresAt := GenerateTURNCredentials(secret, ttl, "myorg")
 
 	// Verify username format contains custom suffix
 	if !strings.Contains(username, ":myorg") {
@@ -156,17 +153,14 @@ func TestGenerateTURNCredentials_CustomSuffix(t *testing.T) {
 }
 
 func TestGenerateTURNCredentials_EmptySuffix(t *testing.T) {
-	// Test that empty env var falls back to default
-	t.Setenv("GADS_TURN_USERNAME_SUFFIX", "")
-
 	secret := "test-secret"
 	ttl := 3600
 
-	username, _, _ := GenerateTURNCredentials(secret, ttl)
+	username, _, _ := GenerateTURNCredentials(secret, ttl, "")
 
 	// Should use default "gads" suffix
 	if !strings.Contains(username, ":gads") {
-		t.Errorf("Username should contain default ':gads' suffix when env var is empty, got: %s", username)
+		t.Errorf("Username should contain default ':gads' suffix when suffix is empty, got: %s", username)
 	}
 }
 
@@ -175,15 +169,13 @@ func TestGenerateTURNCredentials_DifferentSuffixes(t *testing.T) {
 	ttl := 3600
 
 	// Test first suffix
-	t.Setenv("GADS_TURN_USERNAME_SUFFIX", "org1")
-	username1, password1, _ := GenerateTURNCredentials(secret, ttl)
+	username1, password1, _ := GenerateTURNCredentials(secret, ttl, "org1")
 
 	// Give a small delay to ensure different timestamps
 	time.Sleep(1 * time.Second)
 
 	// Test second suffix
-	t.Setenv("GADS_TURN_USERNAME_SUFFIX", "org2")
-	username2, password2, _ := GenerateTURNCredentials(secret, ttl)
+	username2, password2, _ := GenerateTURNCredentials(secret, ttl, "org2")
 
 	// Usernames should have different suffixes
 	if !strings.Contains(username1, ":org1") {

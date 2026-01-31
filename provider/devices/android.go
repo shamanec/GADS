@@ -485,7 +485,7 @@ func UpdateWebRTCTURNConfig(device *models.Device) error {
 	if ttl == 0 {
 		ttl = 3600 // Default: 1 hour
 	}
-	username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl)
+	username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl, config.ProviderConfig.TURNUsernameSuffix)
 
 	// Connect to device WebSocket (use forwarded port from device.StreamPort)
 	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
