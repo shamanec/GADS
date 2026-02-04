@@ -195,6 +195,59 @@ func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Respons
 	}
 }
 
+func devicePinch(device *models.Device, x, y, scale float64) (*http.Response, error) {
+	if device.OS == "ios" {
+		velocity := scale / 0.3
+
+		requestBody := struct {
+			Scale    float64 `json:"scale"`
+			Velocity float64 `json:"velocity"`
+		}{
+			Scale:    scale,
+			Velocity: velocity,
+		}
+
+		actionJSON, err := json.MarshalIndent(requestBody, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal iOS pinch payload: %w", err)
+		}
+
+		return wdaRequest(device, http.MethodPost, "wda/pinch", bytes.NewReader(actionJSON))
+	} else {
+		requestBody := struct {
+			CenterX   float64 `json:"centerX"`
+			CenterY   float64 `json:"centerY"`
+			Scale     float64 `json:"scale"`
+			Duration  int     `json:"duration"`
+			Direction string  `json:"direction"`
+		}{
+			CenterX:   x,
+			CenterY:   y,
+			Scale:     scale,
+			Duration:  300,
+			Direction: "diagonal",
+		}
+
+		actionJSON, err := json.MarshalIndent(requestBody, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal Android pinch payload: %w", err)
+		}
+
+		return androidRemoteServerRequestJson(device, http.MethodPost, "pinch", bytes.NewReader(actionJSON))
+	}
+}
+
+func deviceDoubleTap(device *models.Device, x, y float64) (*http.Response, error) {
+	_, err := deviceTap(device, x, y)
+	if err != nil {
+		return nil, fmt.Errorf("first tap failed: %w", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	return deviceTap(device, x, y)
+}
+
 func deviceHome(device *models.Device) (*http.Response, error) {
 	if device.OS == "ios" {
 		return wdaRequest(device, http.MethodPost, "wda/homescreen", nil)
@@ -253,5 +306,18 @@ func deviceGetClipboard(device *models.Device) (*http.Response, error) {
 		return clipboardResp, nil
 	} else {
 		return androidRemoteServerRequest(device, http.MethodPost, "clipboard", nil)
+	}
+}
+
+func executeCustomAction(device *models.Device, actionType string, x, y float64) (*http.Response, error) {
+	switch actionType {
+	case "pinch_in":
+		return devicePinch(device, x, y, 0.5)
+	case "pinch_out":
+		return devicePinch(device, x, y, 2.0)
+	case "double_tap":
+		return deviceDoubleTap(device, x, y)
+	default:
+		return nil, fmt.Errorf("unsupported action type: %s", actionType)
 	}
 }
