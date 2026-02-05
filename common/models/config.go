@@ -28,6 +28,7 @@ type Provider struct {
 	HubAddress           string `json:"hub_address" bson:"-"`
 	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
 	MinioAvailable       bool   `json:"minio_available" bson:"-"`
+	TURNUsernameSuffix   string `json:"-" bson:"-"`
 }
 
 type ProviderData struct {
@@ -45,6 +46,7 @@ type HubConfig struct {
 	OS                   string `json:"os"`
 	AuthEnabled          bool   `json:"auth_enabled"`
 	MinioAvailable       bool   `json:"minio_available"`
+	TURNUsernameSuffix   string `json:"-"`
 }
 
 type MinioConfig struct {
@@ -53,6 +55,14 @@ type MinioConfig struct {
 	SecretAccessKey string `json:"secret_access_key" bson:"secret_access_key"`
 	UseSSL          bool   `json:"use_ssl" bson:"use_ssl"`
 	Enabled         bool   `json:"enabled" bson:"enabled"`
+}
+
+type TURNConfig struct {
+	Server       string `json:"server" bson:"server"`
+	Port         int    `json:"port" bson:"port"`
+	SharedSecret string `json:"shared_secret" bson:"shared_secret"`
+	TTL          int    `json:"ttl" bson:"ttl"` // Time-to-live in seconds (default: 3600)
+	Enabled      bool   `json:"enabled" bson:"enabled"`
 }
 
 // RegularizeProviderState applies business rules to ensure provider configuration is consistent

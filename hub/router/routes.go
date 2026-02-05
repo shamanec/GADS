@@ -1305,6 +1305,78 @@ func UpdateMinioConfig(c *gin.Context) {
 	api.GenericResponse(c, http.StatusOK, "MinIO configuration updated successfully", "Configuration saved")
 }
 
+// GetTURNConfig godoc
+// @Summary      Get TURN server configuration
+// @Description  Retrieve the TURN server configuration from MongoDB global settings
+// @Tags         Admin - Settings
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  models.APIResponse{result=models.TURNConfig}
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/turn-config [get]
+func GetTURNConfig(c *gin.Context) {
+	turnConfig, err := db.GlobalMongoStore.GetTURNConfig()
+	if err != nil {
+		InternalServerError(c, "Failed to retrieve TURN configuration")
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "TURN configuration retrieved", turnConfig)
+}
+
+// UpdateTURNConfig godoc
+// @Summary      Update TURN server configuration
+// @Description  Update the TURN server configuration stored in MongoDB global settings
+// @Tags         Admin - Settings
+// @Accept       json
+// @Produce      json
+// @Param        config  body      models.TURNConfig  true  "TURN configuration"
+// @Success      200     {object}  models.APIResponse{result=string}
+// @Failure      400     {object}  models.ErrorResponse
+// @Failure      500     {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/turn-config [post]
+func UpdateTURNConfig(c *gin.Context) {
+	var config models.TURNConfig
+
+	if err := c.ShouldBindJSON(&config); err != nil {
+		BadRequest(c, "Invalid input")
+		return
+	}
+
+	// Validation: if enabled, validate required fields
+	if config.Enabled {
+		if config.Server == "" {
+			BadRequest(c, "Server is required when TURN is enabled")
+			return
+		}
+
+		if config.Port <= 0 || config.Port > 65535 {
+			BadRequest(c, "Port must be between 1 and 65535")
+			return
+		}
+
+		if config.SharedSecret == "" {
+			BadRequest(c, "Shared secret is required when TURN is enabled")
+			return
+		}
+
+		// Set default TTL if not provided
+		if config.TTL == 0 {
+			config.TTL = 3600 // Default: 1 hour
+		}
+	}
+
+	err := db.GlobalMongoStore.UpdateTURNConfig(config)
+	if err != nil {
+		InternalServerError(c, "Failed to save TURN configuration")
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "TURN configuration updated successfully", "Configuration saved")
+}
+
 // GetSystemStatus godoc
 // @Summary      Get system status messages
 // @Description  Retrieve system status messages for administrators
