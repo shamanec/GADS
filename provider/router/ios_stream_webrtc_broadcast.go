@@ -30,154 +30,21 @@ import (
 	"github.com/pion/webrtc/v3/pkg/media"
 )
 
-// IOSH264Extractor handles extracting H.264 frames from iOS broadcast extension TCP stream
-type IOSH264Extractor struct {
-	device      *models.Device
-	conn        net.Conn
-	h264Channel chan H264Frame
-	ctx         context.Context
-	cancel      context.CancelFunc
-}
-
-// NewIOSH264Extractor creates a new H.264 extractor for iOS broadcast extension TCP stream
-func NewIOSH264Extractor(device *models.Device) (*IOSH264Extractor, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	extractor := &IOSH264Extractor{
-		device:      device,
-		h264Channel: make(chan H264Frame, 30), // Buffer for H.264 frames with timestamps
-		ctx:         ctx,
-		cancel:      cancel,
-	}
-
-	// Connect to iOS broadcast extension TCP server
-	broadcastServer := "localhost:" + device.StreamPort
-
-	// Dial TCP connection
-	conn, err := net.Dial("tcp", broadcastServer)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to connect to iOS broadcast extension: %w", err)
-	}
-
-	extractor.conn = conn
-
-	// Set read timeout to prevent hanging on stale connections
-	conn.SetReadDeadline(time.Time{}) // No deadline initially
-
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to iOS broadcast H.264 stream for device %s (iOS sends SPS/PPS with keyframes)", device.UDID))
-
-	// Start reading frames from TCP stream
-	go extractor.extractH264Frames()
-
-	return extractor, nil
-}
-
-// Start begins extracting H.264 frames from the TCP stream (deprecated, now auto-started)
-func (e *IOSH264Extractor) Start() {
-	// Now a no-op since we start in constructor
-}
-
-// extractH264Frames reads H.264 frames from TCP stream with iOS broadcast extension framing
-// Message format: [4 bytes length][8 bytes timestamp][H.264 payload]
-func (e *IOSH264Extractor) extractH264Frames() {
-	defer close(e.h264Channel)
-	defer e.conn.Close()
-
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 frame extraction from TCP for device %s", e.device.UDID))
-
-	frameCount := 0
-	buffer := make([]byte, 0, 1024*1024) // 1MB buffer for accumulating data
-
-	for {
-		select {
-		case <-e.ctx.Done():
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping H.264 extraction for device %s", e.device.UDID))
-			return
-		default:
-			// Read data from TCP connection
-			readBuf := make([]byte, 65536) // 64KB read buffer
-			n, err := e.conn.Read(readBuf)
-			if err != nil {
-				if err != io.EOF {
-					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading H.264 from TCP for device %s: %s", e.device.UDID, err))
-				}
-				return
-			}
-
-			// Append to accumulation buffer
-			buffer = append(buffer, readBuf[:n]...)
-
-			// Process complete messages
-			// Message format: [4 bytes length][8 bytes timestamp][payload]
-			for len(buffer) >= 12 {
-				// Read payload length (first 4 bytes, big-endian)
-				payloadLength := binary.BigEndian.Uint32(buffer[0:4])
-				messageLength := 4 + 8 + int(payloadLength)
-
-				// Check if we have complete message
-				if len(buffer) < messageLength {
-					break
-				}
-
-				// Extract timestamp (next 8 bytes, big-endian, in microseconds)
-				timestamp := int64(binary.BigEndian.Uint64(buffer[4:12]))
-
-				// Extract H.264 payload
-				h264Data := make([]byte, payloadLength)
-				copy(h264Data, buffer[12:messageLength])
-
-				frameCount++
-
-				// Log every 30 frames
-				if frameCount%30 == 0 {
-					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Received frame #%d (PTS=%d, %d bytes) from iOS for device %s", frameCount, timestamp, len(h264Data), e.device.UDID))
-				}
-
-				// Send H.264 frame with timestamp to channel (non-blocking)
-				frame := H264Frame{
-					Data: h264Data,
-					PTS:  timestamp,
-				}
-				select {
-				case e.h264Channel <- frame:
-				case <-e.ctx.Done():
-					return
-				default:
-					// Drop frame if channel is full (backpressure)
-					logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropped frame #%d for device %s (channel full)", frameCount, e.device.UDID))
-				}
-
-				// Remove processed message from buffer
-				buffer = buffer[messageLength:]
-			}
-		}
-	}
-}
-
-// GetH264Channel returns the channel that receives H.264 frames
-func (e *IOSH264Extractor) GetH264Channel() <-chan H264Frame {
-	return e.h264Channel
-}
-
-// Close stops the extractor and cleans up resources
-func (e *IOSH264Extractor) Close() {
-	e.cancel()
-	if e.conn != nil {
-		e.conn.Close()
-	}
-}
-
 // IOSWebRTCSession manages a WebRTC peer connection for iOS broadcast streaming
 type IOSWebRTCSession struct {
 	device         *models.Device
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
-	extractor      *IOSH264Extractor
+	tcpConn        net.Conn
 	ctx            context.Context
 	cancel         context.CancelFunc
 	mu             sync.Mutex
 	iceCandidates  []webrtc.ICECandidateInit
+
+	// Timestamp tracking
+	firstTimestamp uint64
+	lastTimestamp  uint64
+	frameCount     int
 }
 
 // NewIOSWebRTCSession creates a new WebRTC session for iOS broadcast streaming
@@ -246,172 +113,130 @@ func NewIOSWebRTCSession(device *models.Device) (*IOSWebRTCSession, error) {
 
 // Start begins the streaming pipeline
 func (s *IOSWebRTCSession) Start() error {
-	// Create H.264 extractor
-	extractor, err := NewIOSH264Extractor(s.device)
+	// Connect to iOS broadcast extension TCP server
+	broadcastServer := "localhost:" + s.device.StreamPort
+
+	conn, err := net.Dial("tcp", broadcastServer)
 	if err != nil {
-		return fmt.Errorf("failed to create H.264 extractor: %w", err)
+		return fmt.Errorf("failed to connect to iOS broadcast extension: %w", err)
 	}
-	s.extractor = extractor
-	extractor.Start()
+	s.tcpConn = conn
 
-	// Start writing H.264 to WebRTC track
-	go s.writeH264ToTrack()
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to iOS broadcast H.264 stream for device %s", s.device.UDID))
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Started iOS streaming pipeline for device %s", s.device.UDID))
+	// Start reading and processing frames
+	go s.readAndStreamFrames()
+
 	return nil
 }
 
-// writeH264ToTrack reads H.264 data and writes to WebRTC video track
-// Uses presentation timestamps from iOS broadcast extension for accurate frame timing
-func (s *IOSWebRTCSession) writeH264ToTrack() {
-	h264Channel := s.extractor.GetH264Channel()
+// readAndStreamFrames reads H.264 frames from TCP and writes directly to WebRTC track
+func (s *IOSWebRTCSession) readAndStreamFrames() {
+	defer s.tcpConn.Close()
 
-	// Fallback duration if PTS calculation fails
-	fps := 30
+	buffer := make([]byte, 0, 1024*1024)                // 1MB buffer
+	fallbackDuration := time.Second / time.Duration(30) // Default 30fps
 	if s.device.StreamTargetFPS > 0 {
-		fps = s.device.StreamTargetFPS
+		fallbackDuration = time.Second / time.Duration(s.device.StreamTargetFPS)
 	}
-	fallbackDuration := time.Second / time.Duration(fps)
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s (using iOS presentation timestamps)", s.device.UDID))
-
-	frameCount := 0
-	var previousPTS int64 = 0
-	decoderInitialized := false // Track if we've sent SPS/PPS to decoder
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s", s.device.UDID))
 
 	for {
+		// Check for cancellation
 		select {
 		case <-s.ctx.Done():
+			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping H.264 streaming for device %s", s.device.UDID))
 			return
-		case frame, ok := <-h264Channel:
-			if !ok {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("H.264 channel closed for device %s", s.device.UDID))
-				return
+		default:
+		}
+
+		// Read data from TCP connection
+		readBuf := make([]byte, 65536)
+		n, err := s.tcpConn.Read(readBuf)
+		if err != nil {
+			if err != io.EOF {
+				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading from TCP for device %s: %s", s.device.UDID, err))
+			}
+			return
+		}
+
+		buffer = append(buffer, readBuf[:n]...)
+
+		// Process complete messages
+		// Message format: [4 bytes length][8 bytes timestamp][payload]
+		for len(buffer) >= 12 {
+			// Read payload length
+			payloadLength := binary.BigEndian.Uint32(buffer[0:4])
+			messageLength := 4 + 8 + int(payloadLength)
+
+			// Check if we have complete message
+			if len(buffer) < messageLength {
+				break
 			}
 
-			frameCount++
+			// Extract message
+			timestamp := binary.BigEndian.Uint64(buffer[4:12])
+			payload := buffer[12:messageLength]
 
-			// Skip invalid frames (too small or not H.264)
-			if len(frame.Data) < 5 {
-				continue
-			}
+			// Process frame
+			s.processFrame(payload, timestamp, fallbackDuration)
 
-			// Check if this is valid H.264 data (must start with Annex-B start code)
-			if !(frame.Data[0] == 0x00 && frame.Data[1] == 0x00 && frame.Data[2] == 0x00 && frame.Data[3] == 0x01) {
-				// Not H.264 - skip (likely JSON metadata from iOS)
-				if frameCount <= 10 {
-					logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Skipping frame #%d - not H.264 format (first 4 bytes: %02x %02x %02x %02x)",
-						frameCount, frame.Data[0], frame.Data[1], frame.Data[2], frame.Data[3]))
-				}
-				continue
-			}
+			// Remove processed message from buffer
+			buffer = buffer[messageLength:]
+		}
+	}
+}
 
-			// Check NAL unit type
-			nalType := frame.Data[4] & 0x1F
+// processFrame processes a single H.264 frame
+func (s *IOSWebRTCSession) processFrame(payload []byte, timestamp uint64, fallbackDuration time.Duration) {
+	if len(payload) < 5 {
+		return
+	}
 
-			// Check if this frame contains SPS (7) or is a keyframe (5)
-			// We need to initialize the decoder with SPS/PPS before sending P-frames
-			if !decoderInitialized {
-				// Look for SPS in the frame
-				containsSPS := false
-				nalUnits := extractNALUnits(frame.Data)
-				for _, nalUnit := range nalUnits {
-					if len(nalUnit) >= 5 && (nalUnit[4]&0x1F) == 7 {
-						containsSPS = true
-						break
-					}
-				}
+	// Check if this is H.264 data (starts with start code)
+	if !(payload[0] == 0x00 && payload[1] == 0x00 && payload[2] == 0x00 && payload[3] == 0x01) {
+		// Not H.264 - skip (likely JSON metadata)
+		return
+	}
 
-				if containsSPS || nalType == 5 {
-					decoderInitialized = true
-					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Decoder initialized at frame #%d (contains SPS or keyframe)", frameCount))
-				} else {
-					// Skip P-frames before decoder is initialized
-					if frameCount <= 10 {
-						logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Skipping frame #%d (NAL type %d) - waiting for SPS/keyframe to initialize decoder", frameCount, nalType))
-					}
-					continue
-				}
-			}
+	s.mu.Lock()
+	s.frameCount++
+	frameNum := s.frameCount
 
-			// Calculate frame duration from presentation timestamp delta
-			// This follows the same approach as the working go-server implementation
-			var frameDuration time.Duration
-			if previousPTS == 0 {
-				// First frame - initialize timestamp tracking
-				frameDuration = fallbackDuration
-				previousPTS = frame.PTS
-				if frameCount == 1 {
-					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Initialized PTS tracking at frame #1 with PTS=%d", frame.PTS))
-				}
-			} else {
-				// Calculate duration from timestamp difference (microseconds)
-				ptsDelta := frame.PTS - previousPTS
-				frameDuration = time.Duration(ptsDelta) * time.Microsecond
-				previousPTS = frame.PTS // ALWAYS update timestamp (like go-server)
+	// Calculate duration from timestamps
+	var duration time.Duration
+	if s.firstTimestamp == 0 {
+		s.firstTimestamp = timestamp
+		s.lastTimestamp = timestamp
+		duration = fallbackDuration // Default for first frame
+	} else {
+		// Calculate duration from timestamp difference (microseconds)
+		timestampDiff := timestamp - s.lastTimestamp
+		duration = time.Duration(timestampDiff) * time.Microsecond
+		s.lastTimestamp = timestamp
 
-				// Sanity check - if duration is crazy, use fallback instead
-				// But we already updated previousPTS above, so we don't get stuck
-				if frameDuration < time.Millisecond*10 || frameDuration > time.Millisecond*100 {
-					if frameCount%30 == 0 { // Only log occasionally to avoid spam
-						logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Frame #%d: PTS delta out of range (delta=%dμs, %.1fms), using fallback duration", frameCount, ptsDelta, float64(ptsDelta)/1000.0))
-					}
-					frameDuration = fallbackDuration // Fallback to ~30fps
-				}
-			}
+		// Sanity check - if duration is crazy, use default
+		if duration < time.Millisecond*10 || duration > time.Millisecond*100 {
+			duration = fallbackDuration
+		}
+	}
 
-			// Write complete frame to WebRTC track with accurate timing
-			if err := s.videoTrack.WriteSample(media.Sample{
-				Data:     frame.Data,
-				Duration: frameDuration,
-			}); err != nil {
-				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write frame to track for device %s: %s", s.device.UDID, err))
-				return
-			}
+	track := s.videoTrack
+	s.mu.Unlock()
 
-			// Log first few frames and keyframes for debugging
-			if frameCount <= 3 || (len(frame.Data) > 5 && (frame.Data[4]&0x1F) == 5) || frameCount%300 == 0 {
-				// Split to analyze NAL types
-				nalUnits := extractNALUnits(frame.Data)
-				nalTypes := ""
-				hasKeyframe := false
-				hasSPS := false
-				hasPPS := false
+	// Log every 30 frames
+	if frameNum%30 == 0 {
+		logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Streaming frame #%d (%d bytes, duration=%v) for device %s", frameNum, len(payload), duration, s.device.UDID))
+	}
 
-				for i, nalUnit := range nalUnits {
-					if len(nalUnit) >= 5 {
-						nalType := nalUnit[4] & 0x1F
-						if i > 0 {
-							nalTypes += ", "
-						}
-						nalTypes += fmt.Sprintf("%d", nalType)
-
-						if nalType == 7 { hasSPS = true }
-						if nalType == 8 { hasPPS = true }
-						if nalType == 5 { hasKeyframe = true }
-					}
-				}
-
-				// Show first 20 bytes as hex for debugging
-				hexDump := ""
-				dumpLen := 20
-				if len(frame.Data) < dumpLen {
-					dumpLen = len(frame.Data)
-				}
-				for i := 0; i < dumpLen; i++ {
-					hexDump += fmt.Sprintf("%02x ", frame.Data[i])
-				}
-
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame #%d: PTS=%d, NAL types=[%s], size=%d bytes, SPS=%v, PPS=%v, Keyframe=%v, hex=[%s], duration=%v",
-					frameCount, frame.PTS, nalTypes, len(frame.Data), hasSPS, hasPPS, hasKeyframe, hexDump, frameDuration))
-			}
-
-			// Log every 30 frames with timing info
-			if frameCount%30 == 0 {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Sent frame #%d (PTS=%d, %d bytes, duration=%v, actual FPS: ~%.1f) to WebRTC for device %s",
-					frameCount, frame.PTS, len(frame.Data), frameDuration,
-					float64(time.Second)/float64(frameDuration), s.device.UDID))
-			}
+	// Write to WebRTC track
+	if track != nil {
+		if err := track.WriteSample(media.Sample{
+			Data:     payload,
+			Duration: duration,
+		}); err != nil {
+			logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write sample for device %s: %s", s.device.UDID, err))
 		}
 	}
 }
@@ -475,8 +300,8 @@ func (s *IOSWebRTCSession) OnConnectionStateChange(handler func(webrtc.PeerConne
 func (s *IOSWebRTCSession) Close() {
 	s.cancel()
 
-	if s.extractor != nil {
-		s.extractor.Close()
+	if s.tcpConn != nil {
+		s.tcpConn.Close()
 	}
 
 	if s.peerConnection != nil {
