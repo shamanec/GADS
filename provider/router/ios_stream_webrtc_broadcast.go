@@ -62,6 +62,9 @@ func NewIOSH264Extractor(device *models.Device) (*IOSH264Extractor, error) {
 
 	extractor.conn = conn
 
+	// Set read timeout to prevent hanging on stale connections
+	conn.SetReadDeadline(time.Time{}) // No deadline initially
+
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to iOS broadcast H.264 stream for device %s (iOS sends SPS/PPS with keyframes)", device.UDID))
 
 	// Start reading frames from TCP stream
@@ -274,6 +277,7 @@ func (s *IOSWebRTCSession) writeH264ToTrack() {
 
 	frameCount := 0
 	var previousPTS int64 = 0
+	decoderInitialized := false // Track if we've sent SPS/PPS to decoder
 
 	for {
 		select {
@@ -287,30 +291,73 @@ func (s *IOSWebRTCSession) writeH264ToTrack() {
 
 			frameCount++
 
-			// Skip invalid frames
+			// Skip invalid frames (too small or not H.264)
 			if len(frame.Data) < 5 {
 				continue
 			}
 
+			// Check if this is valid H.264 data (must start with Annex-B start code)
+			if !(frame.Data[0] == 0x00 && frame.Data[1] == 0x00 && frame.Data[2] == 0x00 && frame.Data[3] == 0x01) {
+				// Not H.264 - skip (likely JSON metadata from iOS)
+				if frameCount <= 10 {
+					logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Skipping frame #%d - not H.264 format (first 4 bytes: %02x %02x %02x %02x)",
+						frameCount, frame.Data[0], frame.Data[1], frame.Data[2], frame.Data[3]))
+				}
+				continue
+			}
+
+			// Check NAL unit type
+			nalType := frame.Data[4] & 0x1F
+
+			// Check if this frame contains SPS (7) or is a keyframe (5)
+			// We need to initialize the decoder with SPS/PPS before sending P-frames
+			if !decoderInitialized {
+				// Look for SPS in the frame
+				containsSPS := false
+				nalUnits := extractNALUnits(frame.Data)
+				for _, nalUnit := range nalUnits {
+					if len(nalUnit) >= 5 && (nalUnit[4]&0x1F) == 7 {
+						containsSPS = true
+						break
+					}
+				}
+
+				if containsSPS || nalType == 5 {
+					decoderInitialized = true
+					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Decoder initialized at frame #%d (contains SPS or keyframe)", frameCount))
+				} else {
+					// Skip P-frames before decoder is initialized
+					if frameCount <= 10 {
+						logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Skipping frame #%d (NAL type %d) - waiting for SPS/keyframe to initialize decoder", frameCount, nalType))
+					}
+					continue
+				}
+			}
+
 			// Calculate frame duration from presentation timestamp delta
+			// This follows the same approach as the working go-server implementation
 			var frameDuration time.Duration
-			if frameCount == 1 {
-				// First frame - use fallback duration
+			if previousPTS == 0 {
+				// First frame - initialize timestamp tracking
 				frameDuration = fallbackDuration
 				previousPTS = frame.PTS
-			} else {
-				// Calculate actual duration from PTS delta (PTS is in microseconds)
-				ptsDelta := frame.PTS - previousPTS
-				if ptsDelta > 0 && ptsDelta < 1000000 { // Sanity check: less than 1 second
-					frameDuration = time.Duration(ptsDelta) * time.Microsecond
-				} else {
-					// Timestamp went backwards or is invalid - use fallback
-					if ptsDelta <= 0 || ptsDelta >= 1000000 {
-						logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Invalid PTS delta for frame #%d (current=%d, prev=%d), using fallback duration", frameCount, frame.PTS, previousPTS))
-					}
-					frameDuration = fallbackDuration
+				if frameCount == 1 {
+					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Initialized PTS tracking at frame #1 with PTS=%d", frame.PTS))
 				}
-				previousPTS = frame.PTS
+			} else {
+				// Calculate duration from timestamp difference (microseconds)
+				ptsDelta := frame.PTS - previousPTS
+				frameDuration = time.Duration(ptsDelta) * time.Microsecond
+				previousPTS = frame.PTS // ALWAYS update timestamp (like go-server)
+
+				// Sanity check - if duration is crazy, use fallback instead
+				// But we already updated previousPTS above, so we don't get stuck
+				if frameDuration < time.Millisecond*10 || frameDuration > time.Millisecond*100 {
+					if frameCount%30 == 0 { // Only log occasionally to avoid spam
+						logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Frame #%d: PTS delta out of range (delta=%dμs, %.1fms), using fallback duration", frameCount, ptsDelta, float64(ptsDelta)/1000.0))
+					}
+					frameDuration = fallbackDuration // Fallback to ~30fps
+				}
 			}
 
 			// Write complete frame to WebRTC track with accurate timing
@@ -322,11 +369,15 @@ func (s *IOSWebRTCSession) writeH264ToTrack() {
 				return
 			}
 
-			// Log first frame for debugging
-			if frameCount == 1 {
+			// Log first few frames and keyframes for debugging
+			if frameCount <= 3 || (len(frame.Data) > 5 && (frame.Data[4]&0x1F) == 5) || frameCount%300 == 0 {
 				// Split to analyze NAL types
 				nalUnits := extractNALUnits(frame.Data)
 				nalTypes := ""
+				hasKeyframe := false
+				hasSPS := false
+				hasPPS := false
+
 				for i, nalUnit := range nalUnits {
 					if len(nalUnit) >= 5 {
 						nalType := nalUnit[4] & 0x1F
@@ -334,14 +385,32 @@ func (s *IOSWebRTCSession) writeH264ToTrack() {
 							nalTypes += ", "
 						}
 						nalTypes += fmt.Sprintf("%d", nalType)
+
+						if nalType == 7 { hasSPS = true }
+						if nalType == 8 { hasPPS = true }
+						if nalType == 5 { hasKeyframe = true }
 					}
 				}
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame #1 PTS=%d, NAL types=[%s], size=%d bytes, duration=%v for device %s", frame.PTS, nalTypes, len(frame.Data), frameDuration, s.device.UDID))
+
+				// Show first 20 bytes as hex for debugging
+				hexDump := ""
+				dumpLen := 20
+				if len(frame.Data) < dumpLen {
+					dumpLen = len(frame.Data)
+				}
+				for i := 0; i < dumpLen; i++ {
+					hexDump += fmt.Sprintf("%02x ", frame.Data[i])
+				}
+
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame #%d: PTS=%d, NAL types=[%s], size=%d bytes, SPS=%v, PPS=%v, Keyframe=%v, hex=[%s], duration=%v",
+					frameCount, frame.PTS, nalTypes, len(frame.Data), hasSPS, hasPPS, hasKeyframe, hexDump, frameDuration))
 			}
 
-			// Log every 30 frames
+			// Log every 30 frames with timing info
 			if frameCount%30 == 0 {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Sent frame #%d (PTS=%d, %d bytes, duration=%v) to WebRTC for device %s", frameCount, frame.PTS, len(frame.Data), frameDuration, s.device.UDID))
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Sent frame #%d (PTS=%d, %d bytes, duration=%v, actual FPS: ~%.1f) to WebRTC for device %s",
+					frameCount, frame.PTS, len(frame.Data), frameDuration,
+					float64(time.Second)/float64(frameDuration), s.device.UDID))
 			}
 		}
 	}
