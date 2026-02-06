@@ -212,13 +212,23 @@ This is an optional but a preferable step - it can make devices setup more auton
 **NB** Provider will fall back to manual pairing if something is wrong with the supervision profile, provided password or supervised pairing.  
 **NB** You can skip supervising the devices and you should trust manually on first pair attempt by the provider but if devices are supervised in advance setup can be more autonomous.
 
+#### Prepare Broadcast Extension for WebRTC video - optional
+GADS supports iOS devices WebRTC video stream using a Broadcast Extesion to generate H264 frames from the device screen. This is currently not automatically done by GADS.
+- Download `gads-broadcast.ipa` from the `resources` folder in the repository
+- Sign and install the `gads-broadcast.ipa` on your iOS devices
+- On each device edit the Control Center and add the `Screen Recording` option
+- Tap & hold the `Screen Recording` button until the context menu with selection appears
+- Select `gads-broadcast-extension` from the menu and tap `Start Broadcast`
+- The broadcast should start in a few seconds
+- You can now start the provider instance
+
 ### Android Phones
 #### USB Debugging
 * On each device activate `Developer options`, open them and enable `Enable USB debugging`
 * Connect each device to the host - a popup will appear on the device to pair - allow it.
 
 #### Android WebRTC video - EXPERIMENTAL
-GADS has experimental WebRTC video streaming for Android that can be used instead of MJPEG. The quality can be lower because it is controlled by WebRTC itself but it can potentially work better on external networks with lower bandwidth consumption.
+GADS has experimental WebRTC video streaming for Android that can be used instead of MJPEG. The quality can be lower because it is controlled by WebRTC itself but it can potentially work better on external networks with lower bandwidth consumption. There are two different WebRTC options - GetStream and GADS H264. If you have issues with one of them you can try using the other.
 
 ##### WebRTC device setup
 * Go to `Admin > Devices` in the hub UI
