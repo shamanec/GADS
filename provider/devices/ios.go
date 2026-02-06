@@ -328,3 +328,47 @@ func updateIOSScreenSize(device *models.Device, deviceMachineCode string) error 
 
 	return nil
 }
+
+func getProcessPid(device *models.Device, processName string) (uint64, error) {
+	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+	if err != nil {
+		return 0, fmt.Errorf("getProcessPid: Failed to create process control instance for device `%s`", device.UDID)
+	}
+	defer pControl.Close()
+	svc, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
+	if err != nil {
+		return 0, fmt.Errorf("getProcessPid: Failed to create device info service for device `%s`", device.UDID)
+	}
+
+	var availableProcesses []string
+	processList, _ := svc.ProcessList()
+	for _, process := range processList {
+		if process.Pid > 1 && process.Name == processName {
+			return process.Pid, nil
+		}
+	}
+
+	for _, process := range processList {
+		availableProcesses = append(availableProcesses, process.Name)
+	}
+
+	return 0, fmt.Errorf("getProcessPid: No process with name `%s` found on device `%s`. Available processes: %s", processName, device.UDID, availableProcesses)
+}
+
+func disableProcessMemoryLimit(device *models.Device, pid uint64) error {
+	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("disableProcessMemoryLimit: Failed to create process control instance for device `%s` - %s", device.UDID, err)
+	}
+
+	disabled, err := pControl.DisableMemoryLimit(pid)
+	if err != nil {
+		return fmt.Errorf("disableProcessMemoryLimit: Failed to disable memory limit for pid `%v` for device `%s` - %s", pid, device.UDID, err)
+	}
+
+	if !disabled {
+		return fmt.Errorf("disableProcessMemoryLimit: Failed to disable memory limit for pid `%v` for device `%s` without explicit error", pid, device.UDID)
+	}
+
+	return nil
+}
