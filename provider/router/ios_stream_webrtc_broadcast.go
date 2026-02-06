@@ -202,7 +202,6 @@ func (s *IOSWebRTCSession) processFrame(payload []byte, timestamp uint64, fallba
 
 	s.mu.Lock()
 	s.frameCount++
-	frameNum := s.frameCount
 
 	// Calculate duration from timestamps
 	var duration time.Duration
@@ -226,9 +225,11 @@ func (s *IOSWebRTCSession) processFrame(payload []byte, timestamp uint64, fallba
 	s.mu.Unlock()
 
 	// Log every 30 frames
-	if frameNum%30 == 0 {
-		logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Streaming frame #%d (%d bytes, duration=%v) for device %s", frameNum, len(payload), duration, s.device.UDID))
-	}
+	// Left for potential debugging
+	// frameNum := s.frameCount
+	// if frameNum%30 == 0 {
+	// 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Streaming frame #%d (%d bytes, duration=%v) for device %s", frameNum, len(payload), duration, s.device.UDID))
+	// }
 
 	// Write to WebRTC track
 	if track != nil {
