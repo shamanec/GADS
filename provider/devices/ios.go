@@ -171,7 +171,7 @@ func GetInstalledAppsIOS(device *models.Device) []string {
 	}
 
 	for _, appInfo := range response {
-		installedApps = append(installedApps, appInfo.CFBundleIdentifier)
+		installedApps = append(installedApps, appInfo.CFBundleIdentifier())
 	}
 
 	return installedApps
