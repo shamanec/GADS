@@ -29,156 +29,10 @@ import (
 	"github.com/pion/webrtc/v3/pkg/media"
 )
 
-// H264Frame represents a frame with its presentation timestamp
-type H264Frame struct {
-	Data []byte // H.264 frame data
-	PTS  int64  // Presentation timestamp in microseconds
-}
-
-// AndroidH264Extractor handles extracting H.264 frames from Android WebSocket stream
-type AndroidH264Extractor struct {
-	device      *models.Device
-	conn        io.ReadWriteCloser
-	h264Channel chan H264Frame
-	ctx         context.Context
-	cancel      context.CancelFunc
-}
-
-// NewAndroidH264Extractor creates a new H.264 extractor for Android WebSocket stream
-func NewAndroidH264Extractor(device *models.Device) (*AndroidH264Extractor, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	extractor := &AndroidH264Extractor{
-		device:      device,
-		h264Channel: make(chan H264Frame, 30), // Buffer for H.264 frames with timestamps
-		ctx:         ctx,
-		cancel:      cancel,
-	}
-
-	// Connect to Android stream WebSocket
-	streamURL := "ws://localhost:" + device.StreamPort
-
-	// Dial WebSocket connection
-	conn, _, _, err := ws.Dial(ctx, streamURL)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to connect to Android stream: %w", err)
-	}
-
-	extractor.conn = conn
-
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android H.264 stream for device %s (Android sends SPS/PPS with keyframes)", device.UDID))
-
-	// Start reading frames from WebSocket
-	go extractor.extractH264Frames()
-
-	return extractor, nil
-}
-
-// Start begins extracting H.264 frames from the WebSocket stream (deprecated, now auto-started)
-func (e *AndroidH264Extractor) Start() {
-	// Now a no-op since we start in constructor
-}
-
-// extractNALUnits splits H.264 data by Annex-B start codes (0x00 0x00 0x00 0x01)
-func extractNALUnits(data []byte) [][]byte {
-	var nalUnits [][]byte
-
-	// Find all start code positions
-	var positions []int
-	for i := 0; i <= len(data)-4; i++ {
-		if data[i] == 0x00 && data[i+1] == 0x00 && data[i+2] == 0x00 && data[i+3] == 0x01 {
-			positions = append(positions, i)
-		}
-	}
-
-	// Extract NAL units between start codes
-	for i := 0; i < len(positions); i++ {
-		start := positions[i]
-		var end int
-		if i+1 < len(positions) {
-			end = positions[i+1]
-		} else {
-			end = len(data)
-		}
-		nalUnits = append(nalUnits, data[start:end])
-	}
-
-	return nalUnits
-}
-
-// extractH264Frames reads H.264 frames from WebSocket and sends to channel
-// Android sends complete frames with SPS/PPS prepended to keyframes
-func (e *AndroidH264Extractor) extractH264Frames() {
-	defer close(e.h264Channel)
-	defer e.conn.Close()
-
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 frame extraction from WebSocket for device %s", e.device.UDID))
-
-	frameCount := 0
-
-	for {
-		select {
-		case <-e.ctx.Done():
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping H.264 extraction for device %s", e.device.UDID))
-			return
-		default:
-			// Read H.264 frame from WebSocket
-			// Android now sends: [8 bytes PTS][H.264 data]
-			msg, _, err := wsutil.ReadServerData(e.conn)
-			if err != nil {
-				if err != io.EOF {
-					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading H.264 from WebSocket for device %s: %s", e.device.UDID, err))
-				}
-				return
-			}
-
-			// Need at least 8 bytes for PTS + some H.264 data
-			if len(msg) < 13 {
-				continue
-			}
-
-			frameCount++
-
-			// Extract presentation timestamp (first 8 bytes, big-endian)
-			pts := int64(binary.BigEndian.Uint64(msg[0:8]))
-
-			// Extract H.264 data (everything after first 8 bytes)
-			h264Data := msg[8:]
-
-			// Log every 30 frames
-			if frameCount%30 == 0 {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Received frame #%d (PTS=%d, %d bytes) from Android for device %s", frameCount, pts, len(h264Data), e.device.UDID))
-			}
-
-			// Send H.264 frame with timestamp to channel (non-blocking)
-			frame := H264Frame{
-				Data: h264Data,
-				PTS:  pts,
-			}
-			select {
-			case e.h264Channel <- frame:
-			case <-e.ctx.Done():
-				return
-			default:
-				// Drop frame if channel is full (backpressure)
-				logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropped frame #%d for device %s (channel full)", frameCount, e.device.UDID))
-			}
-		}
-	}
-}
-
-// GetH264Channel returns the channel that receives H.264 frames
-func (e *AndroidH264Extractor) GetH264Channel() <-chan H264Frame {
-	return e.h264Channel
-}
-
-// Close stops the extractor and cleans up resources
-func (e *AndroidH264Extractor) Close() {
-	e.cancel()
-	if e.conn != nil {
-		e.conn.Close()
-	}
+// AndroidH264Frame represents a frame with its presentation timestamp
+type AndroidH264Frame struct {
+	Data      []byte
+	Timestamp uint64
 }
 
 // AndroidWebRTCSession manages a WebRTC peer connection for Android streaming
@@ -186,11 +40,17 @@ type AndroidWebRTCSession struct {
 	device         *models.Device
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
-	extractor      *AndroidH264Extractor
+	wsConn         io.ReadWriteCloser
+	frameChannel   chan AndroidH264Frame
 	ctx            context.Context
 	cancel         context.CancelFunc
 	mu             sync.Mutex
 	iceCandidates  []webrtc.ICECandidateInit
+
+	// Timestamp tracking
+	firstTimestamp uint64
+	lastTimestamp  uint64
+	frameCount     int
 }
 
 // NewAndroidWebRTCSession creates a new WebRTC session for Android device streaming
@@ -202,6 +62,7 @@ func NewAndroidWebRTCSession(device *models.Device) (*AndroidWebRTCSession, erro
 		ctx:           ctx,
 		cancel:        cancel,
 		iceCandidates: make([]webrtc.ICECandidateInit, 0),
+		frameChannel:  make(chan AndroidH264Frame, 30), // Buffer 30 frames
 	}
 
 	// Create WebRTC configuration
@@ -259,103 +120,148 @@ func NewAndroidWebRTCSession(device *models.Device) (*AndroidWebRTCSession, erro
 
 // Start begins the streaming pipeline
 func (s *AndroidWebRTCSession) Start() error {
-	// Create H.264 extractor
-	extractor, err := NewAndroidH264Extractor(s.device)
+	// Connect to Android stream WebSocket
+	streamURL := "ws://localhost:" + s.device.StreamPort
+
+	// Dial WebSocket connection
+	conn, _, _, err := ws.Dial(s.ctx, streamURL)
 	if err != nil {
-		return fmt.Errorf("failed to create H.264 extractor: %w", err)
+		return fmt.Errorf("failed to connect to Android stream: %w", err)
 	}
-	s.extractor = extractor
-	extractor.Start()
+	s.wsConn = conn
 
-	// Start writing H.264 to WebRTC track
-	go s.writeH264ToTrack()
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android H.264 stream for device %s", s.device.UDID))
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Started Android streaming pipeline for device %s", s.device.UDID))
+	// Start reading frames from WebSocket
+	go s.readFrames()
+
+	// Start writing frames to WebRTC track
+	go s.writeFrames()
+
 	return nil
 }
 
-// writeH264ToTrack reads H.264 data and writes to WebRTC video track
-// Uses presentation timestamps from MediaCodec for accurate frame timing
-func (s *AndroidWebRTCSession) writeH264ToTrack() {
-	h264Channel := s.extractor.GetH264Channel()
+// readFrames reads H.264 frames from WebSocket and sends to channel
+func (s *AndroidWebRTCSession) readFrames() {
+	defer close(s.frameChannel)
+	defer s.wsConn.Close()
 
-	// Fallback duration if PTS calculation fails
-	fps := 30
-	if s.device.StreamTargetFPS > 0 {
-		fps = s.device.StreamTargetFPS
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting frame reading for device %s", s.device.UDID))
+
+	readCount := 0
+	for {
+		select {
+		case <-s.ctx.Done():
+			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping frame reading for device %s", s.device.UDID))
+			return
+		default:
+		}
+
+		// Read H.264 frame from WebSocket
+		// Android sends: [8 bytes PTS][H.264 data]
+		msg, _, err := wsutil.ReadServerData(s.wsConn)
+		if err != nil {
+			if err != io.EOF {
+				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading from WebSocket for device %s: %s", s.device.UDID, err))
+			}
+			return
+		}
+
+		// Need at least 8 bytes for PTS + some H.264 data
+		if len(msg) < 13 {
+			continue
+		}
+
+		readCount++
+
+		// Extract presentation timestamp (first 8 bytes, big-endian)
+		timestamp := binary.BigEndian.Uint64(msg[0:8])
+
+		// Extract H.264 data (everything after first 8 bytes)
+		payload := msg[8:]
+
+		// Send to channel (non-blocking to prevent read stalls)
+		frame := AndroidH264Frame{
+			Data:      payload,
+			Timestamp: timestamp,
+		}
+
+		select {
+		case s.frameChannel <- frame:
+			// Successfully queued
+		case <-s.ctx.Done():
+			return
+		default:
+			// Channel full - drop frame to prevent blocking
+			if readCount%30 == 0 {
+				logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropped frame (channel full) for device %s", s.device.UDID))
+			}
+		}
 	}
-	fallbackDuration := time.Second / time.Duration(fps)
+}
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s (using MediaCodec presentation timestamps)", s.device.UDID))
+// writeFrames reads frames from channel and writes to WebRTC track
+func (s *AndroidWebRTCSession) writeFrames() {
+	fallbackDuration := time.Second / time.Duration(30) // Default 30fps
+	if s.device.StreamTargetFPS > 0 {
+		fallbackDuration = time.Second / time.Duration(s.device.StreamTargetFPS)
+	}
 
-	frameCount := 0
-	var previousPTS int64 = 0
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting frame writing for device %s", s.device.UDID))
 
 	for {
 		select {
 		case <-s.ctx.Done():
+			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping frame writing for device %s", s.device.UDID))
 			return
-		case frame, ok := <-h264Channel:
+		case frame, ok := <-s.frameChannel:
 			if !ok {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("H.264 channel closed for device %s", s.device.UDID))
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame channel closed for device %s", s.device.UDID))
 				return
 			}
 
-			frameCount++
-
-			// Skip invalid frames
 			if len(frame.Data) < 5 {
 				continue
 			}
 
-			// Calculate frame duration from presentation timestamp delta
-			var frameDuration time.Duration
-			if frameCount == 1 {
-				// First frame - use fallback duration
-				frameDuration = fallbackDuration
-				previousPTS = frame.PTS
+			s.mu.Lock()
+			s.frameCount++
+			frameNum := s.frameCount
+
+			// Calculate duration from timestamps
+			var duration time.Duration
+			if s.firstTimestamp == 0 {
+				s.firstTimestamp = frame.Timestamp
+				s.lastTimestamp = frame.Timestamp
+				duration = fallbackDuration
 			} else {
-				// Calculate actual duration from PTS delta (PTS is in microseconds)
-				ptsDelta := frame.PTS - previousPTS
-				if ptsDelta > 0 {
-					frameDuration = time.Duration(ptsDelta) * time.Microsecond
-				} else {
-					// Timestamp went backwards or is same - use fallback
-					logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Invalid PTS delta for frame #%d (current=%d, prev=%d), using fallback duration", frameCount, frame.PTS, previousPTS))
-					frameDuration = fallbackDuration
+				timestampDiff := frame.Timestamp - s.lastTimestamp
+				duration = time.Duration(timestampDiff) * time.Microsecond
+				s.lastTimestamp = frame.Timestamp
+
+				// Sanity check
+				if duration < time.Millisecond*10 || duration > time.Millisecond*100 {
+					duration = fallbackDuration
 				}
-				previousPTS = frame.PTS
 			}
 
-			// Write complete frame to WebRTC track with accurate timing
-			if err := s.videoTrack.WriteSample(media.Sample{
-				Data:     frame.Data,
-				Duration: frameDuration,
-			}); err != nil {
-				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write frame to track for device %s: %s", s.device.UDID, err))
-				return
-			}
-
-			// Log first frame for debugging
-			if frameCount == 1 {
-				// Split to analyze NAL types
-				nalUnits := extractNALUnits(frame.Data)
-				nalTypes := ""
-				for i, nalUnit := range nalUnits {
-					if len(nalUnit) >= 5 {
-						nalType := nalUnit[4] & 0x1F
-						if i > 0 {
-							nalTypes += ", "
-						}
-						nalTypes += fmt.Sprintf("%d", nalType)
-					}
-				}
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame #1 PTS=%d, NAL types=[%s], size=%d bytes, duration=%v for device %s", frame.PTS, nalTypes, len(frame.Data), frameDuration, s.device.UDID))
-			}
+			track := s.videoTrack
+			s.mu.Unlock()
 
 			// Log every 30 frames
-			if frameCount%30 == 0 {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Sent frame #%d (PTS=%d, %d bytes, duration=%v) to WebRTC for device %s", frameCount, frame.PTS, len(frame.Data), frameDuration, s.device.UDID))
+			if frameNum%30 == 0 {
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Streaming frame #%d (%d bytes, duration=%v) for device %s", frameNum, len(frame.Data), duration, s.device.UDID))
+			}
+
+			// Write to WebRTC track
+			if track != nil {
+				if err := track.WriteSample(media.Sample{
+					Data:     frame.Data,
+					Duration: duration,
+				}); err != nil {
+					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write sample for device %s: %s", s.device.UDID, err))
+					return
+				}
 			}
 		}
 	}
@@ -420,8 +326,8 @@ func (s *AndroidWebRTCSession) OnConnectionStateChange(handler func(webrtc.PeerC
 func (s *AndroidWebRTCSession) Close() {
 	s.cancel()
 
-	if s.extractor != nil {
-		s.extractor.Close()
+	if s.wsConn != nil {
+		s.wsConn.Close()
 	}
 
 	if s.peerConnection != nil {
@@ -473,7 +379,10 @@ func AndroidWebRTCSocket(c *gin.Context) {
 		}
 
 		candidateJSON := candidate.ToJSON()
-		msg := WebRTCSignalingMessage{
+		msg := struct {
+			Type      string                   `json:"type"`
+			Candidate *webrtc.ICECandidateInit `json:"candidate"`
+		}{
 			Type:      "candidate",
 			Candidate: &candidateJSON,
 		}
@@ -508,7 +417,11 @@ func AndroidWebRTCSocket(c *gin.Context) {
 			return
 		}
 
-		var signalingMsg WebRTCSignalingMessage
+		var signalingMsg struct {
+			Type      string                   `json:"type"`
+			SDP       string                   `json:"sdp,omitempty"`
+			Candidate *webrtc.ICECandidateInit `json:"candidate,omitempty"`
+		}
 		if err := json.Unmarshal(msg, &signalingMsg); err != nil {
 			logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to unmarshal signaling message for device `%s` - %s", udid, err))
 			continue
@@ -528,7 +441,10 @@ func AndroidWebRTCSocket(c *gin.Context) {
 				return
 			}
 
-			response := WebRTCSignalingMessage{
+			response := struct {
+				Type string `json:"type"`
+				SDP  string `json:"sdp"`
+			}{
 				Type: "answer",
 				SDP:  answer.SDP,
 			}
