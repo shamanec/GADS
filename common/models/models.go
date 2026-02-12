@@ -55,9 +55,10 @@ type Device struct {
 	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
 	// DEPRECATED: UseWebRTCVideo will be deprecated, use StreamType instead.
 	// This field will be removed in next major version release. Only kept for backward compatibility during migration.
-	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
-	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
-	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
+	UseWebRTCVideo     bool          `json:"use_webrtc_video" bson:"use_webrtc_video"`         // Should the device use WebRTC video instead of MJPEG
+	WorkspaceID        string        `json:"workspace_id" bson:"workspace_id"`                 // ID of the associated workspace
+	StreamType         StreamingType `json:"stream_type" bson:"stream_type"`                   // The type of video streaming for the device
+	AudioStreamEnabled bool          `json:"audio_stream_enabled" bson:"audio_stream_enabled"` // Enable audio streaming via WebRTC
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string       `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -83,6 +84,7 @@ type Device struct {
 	WDASessionID            string             `json:"-" bson:"-"` // current WebDriverAgent session ID
 	AppiumPort              string             `json:"-" bson:"-"` // port assigned to the device for the Appium server
 	StreamPort              string             `json:"-" bson:"-"` // port assigned to the device for the video stream
+	AudioPort               string             `json:"-" bson:"-"` // port assigned to the device for the audio stream
 	WDAStreamPort           string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
 	WDAPort                 string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
 	AndroidIMEPort          string             `json:"-" bson:"-"` // port assigned to Android devices for the custom IME keyboard instance

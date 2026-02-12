@@ -272,6 +272,11 @@ func forwardGadsStream(device *models.Device) error {
 	return forwardAndroidPort(device, "1991", device.StreamPort)
 }
 
+// Forward the GADS Android audio stream tcp to a host port that is already assigned for the device
+func forwardGadsAudioStream(device *models.Device) error {
+	return forwardAndroidPort(device, "1992", device.AudioPort)
+}
+
 // Forward the GADS Android IME tcp to a host port that is already assigned for the device
 func forwardGadsAndroidIME(device *models.Device) error {
 	return forwardAndroidPort(device, "1993", device.AndroidIMEPort)

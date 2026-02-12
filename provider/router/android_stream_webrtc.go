@@ -25,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/hraban/opus"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
 )
@@ -32,6 +33,12 @@ import (
 // H264Frame represents a frame with its presentation timestamp
 type H264Frame struct {
 	Data []byte // H.264 frame data
+	PTS  int64  // Presentation timestamp in microseconds
+}
+
+// AudioFrame represents an audio frame with its presentation timestamp
+type AudioFrame struct {
+	Data []byte // Opus-encoded audio data
 	PTS  int64  // Presentation timestamp in microseconds
 }
 
@@ -181,12 +188,147 @@ func (e *AndroidH264Extractor) Close() {
 	}
 }
 
+// AndroidAudioExtractor handles extracting PCM audio from Android WebSocket stream and encoding to Opus
+type AndroidAudioExtractor struct {
+	device       *models.Device
+	conn         io.ReadWriteCloser
+	audioChannel chan AudioFrame
+	ctx          context.Context
+	cancel       context.CancelFunc
+	encoder      *opus.Encoder
+}
+
+// NewAndroidAudioExtractor creates a new audio extractor for Android WebSocket stream
+func NewAndroidAudioExtractor(device *models.Device) (*AndroidAudioExtractor, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	extractor := &AndroidAudioExtractor{
+		device:       device,
+		audioChannel: make(chan AudioFrame, 30),
+		ctx:          ctx,
+		cancel:       cancel,
+	}
+
+	// Create Opus encoder (48kHz, 1 channel, audio application)
+	encoder, err := opus.NewEncoder(48000, 1, opus.AppAudio)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to create Opus encoder: %w", err)
+	}
+	extractor.encoder = encoder
+
+	// Connect to Android audio WebSocket
+	audioURL := "ws://localhost:" + device.AudioPort
+
+	conn, _, _, err := ws.Dial(ctx, audioURL)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to connect to Android audio stream: %w", err)
+	}
+
+	extractor.conn = conn
+
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android audio stream for device %s", device.UDID))
+
+	// Start reading frames
+	go extractor.extractAudioFrames()
+
+	return extractor, nil
+}
+
+// extractAudioFrames reads PCM frames from WebSocket, encodes to Opus, sends to channel
+func (e *AndroidAudioExtractor) extractAudioFrames() {
+	defer close(e.audioChannel)
+	defer e.conn.Close()
+
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting audio frame extraction from WebSocket for device %s", e.device.UDID))
+
+	frameCount := 0
+
+	for {
+		select {
+		case <-e.ctx.Done():
+			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping audio extraction for device %s", e.device.UDID))
+			return
+		default:
+			// Read message from WebSocket
+			msg, _, err := wsutil.ReadServerData(e.conn)
+			if err != nil {
+				if err != io.EOF {
+					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading audio frame: %v", err))
+				}
+				return
+			}
+
+			if len(msg) < 8 {
+				continue
+			}
+
+			// Extract PTS (first 8 bytes, big-endian)
+			pts := int64(binary.BigEndian.Uint64(msg[0:8]))
+
+			// Extract PCM data (rest of message)
+			pcmData := msg[8:]
+
+			// Convert PCM bytes to int16 samples (little-endian)
+			numSamples := len(pcmData) / 2
+			pcmSamples := make([]int16, numSamples)
+			for i := 0; i < numSamples; i++ {
+				pcmSamples[i] = int16(pcmData[i*2]) | int16(pcmData[i*2+1])<<8
+			}
+
+			// Encode PCM to Opus (960 samples @ 48kHz = 20ms frame = 1920 bytes)
+			opusData := make([]byte, 4000) // Max Opus frame size
+			n, err := e.encoder.Encode(pcmSamples, opusData)
+			if err != nil {
+				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Opus encoding failed: %v", err))
+				continue
+			}
+
+			frameCount++
+
+			// Send to channel
+			audioFrame := AudioFrame{
+				Data: opusData[:n],
+				PTS:  pts,
+			}
+
+			select {
+			case e.audioChannel <- audioFrame:
+				if frameCount%100 == 0 {
+					logger.ProviderLogger.LogDebug("stream_webrtc", fmt.Sprintf("Processed audio frame #%d for device %s", frameCount, e.device.UDID))
+				}
+			case <-e.ctx.Done():
+				return
+			default:
+				// Drop frame if channel is full
+				logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropped audio frame #%d for device %s (channel full)", frameCount, e.device.UDID))
+			}
+		}
+	}
+}
+
+// GetAudioChannel returns the channel for reading audio frames
+func (e *AndroidAudioExtractor) GetAudioChannel() <-chan AudioFrame {
+	return e.audioChannel
+}
+
+// Close stops the extractor
+func (e *AndroidAudioExtractor) Close() {
+	e.cancel()
+	if e.conn != nil {
+		e.conn.Close()
+	}
+}
+
 // AndroidWebRTCSession manages a WebRTC peer connection for Android streaming
 type AndroidWebRTCSession struct {
 	device         *models.Device
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
+	audioTrack     *webrtc.TrackLocalStaticSample
 	extractor      *AndroidH264Extractor
+	audioExtractor *AndroidAudioExtractor
 	ctx            context.Context
 	cancel         context.CancelFunc
 	mu             sync.Mutex
@@ -242,7 +384,7 @@ func NewAndroidWebRTCSession(device *models.Device) (*AndroidWebRTCSession, erro
 		return nil, fmt.Errorf("failed to add track: %w", err)
 	}
 
-	// Handle RTCP packets
+	// Handle RTCP packets for video
 	go func() {
 		rtcpBuf := make([]byte, 1500)
 		for {
@@ -251,6 +393,40 @@ func NewAndroidWebRTCSession(device *models.Device) (*AndroidWebRTCSession, erro
 			}
 		}
 	}()
+
+	// Create audio track if enabled
+	if device.AudioStreamEnabled {
+		logger.ProviderLogger.LogInfo("webrtc_session", "Audio track enabled, creating Opus track")
+
+		audioTrack, err := webrtc.NewTrackLocalStaticSample(
+			webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus},
+			"audio",
+			"gads-stream",
+		)
+		if err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio track: %v", err))
+			device.AudioStreamEnabled = false
+		} else {
+			session.audioTrack = audioTrack
+
+			audioRtpSender, err := pc.AddTrack(audioTrack)
+			if err != nil {
+				logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to add audio track: %v", err))
+				device.AudioStreamEnabled = false
+			} else {
+				// Handle RTCP packets for audio track
+				go func() {
+					rtcpBuf := make([]byte, 1500)
+					for {
+						if _, _, rtcpErr := audioRtpSender.Read(rtcpBuf); rtcpErr != nil {
+							return
+						}
+					}
+				}()
+				logger.ProviderLogger.LogInfo("webrtc_session", "Audio track successfully added to peer connection")
+			}
+		}
+	}
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Created Android WebRTC session for device %s", device.UDID))
 
@@ -269,6 +445,22 @@ func (s *AndroidWebRTCSession) Start() error {
 
 	// Start writing H.264 to WebRTC track
 	go s.writeH264ToTrack()
+
+	// Start audio extractor if enabled
+	if s.device.AudioStreamEnabled && s.audioTrack != nil {
+		audioExtractor, err := NewAndroidAudioExtractor(s.device)
+		if err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio extractor: %v", err))
+			s.device.AudioStreamEnabled = false
+		} else {
+			s.audioExtractor = audioExtractor
+
+			// Start writing audio frames to track
+			go s.writeAudioToTrack()
+
+			logger.ProviderLogger.LogInfo("webrtc_session", "Audio extractor started successfully")
+		}
+	}
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Started Android streaming pipeline for device %s", s.device.UDID))
 	return nil
@@ -361,6 +553,50 @@ func (s *AndroidWebRTCSession) writeH264ToTrack() {
 	}
 }
 
+// writeAudioToTrack reads Opus frames from audio extractor and writes to WebRTC track
+func (s *AndroidWebRTCSession) writeAudioToTrack() {
+	if s.audioExtractor == nil || s.audioTrack == nil {
+		return
+	}
+
+	frameCount := 0
+	var previousPTS int64
+
+	// Opus frame duration: 960 samples @ 48kHz = 20ms
+	frameDuration := time.Millisecond * 20
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Starting audio streaming for device "+s.device.UDID)
+
+	for audioFrame := range s.audioExtractor.GetAudioChannel() {
+		frameCount++
+
+		// Calculate duration based on PTS delta
+		if frameCount > 1 && audioFrame.PTS > previousPTS {
+			ptsDelta := audioFrame.PTS - previousPTS
+			frameDuration = time.Duration(ptsDelta) * time.Microsecond
+		}
+
+		previousPTS = audioFrame.PTS
+
+		// Write to WebRTC track
+		sample := media.Sample{
+			Data:     audioFrame.Data,
+			Duration: frameDuration,
+		}
+
+		if err := s.audioTrack.WriteSample(sample); err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Error writing audio sample: %v", err))
+			return
+		}
+
+		if frameCount%100 == 0 {
+			logger.ProviderLogger.LogDebug("webrtc_session", fmt.Sprintf("Sent audio frame #%d (duration: %v) for device %s", frameCount, frameDuration, s.device.UDID))
+		}
+	}
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Audio track writing stopped")
+}
+
 // HandleOffer processes SDP offer from client
 func (s *AndroidWebRTCSession) HandleOffer(offer webrtc.SessionDescription) (*webrtc.SessionDescription, error) {
 	s.mu.Lock()
@@ -422,6 +658,10 @@ func (s *AndroidWebRTCSession) Close() {
 
 	if s.extractor != nil {
 		s.extractor.Close()
+	}
+
+	if s.audioExtractor != nil {
+		s.audioExtractor.Close()
 	}
 
 	if s.peerConnection != nil {

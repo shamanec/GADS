@@ -387,6 +387,19 @@ func setupAndroidDevice(device *models.Device) {
 	device.StreamPort = streamPort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS-stream for device `%v`", device.StreamPort, device.UDID))
 
+	// Allocate a free port on the host for the audio stream
+	if device.AudioStreamEnabled {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for audio stream for device `%v`", device.UDID))
+		audioPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not allocate audio port for device %v, continuing without audio - %v", device.UDID, err))
+			device.AudioStreamEnabled = false
+		} else {
+			device.AudioPort = audioPort
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for audio stream for device `%v`", device.AudioPort, device.UDID))
+		}
+	}
+
 	// Allocate a free port on the host for the IME server
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for GADS Android IME for device `%v`", device.UDID))
 	imePort, err := providerutil.GetFreePort()
@@ -522,6 +535,18 @@ func setupAndroidDevice(device *models.Device) {
 		return
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS streaming port to host port for Android device `%v`", device.UDID))
+
+	// Forward the audio stream to the host if enabled
+	if device.AudioStreamEnabled {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS audio streaming port to host port for Android device `%v`", device.UDID))
+		err = forwardGadsAudioStream(device)
+		if err != nil {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not forward GADS audio streaming port to host port %v for Android device - %v:\n %v", device.AudioPort, device.UDID, err))
+			device.AudioStreamEnabled = false
+		} else {
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded audio streaming port to host port %v for device `%v`", device.AudioPort, device.UDID))
+		}
+	}
 
 	// Send TURN configuration to WebRTC service (must happen AFTER port forward and BEFORE any WebRTC offer)
 	if models.IsWebRTCStreamType(device.StreamType) {
