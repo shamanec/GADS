@@ -15,7 +15,7 @@ const customActionsCollection = "custom_actions"
 func (m *MongoStore) GetCustomActions(tenant string) ([]models.CustomAction, error) {
 	coll := m.GetCollection(customActionsCollection)
 	filter := bson.M{"tenant": tenant}
-	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}})
 	return GetDocuments[models.CustomAction](m.Ctx, coll, filter, opts)
 }
 
@@ -68,6 +68,7 @@ func (m *MongoStore) UpdateCustomAction(id, tenant string, action *models.Custom
 		"name":        action.Name,
 		"description": action.Description,
 		"action_type": action.ActionType,
+		"parameters":  action.Parameters,
 		"is_favorite": action.IsFavorite,
 		"updated_at":  action.UpdatedAt,
 	}

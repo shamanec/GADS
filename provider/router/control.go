@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -309,14 +310,135 @@ func deviceGetClipboard(device *models.Device) (*http.Response, error) {
 	}
 }
 
-func executeCustomAction(device *models.Device, actionType string, x, y float64) (*http.Response, error) {
+func getFloat(params map[string]any, key string, defaultVal float64) float64 {
+	if val, ok := params[key]; ok {
+		if f, ok := val.(float64); ok {
+			return f
+		}
+	}
+	return defaultVal
+}
+
+func getString(params map[string]any, key string, defaultVal string) string {
+	if val, ok := params[key]; ok {
+		if s, ok := val.(string); ok {
+			return s
+		}
+	}
+	return defaultVal
+}
+
+func executeTypeText(device *models.Device, text string) (*http.Response, error) {
+	typeTextPayload := models.AppiumTypeText{
+		Text: text,
+	}
+	typeJSON, err := json.MarshalIndent(typeTextPayload, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	if device.OS == "ios" {
+		return wdaRequest(device, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
+	} else {
+		if device.AndroidIMEPort == "" {
+			return nil, fmt.Errorf("android IME port not configured")
+		}
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/type", device.AndroidIMEPort), bytes.NewBuffer(typeJSON))
+		if err != nil {
+			return nil, err
+		}
+		return netClient.Do(req)
+	}
+}
+
+func getCenterCoordinates(device *models.Device) (float64, float64) {
+	centerX := 500.0
+	centerY := 900.0
+
+	if device.ScreenWidth != "" {
+		if width, err := strconv.ParseFloat(device.ScreenWidth, 64); err == nil {
+			centerX = width / 2
+		}
+	}
+
+	if device.ScreenHeight != "" {
+		if height, err := strconv.ParseFloat(device.ScreenHeight, 64); err == nil {
+			centerY = height / 2
+		}
+	}
+
+	return centerX, centerY
+}
+
+func normalizeCoordinates(device *models.Device, x, y float64) (float64, float64) {
+	if x == 0 && y == 0 {
+		return getCenterCoordinates(device)
+	}
+	return x, y
+}
+
+func executeCustomAction(device *models.Device, actionType string, params map[string]any) (*http.Response, error) {
+	if params == nil {
+		params = make(map[string]any)
+	}
+
 	switch actionType {
-	case "pinch_in":
-		return devicePinch(device, x, y, 0.5)
-	case "pinch_out":
-		return devicePinch(device, x, y, 2.0)
+	case "tap":
+		x := getFloat(params, "x", 0)
+		y := getFloat(params, "y", 0)
+		x, y = normalizeCoordinates(device, x, y)
+		return deviceTap(device, x, y)
+
 	case "double_tap":
+		x := getFloat(params, "x", 0)
+		y := getFloat(params, "y", 0)
+		x, y = normalizeCoordinates(device, x, y)
 		return deviceDoubleTap(device, x, y)
+
+	case "swipe":
+		x := getFloat(params, "x", 0)
+		y := getFloat(params, "y", 0)
+		endX := getFloat(params, "endX", 0)
+		endY := getFloat(params, "endY", 0)
+		return deviceSwipe(device, x, y, endX, endY)
+
+	case "touch_and_hold":
+		x := getFloat(params, "x", 0)
+		y := getFloat(params, "y", 0)
+		x, y = normalizeCoordinates(device, x, y)
+		duration := getFloat(params, "duration", 1000)
+		return deviceTouchAndHold(device, x, y, duration)
+
+	case "pinch":
+		x := getFloat(params, "x", 0)
+		y := getFloat(params, "y", 0)
+		x, y = normalizeCoordinates(device, x, y)
+		scale := getFloat(params, "scale", 1.0)
+		return devicePinch(device, x, y, scale)
+
+	case "type_text":
+		text := getString(params, "text", "")
+		return executeTypeText(device, text)
+
+	case "home":
+		return deviceHome(device)
+
+	case "lock":
+		return deviceLock(device, "lock")
+
+	case "unlock":
+		return deviceLock(device, "unlock")
+
+	case "pinch_in":
+		x := getFloat(params, "x", 250)
+		y := getFloat(params, "y", 500)
+		return devicePinch(device, x, y, 0.5)
+
+	case "pinch_out":
+		x := getFloat(params, "x", 250)
+		y := getFloat(params, "y", 500)
+		return devicePinch(device, x, y, 2.0)
+
 	default:
 		return nil, fmt.Errorf("unsupported action type: %s", actionType)
 	}

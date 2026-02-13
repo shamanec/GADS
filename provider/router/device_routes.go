@@ -377,9 +377,9 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 		return
 	}
 
-	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Executing custom action '%s' at X:%v Y:%v", requestBody.ActionType, fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y)))
+	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Executing custom action '%s' with parameters: %+v", requestBody.ActionType, requestBody.Parameters))
 
-	actionResp, err := executeCustomAction(device, requestBody.ActionType, requestBody.X, requestBody.Y)
+	actionResp, err := executeCustomAction(device, requestBody.ActionType, requestBody.Parameters)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to execute custom action '%s' - %s", requestBody.ActionType, err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
