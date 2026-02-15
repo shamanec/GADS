@@ -340,9 +340,6 @@ func executeTypeText(device *models.Device, text string) (*http.Response, error)
 	if device.OS == "ios" {
 		return wdaRequest(device, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
 	} else {
-		if device.AndroidIMEPort == "" {
-			return nil, fmt.Errorf("android IME port not configured")
-		}
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/type", device.AndroidIMEPort), bytes.NewBuffer(typeJSON))
 		if err != nil {
 			return nil, err
