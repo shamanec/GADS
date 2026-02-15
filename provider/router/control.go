@@ -2,6 +2,7 @@ package router
 
 import (
 	"GADS/common/models"
+	"GADS/common/utils"
 	"GADS/provider/config"
 	"bytes"
 	"encoding/base64"
@@ -310,24 +311,6 @@ func deviceGetClipboard(device *models.Device) (*http.Response, error) {
 	}
 }
 
-func getFloat(params map[string]any, key string, defaultVal float64) float64 {
-	if val, ok := params[key]; ok {
-		if f, ok := val.(float64); ok {
-			return f
-		}
-	}
-	return defaultVal
-}
-
-func getString(params map[string]any, key string, defaultVal string) string {
-	if val, ok := params[key]; ok {
-		if s, ok := val.(string); ok {
-			return s
-		}
-	}
-	return defaultVal
-}
-
 func executeTypeText(device *models.Device, text string) (*http.Response, error) {
 	typeTextPayload := models.AppiumTypeText{
 		Text: text,
@@ -376,8 +359,8 @@ func executeCustomAction(device *models.Device, actionType string, params map[st
 
 	switch actionType {
 	case "tap":
-		x := getFloat(params, "x", 0)
-		y := getFloat(params, "y", 0)
+		x := utils.GetFloat(params, "x", 0)
+		y := utils.GetFloat(params, "y", 0)
 		x, y, err := normalizeCoordinates(device, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
@@ -385,8 +368,8 @@ func executeCustomAction(device *models.Device, actionType string, params map[st
 		return deviceTap(device, x, y)
 
 	case "double_tap":
-		x := getFloat(params, "x", 0)
-		y := getFloat(params, "y", 0)
+		x := utils.GetFloat(params, "x", 0)
+		y := utils.GetFloat(params, "y", 0)
 		x, y, err := normalizeCoordinates(device, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
@@ -394,34 +377,34 @@ func executeCustomAction(device *models.Device, actionType string, params map[st
 		return deviceDoubleTap(device, x, y)
 
 	case "swipe":
-		x := getFloat(params, "x", 0)
-		y := getFloat(params, "y", 0)
-		endX := getFloat(params, "endX", 0)
-		endY := getFloat(params, "endY", 0)
+		x := utils.GetFloat(params, "x", 0)
+		y := utils.GetFloat(params, "y", 0)
+		endX := utils.GetFloat(params, "endX", 0)
+		endY := utils.GetFloat(params, "endY", 0)
 		return deviceSwipe(device, x, y, endX, endY)
 
 	case "touch_and_hold":
-		x := getFloat(params, "x", 0)
-		y := getFloat(params, "y", 0)
+		x := utils.GetFloat(params, "x", 0)
+		y := utils.GetFloat(params, "y", 0)
 		x, y, err := normalizeCoordinates(device, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
 		}
-		duration := getFloat(params, "duration", 1000)
+		duration := utils.GetFloat(params, "duration", 1000)
 		return deviceTouchAndHold(device, x, y, duration)
 
 	case "pinch":
-		x := getFloat(params, "x", 0)
-		y := getFloat(params, "y", 0)
+		x := utils.GetFloat(params, "x", 0)
+		y := utils.GetFloat(params, "y", 0)
 		x, y, err := normalizeCoordinates(device, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
 		}
-		scale := getFloat(params, "scale", 1.0)
+		scale := utils.GetFloat(params, "scale", 1.0)
 		return devicePinch(device, x, y, scale)
 
 	case "type_text":
-		text := getString(params, "text", "")
+		text := utils.GetString(params, "text", "")
 		return executeTypeText(device, text)
 
 	case "home":
@@ -434,13 +417,13 @@ func executeCustomAction(device *models.Device, actionType string, params map[st
 		return deviceLock(device, "unlock")
 
 	case "pinch_in":
-		x := getFloat(params, "x", 250)
-		y := getFloat(params, "y", 500)
+		x := utils.GetFloat(params, "x", 250)
+		y := utils.GetFloat(params, "y", 500)
 		return devicePinch(device, x, y, 0.5)
 
 	case "pinch_out":
-		x := getFloat(params, "x", 250)
-		y := getFloat(params, "y", 500)
+		x := utils.GetFloat(params, "x", 250)
+		y := utils.GetFloat(params, "y", 500)
 		return devicePinch(device, x, y, 2.0)
 
 	default:
