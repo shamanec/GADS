@@ -351,30 +351,25 @@ func executeTypeText(device *models.Device, text string) (*http.Response, error)
 	}
 }
 
-func getCenterCoordinates(device *models.Device) (float64, float64) {
-	centerX := 500.0
-	centerY := 900.0
-
-	if device.ScreenWidth != "" {
-		if width, err := strconv.ParseFloat(device.ScreenWidth, 64); err == nil {
-			centerX = width / 2
-		}
+func getCenterCoordinates(device *models.Device) (float64, float64, error) {
+	width, err := strconv.ParseFloat(device.ScreenWidth, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid screen width %q: %w", device.ScreenWidth, err)
 	}
 
-	if device.ScreenHeight != "" {
-		if height, err := strconv.ParseFloat(device.ScreenHeight, 64); err == nil {
-			centerY = height / 2
-		}
+	height, err := strconv.ParseFloat(device.ScreenHeight, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid screen height %q: %w", device.ScreenHeight, err)
 	}
 
-	return centerX, centerY
+	return width / 2, height / 2, nil
 }
 
-func normalizeCoordinates(device *models.Device, x, y float64) (float64, float64) {
+func normalizeCoordinates(device *models.Device, x, y float64) (float64, float64, error) {
 	if x == 0 && y == 0 {
 		return getCenterCoordinates(device)
 	}
-	return x, y
+	return x, y, nil
 }
 
 func executeCustomAction(device *models.Device, actionType string, params map[string]any) (*http.Response, error) {
@@ -386,13 +381,19 @@ func executeCustomAction(device *models.Device, actionType string, params map[st
 	case "tap":
 		x := getFloat(params, "x", 0)
 		y := getFloat(params, "y", 0)
-		x, y = normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(device, x, y)
+		if err != nil {
+			return nil, fmt.Errorf("normalizing coordinates: %w", err)
+		}
 		return deviceTap(device, x, y)
 
 	case "double_tap":
 		x := getFloat(params, "x", 0)
 		y := getFloat(params, "y", 0)
-		x, y = normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(device, x, y)
+		if err != nil {
+			return nil, fmt.Errorf("normalizing coordinates: %w", err)
+		}
 		return deviceDoubleTap(device, x, y)
 
 	case "swipe":
@@ -405,14 +406,20 @@ func executeCustomAction(device *models.Device, actionType string, params map[st
 	case "touch_and_hold":
 		x := getFloat(params, "x", 0)
 		y := getFloat(params, "y", 0)
-		x, y = normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(device, x, y)
+		if err != nil {
+			return nil, fmt.Errorf("normalizing coordinates: %w", err)
+		}
 		duration := getFloat(params, "duration", 1000)
 		return deviceTouchAndHold(device, x, y, duration)
 
 	case "pinch":
 		x := getFloat(params, "x", 0)
 		y := getFloat(params, "y", 0)
-		x, y = normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(device, x, y)
+		if err != nil {
+			return nil, fmt.Errorf("normalizing coordinates: %w", err)
+		}
 		scale := getFloat(params, "scale", 1.0)
 		return devicePinch(device, x, y, scale)
 
