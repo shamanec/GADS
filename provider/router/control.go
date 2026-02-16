@@ -240,14 +240,23 @@ func devicePinch(device *models.Device, x, y, scale float64) (*http.Response, er
 }
 
 func deviceDoubleTap(device *models.Device, x, y float64) (*http.Response, error) {
-	_, err := deviceTap(device, x, y)
+	requestBody := struct {
+		X float64 `json:"x"`
+		Y float64 `json:"y"`
+	}{
+		X: x,
+		Y: y,
+	}
+	actionJSON, err := json.MarshalIndent(requestBody, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("first tap failed: %w", err)
+		return nil, err
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	if device.OS == "ios" {
+		return wdaRequest(device, http.MethodPost, "wda/doubleTap", bytes.NewReader(actionJSON))
+	}
 
-	return deviceTap(device, x, y)
+	return androidRemoteServerRequestJson(device, http.MethodPost, "doubleTap", bytes.NewReader(actionJSON))
 }
 
 func deviceHome(device *models.Device) (*http.Response, error) {
