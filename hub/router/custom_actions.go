@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var validActionTypes = map[string]bool{
@@ -175,18 +177,6 @@ func CreateCustomAction(c *gin.Context) {
 		return
 	}
 
-	if action.IsFavorite {
-		count, err := db.GlobalMongoStore.CountFavoriteActions(tenant)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to count favorites: %s", err), nil)
-			return
-		}
-		if count >= 5 {
-			api.GenericResponse(c, http.StatusBadRequest, "maximum of 5 favorite actions allowed", nil)
-			return
-		}
-	}
-
 	action.Tenant = tenant
 	action.CreatedBy = username
 
@@ -202,12 +192,6 @@ func UpdateCustomAction(c *gin.Context) {
 	tenant := c.GetString("tenant")
 	id := c.Param("id")
 
-	existing, err := db.GlobalMongoStore.GetCustomAction(id, tenant)
-	if err != nil {
-		api.GenericResponse(c, http.StatusNotFound, "custom action not found", nil)
-		return
-	}
-
 	var updates models.CustomAction
 	if err := json.NewDecoder(c.Request.Body).Decode(&updates); err != nil {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %s", err), nil)
@@ -217,18 +201,6 @@ func UpdateCustomAction(c *gin.Context) {
 	if err := validateCustomAction(&updates); err != nil {
 		api.GenericResponse(c, http.StatusBadRequest, err.Error(), nil)
 		return
-	}
-
-	if updates.IsFavorite && !existing.IsFavorite {
-		count, err := db.GlobalMongoStore.CountFavoriteActions(tenant)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to count favorites: %s", err), nil)
-			return
-		}
-		if count >= 5 {
-			api.GenericResponse(c, http.StatusBadRequest, "maximum of 5 favorite actions allowed", nil)
-			return
-		}
 	}
 
 	updates.Tenant = tenant
@@ -251,4 +223,83 @@ func DeleteCustomAction(c *gin.Context) {
 	}
 
 	api.GenericResponse(c, http.StatusOK, "custom action deleted", nil)
+}
+
+func GetUserFavorites(c *gin.Context) {
+	username := c.GetString("username")
+	tenant := c.GetString("tenant")
+
+	favoriteIDs, err := db.GlobalMongoStore.GetUserFavoriteActionIDs(username, tenant)
+	if err != nil {
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch favorites: %s", err), nil)
+		return
+	}
+
+	if len(favoriteIDs) == 0 {
+		api.GenericResponse(c, http.StatusOK, "Favorites fetched successfully", []models.CustomAction{})
+		return
+	}
+
+	coll := db.GlobalMongoStore.GetCollection("custom_actions")
+	objectIDs := make([]primitive.ObjectID, 0, len(favoriteIDs))
+	for _, id := range favoriteIDs {
+		if oid, err := primitive.ObjectIDFromHex(id); err == nil {
+			objectIDs = append(objectIDs, oid)
+		}
+	}
+
+	filter := bson.M{
+		"_id":    bson.M{"$in": objectIDs},
+		"tenant": tenant,
+	}
+
+	actions, err := db.GetDocuments[models.CustomAction](db.GlobalMongoStore.Ctx, coll, filter, nil)
+	if err != nil {
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to fetch favorite actions: %s", err), nil)
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "Favorites fetched successfully", actions)
+}
+
+func AddUserFavorite(c *gin.Context) {
+	actionID := c.Param("id")
+	username := c.GetString("username")
+	tenant := c.GetString("tenant")
+
+	_, err := db.GlobalMongoStore.GetCustomAction(actionID, tenant)
+	if err != nil {
+		api.GenericResponse(c, http.StatusNotFound, "Action not found or access denied", nil)
+		return
+	}
+
+	err = db.GlobalMongoStore.AddUserFavoriteAction(username, tenant, actionID)
+	if err != nil {
+		if strings.Contains(err.Error(), "maximum") {
+			api.GenericResponse(c, http.StatusBadRequest, err.Error(), nil)
+			return
+		}
+		if strings.Contains(err.Error(), "duplicate key") {
+			api.GenericResponse(c, http.StatusOK, "Action is already a favorite", nil)
+			return
+		}
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to add favorite: %s", err), nil)
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "Action added to favorites", nil)
+}
+
+func RemoveUserFavorite(c *gin.Context) {
+	actionID := c.Param("id")
+	username := c.GetString("username")
+	tenant := c.GetString("tenant")
+
+	err := db.GlobalMongoStore.RemoveUserFavoriteAction(username, tenant, actionID)
+	if err != nil {
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to remove favorite: %s", err), nil)
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "Action removed from favorites", nil)
 }
