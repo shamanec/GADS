@@ -143,6 +143,12 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		log.Warnf("Failed to create client credential indexes - %s", err)
 	}
 
+	// Create database indexes for user favorite actions
+	err = db.GlobalMongoStore.CreateUserFavoriteActionIndexes()
+	if err != nil {
+		log.Warnf("Failed to create user favorite action indexes - %s", err)
+	}
+
 	_, err = db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
 		log.Fatalf("Failed to get/update global stream settings - %s", err)

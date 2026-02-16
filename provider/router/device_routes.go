@@ -359,3 +359,40 @@ func DeviceSwipe(c *gin.Context) {
 
 	api.GenericResponse(c, swipeResp.StatusCode, string(body), nil)
 }
+
+func DeviceExecuteCustomAction(c *gin.Context) {
+	udid := c.Param("udid")
+	device := devices.DBDeviceMap[udid]
+
+	var requestBody models.ExecuteCustomActionRequest
+	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
+		device.Logger.LogError("device_control", fmt.Sprintf("Failed to decode request body when executing custom action - %s", err))
+		api.GenericResponse(c, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	if requestBody.ActionType == "" {
+		device.Logger.LogError("device_control", "Missing action_type in request")
+		api.GenericResponse(c, http.StatusBadRequest, "action_type is required", nil)
+		return
+	}
+
+	device.Logger.LogInfo("device_control", fmt.Sprintf("Executing custom action '%s' with parameters: %+v", requestBody.ActionType, requestBody.Parameters))
+
+	actionResp, err := executeCustomAction(device, requestBody.ActionType, requestBody.Parameters)
+	if err != nil {
+		device.Logger.LogError("device_control", fmt.Sprintf("Failed to execute custom action '%s' - %s", requestBody.ActionType, err))
+		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	defer actionResp.Body.Close()
+
+	body, err := io.ReadAll(actionResp.Body)
+	if err != nil {
+		device.Logger.LogError("device_control", fmt.Sprintf("Failed to read response for custom action '%s' - %s", requestBody.ActionType, err))
+		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+
+	api.GenericResponse(c, actionResp.StatusCode, string(body), nil)
+}
