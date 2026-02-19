@@ -146,6 +146,14 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/client-credentials/:id", GetClientCredential)
 	authGroup.PUT("/client-credentials/:id", UpdateClientCredential)
 	authGroup.DELETE("/client-credentials/:id", RevokeClientCredential)
+	// Custom Actions endpoints
+	authGroup.GET("/custom-actions", GetCustomActions)
+	authGroup.POST("/custom-actions", CreateCustomAction)
+	authGroup.PUT("/custom-actions/:id", UpdateCustomAction)
+	authGroup.DELETE("/custom-actions/:id", DeleteCustomAction)
+	authGroup.GET("/custom-actions/favorites", GetUserFavorites)
+	authGroup.POST("/custom-actions/favorites/:id", AddUserFavorite)
+	authGroup.DELETE("/custom-actions/favorites/:id", RemoveUserFavorite)
 	// Appium reports endpoints
 	reportsGroup := authGroup.Group("/reports")
 	reportsGroup.GET("/builds", GetBuildReports)
