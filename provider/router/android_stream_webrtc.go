@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -198,6 +199,24 @@ type AndroidAudioExtractor struct {
 	encoder      *opus.Encoder
 }
 
+// waitForAudioPort waits up to maxWait for the Android audio TCP port to accept connections.
+func waitForAudioPort(ctx context.Context, address string, maxWait time.Duration) error {
+	deadline := time.Now().Add(maxWait)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", address, 200*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+	return fmt.Errorf("audio port %s not ready after %v", address, maxWait)
+}
+
 // NewAndroidAudioExtractor creates a new audio extractor for Android WebSocket stream
 func NewAndroidAudioExtractor(device *models.Device) (*AndroidAudioExtractor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -217,9 +236,14 @@ func NewAndroidAudioExtractor(device *models.Device) (*AndroidAudioExtractor, er
 	}
 	extractor.encoder = encoder
 
-	// Connect to Android audio WebSocket
-	audioURL := "ws://localhost:" + device.AudioPort
+	// Wait for Android audio WebSocket server to be ready
+	tcpAddress := "localhost:" + device.AudioPort
+	if err := waitForAudioPort(ctx, tcpAddress, 10*time.Second); err != nil {
+		cancel()
+		return nil, fmt.Errorf("Android audio server not ready: %w", err)
+	}
 
+	audioURL := "ws://localhost:" + device.AudioPort
 	conn, _, _, err := ws.Dial(ctx, audioURL)
 	if err != nil {
 		cancel()
@@ -451,7 +475,6 @@ func (s *AndroidWebRTCSession) Start() error {
 		audioExtractor, err := NewAndroidAudioExtractor(s.device)
 		if err != nil {
 			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio extractor: %v", err))
-			s.device.AudioStreamEnabled = false
 		} else {
 			s.audioExtractor = audioExtractor
 
@@ -589,6 +612,9 @@ func (s *AndroidWebRTCSession) writeAudioToTrack() {
 			return
 		}
 
+		if frameCount == 1 {
+			logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("First audio frame written to WebRTC track for device %s (duration: %v, size: %d bytes)", s.device.UDID, frameDuration, len(audioFrame.Data)))
+		}
 		if frameCount%100 == 0 {
 			logger.ProviderLogger.LogDebug("webrtc_session", fmt.Sprintf("Sent audio frame #%d (duration: %v) for device %s", frameCount, frameDuration, s.device.UDID))
 		}

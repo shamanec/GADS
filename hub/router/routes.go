@@ -910,6 +910,10 @@ func UpdateDevice(c *gin.Context) {
 				dbDevice.StreamType = reqDevice.StreamType
 			}
 
+			if reqDevice.AudioStreamEnabled != dbDevice.AudioStreamEnabled {
+				dbDevice.AudioStreamEnabled = reqDevice.AudioStreamEnabled
+			}
+
 			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
 			}
@@ -1058,6 +1062,9 @@ func syncDeviceFields(target *models.Device, source *models.Device) {
 	}
 	if target.Host != source.Host {
 		target.Host = source.Host
+	}
+	if target.AudioStreamEnabled != source.AudioStreamEnabled {
+		target.AudioStreamEnabled = source.AudioStreamEnabled
 	}
 }
 

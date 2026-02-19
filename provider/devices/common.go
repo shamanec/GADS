@@ -118,7 +118,12 @@ func updateProviderHub() {
 					dbDevice.StreamType = updatedDevice.StreamType
 					streamTypeChanged = true
 				}
-				if streamTypeChanged {
+				audioStreamChanged := false
+				if dbDevice.AudioStreamEnabled != updatedDevice.AudioStreamEnabled {
+					dbDevice.AudioStreamEnabled = updatedDevice.AudioStreamEnabled
+					audioStreamChanged = true
+				}
+				if streamTypeChanged || audioStreamChanged {
 					ResetLocalDevice(dbDevice, "WebRTC configuration changed, reprovisioning device")
 				}
 
@@ -545,6 +550,10 @@ func setupAndroidDevice(device *models.Device) {
 			device.AudioStreamEnabled = false
 		} else {
 			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded audio streaming port to host port %v for device `%v`", device.AudioPort, device.UDID))
+		}
+
+		if device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId && device.AudioStreamEnabled {
+			startGadsH264AudioService(device)
 		}
 	}
 

@@ -132,6 +132,10 @@ func startGadsSettingsStream(device *models.Device) {
 	killCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "pkill -f H264Server")
 	_ = killCmd.Run() // Ignore error - process might not exist
 
+	stopAudioCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
+		"am", "stopservice", "-n", "com.gads.settings/.audio.H264AudioService")
+	_ = stopAudioCmd.Run()
+
 	time.Sleep(1 * time.Second)
 
 	cmd := exec.CommandContext(
@@ -227,6 +231,23 @@ func addGadsStreamPostNotificationsPermission(device *models.Device) error {
 	}
 
 	return nil
+}
+
+// startGadsH264AudioService grants RECORD_AUDIO to the app and starts the H264AudioService
+// foreground service within the com.gads.settings app context, where AudioRecord works
+// correctly (not possible in app_process shell context).
+func startGadsH264AudioService(device *models.Device) {
+	grantCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
+		"pm", "grant", "com.gads.settings", "android.permission.RECORD_AUDIO")
+	if err := grantCmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not grant RECORD_AUDIO to com.gads.settings for device `%v` - %v", device.UDID, err))
+	}
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
+		"am", "start-foreground-service", "-n", "com.gads.settings/.audio.H264AudioService")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not start H264 audio service for device `%v` - %v", device.UDID, err))
+	}
 }
 
 // Start the GADS video streaming foreground service using adb
