@@ -38,7 +38,7 @@ type User struct {
 	Password     string   `json:"password" bson:"password,omitempty" example:"secure_password"`
 	Role         string   `json:"role,omitempty" bson:"role" example:"user" enums:"admin,user"`
 	ID           string   `json:"_id" bson:"_id,omitempty" example:"507f1f77bcf86cd799439011"`
-	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
+	WorkspaceIDs []string `json:"workspace_ids" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
 }
 
 type Device struct {
