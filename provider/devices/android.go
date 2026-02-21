@@ -138,13 +138,18 @@ func startGadsSettingsStream(device *models.Device) {
 
 	time.Sleep(1 * time.Second)
 
+	audioInputType := device.AudioInputType
+	if audioInputType == "" {
+		audioInputType = "internal"
+	}
+	shellCmd := fmt.Sprintf("CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.server.H264Server audio_input_type=%s", audioInputType)
 	cmd := exec.CommandContext(
 		device.Context,
 		"adb",
 		"-s",
 		device.UDID,
 		"shell",
-		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.server.H264Server")
+		shellCmd)
 
 	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting GADS Remote server on device `%s` with command `%s`", device.UDID, cmd.Args))
 
@@ -243,10 +248,27 @@ func startGadsH264AudioService(device *models.Device) {
 		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not grant RECORD_AUDIO to com.gads.settings for device `%v` - %v", device.UDID, err))
 	}
 
+	audioInputType := device.AudioInputType
+	if audioInputType == "" {
+		audioInputType = "internal"
+	}
+
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
-		"am", "start-foreground-service", "-n", "com.gads.settings/.audio.H264AudioService")
+		"am", "start-foreground-service", "-n", "com.gads.settings/.audio.H264AudioService",
+		"--es", "audio_input_type", audioInputType)
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not start H264 audio service for device `%v` - %v", device.UDID, err))
+	}
+}
+
+// startGadsH264AudioProjectionActivity launches the H264AudioProjectionActivity which shows
+// the system MediaProjection permission dialog. On user approval, it stores the MediaProjection
+// in MediaProjectionHolder so H264AudioService can use AudioPlaybackCapture for internal audio.
+func startGadsH264AudioProjectionActivity(device *models.Device) {
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
+		"am", "start", "-n", "com.gads.settings/.audio.H264AudioProjectionActivity")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not start H264AudioProjectionActivity for device `%v` - %v", device.UDID, err))
 	}
 }
 

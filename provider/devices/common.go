@@ -123,7 +123,12 @@ func updateProviderHub() {
 					dbDevice.AudioStreamEnabled = updatedDevice.AudioStreamEnabled
 					audioStreamChanged = true
 				}
-				if streamTypeChanged || audioStreamChanged {
+				audioInputTypeChanged := false
+				if dbDevice.AudioInputType != updatedDevice.AudioInputType {
+					dbDevice.AudioInputType = updatedDevice.AudioInputType
+					audioInputTypeChanged = true
+				}
+				if streamTypeChanged || audioStreamChanged || audioInputTypeChanged {
 					ResetLocalDevice(dbDevice, "WebRTC configuration changed, reprovisioning device")
 				}
 
@@ -553,7 +558,16 @@ func setupAndroidDevice(device *models.Device) {
 		}
 
 		if device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId && device.AudioStreamEnabled {
+			audioInputType := device.AudioInputType
+			if audioInputType == "" {
+				audioInputType = "internal"
+			}
 			startGadsH264AudioService(device)
+			if audioInputType == "internal" {
+				// H264AudioService waits for MediaProjection via MediaProjectionHolder.
+				// The Activity shows the system dialog; on approval it sets MediaProjectionHolder.
+				startGadsH264AudioProjectionActivity(device)
+			}
 		}
 	}
 

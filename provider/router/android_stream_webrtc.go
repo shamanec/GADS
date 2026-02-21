@@ -234,6 +234,22 @@ func NewAndroidAudioExtractor(device *models.Device) (*AndroidAudioExtractor, er
 		cancel()
 		return nil, fmt.Errorf("failed to create Opus encoder: %w", err)
 	}
+	if err := encoder.SetBitrate(64000); err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to set opus bitrate: %w", err)
+	}
+	if err := encoder.SetInBandFEC(true); err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to enable opus fec: %w", err)
+	}
+	if err := encoder.SetPacketLossPerc(5); err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to set opus packet loss perc: %w", err)
+	}
+	if err := encoder.SetMaxBandwidth(opus.Fullband); err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to set opus max bandwidth: %w", err)
+	}
 	extractor.encoder = encoder
 
 	// Wait for Android audio WebSocket server to be ready
@@ -583,40 +599,28 @@ func (s *AndroidWebRTCSession) writeAudioToTrack() {
 	}
 
 	frameCount := 0
-	var previousPTS int64
-
-	// Opus frame duration: 960 samples @ 48kHz = 20ms
-	frameDuration := time.Millisecond * 20
+	// Fixed duration: 960 samples @ 48kHz = exactly 20ms per Opus frame.
+	// Using a constant ensures uniform RTP timestamps, preventing jitter on the receiver.
+	const frameDuration = 20 * time.Millisecond
 
 	logger.ProviderLogger.LogInfo("webrtc_session", "Starting audio streaming for device "+s.device.UDID)
 
 	for audioFrame := range s.audioExtractor.GetAudioChannel() {
 		frameCount++
 
-		// Calculate duration based on PTS delta
-		if frameCount > 1 && audioFrame.PTS > previousPTS {
-			ptsDelta := audioFrame.PTS - previousPTS
-			frameDuration = time.Duration(ptsDelta) * time.Microsecond
-		}
-
-		previousPTS = audioFrame.PTS
-
-		// Write to WebRTC track
-		sample := media.Sample{
+		if err := s.audioTrack.WriteSample(media.Sample{
 			Data:     audioFrame.Data,
 			Duration: frameDuration,
-		}
-
-		if err := s.audioTrack.WriteSample(sample); err != nil {
+		}); err != nil {
 			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Error writing audio sample: %v", err))
 			return
 		}
 
 		if frameCount == 1 {
-			logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("First audio frame written to WebRTC track for device %s (duration: %v, size: %d bytes)", s.device.UDID, frameDuration, len(audioFrame.Data)))
+			logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("First audio frame written to WebRTC track for device %s (size: %d bytes)", s.device.UDID, len(audioFrame.Data)))
 		}
 		if frameCount%100 == 0 {
-			logger.ProviderLogger.LogDebug("webrtc_session", fmt.Sprintf("Sent audio frame #%d (duration: %v) for device %s", frameCount, frameDuration, s.device.UDID))
+			logger.ProviderLogger.LogDebug("webrtc_session", fmt.Sprintf("Sent audio frame #%d for device %s", frameCount, s.device.UDID))
 		}
 	}
 
