@@ -330,25 +330,22 @@ func updateIOSScreenSize(device *models.Device, deviceMachineCode string) error 
 }
 
 func getProcessPid(device *models.Device, processName string) (uint64, error) {
-	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
-	if err != nil {
-		return 0, fmt.Errorf("getProcessPid: Failed to create process control instance for device `%s`", device.UDID)
-	}
-	defer pControl.Close()
 	svc, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
 	if err != nil {
 		return 0, fmt.Errorf("getProcessPid: Failed to create device info service for device `%s`", device.UDID)
 	}
+	defer svc.Close()
 
 	var availableProcesses []string
-	processList, _ := svc.ProcessList()
+	processList, err := svc.ProcessList()
+	if err != nil {
+		return 0, fmt.Errorf("getProcessPid: Failed to get process list for device `%s` - %s", device.UDID, err)
+	}
+
 	for _, process := range processList {
 		if process.Pid > 1 && process.Name == processName {
 			return process.Pid, nil
 		}
-	}
-
-	for _, process := range processList {
 		availableProcesses = append(availableProcesses, process.Name)
 	}
 

@@ -142,6 +142,7 @@ func (s *IOSWebRTCSession) readAndStreamFrames() {
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s", s.device.UDID))
 
+	readBuf := make([]byte, 65536)
 	for {
 		// Check for cancellation
 		select {
@@ -152,7 +153,6 @@ func (s *IOSWebRTCSession) readAndStreamFrames() {
 		}
 
 		// Read data from TCP connection
-		readBuf := make([]byte, 65536)
 		n, err := s.tcpConn.Read(readBuf)
 		if err != nil {
 			if err != io.EOF {
