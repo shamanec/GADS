@@ -38,7 +38,7 @@ type User struct {
 	Password     string   `json:"password" bson:"password,omitempty" example:"secure_password"`
 	Role         string   `json:"role,omitempty" bson:"role" example:"user" enums:"admin,user"`
 	ID           string   `json:"_id" bson:"_id,omitempty" example:"507f1f77bcf86cd799439011"`
-	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
+	WorkspaceIDs []string `json:"workspace_ids" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
 }
 
 type Device struct {
@@ -116,13 +116,15 @@ const (
 	IOSWebRTCFFMpegStreamTypeId        StreamingType = "ios_webrtc_ffmpeg"
 	AndroidWebRTCGetStreamStreamTypeId StreamingType = "android_webrtc_getstream"
 	AndroidWebRTCGadsH264StreamTypeId  StreamingType = "android_webrtc_gads_h264"
+	IOSWebRTCBroadcastExtensionId      StreamingType = "ios_webrtc_broadcast"
 )
 
 // IsWebRTCStreamType checks if the given StreamType is a WebRTC-based stream
 func IsWebRTCStreamType(st StreamingType) bool {
 	return st == AndroidWebRTCGetStreamStreamTypeId ||
 		st == AndroidWebRTCGadsH264StreamTypeId ||
-		st == IOSWebRTCFFMpegStreamTypeId
+		st == IOSWebRTCFFMpegStreamTypeId ||
+		st == IOSWebRTCBroadcastExtensionId
 }
 
 func (st StreamingType) Description() string {
@@ -135,6 +137,8 @@ func (st StreamingType) Description() string {
 		return "Android WebRTC GetStream"
 	case AndroidWebRTCGadsH264StreamTypeId:
 		return "Android WebRTC GADS H264"
+	case IOSWebRTCBroadcastExtensionId:
+		return "WebRTC - Broadcast Extension"
 	default:
 		return "Unknown"
 	}
@@ -164,9 +168,16 @@ var AndroidWebRTCGadsH264StreamType = StreamType{
 	DeviceOS: "android",
 }
 
+var IOSWebRTCBroadcastExtensionStreamType = StreamType{
+	Name:     IOSWebRTCBroadcastExtensionId.Description(),
+	ID:       IOSWebRTCBroadcastExtensionId,
+	DeviceOS: "ios",
+}
+
 var IOSStreamTypes = []StreamType{
 	MJPEGStreamType,
 	IOSWebRTCFFMpegStreamType,
+	IOSWebRTCBroadcastExtensionStreamType,
 }
 
 var AndroidStreamTypes = []StreamType{

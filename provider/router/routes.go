@@ -260,9 +260,10 @@ func DeviceInfo(c *gin.Context) {
 
 	if ok {
 		devices.UpdateInstalledApps(dev)
-		if dev.OS == "android" {
+		switch dev.OS {
+		case "android":
 			devices.UpdateCurrentRotation(dev)
-		} else if dev.OS == "ios" {
+		case "ios":
 			wdaResp, err := wdaRequest(dev, http.MethodGet, "orientation", nil)
 			if err != nil {
 				dev.CurrentRotation = "portrait"

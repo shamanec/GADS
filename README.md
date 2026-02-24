@@ -72,6 +72,8 @@ The platform architecture consists of two main components:
   - Per-device Appium server configuration (optional)
 - 📡 **Remote Control**
   - iOS streaming via [WebDriverAgent](https://github.com/appium/WebDriverAgent)
+  - iOS WebRTC video stream via [WebDriverAgent](https://github.com/appium/WebDriverAgent) through a [ffmpeg pipeline](https://www.ffmpeg.org/) (Experimental)- `ffmpeg` should be installed and available in PATH
+  - iOS WebRTC video stream via Broadcast Extension (Experimental) - [notes](./docs/provider.md#prepare-broadcast-extension-for-webrtc-video---optional)
   - Android MJPEG video streaming
   - Android WebRTC video stream (Experimental) - [notes](./docs/provider.md#android-webrtc-video---experimental)
   - Non-Appium based interaction

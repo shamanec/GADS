@@ -339,6 +339,36 @@ var IOSDeviceInfoMap = map[string]models.IOSModelData{
 		Height: "956",
 		Model:  "iPhone 16 Pro Max",
 	},
+	"iPhone18,1": {
+		Width:  "402",
+		Height: "874",
+		Model:  "iPhone 17",
+	},
+	"iPhone18,2": {
+		Width:  "440",
+		Height: "956",
+		Model:  "iPhone 17 Plus",
+	},
+	"iPhone18,3": {
+		Width:  "402",
+		Height: "874",
+		Model:  "iPhone 17 Pro",
+	},
+	"iPhone18,4": {
+		Width:  "440",
+		Height: "956",
+		Model:  "iPhone 17 Pro Max",
+	},
+	"iPhone18,5": {
+		Width:  "375",
+		Height: "667",
+		Model:  "iPhone SE (4th gen)",
+	},
+	"iPhone18,6": {
+		Width:  "393",
+		Height: "852",
+		Model:  "iPhone 17 Air",
+	},
 	// iPads
 	// iPad Air
 	"iPad4,1": {
@@ -711,5 +741,65 @@ var IOSDeviceInfoMap = map[string]models.IOSModelData{
 		Width:  "820",
 		Height: "1180",
 		Model:  "iPad (10th Gen)",
+	},
+	"iPad16,1": {
+		Width:  "744",
+		Height: "1133",
+		Model:  "iPad Mini 7(A17 Pro)",
+	},
+	"iPad16,2": {
+		Width:  "744",
+		Height: "1133",
+		Model:  "iPad Mini 7(A17 Pro)",
+	},
+	"iPad17,1": {
+		Width:  "820",
+		Height: "1180",
+		Model:  "iPad (12th gen)",
+	},
+	"iPad17,2": {
+		Width:  "820",
+		Height: "1180",
+		Model:  "iPad (12th gen)",
+	},
+	"iPad17,3": {
+		Width:  "744",
+		Height: "1133",
+		Model:  "iPad Mini 8",
+	},
+	"iPad17,4": {
+		Width:  "744",
+		Height: "1133",
+		Model:  "iPad Mini 8",
+	},
+	"iPad17,5": {
+		Width:  "834",
+		Height: "1194",
+		Model:  "iPad Air 12-inch (M3)",
+	},
+	"iPad17,6": {
+		Width:  "834",
+		Height: "1194",
+		Model:  "iPad Air 12-inch (M3) WiFi + Cellular",
+	},
+	"iPad17,7": {
+		Width:  "1024",
+		Height: "1366",
+		Model:  "iPad Pro 13-inch (M5)",
+	},
+	"iPad17,8": {
+		Width:  "1024",
+		Height: "1366",
+		Model:  "iPad Pro 13-inch (M5) WiFi + Cellular",
+	},
+	"iPad17,9": {
+		Width:  "834",
+		Height: "1194",
+		Model:  "iPad Pro 11-inch (M5)",
+	},
+	"iPad17,10": {
+		Width:  "834",
+		Height: "1194",
+		Model:  "iPad Pro 11-inch (M5) WiFi + Cellular",
 	},
 }

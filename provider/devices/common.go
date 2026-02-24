@@ -781,6 +781,21 @@ func setupIOSDevice(device *models.Device) {
 
 	time.Sleep(1 * time.Second)
 
+	// Disable memory limit of the running broadcast extension on the device if device is setup for WebRTC broadcast extension streaming
+	if device.StreamType == models.IOSWebRTCBroadcastExtensionId {
+		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Disabling GADS broadcast extension memory limit for device `%s`", device.UDID))
+		pid, err := getProcessPid(device, "gads-broadcast-extension")
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to get pid for GADS broadcast extension process on device `%s` - %s", device.UDID, err))
+		} else {
+			err = disableProcessMemoryLimit(device, pid)
+			if err != nil {
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to disable memory limit for GADS broadcast extension process on device `%s` - %s", device.UDID, err))
+			}
+		}
+	}
+
+	// Allocate host port for WebDriverAgent server
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Allocating free WebDriverAgent port for device `%s`", device.UDID))
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -791,6 +806,7 @@ func setupIOSDevice(device *models.Device) {
 	device.WDAPort = wdaPort
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free WebDriverAgent port `%s` for device `%s`", wdaPort, device.UDID))
 
+	// Allocate host port for device stream
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Allocating free stream port for device `%s`", device.UDID))
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -801,6 +817,7 @@ func setupIOSDevice(device *models.Device) {
 	device.StreamPort = streamPort
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free iOS stream port `%s` for device `%s`", streamPort, device.UDID))
 
+	// Allocate host port for WebDriverAgent mjpeg stream port
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Allocating free WebDriverAgent stream port for device `%s`", device.UDID))
 	wdaStreamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -811,9 +828,10 @@ func setupIOSDevice(device *models.Device) {
 	device.WDAStreamPort = wdaStreamPort
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free WebDriverAgent stream port `%s` for device `%s`", wdaStreamPort, device.UDID))
 
+	// Forward the respective ports to the host
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Forwarding WebDriverAgent server and stream to the host for device `%s`", device.UDID))
 	go goIosForward(device, device.WDAPort, "8100")
-	go goIosForward(device, device.StreamPort, "9500")
+	go goIosForward(device, device.StreamPort, "8765")
 	go goIosForward(device, device.WDAStreamPort, "9100")
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully forwarded WebDriverAgent server and stream for device `%s`", device.UDID))
 
