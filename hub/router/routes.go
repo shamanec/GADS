@@ -573,7 +573,23 @@ func DeviceInUseWS(c *gin.Context) {
 			devices.HubDevicesData.Devices[udid].InUseBy = ""
 			devices.HubDevicesData.Devices[udid].InUseByTenant = ""
 		}
+		// Capture provider host before releasing the lock for ADB TCP/IP cleanup
+		var providerHost string
+		if devices.HubDevicesData.Devices[udid].Device.OS == "android" {
+			providerHost = devices.HubDevicesData.Devices[udid].Device.Host
+		}
 		devices.HubDevicesData.Mu.Unlock()
+
+		// Disable ADB over TCP/IP on session end for Android devices
+		if providerHost != "" {
+			go func() {
+				disableURL := fmt.Sprintf("http://%s/device/%s/adb-tcpip/disable", providerHost, udid)
+				resp, err := netClient.Post(disableURL, "application/json", nil)
+				if err == nil {
+					resp.Body.Close()
+				}
+			}()
+		}
 	}()
 
 	// Create a context with cancel to use in the goroutines

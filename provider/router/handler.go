@@ -84,6 +84,8 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.POST("/closeApp", CloseApp)
 	deviceGroup.POST("/reset", ResetDevice)
 	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
+	deviceGroup.POST("/adb-tcpip/enable", DeviceEnableAdbTcpIp)
+	deviceGroup.POST("/adb-tcpip/disable", DeviceDisableAdbTcpIp)
 	deviceGroup.GET("/webrtc", DevicesWebRTCSocket)
 	deviceAppiumPluginGroup := deviceGroup.Group("/appium-plugin")
 	deviceAppiumPluginGroup.POST("/log", AppiumPluginLog)

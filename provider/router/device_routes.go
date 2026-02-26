@@ -396,3 +396,71 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 
 	api.GenericResponse(c, actionResp.StatusCode, string(body), nil)
 }
+
+// DeviceEnableAdbTcpIp enables ADB over TCP/IP (port 5555) on an Android device
+// and returns the connection info needed to connect remotely.
+func DeviceEnableAdbTcpIp(c *gin.Context) {
+	udid := c.Param("udid")
+	device := devices.DBDeviceMap[udid]
+
+	if device.OS != "android" {
+		api.GenericResponse(c, http.StatusBadRequest, "ADB over TCP/IP is only supported for Android devices", nil)
+		return
+	}
+
+	// Only operate on live devices — skip silently if device is still setting up
+	if device.ProviderState != "live" {
+		api.GenericResponse(c, http.StatusOK, "Device is not yet live, ADB TCP/IP enable skipped", nil)
+		return
+	}
+
+	device.Logger.LogInfo("adb_tcpip", "Enabling ADB over TCP/IP")
+
+	ip, err := devices.EnableAdbTcpIp(device)
+	if err != nil {
+		device.Logger.LogError("adb_tcpip", fmt.Sprintf("Failed to enable ADB over TCP/IP - %s", err))
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to enable ADB over TCP/IP - %s", err), nil)
+		return
+	}
+
+	result := struct {
+		IP             string `json:"ip"`
+		Port           int    `json:"port"`
+		ConnectCommand string `json:"connect_command"`
+	}{
+		IP:             ip,
+		Port:           5555,
+		ConnectCommand: fmt.Sprintf("adb connect %s:5555", ip),
+	}
+
+	api.GenericResponse(c, http.StatusOK, "", result)
+}
+
+// DeviceDisableAdbTcpIp reverts an Android device from ADB over TCP/IP mode back to USB mode.
+func DeviceDisableAdbTcpIp(c *gin.Context) {
+	udid := c.Param("udid")
+	device := devices.DBDeviceMap[udid]
+
+	if device.OS != "android" {
+		api.GenericResponse(c, http.StatusBadRequest, "ADB over TCP/IP is only supported for Android devices", nil)
+		return
+	}
+
+	// Only operate on live devices — skip silently if device is still setting up.
+	// The hub calls this on session end; if the provider just restarted and the device
+	// is in setup, there is nothing to revert.
+	if device.ProviderState != "live" {
+		api.GenericResponse(c, http.StatusOK, "Device is not yet live, ADB TCP/IP disable skipped", nil)
+		return
+	}
+
+	device.Logger.LogInfo("adb_tcpip", "Disabling ADB over TCP/IP")
+
+	if err := devices.DisableAdbTcpIp(device); err != nil {
+		device.Logger.LogError("adb_tcpip", fmt.Sprintf("Failed to disable ADB over TCP/IP - %s", err))
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to disable ADB over TCP/IP - %s", err), nil)
+		return
+	}
+
+	api.GenericResponse(c, http.StatusOK, "ADB over TCP/IP disabled", nil)
+}

@@ -12,6 +12,7 @@ package router
 import (
 	"GADS/common/db"
 	"GADS/hub/auth"
+	"GADS/hub/config"
 	"GADS/hub/devices"
 	"fmt"
 	"net/http"
@@ -91,7 +92,9 @@ func DeviceProxyHandler(c *gin.Context) {
 	device, ok := devices.HubDevicesData.Devices[udid]
 
 	// Verify if the device is already in use by another user
-	if ok && device != nil && device.InUseBy != "" &&
+	// Skip this check when auth is disabled — no concept of user ownership
+	if config.GlobalHubConfig.AuthEnabled &&
+		ok && device != nil && device.InUseBy != "" &&
 		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
 		(device.InUseBy != username || device.InUseByTenant != tenant) {
 
@@ -105,6 +108,38 @@ func DeviceProxyHandler(c *gin.Context) {
 	if !ok || device == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with UDID `%s` not found or is nil", udid)})
 		return
+	}
+
+	// ADB TCP/IP enable is only allowed while the device is actively in use (has a live control session).
+	// When auth is enabled, only the user who holds the session may enable it.
+	if c.Request.Method == "POST" && strings.HasSuffix(path, "/adb-tcpip/enable") {
+		devices.HubDevicesData.Mu.Lock()
+		inUseBy := devices.HubDevicesData.Devices[udid].InUseBy
+		inUseByTenant := devices.HubDevicesData.Devices[udid].InUseByTenant
+		devices.HubDevicesData.Mu.Unlock()
+		if inUseBy == "" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "ADB TCP/IP can only be enabled while the device is in use"})
+			return
+		}
+		if config.GlobalHubConfig.AuthEnabled && (inUseBy != username || inUseByTenant != tenant) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "ADB TCP/IP can only be enabled by the user who has the device in use"})
+			return
+		}
+	}
+
+	// ADB TCP/IP disable is only allowed by the user who holds the session.
+	// When auth is disabled or the device is not in use, any caller may disable (e.g. cleanup).
+	if c.Request.Method == "POST" && strings.HasSuffix(path, "/adb-tcpip/disable") {
+		if config.GlobalHubConfig.AuthEnabled {
+			devices.HubDevicesData.Mu.Lock()
+			inUseBy := devices.HubDevicesData.Devices[udid].InUseBy
+			inUseByTenant := devices.HubDevicesData.Devices[udid].InUseByTenant
+			devices.HubDevicesData.Mu.Unlock()
+			if inUseBy != "" && (inUseBy != username || inUseByTenant != tenant) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "ADB TCP/IP can only be disabled by the user who has the device in use"})
+				return
+			}
+		}
 	}
 
 	// Check if device is available before proceeding with proxy operations

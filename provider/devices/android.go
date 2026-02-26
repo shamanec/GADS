@@ -117,6 +117,30 @@ func startGadsRemoteControlServer(device *models.Device) {
 	}
 
 	if err := cmd.Wait(); err != nil {
+		// If this exit was caused by an intentional ADB daemon restart (tcpip/usb switch),
+		// wait for the transition to finish and restart the process instead of resetting the device.
+		device.Mutex.Lock()
+		transitioning := device.AdbTcpIpTransitioning
+		device.Mutex.Unlock()
+
+		if transitioning {
+			logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("startGadsRemoteControlServer: process exited during ADB TCP/IP transition for device `%s`, will restart when done", device.UDID))
+			deadline := time.Now().Add(20 * time.Second)
+			for time.Now().Before(deadline) {
+				time.Sleep(500 * time.Millisecond)
+				device.Mutex.Lock()
+				transitioning = device.AdbTcpIpTransitioning
+				device.Mutex.Unlock()
+				if !transitioning {
+					break
+				}
+			}
+			if !transitioning {
+				startGadsRemoteControlServer(device)
+				return
+			}
+		}
+
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
 			"startGadsRemoteControlServer: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
 			cmd.Args, device.UDID, err))
@@ -151,6 +175,33 @@ func startGadsSettingsStream(device *models.Device) {
 	}
 
 	if err := cmd.Wait(); err != nil {
+		// If this exit was caused by an intentional ADB daemon restart (tcpip/usb switch),
+		// wait for the transition to finish and restart the process instead of resetting the device.
+		device.Mutex.Lock()
+		transitioning := device.AdbTcpIpTransitioning
+		device.Mutex.Unlock()
+
+		if transitioning {
+			logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("startGadsSettingsStream: process exited during ADB TCP/IP transition for device `%s`, will restart when done", device.UDID))
+			deadline := time.Now().Add(20 * time.Second)
+			for time.Now().Before(deadline) {
+				time.Sleep(500 * time.Millisecond)
+				device.Mutex.Lock()
+				transitioning = device.AdbTcpIpTransitioning
+				device.Mutex.Unlock()
+				if !transitioning {
+					break
+				}
+			}
+			if !transitioning {
+				// Restart H264Server. The WebRTC session's writeFrames goroutine detects
+				// the stream disconnect and transparently reconnects once the new
+				// H264Server is ready, without closing the browser's WebRTC connection.
+				startGadsSettingsStream(device)
+				return
+			}
+		}
+
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
 			"startGadsSettingsStream: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
 			cmd.Args, device.UDID, err))
@@ -659,4 +710,162 @@ func addAndroidSharedStorageFilePathNode(root *models.AndroidFileNode, fullPath 
 
 		current = child
 	}
+}
+
+// getAndroidDeviceIP returns the device IP address by trying multiple ADB methods.
+// It first checks the stored IPAddress field, then scans all network interfaces.
+func getAndroidDeviceIP(device *models.Device) (string, error) {
+	if device.IPAddress != "" {
+		return device.IPAddress, nil
+	}
+
+	var outBuffer bytes.Buffer
+
+	// Method 1: ip -f inet addr (all interfaces, skip loopback) — modern Android
+	outBuffer.Reset()
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "ip", "-f", "inet", "addr")
+	cmd.Stdout = &outBuffer
+	if err := cmd.Run(); err == nil {
+		for _, line := range strings.Split(outBuffer.String(), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "inet ") {
+				parts := strings.Fields(line)
+				if len(parts) >= 2 {
+					ip := strings.Split(parts[1], "/")[0]
+					if ip != "" && ip != "127.0.0.1" {
+						return ip, nil
+					}
+				}
+			}
+		}
+	}
+
+	// Method 2: getprop — covers wlan0/wlan1/eth0 on various Android versions
+	for _, prop := range []string{
+		"dhcp.wlan0.ipaddress",
+		"dhcp.wlan1.ipaddress",
+		"net.wlan0.ipaddress",
+		"dhcp.eth0.ipaddress",
+	} {
+		outBuffer.Reset()
+		cmd = exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", prop)
+		cmd.Stdout = &outBuffer
+		if err := cmd.Run(); err == nil {
+			if ip := strings.TrimSpace(outBuffer.String()); ip != "" && ip != "0.0.0.0" {
+				return ip, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("getAndroidDeviceIP: could not determine device IP address via any method")
+}
+
+// reForwardAndroidDevicePorts re-establishes all ADB port forwards after a daemon restart.
+// The adb forward entries are lost whenever the ADB daemon restarts (adb tcpip / adb usb).
+func reForwardAndroidDevicePorts(device *models.Device) {
+	logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("Re-establishing ADB port forwards for device `%s`", device.UDID))
+	if err := forwardGadsStream(device); err != nil {
+		logger.ProviderLogger.LogWarn("adb_tcpip", fmt.Sprintf("Failed to re-forward stream port for device `%s` - %s", device.UDID, err))
+	}
+	if err := forwardGadsAndroidIME(device); err != nil {
+		logger.ProviderLogger.LogWarn("adb_tcpip", fmt.Sprintf("Failed to re-forward IME port for device `%s` - %s", device.UDID, err))
+	}
+	if err := forwardGadsRemoteServer(device); err != nil {
+		logger.ProviderLogger.LogWarn("adb_tcpip", fmt.Sprintf("Failed to re-forward remote server port for device `%s` - %s", device.UDID, err))
+	}
+}
+
+// EnableAdbTcpIp switches the Android device to ADB over TCP/IP mode on port 5555
+// and returns the device IP address to use for connecting.
+// IP is retrieved BEFORE issuing `adb tcpip` because that command restarts the ADB
+// daemon on the device, which drops the USB connection temporarily.
+// After switching, we wait for USB to re-establish before returning to prevent
+// the provider's connectivity check from marking the device as offline.
+func EnableAdbTcpIp(device *models.Device) (string, error) {
+	logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("Enabling ADB over TCP/IP on device `%s`", device.UDID))
+
+	// Get IP first — after `adb tcpip` the USB ADB connection drops temporarily
+	ip, err := getAndroidDeviceIP(device)
+	if err != nil {
+		return "", fmt.Errorf("EnableAdbTcpIp: Failed to get device IP - %s", err)
+	}
+
+	// Signal that a daemon restart is intentional so goroutines don't trigger ResetLocalDevice
+	device.Mutex.Lock()
+	device.AdbTcpIpTransitioning = true
+	device.Mutex.Unlock()
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "tcpip", "5555")
+	if err := cmd.Run(); err != nil {
+		device.Mutex.Lock()
+		device.AdbTcpIpTransitioning = false
+		device.Mutex.Unlock()
+		return "", fmt.Errorf("EnableAdbTcpIp: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	// Poll until USB ADB is back. Re-establish port forwards, then clear the flag
+	// so waiting goroutines restart their processes.
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(500 * time.Millisecond)
+		stateCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "get-state")
+		out, err := stateCmd.Output()
+		if err == nil && strings.TrimSpace(string(out)) == "device" {
+			logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("USB ADB re-established after tcpip switch for device `%s`", device.UDID))
+			reForwardAndroidDevicePorts(device)
+			device.Mutex.Lock()
+			device.AdbTcpIpTransitioning = false
+			device.Mutex.Unlock()
+			return ip, nil
+		}
+	}
+
+	reForwardAndroidDevicePorts(device)
+	device.Mutex.Lock()
+	device.AdbTcpIpTransitioning = false
+	device.Mutex.Unlock()
+	logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("USB ADB did not re-establish within timeout for device `%s`, TCP/IP is still enabled", device.UDID))
+	return ip, nil
+}
+
+// DisableAdbTcpIp reverts the Android device from ADB over TCP/IP mode back to USB mode.
+// Safe to call even if the device is already in USB mode.
+func DisableAdbTcpIp(device *models.Device) error {
+	logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("Disabling ADB over TCP/IP on device `%s`", device.UDID))
+
+	device.Mutex.Lock()
+	device.AdbTcpIpTransitioning = true
+	device.Mutex.Unlock()
+
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "usb")
+	if err := cmd.Run(); err != nil {
+		device.Mutex.Lock()
+		device.AdbTcpIpTransitioning = false
+		device.Mutex.Unlock()
+		return fmt.Errorf("DisableAdbTcpIp: Error executing `%s` - %s", cmd.Args, err)
+	}
+
+	// Wait for USB ADB to re-establish after daemon restart. Re-establish port forwards,
+	// then clear the flag so waiting goroutines restart their processes.
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(500 * time.Millisecond)
+		stateCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "get-state")
+		out, err := stateCmd.Output()
+		if err == nil && strings.TrimSpace(string(out)) == "device" {
+			logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("USB ADB re-established after usb switch for device `%s`", device.UDID))
+			reForwardAndroidDevicePorts(device)
+			device.Mutex.Lock()
+			device.AdbTcpIpTransitioning = false
+			device.Mutex.Unlock()
+			return nil
+		}
+	}
+
+	reForwardAndroidDevicePorts(device)
+	device.Mutex.Lock()
+	device.AdbTcpIpTransitioning = false
+	device.Mutex.Unlock()
+	logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("USB ADB did not re-establish within timeout for device `%s` after disabling TCP/IP", device.UDID))
+	return nil
 }

@@ -1037,7 +1037,9 @@ func getConnectedDevicesAndroid() []string {
 func ResetLocalDevice(device *models.Device, reason string) {
 	device.Mutex.Lock()
 	defer device.Mutex.Unlock()
-	if !device.IsResetting && device.ProviderState != "init" {
+	// Suppress reset only when device is fully live AND an ADB daemon restart is in progress.
+	// During setup (ProviderState == "preparing"), allow the reset so the setup cycle can restart.
+	if !device.IsResetting && device.ProviderState != "init" && !(device.AdbTcpIpTransitioning && device.ProviderState == "live") {
 		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", device.UDID, reason))
 
 		device.IsResetting = true

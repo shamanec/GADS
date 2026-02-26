@@ -99,6 +99,7 @@ type Device struct {
 	SemVer                  *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
 	InitialSetupDone        bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
 	DeviceAddress           string             `json:"-" bson:"-"`
+	AdbTcpIpTransitioning     bool   `json:"-" bson:"-"` // true while ADB daemon is restarting due to adb tcpip/usb switch; suppresses false device resets
 }
 
 // Device stream type - mjpeg, webrtc, etc

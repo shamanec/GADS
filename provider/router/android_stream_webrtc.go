@@ -133,7 +133,7 @@ func (s *AndroidWebRTCSession) Start() error {
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android H.264 stream for device %s", s.device.UDID))
 
 	// Start reading frames from WebSocket
-	go s.readFrames()
+	go s.readFrames(conn, s.frameChannel)
 
 	// Start writing frames to WebRTC track
 	go s.writeFrames()
@@ -141,10 +141,11 @@ func (s *AndroidWebRTCSession) Start() error {
 	return nil
 }
 
-// readFrames reads H.264 frames from WebSocket and sends to channel
-func (s *AndroidWebRTCSession) readFrames() {
-	defer close(s.frameChannel)
-	defer s.wsConn.Close()
+// readFrames reads H.264 frames from wsConn and sends to ch.
+// Parametrised so reconnectStream can start a fresh goroutine without touching struct fields.
+func (s *AndroidWebRTCSession) readFrames(wsConn io.ReadWriteCloser, ch chan AndroidH264Frame) {
+	defer close(ch)
+	defer wsConn.Close()
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting frame reading for device %s", s.device.UDID))
 
@@ -159,7 +160,7 @@ func (s *AndroidWebRTCSession) readFrames() {
 
 		// Read H.264 frame from WebSocket
 		// Android sends: [8 bytes PTS][H.264 data]
-		msg, _, err := wsutil.ReadServerData(s.wsConn)
+		msg, _, err := wsutil.ReadServerData(wsConn)
 		if err != nil {
 			if err != io.EOF {
 				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading from WebSocket for device %s: %s", s.device.UDID, err))
@@ -187,7 +188,7 @@ func (s *AndroidWebRTCSession) readFrames() {
 		}
 
 		select {
-		case s.frameChannel <- frame:
+		case ch <- frame:
 			// Successfully queued
 		case <-s.ctx.Done():
 			return
@@ -200,7 +201,39 @@ func (s *AndroidWebRTCSession) readFrames() {
 	}
 }
 
-// writeFrames reads frames from channel and writes to WebRTC track
+// reconnectStream polls for the H264 stream to come back and returns a new frame channel.
+// Used by writeFrames to transparently recover from H264Server restarts (e.g. adb tcpip)
+// without closing the WebRTC peer connection and interrupting the browser.
+func (s *AndroidWebRTCSession) reconnectStream() (chan AndroidH264Frame, bool) {
+	streamURL := "ws://localhost:" + s.device.StreamPort
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case <-s.ctx.Done():
+			return nil, false
+		default:
+		}
+		time.Sleep(500 * time.Millisecond)
+
+		conn, _, _, err := ws.Dial(s.ctx, streamURL)
+		if err != nil {
+			continue
+		}
+
+		logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Reconnected to Android H.264 stream for device %s", s.device.UDID))
+		newCh := make(chan AndroidH264Frame, 30)
+		s.mu.Lock()
+		s.wsConn = conn
+		s.mu.Unlock()
+		go s.readFrames(conn, newCh)
+		return newCh, true
+	}
+	return nil, false
+}
+
+// writeFrames reads frames from channel and writes to WebRTC track.
+// When the frame channel closes unexpectedly (H264Server restarted), it calls
+// reconnectStream to resume streaming without disconnecting the browser.
 func (s *AndroidWebRTCSession) writeFrames() {
 	fallbackDuration := time.Second / time.Duration(30) // Default 30fps
 	if s.device.StreamTargetFPS > 0 {
@@ -209,15 +242,38 @@ func (s *AndroidWebRTCSession) writeFrames() {
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting frame writing for device %s", s.device.UDID))
 
+	currentCh := s.frameChannel
+
 	for {
 		select {
 		case <-s.ctx.Done():
 			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping frame writing for device %s", s.device.UDID))
 			return
-		case frame, ok := <-s.frameChannel:
+		case frame, ok := <-currentCh:
 			if !ok {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame channel closed for device %s", s.device.UDID))
-				return
+				// Check whether the close was intentional (context cancelled).
+				select {
+				case <-s.ctx.Done():
+					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame channel closed for device %s", s.device.UDID))
+					return
+				default:
+				}
+
+				// H264Server died unexpectedly (e.g. adb tcpip daemon restart).
+				// Try to reconnect transparently so the browser keeps its WebRTC session.
+				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("H264 stream disconnected for device %s, waiting for H264Server to restart...", s.device.UDID))
+				newCh, ok := s.reconnectStream()
+				if !ok {
+					logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame channel closed for device %s (reconnect timed out)", s.device.UDID))
+					return
+				}
+				currentCh = newCh
+				// Reset timestamp tracking so the new stream starts with a clean baseline
+				s.mu.Lock()
+				s.firstTimestamp = 0
+				s.lastTimestamp = 0
+				s.mu.Unlock()
+				continue
 			}
 
 			if len(frame.Data) < 5 {
@@ -246,13 +302,6 @@ func (s *AndroidWebRTCSession) writeFrames() {
 
 			track := s.videoTrack
 			s.mu.Unlock()
-
-			// Log every 30 frames
-			// Left for potential debugging
-			// frameNum := s.frameCount
-			// if frameNum%30 == 0 {
-			// 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Streaming frame #%d (%d bytes, duration=%v) for device %s", frameNum, len(frame.Data), duration, s.device.UDID))
-			// }
 
 			// Write to WebRTC track
 			if track != nil {
