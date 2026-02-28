@@ -252,9 +252,14 @@ func NewAndroidAudioExtractor(device *models.Device) (*AndroidAudioExtractor, er
 	}
 	extractor.encoder = encoder
 
-	// Wait for Android audio WebSocket server to be ready
+	// Wait for Android audio WebSocket server to be ready.
+	// Internal audio requires the user to approve the MediaProjection dialog, so allow more time.
+	audioWaitTimeout := 10 * time.Second
+	if device.AudioInputType == "internal" || device.AudioInputType == "" {
+		audioWaitTimeout = 30 * time.Second
+	}
 	tcpAddress := "localhost:" + device.AudioPort
-	if err := waitForAudioPort(ctx, tcpAddress, 10*time.Second); err != nil {
+	if err := waitForAudioPort(ctx, tcpAddress, audioWaitTimeout); err != nil {
 		cancel()
 		return nil, fmt.Errorf("Android audio server not ready: %w", err)
 	}
@@ -310,14 +315,20 @@ func (e *AndroidAudioExtractor) extractAudioFrames() {
 			// Extract PCM data (rest of message)
 			pcmData := msg[8:]
 
-			// Convert PCM bytes to int16 samples (little-endian)
+			// Opus requires exactly 960 samples per frame (20ms @ 48kHz).
+			// Pad with silence if fewer samples received; truncate if more.
+			const opusFrameSize = 960
 			numSamples := len(pcmData) / 2
-			pcmSamples := make([]int16, numSamples)
-			for i := 0; i < numSamples; i++ {
+			pcmSamples := make([]int16, opusFrameSize)
+			copyLen := numSamples
+			if copyLen > opusFrameSize {
+				copyLen = opusFrameSize
+			}
+			for i := 0; i < copyLen; i++ {
 				pcmSamples[i] = int16(pcmData[i*2]) | int16(pcmData[i*2+1])<<8
 			}
 
-			// Encode PCM to Opus (960 samples @ 48kHz = 20ms frame = 1920 bytes)
+			// Encode PCM to Opus (960 samples @ 48kHz = 20ms frame)
 			opusData := make([]byte, 4000) // Max Opus frame size
 			n, err := e.encoder.Encode(pcmSamples, opusData)
 			if err != nil {

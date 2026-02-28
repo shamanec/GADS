@@ -10,6 +10,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gobwas/ws v1.4.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/hraban/opus v0.0.0-20251117090126-c76ea7e21bf3
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/pion/webrtc/v3 v3.3.6
 	github.com/shirou/gopsutil v3.21.11+incompatible
@@ -47,7 +48,6 @@ require (
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
 	github.com/grandcat/zeroconf v1.0.0 // indirect
-	github.com/hraban/opus v0.0.0-20251117090126-c76ea7e21bf3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect

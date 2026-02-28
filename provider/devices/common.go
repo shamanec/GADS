@@ -397,8 +397,8 @@ func setupAndroidDevice(device *models.Device) {
 	device.StreamPort = streamPort
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully allocated free port `%v` for GADS-stream for device `%v`", device.StreamPort, device.UDID))
 
-	// Allocate a free port on the host for the audio stream
-	if device.AudioStreamEnabled {
+	// Allocate a free port on the host for the audio stream (H264 only — GetStream audio stays on-device)
+	if device.AudioStreamEnabled && device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for audio stream for device `%v`", device.UDID))
 		audioPort, err := providerutil.GetFreePort()
 		if err != nil {
@@ -513,6 +513,12 @@ func setupAndroidDevice(device *models.Device) {
 		time.Sleep(2 * time.Second)
 		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully added GADS Settings stream recording permissions on Android device `%v`", device.UDID))
 
+		// WebRTCScreenCaptureService declares foregroundServiceType="mediaProjection|microphone",
+		// so RECORD_AUDIO must be granted before starting it (required on Android 10+).
+		if device.StreamType == models.AndroidWebRTCGetStreamStreamTypeId {
+			grantRecordAudioPermission(device)
+		}
+
 		// Do not attempt to add POST_NOTIFICATIONS permission on devices below Android 15
 		if device.SemVer.Major() >= 15 {
 			err = addGadsStreamPostNotificationsPermission(device)
@@ -546,27 +552,47 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded GADS streaming port to host port for Android device `%v`", device.UDID))
 
-	// Forward the audio stream to the host if enabled
+	// Setup audio streaming if enabled
 	if device.AudioStreamEnabled {
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS audio streaming port to host port for Android device `%v`", device.UDID))
-		err = forwardGadsAudioStream(device)
-		if err != nil {
-			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not forward GADS audio streaming port to host port %v for Android device - %v:\n %v", device.AudioPort, device.UDID, err))
-			device.AudioStreamEnabled = false
-		} else {
-			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded audio streaming port to host port %v for device `%v`", device.AudioPort, device.UDID))
+		audioInputType := device.AudioInputType
+		if audioInputType == "" {
+			audioInputType = "internal"
 		}
 
-		if device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId && device.AudioStreamEnabled {
-			audioInputType := device.AudioInputType
-			if audioInputType == "" {
-				audioInputType = "internal"
+		// Internal audio capture requires Android 10+ (API 29 — AudioPlaybackCapture API).
+		// Fail early to avoid a silent/hung stream on older devices.
+		if audioInputType == "internal" {
+			apiLevel, err := getAndroidAPILevel(device)
+			if err != nil {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not determine Android API level for device `%s`, disabling audio - %v", device.UDID, err))
+				device.AudioStreamEnabled = false
+			} else if apiLevel < 29 {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Internal audio requires Android 10+ (API 29), device `%s` has API %d - disabling audio", device.UDID, apiLevel))
+				device.AudioStreamEnabled = false
 			}
-			startGadsH264AudioService(device)
+		}
+
+		// H264: Go connects to port 1992 to inject audio into its own WebRTC peer connection.
+		// GetStream: audio stays on-device; WebRTCScreenCaptureService connects to port 1992 locally — no forward needed.
+		if device.AudioStreamEnabled && device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+			logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Forwarding GADS audio streaming port to host port for Android device `%v`", device.UDID))
+			err = forwardGadsAudioStream(device)
+			if err != nil {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not forward GADS audio streaming port to host port %v for Android device - %v:\n %v", device.AudioPort, device.UDID, err))
+				device.AudioStreamEnabled = false
+			} else {
+				logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully forwarded audio streaming port to host port %v for device `%v`", device.AudioPort, device.UDID))
+			}
+		}
+
+		if device.AudioStreamEnabled &&
+			(device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId ||
+				device.StreamType == models.AndroidWebRTCGetStreamStreamTypeId) {
+			startGadsAudioService(device)
 			if audioInputType == "internal" {
-				// H264AudioService waits for MediaProjection via MediaProjectionHolder.
+				// AudioService waits for MediaProjection via MediaProjectionHolder.
 				// The Activity shows the system dialog; on approval it sets MediaProjectionHolder.
-				startGadsH264AudioProjectionActivity(device)
+				startGadsAudioProjectionActivity(device)
 			}
 		}
 	}

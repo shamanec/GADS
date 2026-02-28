@@ -1,4 +1,4 @@
-name: GADS UI CI
+name: GADS CI
 
 on:
   push:
@@ -6,10 +6,8 @@ on:
       - '*'
 
 jobs:
-  build_and_release:
-    runs-on: macos-latest
-    permissions:
-      contents: write
+  build_ui:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,35 +46,220 @@ jobs:
           zip -r ../ui-files.zip ./build
 
       - name: Install Swagger Generator
-        run: |
-          go install github.com/swaggo/swag/cmd/swag@latest
+        run: go install github.com/swaggo/swag/cmd/swag@latest
 
       - name: Generate Swagger Documentation
-        run: |
-          swag init -g hub/hub.go -o docs
+        run: swag init -g hub/hub.go -o docs
 
-      - name: Build binaries
+      - name: Upload UI build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-build
+          path: hub-ui/build/
+
+      - name: Upload Swagger docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swagger-docs
+          path: docs/
+
+      - name: Upload ui-files zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-files
+          path: ui-files.zip
+
+  build_linux:
+    needs: build_ui
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install libopus
+        run: sudo apt-get install -y libopus-dev libopusfile-dev pkg-config
+
+      - name: Download UI build
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: hub-ui/build/
+
+      - name: Download Swagger docs
+        uses: actions/download-artifact@v4
+        with:
+          name: swagger-docs
+          path: docs/
+
+      - name: Build Linux binary
         run: |
           go get
-          echo "Preparing Windows binary"
-          GOOS=windows GOARCH=amd64 go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '" -o GADS.exe .
-          zip -j gads-win.zip GADS.exe
-          rm GADS.exe
-          echo "Preparing macOS amd64 binary"
-          GOOS=darwin GOARCH=amd64 go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '"  -o GADS .
-          zip -j gads-mac-amd64.zip GADS
-          rm GADS
-          echo "Preparing macOS arm64 binary"
-          GOOS=darwin GOARCH=arm64 go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '"  -o GADS .
-          zip -j gads-mac-arm64.zip GADS
-          rm GADS
-          echo "Preparing Linux binary"
-          GOOS=linux GOARCH=amd64 go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name}} '"  -o GADS .
+          GOOS=linux GOARCH=amd64 go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name }}'" -o GADS .
           zip -j gads-linux.zip GADS
-          rm GADS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gads-linux
+          path: gads-linux.zip
+
+  build_macos_amd64:
+    needs: build_ui
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install libopus
+        run: brew install opus opusfile pkg-config
+
+      - name: Download UI build
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: hub-ui/build/
+
+      - name: Download Swagger docs
+        uses: actions/download-artifact@v4
+        with:
+          name: swagger-docs
+          path: docs/
+
+      - name: Build macOS amd64 binary
+        run: |
+          go get
+          GOOS=darwin GOARCH=amd64 go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name }}'" -o GADS .
+          zip -j gads-mac-amd64.zip GADS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gads-mac-amd64
+          path: gads-mac-amd64.zip
+
+  build_macos_arm64:
+    needs: build_ui
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install libopus
+        run: brew install opus opusfile pkg-config
+
+      - name: Download UI build
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: hub-ui/build/
+
+      - name: Download Swagger docs
+        uses: actions/download-artifact@v4
+        with:
+          name: swagger-docs
+          path: docs/
+
+      - name: Build macOS arm64 binary
+        run: |
+          go get
+          GOOS=darwin GOARCH=arm64 go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name }}'" -o GADS .
+          zip -j gads-mac-arm64.zip GADS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gads-mac-arm64
+          path: gads-mac-arm64.zip
+
+  build_windows:
+    needs: build_ui
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup MSYS2 with libopus
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-opus
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-gcc
+
+      - name: Download UI build
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: hub-ui/build/
+
+      - name: Download Swagger docs
+        uses: actions/download-artifact@v4
+        with:
+          name: swagger-docs
+          path: docs/
+
+      - name: Build Windows binary
+        env:
+          CGO_ENABLED: 1
+          CC: C:\msys64\mingw64\bin\gcc.exe
+          PKG_CONFIG: C:\msys64\mingw64\bin\pkg-config.exe
+          PKG_CONFIG_PATH: C:\msys64\mingw64\lib\pkgconfig
+        run: |
+          go get
+          go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name }}'" -o GADS.exe .
+          Compress-Archive -Path GADS.exe -DestinationPath gads-win.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gads-windows
+          path: gads-win.zip
+
+  release:
+    needs: [build_linux, build_macos_amd64, build_macos_arm64, build_windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: gads-*
+          merge-multiple: true
+
+      - name: Download ui-files zip
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-files
 
       - uses: AButler/upload-release-assets@v2.0
         with:
           files: '*.zip'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          release-tag: ${{  github.ref_name }}
+          release-tag: ${{ github.ref_name }}

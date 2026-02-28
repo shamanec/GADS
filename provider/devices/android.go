@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -132,10 +133,6 @@ func startGadsSettingsStream(device *models.Device) {
 	killCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "pkill -f H264Server")
 	_ = killCmd.Run() // Ignore error - process might not exist
 
-	stopAudioCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
-		"am", "stopservice", "-n", "com.gads.settings/.audio.H264AudioService")
-	_ = stopAudioCmd.Run()
-
 	time.Sleep(1 * time.Second)
 
 	audioInputType := device.AudioInputType
@@ -238,15 +235,41 @@ func addGadsStreamPostNotificationsPermission(device *models.Device) error {
 	return nil
 }
 
-// startGadsH264AudioService grants RECORD_AUDIO to the app and starts the H264AudioService
+// grantRecordAudioPermission grants RECORD_AUDIO to com.gads.settings.
+// Required whenever a foreground service declares foregroundServiceType containing "microphone".
+func grantRecordAudioPermission(device *models.Device) {
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
+		"pm", "grant", "com.gads.settings", "android.permission.RECORD_AUDIO")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not grant RECORD_AUDIO to com.gads.settings for device `%v` - %v", device.UDID, err))
+	}
+}
+
+// getAndroidAPILevel returns the SDK/API level of the Android device (e.g. 29 for Android 10).
+func getAndroidAPILevel(device *models.Device) (int, error) {
+	var outBuffer bytes.Buffer
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "getprop", "ro.build.version.sdk")
+	cmd.Stdout = &outBuffer
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("getAndroidAPILevel: failed to run adb getprop for device `%s` - %w", device.UDID, err)
+	}
+	apiLevel, err := strconv.Atoi(strings.TrimSpace(outBuffer.String()))
+	if err != nil {
+		return 0, fmt.Errorf("getAndroidAPILevel: failed to parse API level for device `%s` - %w", device.UDID, err)
+	}
+	return apiLevel, nil
+}
+
+// startGadsAudioService grants RECORD_AUDIO to the app and starts the AudioService
 // foreground service within the com.gads.settings app context, where AudioRecord works
 // correctly (not possible in app_process shell context).
-func startGadsH264AudioService(device *models.Device) {
-	grantCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
-		"pm", "grant", "com.gads.settings", "android.permission.RECORD_AUDIO")
-	if err := grantCmd.Run(); err != nil {
-		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not grant RECORD_AUDIO to com.gads.settings for device `%v` - %v", device.UDID, err))
-	}
+func startGadsAudioService(device *models.Device) {
+	grantRecordAudioPermission(device)
+
+	// Stop any lingering instance before starting fresh
+	stopCmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
+		"am", "stopservice", "-n", "com.gads.settings/.audio.AudioService")
+	_ = stopCmd.Run()
 
 	audioInputType := device.AudioInputType
 	if audioInputType == "" {
@@ -254,21 +277,21 @@ func startGadsH264AudioService(device *models.Device) {
 	}
 
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
-		"am", "start-foreground-service", "-n", "com.gads.settings/.audio.H264AudioService",
+		"am", "start-foreground-service", "-n", "com.gads.settings/.audio.AudioService",
 		"--es", "audio_input_type", audioInputType)
 	if err := cmd.Run(); err != nil {
-		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not start H264 audio service for device `%v` - %v", device.UDID, err))
+		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not start audio service for device `%v` - %v", device.UDID, err))
 	}
 }
 
-// startGadsH264AudioProjectionActivity launches the H264AudioProjectionActivity which shows
+// startGadsAudioProjectionActivity launches the AudioProjectionActivity which shows
 // the system MediaProjection permission dialog. On user approval, it stores the MediaProjection
-// in MediaProjectionHolder so H264AudioService can use AudioPlaybackCapture for internal audio.
-func startGadsH264AudioProjectionActivity(device *models.Device) {
+// in MediaProjectionHolder so AudioService can use AudioPlaybackCapture for internal audio.
+func startGadsAudioProjectionActivity(device *models.Device) {
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell",
-		"am", "start", "-n", "com.gads.settings/.audio.H264AudioProjectionActivity")
+		"am", "start", "-n", "com.gads.settings/.audio.AudioProjectionActivity")
 	if err := cmd.Run(); err != nil {
-		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not start H264AudioProjectionActivity for device `%v` - %v", device.UDID, err))
+		logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not start AudioProjectionActivity for device `%v` - %v", device.UDID, err))
 	}
 }
 
