@@ -12,10 +12,8 @@ package router
 import (
 	"GADS/common/api"
 	"GADS/common/db"
-	"GADS/common/minio"
 	"GADS/common/models"
 	"GADS/hub/auth"
-	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
 	"context"
@@ -1391,32 +1389,6 @@ func UpdateTURNConfig(c *gin.Context) {
 func GetSystemStatus(c *gin.Context) {
 	var messages []models.SystemStatusMessage
 
-	// Check MinIO configuration
-	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
-	if err != nil {
-		// Check if it's a "not found" error (no config exists)
-		if err == mongo.ErrNoDocuments {
-			messages = append(messages, models.SystemStatusMessage{
-				Type:    "minio_not_configured",
-				Message: "MinIO is not configured. Screenshot storage and file uploads will not work.",
-				Action:  "Configure MinIO in Admin -> Global Settings",
-			})
-		} else {
-			// Other database error
-			api.InternalServerErrorResponse(c, "Failed to retrieve MinIO configuration", nil)
-			return
-		}
-	} else {
-		// Config exists, check if it's enabled
-		if !minioConfig.Enabled {
-			messages = append(messages, models.SystemStatusMessage{
-				Type:    "minio_disabled",
-				Message: "MinIO is disabled. Screenshot storage and file uploads will not work.",
-				Action:  "Enable MinIO in Admin -> Global Settings",
-			})
-		}
-	}
-
 	// Check if any devices are configured
 	devices, _ := db.GlobalMongoStore.GetDevices()
 	if len(devices) == 0 {
@@ -1442,61 +1414,4 @@ func GetSystemStatus(c *gin.Context) {
 	}
 
 	api.OKResponse(c, "System status retrieved successfully", response)
-}
-
-// GetScreenshot godoc
-// @Summary      Get screenshot for Appium session
-// @Description  Retrieve screenshot from Minio storage for specific build/session
-// @Tags         Reports
-// @Accept       json
-// @Produce      image/jpeg
-// @Param        build_id   path  string  true  "Build ID"
-// @Param        session_id path  string  true  "Session ID"
-// @Param        filename   path  string  true  "Screenshot filename"
-// @Success      200        {file}  binary  "Screenshot image"
-// @Failure      404        {object}  models.ErrorResponse
-// @Failure      500        {object}  models.ErrorResponse
-// @Security     BearerAuth
-// @Router       /reports/screenshots/{build_id}/{session_id}/{filename} [get]
-func GetScreenshot(c *gin.Context) {
-	buildID := c.Param("build_id")
-	sessionID := c.Param("session_id")
-	filename := c.Param("filename")
-
-	// Validate parameters
-	if buildID == "" || sessionID == "" || filename == "" {
-		BadRequest(c, "Missing required parameters: build_id, session_id, or filename")
-		return
-	}
-
-	// Check if MinIO is available
-	if !config.GlobalHubConfig.MinioAvailable {
-		NotFound(c, "Screenshot storage is not available - MinIO is not configured or enabled")
-		return
-	}
-
-	// Get screenshot from Minio
-	reader, err := minio.GlobalMinioClient.GetAppiumScreenshot(buildID, sessionID, filename)
-	if err != nil {
-		// Check if it's a not found error or other error
-		if err.Error() == "The specified key does not exist." {
-			NotFound(c, "Screenshot not found")
-		} else {
-			InternalServerError(c, fmt.Sprintf("Failed to retrieve screenshot: %s", err))
-		}
-		return
-	}
-	defer reader.Close()
-
-	// Set appropriate headers for image content
-	c.Header("Content-Type", "image/jpeg")
-	c.Header("Cache-Control", "public, max-age=3600") // Cache for 1 hour
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filename))
-
-	// Stream the image data to the response
-	_, err = io.Copy(c.Writer, reader)
-	if err != nil {
-		// Log error but response is already started, can't return error response
-		fmt.Printf("Error streaming screenshot: %v\n", err)
-	}
 }
