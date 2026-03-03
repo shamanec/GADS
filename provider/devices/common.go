@@ -310,6 +310,14 @@ func updateDevices() {
 							continue
 						}
 
+						// For iOS: check cooldown BEFORE setContext so we do not create an
+						// orphaned context when the retry window has not expired yet.
+						if dbDevice.OS == "ios" &&
+							!dbDevice.LastSetupResetTS.IsZero() &&
+							time.Since(dbDevice.LastSetupResetTS) < 30*time.Second {
+							continue DEVICE_MAP_LOOP
+						}
+
 						setContext(dbDevice)
 						dbDevice.AppiumReadyChan = make(chan bool, 1)
 						switch dbDevice.OS {
@@ -699,6 +707,12 @@ func setupIOSDevice(device *models.Device) {
 	err = pairIOS(device)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair device `%s` - %v", device.UDID, err))
+		// Sleep 30s before resetting. ProviderState stays "preparing" throughout the sleep
+		// so updateDevices skips this device, preventing a competing goroutine from launching.
+		// time.Sleep is used instead of a context-based select because device.Context can be
+		// replaced or cancelled prematurely by concurrent setContext calls, making the select
+		// fire immediately and defeating the cooldown entirely.
+		time.Sleep(30 * time.Second)
 		ResetLocalDevice(device, "Failed to pair device.")
 		return
 	}
@@ -1047,6 +1061,7 @@ func ResetLocalDevice(device *models.Device, reason string) {
 		device.IsResetting = true
 		device.CtxCancel()
 		device.ProviderState = "init"
+		device.LastSetupResetTS = time.Now()
 		device.IsResetting = false
 		if device.GoIOSTunnel.Address != "" {
 			device.GoIOSTunnel.Close()
