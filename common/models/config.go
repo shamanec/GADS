@@ -27,7 +27,6 @@ type Provider struct {
 	UseGadsIosStream     bool   `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
 	HubAddress           string `json:"hub_address" bson:"-"`
 	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
-	MinioAvailable       bool   `json:"minio_available" bson:"-"`
 	TURNUsernameSuffix   string `json:"-" bson:"-"`
 }
 
@@ -45,7 +44,6 @@ type HubConfig struct {
 	FilesTempDir         string `json:"-"`
 	OS                   string `json:"os"`
 	AuthEnabled          bool   `json:"auth_enabled"`
-	MinioAvailable       bool   `json:"minio_available"`
 	TURNUsernameSuffix   string `json:"-"`
 }
 
