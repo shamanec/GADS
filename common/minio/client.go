@@ -8,47 +8,26 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-var GlobalMinioClient *MinioClient
-
 type MinioClient struct {
 	client *minio.Client
 }
 
-func InitMinioClient() error {
-	endpoint := "localhost:9000"
-	accessKeyID := "minioadmin"
-	secretAccessKey := "minioadmin"
-	useSSL := false
+func InitMinioClientWithConfig(endpoint, accessKeyID, secretAccessKey string, useSSL bool) (MinioClient, error) {
+	var minioClient MinioClient
 
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
 		Secure: useSSL,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create Minio client: %v", err)
+		return minioClient, fmt.Errorf("failed to create Minio client: %v", err)
 	}
 
-	GlobalMinioClient = &MinioClient{
+	minioClient = MinioClient{
 		client: client,
 	}
 
-	return nil
-}
-
-func InitMinioClientWithConfig(endpoint, accessKeyID, secretAccessKey string, useSSL bool) error {
-	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSSL,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create Minio client: %v", err)
-	}
-
-	GlobalMinioClient = &MinioClient{
-		client: client,
-	}
-
-	return nil
+	return minioClient, nil
 }
 
 func (mc *MinioClient) EnsureBucket(bucketName string) error {
