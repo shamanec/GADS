@@ -115,6 +115,50 @@ func extractNALUnits(data []byte) [][]byte {
 	return nalUnits
 }
 
+// parseH264Message parses the wire format sent by Android for H.264 frames:
+// [8 bytes big-endian PTS][H.264 data (minimum 5 bytes)]
+// Returns the PTS and H.264 payload, or an error when the message is too short.
+func parseH264Message(msg []byte) (pts int64, h264Data []byte, err error) {
+	// Minimum: 8 bytes PTS + 5 bytes H.264 = 13
+	if len(msg) < 13 {
+		return 0, nil, fmt.Errorf("message too short: got %d bytes, need at least 13", len(msg))
+	}
+	pts = int64(binary.BigEndian.Uint64(msg[0:8]))
+	h264Data = msg[8:]
+	return pts, h264Data, nil
+}
+
+// parsePCMMessage parses the wire format sent by Android for audio frames:
+// [8 bytes big-endian PTS][PCM data]
+// Returns the PTS and raw PCM bytes, or an error when the message is too short.
+func parsePCMMessage(msg []byte) (pts int64, pcmData []byte, err error) {
+	if len(msg) < 8 {
+		return 0, nil, fmt.Errorf("message too short: got %d bytes, need at least 8", len(msg))
+	}
+	pts = int64(binary.BigEndian.Uint64(msg[0:8]))
+	pcmData = msg[8:]
+	return pts, pcmData, nil
+}
+
+// decodePCMToInt16 converts raw PCM bytes (little-endian int16 pairs) to []int16.
+// Trailing odd bytes are ignored.
+func decodePCMToInt16(pcmData []byte) []int16 {
+	numSamples := len(pcmData) / 2
+	samples := make([]int16, numSamples)
+	for i := 0; i < numSamples; i++ {
+		samples[i] = int16(pcmData[i*2]) | int16(pcmData[i*2+1])<<8
+	}
+	return samples
+}
+
+// padOrTruncatePCM returns a slice of exactly size samples from input.
+// Missing samples are filled with zeros; excess samples are discarded.
+func padOrTruncatePCM(samples []int16, size int) []int16 {
+	out := make([]int16, size)
+	copy(out, samples)
+	return out
+}
+
 // extractH264Frames reads H.264 frames from WebSocket and sends to channel
 // Android sends complete frames with SPS/PPS prepended to keyframes
 func (e *AndroidH264Extractor) extractH264Frames() {
@@ -141,18 +185,12 @@ func (e *AndroidH264Extractor) extractH264Frames() {
 				return
 			}
 
-			// Need at least 8 bytes for PTS + some H.264 data
-			if len(msg) < 13 {
+			pts, h264Data, err := parseH264Message(msg)
+			if err != nil {
 				continue
 			}
 
 			frameCount++
-
-			// Extract presentation timestamp (first 8 bytes, big-endian)
-			pts := int64(binary.BigEndian.Uint64(msg[0:8]))
-
-			// Extract H.264 data (everything after first 8 bytes)
-			h264Data := msg[8:]
 
 			// Log every 30 frames
 			if frameCount%30 == 0 {
@@ -305,28 +343,15 @@ func (e *AndroidAudioExtractor) extractAudioFrames() {
 				return
 			}
 
-			if len(msg) < 8 {
+			pts, pcmData, err := parsePCMMessage(msg)
+			if err != nil {
 				continue
 			}
-
-			// Extract PTS (first 8 bytes, big-endian)
-			pts := int64(binary.BigEndian.Uint64(msg[0:8]))
-
-			// Extract PCM data (rest of message)
-			pcmData := msg[8:]
 
 			// Opus requires exactly 960 samples per frame (20ms @ 48kHz).
 			// Pad with silence if fewer samples received; truncate if more.
 			const opusFrameSize = 960
-			numSamples := len(pcmData) / 2
-			pcmSamples := make([]int16, opusFrameSize)
-			copyLen := numSamples
-			if copyLen > opusFrameSize {
-				copyLen = opusFrameSize
-			}
-			for i := 0; i < copyLen; i++ {
-				pcmSamples[i] = int16(pcmData[i*2]) | int16(pcmData[i*2+1])<<8
-			}
+			pcmSamples := padOrTruncatePCM(decodePCMToInt16(pcmData), opusFrameSize)
 
 			// Encode PCM to Opus (960 samples @ 48kHz = 20ms frame)
 			opusData := make([]byte, 4000) // Max Opus frame size

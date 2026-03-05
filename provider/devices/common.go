@@ -386,6 +386,21 @@ func setupAndroidDevice(device *models.Device) {
 	}
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully disabled auto-rotation for device `%v`", device.UDID))
 
+	// Get Android API level once for version-specific decisions throughout setup
+	apiLevel := 0
+	if level, apiErr := getAndroidAPILevel(device); apiErr != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not determine Android API level for device `%s` - %v", device.UDID, apiErr))
+	} else {
+		apiLevel = level
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Device `%s` Android API level: %d", device.UDID, apiLevel))
+	}
+
+	// Android 15 (API 35) QPR1 automatically stops MediaProjection when the keyguard activates.
+	// Disable the keyguard to prevent stream interruption on a device farm.
+	if apiLevel >= 35 {
+		disableKeyguard(device)
+	}
+
 	// Allocate a free port on the host for the device video stream
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Allocating free port for GADS-stream for device `%v`", device.UDID))
 	streamPort, err := providerutil.GetFreePort()
@@ -519,8 +534,8 @@ func setupAndroidDevice(device *models.Device) {
 			grantRecordAudioPermission(device)
 		}
 
-		// Do not attempt to add POST_NOTIFICATIONS permission on devices below Android 15
-		if device.SemVer.Major() >= 15 {
+		// POST_NOTIFICATIONS permission required from Android 13 (API 33) for startForeground() notifications
+		if apiLevel >= 33 {
 			err = addGadsStreamPostNotificationsPermission(device)
 			if err != nil {
 				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings POST_NOTIFICATIONS permissions on Android device - %v:\n %v", device.UDID, err))
@@ -561,15 +576,9 @@ func setupAndroidDevice(device *models.Device) {
 
 		// Internal audio capture requires Android 10+ (API 29 — AudioPlaybackCapture API).
 		// Fail early to avoid a silent/hung stream on older devices.
-		if audioInputType == "internal" {
-			apiLevel, err := getAndroidAPILevel(device)
-			if err != nil {
-				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not determine Android API level for device `%s`, disabling audio - %v", device.UDID, err))
-				device.AudioStreamEnabled = false
-			} else if apiLevel < 29 {
-				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Internal audio requires Android 10+ (API 29), device `%s` has API %d - disabling audio", device.UDID, apiLevel))
-				device.AudioStreamEnabled = false
-			}
+		if audioInputType == "internal" && apiLevel < 29 {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Internal audio requires Android 10+ (API 29), device `%s` has API %d - disabling audio", device.UDID, apiLevel))
+			device.AudioStreamEnabled = false
 		}
 
 		// H264: Go connects to port 1992 to inject audio into its own WebRTC peer connection.
@@ -588,6 +597,15 @@ func setupAndroidDevice(device *models.Device) {
 		if device.AudioStreamEnabled &&
 			(device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId ||
 				device.StreamType == models.AndroidWebRTCGetStreamStreamTypeId) {
+			// Android 14+: AudioService with FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION requires
+			// the project_media appops to be granted before startForeground() is called.
+			// For H264, addGadsStreamRecordingPermissions is not called above (H264 uses app_process),
+			// so we grant it here when internal audio is enabled.
+			if audioInputType == "internal" && device.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+				if err = addGadsStreamRecordingPermissions(device); err != nil {
+					logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not grant project_media for AudioService on H264 device `%s` - %v", device.UDID, err))
+				}
+			}
 			startGadsAudioService(device)
 			if audioInputType == "internal" {
 				// AudioService waits for MediaProjection via MediaProjectionHolder.

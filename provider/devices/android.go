@@ -209,14 +209,28 @@ func setGadsAndroidIMEAsActive(device *models.Device) error {
 	return nil
 }
 
+// disableKeyguard disables the device lock screen via adb locksettings.
+// On Android 15 (API 35) QPR1, MediaProjection is automatically stopped when the keyguard activates.
+// Disabling it prevents stream interruption on device farms.
+func disableKeyguard(device *models.Device) {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Disabling keyguard on Android 15+ device `%v` to prevent stream interruption on lock", device.UDID))
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "locksettings", "set-disabled", "true")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not disable keyguard for device `%v` - %v", device.UDID, err))
+	}
+}
+
 // Add recording permissions to GADS video streaming application to avoid popup on start
 func addGadsStreamRecordingPermissions(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS-stream recording permissions on device `%v`", device.UDID))
 
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "appops", "set", GetStreamServicePackageName(device), "PROJECT_MEDIA", "allow")
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("addGadsStreamRecordingPermissions: Error executing `%s` - %s", cmd.Args, err)
+	if err := cmd.Run(); err != nil {
+		// Fallback: explicit --user 0 syntax for Android 14+ compatibility
+		cmd2 := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "cmd", "appops", "set", "--user", "0", GetStreamServicePackageName(device), "PROJECT_MEDIA", "allow")
+		if err2 := cmd2.Run(); err2 != nil {
+			return fmt.Errorf("addGadsStreamRecordingPermissions: appops set failed - %s; fallback also failed - %s", err, err2)
+		}
 	}
 
 	return nil
