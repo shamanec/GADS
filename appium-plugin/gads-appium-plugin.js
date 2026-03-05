@@ -18,8 +18,6 @@ class GadsAppium extends BasePlugin {
     static apiClient = null;
     // Static property to hold the current Appium session ID
     static currentSessionId = "";
-    // Static property to hold the current driver
-    static activeDriver = null;
 
     // New endpoints on the Appium server from the plugin itself
     static newMethodMap = {
@@ -111,9 +109,6 @@ class GadsAppium extends BasePlugin {
         // Call through to the driver’s createSession
         const createSessionResult = await driver.createSession?.(jsonwpCaps, reqCaps, w3cCapabilities)
 
-        // Store the active driver in case we need it for something
-        GadsAppium.activeDriver = driver
-
         // Extract the sessionId
         const sessionId = createSessionResult?.value?.[0]
         if (sessionId) {
@@ -138,8 +133,6 @@ class GadsAppium extends BasePlugin {
         if (GadsAppium.currentSessionId === sessionId) {
             GadsAppium.currentSessionId = ''
         }
-        // Reset the active driver object
-        GadsAppium.activeDriver = null;
 
         // Call through to the driver's deleteSession
         const deleteSessionResult = await driver.deleteSession?.(sessionId)
@@ -173,9 +166,8 @@ class GadsAppium extends BasePlugin {
     async onUnexpectedShutdown(driver, cause) {
         log.warn(`GADS: Session ${GadsAppium.currentSessionId} crashed unexpectedly`)
 
-        // Clear the session id, active driver and the static action log properties
+        // Clear the session id and the static action log properties
         GadsAppium.currentSessionId = ""
-        GadsAppium.activeDriver = null
 
         // Notify GADS the driver crashed by clearing the session on GADS side
         await GadsAppium.apiClient.removeSession()
