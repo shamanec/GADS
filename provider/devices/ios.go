@@ -305,7 +305,7 @@ func runWDAGoIOS(device *models.Device) {
 		Listener:           testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()),
 	}
 	_, err := testmanagerd.RunTestWithConfig(
-		context.Background(),
+		device.Context,
 		testConfig)
 	if err != nil {
 		ResetLocalDevice(device, "Failed to run WebDriverAgent due to an error.")

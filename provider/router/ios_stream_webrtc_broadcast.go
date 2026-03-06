@@ -11,6 +11,7 @@ package router
 
 import (
 	"GADS/common/models"
+	"GADS/common/utils"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
 	"context"
@@ -59,16 +60,10 @@ func NewIOSWebRTCSession(device *models.Device) (*IOSWebRTCSession, error) {
 	}
 
 	// Create WebRTC configuration
-	config := webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
-			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
-			},
-		},
-	}
+	webrtcConfig := utils.GenerateWebRTCConfig()
 
 	// Create peer connection
-	pc, err := webrtc.NewPeerConnection(config)
+	pc, err := webrtc.NewPeerConnection(webrtcConfig)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to create peer connection: %w", err)
