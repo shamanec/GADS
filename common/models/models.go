@@ -333,7 +333,6 @@ type AppiumPluginConfiguration struct {
 	ProviderUrl       string `json:"providerUrl"`
 	UDID              string `json:"udid"`
 	HeartBeatInterval string `json:"heartbeatIntervalMs"`
-	MinioEnabled      bool   `json:"minioEnabled"`
 }
 
 // ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS

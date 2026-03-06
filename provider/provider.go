@@ -11,7 +11,6 @@ package provider
 
 import (
 	"GADS/common/db"
-	"GADS/common/minio"
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/devices"
@@ -29,7 +28,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var targetAppiumPluginVersion = "0.0.10"
+var targetAppiumPluginVersion = "0.0.11"
 
 func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	logLevel, _ := flags.GetString("log-level")
@@ -69,25 +68,6 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
-
-	// Initialize MinIO client based on configuration
-	logger.ProviderLogger.LogInfo("provider_setup", "Checking MinIO configuration...")
-	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
-	if err != nil {
-		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to get MinIO configuration from database: %s", err))
-		config.ProviderConfig.MinioAvailable = false
-	} else if !minioConfig.Enabled {
-		logger.ProviderLogger.LogInfo("provider_setup", "MinIO is disabled in configuration")
-		config.ProviderConfig.MinioAvailable = false
-	} else {
-		logger.ProviderLogger.LogInfo("provider_setup", "Initializing MinIO client...")
-		err = minio.InitMinioClientWithConfig(minioConfig.Endpoint, minioConfig.AccessKeyID, minioConfig.SecretAccessKey, minioConfig.UseSSL)
-		if err != nil {
-			log.Fatalf("MinIO is enabled in configuration but client initialization failed: %s", err)
-		}
-		logger.ProviderLogger.LogInfo("provider_setup", "MinIO client initialized successfully")
-		config.ProviderConfig.MinioAvailable = true
-	}
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
 
 	// Check if the default workspace exists

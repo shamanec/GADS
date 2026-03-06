@@ -86,7 +86,6 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	// Unauthenticated endpoints
 	authGroup.POST("/authenticate", auth.LoginHandler)
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
-	authGroup.GET("/reports/screenshots/:build_id/:session_id/:filename", GetScreenshot)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
 	authGroup.POST("/provider-update", ProviderUpdate)
@@ -154,11 +153,6 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/custom-actions/favorites", GetUserFavorites)
 	authGroup.POST("/custom-actions/favorites/:id", AddUserFavorite)
 	authGroup.DELETE("/custom-actions/favorites/:id", RemoveUserFavorite)
-	// Appium reports endpoints
-	reportsGroup := authGroup.Group("/reports")
-	reportsGroup.GET("/builds", GetBuildReports)
-	reportsGroup.GET("/builds/:build_id/sessions", GetBuildSessions)
-	reportsGroup.GET("/sessions/:session_id/logs", GetSessionLogs)
 
 	appiumGroup := r.Group("/grid")
 	appiumGroup.Use(AppiumGridMiddleware())
