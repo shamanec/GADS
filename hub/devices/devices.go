@@ -97,6 +97,18 @@ func GetLatestDBDevices() {
 					hubDevice.Device.WorkspaceID = dbDevice.WorkspaceID
 				}
 			} else {
+				// Ensure array fields are never null in JSON serialization
+				if dbDevice.InstalledApps == nil {
+					dbDevice.InstalledApps = []string{}
+				}
+				switch dbDevice.OS {
+				case "ios":
+					dbDevice.SupportedStreamTypes = models.IOSStreamTypes
+				case "android":
+					dbDevice.SupportedStreamTypes = models.AndroidStreamTypes
+				default:
+					dbDevice.SupportedStreamTypes = []models.StreamType{}
+				}
 				HubDevicesData.Devices[dbDevice.UDID] = &models.LocalHubDevice{
 					Device:                   dbDevice,
 					IsRunningAutomation:      false,

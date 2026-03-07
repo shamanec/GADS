@@ -157,7 +157,7 @@ func pairIOS(device *models.Device) error {
 }
 
 func GetInstalledAppsIOS(device *models.Device) []string {
-	var installedApps []string
+	installedApps := make([]string, 0)
 	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
 	if err != nil {
 		logger.ProviderLogger.LogError("get_installed_apps", fmt.Sprintf("Failed to create installation proxy connection for device `%s` when getting installed apps - %s", device.UDID, err))

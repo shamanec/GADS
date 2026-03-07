@@ -330,7 +330,7 @@ func updateAndroidScreenSizeADB(device *models.Device) error {
 
 // Get all installed apps on an Android device
 func GetInstalledAppsAndroid(device *models.Device) []string {
-	var installedApps []string
+	installedApps := make([]string, 0)
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "cmd", "package", "list", "packages", "-3")
 
 	var outBuffer bytes.Buffer
