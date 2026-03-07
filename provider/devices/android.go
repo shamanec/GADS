@@ -828,9 +828,29 @@ func EnableAdbTcpIp(device *models.Device) (string, error) {
 	return ip, nil
 }
 
+// isAdbTcpIpEnabled checks whether the device is currently connected via TCP/IP
+// by looking at the ADB transport. USB devices show up as just the serial number,
+// while TCP/IP devices show as ip:port.
+func isAdbTcpIpEnabled(device *models.Device) bool {
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "get-serialno")
+	out, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+	serial := strings.TrimSpace(string(out))
+	// TCP/IP connections show as "ip:port" (e.g. "192.168.1.5:5555")
+	return strings.Contains(serial, ":")
+}
+
 // DisableAdbTcpIp reverts the Android device from ADB over TCP/IP mode back to USB mode.
-// Safe to call even if the device is already in USB mode.
+// Skips the operation if the device is already in USB mode to avoid unnecessary daemon restarts.
 func DisableAdbTcpIp(device *models.Device) error {
+	// Check if TCP/IP is actually enabled before restarting the daemon
+	if !isAdbTcpIpEnabled(device) {
+		logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("Device `%s` is already in USB mode, skipping disable", device.UDID))
+		return nil
+	}
+
 	logger.ProviderLogger.LogInfo("adb_tcpip", fmt.Sprintf("Disabling ADB over TCP/IP on device `%s`", device.UDID))
 
 	device.Mutex.Lock()
