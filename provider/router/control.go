@@ -200,14 +200,18 @@ func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Respons
 
 func devicePinch(device *models.Device, x, y, scale float64) (*http.Response, error) {
 	if device.OS == "ios" {
-		velocity := scale / 0.3
-
 		requestBody := struct {
-			Scale    float64 `json:"scale"`
-			Velocity float64 `json:"velocity"`
+			CenterX    float64 `json:"centerX"`
+			CenterY    float64 `json:"centerY"`
+			StartScale float64 `json:"startScale"`
+			EndScale   float64 `json:"endScale"`
+			Duration   float64 `json:"duration"`
 		}{
-			Scale:    scale,
-			Velocity: velocity,
+			CenterX:    x,
+			CenterY:    y,
+			StartScale: 1.0,
+			EndScale:   scale,
+			Duration:   0.5,
 		}
 
 		actionJSON, err := json.MarshalIndent(requestBody, "", "  ")
