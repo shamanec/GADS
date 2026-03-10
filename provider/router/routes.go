@@ -259,16 +259,8 @@ func DeviceInfo(c *gin.Context) {
 	devices.DbDeviceMapMutex.RUnlock()
 
 	if ok {
-		// Ensure SupportedStreamTypes is never null in JSON
 		if dev.SupportedStreamTypes == nil {
-			switch dev.OS {
-			case "ios":
-				dev.SupportedStreamTypes = models.IOSStreamTypes
-			case "android":
-				dev.SupportedStreamTypes = models.AndroidStreamTypes
-			default:
-				dev.SupportedStreamTypes = []models.StreamType{}
-			}
+			dev.SupportedStreamTypes = models.StreamTypesForOS(dev.OS)
 		}
 
 		devices.UpdateInstalledApps(dev)

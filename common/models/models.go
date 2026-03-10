@@ -186,6 +186,17 @@ var AndroidStreamTypes = []StreamType{
 	AndroidWebRTCGadsH264StreamType,
 }
 
+func StreamTypesForOS(os string) []StreamType {
+	switch os {
+	case "ios":
+		return IOSStreamTypes
+	case "android":
+		return AndroidStreamTypes
+	default:
+		return []StreamType{}
+	}
+}
+
 type LocalHubDevice struct {
 	Device                   Device   `json:"info"`
 	SessionID                string   `json:"-"`
