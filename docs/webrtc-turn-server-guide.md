@@ -14,6 +14,7 @@
 - [Validation and Testing](#validation-and-testing)
 - [Troubleshooting](#troubleshooting)
 - [Security Best Practices](#security-best-practices)
+- [Alternative setup on Hetzner using coturn](#simple-hetzner-turn-server-setup-using-coturn)
 - [FAQ](#faq)
 - [References](#references)
 
@@ -43,13 +44,13 @@ TURN acts as a **last-resort fallback** to ensure connectivity when direct conne
 
 ### Connection Failure Scenarios
 
-| Scenario | STUN Works? | TURN Required? |
-|----------|-------------|----------------|
-| Open Internet / Full Cone NAT | ✅ Yes | ❌ No |
-| Port Restricted / Address Restricted NAT | ✅ Yes | ❌ No |
-| Symmetric NAT | ❌ No | ✅ Yes |
-| Carrier-Grade NAT (CGN) | ❌ No | ✅ Yes |
-| Corporate Firewall (UDP blocked) | ❌ No | ✅ Yes (TCP fallback) |
+| Scenario                                 | STUN Works? | TURN Required?        |
+| ---------------------------------------- | ----------- | --------------------- |
+| Open Internet / Full Cone NAT            | ✅ Yes      | ❌ No                 |
+| Port Restricted / Address Restricted NAT | ✅ Yes      | ❌ No                 |
+| Symmetric NAT                            | ❌ No       | ✅ Yes                |
+| Carrier-Grade NAT (CGN)                  | ❌ No       | ✅ Yes                |
+| Corporate Firewall (UDP blocked)         | ❌ No       | ✅ Yes (TCP fallback) |
 
 ---
 
@@ -85,17 +86,20 @@ TURN acts as a **last-resort fallback** to ensure connectivity when direct conne
 GADS uses **REST API ephemeral credentials** (draft-uberti-behave-turn-rest) for enhanced security:
 
 **Traditional TURN authentication** (❌ Insecure):
+
 - Static username/password pairs
 - Credentials shared across clients
 - Difficult to rotate
 
 **Ephemeral credentials** (✅ Secure):
+
 - **Time-limited**: Credentials expire automatically (e.g., 1 hour TTL)
 - **Unique per session**: Each WebRTC connection gets fresh credentials
 - **Stateless validation**: TURN server validates using HMAC-SHA1 signature
 - **No credential storage**: TURN server only stores shared secret
 
 **Credential generation**:
+
 ```
 Username: <unix_timestamp>:<suffix>
 Password: base64(HMAC-SHA1(shared_secret, username))
@@ -106,6 +110,7 @@ Password: rT8K2p3wD9xL5vM1nQ6hE7jF4gA0sC8iO2uY5zK3pB9w=
 ```
 
 The TURN server validates credentials by:
+
 1. Extracting timestamp from username
 2. Checking if timestamp > current_time (not expired)
 3. Recomputing HMAC-SHA1(shared_secret, username)
@@ -156,14 +161,15 @@ The TURN server validates credentials by:
 
 ### Infrastructure Requirements
 
-| Resource | Minimum | Recommended | Notes |
-|----------|---------|-------------|-------|
-| **CPU** | 1 core | 2+ cores | Relay traffic is CPU-intensive (encryption) |
-| **RAM** | 512 MB | 2 GB | ~50 MB per 10 concurrent sessions |
-| **Bandwidth** | 10 Mbps | 100+ Mbps | **Critical**: All media flows through TURN |
-| **Storage** | 1 GB | 5 GB | For logs and certificates |
+| Resource      | Minimum | Recommended | Notes                                       |
+| ------------- | ------- | ----------- | ------------------------------------------- |
+| **CPU**       | 1 core  | 2+ cores    | Relay traffic is CPU-intensive (encryption) |
+| **RAM**       | 512 MB  | 2 GB        | ~50 MB per 10 concurrent sessions           |
+| **Bandwidth** | 10 Mbps | 100+ Mbps   | **Critical**: All media flows through TURN  |
+| **Storage**   | 1 GB    | 5 GB        | For logs and certificates                   |
 
 **Bandwidth calculation example**:
+
 - 1 WebRTC session @ 2 Mbps video = ~2 Mbps relay traffic
 - 10 concurrent sessions = ~20 Mbps minimum
 - Add 50% overhead for TCP/TLS encapsulation = **30 Mbps required**
@@ -172,6 +178,7 @@ The TURN server validates credentials by:
 
 - **Public IP address**: TURN server must be reachable from the internet
 - **Firewall ports** (must be open):
+
   ```
   TCP/UDP 3478   → TURN server (STUN/TURN)
   TCP/UDP 5349   → TURN server (STUN/TURN over TLS)
@@ -187,6 +194,7 @@ The TURN server validates credentials by:
 - **openssl**: For generating shared secrets (pre-installed on most Linux distributions)
 
 **Verification**:
+
 ```bash
 docker --version          # Should show: Docker version 20.10+
 docker-compose --version  # Should show: Docker Compose version 2.0+
@@ -206,6 +214,7 @@ cd turn-server
 ```
 
 **Expected directory structure**:
+
 ```
 turn-server/
 ├── docker-compose.yaml
@@ -225,11 +234,13 @@ openssl rand -base64 32
 ```
 
 **Example output**:
+
 ```
 O5V/O/yvaWZs/UJ5/o5F3+nikg3DjTq2PCeuMRmAjDw=
 ```
 
 **Save this secret securely**:
+
 - ✅ Use a password manager
 - ✅ Store in `.env` file (added to `.gitignore`)
 - ✅ Use Docker secrets for production
@@ -316,6 +327,7 @@ denied-peer-ip=169.254.0.0-169.254.255.255     # Link-local
 ```
 
 **How to find your IPs**:
+
 ```bash
 # Private IP (listening-ip)
 hostname -I | awk '{print $1}'
@@ -335,7 +347,7 @@ services:
   coturn:
     image: coturn/coturn:latest
     container_name: gads-turn
-    network_mode: host           # Required for proper IP binding
+    network_mode: host # Required for proper IP binding
     restart: unless-stopped
     volumes:
       - ./turnserver.conf:/etc/coturn/turnserver.conf
@@ -347,6 +359,7 @@ services:
 ```
 
 **Configuration notes**:
+
 - `network_mode: host`: Required for coturn to bind to multiple ports efficiently
 - `restart: unless-stopped`: Auto-restart on failures (except manual stops)
 - Volume mounts:
@@ -398,12 +411,14 @@ sudo service iptables save
 ```
 
 **Verification**:
+
 ```bash
 # Check if ports are listening (after deployment)
 sudo ss -tulpn | grep -E '3478|5349'
 ```
 
 **Expected output**:
+
 ```
 udp   UNCONN  0  0  YOUR_PRIVATE_IP:3478  0.0.0.0:*  users:(("turnserver",pid=1234,fd=5))
 tcp   LISTEN  0  128  YOUR_PRIVATE_IP:3478  0.0.0.0:*  users:(("turnserver",pid=1234,fd=6))
@@ -419,28 +434,33 @@ docker-compose up -d
 ```
 
 **Expected output**:
+
 ```
 [+] Running 1/1
  ✔ Container gads-turn  Started
 ```
 
 **Verify container is running**:
+
 ```bash
 docker ps | grep gads-turn
 ```
 
 **Expected output**:
+
 ```
 CONTAINER ID   IMAGE                  COMMAND                  STATUS         PORTS     NAMES
 abc123def456   coturn/coturn:latest   "/usr/bin/turnserver…"   Up 5 seconds             gads-turn
 ```
 
 **Check logs**:
+
 ```bash
 docker logs gads-turn
 ```
 
 **Expected log entries**:
+
 ```
 0: : log file opened: /var/log/turnserver.log
 0: : Listener address to use: YOUR_PRIVATE_IP:3478
@@ -462,13 +482,13 @@ docker logs gads-turn
 
 Fill in the following fields:
 
-| Field | Value | Example |
-|-------|-------|---------|
-| **Enable TURN Server** | ✅ Checked | - |
-| **TURN Server** | Hostname or IP | `turn.example.com` or `203.0.113.50` |
-| **Port** | TURN listening port | `3478` (default) |
-| **Shared Secret** | Secret from Step 2 | `O5V/O/yvaWZs...` (paste full secret) |
-| **TTL (seconds)** | Credential lifetime | `3600` (1 hour recommended) |
+| Field                  | Value               | Example                               |
+| ---------------------- | ------------------- | ------------------------------------- |
+| **Enable TURN Server** | ✅ Checked          | -                                     |
+| **TURN Server**        | Hostname or IP      | `turn.example.com` or `203.0.113.50`  |
+| **Port**               | TURN listening port | `3478` (default)                      |
+| **Shared Secret**      | Secret from Step 2  | `O5V/O/yvaWZs...` (paste full secret) |
+| **TTL (seconds)**      | Credential lifetime | `3600` (1 hour recommended)           |
 
 **Security note**: The shared secret is transmitted over HTTPS and stored encrypted in the Hub's database.
 
@@ -509,6 +529,7 @@ Admin UI → Hub API → Database → WebSocket → Providers → WebRTC Clients
 ```
 
 **Propagation timing**:
+
 - **Existing connections**: Use old config (remain active until disconnected)
 - **New connections**: Use new config immediately
 - **No restart required**: Changes are hot-reloaded
@@ -534,6 +555,7 @@ docker stats gads-turn --no-stream
 ```
 
 **Status indicators**:
+
 - ✅ **Healthy**: Container up, no errors, low resource usage
 - ⚠️ **Warning**: Container restarting, high CPU/memory
 - ❌ **Failed**: Container exited, errors in logs
@@ -545,9 +567,11 @@ docker stats gads-turn --no-stream
 **Best tool for quick validation**: [Trickle ICE Test](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)
 
 **Steps**:
+
 1. Open the Trickle ICE test page
 2. Remove default servers (click "X" icons)
 3. Add your TURN server:
+
    ```
    TURN or TURNS URI: turn:turn.example.com:3478
    Username: 1738000000:gads  (generate using GADS or manually with HMAC)
@@ -558,12 +582,14 @@ docker stats gads-turn --no-stream
 5. Look for **relay candidates** in results
 
 **Expected output**:
+
 ```
 ✅ relay 203.0.113.50:49152 typ relay raddr 0.0.0.0 rport 0
 ✅ relay 203.0.113.50:49153 typ relay raddr 0.0.0.0 rport 0
 ```
 
 **Troubleshooting results**:
+
 - ❌ **No relay candidates**: Firewall blocking, shared secret mismatch, or TURN server down
 - ❌ **401 Unauthorized**: Credentials expired or HMAC signature incorrect
 - ✅ **Relay candidates present**: TURN server working correctly
@@ -573,6 +599,7 @@ docker stats gads-turn --no-stream
 ### Step 3: CLI Test with `turnutils-uclient`
 
 **Install turnutils (on TURN server or testing machine)**:
+
 ```bash
 # Ubuntu/Debian
 sudo apt-get install coturn-utils
@@ -582,6 +609,7 @@ sudo yum install coturn-utils
 ```
 
 **Test TURN connectivity**:
+
 ```bash
 turnutils_uclient \
   -u "1738000000:gads" \
@@ -591,6 +619,7 @@ turnutils_uclient \
 ```
 
 **Expected output**:
+
 ```
 0: IPv4. Connected to TURN server: turn.example.com:3478
 0: Allocate request sent
@@ -600,6 +629,7 @@ turnutils_uclient \
 ```
 
 **How to generate test credentials manually** (if needed):
+
 ```bash
 # 1. Generate username with future timestamp (1 hour from now)
 TIMESTAMP=$(($(date +%s) + 3600))
@@ -618,6 +648,7 @@ echo "Password: $PASSWORD"
 ### Step 4: Verify in `chrome://webrtc-internals`
 
 **During an active GADS WebRTC session**:
+
 1. Open Chrome browser
 2. Navigate to `chrome://webrtc-internals`
 3. Start a WebRTC connection in GADS
@@ -638,6 +669,7 @@ ICE candidate pairs:
 ```
 
 **Indicators of TURN usage**:
+
 - ✅ Candidate type: **relay** (not "host" or "srflx")
 - ✅ Remote address matches TURN server public IP
 - ✅ Bytes sent/received increasing (traffic flowing through relay)
@@ -664,6 +696,7 @@ Use this checklist to confirm proper deployment:
 ### Symptom: No Relay Candidates in Trickle ICE
 
 **Diagnosis**:
+
 ```bash
 # 1. Check if TURN server is reachable
 nc -zv turn.example.com 3478
@@ -677,11 +710,13 @@ sudo ufw status | grep -E '3478|5349|49152'
 ```
 
 **Possible causes**:
+
 - ❌ TURN server unreachable (firewall blocking)
 - ❌ Shared secret mismatch between GADS and TURN server
 - ❌ Container crashed (check `docker ps` - status should be "Up", not "Restarting")
 
 **Solutions**:
+
 ```bash
 # Restart container
 docker-compose restart
@@ -700,23 +735,28 @@ curl -4 ifconfig.me
 ### Symptom: 401 Unauthorized Errors
 
 **Diagnosis**:
+
 ```bash
 # Check TURN server logs for auth failures
 docker logs gads-turn | grep -i "401\|unauthorized\|auth"
 ```
 
 **Example log entry**:
+
 ```
 ERROR: user 1738000000:gads authentication failed
 ```
 
 **Possible causes**:
+
 - ❌ Credentials expired (timestamp in username is past)
 - ❌ Shared secret mismatch
 - ❌ HMAC signature incorrectly computed
 
 **Solutions**:
+
 1. **Verify shared secret matches**:
+
    ```bash
    # TURN server
    grep static-auth-secret ~/git/turn-server/turnserver.conf
@@ -730,6 +770,7 @@ ERROR: user 1738000000:gads authentication failed
    - Credentials expire after TTL - this is normal and expected
 
 3. **Test with fresh credentials**:
+
    ```bash
    # Generate fresh credentials with future timestamp
    TIMESTAMP=$(($(date +%s) + 3600))
@@ -745,6 +786,7 @@ ERROR: user 1738000000:gads authentication failed
 ### Symptom: Connection Established but No Media
 
 **Diagnosis**:
+
 ```bash
 # Check relay port range is open
 sudo ufw status | grep 49152:49652
@@ -754,11 +796,13 @@ docker logs gads-turn | grep "relay"
 ```
 
 **Possible causes**:
+
 - ❌ Relay ports (49152-49652) blocked by firewall
 - ❌ Insufficient bandwidth on TURN server
 - ❌ Relay port range too small (increase max-port)
 
 **Solutions**:
+
 ```bash
 # 1. Open relay port range
 sudo ufw allow 49152:49652/udp
@@ -782,6 +826,7 @@ docker-compose restart
 ### Symptom: High CPU/Memory Usage
 
 **Diagnosis**:
+
 ```bash
 # Check resource usage
 docker stats gads-turn --no-stream
@@ -791,11 +836,13 @@ docker logs gads-turn | grep -c "Allocate request"
 ```
 
 **Expected resource usage**:
+
 - **Idle**: CPU < 5%, MEM ~50 MB
 - **10 concurrent sessions**: CPU 20-40%, MEM 200-500 MB
 - **50+ sessions**: CPU 60-80%, MEM 1-2 GB
 
 **Solutions**:
+
 1. **Scale vertically**: Upgrade to larger instance (more CPU/RAM)
 2. **Scale horizontally**: Deploy multiple TURN servers (use DNS round-robin)
 3. **Optimize config**:
@@ -811,6 +858,7 @@ docker logs gads-turn | grep -c "Allocate request"
 ### Symptom: Connection Works Locally but Fails Remotely
 
 **Diagnosis**:
+
 ```bash
 # Test from external network
 curl -4 ifconfig.me  # Get your public IP
@@ -818,12 +866,15 @@ curl -4 ifconfig.me  # Get your public IP
 ```
 
 **Possible causes**:
+
 - ❌ `external-ip` in `turnserver.conf` is incorrect (set to private IP instead of public)
 - ❌ NAT/router not forwarding ports correctly
 - ❌ Cloud firewall rules (AWS Security Groups, GCP Firewall Rules)
 
 **Solutions**:
+
 1. **Verify external IP**:
+
    ```bash
    # Check current external IP
    curl -4 ifconfig.me
@@ -852,19 +903,23 @@ curl -4 ifconfig.me  # Get your public IP
 **Recommendation**: Rotate shared secret **quarterly** (every 3 months).
 
 **Rotation process** (zero-downtime):
+
 1. Generate new secret:
+
    ```bash
    NEW_SECRET=$(openssl rand -base64 32)
    echo "New secret: $NEW_SECRET"
    ```
 
 2. Update TURN server config (keep old secret temporarily):
+
    ```ini
    # turnserver.conf
    static-auth-secret=OLD_SECRET,NEW_SECRET  # Comma-separated for dual-secret period
    ```
 
 3. Restart TURN server:
+
    ```bash
    docker-compose restart
    ```
@@ -874,6 +929,7 @@ curl -4 ifconfig.me  # Get your public IP
 5. Wait for TTL period (e.g., 1 hour) - old credentials expire
 
 6. Remove old secret from TURN config:
+
    ```ini
    static-auth-secret=NEW_SECRET  # Remove OLD_SECRET
    ```
@@ -888,15 +944,18 @@ curl -4 ifconfig.me  # Get your public IP
 ### 2. TLS Setup with Let's Encrypt
 
 **Why TLS?**
+
 - Encrypts TURN traffic (prevents eavesdropping)
 - Required for some corporate networks (TCP 3478 blocked, but TCP 443 allowed)
 - Recommended for production deployments
 
 **Prerequisites**:
+
 - Domain name pointing to TURN server (e.g., `turn.example.com`)
 - Port 80/443 accessible (for Let's Encrypt validation)
 
 **Setup steps**:
+
 ```bash
 # 1. Install certbot
 sudo apt-get install certbot
@@ -923,6 +982,7 @@ docker-compose restart
 ```
 
 **Auto-renewal**:
+
 ```bash
 # Let's Encrypt certs expire after 90 days
 # Set up auto-renewal cron job
@@ -933,6 +993,7 @@ sudo crontab -e
 ```
 
 **Test TLS**:
+
 ```bash
 openssl s_client -connect turn.example.com:5349
 # Expected: Certificate details displayed, no errors
@@ -945,6 +1006,7 @@ openssl s_client -connect turn.example.com:5349
 **Use case**: Restrict TURN usage to known GADS networks (prevent public abuse).
 
 **Configuration** (turnserver.conf):
+
 ```ini
 # Allow only specific source IPs (GADS Hub/Provider networks)
 allowed-peer-ip=203.0.113.0-203.0.113.255    # Your GADS network range
@@ -955,6 +1017,7 @@ denied-peer-ip=0.0.0.0-255.255.255.255       # Block everything else
 ```
 
 **⚠️ Warning**: This restricts which networks can use TURN. Only use if:
+
 - GADS devices are on known static IPs
 - You're experiencing abuse/unauthorized usage
 - You understand this blocks legitimate users on dynamic IPs
@@ -966,12 +1029,14 @@ denied-peer-ip=0.0.0.0-255.255.255.255       # Block everything else
 ### 4. Monitoring and Abuse Detection
 
 **Key metrics to monitor**:
+
 - **Active allocations**: Number of concurrent TURN sessions
 - **Bandwidth usage**: Total relay traffic (GB/day)
 - **Auth failures**: Rate of 401 errors (indicates brute-force attempts)
 - **CPU/Memory**: Resource exhaustion = potential DoS attack
 
 **Simple monitoring with Docker logs**:
+
 ```bash
 # Count active allocations
 docker logs gads-turn | grep -c "allocation created"
@@ -984,11 +1049,54 @@ docker logs -f gads-turn
 ```
 
 **Advanced monitoring** (optional - not required for basic deployments):
+
 - **Prometheus + Grafana**: Coturn can export metrics (requires compiling with Prometheus support)
 - **Log aggregation**: Ship logs to ELK stack or Splunk
 - **Alerting**: Set up alerts for high auth failure rates or bandwidth spikes
 
 **Anti-over-engineering note**: Don't implement complex monitoring unless you have >100 concurrent users or experience abuse. Start with simple Docker logs and scale monitoring as needed.
+
+## Simple Hetzner TURN server setup using coturn
+
+If you do not want to host the TURN server yourself with all the Docker setup and port changes you can use any VPS hosting solution or another cloud provider. I would suggest using Hetzner because of the low prices and the enormous free bandwidth (20TB per month) for each machine.
+
+- Go to [Hetzner](hetzner.com), register and get the smallest Ubuntu server, it has enough hardware for a TURN server configuration
+- Connect to the machine using ssh or via the Hetzner UI
+- Install `coturn` with `sudo apt update && sudo apt install coturn`
+- Edit `/etc/default/coturn` and uncomment the line `TURNSERVER_ENABLED=1` to enable the `coturn` service
+- Generate a shared secret with `openssl rand -base64 32`
+- Edit `/etc/turnserver.conf` and add configuration similar to this one
+
+```
+# Network
+listening-port=3478
+tls-listening-port=5349
+listening-ip=0.0.0.0
+external-ip={hetzner-ip-keep-as-is}
+min-port=49152
+max-port=65535
+
+# Authentication
+realm=yourdomain.com
+server-name=yourdomain.com
+use-auth-secret
+static-auth-secret={shared-secret-key from the previous step}
+
+# Security
+fingerprint
+no-multicast-peers
+no-stun-backward-compatibility
+
+# Logging (optional, remove in production)
+log-file=/var/log/turnserver.log
+verbose
+```
+
+- Start and enable the `coturn` service with `sudo systemctl start coturn && sudo systemctl enable coturn`
+- Check the service status with `sudo systemctl status coturn` - I did not have to open any firewall ports manually on the Hetzner machine.
+- Test the TURN server as explained [here](#step-2-trickle-ice-test-browser-based)
+
+* Follow the hub configuration as explained [here](#️-gads-hub-configuration)
 
 ---
 
@@ -998,10 +1106,10 @@ docker logs -f gads-turn
 
 **A**: Possible but **not recommended** for production:
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **Self-hosted** | Full control, no bandwidth limits, secure | Requires maintenance, hosting costs |
-| **Public TURN** | Free, no maintenance | Limited bandwidth, unreliable, security risks |
+| Option          | Pros                                      | Cons                                          |
+| --------------- | ----------------------------------------- | --------------------------------------------- |
+| **Self-hosted** | Full control, no bandwidth limits, secure | Requires maintenance, hosting costs           |
+| **Public TURN** | Free, no maintenance                      | Limited bandwidth, unreliable, security risks |
 
 **Security risk**: Public TURN servers can see all relayed traffic. For GADS (device automation), this exposes screen content and user interactions.
 
@@ -1012,6 +1120,7 @@ docker logs -f gads-turn
 ### Q2: How much bandwidth will my TURN server use?
 
 **Calculation**:
+
 ```
 Bandwidth = (concurrent sessions) × (video bitrate) × 2
 
@@ -1026,6 +1135,7 @@ Why ×2? TURN relays traffic bidirectionally (upload + download)
 **Real-world multiplier**: Add 30-50% overhead for protocol encapsulation, retransmissions, etc.
 
 **Example monthly cost** (AWS EC2 data transfer):
+
 - 40 Mbps continuous = ~13 TB/month
 - AWS data transfer: $0.09/GB = ~$1,170/month
 - **Recommendation**: Use cloud providers with free egress (Oracle Cloud, Google Cloud Platform free tier)
@@ -1037,6 +1147,7 @@ Why ×2? TURN relays traffic bidirectionally (upload + download)
 **Answer**: WebRTC connections **will fail** for users behind restrictive NATs (~8-15% of users).
 
 **Mitigation strategies**:
+
 1. **High availability**: Deploy 2+ TURN servers with DNS round-robin
 2. **Monitoring**: Set up uptime checks (e.g., UptimeRobot, Pingdom)
 3. **Fallback**: Configure multiple TURN servers in GADS (comma-separated):
@@ -1045,6 +1156,7 @@ Why ×2? TURN relays traffic bidirectionally (upload + download)
    ```
 
 **GADS behavior**: If TURN server is unreachable, WebRTC stack tries:
+
 1. Direct P2P (STUN) - works for ~85% of users
 2. TURN fallback - fails if server is down
 3. Connection fails with "ICE connection failed" error
@@ -1056,16 +1168,19 @@ Why ×2? TURN relays traffic bidirectionally (upload + download)
 **A**: Yes, but **not recommended** for production:
 
 **Reasons to avoid**:
+
 - **Resource contention**: TURN relay is CPU/bandwidth intensive
 - **Security**: TURN server exposes ports to internet (increases attack surface on Hub)
 - **Scaling**: TURN bandwidth needs may exceed Hub's network capacity
 
 **Acceptable for**:
+
 - Development/testing environments
 - Small deployments (<10 concurrent users)
 - Environments where TURN is rarely used (open networks)
 
 **If you must co-locate**:
+
 ```bash
 # Limit TURN resource usage
 # Add to turnserver.conf:
@@ -1079,13 +1194,13 @@ total-quota=20      # Max 20 concurrent sessions
 
 **A**: Ephemeral credentials provide **superior security**:
 
-| Static Passwords | Ephemeral Credentials |
-|------------------|------------------------|
-| ❌ Shared across all users | ✅ Unique per session |
-| ❌ Never expire | ✅ Auto-expire after TTL |
-| ❌ Difficult to rotate | ✅ Automatic rotation |
+| Static Passwords               | Ephemeral Credentials           |
+| ------------------------------ | ------------------------------- |
+| ❌ Shared across all users     | ✅ Unique per session           |
+| ❌ Never expire                | ✅ Auto-expire after TTL        |
+| ❌ Difficult to rotate         | ✅ Automatic rotation           |
 | ❌ If leaked, permanent access | ✅ If leaked, expires in 1 hour |
-| ❌ Credential storage required | ✅ Stateless validation |
+| ❌ Credential storage required | ✅ Stateless validation         |
 
 **TURN REST API specification**: [draft-uberti-behave-turn-rest](https://datatracker.ietf.org/doc/html/draft-uberti-behave-turn-rest-00)
 
@@ -1100,6 +1215,7 @@ total-quota=20      # Max 20 concurrent sessions
    - Limit: ~500 concurrent sessions per server
 
 2. **Horizontal scaling** (multiple servers):
+
    ```
    # Option A: DNS round-robin
    turn.example.com → 203.0.113.50  (Server 1)
@@ -1116,6 +1232,7 @@ total-quota=20      # Max 20 concurrent sessions
    - Reduces latency (critical for real-time media)
 
 **Cost-effective scaling**:
+
 - Start with 1 server (sufficient for most deployments)
 - Monitor bandwidth/CPU usage
 - Scale horizontally only when approaching limits (>80% utilization)
