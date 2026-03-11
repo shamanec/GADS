@@ -985,11 +985,7 @@ func GetDevices(c *gin.Context) {
 	}
 
 	for index, dbDevice := range dbDevices {
-		if dbDevice.OS == "ios" {
-			dbDevices[index].SupportedStreamTypes = models.IOSStreamTypes
-		} else if dbDevice.OS == "android" {
-			dbDevices[index].SupportedStreamTypes = models.AndroidStreamTypes
-		}
+		dbDevices[index].SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
 	}
 
 	var adminDeviceData = AdminDeviceData{

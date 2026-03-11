@@ -97,6 +97,8 @@ func GetLatestDBDevices() {
 					hubDevice.Device.WorkspaceID = dbDevice.WorkspaceID
 				}
 			} else {
+				dbDevice.InstalledApps = make([]string, 0)
+				dbDevice.SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
 				HubDevicesData.Devices[dbDevice.UDID] = &models.LocalHubDevice{
 					Device:                   dbDevice,
 					IsRunningAutomation:      false,

@@ -259,6 +259,10 @@ func DeviceInfo(c *gin.Context) {
 	devices.DbDeviceMapMutex.RUnlock()
 
 	if ok {
+		if dev.SupportedStreamTypes == nil {
+			dev.SupportedStreamTypes = models.StreamTypesForOS(dev.OS)
+		}
+
 		devices.UpdateInstalledApps(dev)
 		switch dev.OS {
 		case "android":
