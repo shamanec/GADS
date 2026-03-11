@@ -131,12 +131,17 @@ type logEntry struct {
 func (hook *MongoDBHook) Fire(entry *log.Entry) error {
 	fields := entry.Data
 
+	eventName := "unknown"
+	if v, ok := fields["event"].(string); ok {
+		eventName = v
+	}
+
 	logEntry := logEntry{
 		Level:     entry.Level.String(),
 		Message:   entry.Message,
 		Timestamp: time.Now().UnixMilli(),
 		Host:      config.ProviderConfig.Nickname,
-		EventName: fields["event"].(string),
+		EventName: eventName,
 	}
 
 	document, err := bson.Marshal(logEntry)
