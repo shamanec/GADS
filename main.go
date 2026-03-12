@@ -58,6 +58,7 @@ func main() {
 	providerCmd.Flags().String("log-level", "info", "The verbosity of the logs of the provider instance")
 	providerCmd.Flags().String("hub", "", "The address of the GADS hub instance")
 	providerCmd.Flags().String("turn-username-suffix", "gads", "Suffix to append to TURN usernames (format: timestamp:suffix)")
+	providerCmd.Flags().Bool("use-ios-pair-cache", false, "Cache iOS pair records on disk to skip Trust dialog on reconnect (for unsupervised devices)")
 	rootCmd.AddCommand(providerCmd)
 
 	var versionCmd = &cobra.Command{

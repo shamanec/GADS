@@ -37,6 +37,7 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	providerFolder, _ := flags.GetString("provider-folder")
 	hubAddress, _ := flags.GetString("hub")
 	turnUsernameSuffix, _ := flags.GetString("turn-username-suffix")
+	useIOSPairCache, _ := flags.GetBool("use-ios-pair-cache")
 
 	if nickname == "" {
 		log.Fatalf("Please provide valid provider instance nickname via the --nickname flag, e.g. --nickname=Provider1")
@@ -65,6 +66,7 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	config.SetupConfig(nickname, providerFolder, hubAddress)
 	config.ProviderConfig.OS = runtime.GOOS
 	config.ProviderConfig.TURNUsernameSuffix = turnUsernameSuffix
+	config.ProviderConfig.UseIOSPairCache = useIOSPairCache
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)

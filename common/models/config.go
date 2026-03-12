@@ -28,6 +28,7 @@ type Provider struct {
 	HubAddress           string `json:"hub_address" bson:"-"`
 	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
 	TURNUsernameSuffix   string `json:"-" bson:"-"`
+	UseIOSPairCache      bool   `json:"-" bson:"-"`
 }
 
 type ProviderData struct {

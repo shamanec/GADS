@@ -122,12 +122,9 @@ func mountDeveloperImageIOS(device *models.Device) {
 }
 
 // Pair an iOS device with host with/without supervision
-func pairIOS(device *models.Device) error {
-	// Try to restore a previously cached pair record into usbmuxd.
-	// If that succeeds and the record is readable, skip pairing entirely.
-	// This prevents the Trust dialog on reconnect and after provider restarts.
-	if err := restorePairRecordToUsbmuxd(device.UDID); err == nil {
-		if record, err := ios.ReadPairRecord(device.UDID); err == nil && record.HostID != "" {
+func pairIOS(device *models.Device) (pairErr error) {
+	if config.ProviderConfig.UseIOSPairCache {
+		if err := restorePairRecordToUsbmuxd(device.UDID); err == nil {
 			logger.ProviderLogger.LogInfo("ios_device_setup",
 				fmt.Sprintf("Restored cached pairing record for device `%s`, skipping pairing", device.UDID))
 			return nil
@@ -136,16 +133,9 @@ func pairIOS(device *models.Device) error {
 
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", device.UDID))
 
-	// After successful pairing, persist the pair record to disk so it can be restored on next connect.
 	defer func() {
-		if record, err := ios.ReadPairRecord(device.UDID); err == nil && record.HostID != "" {
-			if saveErr := savePairRecordToFile(device.UDID, record); saveErr != nil {
-				logger.ProviderLogger.LogWarn("ios_device_setup",
-					fmt.Sprintf("Failed to cache pair record for device `%s`: %v", device.UDID, saveErr))
-			} else {
-				logger.ProviderLogger.LogInfo("ios_device_setup",
-					fmt.Sprintf("Cached pair record for device `%s`", device.UDID))
-			}
+		if pairErr == nil {
+			cachePairRecord(device.UDID)
 		}
 	}()
 

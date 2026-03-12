@@ -18,22 +18,10 @@ import (
 	ios "github.com/danielpaulus/go-ios/ios"
 
 	"GADS/provider/config"
+	"GADS/provider/logger"
 )
 
-// iosPairRecordPayload mirrors go-ios's unexported savePairRecordData for plist serialization.
-// Field names must match exactly (no plist tags) so ToPlistBytes produces the same format.
-type iosPairRecordPayload struct {
-	DeviceCertificate []byte
-	HostPrivateKey    []byte
-	HostCertificate   []byte
-	RootPrivateKey    []byte
-	RootCertificate   []byte
-	EscrowBag         []byte
-	WiFiMACAddress    string
-	HostID            string
-	SystemBUID        string
-}
-
+// pairRecordCachePath returns the file path for storing a cached pair record for the given device
 func pairRecordCachePath(udid string) string {
 	return filepath.Join(config.ProviderConfig.ProviderFolder, "pair_records", udid+".json")
 }
@@ -52,6 +40,25 @@ func savePairRecordToFile(udid string, record ios.PairRecord) error {
 	return os.WriteFile(pairRecordCachePath(udid), data, 0600)
 }
 
+// cachePairRecord reads the current pair record from usbmuxd and saves it to disk.
+// No-op when pair cache is disabled.
+func cachePairRecord(udid string) {
+	if !config.ProviderConfig.UseIOSPairCache {
+		return
+	}
+	record, err := ios.ReadPairRecord(udid)
+	if err != nil || record.HostID == "" {
+		return
+	}
+	if err := savePairRecordToFile(udid, record); err != nil {
+		logger.ProviderLogger.LogWarn("ios_device_setup",
+			fmt.Sprintf("Failed to cache pair record for device `%s` - %s", udid, err))
+	} else {
+		logger.ProviderLogger.LogInfo("ios_device_setup",
+			fmt.Sprintf("Cached pair record for device `%s`", udid))
+	}
+}
+
 // restorePairRecordToUsbmuxd loads a cached pair record from disk and pushes it back
 // into usbmuxd's in-memory state via a SavePairRecord message.
 // Returns nil on success; non-nil if no cache file exists or the save fails.
@@ -63,24 +70,11 @@ func restorePairRecordToUsbmuxd(udid string) error {
 
 	var record ios.PairRecord
 	if err := json.Unmarshal(data, &record); err != nil {
-		return fmt.Errorf("failed to parse cached pair record: %w", err)
+		return fmt.Errorf("restorePairRecordToUsbmuxd: Failed to parse cached pair record - %s", err)
 	}
 
-	// Serialize the record into the plist format that usbmuxd expects (same as go-ios's newSavePairRecordData).
-	payload := iosPairRecordPayload{
-		DeviceCertificate: record.DeviceCertificate,
-		HostPrivateKey:    record.HostPrivateKey,
-		HostCertificate:   record.HostCertificate,
-		RootPrivateKey:    record.RootPrivateKey,
-		RootCertificate:   record.RootCertificate,
-		EscrowBag:         record.EscrowBag,
-		WiFiMACAddress:    record.WiFiMACAddress,
-		HostID:            record.HostID,
-		SystemBUID:        record.SystemBUID,
-	}
-	recordBytes := ios.ToPlistBytes(payload)
+	recordBytes := ios.ToPlistBytes(record)
 
-	// Build the SavePairRecord message (mirrors go-ios's newSavePair).
 	msg := ios.SavePair{
 		BundleID:            "go.ios.control",
 		ClientVersionString: "go-ios-1.0.0",
@@ -93,22 +87,22 @@ func restorePairRecordToUsbmuxd(udid string) error {
 
 	muxConn, err := ios.NewUsbMuxConnectionSimple()
 	if err != nil {
-		return fmt.Errorf("failed to connect to usbmuxd: %w", err)
+		return fmt.Errorf("restorePairRecordToUsbmuxd: Failed to connect to usbmuxd - %s", err)
 	}
 	defer muxConn.Close()
 
 	if err := muxConn.Send(msg); err != nil {
-		return fmt.Errorf("failed to send SavePairRecord: %w", err)
+		return fmt.Errorf("restorePairRecordToUsbmuxd: Failed to send SavePairRecord - %s", err)
 	}
 
 	resp, err := muxConn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("failed to read SavePairRecord response: %w", err)
+		return fmt.Errorf("restorePairRecordToUsbmuxd: Failed to read SavePairRecord response - %s", err)
 	}
 
 	muxResponse := ios.MuxResponsefromBytes(resp.Payload)
 	if !muxResponse.IsSuccessFull() {
-		return fmt.Errorf("usbmuxd rejected SavePairRecord: %+v", muxResponse)
+		return fmt.Errorf("restorePairRecordToUsbmuxd: usbmuxd rejected SavePairRecord - %+v", muxResponse)
 	}
 	return nil
 }
