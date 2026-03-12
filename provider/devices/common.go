@@ -209,7 +209,7 @@ func initializeDevice(dbDevice *models.Device) error {
 		// Check if a capped Appium logs collection already exists for the current device
 		exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs_new", dbDevice.UDID)
 		if err != nil {
-			logger.ProviderLogger.Warnf("Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err)
+			logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err))
 		}
 
 		// If it doesn't exist - attempt to create it
@@ -260,7 +260,7 @@ func initializeDevice(dbDevice *models.Device) error {
 func setupDevices() {
 	for _, dbDevice := range DBDeviceMap {
 		if err := initializeDevice(dbDevice); err != nil {
-			logger.ProviderLogger.Errorf("setupDevices: %s", err)
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: %s", err))
 		}
 	}
 }
@@ -299,6 +299,10 @@ func updateDevices() {
 				if slices.Contains(connectedDevices, dbDeviceUDID) {
 					dbDevice.Connected = true
 					if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
+						if !dbDevice.InitialSetupDone {
+							logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Device %s initial setup not completed (invalid os_version?). Skipping.", dbDevice.UDID))
+							continue
+						}
 						// Validate device configuration before setup
 						err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
 						if err != nil {
