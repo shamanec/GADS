@@ -122,8 +122,22 @@ func mountDeveloperImageIOS(device *models.Device) {
 }
 
 // Pair an iOS device with host with/without supervision
-func pairIOS(device *models.Device) error {
+func pairIOS(device *models.Device) (pairErr error) {
+	if config.ProviderConfig.UseIOSPairCache {
+		if err := restorePairRecordToUsbmuxd(device.UDID); err == nil {
+			logger.ProviderLogger.LogInfo("ios_device_setup",
+				fmt.Sprintf("Restored cached pairing record for device `%s`, skipping pairing", device.UDID))
+			return nil
+		}
+	}
+
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", device.UDID))
+
+	defer func() {
+		if pairErr == nil && config.ProviderConfig.UseIOSPairCache {
+			cachePairRecord(device.UDID)
+		}
+	}()
 
 	p12, err := os.ReadFile(fmt.Sprintf("%s/supervision.p12", config.ProviderConfig.ProviderFolder))
 	if err != nil {

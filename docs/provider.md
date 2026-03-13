@@ -290,6 +290,7 @@ Note that it is possible that on some devices it might not work at all, in this 
   - `--provider-folder=` - optional, folder where provider should store logs and apps and other needed files. Can be relative path to the folder where provider binary is located or full path on the host - `./test`, `.`, `./test/test1`, `/Users/shamanec/Desktop/test` are all valid. Default is the folder where the binary is currently located - `.`
   - `--log-level=` - optional, how verbose should the provider logs be (default is `info`, use `debug` for more log output)
   - `--hub=` - mandatory, the address of the hub instance so the provider can push data to it automatically, e.g `http://192.168.68.109:10000`
+  - `--use-ios-pair-cache` - optional, cache iOS pair records on disk to skip the Trust dialog on reconnect for unsupervised devices (default is `false`)
 
 ## Logging
 
