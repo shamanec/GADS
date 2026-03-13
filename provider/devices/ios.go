@@ -134,7 +134,7 @@ func pairIOS(device *models.Device) (pairErr error) {
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", device.UDID))
 
 	defer func() {
-		if pairErr == nil {
+		if pairErr == nil && config.ProviderConfig.UseIOSPairCache {
 			cachePairRecord(device.UDID)
 		}
 	}()

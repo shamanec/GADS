@@ -76,10 +76,10 @@ func restorePairRecordToUsbmuxd(udid string) error {
 	recordBytes := ios.ToPlistBytes(record)
 
 	msg := ios.SavePair{
-		BundleID:            "go.ios.control",
-		ClientVersionString: "go-ios-1.0.0",
+		BundleID:            "gads.ios.control",
+		ClientVersionString: "gads-1.0.0",
 		MessageType:         "SavePairRecord",
-		ProgName:            "go-ios",
+		ProgName:            "gads",
 		LibUSBMuxVersion:    3,
 		PairRecordID:        udid,
 		PairRecordData:      recordBytes,
