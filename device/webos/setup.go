@@ -58,8 +58,8 @@ func (d *WebOSDevice) Reset(reason string) {
 	d.log.LogInfo("webos_reset", fmt.Sprintf("Resetting device %s: %s", d.info.UDID, reason))
 	d.info.IsResetting = true
 
-	d.ports.FreePort(d.appiumPort)
-	d.appiumPort = ""
+	d.ports.FreePort(d.info.AppiumPort)
+	d.info.AppiumPort = ""
 
 	d.info.ProviderState = "init"
 	d.info.IsResetting = false
@@ -76,7 +76,7 @@ func (d *WebOSDevice) setupAppium(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("setupAppium %s: allocate port: %w", d.info.UDID, err)
 	}
-	d.appiumPort = appiumPort
+	d.info.AppiumPort = appiumPort
 
 	go d.startAppium(ctx)
 
@@ -90,7 +90,7 @@ func (d *WebOSDevice) setupAppium(ctx context.Context) error {
 		case <-tick.C:
 			if d.info.IsAppiumUp {
 				d.log.LogInfo("webos_setup",
-					fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.appiumPort))
+					fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.info.AppiumPort))
 				goto appiumDone
 			}
 		}
@@ -137,7 +137,7 @@ func (d *WebOSDevice) startAppium(ctx context.Context) {
 	pluginCfgJSON, _ := json.Marshal(pluginCfg)
 
 	proc, err := d.cmd.Start(ctx, "appium",
-		"-p", d.appiumPort,
+		"-p", d.info.AppiumPort,
 		"--log-timestamp",
 		"--use-plugin=gads",
 		fmt.Sprintf("--plugin-gads-config=%s", string(pluginCfgJSON)),

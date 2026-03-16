@@ -52,7 +52,7 @@ func (d *IOSDevice) runWDA(ctx context.Context) {
 // timeout it resets the device.
 func (d *IOSDevice) checkWDAUp() {
 	client := &http.Client{Timeout: 30 * time.Second}
-	url := fmt.Sprintf("http://localhost:%s/status", d.wdaPort)
+	url := fmt.Sprintf("http://localhost:%s/status", d.info.WDAPort)
 	req, _ := http.NewRequest(http.MethodGet, url, nil)
 
 	for range 60 {
@@ -70,10 +70,10 @@ func (d *IOSDevice) checkWDAUp() {
 	d.Reset("WebDriverAgent did not respond within 60 seconds")
 }
 
-// updateWDAStreamSettings pushes MJPEG stream settings (FPS, quality, scaling)
+// UpdateStreamSettings pushes MJPEG stream settings (FPS, quality, scaling)
 // to WDA via the /appium/settings endpoint. This must be called after WDA is
-// confirmed up and before streaming begins.
-func (d *IOSDevice) updateWDAStreamSettings() error {
+// confirmed up and before streaming begins. It implements device.StreamSettingsUpdater.
+func (d *IOSDevice) UpdateStreamSettings() error {
 	settings := models.WDAMjpegSettings{
 		Settings: models.WDAMjpegProperties{
 			MjpegServerFramerate:         d.info.StreamTargetFPS,
@@ -87,7 +87,7 @@ func (d *IOSDevice) updateWDAStreamSettings() error {
 		return fmt.Errorf("updateWDAStreamSettings %s: marshal: %w", d.info.UDID, err)
 	}
 
-	url := fmt.Sprintf("http://localhost:%s/appium/settings", d.wdaPort)
+	url := fmt.Sprintf("http://localhost:%s/appium/settings", d.info.WDAPort)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("updateWDAStreamSettings %s: build request: %w", d.info.UDID, err)

@@ -91,12 +91,12 @@ func (d *AndroidDevice) startStream(ctx context.Context) error {
 	return nil
 }
 
-// updateStreamSettings sends stream configuration (FPS, JPEG quality, scaling
-// factor) to the GADS-Settings WebSocket on d.streamPort. The message format
-// expected by GADS-Settings is "targetFPS=N:jpegQuality=N:scalingFactor=N"
-// (H264 omits jpegQuality).
-func (d *AndroidDevice) updateStreamSettings() error {
-	u := url.URL{Scheme: "ws", Host: "localhost:" + d.streamPort}
+// UpdateStreamSettings sends stream configuration (FPS, JPEG quality, scaling
+// factor) to the GADS-Settings WebSocket on d.info.StreamPort. The message
+// format expected by GADS-Settings is "targetFPS=N:jpegQuality=N:scalingFactor=N"
+// (H264 omits jpegQuality). It implements device.StreamSettingsUpdater.
+func (d *AndroidDevice) UpdateStreamSettings() error {
+	u := url.URL{Scheme: "ws", Host: "localhost:" + d.info.StreamPort}
 	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
 		return fmt.Errorf("updateStreamSettings %s: dial: %w", d.info.UDID, err)
@@ -140,7 +140,7 @@ func (d *AndroidDevice) updateWebRTCTURNConfig() error {
 	}
 	username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl, d.cfg.TURNUsernameSuffix)
 
-	u := url.URL{Scheme: "ws", Host: "localhost:" + d.streamPort}
+	u := url.URL{Scheme: "ws", Host: "localhost:" + d.info.StreamPort}
 	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
 		return fmt.Errorf("updateWebRTCTURNConfig %s: dial: %w", d.info.UDID, err)

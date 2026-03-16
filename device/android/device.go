@@ -30,11 +30,10 @@ type AndroidDevice struct {
 	// MongoDB. Callers hold a pointer; writes are guarded by mu.
 	info *device.DeviceInfo
 
-	// Runtime port assignments, filled in during Setup.
-	streamPort       string // host port forwarded from device port 1991 (GADS-stream)
+	// Runtime port assignments for internal-only ports, filled in during Setup.
+	// StreamPort and AppiumPort are in d.info (single source of truth).
 	imePort          string // host port forwarded from device port 1993 (GADS IME)
 	remoteServerPort string // host port forwarded from device port 1994 (remote control)
-	appiumPort       string // host port for the Appium server process
 
 	// semVer is the parsed semantic version of the device OS. Used to gate
 	// behaviour that differs across Android versions (e.g. POST_NOTIFICATIONS

@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/device/manager"
 	"GADS/provider/config"
 	"net/http/pprof"
 
@@ -17,7 +18,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func HandleRequests() *gin.Engine {
+// DevManager is the package-level DeviceManager used by all route handlers.
+var DevManager *manager.DeviceManager
+
+func HandleRequests(mgr *manager.DeviceManager) *gin.Engine {
+	DevManager = mgr
 	r := gin.Default()
 	rConfig := cors.DefaultConfig()
 	rConfig.AllowAllOrigins = true

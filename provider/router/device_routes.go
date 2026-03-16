@@ -10,26 +10,24 @@
 package router
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"GADS/common/api"
 	"GADS/common/models"
-	"GADS/provider/devices"
+	"GADS/common/utils"
+	"GADS/device"
+	"GADS/provider/logger"
 
 	"github.com/gin-gonic/gin"
 )
 
-var netClient = &http.Client{
-	Timeout: time.Second * 120,
-}
+var netClient = &http.Client{Timeout: 120 * 1e9} // 120-second timeout
 
-// Copy the headers from the original endpoint to the proxied endpoint
+// copyHeaders copies all headers from source to destination.
 func copyHeaders(destination, source http.Header) {
 	for name, values := range source {
 		for _, v := range values {
@@ -38,237 +36,199 @@ func copyHeaders(destination, source http.Header) {
 	}
 }
 
-// Check the device health by checking Appium and WDA(for iOS)
+// DeviceHealth returns whether the device is currently connected.
 func DeviceHealth(c *gin.Context) {
 	udid := c.Param("udid")
-	dev := devices.DBDeviceMap[udid]
-	bool, err := devices.GetDeviceHealth(dev)
-	if err != nil {
-		dev.Logger.LogInfo("device", fmt.Sprintf("Could not check device health - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-
-	if bool {
-		dev.Logger.LogInfo("device", "Device is healthy")
+	if dev.Info().Connected {
 		api.GenericResponse(c, http.StatusOK, "Device is healthy", nil)
 		return
 	}
-
-	dev.Logger.LogError("device", "Device is not healthy")
 	api.GenericResponse(c, http.StatusInternalServerError, "Device is not healthy", nil)
 }
 
-// Call the respective Appium/WDA endpoint to go to Homescreen
+// DeviceHome navigates the device to the home screen.
 func DeviceHome(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
-	device.Logger.LogInfo("appium_interact", "Navigating to Home/Springboard")
-
-	// Send the request
-	homeResponse, err := deviceHome(device)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to navigate to Home/Springboard - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, "Failed to navigate to Home/Springboard", nil)
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	defer homeResponse.Body.Close()
-
-	// Read the response body
-	homeResponseBody, err := io.ReadAll(homeResponse.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to navigate to Home/Springboard - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, "Failed to navigate to Home/Springboard", nil)
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
 	}
-
-	api.GenericResponse(c, homeResponse.StatusCode, string(homeResponseBody), nil)
+	if err := ctrl.Home(); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to navigate home for %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to navigate to Home", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusOK, "Navigated to Home", nil)
 }
 
+// DeviceGetClipboard returns the current clipboard contents of the device.
 func DeviceGetClipboard(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
-	device.Logger.LogInfo("appium_interact", "Getting device clipboard value")
-
-	// Send the request
-	clipboardResponse, err := deviceGetClipboard(device)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get device clipboard value - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get device clipboard value - %s", err), nil)
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	defer clipboardResponse.Body.Close()
-
-	// Read the response body
-	clipboardResponseBody, err := io.ReadAll(clipboardResponse.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err), nil)
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
 	}
-
-	// Unmarshal the response body to get the actual value returned
-	valueResp := struct {
-		Value string `json:"value"`
-	}{}
-	err = json.Unmarshal(clipboardResponseBody, &valueResp)
+	text, err := ctrl.GetClipboard()
 	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err), nil)
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to get clipboard for %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get clipboard: %v", err), nil)
 		return
 	}
-
-	// Decode the value because Appium returns it as base64 encoded string
-	decoded, _ := base64.StdEncoding.DecodeString(valueResp.Value)
-	api.GenericResponse(c, http.StatusOK, string(decoded), nil)
+	// The old implementation base64-decoded a WDA response; the new Controllable
+	// returns the plaintext value directly. Decode if it looks base64-encoded
+	// (iOS GetClipboard may return base64 from WDA).
+	if decoded, err := base64.StdEncoding.DecodeString(text); err == nil && len(decoded) > 0 {
+		api.GenericResponse(c, http.StatusOK, string(decoded), nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusOK, text, nil)
 }
 
-// Call respective Appium/WDA endpoint to lock the device
+// DeviceLock locks the device screen.
 func DeviceLock(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
-	device.Logger.LogInfo("appium_interact", "Locking device")
-
-	lockResponse, err := deviceLock(device, "lock")
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to lock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	defer lockResponse.Body.Close()
-
-	// Read the response body
-	lockResponseBody, err := io.ReadAll(lockResponse.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to lock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
 	}
-
-	api.GenericResponse(c, lockResponse.StatusCode, string(lockResponseBody), nil)
+	if err := ctrl.Lock(); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to lock %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to lock device", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusOK, "Device locked", nil)
 }
 
-// Call the respective Appium/WDA endpoint to unlock the device
+// DeviceUnlock unlocks the device screen.
 func DeviceUnlock(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
-	device.Logger.LogInfo("appium_interact", "Unlocking device")
-
-	lockResponse, err := deviceLock(device, "unlock")
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unlock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	defer lockResponse.Body.Close()
-
-	// Read the response body
-	lockResponseBody, err := io.ReadAll(lockResponse.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unlock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
 	}
-
-	api.GenericResponse(c, lockResponse.StatusCode, string(lockResponseBody), nil)
+	if err := ctrl.Unlock(); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to unlock %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to unlock device", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusOK, "Device unlocked", nil)
 }
 
-// Call the respective Appium/WDA endpoint to take a screenshot of the device screen
+// DeviceScreenshot captures the device screen and returns a base64-encoded PNG.
 func DeviceScreenshot(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
-	device.Logger.LogInfo("appium_interact", "Getting screenshot from device")
-
-	screenshotResp, err := deviceScreenshot(device)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get screenshot from device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-
-	api.GenericResponse(c, http.StatusOK, screenshotResp, nil)
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
+		return
+	}
+	imgBytes, err := ctrl.Screenshot()
+	if err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to get screenshot for %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to get screenshot", nil)
+		return
+	}
+	api.GenericResponse(c, http.StatusOK, base64.StdEncoding.EncodeToString(imgBytes), nil)
 }
 
-//======================================
-// Appium source
-
+// DeviceAppiumSource returns the Appium page source for the device.
 func DeviceAppiumSource(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
-	device.Logger.LogInfo("appium_interact", "Getting Appium source from device")
-
-	sourceResp, err := appiumSource(device)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get Appium source from device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-
-	// Read the response body
-	body, err := io.ReadAll(sourceResp.Body)
+	sourceResp, err := appiumSource(dev.Info())
 	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get Appium source from device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to get Appium source for %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to get Appium source", nil)
 		return
 	}
 	defer sourceResp.Body.Close()
-
+	body, err := io.ReadAll(sourceResp.Body)
+	if err != nil {
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to read Appium source response", nil)
+		return
+	}
 	api.GenericResponse(c, sourceResp.StatusCode, string(body), nil)
 }
 
-//=======================================
-// ACTIONS
-
+// DeviceTypeText types text on the device using the platform-specific input method.
 func DeviceTypeText(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
+		return
+	}
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
+		return
+	}
 
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to type text to active element - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Typing `%s` to active element", requestBody.TextToType))
-	typeTextPayload := models.AppiumTypeText{
-		Text: requestBody.TextToType,
-	}
-	typeJSON, err := json.MarshalIndent(typeTextPayload, "", "  ")
-	if err != nil {
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	if err := ctrl.TypeText(requestBody.TextToType); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to type text on %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to type text", nil)
 		return
 	}
-	var typeResp *http.Response
-
-	if device.OS == "ios" {
-		typeResp, err = wdaRequest(device, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-			return
-		}
-	} else {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/type", device.AndroidIMEPort), bytes.NewBuffer(typeJSON))
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-			return
-		}
-		typeResp, err = netClient.Do(req)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-			return
-		}
-	}
-
-	var body []byte
-	body, err = io.ReadAll(typeResp.Body)
-
-	api.GenericResponse(c, typeResp.StatusCode, string(body), nil)
+	api.GenericResponse(c, http.StatusOK, "Text typed", nil)
 }
 
+// DeviceTap performs a tap at the given coordinates.
 func DeviceTap(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
+		return
+	}
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
+		return
+	}
 
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
@@ -276,30 +236,27 @@ func DeviceTap(c *gin.Context) {
 		return
 	}
 
-	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Tapping at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y)))
-
-	tapResp, err := deviceTap(device, requestBody.X, requestBody.Y)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to tap at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	if err := ctrl.Tap(requestBody.X, requestBody.Y); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to tap on %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to tap", nil)
 		return
 	}
-	defer tapResp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(tapResp.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to tap at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-		return
-	}
-
-	api.GenericResponse(c, tapResp.StatusCode, string(body), nil)
+	api.GenericResponse(c, http.StatusOK, "Tap performed", nil)
 }
 
+// DeviceTouchAndHold performs a long-press at the given coordinates.
 func DeviceTouchAndHold(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
+		return
+	}
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
+		return
+	}
 
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
@@ -307,92 +264,110 @@ func DeviceTouchAndHold(c *gin.Context) {
 		return
 	}
 
-	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Touch and hold at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y)))
-
-	touchAndHoldResp, err := deviceTouchAndHold(device, requestBody.X, requestBody.Y, requestBody.Duration)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to touch and hold at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	if err := ctrl.TouchAndHold(requestBody.X, requestBody.Y, requestBody.Duration); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to touch-and-hold on %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to touch and hold", nil)
 		return
 	}
-	defer touchAndHoldResp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(touchAndHoldResp.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to touch and hold at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-		return
-	}
-
-	api.GenericResponse(c, touchAndHoldResp.StatusCode, string(body), nil)
+	api.GenericResponse(c, http.StatusOK, "Touch and hold performed", nil)
 }
 
+// DeviceSwipe performs a swipe gesture.
 func DeviceSwipe(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
+		return
+	}
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
+		return
+	}
 
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to decode request body when performing swipe - %s", err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
 
-	device.Logger.LogInfo("appium_interact", fmt.Sprintf("Swiping from X:%v Y:%v to X:%v Y:%v", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY)))
-
-	swipeResp, err := deviceSwipe(device, requestBody.X, requestBody.Y, requestBody.EndX, requestBody.EndY)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+	if err := ctrl.Swipe(requestBody.X, requestBody.Y, requestBody.EndX, requestBody.EndY); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to swipe on %s: %v", udid, err))
+		api.GenericResponse(c, http.StatusInternalServerError, "Failed to swipe", nil)
 		return
 	}
-	defer swipeResp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(swipeResp.Body)
-	if err != nil {
-		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-		return
-	}
-
-	api.GenericResponse(c, swipeResp.StatusCode, string(body), nil)
+	api.GenericResponse(c, http.StatusOK, "Swipe performed", nil)
 }
 
+// DeviceExecuteCustomAction dispatches a named automation action to the device.
 func DeviceExecuteCustomAction(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
+		return
+	}
+	ctrl, ok := dev.(device.Controllable)
+	if !ok {
+		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
+		return
+	}
 
 	var requestBody models.ExecuteCustomActionRequest
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		device.Logger.LogError("device_control", fmt.Sprintf("Failed to decode request body when executing custom action - %s", err))
 		api.GenericResponse(c, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
-
 	if requestBody.ActionType == "" {
-		device.Logger.LogError("device_control", "Missing action_type in request")
 		api.GenericResponse(c, http.StatusBadRequest, "action_type is required", nil)
 		return
 	}
 
-	device.Logger.LogInfo("device_control", fmt.Sprintf("Executing custom action '%s' with parameters: %+v", requestBody.ActionType, requestBody.Parameters))
-
-	actionResp, err := executeCustomAction(device, requestBody.ActionType, requestBody.Parameters)
-	if err != nil {
-		device.Logger.LogError("device_control", fmt.Sprintf("Failed to execute custom action '%s' - %s", requestBody.ActionType, err))
+	if err := executeCustomAction(ctrl, requestBody.ActionType, requestBody.Parameters); err != nil {
+		logger.ProviderLogger.LogError("device_control", fmt.Sprintf("Failed to execute custom action '%s' on %s: %v", requestBody.ActionType, udid, err))
 		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	defer actionResp.Body.Close()
+	api.GenericResponse(c, http.StatusOK, "Action executed", nil)
+}
 
-	body, err := io.ReadAll(actionResp.Body)
-	if err != nil {
-		device.Logger.LogError("device_control", fmt.Sprintf("Failed to read response for custom action '%s' - %s", requestBody.ActionType, err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
-		return
+// executeCustomAction dispatches a named action to the Controllable device.
+func executeCustomAction(ctrl device.Controllable, actionType string, params map[string]any) error {
+	if params == nil {
+		params = make(map[string]any)
 	}
 
-	api.GenericResponse(c, actionResp.StatusCode, string(body), nil)
+	switch actionType {
+	case "tap":
+		x, y := utils.GetFloat(params, "x", 0), utils.GetFloat(params, "y", 0)
+		return ctrl.Tap(x, y)
+	case "double_tap":
+		x, y := utils.GetFloat(params, "x", 0), utils.GetFloat(params, "y", 0)
+		return ctrl.DoubleTap(x, y)
+	case "swipe":
+		return ctrl.Swipe(
+			utils.GetFloat(params, "x", 0), utils.GetFloat(params, "y", 0),
+			utils.GetFloat(params, "endX", 0), utils.GetFloat(params, "endY", 0),
+		)
+	case "touch_and_hold":
+		duration := utils.GetFloat(params, "duration", 1000)
+		return ctrl.TouchAndHold(utils.GetFloat(params, "x", 0), utils.GetFloat(params, "y", 0), duration)
+	case "pinch":
+		return ctrl.Pinch(utils.GetFloat(params, "x", 0), utils.GetFloat(params, "y", 0), utils.GetFloat(params, "scale", 1.0))
+	case "type_text":
+		return ctrl.TypeText(utils.GetString(params, "text", ""))
+	case "home":
+		return ctrl.Home()
+	case "lock":
+		return ctrl.Lock()
+	case "unlock":
+		return ctrl.Unlock()
+	case "pinch_in":
+		return ctrl.Pinch(utils.GetFloat(params, "x", 250), utils.GetFloat(params, "y", 500), 0.5)
+	case "pinch_out":
+		return ctrl.Pinch(utils.GetFloat(params, "x", 250), utils.GetFloat(params, "y", 500), 2.0)
+	default:
+		return fmt.Errorf("unsupported action type: %s", actionType)
+	}
 }

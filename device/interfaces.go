@@ -93,6 +93,16 @@ type Provisionable interface {
 	ProviderState() string
 }
 
+// StreamSettingsUpdater is an optional interface implemented by platform
+// devices (Android, iOS) that support real-time stream settings updates.
+// TV devices (Tizen, WebOS) do not implement this.
+type StreamSettingsUpdater interface {
+	// UpdateStreamSettings pushes the current stream settings from DeviceInfo
+	// (StreamTargetFPS, StreamJpegQuality, StreamScalingFactor) to the live
+	// streaming service running on the device.
+	UpdateStreamSettings() error
+}
+
 // ManagedDevice is the composite interface the DeviceManager works with.
 // It combines identity (Info), lifecycle (Provisionable), and app management
 // (AppManager) into a single interface.

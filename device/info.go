@@ -119,6 +119,24 @@ type DeviceInfo struct {
 	// HasAppiumSession is true when an Appium test session is currently active.
 	HasAppiumSession bool `json:"has_appium_session" bson:"-"`
 
+	// --- Platform port state (runtime-only, used by router handlers) ---
+
+	// AppiumPort is the host port where the Appium server for this device
+	// is listening. Set during Setup; cleared during Reset.
+	AppiumPort string `json:"appium_port,omitempty" bson:"-"`
+
+	// StreamPort is the host port for the device video stream server
+	// (GADS-Settings stream on Android, broadcast extension TCP on iOS).
+	StreamPort string `json:"stream_port,omitempty" bson:"-"`
+
+	// WDAStreamPort is the host port forwarded from WDA's MJPEG endpoint
+	// (iOS only, device port 9100). Used by the MJPEG streaming proxy.
+	WDAStreamPort string `json:"wda_stream_port,omitempty" bson:"-"`
+
+	// WDAPort is the host port forwarded from WebDriverAgent (iOS only,
+	// device port 8100). Used for WDA HTTP calls in the router.
+	WDAPort string `json:"wda_port,omitempty" bson:"-"`
+
 	// --- App / UI metadata ---
 
 	// InstalledApps is the list of app IDs (bundle IDs / package names) currently

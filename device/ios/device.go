@@ -34,11 +34,8 @@ type IOSDevice struct {
 	// writes are guarded by mu.
 	info *device.DeviceInfo
 
-	// Runtime port assignments, filled in during Setup.
-	wdaPort       string // host port forwarded from WDA on device port 8100
-	wdaStreamPort string // host port forwarded from WDA MJPEG on device port 9100
-	streamPort    string // host port forwarded from GADS stream on device port 8765
-	appiumPort    string // host port for the Appium server process
+	// Runtime port assignments are in d.info (single source of truth):
+	// WDAPort, WDAStreamPort, StreamPort, AppiumPort.
 
 	// semVer is the parsed semantic version used to gate version-specific
 	// behaviour (developer mode check on iOS 16+, userspace tunnel on iOS 17.4+).

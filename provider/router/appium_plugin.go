@@ -1,10 +1,18 @@
+/*
+ * This file is part of GADS.
+ *
+ * Copyright (c) 2022-2025 Nikola Shabanov
+ *
+ * This source code is licensed under the GNU Affero General Public License v3.0.
+ * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
+ */
+
 package router
 
 import (
 	"GADS/common/api"
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/provider/devices"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,11 +22,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AppiumPluginLog The plugin sends all logs from the server so we can store them in Mongo without having to parse output from the exec command
+// AppiumPluginLog receives log entries from the GADS Appium plugin and stores
+// them in MongoDB.
 func AppiumPluginLog(c *gin.Context) {
 	udid := c.Param("udid")
-	if _, ok := devices.DBDeviceMap[udid]; ok {
-		// Read the log request body
+	if _, ok := DevManager.GetDevice(udid); ok {
 		body, err := io.ReadAll(c.Request.Body)
 		defer c.Request.Body.Close()
 		if err != nil {
@@ -26,9 +34,8 @@ func AppiumPluginLog(c *gin.Context) {
 			return
 		}
 
-		// Unmarshal into a struct suitable to insert in Mongo
 		var appiumPluginLog models.AppiumPluginLog
-		err = json.Unmarshal(body, &appiumPluginLog)
+		json.Unmarshal(body, &appiumPluginLog)
 
 		db.GlobalMongoStore.AddAppiumLog(udid, appiumPluginLog)
 		api.GenericResponse(c, http.StatusOK, "Logged successfully", nil)
@@ -37,53 +44,56 @@ func AppiumPluginLog(c *gin.Context) {
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
 
-// AppiumPluginRegister The plugin sends a notification request when the server is started
+// AppiumPluginRegister is called by the GADS Appium plugin when the server starts.
 func AppiumPluginRegister(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.IsAppiumUp = true
+	if dev, ok := DevManager.GetDevice(udid); ok {
+		dev.Info().AppiumLastPingTS = time.Now().UnixMilli()
+		dev.Info().IsAppiumUp = true
 		api.GenericResponse(c, http.StatusOK, "Appium registered as up", nil)
 		return
 	}
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
 
-// AppiumPluginAddSession The plugin sends a notification request when a new session is started
+// AppiumPluginAddSession is called by the GADS Appium plugin when a new session starts.
 func AppiumPluginAddSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
+	if dev, ok := DevManager.GetDevice(udid); ok {
 		sessionID := c.Param("session_id")
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.HasAppiumSession = true
-		dev.AppiumSessionID = sessionID
-		dev.IsAppiumUp = true
+		info := dev.Info()
+		info.AppiumLastPingTS = time.Now().UnixMilli()
+		info.HasAppiumSession = true
+		info.AppiumSessionID = sessionID
+		info.IsAppiumUp = true
 		api.GenericResponse(c, http.StatusOK, "Session added", nil)
 		return
 	}
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
 
-// AppiumPluginRemoveSession The plugin sends a notification request when the session is deleted
+// AppiumPluginRemoveSession is called by the GADS Appium plugin when a session ends.
 func AppiumPluginRemoveSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.HasAppiumSession = false
-		dev.AppiumSessionID = ""
-		dev.IsAppiumUp = true
+	if dev, ok := DevManager.GetDevice(udid); ok {
+		info := dev.Info()
+		info.AppiumLastPingTS = time.Now().UnixMilli()
+		info.HasAppiumSession = false
+		info.AppiumSessionID = ""
+		info.IsAppiumUp = true
 		api.GenericResponse(c, http.StatusOK, "Session cleared", nil)
 		return
 	}
 	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
 }
 
-// AppiumPluginPing The plugin periodically sends pings so we can keep track if the server is up
+// AppiumPluginPing is called periodically by the GADS Appium plugin to signal
+// that the Appium server is still alive.
 func AppiumPluginPing(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.IsAppiumUp = true
+	if dev, ok := DevManager.GetDevice(udid); ok {
+		dev.Info().AppiumLastPingTS = time.Now().UnixMilli()
+		dev.Info().IsAppiumUp = true
 		api.GenericResponse(c, http.StatusOK, "Ping for Appium server availability successful", nil)
 		return
 	}

@@ -57,8 +57,8 @@ func (d *TizenDevice) Reset(reason string) {
 	d.log.LogInfo("tizen_reset", fmt.Sprintf("Resetting device %s: %s", d.info.UDID, reason))
 	d.info.IsResetting = true
 
-	d.ports.FreePort(d.appiumPort)
-	d.appiumPort = ""
+	d.ports.FreePort(d.info.AppiumPort)
+	d.info.AppiumPort = ""
 
 	d.info.ProviderState = "init"
 	d.info.IsResetting = false
@@ -75,7 +75,7 @@ func (d *TizenDevice) setupAppium(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("setupAppium %s: allocate port: %w", d.info.UDID, err)
 	}
-	d.appiumPort = appiumPort
+	d.info.AppiumPort = appiumPort
 
 	if err := d.getTVInfo(); err != nil {
 		return fmt.Errorf("setupAppium %s: get TV info: %w", d.info.UDID, err)
@@ -93,7 +93,7 @@ func (d *TizenDevice) setupAppium(ctx context.Context) error {
 		case <-tick.C:
 			if d.info.IsAppiumUp {
 				d.log.LogInfo("tizen_setup",
-					fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.appiumPort))
+					fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.info.AppiumPort))
 				goto appiumDone
 			}
 		}
@@ -140,7 +140,7 @@ func (d *TizenDevice) startAppium(ctx context.Context) {
 	pluginCfgJSON, _ := json.Marshal(pluginCfg)
 
 	proc, err := d.cmd.Start(ctx, "appium",
-		"-p", d.appiumPort,
+		"-p", d.info.AppiumPort,
 		"--log-timestamp",
 		"--use-plugin=gads",
 		fmt.Sprintf("--plugin-gads-config=%s", string(pluginCfgJSON)),

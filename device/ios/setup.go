@@ -153,24 +153,24 @@ func (d *IOSDevice) Setup(ctx context.Context) error {
 	if err != nil {
 		return d.fail(fmt.Errorf("Setup %s: allocate WDA port: %w", d.info.UDID, err))
 	}
-	d.wdaPort = wdaPort
+	d.info.WDAPort = wdaPort
 
 	streamPort, err := d.ports.GetFreePort()
 	if err != nil {
 		return d.fail(fmt.Errorf("Setup %s: allocate stream port: %w", d.info.UDID, err))
 	}
-	d.streamPort = streamPort
+	d.info.StreamPort = streamPort
 
 	wdaStreamPort, err := d.ports.GetFreePort()
 	if err != nil {
 		return d.fail(fmt.Errorf("Setup %s: allocate WDA stream port: %w", d.info.UDID, err))
 	}
-	d.wdaStreamPort = wdaStreamPort
+	d.info.WDAStreamPort = wdaStreamPort
 
 	// --- Step 12: forward ports ---
-	go d.goIosForward(ctx, d.wdaPort, "8100")
-	go d.goIosForward(ctx, d.streamPort, "8765")
-	go d.goIosForward(ctx, d.wdaStreamPort, "9100")
+	go d.goIosForward(ctx, d.info.WDAPort, "8100")
+	go d.goIosForward(ctx, d.info.StreamPort, "8765")
+	go d.goIosForward(ctx, d.info.WDAStreamPort, "9100")
 
 	// --- Step 13: install/launch WDA and wait for readiness ---
 	// For iOS < 17 and iOS >= 17.4 (tunnel devices): install WDA via zipconduit
@@ -192,7 +192,7 @@ func (d *IOSDevice) Setup(ctx context.Context) error {
 	go d.checkWDAUp()
 	select {
 	case <-d.wdaReadyChan:
-		d.log.LogInfo("ios_setup", fmt.Sprintf("WDA is up for device %s on port %s", d.info.UDID, d.wdaPort))
+		d.log.LogInfo("ios_setup", fmt.Sprintf("WDA is up for device %s on port %s", d.info.UDID, d.info.WDAPort))
 	case <-time.After(60 * time.Second):
 		return d.fail(fmt.Errorf("Setup %s: WDA did not start within 60 seconds", d.info.UDID))
 	}
@@ -201,7 +201,7 @@ func (d *IOSDevice) Setup(ctx context.Context) error {
 	if err := d.applyStreamSettings(); err != nil {
 		return d.fail(fmt.Errorf("Setup %s: apply stream settings: %w", d.info.UDID, err))
 	}
-	if err := d.updateWDAStreamSettings(); err != nil {
+	if err := d.UpdateStreamSettings(); err != nil {
 		return d.fail(fmt.Errorf("Setup %s: update WDA stream settings: %w", d.info.UDID, err))
 	}
 
@@ -245,15 +245,15 @@ func (d *IOSDevice) Reset(reason string) {
 		d.goIOSTunnel.Close()
 	}
 
-	d.ports.FreePort(d.wdaPort)
-	d.ports.FreePort(d.wdaStreamPort)
-	d.ports.FreePort(d.streamPort)
-	d.ports.FreePort(d.appiumPort)
+	d.ports.FreePort(d.info.WDAPort)
+	d.ports.FreePort(d.info.WDAStreamPort)
+	d.ports.FreePort(d.info.StreamPort)
+	d.ports.FreePort(d.info.AppiumPort)
 
-	d.wdaPort = ""
-	d.wdaStreamPort = ""
-	d.streamPort = ""
-	d.appiumPort = ""
+	d.info.WDAPort = ""
+	d.info.WDAStreamPort = ""
+	d.info.StreamPort = ""
+	d.info.AppiumPort = ""
 
 	d.info.ProviderState = "init"
 	d.info.IsResetting = false
@@ -358,7 +358,7 @@ func (d *IOSDevice) setupAppium(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("setupAppium %s: allocate port: %w", d.info.UDID, err)
 	}
-	d.appiumPort = appiumPort
+	d.info.AppiumPort = appiumPort
 
 	go d.startAppium(ctx)
 
@@ -372,7 +372,7 @@ func (d *IOSDevice) setupAppium(ctx context.Context) error {
 		case <-tick.C:
 			if d.info.IsAppiumUp {
 				d.log.LogInfo("ios_setup",
-					fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.appiumPort))
+					fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.info.AppiumPort))
 				goto appiumDone
 			}
 		}
@@ -393,8 +393,8 @@ appiumDone:
 func (d *IOSDevice) startAppium(ctx context.Context) {
 	caps := models.AppiumServerCapabilities{
 		UDID:                  d.info.UDID,
-		WdaURL:                "http://localhost:" + d.wdaPort,
-		WdaLocalPort:          d.wdaPort,
+		WdaURL:                "http://localhost:" + d.info.WDAPort,
+		WdaLocalPort:          d.info.WDAPort,
 		WdaLaunchTimeout:      "120000",
 		WdaConnectionTimeout:  "240000",
 		ClearSystemFiles:      "false",
@@ -414,7 +414,7 @@ func (d *IOSDevice) startAppium(ctx context.Context) {
 	pluginCfgJSON, _ := json.Marshal(pluginCfg)
 
 	proc, err := d.cmd.Start(ctx, "appium",
-		"-p", d.appiumPort,
+		"-p", d.info.AppiumPort,
 		"--log-timestamp",
 		"--use-plugin=gads",
 		fmt.Sprintf("--plugin-gads-config=%s", string(pluginCfgJSON)),

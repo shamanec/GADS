@@ -81,7 +81,7 @@ func (d *AndroidDevice) Setup(ctx context.Context) error {
 	if err != nil {
 		return d.fail(fmt.Errorf("Setup %s: allocate stream port: %w", d.info.UDID, err))
 	}
-	d.streamPort = streamPort
+	d.info.StreamPort = streamPort
 
 	imePort, err := d.ports.GetFreePort()
 	if err != nil {
@@ -151,7 +151,7 @@ func (d *AndroidDevice) Setup(ctx context.Context) error {
 	time.Sleep(2 * time.Second)
 
 	// --- Step 10: forward ports ---
-	if err := d.forwardPort(ctx, d.streamPort, "1991"); err != nil {
+	if err := d.forwardPort(ctx, d.info.StreamPort, "1991"); err != nil {
 		return d.fail(fmt.Errorf("Setup %s: forward stream port: %w", d.info.UDID, err))
 	}
 	if err := d.forwardPort(ctx, d.imePort, "1993"); err != nil {
@@ -179,7 +179,7 @@ func (d *AndroidDevice) Setup(ctx context.Context) error {
 	if err := d.applyStreamSettings(); err != nil {
 		return d.fail(fmt.Errorf("Setup %s: apply stream settings: %w", d.info.UDID, err))
 	}
-	if err := d.updateStreamSettings(); err != nil {
+	if err := d.UpdateStreamSettings(); err != nil {
 		return d.fail(fmt.Errorf("Setup %s: update stream settings: %w", d.info.UDID, err))
 	}
 
@@ -212,15 +212,15 @@ func (d *AndroidDevice) Reset(reason string) {
 	d.info.IsResetting = true
 
 	// Free allocated ports so other devices can reuse them.
-	d.ports.FreePort(d.streamPort)
+	d.ports.FreePort(d.info.StreamPort)
 	d.ports.FreePort(d.imePort)
 	d.ports.FreePort(d.remoteServerPort)
-	d.ports.FreePort(d.appiumPort)
+	d.ports.FreePort(d.info.AppiumPort)
 
-	d.streamPort = ""
+	d.info.StreamPort = ""
 	d.imePort = ""
 	d.remoteServerPort = ""
-	d.appiumPort = ""
+	d.info.AppiumPort = ""
 
 	d.info.ProviderState = "init"
 	d.info.IsResetting = false
@@ -259,7 +259,7 @@ func (d *AndroidDevice) setupAppium(ctx context.Context, installedApps []string)
 	if err != nil {
 		return fmt.Errorf("setupAppium %s: allocate port: %w", d.info.UDID, err)
 	}
-	d.appiumPort = appiumPort
+	d.info.AppiumPort = appiumPort
 
 	// Clean up stale UIAutomator2 packages that may conflict with fresh installs.
 	stalePackages := []string{
@@ -287,7 +287,7 @@ func (d *AndroidDevice) setupAppium(ctx context.Context, installedApps []string)
 			return fmt.Errorf("setupAppium %s: timed out waiting for Appium to start", d.info.UDID)
 		case <-tick.C:
 			if d.info.IsAppiumUp {
-				d.log.LogInfo("android_setup", fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.appiumPort))
+				d.log.LogInfo("android_setup", fmt.Sprintf("Appium is up for device %s on port %s", d.info.UDID, d.info.AppiumPort))
 				break
 			}
 			continue
@@ -325,7 +325,7 @@ func (d *AndroidDevice) startAppium(ctx context.Context) {
 	pluginCfgJSON, _ := json.Marshal(pluginCfg)
 
 	proc, err := d.cmd.Start(ctx, "appium",
-		"-p", d.appiumPort,
+		"-p", d.info.AppiumPort,
 		"--log-timestamp",
 		"--use-plugin=gads",
 		fmt.Sprintf("--plugin-gads-config=%s", string(pluginCfgJSON)),

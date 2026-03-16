@@ -10,9 +10,8 @@
 package router
 
 import (
-	"GADS/common/models"
 	"GADS/common/utils"
-	"GADS/provider/devices"
+	"GADS/device"
 	"GADS/provider/logger"
 	"context"
 	"encoding/binary"
@@ -33,7 +32,7 @@ import (
 
 // IOSWebRTCSession manages a WebRTC peer connection for iOS broadcast streaming
 type IOSWebRTCSession struct {
-	device         *models.Device
+	device         *device.DeviceInfo
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
 	tcpConn        net.Conn
@@ -49,7 +48,7 @@ type IOSWebRTCSession struct {
 }
 
 // NewIOSWebRTCSession creates a new WebRTC session for iOS broadcast streaming
-func NewIOSWebRTCSession(device *models.Device) (*IOSWebRTCSession, error) {
+func NewIOSWebRTCSession(device *device.DeviceInfo) (*IOSWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &IOSWebRTCSession{
@@ -311,9 +310,9 @@ func (s *IOSWebRTCSession) Close() {
 func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	dev, ok := DevManager.GetDevice(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -327,7 +326,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewIOSWebRTCSession(device)
+	session, err := NewIOSWebRTCSession(dev.Info())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

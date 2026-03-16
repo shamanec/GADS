@@ -23,7 +23,7 @@ import (
 // server forwarded on d.wdaPort. method is an HTTP verb, endpoint is the path
 // without a leading slash, and body may be nil.
 func (d *IOSDevice) wdaRequest(method, endpoint string, body io.Reader) (*http.Response, error) {
-	url := fmt.Sprintf("http://localhost:%s/%s", d.wdaPort, endpoint)
+	url := fmt.Sprintf("http://localhost:%s/%s", d.info.WDAPort, endpoint)
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("wdaRequest %s %s: build request: %w", d.info.UDID, endpoint, err)

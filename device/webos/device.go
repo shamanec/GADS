@@ -27,8 +27,7 @@ type WebOSDevice struct {
 	// MongoDB. Callers hold a pointer; writes are guarded by mu.
 	info *device.DeviceInfo
 
-	// appiumPort is the host port for the Appium server process.
-	appiumPort string
+	// AppiumPort is stored in d.info (single source of truth).
 
 	// mu protects ProviderState and IsResetting during concurrent resets.
 	mu sync.Mutex
