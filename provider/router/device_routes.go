@@ -10,7 +10,6 @@
 package router
 
 import (
-	"GADS/device/manager"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -20,8 +19,9 @@ import (
 	"GADS/common/api"
 	"GADS/common/models"
 	"GADS/common/utils"
-	"GADS/device"
+	"GADS/provider/devices"
 	"GADS/provider/logger"
+	"GADS/provider/manager"
 
 	"github.com/gin-gonic/gin"
 )
@@ -60,7 +60,7 @@ func DeviceHome(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -81,7 +81,7 @@ func DeviceGetClipboard(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -110,7 +110,7 @@ func DeviceLock(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -131,7 +131,7 @@ func DeviceUnlock(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -152,7 +152,7 @@ func DeviceScreenshot(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -197,7 +197,7 @@ func DeviceTypeText(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -225,7 +225,7 @@ func DeviceTap(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -253,7 +253,7 @@ func DeviceTouchAndHold(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -281,7 +281,7 @@ func DeviceSwipe(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -309,7 +309,7 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
 	}
-	ctrl, ok := dev.(device.Controllable)
+	ctrl, ok := dev.(devices.Controllable)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, "Device does not support remote control", nil)
 		return
@@ -334,7 +334,7 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 }
 
 // executeCustomAction dispatches a named action to the Controllable device.
-func executeCustomAction(ctrl device.Controllable, actionType string, params map[string]any) error {
+func executeCustomAction(ctrl devices.Controllable, actionType string, params map[string]any) error {
 	if params == nil {
 		params = make(map[string]any)
 	}

@@ -11,8 +11,8 @@ package router
 
 import (
 	"GADS/common/utils"
-	"GADS/device/manager"
-	"GADS/device"
+	"GADS/provider/manager"
+	"GADS/common/models"
 	"GADS/provider/logger"
 	"context"
 	"encoding/binary"
@@ -38,7 +38,7 @@ type AndroidH264Frame struct {
 
 // AndroidWebRTCSession manages a WebRTC peer connection for Android streaming
 type AndroidWebRTCSession struct {
-	device         *device.DeviceInfo
+	device         *models.DeviceInfo
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
 	wsConn         io.ReadWriteCloser
@@ -55,7 +55,7 @@ type AndroidWebRTCSession struct {
 }
 
 // NewAndroidWebRTCSession creates a new WebRTC session for Android device streaming
-func NewAndroidWebRTCSession(info *device.DeviceInfo) (*AndroidWebRTCSession, error) {
+func NewAndroidWebRTCSession(info *models.DeviceInfo) (*AndroidWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &AndroidWebRTCSession{

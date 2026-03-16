@@ -7,7 +7,7 @@
  * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-package device
+package devices
 
 import (
 	"bytes"
@@ -174,7 +174,7 @@ func NewMongoDeviceStore(store *db.MongoStore) *MongoDeviceStore {
 // collection, keyed by UDID. Only fields with a bson tag (i.e. persisted
 // fields) are written; runtime-only fields (bson:"-") are ignored by the
 // driver.
-func (s *MongoDeviceStore) AddOrUpdateDevice(info *DeviceInfo) error {
+func (s *MongoDeviceStore) AddOrUpdateDevice(info *models.DeviceInfo) error {
 	coll := s.store.GetCollection("new_devices")
 	filter := bson.D{{Key: "udid", Value: info.UDID}}
 	return db.UpsertDocument(s.store.Ctx, coll, filter, *info)

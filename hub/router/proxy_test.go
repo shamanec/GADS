@@ -11,7 +11,6 @@ package router
 
 import (
 	"GADS/common/models"
-	"GADS/device"
 	"GADS/hub/devices"
 	"bytes"
 	"encoding/json"
@@ -39,7 +38,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		udid := "test-device-available"
 		devices.HubDevicesData.Mu.Lock()
 		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
-			Device: device.DeviceInfo{
+			Device: models.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
@@ -72,7 +71,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		udid := "test-device-unavailable"
 		devices.HubDevicesData.Mu.Lock()
 		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
-			Device: device.DeviceInfo{
+			Device: models.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
@@ -132,7 +131,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		currentTime := time.Now().UnixMilli()
 		devices.HubDevicesData.Mu.Lock()
 		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
-			Device: device.DeviceInfo{
+			Device: models.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
@@ -166,7 +165,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		udid := "test-device-no-credentials"
 		devices.HubDevicesData.Mu.Lock()
 		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
-			Device: device.DeviceInfo{
+			Device: models.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},

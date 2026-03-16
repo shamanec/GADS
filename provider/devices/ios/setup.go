@@ -20,7 +20,6 @@ import (
 
 	"GADS/common/cli"
 	"GADS/common/models"
-	"GADS/device"
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
@@ -137,7 +136,7 @@ func (d *IOSDevice) Setup(ctx context.Context) error {
 	time.Sleep(1 * time.Second)
 
 	// --- Step 10: disable broadcast extension memory limit ---
-	if d.info.StreamType == device.IOSWebRTCBroadcastExtensionID {
+	if d.info.StreamType == models.IOSWebRTCBroadcastExtensionID {
 		pid, err := d.getProcessPid("gads-broadcast-extension")
 		if err != nil {
 			d.log.LogWarn("ios_setup", fmt.Sprintf("Could not get broadcast extension PID for %s: %v", d.info.UDID, err))

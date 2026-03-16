@@ -7,12 +7,12 @@
  * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-package device
+package db
 
 import (
 	"fmt"
 
-	"GADS/common/db"
+	"GADS/common/models"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -20,30 +20,30 @@ import (
 const deviceCollection = "new_devices"
 
 // GetDevices returns all devices from the database.
-func GetDevices() ([]DeviceInfo, error) {
-	coll := db.GlobalMongoStore.GetCollection(deviceCollection)
-	return db.GetDocuments[DeviceInfo](db.GlobalMongoStore.Ctx, coll, bson.D{{}})
+func GetDevices() ([]models.DeviceInfo, error) {
+	coll := GlobalMongoStore.GetCollection(deviceCollection)
+	return GetDocuments[models.DeviceInfo](GlobalMongoStore.Ctx, coll, bson.D{{}})
 }
 
 // GetProviderDevices returns all devices assigned to the given provider.
-func GetProviderDevices(providerNickname string) ([]DeviceInfo, error) {
-	coll := db.GlobalMongoStore.GetCollection(deviceCollection)
+func GetProviderDevices(providerNickname string) ([]models.DeviceInfo, error) {
+	coll := GlobalMongoStore.GetCollection(deviceCollection)
 	filter := bson.M{"provider": providerNickname}
-	return db.GetDocuments[DeviceInfo](db.GlobalMongoStore.Ctx, coll, filter)
+	return GetDocuments[models.DeviceInfo](GlobalMongoStore.Ctx, coll, filter)
 }
 
 // AddOrUpdateDevice upserts a DeviceInfo record, keyed by UDID.
-func AddOrUpdateDevice(info *DeviceInfo) error {
-	coll := db.GlobalMongoStore.GetCollection(deviceCollection)
+func AddOrUpdateDevice(info *models.DeviceInfo) error {
+	coll := GlobalMongoStore.GetCollection(deviceCollection)
 	filter := bson.D{{Key: "udid", Value: info.UDID}}
-	return db.UpsertDocument(db.GlobalMongoStore.Ctx, coll, filter, *info)
+	return UpsertDocument(GlobalMongoStore.Ctx, coll, filter, *info)
 }
 
 // DeleteDevice removes a device by UDID.
 func DeleteDevice(udid string) error {
-	coll := db.GlobalMongoStore.GetCollection(deviceCollection)
+	coll := GlobalMongoStore.GetCollection(deviceCollection)
 	filter := bson.M{"udid": udid}
-	return db.DeleteDocument(db.GlobalMongoStore.Ctx, coll, filter)
+	return DeleteDocument(GlobalMongoStore.Ctx, coll, filter)
 }
 
 // EnsureDevicesHaveStreamType is a one-time migration that sets stream_type on
@@ -55,7 +55,7 @@ func EnsureDevicesHaveStreamType() error {
 		return fmt.Errorf("EnsureDevicesHaveStreamType: Could not get devices from DB - %s", err)
 	}
 
-	coll := db.GlobalMongoStore.GetCollection(deviceCollection)
+	coll := GlobalMongoStore.GetCollection(deviceCollection)
 
 	for _, dev := range devices {
 		if dev.StreamType != "" {
@@ -67,7 +67,7 @@ func EnsureDevicesHaveStreamType() error {
 
 		// Read the raw document to check the legacy use_webrtc_video field.
 		var raw bson.M
-		err := coll.FindOne(db.GlobalMongoStore.Ctx, bson.M{"udid": dev.UDID}).Decode(&raw)
+		err := coll.FindOne(GlobalMongoStore.Ctx, bson.M{"udid": dev.UDID}).Decode(&raw)
 		if err != nil {
 			fmt.Printf("Failed reading raw device `%s`: %v\n", dev.UDID, err)
 			continue
@@ -75,16 +75,16 @@ func EnsureDevicesHaveStreamType() error {
 
 		useWebRTC, _ := raw["use_webrtc_video"].(bool)
 
-		var streamType StreamingType
+		var streamType models.StreamingType
 		switch dev.OS {
 		case "android":
 			if useWebRTC {
-				streamType = AndroidWebRTCGetStreamStreamTypeID
+				streamType = models.AndroidWebRTCGetStreamStreamTypeID
 			} else {
-				streamType = MJPEGStreamTypeID
+				streamType = models.MJPEGStreamTypeID
 			}
 		case "ios":
-			streamType = MJPEGStreamTypeID
+			streamType = models.MJPEGStreamTypeID
 		default:
 			continue
 		}

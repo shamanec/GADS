@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"time"
 
-	"GADS/device"
+	"GADS/common/models"
 )
 
 var appiumNetClient = &http.Client{
@@ -25,7 +25,7 @@ var appiumNetClient = &http.Client{
 // appiumRequest executes an HTTP request against the Appium server for the
 // device, scoped to the current Appium session. method is an HTTP verb,
 // endpoint is the path without a leading slash.
-func appiumRequest(info *device.DeviceInfo, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+func appiumRequest(info *models.DeviceInfo, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", info.AppiumPort, info.AppiumSessionID, endpoint)
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
@@ -35,6 +35,6 @@ func appiumRequest(info *device.DeviceInfo, method, endpoint string, requestBody
 }
 
 // appiumSource fetches the Appium page source for the device.
-func appiumSource(info *device.DeviceInfo) (*http.Response, error) {
+func appiumSource(info *models.DeviceInfo) (*http.Response, error) {
 	return appiumRequest(info, http.MethodGet, "source", nil)
 }

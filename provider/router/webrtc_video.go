@@ -10,7 +10,7 @@
 package router
 
 import (
-	"GADS/device/manager"
+	"GADS/provider/manager"
 	"GADS/provider/logger"
 	"context"
 	"encoding/json"

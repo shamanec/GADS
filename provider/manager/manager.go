@@ -30,8 +30,8 @@ import (
 	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/device"
-	"GADS/device/tizen"
+	"GADS/provider/devices"
+	"GADS/provider/devices/tizen"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -51,7 +51,7 @@ var Instance *DeviceManager
 // replacing the global DBDeviceMap and its associated mutexes.
 type DeviceManager struct {
 	// devices holds all ManagedDevice instances keyed by UDID.
-	devices map[string]device.ManagedDevice
+	devices map[string]devices.ManagedDevice
 	// mu protects devices for concurrent read/write access.
 	mu sync.RWMutex
 
@@ -59,7 +59,7 @@ type DeviceManager struct {
 	cfg *models.Provider
 
 	// mongoStore is the raw MongoDB store used for DB-level operations that
-	// aren't part of the device.DeviceStore interface (collection management,
+	// aren't part of the devices.DeviceStore interface (collection management,
 	// workspace lookup, GetProviderDevices).
 	mongoStore *db.MongoStore
 
@@ -67,11 +67,11 @@ type DeviceManager struct {
 	factory DeviceFactory
 
 	// cmd is used by the detection helpers (ADB, SDB, ares-*).
-	cmd device.CommandRunner
+	cmd devices.CommandRunner
 
-	// store satisfies the device.DeviceStore interface passed to each platform
+	// store satisfies the devices.DeviceStore interface passed to each platform
 	// device during construction.
-	store device.DeviceStore
+	store devices.DeviceStore
 
 	// log is the provider-level logger (not per-device).
 	log models.CustomLogger
@@ -98,13 +98,13 @@ func Start(
 	log models.CustomLogger,
 	logFn LoggerFactory,
 ) {
-	cmd := device.NewExecCommandRunner()
-	store := device.NewMongoDeviceStore(db.GlobalMongoStore)
-	httpClient := device.NewDefaultHTTPClient(30 * time.Second)
-	factory := NewDefaultDeviceFactory(cmd, device.NewNetPortAllocator(), store, httpClient, cfg)
+	cmd := devices.NewExecCommandRunner()
+	store := devices.NewMongoDeviceStore(db.GlobalMongoStore)
+	httpClient := devices.NewDefaultHTTPClient(30 * time.Second)
+	factory := NewDefaultDeviceFactory(cmd, devices.NewNetPortAllocator(), store, httpClient, cfg)
 
 	Instance = &DeviceManager{
-		devices:           make(map[string]device.ManagedDevice),
+		devices:           make(map[string]devices.ManagedDevice),
 		cfg:               cfg,
 		mongoStore:        db.GlobalMongoStore,
 		factory:           factory,
@@ -120,7 +120,7 @@ func Start(
 }
 
 // GetDevice returns the ManagedDevice for the given UDID and whether it exists.
-func (m *DeviceManager) GetDevice(udid string) (device.ManagedDevice, bool) {
+func (m *DeviceManager) GetDevice(udid string) (devices.ManagedDevice, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	d, ok := m.devices[udid]
@@ -128,10 +128,10 @@ func (m *DeviceManager) GetDevice(udid string) (device.ManagedDevice, bool) {
 }
 
 // AllDevices returns a snapshot of all managed devices.
-func (m *DeviceManager) AllDevices() []device.ManagedDevice {
+func (m *DeviceManager) AllDevices() []devices.ManagedDevice {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	out := make([]device.ManagedDevice, 0, len(m.devices))
+	out := make([]devices.ManagedDevice, 0, len(m.devices))
 	for _, d := range m.devices {
 		out = append(out, d)
 	}
@@ -140,10 +140,10 @@ func (m *DeviceManager) AllDevices() []device.ManagedDevice {
 
 // AllDeviceInfos returns a snapshot of DeviceInfo pointers for all managed devices.
 // Used by hub_sync to build the JSON payload.
-func (m *DeviceManager) AllDeviceInfos() []*device.DeviceInfo {
+func (m *DeviceManager) AllDeviceInfos() []*models.DeviceInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	out := make([]*device.DeviceInfo, 0, len(m.devices))
+	out := make([]*models.DeviceInfo, 0, len(m.devices))
 	for _, d := range m.devices {
 		out = append(out, d.Info())
 	}
@@ -154,7 +154,7 @@ func (m *DeviceManager) AllDeviceInfos() []*device.DeviceInfo {
 // each device (log directory, Appium log collection, logger, factory creation).
 // Devices that fail to initialise are logged and skipped.
 func (m *DeviceManager) loadFromDB() {
-	dbDevices, err := device.GetProviderDevices(m.cfg.Nickname)
+	dbDevices, err := db.GetProviderDevices(m.cfg.Nickname)
 	if err != nil {
 		m.log.LogError("manager_init", fmt.Sprintf("Failed to load provider devices from DB: %v", err))
 		return
@@ -187,7 +187,7 @@ func (m *DeviceManager) loadFromDB() {
 
 // initDevice creates the per-device log directory, Appium log collection,
 // logger, and platform-specific ManagedDevice, then adds it to the map.
-func (m *DeviceManager) initDevice(info *device.DeviceInfo) error {
+func (m *DeviceManager) initDevice(info *models.DeviceInfo) error {
 	info.Host = fmt.Sprintf("%s:%v", m.cfg.HostAddress, m.cfg.Port)
 
 	// Create Appium log capped collection when Appium servers are enabled.
@@ -257,10 +257,10 @@ func (m *DeviceManager) deviceUpdateLoop(ctx context.Context) {
 			return
 
 		case <-ticker.C:
-			connected := detectConnectedDevices(m.cfg, m.cmd)
+			connected := getConnectedDevices(m.cfg, m.cmd)
 
 			m.mu.RLock()
-			snapshot := make(map[string]device.ManagedDevice, len(m.devices))
+			snapshot := make(map[string]devices.ManagedDevice, len(m.devices))
 			for udid, d := range m.devices {
 				snapshot[udid] = d
 			}
@@ -276,12 +276,12 @@ func (m *DeviceManager) deviceUpdateLoop(ctx context.Context) {
 					info.Connected = true
 					state := dev.ProviderState()
 					if state != "preparing" && state != "live" {
-						if err := device.ValidateDeviceUsageForOS(info.OS, info.Usage); err != nil {
+						if err := models.ValidateDeviceUsageForOS(info.OS, info.Usage); err != nil {
 							m.log.LogWarn("manager_update",
 								fmt.Sprintf("Device %s has invalid config: %v — skipping setup", udid, err))
 							continue
 						}
-						go func(d device.ManagedDevice) {
+						go func(d devices.ManagedDevice) {
 							d.Setup(ctx) //nolint:errcheck // failures handled internally via Reset
 						}(dev)
 					}
@@ -303,7 +303,7 @@ func (m *DeviceManager) handleTizenAutoConnect() {
 	connected := tizen.GetConnectedDevices(m.cmd)
 
 	m.mu.RLock()
-	snapshot := make(map[string]device.ManagedDevice, len(m.devices))
+	snapshot := make(map[string]devices.ManagedDevice, len(m.devices))
 	for udid, d := range m.devices {
 		snapshot[udid] = d
 	}
@@ -364,7 +364,7 @@ func (m *DeviceManager) hubSyncLoop(ctx context.Context) {
 //   - Config changes (Usage, StreamType, etc.) are applied; a stream-type change
 //     triggers a reset so the device is re-provisioned with the new type.
 func (m *DeviceManager) syncFromDB() {
-	dbDevices, err := device.GetProviderDevices(m.cfg.Nickname)
+	dbDevices, err := db.GetProviderDevices(m.cfg.Nickname)
 	if err != nil {
 		m.log.LogError("manager_db_sync",
 			fmt.Sprintf("Failed to reload provider devices from DB: %v", err))
@@ -424,4 +424,3 @@ func (m *DeviceManager) syncFromDB() {
 		}
 	}
 }
-

@@ -11,8 +11,8 @@ package router
 
 import (
 	"GADS/common/utils"
-	"GADS/device/manager"
-	"GADS/device"
+	"GADS/provider/manager"
+	"GADS/common/models"
 	"GADS/provider/logger"
 	"context"
 	"encoding/binary"
@@ -33,7 +33,7 @@ import (
 
 // IOSWebRTCSession manages a WebRTC peer connection for iOS broadcast streaming
 type IOSWebRTCSession struct {
-	device         *device.DeviceInfo
+	device         *models.DeviceInfo
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
 	tcpConn        net.Conn
@@ -49,7 +49,7 @@ type IOSWebRTCSession struct {
 }
 
 // NewIOSWebRTCSession creates a new WebRTC session for iOS broadcast streaming
-func NewIOSWebRTCSession(device *device.DeviceInfo) (*IOSWebRTCSession, error) {
+func NewIOSWebRTCSession(device *models.DeviceInfo) (*IOSWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &IOSWebRTCSession{

@@ -13,8 +13,7 @@ import (
 	"GADS/common/api"
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/device"
-	"GADS/device/manager"
+	"GADS/provider/manager"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
@@ -807,7 +806,7 @@ func UploadFile(c *gin.Context) {
 // @Tags         Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      device.DeviceInfo  true  "Device data"
+// @Param        device  body      models.DeviceInfo  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
@@ -821,7 +820,7 @@ func AddDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var dev device.DeviceInfo
+	var dev models.DeviceInfo
 	err = json.Unmarshal(reqBody, &dev)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
@@ -829,13 +828,13 @@ func AddDevice(c *gin.Context) {
 	}
 
 	// Validate device configuration before processing
-	err = device.ValidateDeviceInfo(&dev)
+	err = models.ValidateDeviceInfo(&dev)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
 		return
 	}
 
-	dbDevices, _ := device.GetDevices()
+	dbDevices, _ := db.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == dev.UDID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
@@ -843,7 +842,7 @@ func AddDevice(c *gin.Context) {
 		}
 	}
 
-	err = device.AddOrUpdateDevice(&dev)
+	err = db.AddOrUpdateDevice(&dev)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 		return
@@ -858,7 +857,7 @@ func AddDevice(c *gin.Context) {
 // @Tags         Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      device.DeviceInfo  true  "Device data"
+// @Param        device  body      models.DeviceInfo  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      404     {object}  models.ErrorResponse
@@ -873,14 +872,14 @@ func UpdateDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var reqDevice device.DeviceInfo
+	var reqDevice models.DeviceInfo
 	err = json.Unmarshal(reqBody, &reqDevice)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
 		return
 	}
 
-	dbDevices, _ := device.GetDevices()
+	dbDevices, _ := db.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == reqDevice.UDID {
 			// Update only the relevant data and only if something has changed
@@ -916,13 +915,13 @@ func UpdateDevice(c *gin.Context) {
 			}
 
 			// Validate device configuration before saving to DB
-			err = device.ValidateDeviceInfo(&dbDevice)
+			err = models.ValidateDeviceInfo(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
 				return
 			}
 
-			err = device.AddOrUpdateDevice(&dbDevice)
+			err = db.AddOrUpdateDevice(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 				return
@@ -949,7 +948,7 @@ func UpdateDevice(c *gin.Context) {
 func DeleteDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	err := device.DeleteDevice(udid)
+	err := db.DeleteDevice(udid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
 		return
@@ -959,9 +958,9 @@ func DeleteDevice(c *gin.Context) {
 }
 
 type AdminDeviceData struct {
-	Devices           []device.DeviceInfo `json:"devices"`
+	Devices           []models.DeviceInfo `json:"devices"`
 	Providers         []string            `json:"providers"`
-	DeviceStreamTypes []device.StreamType `json:"device_stream_types"`
+	DeviceStreamTypes []models.StreamType `json:"device_stream_types"`
 }
 
 // GetDevices godoc
@@ -975,7 +974,7 @@ type AdminDeviceData struct {
 // @Security     BearerAuth
 // @Router       /admin/devices [get]
 func GetDevices(c *gin.Context) {
-	dbDevices, _ := device.GetDevices()
+	dbDevices, _ := db.GetDevices()
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
 
 	var providerNames []string = []string{}
@@ -984,22 +983,22 @@ func GetDevices(c *gin.Context) {
 	}
 
 	if len(dbDevices) == 0 || len(providerNames) == 0 {
-		dbDevices = []device.DeviceInfo{}
+		dbDevices = []models.DeviceInfo{}
 	}
 
 	for index, dbDevice := range dbDevices {
-		dbDevices[index].SupportedStreamTypes = device.StreamTypesForOS(dbDevice.OS)
+		dbDevices[index].SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
 	}
 
 	var adminDeviceData = AdminDeviceData{
 		Devices:   dbDevices,
 		Providers: providerNames,
-		DeviceStreamTypes: []device.StreamType{
-			device.MJPEGStreamType,
-			device.IOSWebRTCFFMpegStreamType,
-			device.AndroidWebRTCGadsH264StreamType,
-			device.AndroidWebRTCGetStreamStreamType,
-			device.IOSWebRTCBroadcastExtensionStreamType,
+		DeviceStreamTypes: []models.StreamType{
+			models.MJPEGStreamType,
+			models.IOSWebRTCFFMpegStreamType,
+			models.AndroidWebRTCGadsH264StreamType,
+			models.AndroidWebRTCGetStreamStreamType,
+			models.IOSWebRTCBroadcastExtensionStreamType,
 		},
 	}
 
@@ -1044,7 +1043,7 @@ func ReleaseUsedDevice(c *gin.Context) {
 
 // syncDeviceFields synchronizes operational fields from provider to hub device
 // Only updates fields that are different between the two devices
-func syncDeviceFields(target *device.DeviceInfo, source *device.DeviceInfo) {
+func syncDeviceFields(target *models.DeviceInfo, source *models.DeviceInfo) {
 	if target.Connected != source.Connected {
 		target.Connected = source.Connected
 	}
@@ -1389,7 +1388,7 @@ func GetSystemStatus(c *gin.Context) {
 	var messages []models.SystemStatusMessage
 
 	// Check if any devices are configured
-	devList, _ := device.GetDevices()
+	devList, _ := db.GetDevices()
 	if len(devList) == 0 {
 		messages = append(messages, models.SystemStatusMessage{
 			Type:    "no_devices",

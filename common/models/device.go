@@ -7,7 +7,7 @@
  * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-package device
+package models
 
 import (
 	"errors"

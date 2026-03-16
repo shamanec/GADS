@@ -7,9 +7,13 @@
  * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-package device
+package devices
 
-import "context"
+import (
+	"context"
+
+	"GADS/common/models"
+)
 
 // Controllable represents a device that supports interactive remote control
 // operations such as tapping, swiping, and taking screenshots.
@@ -109,7 +113,7 @@ type StreamSettingsUpdater interface {
 //
 // For control operations, use a type assertion to Controllable:
 //
-//	ctrl, ok := dev.(device.Controllable)
+//	ctrl, ok := dev.(devices.Controllable)
 //	if !ok {
 //	    // device does not support remote control (e.g. Tizen/WebOS)
 //	}
@@ -117,7 +121,7 @@ type ManagedDevice interface {
 	// Info returns a pointer to the DeviceInfo for this device. The returned
 	// pointer is stable for the device's lifetime and may be read concurrently,
 	// but writes must be coordinated by the device's own mutex.
-	Info() *DeviceInfo
+	Info() *models.DeviceInfo
 
 	Provisionable
 	AppManager

@@ -7,10 +7,10 @@
  * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-// Package device provides the core types, interfaces, and dependency abstractions
+// Package models provides the core types, interfaces, and dependency abstractions
 // for the GADS device management system. It is the foundation of the refactored
 // device package hierarchy.
-package device
+package models
 
 // StreamingType is the custom type used to identify a video streaming mode in
 // DB persistence and wire-format JSON. Values are defined as constants below.

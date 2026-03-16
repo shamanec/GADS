@@ -16,19 +16,19 @@ import (
 	"sync"
 
 	"GADS/common/models"
-	"GADS/device"
+	"GADS/provider/devices"
 	"github.com/Masterminds/semver"
 )
 
 // AndroidDevice manages a single Android device connected via ADB.
-// It implements device.ManagedDevice and device.Controllable.
+// It implements devices.ManagedDevice and devices.Controllable.
 //
 // All platform-specific state (ports, semver, context) is held as private
 // fields — nothing here is serialised to JSON or BSON directly.
 type AndroidDevice struct {
 	// info is the shared serialisable state sent to the hub and stored in
 	// MongoDB. Callers hold a pointer; writes are guarded by mu.
-	info *device.DeviceInfo
+	info *models.DeviceInfo
 
 	// Runtime port assignments for internal-only ports, filled in during Setup.
 	// StreamPort and AppiumPort are in d.info (single source of truth).
@@ -52,26 +52,26 @@ type AndroidDevice struct {
 	cfg *models.Provider
 
 	// Injected dependencies — replaceable with mocks in tests.
-	cmd   device.CommandRunner
-	ports device.PortAllocator
-	store device.DeviceStore
-	http  device.HTTPClient
+	cmd   devices.CommandRunner
+	ports devices.PortAllocator
+	store devices.DeviceStore
+	http  devices.HTTPClient
 }
 
 // New constructs an AndroidDevice with the given shared DeviceInfo and injected
 // dependencies. info must not be nil. The device is initially in the "init"
 // state; call Setup to provision it.
 func New(
-	info *device.DeviceInfo,
-	cmd device.CommandRunner,
-	ports device.PortAllocator,
-	store device.DeviceStore,
-	httpClient device.HTTPClient,
+	info *models.DeviceInfo,
+	cmd devices.CommandRunner,
+	ports devices.PortAllocator,
+	store devices.DeviceStore,
+	httpClient devices.HTTPClient,
 	log models.CustomLogger,
 	cfg *models.Provider,
 ) *AndroidDevice {
 	info.ProviderState = "init"
-	info.SupportedStreamTypes = device.StreamTypesForOS("android")
+	info.SupportedStreamTypes = models.StreamTypesForOS("android")
 	return &AndroidDevice{
 		info:  info,
 		cmd:   cmd,
@@ -86,7 +86,7 @@ func New(
 // Info returns the shared DeviceInfo pointer for this device. The pointer is
 // stable for the device's lifetime; reads are generally safe without a lock,
 // but writes to the struct fields must be guarded by the caller.
-func (d *AndroidDevice) Info() *device.DeviceInfo {
+func (d *AndroidDevice) Info() *models.DeviceInfo {
 	return d.info
 }
 

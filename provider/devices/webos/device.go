@@ -16,16 +16,16 @@ import (
 	"sync"
 
 	"GADS/common/models"
-	"GADS/device"
+	"GADS/provider/devices"
 )
 
 // WebOSDevice manages a single WebOS TV connected via ares-* CLI tools.
-// It implements device.ManagedDevice but NOT device.Controllable — WebOS TVs
+// It implements devices.ManagedDevice but NOT devices.Controllable — WebOS TVs
 // are automation targets only (Appium-based testing).
 type WebOSDevice struct {
 	// info is the shared serialisable state sent to the hub and stored in
 	// MongoDB. Callers hold a pointer; writes are guarded by mu.
-	info *device.DeviceInfo
+	info *models.DeviceInfo
 
 	// AppiumPort is stored in d.info (single source of truth).
 
@@ -41,19 +41,19 @@ type WebOSDevice struct {
 	cfg *models.Provider
 
 	// Injected dependencies — replaceable with mocks in tests.
-	cmd   device.CommandRunner
-	ports device.PortAllocator
-	store device.DeviceStore
+	cmd   devices.CommandRunner
+	ports devices.PortAllocator
+	store devices.DeviceStore
 }
 
 // New constructs a WebOSDevice with the given shared DeviceInfo and injected
 // dependencies. info must not be nil. The device is initially in the "init"
 // state; call Setup to provision it.
 func New(
-	info *device.DeviceInfo,
-	cmd device.CommandRunner,
-	ports device.PortAllocator,
-	store device.DeviceStore,
+	info *models.DeviceInfo,
+	cmd devices.CommandRunner,
+	ports devices.PortAllocator,
+	store devices.DeviceStore,
 	log models.CustomLogger,
 	cfg *models.Provider,
 ) *WebOSDevice {
@@ -69,7 +69,7 @@ func New(
 }
 
 // Info returns the shared DeviceInfo pointer for this device.
-func (d *WebOSDevice) Info() *device.DeviceInfo {
+func (d *WebOSDevice) Info() *models.DeviceInfo {
 	return d.info
 }
 

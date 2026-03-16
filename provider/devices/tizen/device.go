@@ -16,16 +16,16 @@ import (
 	"sync"
 
 	"GADS/common/models"
-	"GADS/device"
+	"GADS/provider/devices"
 )
 
 // TizenDevice manages a single Tizen TV connected via sdb.
-// It implements device.ManagedDevice but NOT device.Controllable — Tizen TVs
+// It implements devices.ManagedDevice but NOT devices.Controllable — Tizen TVs
 // are automation targets only (Appium-based testing).
 type TizenDevice struct {
 	// info is the shared serialisable state sent to the hub and stored in
 	// MongoDB. Callers hold a pointer; writes are guarded by mu.
-	info *device.DeviceInfo
+	info *models.DeviceInfo
 
 	// AppiumPort is stored in d.info (single source of truth).
 
@@ -41,19 +41,19 @@ type TizenDevice struct {
 	cfg *models.Provider
 
 	// Injected dependencies — replaceable with mocks in tests.
-	cmd   device.CommandRunner
-	ports device.PortAllocator
-	store device.DeviceStore
+	cmd   devices.CommandRunner
+	ports devices.PortAllocator
+	store devices.DeviceStore
 }
 
 // New constructs a TizenDevice with the given shared DeviceInfo and injected
 // dependencies. info must not be nil. The device is initially in the "init"
 // state; call Setup to provision it.
 func New(
-	info *device.DeviceInfo,
-	cmd device.CommandRunner,
-	ports device.PortAllocator,
-	store device.DeviceStore,
+	info *models.DeviceInfo,
+	cmd devices.CommandRunner,
+	ports devices.PortAllocator,
+	store devices.DeviceStore,
 	log models.CustomLogger,
 	cfg *models.Provider,
 ) *TizenDevice {
@@ -69,7 +69,7 @@ func New(
 }
 
 // Info returns the shared DeviceInfo pointer for this device.
-func (d *TizenDevice) Info() *device.DeviceInfo {
+func (d *TizenDevice) Info() *models.DeviceInfo {
 	return d.info
 }
 

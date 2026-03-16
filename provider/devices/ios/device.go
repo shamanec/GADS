@@ -16,7 +16,7 @@ import (
 	"sync"
 
 	"GADS/common/models"
-	"GADS/device"
+	"GADS/provider/devices"
 
 	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
@@ -24,7 +24,7 @@ import (
 )
 
 // IOSDevice manages a single iOS device connected via USB/usbmuxd.
-// It implements device.ManagedDevice and device.Controllable.
+// It implements devices.ManagedDevice and devices.Controllable.
 //
 // go-ios types (ios.DeviceEntry, tunnel.Tunnel) are held directly — we do not
 // try to abstract the go-ios library; the goal is to contain its usage within
@@ -32,7 +32,7 @@ import (
 type IOSDevice struct {
 	// info is the shared serialisable device state. Callers hold a pointer;
 	// writes are guarded by mu.
-	info *device.DeviceInfo
+	info *models.DeviceInfo
 
 	// Runtime port assignments are in d.info (single source of truth):
 	// WDAPort, WDAStreamPort, StreamPort, AppiumPort.
@@ -65,26 +65,26 @@ type IOSDevice struct {
 	cfg *models.Provider
 
 	// Injected dependencies — replaceable with mocks in tests.
-	cmd   device.CommandRunner // used only for the Appium process
-	ports device.PortAllocator
-	store device.DeviceStore
-	http  device.HTTPClient
+	cmd   devices.CommandRunner // used only for the Appium process
+	ports devices.PortAllocator
+	store devices.DeviceStore
+	http  devices.HTTPClient
 }
 
 // New constructs an IOSDevice with the given shared DeviceInfo and injected
 // dependencies. info must not be nil. The device starts in the "init" state;
 // call Setup to provision it.
 func New(
-	info *device.DeviceInfo,
-	cmd device.CommandRunner,
-	ports device.PortAllocator,
-	store device.DeviceStore,
-	httpClient device.HTTPClient,
+	info *models.DeviceInfo,
+	cmd devices.CommandRunner,
+	ports devices.PortAllocator,
+	store devices.DeviceStore,
+	httpClient devices.HTTPClient,
 	log models.CustomLogger,
 	cfg *models.Provider,
 ) *IOSDevice {
 	info.ProviderState = "init"
-	info.SupportedStreamTypes = device.StreamTypesForOS("ios")
+	info.SupportedStreamTypes = models.StreamTypesForOS("ios")
 	return &IOSDevice{
 		info:         info,
 		cmd:          cmd,
@@ -98,7 +98,7 @@ func New(
 }
 
 // Info returns the shared DeviceInfo pointer for this device.
-func (d *IOSDevice) Info() *device.DeviceInfo {
+func (d *IOSDevice) Info() *models.DeviceInfo {
 	return d.info
 }
 

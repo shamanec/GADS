@@ -11,8 +11,8 @@ package router
 
 import (
 	"GADS/common/utils"
-	"GADS/device/manager"
-	"GADS/device"
+	"GADS/provider/manager"
+	"GADS/common/models"
 	"GADS/provider/logger"
 	"bytes"
 	"context"
@@ -89,7 +89,7 @@ func parseJPEGDimensions(data []byte) (width, height int, err error) {
 
 // WDAJPEGExtractor handles extracting JPEG frames from WebDriverAgent MJPEG stream
 type WDAJPEGExtractor struct {
-	device             *device.DeviceInfo
+	device             *models.DeviceInfo
 	httpResp           *http.Response
 	multiReader        *multipart.Reader
 	jpegChannel        chan []byte
@@ -105,7 +105,7 @@ type WDAJPEGExtractor struct {
 }
 
 // NewWDAJPEGExtractor creates a new JPEG extractor for WebDriverAgent stream
-func NewWDAJPEGExtractor(device *device.DeviceInfo) (*WDAJPEGExtractor, error) {
+func NewWDAJPEGExtractor(device *models.DeviceInfo) (*WDAJPEGExtractor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	success := false
 	defer func() {
@@ -254,7 +254,7 @@ func (e *WDAJPEGExtractor) Close() {
 
 // FFmpegH264Encoder handles encoding JPEG frames to H.264
 type FFmpegH264Encoder struct {
-	device       *device.DeviceInfo
+	device       *models.DeviceInfo
 	jpegInput    <-chan []byte
 	h264Output   chan []byte
 	ctx          context.Context
@@ -265,7 +265,7 @@ type FFmpegH264Encoder struct {
 }
 
 // NewFFmpegH264Encoder creates a new H.264 encoder using FFmpeg
-func NewFFmpegH264Encoder(device *device.DeviceInfo, jpegInput <-chan []byte) (*FFmpegH264Encoder, error) {
+func NewFFmpegH264Encoder(device *models.DeviceInfo, jpegInput <-chan []byte) (*FFmpegH264Encoder, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	success := false
 	defer func() {
@@ -530,7 +530,7 @@ func (e *FFmpegH264Encoder) Close() {
 
 // WebRTCSession manages a single WebRTC peer connection for streaming
 type WebRTCSession struct {
-	device                  *device.DeviceInfo
+	device                  *models.DeviceInfo
 	peerConnection          *webrtc.PeerConnection
 	videoTrack              *webrtc.TrackLocalStaticSample
 	extractor               *WDAJPEGExtractor
@@ -544,7 +544,7 @@ type WebRTCSession struct {
 }
 
 // NewWebRTCSession creates a new WebRTC session for device streaming
-func NewWebRTCSession(device *device.DeviceInfo) (*WebRTCSession, error) {
+func NewWebRTCSession(device *models.DeviceInfo) (*WebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &WebRTCSession{

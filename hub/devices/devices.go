@@ -10,7 +10,8 @@
 package devices
 
 import (
-	"GADS/device"
+	"GADS/common/db"
+	"GADS/common/models"
 	"fmt"
 	"net"
 	"strconv"
@@ -22,7 +23,7 @@ import (
 // automation session, WebSocket connection). It is never persisted to MongoDB;
 // the hub builds it from the DeviceInfo received from providers.
 type LocalHubDevice struct {
-	Device                   device.DeviceInfo `json:"info"`
+	Device                   models.DeviceInfo `json:"info"`
 	SessionID                string            `json:"-"`
 	IsRunningAutomation      bool              `json:"is_running_automation"`
 	LastAutomationActionTS   int64             `json:"last_automation_action_ts"`
@@ -39,7 +40,7 @@ type LocalHubDevice struct {
 
 // CalculateCanvasDimensions computes the canvas width and height for a device
 // based on its screen dimensions, scaling to a fixed 850-pixel height.
-func CalculateCanvasDimensions(dev *device.DeviceInfo) (canvasWidth string, canvasHeight string) {
+func CalculateCanvasDimensions(dev *models.DeviceInfo) (canvasWidth string, canvasHeight string) {
 	width, _ := strconv.Atoi(dev.ScreenWidth)
 	height, _ := strconv.Atoi(dev.ScreenHeight)
 
@@ -73,10 +74,10 @@ func InitHubDevicesData() {
 // Devices removed from the DB are pruned; new devices are added; existing
 // devices have their persisted fields (Name, OSVersion, etc.) refreshed.
 func GetLatestDBDevices() {
-	var latestDBDevices []device.DeviceInfo
+	var latestDBDevices []models.DeviceInfo
 
 	for {
-		latestDBDevices, _ = device.GetDevices()
+		latestDBDevices, _ = db.GetDevices()
 
 		HubDevicesData.Mu.Lock()
 		for udid := range HubDevicesData.Devices {
@@ -120,7 +121,7 @@ func GetLatestDBDevices() {
 				}
 			} else {
 				dbDevice.InstalledApps = make([]string, 0)
-				dbDevice.SupportedStreamTypes = device.StreamTypesForOS(dbDevice.OS)
+				dbDevice.SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
 				HubDevicesData.Devices[dbDevice.UDID] = &LocalHubDevice{
 					Device:                   dbDevice,
 					IsRunningAutomation:      false,

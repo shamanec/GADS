@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"GADS/common/models"
-	"GADS/device"
+	"GADS/provider/devices"
 )
 
 // Auto-connection constants — mirror the values in the legacy provider/devices/tizen.go.
@@ -137,7 +137,7 @@ func (t *RetryTracker) recordAttempt(deviceID string, pass bool, now time.Time) 
 
 // GetConnectedDevices runs `sdb devices` and returns the list of device IDs
 // currently reported as connected.
-func GetConnectedDevices(cmd device.CommandRunner) []string {
+func GetConnectedDevices(cmd devices.CommandRunner) []string {
 	out, err := cmd.Run(context.Background(), "sdb", "devices")
 	if err != nil {
 		return nil
@@ -157,7 +157,7 @@ func GetConnectedDevices(cmd device.CommandRunner) []string {
 }
 
 // IsConnected checks whether deviceUDID appears in the sdb device list.
-func IsConnected(cmd device.CommandRunner, deviceUDID string) bool {
+func IsConnected(cmd devices.CommandRunner, deviceUDID string) bool {
 	return slices.Contains(GetConnectedDevices(cmd), deviceUDID)
 }
 
@@ -165,7 +165,7 @@ func IsConnected(cmd device.CommandRunner, deviceUDID string) bool {
 // records the result in tracker.
 func AttemptConnection(
 	tracker *RetryTracker,
-	cmd device.CommandRunner,
+	cmd devices.CommandRunner,
 	deviceUDID string,
 	log models.CustomLogger,
 ) {

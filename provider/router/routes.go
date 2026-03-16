@@ -28,11 +28,11 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/common/utils"
-	"GADS/device"
-	"GADS/device/android"
-	"GADS/device/manager"
-	"GADS/device/tizen"
-	"GADS/device/webos"
+	"GADS/provider/devices"
+	"GADS/provider/devices/android"
+	"GADS/provider/devices/tizen"
+	"GADS/provider/devices/webos"
+	"GADS/provider/manager"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 
@@ -233,7 +233,7 @@ func DeviceInfo(c *gin.Context) {
 			}
 		}
 	case "ios":
-		if ctrl, ok := dev.(device.Controllable); ok {
+		if ctrl, ok := dev.(devices.Controllable); ok {
 			// Use a simple WDA orientation request via a direct HTTP call.
 			resp, err := http.Get(fmt.Sprintf("http://localhost:%s/orientation", info.WDAPort))
 			if err == nil {
@@ -513,7 +513,7 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 		info.StreamScalingFactor = streamSettings.ScalingFactor
 	}
 
-	if updater, ok := dev.(device.StreamSettingsUpdater); ok {
+	if updater, ok := dev.(devices.StreamSettingsUpdater); ok {
 		if err := updater.UpdateStreamSettings(); err != nil {
 			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to update stream settings - %s", err), nil)
 			return

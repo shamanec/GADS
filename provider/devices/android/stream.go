@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"GADS/common/auth"
-	"GADS/device"
+	"GADS/common/models"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -27,7 +27,7 @@ import (
 // stop it when needed.
 func (d *AndroidDevice) streamServiceName() string {
 	switch d.info.StreamType {
-	case device.AndroidWebRTCGetStreamStreamTypeID:
+	case models.AndroidWebRTCGetStreamStreamTypeID:
 		return "com.gads.settings/.WebRTCScreenCaptureService"
 	default:
 		// MJPEG and H264 both use the standard screen-capture service
@@ -39,7 +39,7 @@ func (d *AndroidDevice) streamServiceName() string {
 // GADS-Settings streaming activity for the configured streaming mode.
 func (d *AndroidDevice) streamActivityName() string {
 	switch d.info.StreamType {
-	case device.AndroidWebRTCGetStreamStreamTypeID:
+	case models.AndroidWebRTCGetStreamStreamTypeID:
 		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
 	default:
 		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
@@ -51,7 +51,7 @@ func (d *AndroidDevice) streamActivityName() string {
 // app_process; for MJPEG / GetStream it starts the foreground Activity. Each
 // variant runs in a background goroutine that resets the device on exit.
 func (d *AndroidDevice) startStream(ctx context.Context) error {
-	if d.info.StreamType == device.AndroidWebRTCGadsH264StreamTypeID {
+	if d.info.StreamType == models.AndroidWebRTCGadsH264StreamTypeID {
 		// H264Server is a Kotlin app_process — kill any existing instance first.
 		_, _ = d.cmd.Run(ctx, "adb", "-s", d.info.UDID, "shell", "pkill", "-f", "H264Server")
 		time.Sleep(1 * time.Second)
@@ -94,7 +94,7 @@ func (d *AndroidDevice) startStream(ctx context.Context) error {
 // UpdateStreamSettings sends stream configuration (FPS, JPEG quality, scaling
 // factor) to the GADS-Settings WebSocket on d.info.StreamPort. The message
 // format expected by GADS-Settings is "targetFPS=N:jpegQuality=N:scalingFactor=N"
-// (H264 omits jpegQuality). It implements device.StreamSettingsUpdater.
+// (H264 omits jpegQuality). It implements devices.StreamSettingsUpdater.
 func (d *AndroidDevice) UpdateStreamSettings() error {
 	u := url.URL{Scheme: "ws", Host: "localhost:" + d.info.StreamPort}
 	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
@@ -104,7 +104,7 @@ func (d *AndroidDevice) UpdateStreamSettings() error {
 	defer conn.Close()
 
 	var msg string
-	if d.info.StreamType == device.AndroidWebRTCGadsH264StreamTypeID {
+	if d.info.StreamType == models.AndroidWebRTCGadsH264StreamTypeID {
 		msg = fmt.Sprintf("targetFPS=%v:scalingFactor=%v",
 			d.info.StreamTargetFPS, d.info.StreamScalingFactor)
 	} else {

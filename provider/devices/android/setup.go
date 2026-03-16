@@ -20,7 +20,6 @@ import (
 
 	"GADS/common/cli"
 	"GADS/common/models"
-	"GADS/device"
 
 	"github.com/Masterminds/semver"
 	"github.com/pelletier/go-toml/v2"
@@ -162,7 +161,7 @@ func (d *AndroidDevice) Setup(ctx context.Context) error {
 	}
 
 	// --- Step 11: push TURN config (WebRTC only) ---
-	if device.IsWebRTCStreamType(d.info.StreamType) {
+	if models.IsWebRTCStreamType(d.info.StreamType) {
 		if err := d.updateWebRTCTURNConfig(); err != nil {
 			// Non-fatal: WebRTC will fall back to STUN-only.
 			d.log.LogWarn("android_setup",

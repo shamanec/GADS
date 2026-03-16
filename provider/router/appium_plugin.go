@@ -11,7 +11,7 @@ package router
 
 import (
 	"GADS/common/api"
-	"GADS/device/manager"
+	"GADS/provider/manager"
 	"GADS/common/db"
 	"GADS/common/models"
 	"encoding/json"

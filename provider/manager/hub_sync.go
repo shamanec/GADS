@@ -16,22 +16,21 @@ import (
 	"net/http"
 
 	"GADS/common/models"
-	"GADS/device"
 )
 
 // ProviderPayload is the JSON body posted to the hub's /provider-update endpoint.
-// It replaces models.ProviderData in the new manager, using device.DeviceInfo
+// It replaces models.ProviderData in the new manager, using models.DeviceInfo
 // instead of the legacy models.Device god-struct. The JSON field names are
 // identical so the hub can decode either format.
 type ProviderPayload struct {
-	Provider   models.Provider    `json:"provider"`
-	DeviceData []*device.DeviceInfo `json:"device_data"`
+	Provider   models.Provider      `json:"provider"`
+	DeviceData []*models.DeviceInfo `json:"device_data"`
 }
 
 // syncToHub marshals the current device state and POSTs it to
 // {hubURL}/provider-update. Returns a non-nil error if the request fails or
 // the hub returns a non-200 status.
-func syncToHub(client *http.Client, hubURL string, cfg models.Provider, infos []*device.DeviceInfo) error {
+func syncToHub(client *http.Client, hubURL string, cfg models.Provider, infos []*models.DeviceInfo) error {
 	payload := ProviderPayload{
 		Provider:   cfg,
 		DeviceData: infos,

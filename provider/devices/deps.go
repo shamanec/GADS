@@ -7,7 +7,7 @@
  * You may obtain a copy of the license at https://www.gnu.org/licenses/agpl-3.0.html
  */
 
-package device
+package devices
 
 import (
 	"context"
@@ -69,12 +69,12 @@ type PortAllocator interface {
 }
 
 // DeviceStore abstracts the database operations that device types need during
-// their lifecycle. Production code uses MongoDeviceStore (device/deps_impl.go)
+// their lifecycle. Production code uses MongoDeviceStore (devices/deps_impl.go)
 // which delegates to db.GlobalMongoStore. Tests inject an in-memory mock.
 type DeviceStore interface {
 	// AddOrUpdateDevice upserts the DeviceInfo record into the device registry
 	// (MongoDB "new_devices" collection).
-	AddOrUpdateDevice(info *DeviceInfo) error
+	AddOrUpdateDevice(info *models.DeviceInfo) error
 
 	// GetDeviceStreamSettings retrieves the per-device stream configuration
 	// (FPS, JPEG quality, scaling factor) for the given UDID.

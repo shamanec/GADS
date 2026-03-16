@@ -13,11 +13,11 @@ import (
 	"fmt"
 
 	"GADS/common/models"
-	"GADS/device"
-	"GADS/device/android"
-	"GADS/device/ios"
-	"GADS/device/tizen"
-	"GADS/device/webos"
+	"GADS/provider/devices"
+	"GADS/provider/devices/android"
+	"GADS/provider/devices/ios"
+	"GADS/provider/devices/tizen"
+	"GADS/provider/devices/webos"
 )
 
 // DeviceFactory creates platform-specific ManagedDevice instances from a
@@ -26,27 +26,27 @@ type DeviceFactory interface {
 	// Create builds and returns a ManagedDevice for the platform identified by
 	// info.OS. log is the per-device logger. Returns an error if info.OS is
 	// not recognised or a required dependency is unavailable.
-	Create(info *device.DeviceInfo, log models.CustomLogger) (device.ManagedDevice, error)
+	Create(info *models.DeviceInfo, log models.CustomLogger) (devices.ManagedDevice, error)
 }
 
 // DefaultDeviceFactory is the production DeviceFactory. It creates
 // platform-specific device instances wired with the shared dependency set
 // passed to NewDefaultDeviceFactory.
 type DefaultDeviceFactory struct {
-	cmd   device.CommandRunner
-	ports device.PortAllocator
-	store device.DeviceStore
-	http  device.HTTPClient
+	cmd   devices.CommandRunner
+	ports devices.PortAllocator
+	store devices.DeviceStore
+	http  devices.HTTPClient
 	cfg   *models.Provider
 }
 
 // NewDefaultDeviceFactory constructs a DefaultDeviceFactory with shared
 // dependency implementations. All parameters must be non-nil.
 func NewDefaultDeviceFactory(
-	cmd device.CommandRunner,
-	ports device.PortAllocator,
-	store device.DeviceStore,
-	httpClient device.HTTPClient,
+	cmd devices.CommandRunner,
+	ports devices.PortAllocator,
+	store devices.DeviceStore,
+	httpClient devices.HTTPClient,
 	cfg *models.Provider,
 ) *DefaultDeviceFactory {
 	return &DefaultDeviceFactory{
@@ -59,7 +59,7 @@ func NewDefaultDeviceFactory(
 }
 
 // Create builds a ManagedDevice for info.OS. Returns an error for unknown OS values.
-func (f *DefaultDeviceFactory) Create(info *device.DeviceInfo, log models.CustomLogger) (device.ManagedDevice, error) {
+func (f *DefaultDeviceFactory) Create(info *models.DeviceInfo, log models.CustomLogger) (devices.ManagedDevice, error) {
 	switch info.OS {
 	case "android":
 		return android.New(info, f.cmd, f.ports, f.store, f.http, log, f.cfg), nil

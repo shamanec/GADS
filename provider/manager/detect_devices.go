@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"GADS/common/models"
-	"GADS/device"
+	"GADS/provider/devices"
 
 	"github.com/danielpaulus/go-ios/ios"
 )
@@ -22,7 +22,7 @@ import (
 // detectConnectedDevices returns the union of all platform-specific device IDs
 // currently connected to the host, filtered by which platforms the provider is
 // configured to support.
-func detectConnectedDevices(cfg *models.Provider, cmd device.CommandRunner) []string {
+func getConnectedDevices(cfg *models.Provider, cmd devices.CommandRunner) []string {
 	var ids []string
 
 	if cfg.ProvideAndroid {
@@ -43,7 +43,7 @@ func detectConnectedDevices(cfg *models.Provider, cmd device.CommandRunner) []st
 
 // detectAndroid runs `adb devices` and returns the serial numbers of all
 // devices currently in the "device" state (i.e. authorised and ready).
-func detectAndroid(cmd device.CommandRunner) []string {
+func detectAndroid(cmd devices.CommandRunner) []string {
 	out, err := cmd.Run(context.Background(), "adb", "devices")
 	if err != nil {
 		return nil
@@ -80,7 +80,7 @@ func detectIOS() []string {
 
 // detectTizen runs `sdb devices` and returns the device IDs of all connected
 // Tizen devices reported as ready.
-func detectTizen(cmd device.CommandRunner) []string {
+func detectTizen(cmd devices.CommandRunner) []string {
 	out, err := cmd.Run(context.Background(), "sdb", "devices")
 	if err != nil {
 		return nil
@@ -101,7 +101,7 @@ func detectTizen(cmd device.CommandRunner) []string {
 
 // detectWebOS runs `ares-setup-device --list` and returns the IP addresses of
 // all registered WebOS TV devices. For WebOS, the device UDID IS the IP address.
-func detectWebOS(cmd device.CommandRunner) []string {
+func detectWebOS(cmd devices.CommandRunner) []string {
 	out, err := cmd.Run(context.Background(), "ares-setup-device", "--list")
 	if err != nil {
 		return nil

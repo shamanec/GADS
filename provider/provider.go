@@ -12,7 +12,7 @@ package provider
 import (
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/device/manager"
+	"GADS/provider/manager"
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
