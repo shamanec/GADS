@@ -17,6 +17,7 @@ package hub
 import (
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/device"
 
 	"GADS/docs"
 	"GADS/hub/auth"
@@ -94,7 +95,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	defer db.GlobalMongoStore.Close()
 
 	// Update existing devices with new stream type property
-	err := db.GlobalMongoStore.EnsureDevicesHaveStreamType()
+	err := device.EnsureDevicesHaveStreamType()
 	if err != nil {
 		fmt.Println("Failed updating device stream types " + err.Error())
 	}
@@ -182,25 +183,25 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	}
 
 	// Associate devices to default workspace if needed
-	devices, _ := db.GlobalMongoStore.GetDevices()
-	for _, device := range devices {
+	devs, _ := device.GetDevices()
+	for _, dev := range devs {
 		// If device has no workspace at all associate with the default workspace
-		if device.WorkspaceID == "" {
-			device.WorkspaceID = defaultWorkspace.ID
-			err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
+		if dev.WorkspaceID == "" {
+			dev.WorkspaceID = defaultWorkspace.ID
+			err := device.AddOrUpdateDevice(&dev)
 			if err != nil {
-				log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
+				log.Printf("Failed to associate device %s with default workspace - %s", dev.UDID, err)
 				continue
 			}
 		} else {
 			// If device has a workspace but it does not exist (for example it was default but default was deleted)
 			// Then associate them with default workspace
-			_, err := db.GlobalMongoStore.GetWorkspaceByID(device.WorkspaceID)
+			_, err := db.GlobalMongoStore.GetWorkspaceByID(dev.WorkspaceID)
 			if err != nil && err == mongo.ErrNoDocuments {
-				device.WorkspaceID = defaultWorkspace.ID
-				err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
+				dev.WorkspaceID = defaultWorkspace.ID
+				err := device.AddOrUpdateDevice(&dev)
 				if err != nil {
-					log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
+					log.Printf("Failed to associate device %s with default workspace - %s", dev.UDID, err)
 					continue
 				}
 			}

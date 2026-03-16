@@ -157,7 +157,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			// Check for available device
-			var foundDevice *models.LocalHubDevice
+			var foundDevice *devices.LocalHubDevice
 			var deviceErr error
 
 			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
@@ -498,7 +498,7 @@ func readBody(r io.Reader) ([]byte, error) {
 	return body, nil
 }
 
-func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
+func getDeviceBySessionID(sessionID string) (*devices.LocalHubDevice, error) {
 	for _, localDevice := range devices.HubDevicesData.Devices {
 		if localDevice.SessionID == sessionID {
 			return localDevice, nil
@@ -507,7 +507,7 @@ func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
 	return nil, fmt.Errorf("No device with session ID `%s` was found", sessionID)
 }
 
-func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
+func getDeviceByUDID(udid string) (*devices.LocalHubDevice, error) {
 	for _, localDevice := range devices.HubDevicesData.Devices {
 		if strings.EqualFold(localDevice.Device.UDID, udid) {
 			return localDevice, nil
@@ -540,11 +540,11 @@ func getTargetOSFromCaps(caps models.CommonCapabilities) string {
 	return ""
 }
 
-func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*models.LocalHubDevice, error) {
+func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*devices.LocalHubDevice, error) {
 	devices.HubDevicesData.Mu.Lock()
 	defer devices.HubDevicesData.Mu.Unlock()
 
-	var foundDevice *models.LocalHubDevice
+	var foundDevice *devices.LocalHubDevice
 
 	var deviceUDID = ""
 	if caps.DeviceUDID != "" {
@@ -581,7 +581,7 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 		}
 
 	} else {
-		var availableDevices []*models.LocalHubDevice
+		var availableDevices []*devices.LocalHubDevice
 
 		targetOS := getTargetOSFromCaps(caps)
 		if targetOS != "" {

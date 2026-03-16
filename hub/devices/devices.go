@@ -10,53 +10,76 @@
 package devices
 
 import (
-	"GADS/common/db"
-	"GADS/common/models"
+	"GADS/device"
 	"fmt"
+	"net"
 	"strconv"
 	"sync"
 	"time"
 )
 
-func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canvasHeight string) {
-	// Get the width and height provided
-	widthString := device.ScreenWidth
-	heightString := device.ScreenHeight
+// LocalHubDevice wraps a DeviceInfo with hub-side state (in-use tracking,
+// automation session, WebSocket connection). It is never persisted to MongoDB;
+// the hub builds it from the DeviceInfo received from providers.
+type LocalHubDevice struct {
+	Device                   device.DeviceInfo `json:"info"`
+	SessionID                string            `json:"-"`
+	IsRunningAutomation      bool              `json:"is_running_automation"`
+	LastAutomationActionTS   int64             `json:"last_automation_action_ts"`
+	InUse                    bool              `json:"in_use"`
+	InUseBy                  string            `json:"in_use_by"`
+	InUseByTenant            string            `json:"in_use_by_tenant"`
+	InUseTS                  int64             `json:"in_use_ts"`
+	AppiumNewCommandTimeout  int64             `json:"appium_new_command_timeout"`
+	IsAvailableForAutomation bool              `json:"is_available_for_automation"`
+	Available                bool              `json:"available" bson:"-"`
+	InUseWSConnection        net.Conn          `json:"-" bson:"-"`
+	LastActionTS             int64             `json:"-" bson:"-"`
+}
 
-	// Convert them to ints
-	width, _ := strconv.Atoi(widthString)
-	height, _ := strconv.Atoi(heightString)
+// CalculateCanvasDimensions computes the canvas width and height for a device
+// based on its screen dimensions, scaling to a fixed 850-pixel height.
+func CalculateCanvasDimensions(dev *device.DeviceInfo) (canvasWidth string, canvasHeight string) {
+	width, _ := strconv.Atoi(dev.ScreenWidth)
+	height, _ := strconv.Atoi(dev.ScreenHeight)
 
-	screen_ratio := float64(width) / float64(height)
+	screenRatio := float64(width) / float64(height)
 
 	canvasHeight = "850"
-	canvasWidth = fmt.Sprintf("%f", 850*screen_ratio)
+	canvasWidth = fmt.Sprintf("%f", 850*screenRatio)
 
 	return
 }
 
+// HubDevices is the in-memory registry of all devices known to the hub,
+// protected by a mutex for concurrent access.
 type HubDevices struct {
 	Mu      sync.Mutex
-	Devices map[string]*models.LocalHubDevice
+	Devices map[string]*LocalHubDevice
 }
 
+// HubDevicesData is the global device registry used by the hub.
 var HubDevicesData HubDevices
 
+// InitHubDevicesData initialises the global device registry.
 func InitHubDevicesData() {
 	HubDevicesData = HubDevices{
-		Devices: make(map[string]*models.LocalHubDevice),
+		Devices: make(map[string]*LocalHubDevice),
 	}
 }
 
-// Get the latest devices information from MongoDB each second
+// GetLatestDBDevices continuously polls MongoDB every second and reconciles
+// the in-memory HubDevices map with the latest device records from the DB.
+// Devices removed from the DB are pruned; new devices are added; existing
+// devices have their persisted fields (Name, OSVersion, etc.) refreshed.
 func GetLatestDBDevices() {
-	var latestDBDevices []models.Device
+	var latestDBDevices []device.DeviceInfo
 
 	for {
-		latestDBDevices, _ = db.GlobalMongoStore.GetDevices()
+		latestDBDevices, _ = device.GetDevices()
 
 		HubDevicesData.Mu.Lock()
-		for udid, _ := range HubDevicesData.Devices {
+		for udid := range HubDevicesData.Devices {
 			found := false
 			for _, dbDevice := range latestDBDevices {
 				if dbDevice.UDID == udid {
@@ -74,7 +97,6 @@ func GetLatestDBDevices() {
 			HubDevicesData.Mu.Lock()
 			hubDevice, ok := HubDevicesData.Devices[dbDevice.UDID]
 			if ok {
-				// Update data only if needed
 				if hubDevice.Device.OSVersion != dbDevice.OSVersion {
 					hubDevice.Device.OSVersion = dbDevice.OSVersion
 				}
@@ -98,8 +120,8 @@ func GetLatestDBDevices() {
 				}
 			} else {
 				dbDevice.InstalledApps = make([]string, 0)
-				dbDevice.SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
-				HubDevicesData.Devices[dbDevice.UDID] = &models.LocalHubDevice{
+				dbDevice.SupportedStreamTypes = device.StreamTypesForOS(dbDevice.OS)
+				HubDevicesData.Devices[dbDevice.UDID] = &LocalHubDevice{
 					Device:                   dbDevice,
 					IsRunningAutomation:      false,
 					IsAvailableForAutomation: true,
@@ -114,7 +136,8 @@ func GetLatestDBDevices() {
 
 var getDeviceMu sync.RWMutex
 
-func GetHubDeviceByUDID(udid string) *models.LocalHubDevice {
+// GetHubDeviceByUDID returns the LocalHubDevice for the given UDID, or nil if not found.
+func GetHubDeviceByUDID(udid string) *LocalHubDevice {
 	getDeviceMu.Lock()
 	defer getDeviceMu.Unlock()
 	for _, hubDevice := range HubDevicesData.Devices {
@@ -122,6 +145,5 @@ func GetHubDeviceByUDID(udid string) *models.LocalHubDevice {
 			return hubDevice
 		}
 	}
-
 	return nil
 }

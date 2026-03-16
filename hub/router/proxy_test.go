@@ -11,6 +11,7 @@ package router
 
 import (
 	"GADS/common/models"
+	"GADS/device"
 	"GADS/hub/devices"
 	"bytes"
 	"encoding/json"
@@ -30,15 +31,15 @@ func TestDeviceProxyHandler(t *testing.T) {
 
 	// Initialize the global devices data structure if not already done
 	if devices.HubDevicesData.Devices == nil {
-		devices.HubDevicesData.Devices = make(map[string]*models.LocalHubDevice)
+		devices.HubDevicesData.Devices = make(map[string]*devices.LocalHubDevice)
 	}
 
 	t.Run("Available Device - Should Proxy Normally", func(t *testing.T) {
 		// Setup an available device
 		udid := "test-device-available"
 		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
-			Device: models.Device{
+		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
+			Device: device.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
@@ -70,8 +71,8 @@ func TestDeviceProxyHandler(t *testing.T) {
 		// Setup an unavailable device
 		udid := "test-device-unavailable"
 		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
-			Device: models.Device{
+		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
+			Device: device.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
@@ -130,8 +131,8 @@ func TestDeviceProxyHandler(t *testing.T) {
 		udid := "test-device-in-use"
 		currentTime := time.Now().UnixMilli()
 		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
-			Device: models.Device{
+		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
+			Device: device.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
@@ -164,8 +165,8 @@ func TestDeviceProxyHandler(t *testing.T) {
 		// Setup a device
 		udid := "test-device-no-credentials"
 		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
-			Device: models.Device{
+		devices.HubDevicesData.Devices[udid] = &devices.LocalHubDevice{
+			Device: device.DeviceInfo{
 				UDID: udid,
 				Host: "localhost:8080",
 			},

@@ -13,6 +13,8 @@ import (
 	"GADS/common/api"
 	"GADS/common/db"
 	"GADS/common/models"
+	"GADS/device"
+	"GADS/device/manager"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
@@ -699,7 +701,7 @@ func DeviceInUseWS(c *gin.Context) {
 // @Accept       json
 // @Produce      text/event-stream
 // @Param        workspaceId  query  string  true  "Workspace ID"
-// @Success      200          {object}  []models.LocalHubDevice
+// @Success      200          {object}  []devices.LocalHubDevice
 // @Failure      400          {object}  models.ErrorResponse
 // @Router       /available-devices [get]
 func AvailableDevicesSSE(c *gin.Context) {
@@ -720,7 +722,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 		}
 		sort.Strings(hubDeviceMapKeys)
 
-		var deviceList = []*models.LocalHubDevice{}
+		var deviceList = []*devices.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
 			device := devices.HubDevicesData.Devices[key]
 
@@ -805,7 +807,7 @@ func UploadFile(c *gin.Context) {
 // @Tags         Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      device.DeviceInfo  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
@@ -819,29 +821,29 @@ func AddDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var device models.Device
-	err = json.Unmarshal(reqBody, &device)
+	var dev device.DeviceInfo
+	err = json.Unmarshal(reqBody, &dev)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
 		return
 	}
 
 	// Validate device configuration before processing
-	err = models.ValidateDevice(&device)
+	err = device.ValidateDeviceInfo(&dev)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
 		return
 	}
 
-	dbDevices, _ := db.GlobalMongoStore.GetDevices()
+	dbDevices, _ := device.GetDevices()
 	for _, dbDevice := range dbDevices {
-		if dbDevice.UDID == device.UDID {
+		if dbDevice.UDID == dev.UDID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
 			return
 		}
 	}
 
-	err = db.GlobalMongoStore.AddOrUpdateDevice(&device)
+	err = device.AddOrUpdateDevice(&dev)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 		return
@@ -856,7 +858,7 @@ func AddDevice(c *gin.Context) {
 // @Tags         Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      device.DeviceInfo  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      404     {object}  models.ErrorResponse
@@ -871,14 +873,14 @@ func UpdateDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var reqDevice models.Device
+	var reqDevice device.DeviceInfo
 	err = json.Unmarshal(reqBody, &reqDevice)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
 		return
 	}
 
-	dbDevices, _ := db.GlobalMongoStore.GetDevices()
+	dbDevices, _ := device.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == reqDevice.UDID {
 			// Update only the relevant data and only if something has changed
@@ -914,13 +916,13 @@ func UpdateDevice(c *gin.Context) {
 			}
 
 			// Validate device configuration before saving to DB
-			err = models.ValidateDevice(&dbDevice)
+			err = device.ValidateDeviceInfo(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
 				return
 			}
 
-			err = db.GlobalMongoStore.AddOrUpdateDevice(&dbDevice)
+			err = device.AddOrUpdateDevice(&dbDevice)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
 				return
@@ -947,7 +949,7 @@ func UpdateDevice(c *gin.Context) {
 func DeleteDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	err := db.GlobalMongoStore.DeleteDevice(udid)
+	err := device.DeleteDevice(udid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
 		return
@@ -957,9 +959,9 @@ func DeleteDevice(c *gin.Context) {
 }
 
 type AdminDeviceData struct {
-	Devices           []models.Device     `json:"devices"`
+	Devices           []device.DeviceInfo `json:"devices"`
 	Providers         []string            `json:"providers"`
-	DeviceStreamTypes []models.StreamType `json:"device_stream_types"`
+	DeviceStreamTypes []device.StreamType `json:"device_stream_types"`
 }
 
 // GetDevices godoc
@@ -973,7 +975,7 @@ type AdminDeviceData struct {
 // @Security     BearerAuth
 // @Router       /admin/devices [get]
 func GetDevices(c *gin.Context) {
-	dbDevices, _ := db.GlobalMongoStore.GetDevices()
+	dbDevices, _ := device.GetDevices()
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
 
 	var providerNames []string = []string{}
@@ -982,22 +984,22 @@ func GetDevices(c *gin.Context) {
 	}
 
 	if len(dbDevices) == 0 || len(providerNames) == 0 {
-		dbDevices = []models.Device{}
+		dbDevices = []device.DeviceInfo{}
 	}
 
 	for index, dbDevice := range dbDevices {
-		dbDevices[index].SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
+		dbDevices[index].SupportedStreamTypes = device.StreamTypesForOS(dbDevice.OS)
 	}
 
 	var adminDeviceData = AdminDeviceData{
 		Devices:   dbDevices,
 		Providers: providerNames,
-		DeviceStreamTypes: []models.StreamType{
-			models.MJPEGStreamType,
-			models.IOSWebRTCFFMpegStreamType,
-			models.AndroidWebRTCGadsH264StreamType,
-			models.AndroidWebRTCGetStreamStreamType,
-			models.IOSWebRTCBroadcastExtensionStreamType,
+		DeviceStreamTypes: []device.StreamType{
+			device.MJPEGStreamType,
+			device.IOSWebRTCFFMpegStreamType,
+			device.AndroidWebRTCGadsH264StreamType,
+			device.AndroidWebRTCGetStreamStreamType,
+			device.IOSWebRTCBroadcastExtensionStreamType,
 		},
 	}
 
@@ -1042,7 +1044,7 @@ func ReleaseUsedDevice(c *gin.Context) {
 
 // syncDeviceFields synchronizes operational fields from provider to hub device
 // Only updates fields that are different between the two devices
-func syncDeviceFields(target *models.Device, source *models.Device) {
+func syncDeviceFields(target *device.DeviceInfo, source *device.DeviceInfo) {
 	if target.Connected != source.Connected {
 		target.Connected = source.Connected
 	}
@@ -1063,7 +1065,7 @@ func syncDeviceFields(target *models.Device, source *models.Device) {
 // @Tags         Providers
 // @Accept       json
 // @Produce      json
-// @Param        providerData  body      models.ProviderData  true  "Provider device data"
+// @Param        providerData  body      manager.ProviderPayload  true  "Provider device data"
 // @Success      200           {object}  models.SuccessResponse
 // @Router       /provider-update [post]
 func ProviderUpdate(c *gin.Context) {
@@ -1073,7 +1075,7 @@ func ProviderUpdate(c *gin.Context) {
 		// handle error if needed
 	}
 
-	var providerDeviceData models.ProviderData
+	var providerDeviceData manager.ProviderPayload
 
 	err = json.Unmarshal(bodyBytes, &providerDeviceData)
 	if err != nil {
@@ -1098,7 +1100,7 @@ func ProviderUpdate(c *gin.Context) {
 			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
 			// Update only operational fields from provider
-			syncDeviceFields(&hubDevice.Device, &providerDevice)
+			syncDeviceFields(&hubDevice.Device, providerDevice)
 		}
 		devices.HubDevicesData.Mu.Unlock()
 	}
@@ -1387,8 +1389,8 @@ func GetSystemStatus(c *gin.Context) {
 	var messages []models.SystemStatusMessage
 
 	// Check if any devices are configured
-	devices, _ := db.GlobalMongoStore.GetDevices()
-	if len(devices) == 0 {
+	devList, _ := device.GetDevices()
+	if len(devList) == 0 {
 		messages = append(messages, models.SystemStatusMessage{
 			Type:    "no_devices",
 			Message: "No devices configured.",

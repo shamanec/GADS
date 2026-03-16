@@ -10,7 +10,10 @@
 package device
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 )
 
 // DeviceInfo is the serializable core of a device. It is the wire format for
@@ -19,12 +22,12 @@ import (
 // rather than duplicating fields.
 //
 // Fields tagged with bson:"-" are runtime-only and are never persisted to the
-// database. They are still included in JSON payloads sent from provider to hub.
+// database. They might be included in JSON payloads sent from provider to hub.
 type DeviceInfo struct {
 	// --- Persisted fields (stored in MongoDB) ---
 
-	// UDID is the unique device identifier. For Android this is the ADB serial;
-	// for iOS it is the device UDID returned by go-ios.
+	// UDID is the unique device identifier. (for Android this is the ADB serial;
+	// for iOS it is the device UDID returned by go-ios)
 	UDID string `json:"udid" bson:"udid"`
 
 	// OS is the operating system of the device: "android", "ios", "tizen", or "webos".
@@ -47,10 +50,10 @@ type DeviceInfo struct {
 	// "remote" (remote control only), or "disabled".
 	Usage string `json:"usage" bson:"usage"`
 
-	// ScreenWidth is the device screen width in pixels, stored as a string.
+	// ScreenWidth is the device screen width, stored as a string.
 	ScreenWidth string `json:"screen_width" bson:"screen_width"`
 
-	// ScreenHeight is the device screen height in pixels, stored as a string.
+	// ScreenHeight is the device screen height, stored as a string.
 	ScreenHeight string `json:"screen_height" bson:"screen_height"`
 
 	// DeviceType is either "real" or "emulator".
@@ -62,7 +65,7 @@ type DeviceInfo struct {
 	// StreamType identifies the video streaming mode configured for this device.
 	StreamType StreamingType `json:"stream_type" bson:"stream_type"`
 
-	// --- Runtime state (not persisted, sent to hub via JSON) ---
+	// --- Runtime state (not persisted) ---
 
 	// Host is the provider's IP address or hostname, set at runtime.
 	Host string `json:"host" bson:"-"`
@@ -92,7 +95,21 @@ type DeviceInfo struct {
 	// CurrentRotation is the current screen orientation: "portrait" or "landscape".
 	CurrentRotation string `json:"current_rotation" bson:"-"`
 
-	// --- Stream settings (populated from DB at setup time) ---
+	// AppiumPort is the host port where the Appium server for this device
+	// is listening. Set during Setup; cleared during Reset.
+	AppiumPort string `json:"-" bson:"-"`
+
+	// StreamPort is the host port for the device video stream server
+	// (GADS-Settings stream on Android, broadcast extension TCP on iOS).
+	StreamPort string `json:"-" bson:"-"`
+
+	// WDAStreamPort is the host port forwarded from WDA's MJPEG endpoint
+	// (iOS only, device port 9100). Used by the MJPEG streaming proxy.
+	WDAStreamPort string `json:"-" bson:"-"`
+
+	// WDAPort is the host port forwarded from WebDriverAgent (iOS only,
+	// device port 8100). Used for WDA HTTP calls in the router.
+	WDAPort string `json:"-" bson:"-"`
 
 	// StreamTargetFPS is the target frames-per-second for MJPEG streaming.
 	StreamTargetFPS int `json:"stream_target_fps,omitempty" bson:"-"`
@@ -118,24 +135,6 @@ type DeviceInfo struct {
 
 	// HasAppiumSession is true when an Appium test session is currently active.
 	HasAppiumSession bool `json:"has_appium_session" bson:"-"`
-
-	// --- Platform port state (runtime-only, used by router handlers) ---
-
-	// AppiumPort is the host port where the Appium server for this device
-	// is listening. Set during Setup; cleared during Reset.
-	AppiumPort string `json:"appium_port,omitempty" bson:"-"`
-
-	// StreamPort is the host port for the device video stream server
-	// (GADS-Settings stream on Android, broadcast extension TCP on iOS).
-	StreamPort string `json:"stream_port,omitempty" bson:"-"`
-
-	// WDAStreamPort is the host port forwarded from WDA's MJPEG endpoint
-	// (iOS only, device port 9100). Used by the MJPEG streaming proxy.
-	WDAStreamPort string `json:"wda_stream_port,omitempty" bson:"-"`
-
-	// WDAPort is the host port forwarded from WebDriverAgent (iOS only,
-	// device port 8100). Used for WDA HTTP calls in the router.
-	WDAPort string `json:"wda_port,omitempty" bson:"-"`
 
 	// --- App / UI metadata ---
 
@@ -165,4 +164,33 @@ func (d *DeviceInfo) ScreenHeightInt() int {
 // Returns 0, 0 if the screen dimensions are not set.
 func (d *DeviceInfo) CenterCoordinates() (x, y float64) {
 	return float64(d.ScreenWidthInt()) / 2, float64(d.ScreenHeightInt()) / 2
+}
+
+// ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS.
+// Tizen and WebOS only support "automation" usage.
+func ValidateDeviceUsageForOS(os, usage string) error {
+	normalizedOS := strings.ToLower(strings.TrimSpace(os))
+	normalizedUsage := strings.ToLower(strings.TrimSpace(usage))
+
+	if normalizedOS == "tizen" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("tizen devices only support 'automation' usage. Current usage '%s' is not supported. Tizen devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
+	if normalizedOS == "webos" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("webos devices only support 'automation' usage. Current usage '%s' is not supported. WebOS devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
+	return nil
+}
+
+// ValidateDeviceInfo performs validation on a DeviceInfo struct.
+func ValidateDeviceInfo(info *DeviceInfo) error {
+	if info == nil {
+		return errors.New("device info cannot be nil")
+	}
+	return ValidateDeviceUsageForOS(info.OS, info.Usage)
 }

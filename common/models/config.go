@@ -31,10 +31,6 @@ type Provider struct {
 	UseIOSPairCache      bool   `json:"-" bson:"-"`
 }
 
-type ProviderData struct {
-	ProviderData Provider `json:"provider"`
-	DeviceData   []Device `json:"device_data"`
-}
 
 type HubConfig struct {
 	HostAddress          string `json:"host_address"`

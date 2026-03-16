@@ -30,6 +30,12 @@ func (m *MongoStore) UpdateGlobalStreamSettings(settings models.StreamSettings) 
 	return UpsertDocument[models.GlobalSettings](m.Ctx, coll, filter, globalSettings)
 }
 
+func (m *MongoStore) GetDeviceStreamSettings(udid string) (models.DeviceStreamSettings, error) {
+	coll := m.GetCollection("device_stream_settings")
+	filter := bson.D{{Key: "udid", Value: udid}}
+	return GetDocument[models.DeviceStreamSettings](m.Ctx, coll, filter)
+}
+
 func (m *MongoStore) UpdateDeviceStreamSettings(udid string, settings models.DeviceStreamSettings) error {
 	coll := m.GetCollection("device_stream_settings")
 	filter := bson.D{{Key: "udid", Value: udid}}

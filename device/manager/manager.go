@@ -155,14 +155,14 @@ func (m *DeviceManager) Start(ctx context.Context) {
 // each device (log directory, Appium log collection, logger, factory creation).
 // Devices that fail to initialise are logged and skipped.
 func (m *DeviceManager) loadFromDB() {
-	dbDevices, err := m.mongoStore.GetProviderDevices(m.cfg.Nickname)
+	dbDevices, err := device.GetProviderDevices(m.cfg.Nickname)
 	if err != nil {
 		m.log.LogError("manager_init", fmt.Sprintf("Failed to load provider devices from DB: %v", err))
 		return
 	}
 
 	for i := range dbDevices {
-		info := deviceInfoFromModel(&dbDevices[i])
+		info := &dbDevices[i]
 
 		// Assign to the default workspace if not already set.
 		if info.WorkspaceID == "" {
@@ -277,7 +277,7 @@ func (m *DeviceManager) deviceUpdateLoop(ctx context.Context) {
 					info.Connected = true
 					state := dev.ProviderState()
 					if state != "preparing" && state != "live" {
-						if err := models.ValidateDeviceUsageForOS(info.OS, info.Usage); err != nil {
+						if err := device.ValidateDeviceUsageForOS(info.OS, info.Usage); err != nil {
 							m.log.LogWarn("manager_update",
 								fmt.Sprintf("Device %s has invalid config: %v — skipping setup", udid, err))
 							continue
@@ -365,7 +365,7 @@ func (m *DeviceManager) hubSyncLoop(ctx context.Context) {
 //   - Config changes (Usage, StreamType, etc.) are applied; a stream-type change
 //     triggers a reset so the device is re-provisioned with the new type.
 func (m *DeviceManager) syncFromDB() {
-	dbDevices, err := m.mongoStore.GetProviderDevices(m.cfg.Nickname)
+	dbDevices, err := device.GetProviderDevices(m.cfg.Nickname)
 	if err != nil {
 		m.log.LogError("manager_db_sync",
 			fmt.Sprintf("Failed to reload provider devices from DB: %v", err))
@@ -398,8 +398,7 @@ func (m *DeviceManager) syncFromDB() {
 		if !exists {
 			// New device — initialise without holding the lock (initDevice also locks).
 			m.mu.Unlock()
-			info := deviceInfoFromModel(dbDev)
-			if err := m.initDevice(info); err != nil {
+			if err := m.initDevice(dbDev); err != nil {
 				m.log.LogError("manager_db_sync",
 					fmt.Sprintf("Failed to initialise new device %s: %v", udid, err))
 			}
@@ -420,30 +419,10 @@ func (m *DeviceManager) syncFromDB() {
 			info.Usage = "control"
 		}
 
-		if device.StreamingType(dbDev.StreamType) != info.StreamType {
-			info.StreamType = device.StreamingType(dbDev.StreamType)
+		if dbDev.StreamType != info.StreamType {
+			info.StreamType = dbDev.StreamType
 			dev.Reset("stream type changed — re-provisioning")
 		}
 	}
 }
 
-// deviceInfoFromModel converts a legacy models.Device (loaded from MongoDB) to
-// a *device.DeviceInfo. Only the persisted fields are copied; runtime-only
-// fields are left at their zero values and will be populated during Setup.
-// Takes a pointer to avoid copying the mutex embedded in models.Device.
-func deviceInfoFromModel(d *models.Device) *device.DeviceInfo {
-	return &device.DeviceInfo{
-		UDID:         d.UDID,
-		OS:           d.OS,
-		Name:         d.Name,
-		OSVersion:    d.OSVersion,
-		IPAddress:    d.IPAddress,
-		Provider:     d.Provider,
-		Usage:        d.Usage,
-		ScreenWidth:  d.ScreenWidth,
-		ScreenHeight: d.ScreenHeight,
-		DeviceType:   d.DeviceType,
-		WorkspaceID:  d.WorkspaceID,
-		StreamType:   device.StreamingType(d.StreamType),
-	}
-}
