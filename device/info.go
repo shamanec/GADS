@@ -71,6 +71,10 @@ type DeviceInfo struct {
 	// populated during device setup.
 	HardwareModel string `json:"hardware_model" bson:"-"`
 
+	// DeviceAddress is the network address used for Tizen Appium capabilities.
+	// For Tizen it equals UDID (IP:PORT); unused for other platforms.
+	DeviceAddress string `json:"device_address,omitempty" bson:"-"`
+
 	// Connected is true when the device is currently detected as connected
 	// to the provider host.
 	Connected bool `json:"connected" bson:"-"`
