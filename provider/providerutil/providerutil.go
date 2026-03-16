@@ -12,18 +12,14 @@ package providerutil
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
 	"runtime"
 
-	"GADS/common"
 	"GADS/common/cli"
 	"GADS/common/utils"
 	"GADS/provider/config"
@@ -31,62 +27,6 @@ import (
 
 	"github.com/Masterminds/semver"
 )
-
-var UsedPorts = make(map[string]bool)
-var gadsStreamURL = "https://github.com/shamanec/GADS-Android-stream/releases/latest/download/gads-stream.apk"
-
-// Use this function to get a free port on the host for any service that might need one
-// We keep a map of used ports so we don't allocate same ports to different services
-func GetFreePort() (string, error) {
-	const (
-		maxAttempts = 10
-		baseBackoff = 50 * time.Millisecond
-	)
-
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		logger.ProviderLogger.LogDebug("port_allocation", "Trying to get a free port")
-
-		a, err := net.ResolveTCPAddr("tcp", "localhost:0")
-		if err != nil {
-			logger.ProviderLogger.LogError("port_allocation", fmt.Sprintf("Failed to resolve tcp address trying to get new port - %s", err))
-			return "", fmt.Errorf("Failed to resolve tcp address trying to get new port - %s", err)
-		}
-		logger.ProviderLogger.LogDebug("port_allocation", "Resolved TCP address successfully")
-
-		logger.ProviderLogger.LogDebug("port_allocation", "Attempting to listen on the resolved TCP address")
-		l, err := net.ListenTCP("tcp", a)
-		if err != nil {
-			logger.ProviderLogger.LogError("port_allocation", fmt.Sprintf("Failed to listen tcp trying to get new port - %s", err))
-			return "", fmt.Errorf("Failed to listen tcp trying to get new port - %s", err)
-		}
-		logger.ProviderLogger.LogDebug("port_allocation", "Listening on TCP address successfully")
-
-		portInt := l.Addr().(*net.TCPAddr).Port
-		portString := strconv.Itoa(portInt)
-
-		logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Acquired free port: %s", portString))
-
-		logger.ProviderLogger.LogDebug("port_allocation", "Attempting to acquire lock for used ports")
-		common.MutexManager.LocalDevicePorts.Lock()
-		logger.ProviderLogger.LogDebug("port_allocation", "Successfully acquired lock for used ports")
-		if _, exists := UsedPorts[portString]; !exists {
-			UsedPorts[portString] = true
-			logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Port %s is free and has been allocated", portString))
-			logger.ProviderLogger.LogDebug("port_allocation", "Releasing lock for used ports")
-			common.MutexManager.LocalDevicePorts.Unlock()
-			l.Close()
-			return portString, nil
-		}
-		logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Port %s is already in use, trying again", portString))
-		logger.ProviderLogger.LogDebug("port_allocation", "Releasing lock for used ports")
-		common.MutexManager.LocalDevicePorts.Unlock()
-		l.Close()
-
-		// Simple incremental backoff
-		time.Sleep(time.Duration(attempt) * baseBackoff)
-	}
-	return "", fmt.Errorf("failed to find a free port after %d attempts", maxAttempts)
-}
 
 // Check if adb is available on the host by starting the server
 func AdbAvailable() bool {

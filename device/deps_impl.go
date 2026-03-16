@@ -110,7 +110,7 @@ func NewNetPortAllocator() *NetPortAllocator {
 // GetFreePort finds an unused TCP port on the host, marks it as allocated, and
 // returns it as a string (e.g. "10234"). Up to 10 attempts are made with linear
 // back-off before an error is returned.
-func (a *NetPortAllocator) GetFreePort() (string, error) {
+func (allocator *NetPortAllocator) GetFreePort() (string, error) {
 	const (
 		maxAttempts = 10
 		baseBackoff = 50 * time.Millisecond
@@ -130,13 +130,13 @@ func (a *NetPortAllocator) GetFreePort() (string, error) {
 		port := strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
 		l.Close()
 
-		a.mu.Lock()
-		if !a.ports[port] {
-			a.ports[port] = true
-			a.mu.Unlock()
+		allocator.mu.Lock()
+		if !allocator.ports[port] {
+			allocator.ports[port] = true
+			allocator.mu.Unlock()
 			return port, nil
 		}
-		a.mu.Unlock()
+		allocator.mu.Unlock()
 
 		// Port already allocated to another device — back off and retry.
 		time.Sleep(time.Duration(attempt) * baseBackoff)
@@ -147,10 +147,10 @@ func (a *NetPortAllocator) GetFreePort() (string, error) {
 
 // FreePort marks the given port as available for reuse. It should be called
 // during device reset after all services using the port have been stopped.
-func (a *NetPortAllocator) FreePort(port string) {
-	a.mu.Lock()
-	delete(a.ports, port)
-	a.mu.Unlock()
+func (allocator *NetPortAllocator) FreePort(port string) {
+	allocator.mu.Lock()
+	delete(allocator.ports, port)
+	allocator.mu.Unlock()
 }
 
 // ---------------------------------------------------------------------------

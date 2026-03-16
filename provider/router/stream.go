@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/device/manager"
 	"GADS/provider/logger"
 	"bytes"
 	"context"
@@ -30,7 +31,7 @@ import (
 
 func AndroidStreamProxy(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		return
@@ -75,7 +76,7 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("AndroidStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -131,7 +132,7 @@ func IOSStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("IOSStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -192,7 +193,7 @@ func IOSStreamMJPEG(c *gin.Context) {
 
 func IOSStreamMJPEGWda(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("IOSStreamMJPEGWda", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -270,7 +271,7 @@ func IOSStreamMJPEGWda(c *gin.Context) {
 
 func IosStreamProxyGADS(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("IosStreamProxyGADS", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -364,7 +365,7 @@ func IosStreamProxyGADS(c *gin.Context) {
 
 func IosStreamProxyWDA(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("IosStreamProxyWDA", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)

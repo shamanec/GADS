@@ -11,6 +11,7 @@ package router
 
 import (
 	"GADS/common/utils"
+	"GADS/device/manager"
 	"GADS/device"
 	"GADS/provider/logger"
 	"context"
@@ -310,7 +311,7 @@ func (s *IOSWebRTCSession) Close() {
 func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)

@@ -58,7 +58,7 @@ func AppiumReverseProxy(c *gin.Context) {
 		return
 	}
 
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		c.JSON(http.StatusNotFound, createAppiumErrorResponse(fmt.Sprintf("Device `%s` not found", udid)))
 		return
@@ -108,7 +108,7 @@ func UploadAndInstallApp(c *gin.Context) {
 	}
 
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -194,7 +194,7 @@ func UploadAndInstallApp(c *gin.Context) {
 }
 
 func GetProviderData(c *gin.Context) {
-	infos := DevManager.AllDeviceInfos()
+	infos := manager.Instance.AllDeviceInfos()
 	providerData := manager.ProviderPayload{
 		Provider:   *config.ProviderConfig,
 		DeviceData: infos,
@@ -208,7 +208,7 @@ type WdaOrientationResponse struct {
 
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -257,7 +257,7 @@ func DeviceInfo(c *gin.Context) {
 
 func DeviceInstalledApps(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -272,7 +272,7 @@ func DeviceInstalledApps(c *gin.Context) {
 
 func DeviceChangeRotation(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -319,7 +319,7 @@ func DeviceChangeRotation(c *gin.Context) {
 }
 
 func DevicesInfo(c *gin.Context) {
-	infos := DevManager.AllDeviceInfos()
+	infos := manager.Instance.AllDeviceInfos()
 	api.GenericResponse(c, http.StatusOK, "", infos)
 }
 
@@ -329,7 +329,7 @@ type ProcessApp struct {
 
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -366,7 +366,7 @@ func UninstallApp(c *gin.Context) {
 
 func LaunchApp(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -414,7 +414,7 @@ func LaunchApp(c *gin.Context) {
 
 func CloseApp(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -462,7 +462,7 @@ func CloseApp(c *gin.Context) {
 
 func ResetDevice(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -482,7 +482,7 @@ func ResetDevice(c *gin.Context) {
 
 func UpdateDeviceStreamSettings(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -535,7 +535,7 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 
 func DeviceFiles(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -555,7 +555,7 @@ func DeviceFiles(c *gin.Context) {
 
 func PushFileToSharedStorage(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -595,7 +595,7 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 		return
 	}
 
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return
@@ -635,7 +635,7 @@ func PullFileFromSharedStorage(c *gin.Context) {
 	}
 	fileName := filepath.Base(filePath)
 
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
 		return

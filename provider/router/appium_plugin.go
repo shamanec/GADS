@@ -11,6 +11,7 @@ package router
 
 import (
 	"GADS/common/api"
+	"GADS/device/manager"
 	"GADS/common/db"
 	"GADS/common/models"
 	"encoding/json"
@@ -26,7 +27,7 @@ import (
 // them in MongoDB.
 func AppiumPluginLog(c *gin.Context) {
 	udid := c.Param("udid")
-	if _, ok := DevManager.GetDevice(udid); ok {
+	if _, ok := manager.Instance.GetDevice(udid); ok {
 		body, err := io.ReadAll(c.Request.Body)
 		defer c.Request.Body.Close()
 		if err != nil {
@@ -47,7 +48,7 @@ func AppiumPluginLog(c *gin.Context) {
 // AppiumPluginRegister is called by the GADS Appium plugin when the server starts.
 func AppiumPluginRegister(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := DevManager.GetDevice(udid); ok {
+	if dev, ok := manager.Instance.GetDevice(udid); ok {
 		dev.Info().AppiumLastPingTS = time.Now().UnixMilli()
 		dev.Info().IsAppiumUp = true
 		api.GenericResponse(c, http.StatusOK, "Appium registered as up", nil)
@@ -59,7 +60,7 @@ func AppiumPluginRegister(c *gin.Context) {
 // AppiumPluginAddSession is called by the GADS Appium plugin when a new session starts.
 func AppiumPluginAddSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := DevManager.GetDevice(udid); ok {
+	if dev, ok := manager.Instance.GetDevice(udid); ok {
 		sessionID := c.Param("session_id")
 		info := dev.Info()
 		info.AppiumLastPingTS = time.Now().UnixMilli()
@@ -75,7 +76,7 @@ func AppiumPluginAddSession(c *gin.Context) {
 // AppiumPluginRemoveSession is called by the GADS Appium plugin when a session ends.
 func AppiumPluginRemoveSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := DevManager.GetDevice(udid); ok {
+	if dev, ok := manager.Instance.GetDevice(udid); ok {
 		info := dev.Info()
 		info.AppiumLastPingTS = time.Now().UnixMilli()
 		info.HasAppiumSession = false
@@ -91,7 +92,7 @@ func AppiumPluginRemoveSession(c *gin.Context) {
 // that the Appium server is still alive.
 func AppiumPluginPing(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := DevManager.GetDevice(udid); ok {
+	if dev, ok := manager.Instance.GetDevice(udid); ok {
 		dev.Info().AppiumLastPingTS = time.Now().UnixMilli()
 		dev.Info().IsAppiumUp = true
 		api.GenericResponse(c, http.StatusOK, "Ping for Appium server availability successful", nil)

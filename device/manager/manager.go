@@ -42,6 +42,10 @@ import (
 // replaced with a no-op implementation.
 type LoggerFactory func(logFilePath, collection string) (models.CustomLogger, error)
 
+// Instance is the provider-level singleton DeviceManager, set during startup.
+// Route handlers access it directly via manager.Instance.GetDevice(udid).
+var Instance *DeviceManager
+
 // DeviceManager manages the lifecycle of all devices known to this provider.
 // It is the single source of truth for device state on the provider side,
 // replacing the global DBDeviceMap and its associated mutexes.
@@ -79,28 +83,30 @@ type DeviceManager struct {
 	tizenRetryTracker *tizen.RetryTracker
 }
 
-// New constructs a DeviceManager. All parameters must be non-nil.
+// Start constructs the singleton DeviceManager, loads devices from the
+// database, and launches the background goroutines that keep device state
+// up to date and push updates to the hub. All parameters must be non-nil.
+// It returns immediately; all background work runs in goroutines tied to ctx.
 //
 //   - cfg:        provider configuration
 //   - mongoStore: raw MongoDB store for collection management and device queries
-//   - factory:    creates platform-specific device instances
-//   - cmd:        command runner for device detection (adb devices, sdb devices, …)
-//   - store:      device.DeviceStore passed to each platform device constructor
 //   - log:        provider-level logger
 //   - logFn:      creates per-device loggers
-func New(
+func Start(
+	ctx context.Context,
 	cfg *models.Provider,
-	mongoStore *db.MongoStore,
-	factory DeviceFactory,
-	cmd device.CommandRunner,
-	store device.DeviceStore,
 	log models.CustomLogger,
 	logFn LoggerFactory,
-) *DeviceManager {
-	return &DeviceManager{
+) {
+	cmd := device.NewExecCommandRunner()
+	store := device.NewMongoDeviceStore(db.GlobalMongoStore)
+	httpClient := device.NewDefaultHTTPClient(30 * time.Second)
+	factory := NewDefaultDeviceFactory(cmd, device.NewNetPortAllocator(), store, httpClient, cfg)
+
+	Instance = &DeviceManager{
 		devices:           make(map[string]device.ManagedDevice),
 		cfg:               cfg,
-		mongoStore:        mongoStore,
+		mongoStore:        db.GlobalMongoStore,
 		factory:           factory,
 		cmd:               cmd,
 		store:             store,
@@ -108,6 +114,9 @@ func New(
 		logFn:             logFn,
 		tizenRetryTracker: tizen.NewRetryTracker(),
 	}
+	Instance.loadFromDB()
+	go Instance.deviceUpdateLoop(ctx)
+	go Instance.hubSyncLoop(ctx)
 }
 
 // GetDevice returns the ManagedDevice for the given UDID and whether it exists.
@@ -139,16 +148,6 @@ func (m *DeviceManager) AllDeviceInfos() []*device.DeviceInfo {
 		out = append(out, d.Info())
 	}
 	return out
-}
-
-// Start loads devices from the database, then launches the background
-// goroutines that keep device state up to date and push updates to the hub.
-// It returns immediately; all work runs in goroutines tied to ctx.
-func (m *DeviceManager) Start(ctx context.Context) {
-	m.loadFromDB()
-
-	go m.deviceUpdateLoop(ctx)
-	go m.hubSyncLoop(ctx)
 }
 
 // loadFromDB reads the provider's device list from MongoDB and initialises

@@ -12,7 +12,6 @@ package provider
 import (
 	"GADS/common/db"
 	"GADS/common/models"
-	"GADS/device"
 	"GADS/device/manager"
 	"GADS/provider/config"
 	"GADS/provider/logger"
@@ -210,28 +209,21 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	}
 
 	// Build and start the DeviceManager (replaces the old devices.Listener).
-	cmd := device.NewExecCommandRunner()
-	ports := device.NewNetPortAllocator()
-	store := device.NewMongoDeviceStore(db.GlobalMongoStore)
-	httpClient := device.NewDefaultHTTPClient(30 * time.Second)
-	factory := manager.NewDefaultDeviceFactory(cmd, ports, store, httpClient, config.ProviderConfig)
 	logFn := func(logFilePath, collection string) (models.CustomLogger, error) {
 		return logger.CreateCustomLogger(logFilePath, collection)
 	}
-	mgr := manager.New(config.ProviderConfig, db.GlobalMongoStore, factory, cmd, store,
-		logger.ProviderLogger, logFn)
-	mgr.Start(context.Background())
+	manager.Start(context.Background(), config.ProviderConfig, logger.ProviderLogger, logFn)
 
 	// Start the provider server
-	err = startHTTPServer(mgr)
+	err = startHTTPServer()
 	if err != nil {
 		log.Fatal("HTTP server stopped")
 	}
 }
 
-func startHTTPServer(mgr *manager.DeviceManager) error {
+func startHTTPServer() error {
 	// Handle the endpoints
-	r := router.HandleRequests(mgr)
+	r := router.HandleRequests()
 	// Start periodically updating the provider data in the DB
 	go updateProviderInDB()
 	// Start the provider

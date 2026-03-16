@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/device/manager"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -39,7 +40,7 @@ func copyHeaders(destination, source http.Header) {
 // DeviceHealth returns whether the device is currently connected.
 func DeviceHealth(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -54,7 +55,7 @@ func DeviceHealth(c *gin.Context) {
 // DeviceHome navigates the device to the home screen.
 func DeviceHome(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -75,7 +76,7 @@ func DeviceHome(c *gin.Context) {
 // DeviceGetClipboard returns the current clipboard contents of the device.
 func DeviceGetClipboard(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -104,7 +105,7 @@ func DeviceGetClipboard(c *gin.Context) {
 // DeviceLock locks the device screen.
 func DeviceLock(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -125,7 +126,7 @@ func DeviceLock(c *gin.Context) {
 // DeviceUnlock unlocks the device screen.
 func DeviceUnlock(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -146,7 +147,7 @@ func DeviceUnlock(c *gin.Context) {
 // DeviceScreenshot captures the device screen and returns a base64-encoded PNG.
 func DeviceScreenshot(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -168,7 +169,7 @@ func DeviceScreenshot(c *gin.Context) {
 // DeviceAppiumSource returns the Appium page source for the device.
 func DeviceAppiumSource(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -191,7 +192,7 @@ func DeviceAppiumSource(c *gin.Context) {
 // DeviceTypeText types text on the device using the platform-specific input method.
 func DeviceTypeText(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -219,7 +220,7 @@ func DeviceTypeText(c *gin.Context) {
 // DeviceTap performs a tap at the given coordinates.
 func DeviceTap(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -247,7 +248,7 @@ func DeviceTap(c *gin.Context) {
 // DeviceTouchAndHold performs a long-press at the given coordinates.
 func DeviceTouchAndHold(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -275,7 +276,7 @@ func DeviceTouchAndHold(c *gin.Context) {
 // DeviceSwipe performs a swipe gesture.
 func DeviceSwipe(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return
@@ -303,7 +304,7 @@ func DeviceSwipe(c *gin.Context) {
 // DeviceExecuteCustomAction dispatches a named automation action to the device.
 func DeviceExecuteCustomAction(c *gin.Context) {
 	udid := c.Param("udid")
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device `%s` not found", udid), nil)
 		return

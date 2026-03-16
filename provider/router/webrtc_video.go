@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/device/manager"
 	"GADS/provider/logger"
 	"context"
 	"encoding/json"
@@ -30,7 +31,7 @@ type WebRTCMessage struct {
 func DevicesWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	dev, ok := DevManager.GetDevice(udid)
+	dev, ok := manager.Instance.GetDevice(udid)
 	if !ok {
 		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
