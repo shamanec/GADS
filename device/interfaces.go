@@ -77,6 +77,8 @@ type Provisionable interface {
 	// and transitioning the device to the "live" state.
 	//
 	// ctx is used to cancel an in-progress setup when the device disconnects.
+	// On failure the device is reset internally; the returned error is informational
+	// and the goroutine caller typically does not check it.
 	Setup(ctx context.Context) error
 
 	// Reset cancels any in-progress setup or running services, frees allocated

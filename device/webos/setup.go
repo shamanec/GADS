@@ -24,8 +24,9 @@ import (
 
 // Setup provisions the WebOS TV device: kills stale Appium processes, sets the
 // IP address, starts Appium, and marks the device live. It acquires setupMu
-// so that concurrent calls for the same device are serialised.
-func (d *WebOSDevice) Setup(ctx context.Context) {
+// so that concurrent calls for the same device are serialised. On failure the
+// device is reset internally; the returned error is informational.
+func (d *WebOSDevice) Setup(ctx context.Context) error {
 	d.setupMu.Lock()
 	defer d.setupMu.Unlock()
 
@@ -36,12 +37,12 @@ func (d *WebOSDevice) Setup(ctx context.Context) {
 	d.info.IPAddress = d.info.UDID
 
 	if err := d.setupAppium(ctx); err != nil {
-		d.fail(err)
-		return
+		return d.fail(err)
 	}
 
 	d.info.ProviderState = "live"
 	d.log.LogInfo("webos_setup", fmt.Sprintf("Device %s is live", d.info.UDID))
+	return nil
 }
 
 // Reset releases allocated resources and returns the device to the "init"

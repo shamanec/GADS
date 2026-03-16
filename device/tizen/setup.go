@@ -26,8 +26,9 @@ import (
 
 // Setup provisions the Tizen TV device: kills stale Appium processes, fetches
 // TV metadata, starts Appium, and marks the device live. It acquires setupMu
-// so that concurrent calls for the same device are serialised.
-func (d *TizenDevice) Setup(ctx context.Context) {
+// so that concurrent calls for the same device are serialised. On failure the
+// device is reset internally; the returned error is informational.
+func (d *TizenDevice) Setup(ctx context.Context) error {
 	d.setupMu.Lock()
 	defer d.setupMu.Unlock()
 
@@ -35,12 +36,12 @@ func (d *TizenDevice) Setup(ctx context.Context) {
 	d.log.LogInfo("tizen_setup", fmt.Sprintf("Running setup for Tizen device %s", d.info.UDID))
 
 	if err := d.setupAppium(ctx); err != nil {
-		d.fail(err)
-		return
+		return d.fail(err)
 	}
 
 	d.info.ProviderState = "live"
 	d.log.LogInfo("tizen_setup", fmt.Sprintf("Device %s is live", d.info.UDID))
+	return nil
 }
 
 // Reset releases allocated resources and returns the device to the "init"

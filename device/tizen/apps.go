@@ -28,14 +28,29 @@ type TizenApp struct {
 	IsSystemApp bool   `json:"isSystemApp"` // always false (cannot determine reliably)
 }
 
-// GetInstalledApps returns the list of apps installed on the Tizen device by
+// GetInstalledApps returns the app IDs of all installed apps on the device,
+// satisfying the device.AppManager interface. For richer app metadata
+// (title, version, dev/system flags) use GetTizenApps instead.
+func (d *TizenDevice) GetInstalledApps() ([]string, error) {
+	apps, err := d.GetTizenApps()
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(apps))
+	for _, a := range apps {
+		ids = append(ids, a.AppID)
+	}
+	return ids, nil
+}
+
+// GetTizenApps returns the full list of installed apps with metadata by
 // running `sdb -s {udid} shell 0 vd_applist` and parsing its output.
-func (d *TizenDevice) GetInstalledApps() ([]TizenApp, error) {
+func (d *TizenDevice) GetTizenApps() ([]TizenApp, error) {
 	apps := []TizenApp{}
 
 	out, err := d.cmd.Run(context.Background(), "sdb", "-s", d.info.UDID, "shell", "0", "vd_applist")
 	if err != nil {
-		return apps, fmt.Errorf("GetInstalledApps %s: %w", d.info.UDID, err)
+		return apps, fmt.Errorf("GetTizenApps %s: %w", d.info.UDID, err)
 	}
 
 	lines := strings.Split(string(out), "\n")

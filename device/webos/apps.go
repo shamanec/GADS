@@ -28,14 +28,29 @@ type WebOSApp struct {
 	SystemApp bool   `json:"systemApp"` // parsed from output (always false for CLI apps)
 }
 
-// GetInstalledApps returns the list of apps installed on the WebOS device by
+// GetInstalledApps returns the app IDs of all installed apps on the device,
+// satisfying the device.AppManager interface. For richer app metadata
+// (title, version, system flags) use GetWebOSApps instead.
+func (d *WebOSDevice) GetInstalledApps() ([]string, error) {
+	apps, err := d.GetWebOSApps()
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(apps))
+	for _, a := range apps {
+		ids = append(ids, a.AppID)
+	}
+	return ids, nil
+}
+
+// GetWebOSApps returns the full list of installed apps with metadata by
 // running `ares-install --device {name} --listfull` and parsing its output.
-func (d *WebOSDevice) GetInstalledApps() ([]WebOSApp, error) {
+func (d *WebOSDevice) GetWebOSApps() ([]WebOSApp, error) {
 	apps := []WebOSApp{}
 
 	out, err := d.cmd.Run(context.Background(), "ares-install", "--device", d.info.Name, "--listfull")
 	if err != nil {
-		return apps, fmt.Errorf("GetInstalledApps %s: %w", d.info.UDID, err)
+		return apps, fmt.Errorf("GetWebOSApps %s: %w", d.info.UDID, err)
 	}
 
 	lines := strings.Split(string(out), "\n")
