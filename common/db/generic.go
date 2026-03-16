@@ -28,7 +28,7 @@ func GetDocuments[T any](ctx context.Context, coll *mongo.Collection, filter int
 	}
 	defer cursor.Close(ctx)
 
-	var results []T
+	results := make([]T, 0)
 	if err := cursor.All(ctx, &results); err != nil {
 		return nil, err
 	}

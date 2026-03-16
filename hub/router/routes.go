@@ -78,6 +78,7 @@ func GetAppiumLogs(c *gin.Context) {
 	logs, err := db.GlobalMongoStore.GetAppiumLogs(collectionName, logLimit)
 	if err != nil {
 		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		return
 	}
 
 	c.JSON(200, logs)
