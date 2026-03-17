@@ -104,21 +104,28 @@ func UpdateWebDriverAgentStreamSettings(device *models.Device) error {
 	return nil
 }
 
-func mountDeveloperImageIOS(device *models.Device) {
+func mountDeveloperImageIOS(device *models.Device) error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
 	path, err := imagemounter.DownloadImageFor(device.GoIOSDeviceEntry, basedir)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` to path `%s` - %s", device.UDID, basedir, err))
-		ResetLocalDevice(device, "Failed to download Developer Disk Image (DDI) for the device.")
-		return
+		return fmt.Errorf("failed to download DDI: %w", err)
 	}
 
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Mounting DDI from path `%s` on device `%s`", path, device.UDID))
 	err = imagemounter.MountImage(device.GoIOSDeviceEntry, path)
 	if err != nil {
+		if strings.Contains(err.Error(), "already mounted") || strings.Contains(err.Error(), "AlreadyMounted") {
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("DDI already mounted on device `%s`", device.UDID))
+			return nil
+		}
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to mount DDI on device `%s` from path `%s` - %s", device.UDID, path, err))
-		ResetLocalDevice(device, "Failed to mount Developer Disk Image (DDI) on the device.")
+		return fmt.Errorf("failed to mount DDI: %w", err)
 	}
+
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully mounted DDI on device `%s`", device.UDID))
+	return nil
 }
 
 // Pair an iOS device with host with/without supervision
@@ -322,6 +329,7 @@ func runWDAGoIOS(device *models.Device) {
 		device.Context,
 		testConfig)
 	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to run WebDriverAgent via testmanagerd on device `%s` - %s", device.UDID, err))
 		ResetLocalDevice(device, "Failed to run WebDriverAgent due to an error.")
 	}
 }
