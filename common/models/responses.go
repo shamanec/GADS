@@ -200,3 +200,14 @@ type ClientCredentialsListResponse struct {
 	Credentials []CredentialResponse `json:"credentials"`
 	Total       int64                `json:"total" example:"5"`
 }
+
+// System status response structures
+type SystemStatusMessage struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	Action  string `json:"action"`
+}
+
+type SystemStatusResponse struct {
+	Messages []SystemStatusMessage `json:"messages"`
+}
