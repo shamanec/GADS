@@ -47,7 +47,7 @@ var netClient = &http.Client{
 // @Security     BearerAuth
 // @Router       /health [get]
 func HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	api.OKMessage(c, "ok")
 }
 
 // GetAppiumLogs godoc
@@ -71,16 +71,16 @@ func GetAppiumLogs(c *gin.Context) {
 
 	collectionName := c.DefaultQuery("collection", "")
 	if collectionName == "" {
-		BadRequest(c, "Empty collection name provided")
+		api.BadRequest(c, "Empty collection name provided")
 		return
 	}
 
 	logs, err := db.GlobalMongoStore.GetAppiumLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed to get logs - %s", err))
 	}
 
-	c.JSON(200, logs)
+	api.OK(c, "", logs)
 }
 
 // GetProviderLogs godoc
@@ -104,17 +104,17 @@ func GetProviderLogs(c *gin.Context) {
 
 	collectionName := c.DefaultQuery("collection", "")
 	if collectionName == "" {
-		BadRequest(c, "Empty collection name provided")
+		api.BadRequest(c, "Empty collection name provided")
 		return
 	}
 
 	logs, err := db.GlobalMongoStore.GetProviderLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed to get logs - %s", err))
 		return
 	}
 
-	c.JSON(200, logs)
+	api.OK(c, "", logs)
 }
 
 // AddUser godoc
@@ -134,44 +134,44 @@ func AddUser(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &user)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	if user.Username == "" || user.Password == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
-		BadRequest(c, "Empty or invalid body")
+		api.BadRequest(c, "Empty or invalid body")
 		return
 	}
 
 	if user.Role != "admin" && user.Role != "user" {
-		BadRequest(c, "Invalid role - `admin` and `user` are the accepted values")
+		api.BadRequest(c, "Invalid role - `admin` and `user` are the accepted values")
 		return
 	}
 
 	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
-		InternalServerError(c, "Failed checking for user in db - "+err.Error())
+		api.InternalError(c, "Failed checking for user in db - "+err.Error())
 		return
 	}
 
 	if dbUser.Username != "" {
-		BadRequest(c, "User already exists")
+		api.BadRequest(c, "User already exists")
 		return
 	}
 
 	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
 	}
 
-	OK(c, "Successfully added user")
+	api.OKMessage(c, "Successfully added user")
 }
 
 // UpdateUser godoc
@@ -191,37 +191,39 @@ func UpdateUser(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &user)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	if user.Username == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
-		BadRequest(c, "Username cannot be empty and non-admin users must have at least one workspace")
+		api.BadRequest(c, "Username cannot be empty and non-admin users must have at least one workspace")
 		return
 	}
 
 	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
-		InternalServerError(c, "Failed checking for user in db - "+err.Error())
+		api.InternalError(c, "Failed checking for user in db - "+err.Error())
 		return
 	}
 
 	if dbUser.Username == "" {
-		BadRequest(c, "Cannot update non-existing user")
+		api.BadRequest(c, "Cannot update non-existing user")
 		return
 	}
 
 	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
 	}
+
+	api.OKMessage(c, "Successfully updated user")
 }
 
 // DeleteUser godoc
@@ -240,11 +242,11 @@ func DeleteUser(c *gin.Context) {
 
 	err := db.GlobalMongoStore.DeleteUser(nickname)
 	if err != nil {
-		InternalServerError(c, "Failed to delete user - "+err.Error())
+		api.InternalError(c, "Failed to delete user - "+err.Error())
 		return
 	}
 
-	OK(c, "Successfully deleted user")
+	api.OKMessage(c, "Successfully deleted user")
 }
 
 // GetProviders godoc
@@ -259,10 +261,10 @@ func DeleteUser(c *gin.Context) {
 func GetProviders(c *gin.Context) {
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	if len(providers) == 0 {
-		c.JSON(http.StatusOK, []interface{}{})
+		api.OK(c, "", []models.Provider{})
 		return
 	}
-	OkJSON(c, providers)
+	api.OK(c, "", providers)
 }
 
 func GetProviderInfo(c *gin.Context) {
@@ -270,11 +272,11 @@ func GetProviderInfo(c *gin.Context) {
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
-			c.JSON(http.StatusOK, provider)
+			api.OK(c, "", provider)
 			return
 		}
 	}
-	NotFound(c, fmt.Sprintf("No provider with name `%s` found", providerName))
+	api.NotFound(c, fmt.Sprintf("No provider with name `%s` found", providerName))
 }
 
 // AddProvider godoc
@@ -293,41 +295,41 @@ func AddProvider(c *gin.Context) {
 	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &provider)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	// Validations
 	if provider.Nickname == "" {
-		BadRequest(c, "Missing or invalid nickname")
+		api.BadRequest(c, "Missing or invalid nickname")
 		return
 	}
 	providerDB, _ := db.GlobalMongoStore.GetProvider(provider.Nickname)
 	if providerDB.Nickname == provider.Nickname {
-		BadRequest(c, "Provider with this nickname already exists")
+		api.BadRequest(c, "Provider with this nickname already exists")
 		return
 	}
 
 	if provider.OS == "" {
-		BadRequest(c, "Missing or invalid OS")
+		api.BadRequest(c, "Missing or invalid OS")
 		return
 	}
 	if provider.HostAddress == "" {
-		BadRequest(c, "Missing or invalid host address")
+		api.BadRequest(c, "Missing or invalid host address")
 		return
 	}
 	if provider.Port == 0 {
-		BadRequest(c, "Missing or invalid port")
+		api.BadRequest(c, "Missing or invalid port")
 		return
 	}
 	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		BadRequest(c, "Missing or invalid Selenium Grid address")
+		api.BadRequest(c, "Missing or invalid Selenium Grid address")
 		return
 	}
 
@@ -335,12 +337,12 @@ func AddProvider(c *gin.Context) {
 
 	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
-		InternalServerError(c, "Could not create provider")
+		api.InternalError(c, "Could not create provider")
 		return
 	}
 
 	providersDB, _ := db.GlobalMongoStore.GetAllProviders()
-	OkJSON(c, providersDB)
+	api.OK(c, "", providersDB)
 }
 
 // UpdateProvider godoc
@@ -359,35 +361,35 @@ func UpdateProvider(c *gin.Context) {
 	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &provider)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	// Validations
 	if provider.Nickname == "" {
-		BadRequest(c, "missing `nickname` field")
+		api.BadRequest(c, "missing `nickname` field")
 		return
 	}
 	if provider.OS == "" {
-		BadRequest(c, "missing `os` field")
+		api.BadRequest(c, "missing `os` field")
 		return
 	}
 	if provider.HostAddress == "" {
-		BadRequest(c, "missing `host_address` field")
+		api.BadRequest(c, "missing `host_address` field")
 		return
 	}
 	if provider.Port == 0 {
-		BadRequest(c, "missing `port` field")
+		api.BadRequest(c, "missing `port` field")
 		return
 	}
 	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		BadRequest(c, "missing `selenium_grid` field")
+		api.BadRequest(c, "missing `selenium_grid` field")
 		return
 	}
 
@@ -395,10 +397,10 @@ func UpdateProvider(c *gin.Context) {
 
 	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
-		InternalServerError(c, "Could not update provider")
+		api.InternalError(c, "Could not update provider")
 		return
 	}
-	OK(c, "Provider updated successfully")
+	api.OKMessage(c, "Provider updated successfully")
 }
 
 // DeleteProvider godoc
@@ -417,11 +419,11 @@ func DeleteProvider(c *gin.Context) {
 
 	err := db.GlobalMongoStore.DeleteProvider(nickname)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete provider from DB - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to delete provider from DB - %s", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted provider with nickname `%s` from DB", nickname)})
+	api.OKMessage(c, fmt.Sprintf("Successfully deleted provider with nickname `%s` from DB", nickname))
 }
 
 // ProviderInfoSSE godoc
@@ -705,7 +707,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 	// Get workspace ID from query parameter
 	workspaceID := c.Query("workspaceId")
 	if workspaceID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "workspaceId is required"})
+		api.BadRequest(c, "workspaceId is required")
 		return
 	}
 
@@ -773,29 +775,29 @@ func AvailableDevicesSSE(c *gin.Context) {
 func UploadFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No file provided in form data - %s", err)})
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
 		return
 	}
 	fileName := c.PostForm("fileName")
 	if fileName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No fileName for MongoDB record was provided"})
+		api.BadRequest(c, "No fileName for MongoDB record was provided")
 		return
 	}
 
 	openedFile, err := file.Open()
 	defer openedFile.Close()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to open provided file - %s", err))})
+		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to open provided file - %s", err)))
 		return
 	}
 
 	err = db.GlobalMongoStore.UploadFile(openedFile, fmt.Sprintf("%s", fileName), true)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
+		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err)))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("`%s` uploaded successfully", file.Filename)})
+	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
 }
 
 // AddDevice godoc
@@ -813,7 +815,7 @@ func UploadFile(c *gin.Context) {
 func AddDevice(c *gin.Context) {
 	reqBody, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to read request body - %s", err))
 		return
 	}
 	defer c.Request.Body.Close()
@@ -821,32 +823,32 @@ func AddDevice(c *gin.Context) {
 	var device models.Device
 	err = json.Unmarshal(reqBody, &device)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
 		return
 	}
 
 	// Validate device configuration before processing
 	err = models.ValidateDevice(&device)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
+		api.BadRequest(c, fmt.Sprintf("Device validation failed: %s", err.Error()))
 		return
 	}
 
 	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == device.UDID {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
+			api.BadRequest(c, "Device already exists in the DB")
 			return
 		}
 	}
 
 	err = db.GlobalMongoStore.AddOrUpdateDevice(&device)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+		api.InternalError(c, "Failed to upsert device in DB")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB"})
+	api.OKMessage(c, "Added device in DB")
 }
 
 // UpdateDevice godoc
@@ -865,7 +867,7 @@ func AddDevice(c *gin.Context) {
 func UpdateDevice(c *gin.Context) {
 	reqBody, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to read request body - %s", err))
 		return
 	}
 	defer c.Request.Body.Close()
@@ -873,7 +875,7 @@ func UpdateDevice(c *gin.Context) {
 	var reqDevice models.Device
 	err = json.Unmarshal(reqBody, &reqDevice)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
 		return
 	}
 
@@ -915,21 +917,21 @@ func UpdateDevice(c *gin.Context) {
 			// Validate device configuration before saving to DB
 			err = models.ValidateDevice(&dbDevice)
 			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
+				api.BadRequest(c, fmt.Sprintf("Device validation failed: %s", err.Error()))
 				return
 			}
 
 			err = db.GlobalMongoStore.AddOrUpdateDevice(&dbDevice)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+				api.InternalError(c, "Failed to upsert device in DB")
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"message": "Successfully updated device in DB"})
+			api.OKMessage(c, "Successfully updated device in DB")
 			return
 		}
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist in the DB", reqDevice.UDID)})
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` does not exist in the DB", reqDevice.UDID))
 }
 
 // DeleteDevice godoc
@@ -948,11 +950,11 @@ func DeleteDevice(c *gin.Context) {
 
 	err := db.GlobalMongoStore.DeleteDevice(udid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to delete device from DB - %s", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted device with udid `%s` from DB", udid)})
+	api.OKMessage(c, fmt.Sprintf("Successfully deleted device with udid `%s` from DB", udid))
 }
 
 type AdminDeviceData struct {
@@ -1000,7 +1002,7 @@ func GetDevices(c *gin.Context) {
 		},
 	}
 
-	c.JSON(http.StatusOK, adminDeviceData)
+	api.OK(c, "", adminDeviceData)
 }
 
 // ReleaseUsedDevice godoc
@@ -1027,7 +1029,7 @@ func ReleaseUsedDevice(c *gin.Context) {
 	defer devices.HubDevicesData.Mu.Unlock()
 	err := wsutil.WriteServerText(devices.HubDevicesData.Devices[udid].InUseWSConnection, deviceInUseMessageJson)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to send release device message - " + err.Error()})
+		api.InternalError(c, "Failed to send release device message - "+err.Error())
 		return
 	}
 
@@ -1036,7 +1038,7 @@ func ReleaseUsedDevice(c *gin.Context) {
 	devices.HubDevicesData.Devices[udid].InUseBy = ""
 	devices.HubDevicesData.Devices[udid].InUseByTenant = ""
 
-	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
+	api.OKMessage(c, "Message to release device was successfully sent")
 }
 
 // syncDeviceFields synchronizes operational fields from provider to hub device
@@ -1102,7 +1104,7 @@ func ProviderUpdate(c *gin.Context) {
 		devices.HubDevicesData.Mu.Unlock()
 	}
 
-	c.JSON(http.StatusOK, gin.H{})
+	api.OKMessage(c, "")
 }
 
 // GetUsers godoc
@@ -1122,7 +1124,7 @@ func GetUsers(c *gin.Context) {
 		users[i].Password = ""
 	}
 
-	c.JSON(http.StatusOK, users)
+	api.OK(c, "", users)
 }
 
 // GetFiles godoc
@@ -1137,7 +1139,7 @@ func GetUsers(c *gin.Context) {
 func GetFiles(c *gin.Context) {
 	files, _ := db.GlobalMongoStore.GetFiles()
 
-	c.JSON(http.StatusOK, files)
+	api.OK(c, "", files)
 }
 
 // DownloadResourceFromGithubRepo godoc
@@ -1195,12 +1197,12 @@ func GetGlobalStreamSettings(c *gin.Context) {
 	// Retrieve global stream settings from the database
 	streamSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve global stream settings"})
+		api.InternalError(c, "Failed to retrieve global stream settings")
 		return
 	}
 
 	// Return the stream settings as a JSON response
-	c.JSON(http.StatusOK, streamSettings)
+	api.OK(c, "", streamSettings)
 }
 
 // UpdateGlobalStreamSettings godoc
@@ -1220,17 +1222,17 @@ func UpdateGlobalStreamSettings(c *gin.Context) {
 
 	// Bind the JSON input to the settings struct
 	if err := c.ShouldBindJSON(&settings); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
 	err := db.GlobalMongoStore.UpdateGlobalStreamSettings(settings)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save settings"})
+		api.InternalError(c, "Failed to save settings")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
+	api.OKMessage(c, "Settings updated successfully")
 }
 
 // GetMinioConfig godoc
@@ -1246,11 +1248,11 @@ func UpdateGlobalStreamSettings(c *gin.Context) {
 func GetMinioConfig(c *gin.Context) {
 	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
 	if err != nil {
-		InternalServerError(c, "Failed to retrieve MinIO configuration")
+		api.InternalError(c, "Failed to retrieve MinIO configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "MinIO configuration retrieved successfully", minioConfig)
+	api.OK(c, "MinIO configuration retrieved successfully", minioConfig)
 }
 
 // UpdateMinioConfig godoc
@@ -1269,35 +1271,35 @@ func UpdateMinioConfig(c *gin.Context) {
 	var config models.MinioConfig
 
 	if err := c.ShouldBindJSON(&config); err != nil {
-		BadRequest(c, "Invalid input")
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
 	// Basic validation
 	if config.Enabled {
 		if config.Endpoint == "" {
-			BadRequest(c, "Endpoint is required when MinIO is enabled")
+			api.BadRequest(c, "Endpoint is required when MinIO is enabled")
 			return
 		}
 
 		if config.AccessKeyID == "" {
-			BadRequest(c, "Access Key ID is required when MinIO is enabled")
+			api.BadRequest(c, "Access Key ID is required when MinIO is enabled")
 			return
 		}
 
 		if config.SecretAccessKey == "" {
-			BadRequest(c, "Secret Access Key is required when MinIO is enabled")
+			api.BadRequest(c, "Secret Access Key is required when MinIO is enabled")
 			return
 		}
 	}
 
 	err := db.GlobalMongoStore.UpdateMinioConfig(config)
 	if err != nil {
-		InternalServerError(c, "Failed to save MinIO configuration")
+		api.InternalError(c, "Failed to save MinIO configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "MinIO configuration updated successfully", "Configuration saved")
+	api.OK(c, "MinIO configuration updated successfully", "Configuration saved")
 }
 
 // GetTURNConfig godoc
@@ -1313,11 +1315,11 @@ func UpdateMinioConfig(c *gin.Context) {
 func GetTURNConfig(c *gin.Context) {
 	turnConfig, err := db.GlobalMongoStore.GetTURNConfig()
 	if err != nil {
-		InternalServerError(c, "Failed to retrieve TURN configuration")
+		api.InternalError(c, "Failed to retrieve TURN configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "TURN configuration retrieved", turnConfig)
+	api.OK(c, "TURN configuration retrieved", turnConfig)
 }
 
 // UpdateTURNConfig godoc
@@ -1336,24 +1338,24 @@ func UpdateTURNConfig(c *gin.Context) {
 	var config models.TURNConfig
 
 	if err := c.ShouldBindJSON(&config); err != nil {
-		BadRequest(c, "Invalid input")
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
 	// Validation: if enabled, validate required fields
 	if config.Enabled {
 		if config.Server == "" {
-			BadRequest(c, "Server is required when TURN is enabled")
+			api.BadRequest(c, "Server is required when TURN is enabled")
 			return
 		}
 
 		if config.Port <= 0 || config.Port > 65535 {
-			BadRequest(c, "Port must be between 1 and 65535")
+			api.BadRequest(c, "Port must be between 1 and 65535")
 			return
 		}
 
 		if config.SharedSecret == "" {
-			BadRequest(c, "Shared secret is required when TURN is enabled")
+			api.BadRequest(c, "Shared secret is required when TURN is enabled")
 			return
 		}
 
@@ -1365,11 +1367,11 @@ func UpdateTURNConfig(c *gin.Context) {
 
 	err := db.GlobalMongoStore.UpdateTURNConfig(config)
 	if err != nil {
-		InternalServerError(c, "Failed to save TURN configuration")
+		api.InternalError(c, "Failed to save TURN configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "TURN configuration updated successfully", "Configuration saved")
+	api.OK(c, "TURN configuration updated successfully", "Configuration saved")
 }
 
 // GetSystemStatus godoc
@@ -1409,5 +1411,5 @@ func GetSystemStatus(c *gin.Context) {
 		Messages: messages,
 	}
 
-	api.OKResponse(c, "System status retrieved successfully", response)
+	api.OK(c, "System status retrieved successfully", response)
 }

@@ -10,7 +10,9 @@
 package auth
 
 import (
+	"GADS/common/api"
 	"GADS/common/db"
+	"GADS/common/models"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -106,23 +108,23 @@ func LoginHandler(c *gin.Context) {
 	var creds AuthCreds
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		api.InternalError(c, "Internal server error")
 		return
 	}
 
 	err = json.Unmarshal(body, &creds)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Internal server error"})
+		api.BadRequest(c, "Internal server error")
 		return
 	}
 
 	user, err := db.GlobalMongoStore.GetUser(creds.Username)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		api.Unauthorized(c, "Invalid credentials")
 		return
 	}
 	if user.Password != creds.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		api.Unauthorized(c, "Invalid credentials")
 		return
 	}
 
@@ -138,24 +140,24 @@ func LoginHandler(c *gin.Context) {
 	// Get the default tenant
 	defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get default tenant"})
+		api.InternalError(c, "Failed to get default tenant")
 		return
 	}
 
 	// Generate JWT token with 1 hour validity
 	token, err := GenerateJWT(user.Username, user.Role, defaultTenant, scopes, time.Hour, origin)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		api.InternalError(c, "Failed to generate token")
 		return
 	}
 
 	// Response in requested format
-	c.JSON(http.StatusOK, gin.H{
-		"access_token": token,
-		"token_type":   "Bearer",
-		"expires_in":   3600, // 1 hour in seconds
-		"username":     user.Username,
-		"role":         user.Role,
+	api.OK(c, "", models.AuthResponse{
+		AccessToken: token,
+		TokenType:   "Bearer",
+		ExpiresIn:   3600, // 1 hour in seconds
+		Username:    user.Username,
+		Role:        user.Role,
 	})
 }
 
@@ -175,11 +177,11 @@ func LogoutHandler(c *gin.Context) {
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		// For JWT tokens, we don't need to do anything on the server
 		// The client should discard the token
-		c.JSON(http.StatusOK, gin.H{"message": "success"})
+		api.OKMessage(c, "success")
 		return
 	}
 
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "session does not exist"})
+	api.InternalError(c, "session does not exist")
 }
 
 // GetUserInfoHandler godoc
@@ -196,13 +198,13 @@ func GetUserInfoHandler(c *gin.Context) {
 	// Get the JWT token from Authorization header
 	authHeader := c.GetHeader("Authorization")
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing or invalid authorization header"})
+		api.Unauthorized(c, "missing or invalid authorization header")
 		return
 	}
 
 	tokenString, err := ExtractTokenFromBearer(authHeader)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token format"})
+		api.Unauthorized(c, "invalid token format")
 		return
 	}
 
@@ -212,7 +214,7 @@ func GetUserInfoHandler(c *gin.Context) {
 	// Validate JWT token with the origin (struct claims)
 	claims, err := ValidateJWT(tokenString, origin)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+		api.Unauthorized(c, "invalid or expired token")
 		return
 	}
 
@@ -280,12 +282,12 @@ func GetUserInfoHandler(c *gin.Context) {
 	}
 
 	// Return user information from claims
-	c.JSON(http.StatusOK, gin.H{
-		"username":              userIdentifier,
-		"role":                  role,
-		"tenant":                claims.Tenant,
-		"scopes":                scopes,
-		"user_identifier_claim": userIdentifierClaim,
+	api.OK(c, "", models.UserInfoResponse{
+		Username:            userIdentifier,
+		Role:                role,
+		Tenant:              claims.Tenant,
+		Scopes:              scopes,
+		UserIdentifierClaim: userIdentifierClaim,
 	})
 }
 
@@ -308,7 +310,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		if strings.HasPrefix(authToken, "Bearer ") {
 			tokenString, err := ExtractTokenFromBearer(authToken)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token format"})
+				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "invalid token format"})
 				return
 			}
 
@@ -318,19 +320,19 @@ func AuthMiddleware() gin.HandlerFunc {
 			// Validate JWT token with the origin
 			claims, err := ValidateJWT(tokenString, origin)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "invalid or expired token"})
 				return
 			}
 
 			// Check if token has expired
 			if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token expired"})
+				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "token expired"})
 				return
 			}
 
 			// Check permissions (admin)
 			if strings.Contains(path, "admin") && claims.Role != "admin" {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "you need admin privileges to access this endpoint"})
+				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "you need admin privileges to access this endpoint"})
 				return
 			}
 
@@ -346,6 +348,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// If no valid bearer token is provided
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "unauthorized"})
 	}
 }
