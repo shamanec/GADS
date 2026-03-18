@@ -9,6 +9,49 @@
 
 package models
 
+// APIResponse is the standard response envelope for all GADS API endpoints.
+// Use the concrete type aliases below for Swagger annotations.
+type APIResponse[T any] struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message" example:"Operation completed successfully"`
+	Result  T      `json:"result,omitempty"`
+}
+
+// Page is a generic paginated result wrapper.
+type Page[T any] struct {
+	Items      []T   `json:"items"`
+	Total      int64 `json:"total"`
+	Page       int   `json:"page,omitempty"`
+	TotalPages int   `json:"total_pages,omitempty"`
+}
+
+// Concrete page types for Swagger annotations.
+type WorkspacesPage = Page[WorkspaceWithDeviceCount]
+type AuditLogsPage = Page[SecretKeyAuditLogResponse]
+
+// Concrete types for Swagger annotations (swag does not support Go generics directly).
+type DeviceResponse = APIResponse[Device]
+type DeviceListResponse = APIResponse[[]Device]
+type UserResponse = APIResponse[User]
+type UserListResponse = APIResponse[[]User]
+type WorkspaceResponse = APIResponse[Workspace]
+type WorkspacePageResponse = APIResponse[WorkspacesPage]
+type ProviderResponse = APIResponse[Provider]
+type ProviderListResponse = APIResponse[[]Provider]
+type MessageResponse = APIResponse[any]
+type AuthTokenResponse = APIResponse[AuthResponse]
+type SecretKeyListResponse = APIResponse[[]SecretKeyResponse]
+type CredentialCreateResponse = APIResponse[CreateCredentialResponse]
+type CredentialListResponse = APIResponse[ClientCredentialsListResponse]
+type FileListResponse = APIResponse[[]DBFile]
+type StringDataResponse = APIResponse[string]
+type CustomActionResponse = APIResponse[CustomAction]
+type CustomActionListResponse = APIResponse[[]CustomAction]
+type InstalledAppsResponse = APIResponse[[]string]
+type StreamSettingsResponse = APIResponse[StreamSettings]
+type MinioConfigResponse = APIResponse[MinioConfig]
+type TURNConfigResponse = APIResponse[TURNConfig]
+
 // SuccessResponse represents a successful API response
 type SuccessResponse struct {
 	Message string `json:"message" example:"Operation completed successfully"`

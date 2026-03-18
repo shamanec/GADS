@@ -1,7 +1,8 @@
 package models
 
 // Generic response types
-type APIResponse struct {
+// LegacyAPIResponse is the old untyped response wrapper — kept for backward compat during migration.
+type LegacyAPIResponse struct {
 	Message string      `json:"message,omitempty"`
 	Result  interface{} `json:"result,omitempty"`
 }
