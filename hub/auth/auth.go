@@ -95,7 +95,7 @@ func normalizeOrigin(origin string) string {
 // LoginHandler godoc
 // @Summary      User authentication
 // @Description  Authenticate user and return JWT token
-// @Tags         Authentication
+// @Tags         Hub - Authentication
 // @Accept       json
 // @Produce      json
 // @Param        credentials  body      AuthCreds  true  "User credentials"
@@ -164,7 +164,7 @@ func LoginHandler(c *gin.Context) {
 // LogoutHandler godoc
 // @Summary      User logout
 // @Description  Logout user (for JWT tokens, client should discard the token)
-// @Tags         Authentication
+// @Tags         Hub - Authentication
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  models.SuccessResponse
@@ -187,7 +187,7 @@ func LogoutHandler(c *gin.Context) {
 // GetUserInfoHandler godoc
 // @Summary      Get user information
 // @Description  Retrieve user information from JWT token
-// @Tags         Authentication
+// @Tags         Hub - Authentication
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  models.UserInfoResponse

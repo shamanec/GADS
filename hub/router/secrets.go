@@ -37,7 +37,7 @@ func secretKeyToResponse(key *auth.SecretKey) models.SecretKeyResponse {
 // GetSecretKeys godoc
 // @Summary      Get all secret keys
 // @Description  Retrieve list of all secret keys in the system
-// @Tags         Admin - Secret Keys
+// @Tags         Hub - Admin - Secret Keys
 // @Accept       json
 // @Produce      json
 // @Param        status  query  string  false  "Filter by status (active/disabled)"
@@ -66,7 +66,7 @@ func GetSecretKeys(c *gin.Context) {
 // AddSecretKey godoc
 // @Summary      Add a new secret key
 // @Description  Create a new secret key in the system
-// @Tags         Admin - Secret Keys
+// @Tags         Hub - Admin - Secret Keys
 // @Accept       json
 // @Produce      json
 // @Param        secretKey  body      models.SecretKeyRequest  true  "Secret key data"
@@ -133,7 +133,7 @@ func AddSecretKey(c *gin.Context) {
 // UpdateSecretKey godoc
 // @Summary      Update a secret key
 // @Description  Update an existing secret key in the system
-// @Tags         Admin - Secret Keys
+// @Tags         Hub - Admin - Secret Keys
 // @Accept       json
 // @Produce      json
 // @Param        id         path      string                   true  "Secret key ID"
@@ -219,7 +219,7 @@ func UpdateSecretKey(c *gin.Context) {
 // DisableSecretKey godoc
 // @Summary      Disable a secret key
 // @Description  Disable an existing secret key in the system
-// @Tags         Admin - Secret Keys
+// @Tags         Hub - Admin - Secret Keys
 // @Accept       json
 // @Produce      json
 // @Param        id            path      string                        true  "Secret key ID"
@@ -284,7 +284,7 @@ func DisableSecretKey(c *gin.Context) {
 // GetSecretKeyHistory godoc
 // @Summary      Get secret key history
 // @Description  Retrieve audit history of secret key changes
-// @Tags         Admin - Secret Keys
+// @Tags         Hub - Admin - Secret Keys
 // @Accept       json
 // @Produce      json
 // @Param        page      query  int     false  "Page number (default 1)"
@@ -361,7 +361,7 @@ func GetSecretKeyHistory(c *gin.Context) {
 // GetSecretKeyHistoryByID godoc
 // @Summary      Get secret key history by ID
 // @Description  Retrieve a specific audit record by ID
-// @Tags         Admin - Secret Keys
+// @Tags         Hub - Admin - Secret Keys
 // @Accept       json
 // @Produce      json
 // @Param        id  path      string  true  "Audit log ID"

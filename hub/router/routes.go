@@ -40,10 +40,10 @@ var netClient = &http.Client{
 // HealthCheck godoc
 // @Summary      Health check endpoint
 // @Description  Check if the GADS hub is running and healthy
-// @Tags         System
+// @Tags         Hub - System
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.HealthResponse
+// @Success      200  {object}  models.SuccessResponse
 // @Security     BearerAuth
 // @Router       /health [get]
 func HealthCheck(c *gin.Context) {
@@ -53,7 +53,7 @@ func HealthCheck(c *gin.Context) {
 // GetAppiumLogs godoc
 // @Summary      Get Appium logs
 // @Description  Retrieve Appium logs from a specific collection with optional limit
-// @Tags         Logs
+// @Tags         Hub - Logs
 // @Accept       json
 // @Produce      json
 // @Param        collection  query     string  true   "Collection name"
@@ -86,7 +86,7 @@ func GetAppiumLogs(c *gin.Context) {
 // GetProviderLogs godoc
 // @Summary      Get provider logs
 // @Description  Retrieve provider logs from a specific collection with optional limit
-// @Tags         Logs
+// @Tags         Hub - Logs
 // @Accept       json
 // @Produce      json
 // @Param        collection  query     string  true   "Collection name"
@@ -120,7 +120,7 @@ func GetProviderLogs(c *gin.Context) {
 // AddUser godoc
 // @Summary      Add a new user
 // @Description  Create a new user in the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
 // @Param        user  body      models.User  true  "User data"
@@ -177,7 +177,7 @@ func AddUser(c *gin.Context) {
 // UpdateUser godoc
 // @Summary      Update an existing user
 // @Description  Update user information in the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
 // @Param        user  body      models.User  true  "User data"
@@ -229,7 +229,7 @@ func UpdateUser(c *gin.Context) {
 // DeleteUser godoc
 // @Summary      Delete a user
 // @Description  Remove a user from the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
 // @Param        nickname  path      string  true  "User nickname"
@@ -252,10 +252,11 @@ func DeleteUser(c *gin.Context) {
 // GetProviders godoc
 // @Summary      Get all providers
 // @Description  Retrieve list of all providers in the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  []models.Provider
+// @Success      200  {object}  models.ProviderListResponse
+// @Failure      400  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/providers [get]
 func GetProviders(c *gin.Context) {
@@ -282,11 +283,11 @@ func GetProviderInfo(c *gin.Context) {
 // AddProvider godoc
 // @Summary      Add a new provider
 // @Description  Create a new provider in the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        provider  body      models.Provider  true  "Provider data"
-// @Success      200       {array}   models.Provider
+// @Success      200       {object}  models.ProviderListResponse
 // @Failure      400       {object}  models.ErrorResponse
 // @Failure      500       {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -348,7 +349,7 @@ func AddProvider(c *gin.Context) {
 // UpdateProvider godoc
 // @Summary      Update a provider
 // @Description  Update an existing provider in the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        provider  body      models.Provider  true  "Provider data"
@@ -406,7 +407,7 @@ func UpdateProvider(c *gin.Context) {
 // DeleteProvider godoc
 // @Summary      Delete a provider
 // @Description  Remove a provider from the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        nickname  path      string  true  "Provider nickname"
@@ -429,7 +430,7 @@ func DeleteProvider(c *gin.Context) {
 // ProviderInfoSSE godoc
 // @Summary      Provider information stream
 // @Description  Server-sent events stream of provider information updates
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      text/event-stream
 // @Param        nickname  path  string  true  "Provider nickname"
@@ -454,7 +455,7 @@ func ProviderInfoSSE(c *gin.Context) {
 // DeviceInUseWS godoc
 // @Summary      Device in-use WebSocket
 // @Description  WebSocket connection to manage device usage status and control
-// @Tags         Devices Control
+// @Tags         Hub - Devices Control
 // @Accept       json
 // @Produce      json
 // @Param        udid   path   string  true   "Device UDID"
@@ -696,7 +697,7 @@ func DeviceInUseWS(c *gin.Context) {
 // AvailableDevicesSSE godoc
 // @Summary      Available devices stream
 // @Description  Server-sent events stream of available devices filtered by workspace
-// @Tags         Devices Control
+// @Tags         Hub - Devices selection
 // @Accept       json
 // @Produce      text/event-stream
 // @Param        workspaceId  query  string  true  "Workspace ID"
@@ -762,7 +763,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 // UploadFile godoc
 // @Summary      Upload a file
 // @Description  Upload a file to MongoDB with custom filename
-// @Tags         Admin - Files
+// @Tags         Hub - Admin - Files
 // @Accept       multipart/form-data
 // @Produce      json
 // @Param        file      formData  file    true  "File to upload"
@@ -803,7 +804,7 @@ func UploadFile(c *gin.Context) {
 // AddDevice godoc
 // @Summary      Add a new device
 // @Description  Create a new device in the system
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
 // @Param        device  body      models.Device  true  "Device data"
@@ -854,7 +855,7 @@ func AddDevice(c *gin.Context) {
 // UpdateDevice godoc
 // @Summary      Update a device
 // @Description  Update an existing device in the system
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
 // @Param        device  body      models.Device  true  "Device data"
@@ -937,7 +938,7 @@ func UpdateDevice(c *gin.Context) {
 // DeleteDevice godoc
 // @Summary      Delete a device
 // @Description  Remove a device from the system
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
 // @Param        udid  path      string  true  "Device UDID"
@@ -966,7 +967,7 @@ type AdminDeviceData struct {
 // GetDevices godoc
 // @Summary      Get all devices
 // @Description  Retrieve list of all devices with provider information
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  AdminDeviceData
@@ -1008,7 +1009,8 @@ func GetDevices(c *gin.Context) {
 // ReleaseUsedDevice godoc
 // @Summary      Release a device in use
 // @Description  Force release a device that is currently in use
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
+// @Tags         Hub - Devices selection
 // @Accept       json
 // @Produce      json
 // @Param        udid  path      string  true  "Device UDID"
@@ -1061,7 +1063,7 @@ func syncDeviceFields(target *models.Device, source *models.Device) {
 // ProviderUpdate godoc
 // @Summary      Provider update
 // @Description  Receive updates from providers about device status
-// @Tags         Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        providerData  body      models.ProviderData  true  "Provider device data"
@@ -1110,7 +1112,7 @@ func ProviderUpdate(c *gin.Context) {
 // GetUsers godoc
 // @Summary      Get all users
 // @Description  Retrieve list of all users in the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  []models.User
@@ -1130,7 +1132,7 @@ func GetUsers(c *gin.Context) {
 // GetFiles godoc
 // @Summary      Get all files
 // @Description  Retrieve list of all files stored in the system
-// @Tags         Admin - Files
+// @Tags         Hub - Admin - Files
 // @Accept       json
 // @Produce      json
 // @Success      200  {array}  models.FileEntry
@@ -1145,7 +1147,7 @@ func GetFiles(c *gin.Context) {
 // DownloadResourceFromGithubRepo godoc
 // @Summary      Download resource from GitHub repository
 // @Description  Download a resource file from the GADS GitHub repository
-// @Tags         Admin - Files
+// @Tags         Hub - Admin - Files
 // @Accept       json
 // @Produce      text/plain
 // @Param        fileName  query  string  true  "Name of the file to download"
@@ -1186,7 +1188,7 @@ func DownloadResourceFromGithubRepo(c *gin.Context) {
 // GetGlobalStreamSettings godoc
 // @Summary      Get global stream settings
 // @Description  Retrieve global streaming settings from the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  models.StreamSettings
@@ -1208,7 +1210,7 @@ func GetGlobalStreamSettings(c *gin.Context) {
 // UpdateGlobalStreamSettings godoc
 // @Summary      Update global stream settings
 // @Description  Update global streaming settings in the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
 // @Param        settings  body      models.StreamSettings  true  "Stream settings"
@@ -1238,10 +1240,10 @@ func UpdateGlobalStreamSettings(c *gin.Context) {
 // GetMinioConfig godoc
 // @Summary      Get MinIO configuration
 // @Description  Retrieve MinIO configuration settings from the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.APIResponse{result=models.MinioConfig}
+// @Success      200  {object}  models.MinioConfigResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/minio-config [get]
@@ -1258,11 +1260,11 @@ func GetMinioConfig(c *gin.Context) {
 // UpdateMinioConfig godoc
 // @Summary      Update MinIO configuration
 // @Description  Update MinIO configuration settings in the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
 // @Param        config  body      models.MinioConfig  true  "MinIO configuration"
-// @Success      200     {object}  models.APIResponse{result=string}
+// @Success      200     {object}  models.MessageResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -1299,16 +1301,16 @@ func UpdateMinioConfig(c *gin.Context) {
 		return
 	}
 
-	api.OK(c, "MinIO configuration updated successfully", "Configuration saved")
+	api.OKMessage(c, "MinIO configuration updated successfully")
 }
 
 // GetTURNConfig godoc
 // @Summary      Get TURN server configuration
 // @Description  Retrieve the TURN server configuration from MongoDB global settings
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.APIResponse{result=models.TURNConfig}
+// @Success      200  {object}  models.TURNConfigResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/turn-config [get]
@@ -1325,11 +1327,11 @@ func GetTURNConfig(c *gin.Context) {
 // UpdateTURNConfig godoc
 // @Summary      Update TURN server configuration
 // @Description  Update the TURN server configuration stored in MongoDB global settings
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
 // @Param        config  body      models.TURNConfig  true  "TURN configuration"
-// @Success      200     {object}  models.APIResponse{result=string}
+// @Success      200     {object}  models.MessageResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -1371,17 +1373,16 @@ func UpdateTURNConfig(c *gin.Context) {
 		return
 	}
 
-	api.OK(c, "TURN configuration updated successfully", "Configuration saved")
+	api.OKMessage(c, "TURN configuration updated successfully")
 }
 
 // GetSystemStatus godoc
 // @Summary      Get system status messages
 // @Description  Retrieve system status messages for administrators
-// @Tags         Admin - System
+// @Tags         Hub - Admin - System
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.SystemStatusAPIResponse
-// @Failure      500  {object}  models.APIResponse
+// @Success      200  {object}  models.SysStatusResponse
 // @Security     BearerAuth
 // @Router       /admin/system-status [get]
 func GetSystemStatus(c *gin.Context) {

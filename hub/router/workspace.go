@@ -36,7 +36,7 @@ func ensureWorkspaceTenant(workspace *models.Workspace, c *gin.Context) error {
 // CreateWorkspace godoc
 // @Summary      Create a new workspace
 // @Description  Create a new workspace in the system
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        workspace  body      models.Workspace  true  "Workspace data"
@@ -80,7 +80,7 @@ func CreateWorkspace(c *gin.Context) {
 // UpdateWorkspace godoc
 // @Summary      Update a workspace
 // @Description  Update an existing workspace in the system
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        workspace  body      models.Workspace  true  "Workspace data"
@@ -122,7 +122,7 @@ func UpdateWorkspace(c *gin.Context) {
 // DeleteWorkspace godoc
 // @Summary      Delete a workspace
 // @Description  Remove a workspace from the system
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        id  path      string  true  "Workspace ID"
@@ -162,7 +162,7 @@ func DeleteWorkspace(c *gin.Context) {
 // GetWorkspaces godoc
 // @Summary      Get all workspaces
 // @Description  Retrieve list of all workspaces with pagination and filtering
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        page   query  int     false  "Page number (default 1)"
@@ -213,7 +213,7 @@ func GetWorkspaces(c *gin.Context) {
 // GetUserWorkspaces godoc
 // @Summary      Get user workspaces
 // @Description  Retrieve workspaces accessible to the current user
-// @Tags         Workspaces
+// @Tags         Hub - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        page   query  int     false  "Page number (default 1)"

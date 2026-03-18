@@ -22,7 +22,7 @@ import (
 // CreateClientCredential godoc
 // @Summary Create a new client credential
 // @Description Create a new client credential for the authenticated user
-// @Tags Client Credentials
+// @Tags Hub  - Client Credentials
 // @Accept json
 // @Produce json
 // @Param request body models.CreateCredentialRequest true "Create credential request"
@@ -81,7 +81,7 @@ func CreateClientCredential(c *gin.Context) {
 // ListClientCredentials godoc
 // @Summary List user's client credentials
 // @Description Get all client credentials for the authenticated user
-// @Tags Client Credentials
+// @Tags Hub - Client Credentials
 // @Produce json
 // @Success 200 {object} models.CredentialListResponse
 // @Failure 401 {object} models.MessageResponse
@@ -140,7 +140,7 @@ func ListClientCredentials(c *gin.Context) {
 // GetClientCredential godoc
 // @Summary Get a specific client credential
 // @Description Get a client credential by ID for the authenticated user
-// @Tags Client Credentials
+// @Tags Hub - Client Credentials
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} models.MessageResponse
@@ -205,7 +205,7 @@ func GetClientCredential(c *gin.Context) {
 // UpdateClientCredential godoc
 // @Summary Update a client credential
 // @Description Update metadata for a client credential (name and description only)
-// @Tags Client Credentials
+// @Tags Hub - Client Credentials
 // @Accept json
 // @Produce json
 // @Param id path string true "Client ID"
@@ -292,7 +292,7 @@ func UpdateClientCredential(c *gin.Context) {
 // RevokeClientCredential godoc
 // @Summary Revoke a client credential
 // @Description Revoke/deactivate a client credential
-// @Tags Client Credentials
+// @Tags Hub - Client Credentials
 // @Produce json
 // @Param id path string true "Client ID"
 // @Success 200 {object} models.MessageResponse

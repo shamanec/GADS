@@ -51,20 +51,12 @@ type InstalledAppsResponse = APIResponse[[]string]
 type StreamSettingsResponse = APIResponse[StreamSettings]
 type MinioConfigResponse = APIResponse[MinioConfig]
 type TURNConfigResponse = APIResponse[TURNConfig]
+type SysStatusResponse = APIResponse[SystemStatusResponse]
+type ErrorResponse = APIResponse[any]
+type SuccessResponse = APIResponse[any]
 
-// SuccessResponse represents a successful API response
-type SuccessResponse struct {
-	Message string `json:"message" example:"Operation completed successfully"`
-}
-
-// ErrorResponse represents an error API response
-type ErrorResponse struct {
-	Error string `json:"error" example:"Something went wrong"`
-}
-
-// HealthResponse represents the health check response
-type HealthResponse struct {
-	Message string `json:"message" example:"ok"`
+type OAuthErrorResponse struct {
+	Error string `json:"error"`
 }
 
 // SecretKeyResponse represents a secret key response (without exposing the actual key)
