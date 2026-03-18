@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +21,7 @@ func AppiumPluginLog(c *gin.Context) {
 		body, err := io.ReadAll(c.Request.Body)
 		defer c.Request.Body.Close()
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read log request body - %s", err), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to read log request body - %s", err))
 			return
 		}
 
@@ -31,10 +30,10 @@ func AppiumPluginLog(c *gin.Context) {
 		err = json.Unmarshal(body, &appiumPluginLog)
 
 		db.GlobalMongoStore.AddAppiumLog(udid, appiumPluginLog)
-		api.GenericResponse(c, http.StatusOK, "Logged successfully", nil)
+		api.OKMessage(c, "Logged successfully")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginRegister The plugin sends a notification request when the server is started
@@ -43,10 +42,10 @@ func AppiumPluginRegister(c *gin.Context) {
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		dev.AppiumLastPingTS = time.Now().UnixMilli()
 		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Appium registered as up", nil)
+		api.OKMessage(c, "Appium registered as up")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginAddSession The plugin sends a notification request when a new session is started
@@ -58,10 +57,10 @@ func AppiumPluginAddSession(c *gin.Context) {
 		dev.HasAppiumSession = true
 		dev.AppiumSessionID = sessionID
 		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Session added", nil)
+		api.OKMessage(c, "Session added")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginRemoveSession The plugin sends a notification request when the session is deleted
@@ -72,10 +71,10 @@ func AppiumPluginRemoveSession(c *gin.Context) {
 		dev.HasAppiumSession = false
 		dev.AppiumSessionID = ""
 		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Session cleared", nil)
+		api.OKMessage(c, "Session cleared")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginPing The plugin periodically sends pings so we can keep track if the server is up
@@ -84,8 +83,8 @@ func AppiumPluginPing(c *gin.Context) {
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		dev.AppiumLastPingTS = time.Now().UnixMilli()
 		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Ping for Appium server availability successful", nil)
+		api.OKMessage(c, "Ping for Appium server availability successful")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }

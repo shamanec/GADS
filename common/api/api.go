@@ -66,31 +66,3 @@ func InternalError(c *gin.Context, message string) {
 	ErrorResponse(c, http.StatusInternalServerError, message)
 }
 
-// --- Legacy helpers below — kept during migration, remove in Step 4 ---
-
-func GenericResponse(c *gin.Context, statusCode int, message string, result interface{}) {
-	c.JSON(statusCode, models.LegacyAPIResponse{
-		Message: message,
-		Result:  result,
-	})
-}
-
-func InternalServerErrorResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusInternalServerError, message, result)
-}
-
-func OKResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusOK, message, result)
-}
-
-func NotFoundResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusNotFound, message, result)
-}
-
-func BadRequestResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusBadRequest, message, result)
-}
-
-func ForbiddenResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusForbidden, message, result)
-}

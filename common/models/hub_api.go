@@ -1,12 +1,6 @@
 package models
 
-// Generic response types
-// LegacyAPIResponse is the old untyped response wrapper — kept for backward compat during migration.
-type LegacyAPIResponse struct {
-	Message string      `json:"message,omitempty"`
-	Result  interface{} `json:"result,omitempty"`
-}
-
+// TypedAPIResponse is a generic response wrapper for Swagger-compatible type aliases.
 type TypedAPIResponse[T any] struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`

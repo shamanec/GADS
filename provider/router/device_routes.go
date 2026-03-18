@@ -45,18 +45,18 @@ func DeviceHealth(c *gin.Context) {
 	bool, err := devices.GetDeviceHealth(dev)
 	if err != nil {
 		dev.Logger.LogInfo("device", fmt.Sprintf("Could not check device health - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
 	if bool {
 		dev.Logger.LogInfo("device", "Device is healthy")
-		api.GenericResponse(c, http.StatusOK, "Device is healthy", nil)
+		api.OKMessage(c, "Device is healthy")
 		return
 	}
 
 	dev.Logger.LogError("device", "Device is not healthy")
-	api.GenericResponse(c, http.StatusInternalServerError, "Device is not healthy", nil)
+	api.InternalError(c, "Device is not healthy")
 }
 
 // Call the respective Appium/WDA endpoint to go to Homescreen
@@ -69,7 +69,7 @@ func DeviceHome(c *gin.Context) {
 	homeResponse, err := deviceHome(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to navigate to Home/Springboard - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, "Failed to navigate to Home/Springboard", nil)
+		api.InternalError(c, "Failed to navigate to Home/Springboard")
 		return
 	}
 	defer homeResponse.Body.Close()
@@ -78,11 +78,11 @@ func DeviceHome(c *gin.Context) {
 	homeResponseBody, err := io.ReadAll(homeResponse.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to navigate to Home/Springboard - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, "Failed to navigate to Home/Springboard", nil)
+		api.InternalError(c, "Failed to navigate to Home/Springboard")
 		return
 	}
 
-	api.GenericResponse(c, homeResponse.StatusCode, string(homeResponseBody), nil)
+	c.JSON(homeResponse.StatusCode, models.APIResponse[any]{Success: homeResponse.StatusCode < 400, Message: string(homeResponseBody)})
 }
 
 func DeviceGetClipboard(c *gin.Context) {
@@ -94,7 +94,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	clipboardResponse, err := deviceGetClipboard(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get device clipboard value - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get device clipboard value - %s", err), nil)
+		api.InternalError(c, fmt.Sprintf("Failed to get device clipboard value - %s", err))
 		return
 	}
 	defer clipboardResponse.Body.Close()
@@ -103,7 +103,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	clipboardResponseBody, err := io.ReadAll(clipboardResponse.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err), nil)
+		api.InternalError(c, fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err))
 		return
 	}
 
@@ -114,13 +114,13 @@ func DeviceGetClipboard(c *gin.Context) {
 	err = json.Unmarshal(clipboardResponseBody, &valueResp)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err), nil)
+		api.InternalError(c, fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err))
 		return
 	}
 
 	// Decode the value because Appium returns it as base64 encoded string
 	decoded, _ := base64.StdEncoding.DecodeString(valueResp.Value)
-	api.GenericResponse(c, http.StatusOK, string(decoded), nil)
+	api.OKMessage(c, string(decoded))
 }
 
 // Call respective Appium/WDA endpoint to lock the device
@@ -132,7 +132,7 @@ func DeviceLock(c *gin.Context) {
 	lockResponse, err := deviceLock(device, "lock")
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to lock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	defer lockResponse.Body.Close()
@@ -141,11 +141,11 @@ func DeviceLock(c *gin.Context) {
 	lockResponseBody, err := io.ReadAll(lockResponse.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to lock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
-	api.GenericResponse(c, lockResponse.StatusCode, string(lockResponseBody), nil)
+	c.JSON(lockResponse.StatusCode, models.APIResponse[any]{Success: lockResponse.StatusCode < 400, Message: string(lockResponseBody)})
 }
 
 // Call the respective Appium/WDA endpoint to unlock the device
@@ -157,7 +157,7 @@ func DeviceUnlock(c *gin.Context) {
 	lockResponse, err := deviceLock(device, "unlock")
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unlock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	defer lockResponse.Body.Close()
@@ -166,11 +166,11 @@ func DeviceUnlock(c *gin.Context) {
 	lockResponseBody, err := io.ReadAll(lockResponse.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to unlock device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
-	api.GenericResponse(c, lockResponse.StatusCode, string(lockResponseBody), nil)
+	c.JSON(lockResponse.StatusCode, models.APIResponse[any]{Success: lockResponse.StatusCode < 400, Message: string(lockResponseBody)})
 }
 
 // Call the respective Appium/WDA endpoint to take a screenshot of the device screen
@@ -182,11 +182,11 @@ func DeviceScreenshot(c *gin.Context) {
 	screenshotResp, err := deviceScreenshot(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get screenshot from device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, screenshotResp, nil)
+	api.OKMessage(c, screenshotResp)
 }
 
 //======================================
@@ -200,7 +200,7 @@ func DeviceAppiumSource(c *gin.Context) {
 	sourceResp, err := appiumSource(device)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get Appium source from device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
@@ -208,12 +208,12 @@ func DeviceAppiumSource(c *gin.Context) {
 	body, err := io.ReadAll(sourceResp.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to get Appium source from device - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	defer sourceResp.Body.Close()
 
-	api.GenericResponse(c, sourceResp.StatusCode, string(body), nil)
+	c.JSON(sourceResp.StatusCode, models.APIResponse[any]{Success: sourceResp.StatusCode < 400, Message: string(body)})
 }
 
 //=======================================
@@ -226,7 +226,7 @@ func DeviceTypeText(c *gin.Context) {
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to type text to active element - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
@@ -236,7 +236,7 @@ func DeviceTypeText(c *gin.Context) {
 	}
 	typeJSON, err := json.MarshalIndent(typeTextPayload, "", "  ")
 	if err != nil {
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	var typeResp *http.Response
@@ -244,18 +244,18 @@ func DeviceTypeText(c *gin.Context) {
 	if device.OS == "ios" {
 		typeResp, err = wdaRequest(device, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			api.InternalError(c, err.Error())
 			return
 		}
 	} else {
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/type", device.AndroidIMEPort), bytes.NewBuffer(typeJSON))
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			api.InternalError(c, err.Error())
 			return
 		}
 		typeResp, err = netClient.Do(req)
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			api.InternalError(c, err.Error())
 			return
 		}
 	}
@@ -263,7 +263,7 @@ func DeviceTypeText(c *gin.Context) {
 	var body []byte
 	body, err = io.ReadAll(typeResp.Body)
 
-	api.GenericResponse(c, typeResp.StatusCode, string(body), nil)
+	c.JSON(typeResp.StatusCode, models.APIResponse[any]{Success: typeResp.StatusCode < 400, Message: string(body)})
 }
 
 func DeviceTap(c *gin.Context) {
@@ -272,7 +272,7 @@ func DeviceTap(c *gin.Context) {
 
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
@@ -281,7 +281,7 @@ func DeviceTap(c *gin.Context) {
 	tapResp, err := deviceTap(device, requestBody.X, requestBody.Y)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to tap at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	defer tapResp.Body.Close()
@@ -290,11 +290,11 @@ func DeviceTap(c *gin.Context) {
 	body, err := io.ReadAll(tapResp.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to tap at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
-	api.GenericResponse(c, tapResp.StatusCode, string(body), nil)
+	c.JSON(tapResp.StatusCode, models.APIResponse[any]{Success: tapResp.StatusCode < 400, Message: string(body)})
 }
 
 func DeviceTouchAndHold(c *gin.Context) {
@@ -303,7 +303,7 @@ func DeviceTouchAndHold(c *gin.Context) {
 
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
@@ -312,7 +312,7 @@ func DeviceTouchAndHold(c *gin.Context) {
 	touchAndHoldResp, err := deviceTouchAndHold(device, requestBody.X, requestBody.Y, requestBody.Duration)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to touch and hold at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	defer touchAndHoldResp.Body.Close()
@@ -321,11 +321,11 @@ func DeviceTouchAndHold(c *gin.Context) {
 	body, err := io.ReadAll(touchAndHoldResp.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to touch and hold at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
-	api.GenericResponse(c, touchAndHoldResp.StatusCode, string(body), nil)
+	c.JSON(touchAndHoldResp.StatusCode, models.APIResponse[any]{Success: touchAndHoldResp.StatusCode < 400, Message: string(body)})
 }
 
 func DeviceSwipe(c *gin.Context) {
@@ -335,7 +335,7 @@ func DeviceSwipe(c *gin.Context) {
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to decode request body when performing swipe - %s", err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
@@ -344,7 +344,7 @@ func DeviceSwipe(c *gin.Context) {
 	swipeResp, err := deviceSwipe(device, requestBody.X, requestBody.Y, requestBody.EndX, requestBody.EndY)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	defer swipeResp.Body.Close()
@@ -353,11 +353,11 @@ func DeviceSwipe(c *gin.Context) {
 	body, err := io.ReadAll(swipeResp.Body)
 	if err != nil {
 		device.Logger.LogError("appium_interact", fmt.Sprintf("Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
-	api.GenericResponse(c, swipeResp.StatusCode, string(body), nil)
+	c.JSON(swipeResp.StatusCode, models.APIResponse[any]{Success: swipeResp.StatusCode < 400, Message: string(body)})
 }
 
 func DeviceExecuteCustomAction(c *gin.Context) {
@@ -367,13 +367,13 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 	var requestBody models.ExecuteCustomActionRequest
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
 		device.Logger.LogError("device_control", fmt.Sprintf("Failed to decode request body when executing custom action - %s", err))
-		api.GenericResponse(c, http.StatusBadRequest, err.Error(), nil)
+		api.BadRequest(c, err.Error())
 		return
 	}
 
 	if requestBody.ActionType == "" {
 		device.Logger.LogError("device_control", "Missing action_type in request")
-		api.GenericResponse(c, http.StatusBadRequest, "action_type is required", nil)
+		api.BadRequest(c, "action_type is required")
 		return
 	}
 
@@ -382,7 +382,7 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 	actionResp, err := executeCustomAction(device, requestBody.ActionType, requestBody.Parameters)
 	if err != nil {
 		device.Logger.LogError("device_control", fmt.Sprintf("Failed to execute custom action '%s' - %s", requestBody.ActionType, err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 	defer actionResp.Body.Close()
@@ -390,9 +390,9 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 	body, err := io.ReadAll(actionResp.Body)
 	if err != nil {
 		device.Logger.LogError("device_control", fmt.Sprintf("Failed to read response for custom action '%s' - %s", requestBody.ActionType, err))
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
-	api.GenericResponse(c, actionResp.StatusCode, string(body), nil)
+	c.JSON(actionResp.StatusCode, models.APIResponse[any]{Success: actionResp.StatusCode < 400, Message: string(body)})
 }

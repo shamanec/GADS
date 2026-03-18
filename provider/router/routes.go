@@ -85,7 +85,7 @@ func UploadAndInstallApp(c *gin.Context) {
 	// Read the file from the form data
 	file, err := c.FormFile("file")
 	if err != nil {
-		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("No file provided in form data - %s", err), nil)
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
 		return
 	}
 
@@ -101,7 +101,7 @@ func UploadAndInstallApp(c *gin.Context) {
 	}
 
 	if !isAllowed {
-		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Files with extension `%s` are not allowed", ext), nil)
+		api.BadRequest(c, fmt.Sprintf("Files with extension `%s` are not allowed", ext))
 		return
 	}
 
@@ -122,7 +122,7 @@ func UploadAndInstallApp(c *gin.Context) {
 
 			// Save the file to the target destination
 			if err := c.SaveUploadedFile(file, dst); err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save file to `%s` - %s", dst, err), nil)
+				api.InternalError(c, fmt.Sprintf("Failed to save file to `%s` - %s", dst, err))
 				return
 			}
 
@@ -134,18 +134,18 @@ func UploadAndInstallApp(c *gin.Context) {
 			// Try to install the app after saving the file
 			err = devices.InstallApp(dev, file.Filename)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed installing app - %s", err), nil)
+				api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
 				return
 			}
 
 			// Try to remove the file after installing it
 			err = os.Remove(dst)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, "App uploaded and installed successfully but failed to delete it", nil)
+				api.InternalError(c, "App uploaded and installed successfully but failed to delete it")
 				return
 			}
 
-			api.GenericResponse(c, http.StatusOK, "App uploaded and installed successfully", nil)
+			api.OKMessage(c, "App uploaded and installed successfully")
 			return
 		} else {
 			// If the uploaded file is a zip archive
@@ -153,27 +153,27 @@ func UploadAndInstallApp(c *gin.Context) {
 			file, err := file.Open()
 			defer file.Close()
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to open provided zip file - %s", err), nil)
+				api.InternalError(c, fmt.Sprintf("Failed to open provided zip file - %s", err))
 				return
 			}
 
 			// Read the file content into a byte slice
 			var buf bytes.Buffer
 			if _, err := io.Copy(&buf, file); err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read provided zip file - %s", err), nil)
+				api.InternalError(c, fmt.Sprintf("Failed to read provided zip file - %s", err))
 				return
 			}
 
 			// Get a list of the files in the zip
 			fileNames, err := utils.ListFilesInZip(buf.Bytes())
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get file list from provided zip file - %s", err), nil)
+				api.InternalError(c, fmt.Sprintf("Failed to get file list from provided zip file - %s", err))
 				return
 			}
 
 			// Validate there are files inside the zip
 			if len(fileNames) < 1 {
-				api.GenericResponse(c, http.StatusBadRequest, "Provided zip file is empty", nil)
+				api.BadRequest(c, "Provided zip file is empty")
 				return
 			}
 
@@ -182,14 +182,14 @@ func UploadAndInstallApp(c *gin.Context) {
 				// We use the file content we read above to unzip from memory without storing the zip file at all
 				err = utils.UnzipInMemory(buf.Bytes(), uploadDir)
 				if err != nil {
-					api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to unzip the file - %s", err), nil)
+					api.InternalError(c, fmt.Sprintf("Failed to unzip the file - %s", err))
 					return
 				}
 
 				// Attempt to install the unzipped app file
 				err = devices.InstallApp(dev, fileNames[0])
 				if err != nil {
-					api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to install app - %s", err), nil)
+					api.InternalError(c, fmt.Sprintf("Failed to install app - %s", err))
 					return
 				}
 
@@ -205,14 +205,14 @@ func UploadAndInstallApp(c *gin.Context) {
 				// We use the file content we read above to unzip from memory without storing the zip file at all
 				err = utils.UnzipInMemory(buf.Bytes(), uploadDir)
 				if err != nil {
-					api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to unzip .app directory - %s", err), nil)
+					api.InternalError(c, fmt.Sprintf("Failed to unzip .app directory - %s", err))
 					return
 				}
 
 				// Attempt to install the unzipped .app directory
 				err = devices.InstallApp(dev, fileNames[0])
 				if err != nil {
-					api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to install unzipped .app directory - %s", err), nil)
+					api.InternalError(c, fmt.Sprintf("Failed to install unzipped .app directory - %s", err))
 					return
 				}
 
@@ -224,11 +224,11 @@ func UploadAndInstallApp(c *gin.Context) {
 					}
 				}()
 			}
-			api.GenericResponse(c, http.StatusOK, "App uploaded and installed successfully", nil)
+			api.OKMessage(c, "App uploaded and installed successfully")
 			return
 		}
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func GetProviderData(c *gin.Context) {
@@ -244,7 +244,7 @@ func GetProviderData(c *gin.Context) {
 	providerData.ProviderData = *config.ProviderConfig
 	providerData.DeviceData = deviceData
 
-	api.GenericResponse(c, http.StatusOK, "", providerData)
+	api.OK(c, "", providerData)
 }
 
 type WdaOrientationResponse struct {
@@ -271,7 +271,7 @@ func DeviceInfo(c *gin.Context) {
 			wdaResp, err := wdaRequest(dev, http.MethodGet, "orientation", nil)
 			if err != nil {
 				dev.CurrentRotation = "portrait"
-				api.GenericResponse(c, http.StatusOK, "", dev)
+				api.OK(c, "", dev)
 				return
 			}
 			defer wdaResp.Body.Close()
@@ -281,16 +281,16 @@ func DeviceInfo(c *gin.Context) {
 			err = json.Unmarshal(responseBody, &responseJson)
 			if err != nil {
 				dev.CurrentRotation = "portrait"
-				api.GenericResponse(c, http.StatusOK, "", dev)
+				api.OK(c, "", dev)
 				return
 			}
 			dev.CurrentRotation = strings.ToLower(responseJson.Orientation)
 		}
 
-		api.GenericResponse(c, http.StatusOK, "", dev)
+		api.OK(c, "", dev)
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func DeviceInstalledApps(c *gin.Context) {
@@ -308,10 +308,10 @@ func DeviceInstalledApps(c *gin.Context) {
 		case "webos":
 			installedApps = devices.GetInstalledAppsWebOS(dev)
 		}
-		api.GenericResponse(c, http.StatusOK, "", installedApps)
+		api.OK(c, "", installedApps)
 		return
 	}
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func DeviceChangeRotation(c *gin.Context) {
@@ -321,13 +321,13 @@ func DeviceChangeRotation(c *gin.Context) {
 	dev, ok := devices.DBDeviceMap[udid]
 	devices.DbDeviceMapMutex.RUnlock()
 	if !ok {
-		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
 
 	var requestBody models.DeviceRotation
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+		api.InternalError(c, err.Error())
 		return
 	}
 
@@ -341,12 +341,12 @@ func DeviceChangeRotation(c *gin.Context) {
 		}
 		orientationJson, err := json.MarshalIndent(requestBody, "", "  ")
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			api.InternalError(c, err.Error())
 			return
 		}
 		_, err = wdaRequest(dev, http.MethodPost, "orientation", bytes.NewReader(orientationJson))
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, err.Error(), nil)
+			api.InternalError(c, err.Error())
 		}
 	}
 }
@@ -360,7 +360,7 @@ func DevicesInfo(c *gin.Context) {
 	}
 	devices.DbDeviceMapMutex.RUnlock()
 
-	api.GenericResponse(c, http.StatusOK, "", deviceList)
+	api.OK(c, "", deviceList)
 }
 
 type ProcessApp struct {
@@ -401,14 +401,14 @@ func UninstallApp(c *gin.Context) {
 	if ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
 		var payloadJson ProcessApp
 		err = json.Unmarshal(payload, &payloadJson)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
@@ -417,21 +417,21 @@ func UninstallApp(c *gin.Context) {
 		if slices.Contains(installedApps, payloadJson.App) {
 			err = devices.UninstallApp(dev, payloadJson.App)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App), installedApps)
+				api.InternalError(c, fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App))
 				return
 			}
 			deletedAppIndex := slices.Index(installedApps, payloadJson.App)
 			if deletedAppIndex != -1 {
 				installedApps = append(installedApps[:deletedAppIndex], installedApps[deletedAppIndex+1:]...)
 			}
-			api.GenericResponse(c, http.StatusOK, fmt.Sprintf("Successfully uninstalled app `%s`", payloadJson.App), installedApps)
+			api.OK(c, fmt.Sprintf("Successfully uninstalled app `%s`", payloadJson.App), installedApps)
 			return
 		}
-		api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App), installedApps)
+		api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
 		return
 	}
 
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func LaunchApp(c *gin.Context) {
@@ -440,21 +440,21 @@ func LaunchApp(c *gin.Context) {
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
 		var payloadJson ProcessApp
 		err = json.Unmarshal(payload, &payloadJson)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
 		installedApps := getInstalledAppIDs(dev)
 
 		if !slices.Contains(installedApps, payloadJson.App) {
-			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App), installedApps)
+			api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
 			return
 		}
 
@@ -465,20 +465,20 @@ func LaunchApp(c *gin.Context) {
 		case "webos":
 			launchErr = devices.LaunchAppWebOS(dev, payloadJson.App)
 		default:
-			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Launch app not supported for OS: %s", dev.OS), nil)
+			api.BadRequest(c, fmt.Sprintf("Launch app not supported for OS: %s", dev.OS))
 			return
 		}
 
 		if launchErr != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to launch app `%s`: %v", payloadJson.App, launchErr), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to launch app `%s`: %v", payloadJson.App, launchErr))
 			return
 		}
 
-		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("Successfully launched app `%s`", payloadJson.App), installedApps)
+		api.OK(c, fmt.Sprintf("Successfully launched app `%s`", payloadJson.App), installedApps)
 		return
 	}
 
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func CloseApp(c *gin.Context) {
@@ -487,21 +487,21 @@ func CloseApp(c *gin.Context) {
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
 		var payloadJson ProcessApp
 		err = json.Unmarshal(payload, &payloadJson)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
 		installedApps := getInstalledAppIDs(dev)
 
 		if !slices.Contains(installedApps, payloadJson.App) {
-			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App), installedApps)
+			api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
 			return
 		}
 
@@ -512,20 +512,20 @@ func CloseApp(c *gin.Context) {
 		case "webos":
 			closeErr = devices.CloseAppWebOS(dev, payloadJson.App)
 		default:
-			api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Close app not supported for OS: %s", dev.OS), nil)
+			api.BadRequest(c, fmt.Sprintf("Close app not supported for OS: %s", dev.OS))
 			return
 		}
 
 		if closeErr != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to close app `%s`: %v", payloadJson.App, closeErr), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to close app `%s`: %v", payloadJson.App, closeErr))
 			return
 		}
 
-		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("Successfully closed app `%s`", payloadJson.App), installedApps)
+		api.OK(c, fmt.Sprintf("Successfully closed app `%s`", payloadJson.App), installedApps)
 		return
 	}
 
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func ResetDevice(c *gin.Context) {
@@ -537,21 +537,21 @@ func ResetDevice(c *gin.Context) {
 
 	if ok {
 		if device.IsResetting {
-			api.GenericResponse(c, http.StatusConflict, "Device setup is already being reset", nil)
+			api.Conflict(c, "Device setup is already being reset")
 			return
 		}
 		if device.ProviderState != "live" {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Only devices in `live` state can be reset, current state is `%s`", device.ProviderState), nil)
+			api.InternalError(c, fmt.Sprintf("Only devices in `live` state can be reset, current state is `%s`", device.ProviderState))
 			return
 		}
 
 		devices.ResetLocalDevice(device, "Re-provisioning device")
 
-		api.GenericResponse(c, http.StatusOK, "Initiated device re-provisioning", nil)
+		api.OKMessage(c, "Initiated device re-provisioning")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func UpdateDeviceStreamSettings(c *gin.Context) {
@@ -564,14 +564,14 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 	if ok {
 		payload, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
 		var streamSettings models.UpdateStreamSettings
 		err = json.Unmarshal(payload, &streamSettings)
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Invalid payload", nil)
+			api.BadRequest(c, "Invalid payload")
 			return
 		}
 
@@ -591,7 +591,7 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 
 			err = devices.UpdateWebDriverAgentStreamSettings(device)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to update stream settings - %s", err), nil)
+				api.InternalError(c, fmt.Sprintf("Failed to update stream settings - %s", err))
 				return
 			}
 		} else {
@@ -606,7 +606,7 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 			}
 
 			if err = devices.UpdateGadsStreamSettings(device); err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to update stream settings - %s", err), nil)
+				api.InternalError(c, fmt.Sprintf("Failed to update stream settings - %s", err))
 				return
 			}
 		}
@@ -620,15 +620,15 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 
 		err = db.GlobalMongoStore.UpdateDeviceStreamSettings(udid, deviceStreamSettings)
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, "Failed to update device stream settings in the DB", nil)
+			api.InternalError(c, "Failed to update device stream settings in the DB")
 			return
 		}
 
-		api.GenericResponse(c, http.StatusOK, "Stream settings updated", nil)
+		api.OKMessage(c, "Stream settings updated")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func DeviceFiles(c *gin.Context) {
@@ -642,31 +642,31 @@ func DeviceFiles(c *gin.Context) {
 		if device.OS == "android" {
 			filesResp, err := androidRemoteServerRequest(device, http.MethodGet, "files", nil)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, "Failed to get shared storage file tree", nil)
+				api.InternalError(c, "Failed to get shared storage file tree")
 				return
 			}
 			defer filesResp.Body.Close()
 
 			payload, err := io.ReadAll(filesResp.Body)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, "Failed to read shared storage file tree response", nil)
+				api.InternalError(c, "Failed to read shared storage file tree response")
 				return
 			}
 			var fileTree models.AndroidFileNode
 			err = json.Unmarshal(payload, &fileTree)
 			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, "Failed to unmarshal storage file tree response", nil)
+				api.InternalError(c, "Failed to unmarshal storage file tree response")
 				return
 			}
 
-			api.GenericResponse(c, http.StatusOK, "Successfully got shared storage file tree", fileTree)
+			api.OK(c, "Successfully got shared storage file tree", fileTree)
 			return
 		} else {
-			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported on iOS", nil)
+			api.BadRequest(c, "Functionality not supported on iOS")
 		}
 	}
 
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func PushFileToSharedStorage(c *gin.Context) {
@@ -678,14 +678,14 @@ func PushFileToSharedStorage(c *gin.Context) {
 
 	if ok {
 		if device.OS == "ios" {
-			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			api.BadRequest(c, "Functionality not supported for iOS devices")
 			return
 		}
 
 		destPath := c.PostForm("destPath")
 		file, err := c.FormFile("file")
 		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Missing file in form data", nil)
+			api.BadRequest(c, "Missing file in form data")
 			return
 		}
 
@@ -695,7 +695,7 @@ func PushFileToSharedStorage(c *gin.Context) {
 		// Remove the temporary file, we don't want to keep it on long running hosts
 		defer os.Remove(tempPath)
 		if err := c.SaveUploadedFile(file, tempPath); err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error))
 			return
 		}
 
@@ -703,21 +703,21 @@ func PushFileToSharedStorage(c *gin.Context) {
 		adbCmd := exec.Command("adb", "-s", device.UDID, "push", tempPath, destPath)
 		_, err = adbCmd.CombinedOutput()
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to push file `%s` to `%s` - %s", file.Filename, destPath, err), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to push file `%s` to `%s` - %s", file.Filename, destPath, err))
 			return
 		}
 
-		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath), nil)
+		api.OKMessage(c, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath))
 	}
 
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func DeleteFileFromSharedStorage(c *gin.Context) {
 	udid := c.Param("udid")
 	filePath := c.PostForm("filePath")
 	if filePath == "" {
-		api.GenericResponse(c, http.StatusBadRequest, "Missing filePath in form data", nil)
+		api.BadRequest(c, "Missing filePath in form data")
 		return
 	}
 
@@ -727,20 +727,20 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 
 	if ok {
 		if device.OS == "ios" {
-			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			api.BadRequest(c, "Functionality not supported for iOS devices")
 			return
 		}
 
 		err := devices.DeleteAndroidSharedStorageFile(device, filePath)
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to delete file on path `%s`", filePath), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to delete file on path `%s`", filePath))
 			return
 		}
 
-		api.GenericResponse(c, http.StatusOK, "Successfully deleted file", nil)
+		api.OKMessage(c, "Successfully deleted file")
 		return
 	}
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
 func createAppiumErrorResponse(message string) gin.H {
@@ -758,7 +758,7 @@ func PullFileFromSharedStorage(c *gin.Context) {
 	filePath := c.PostForm("filePath")
 
 	if filePath == "" {
-		api.GenericResponse(c, http.StatusBadRequest, "Missing filePath or fileName in form data", nil)
+		api.BadRequest(c, "Missing filePath or fileName in form data")
 		return
 	}
 	fileName := filepath.Base(filePath)
@@ -769,14 +769,14 @@ func PullFileFromSharedStorage(c *gin.Context) {
 
 	if ok {
 		if device.OS == "ios" {
-			api.GenericResponse(c, http.StatusBadRequest, "Functionality not supported for iOS devices", nil)
+			api.BadRequest(c, "Functionality not supported for iOS devices")
 			return
 		}
 
 		tempFilePath, err := devices.PullAndroidSharedStorageFile(device, filePath, fileName)
 		defer os.Remove(tempFilePath)
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to pull file from path `%s` to a temporary directory", filePath), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to pull file from path `%s` to a temporary directory", filePath))
 			return
 		}
 
@@ -785,5 +785,5 @@ func PullFileFromSharedStorage(c *gin.Context) {
 		c.File(tempFilePath)
 		return
 	}
-	api.GenericResponse(c, http.StatusBadRequest, fmt.Sprintf("Did not find device with udid `%s`", udid), nil)
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
