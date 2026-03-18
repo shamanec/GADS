@@ -10,11 +10,11 @@
 package router
 
 import (
+	"GADS/common/api"
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth/clientcredentials"
 	"context"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,16 +26,16 @@ import (
 // @Accept json
 // @Produce json
 // @Param request body models.CreateCredentialRequest true "Create credential request"
-// @Success 201 {object} models.CreateCredentialResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 401 {object} models.ErrorResponse
-// @Failure 500 {object} models.ErrorResponse
+// @Success 201 {object} models.CredentialCreateResponse
+// @Failure 400 {object} models.MessageResponse
+// @Failure 401 {object} models.MessageResponse
+// @Failure 500 {object} models.MessageResponse
 // @Security BearerAuth
 // @Router /client-credentials [post]
 func CreateClientCredential(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+		api.Unauthorized(c, "unauthorized")
 		return
 	}
 
@@ -47,7 +47,7 @@ func CreateClientCredential(c *gin.Context) {
 
 	var req models.CreateCredentialRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid request format"})
+		api.BadRequest(c, "invalid request format")
 		return
 	}
 
@@ -61,7 +61,7 @@ func CreateClientCredential(c *gin.Context) {
 		tenantStr,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "failed to create credential"})
+		api.InternalError(c, "failed to create credential")
 		return
 	}
 
@@ -75,7 +75,7 @@ func CreateClientCredential(c *gin.Context) {
 		CapabilityPrefix: capabilityPrefix,
 	}
 
-	c.JSON(http.StatusCreated, response)
+	api.Created(c, "", response)
 }
 
 // ListClientCredentials godoc
@@ -83,15 +83,15 @@ func CreateClientCredential(c *gin.Context) {
 // @Description Get all client credentials for the authenticated user
 // @Tags Client Credentials
 // @Produce json
-// @Success 200 {object} models.ClientCredentialsListResponse
-// @Failure 401 {object} models.ErrorResponse
-// @Failure 500 {object} models.ErrorResponse
+// @Success 200 {object} models.CredentialListResponse
+// @Failure 401 {object} models.MessageResponse
+// @Failure 500 {object} models.MessageResponse
 // @Security BearerAuth
 // @Router /client-credentials [get]
 func ListClientCredentials(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+		api.Unauthorized(c, "unauthorized")
 		return
 	}
 
@@ -109,7 +109,7 @@ func ListClientCredentials(c *gin.Context) {
 		tenantStr,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "failed to list credentials"})
+		api.InternalError(c, "failed to list credentials")
 		return
 	}
 
@@ -134,7 +134,7 @@ func ListClientCredentials(c *gin.Context) {
 		Total:       int64(len(credentialResponses)),
 	}
 
-	c.JSON(http.StatusOK, response)
+	api.OK(c, "", response)
 }
 
 // GetClientCredential godoc
@@ -143,17 +143,17 @@ func ListClientCredentials(c *gin.Context) {
 // @Tags Client Credentials
 // @Produce json
 // @Param id path string true "Client ID"
-// @Success 200 {object} models.CredentialResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 401 {object} models.ErrorResponse
-// @Failure 403 {object} models.ErrorResponse
-// @Failure 404 {object} models.ErrorResponse
+// @Success 200 {object} models.MessageResponse
+// @Failure 400 {object} models.MessageResponse
+// @Failure 401 {object} models.MessageResponse
+// @Failure 403 {object} models.MessageResponse
+// @Failure 404 {object} models.MessageResponse
 // @Security BearerAuth
 // @Router /client-credentials/{id} [get]
 func GetClientCredential(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+		api.Unauthorized(c, "unauthorized")
 		return
 	}
 
@@ -165,7 +165,7 @@ func GetClientCredential(c *gin.Context) {
 
 	clientID := c.Param("id")
 	if clientID == "" {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "client ID is required"})
+		api.BadRequest(c, "client ID is required")
 		return
 	}
 
@@ -179,10 +179,10 @@ func GetClientCredential(c *gin.Context) {
 	)
 	if err != nil {
 		if err.Error() == "access denied: not owner" || err.Error() == "access denied: wrong tenant" {
-			c.JSON(http.StatusForbidden, models.ErrorResponse{Error: "access denied"})
+			api.Forbidden(c, "access denied")
 			return
 		}
-		c.JSON(http.StatusNotFound, models.ErrorResponse{Error: "credential not found"})
+		api.NotFound(c, "credential not found")
 		return
 	}
 
@@ -199,7 +199,7 @@ func GetClientCredential(c *gin.Context) {
 		LastUsedAt:  lastUsedAt,
 	}
 
-	c.JSON(http.StatusOK, response)
+	api.OK(c, "", response)
 }
 
 // UpdateClientCredential godoc
@@ -210,17 +210,17 @@ func GetClientCredential(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Param request body models.UpdateCredentialRequest true "Update credential request"
-// @Success 200 {object} models.CredentialResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 401 {object} models.ErrorResponse
-// @Failure 403 {object} models.ErrorResponse
-// @Failure 404 {object} models.ErrorResponse
+// @Success 200 {object} models.MessageResponse
+// @Failure 400 {object} models.MessageResponse
+// @Failure 401 {object} models.MessageResponse
+// @Failure 403 {object} models.MessageResponse
+// @Failure 404 {object} models.MessageResponse
 // @Security BearerAuth
 // @Router /client-credentials/{id} [put]
 func UpdateClientCredential(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+		api.Unauthorized(c, "unauthorized")
 		return
 	}
 
@@ -232,13 +232,13 @@ func UpdateClientCredential(c *gin.Context) {
 
 	clientID := c.Param("id")
 	if clientID == "" {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "client ID is required"})
+		api.BadRequest(c, "client ID is required")
 		return
 	}
 
 	var req models.UpdateCredentialRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid request format"})
+		api.BadRequest(c, "invalid request format")
 		return
 	}
 
@@ -254,10 +254,10 @@ func UpdateClientCredential(c *gin.Context) {
 	)
 	if err != nil {
 		if err.Error() == "access denied: not owner" || err.Error() == "access denied: wrong tenant" {
-			c.JSON(http.StatusForbidden, models.ErrorResponse{Error: "access denied"})
+			api.Forbidden(c, "access denied")
 			return
 		}
-		c.JSON(http.StatusNotFound, models.ErrorResponse{Error: "credential not found"})
+		api.NotFound(c, "credential not found")
 		return
 	}
 
@@ -269,7 +269,7 @@ func UpdateClientCredential(c *gin.Context) {
 		tenantStr,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "failed to retrieve updated credential"})
+		api.InternalError(c, "failed to retrieve updated credential")
 		return
 	}
 
@@ -286,7 +286,7 @@ func UpdateClientCredential(c *gin.Context) {
 		LastUsedAt:  lastUsedAt,
 	}
 
-	c.JSON(http.StatusOK, response)
+	api.OK(c, "", response)
 }
 
 // RevokeClientCredential godoc
@@ -295,17 +295,17 @@ func UpdateClientCredential(c *gin.Context) {
 // @Tags Client Credentials
 // @Produce json
 // @Param id path string true "Client ID"
-// @Success 200 {object} models.SuccessResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 401 {object} models.ErrorResponse
-// @Failure 403 {object} models.ErrorResponse
-// @Failure 404 {object} models.ErrorResponse
+// @Success 200 {object} models.MessageResponse
+// @Failure 400 {object} models.MessageResponse
+// @Failure 401 {object} models.MessageResponse
+// @Failure 403 {object} models.MessageResponse
+// @Failure 404 {object} models.MessageResponse
 // @Security BearerAuth
 // @Router /client-credentials/{id} [delete]
 func RevokeClientCredential(c *gin.Context) {
 	username, exists := c.Get("username")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
+		api.Unauthorized(c, "unauthorized")
 		return
 	}
 
@@ -317,7 +317,7 @@ func RevokeClientCredential(c *gin.Context) {
 
 	clientID := c.Param("id")
 	if clientID == "" {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "client ID is required"})
+		api.BadRequest(c, "client ID is required")
 		return
 	}
 
@@ -331,12 +331,12 @@ func RevokeClientCredential(c *gin.Context) {
 	)
 	if err != nil {
 		if err.Error() == "access denied: not owner" || err.Error() == "access denied: wrong tenant" {
-			c.JSON(http.StatusForbidden, models.ErrorResponse{Error: "access denied"})
+			api.Forbidden(c, "access denied")
 			return
 		}
-		c.JSON(http.StatusNotFound, models.ErrorResponse{Error: "credential not found"})
+		api.NotFound(c, "credential not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, models.SuccessResponse{Message: "credential revoked successfully"})
+	api.OKMessage(c, "credential revoked successfully")
 }
