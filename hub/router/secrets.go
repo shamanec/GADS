@@ -10,9 +10,10 @@
 package router
 
 import (
+	"GADS/common/api"
 	"GADS/common/db"
+	"GADS/common/models"
 	"GADS/hub/auth"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -21,6 +22,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+func secretKeyToResponse(key *auth.SecretKey) models.SecretKeyResponse {
+	return models.SecretKeyResponse{
+		ID:                    key.ID.Hex(),
+		Origin:                key.Origin,
+		IsDefault:             key.IsDefault,
+		CreatedAt:             key.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:             key.UpdatedAt.Format(time.RFC3339),
+		UserIdentifierClaim:   key.UserIdentifierClaim,
+		TenantIdentifierClaim: key.TenantIdentifierClaim,
+	}
+}
+
 // GetSecretKeys godoc
 // @Summary      Get all secret keys
 // @Description  Retrieve list of all secret keys in the system
@@ -28,8 +41,8 @@ import (
 // @Accept       json
 // @Produce      json
 // @Param        status  query  string  false  "Filter by status (active/disabled)"
-// @Success      200     {array}  models.SecretKeyResponse
-// @Failure      500     {object}  models.ErrorResponse
+// @Success      200     {object}  models.SecretKeyListResponse
+// @Failure      500     {object}  models.MessageResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys [get]
 func GetSecretKeys(c *gin.Context) {
@@ -37,25 +50,17 @@ func GetSecretKeys(c *gin.Context) {
 	store := auth.NewSecretStore(db.GlobalMongoStore.GetDefaultDatabase())
 	keys, err := store.GetAllSecretKeys()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get secret keys"})
+		api.InternalError(c, "Failed to get secret keys")
 		return
 	}
 
 	// Don't expose the actual secret key values in the response for security
-	var response []gin.H = []gin.H{}
+	response := make([]models.SecretKeyResponse, 0, len(keys))
 	for _, key := range keys {
-		response = append(response, gin.H{
-			"id":                      key.ID.Hex(),
-			"origin":                  key.Origin,
-			"is_default":              key.IsDefault,
-			"created_at":              key.CreatedAt,
-			"updated_at":              key.UpdatedAt,
-			"user_identifier_claim":   key.UserIdentifierClaim,
-			"tenant_identifier_claim": key.TenantIdentifierClaim,
-		})
+		response = append(response, secretKeyToResponse(key))
 	}
 
-	c.JSON(http.StatusOK, gin.H{"secret_keys": response})
+	api.OK(c, "", response)
 }
 
 // AddSecretKey godoc
@@ -65,16 +70,16 @@ func GetSecretKeys(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        secretKey  body      models.SecretKeyRequest  true  "Secret key data"
-// @Success      200        {object}  models.SecretKeyResponse
-// @Failure      400        {object}  models.ErrorResponse
-// @Failure      500        {object}  models.ErrorResponse
+// @Success      200        {object}  models.SecretKeyListResponse
+// @Failure      400        {object}  models.MessageResponse
+// @Failure      500        {object}  models.MessageResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys [post]
 func AddSecretKey(c *gin.Context) {
 	// Get username from user claims for audit
 	username, exists := getUsernameFromContext(c)
 	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user information"})
+		api.InternalError(c, "Failed to get user information")
 		return
 	}
 
@@ -88,7 +93,7 @@ func AddSecretKey(c *gin.Context) {
 		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		api.BadRequest(c, "Invalid request body")
 		return
 	}
 
@@ -108,10 +113,10 @@ func AddSecretKey(c *gin.Context) {
 	err := store.AddSecretKey(secretKey, username, request.Justification)
 	if err != nil {
 		if err == auth.ErrDuplicateOrigin {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "An origin with this name already exists"})
+			api.BadRequest(c, "An origin with this name already exists")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add secret key"})
+		api.InternalError(c, "Failed to add secret key")
 		return
 	}
 
@@ -122,15 +127,7 @@ func AddSecretKey(c *gin.Context) {
 	}
 
 	// Return success response
-	c.JSON(http.StatusOK, gin.H{
-		"id":                      secretKey.ID.Hex(),
-		"origin":                  secretKey.Origin,
-		"is_default":              secretKey.IsDefault,
-		"created_at":              secretKey.CreatedAt,
-		"updated_at":              secretKey.UpdatedAt,
-		"user_identifier_claim":   secretKey.UserIdentifierClaim,
-		"tenant_identifier_claim": secretKey.TenantIdentifierClaim,
-	})
+	api.OK(c, "", secretKeyToResponse(secretKey))
 }
 
 // UpdateSecretKey godoc
@@ -141,17 +138,17 @@ func AddSecretKey(c *gin.Context) {
 // @Produce      json
 // @Param        id         path      string                   true  "Secret key ID"
 // @Param        secretKey  body      models.SecretKeyRequest  true  "Secret key data"
-// @Success      200        {object}  models.SecretKeyResponse
-// @Failure      400        {object}  models.ErrorResponse
-// @Failure      404        {object}  models.ErrorResponse
-// @Failure      500        {object}  models.ErrorResponse
+// @Success      200        {object}  models.SecretKeyListResponse
+// @Failure      400        {object}  models.MessageResponse
+// @Failure      404        {object}  models.MessageResponse
+// @Failure      500        {object}  models.MessageResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/{id} [put]
 func UpdateSecretKey(c *gin.Context) {
 	// Get username from user claims for audit
 	username, exists := getUsernameFromContext(c)
 	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user information"})
+		api.InternalError(c, "Failed to get user information")
 		return
 	}
 
@@ -159,7 +156,7 @@ func UpdateSecretKey(c *gin.Context) {
 	id := c.Param("id")
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		api.BadRequest(c, "Invalid ID")
 		return
 	}
 
@@ -172,7 +169,7 @@ func UpdateSecretKey(c *gin.Context) {
 		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		api.BadRequest(c, "Invalid request body")
 		return
 	}
 
@@ -181,10 +178,10 @@ func UpdateSecretKey(c *gin.Context) {
 	secretKey, err := store.GetSecretKeyByID(objectID)
 	if err != nil {
 		if err == auth.ErrSecretKeyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Secret key not found"})
+			api.NotFound(c, "Secret key not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get secret key"})
+		api.InternalError(c, "Failed to get secret key")
 		return
 	}
 
@@ -205,7 +202,7 @@ func UpdateSecretKey(c *gin.Context) {
 	// Save secret key to database
 	err = store.UpdateSecretKey(secretKey, username, request.Justification)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update secret key"})
+		api.InternalError(c, "Failed to update secret key")
 		return
 	}
 
@@ -216,15 +213,7 @@ func UpdateSecretKey(c *gin.Context) {
 	}
 
 	// Return success response
-	c.JSON(http.StatusOK, gin.H{
-		"id":                      secretKey.ID.Hex(),
-		"origin":                  secretKey.Origin,
-		"is_default":              secretKey.IsDefault,
-		"created_at":              secretKey.CreatedAt,
-		"updated_at":              secretKey.UpdatedAt,
-		"user_identifier_claim":   secretKey.UserIdentifierClaim,
-		"tenant_identifier_claim": secretKey.TenantIdentifierClaim,
-	})
+	api.OK(c, "", secretKeyToResponse(secretKey))
 }
 
 // DisableSecretKey godoc
@@ -235,17 +224,17 @@ func UpdateSecretKey(c *gin.Context) {
 // @Produce      json
 // @Param        id            path      string                        true  "Secret key ID"
 // @Param        justification body      models.JustificationRequest  true  "Justification for disabling"
-// @Success      200           {object}  models.SuccessResponse
-// @Failure      400           {object}  models.ErrorResponse
-// @Failure      404           {object}  models.ErrorResponse
-// @Failure      500           {object}  models.ErrorResponse
+// @Success      200           {object}  models.MessageResponse
+// @Failure      400           {object}  models.MessageResponse
+// @Failure      404           {object}  models.MessageResponse
+// @Failure      500           {object}  models.MessageResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/{id} [delete]
 func DisableSecretKey(c *gin.Context) {
 	// Get username from user claims for audit
 	username, exists := getUsernameFromContext(c)
 	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user information"})
+		api.InternalError(c, "Failed to get user information")
 		return
 	}
 
@@ -253,7 +242,7 @@ func DisableSecretKey(c *gin.Context) {
 	id := c.Param("id")
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		api.BadRequest(c, "Invalid ID")
 		return
 	}
 
@@ -262,7 +251,7 @@ func DisableSecretKey(c *gin.Context) {
 		Justification string `json:"justification" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body or missing justification"})
+		api.BadRequest(c, "Invalid request body or missing justification")
 		return
 	}
 
@@ -271,14 +260,14 @@ func DisableSecretKey(c *gin.Context) {
 	err = store.DisableSecretKey(objectID, username, request.Justification)
 	if err != nil {
 		if err == auth.ErrSecretKeyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Secret key not found"})
+			api.NotFound(c, "Secret key not found")
 			return
 		}
 		if err == auth.ErrCannotDisableDefault {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot disable the default secret key"})
+			api.BadRequest(c, "Cannot disable the default secret key")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to disable secret key"})
+		api.InternalError(c, "Failed to disable secret key")
 		return
 	}
 
@@ -289,7 +278,7 @@ func DisableSecretKey(c *gin.Context) {
 	}
 
 	// Return success response
-	c.JSON(http.StatusOK, gin.H{"message": "Secret key disabled"})
+	api.OKMessage(c, "Secret key disabled")
 }
 
 // GetSecretKeyHistory godoc
@@ -305,8 +294,8 @@ func DisableSecretKey(c *gin.Context) {
 // @Param        username  query  string  false  "Filter by username"
 // @Param        from_date query  string  false  "Filter from date (RFC3339 format)"
 // @Param        to_date   query  string  false  "Filter to date (RFC3339 format)"
-// @Success      200       {object}  models.SecretKeyHistoryResponse
-// @Failure      500       {object}  models.ErrorResponse
+// @Success      200       {object}  models.WorkspacePageResponse
+// @Failure      500       {object}  models.MessageResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/history [get]
 func GetSecretKeyHistory(c *gin.Context) {
@@ -355,13 +344,18 @@ func GetSecretKeyHistory(c *gin.Context) {
 	auditStore := store.GetSecretKeyAuditStore()
 	logs, total, err := auditStore.GetHistory(page, limit, filters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve audit history"})
+		api.InternalError(c, "Failed to retrieve audit history")
 		return
 	}
 
 	// Format response
-	response := auth.FormatHistoryResponse(logs, total, page, limit)
-	c.JSON(http.StatusOK, response)
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	api.OK(c, "", models.Page[auth.SecretKeyAuditLog]{
+		Items:      logs,
+		Total:      total,
+		Page:       page,
+		TotalPages: totalPages,
+	})
 }
 
 // GetSecretKeyHistoryByID godoc
@@ -372,23 +366,23 @@ func GetSecretKeyHistory(c *gin.Context) {
 // @Produce      json
 // @Param        id  path      string  true  "Audit log ID"
 // @Success      200 {object}  models.SecretKeyAuditLogResponse
-// @Failure      400 {object}  models.ErrorResponse
-// @Failure      404 {object}  models.ErrorResponse
-// @Failure      500 {object}  models.ErrorResponse
+// @Failure      400 {object}  models.MessageResponse
+// @Failure      404 {object}  models.MessageResponse
+// @Failure      500 {object}  models.MessageResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/history/{id} [get]
 func GetSecretKeyHistoryByID(c *gin.Context) {
 	// Extract ID from URL
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing log ID"})
+		api.BadRequest(c, "Missing log ID")
 		return
 	}
 
 	// Convert to ObjectID
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid log ID format"})
+		api.BadRequest(c, "Invalid log ID format")
 		return
 	}
 
@@ -398,15 +392,15 @@ func GetSecretKeyHistoryByID(c *gin.Context) {
 	log, err := auditStore.GetAuditLogByID(objectID)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Audit log not found"})
+			api.NotFound(c, "Audit log not found")
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve audit log"})
+			api.InternalError(c, "Failed to retrieve audit log")
 		}
 		return
 	}
 
 	// Respond with the record
-	c.JSON(http.StatusOK, log)
+	api.OK(c, "", log)
 }
 
 // getUsernameFromContext extracts username from JWT claims or context
