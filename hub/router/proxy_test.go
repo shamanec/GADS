@@ -160,6 +160,38 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDevicesData.Mu.Unlock()
 	})
 
+	t.Run("HTTP Lease Lock By Another User - Should Return 409", func(t *testing.T) {
+		udid := "test-device-http-lease-in-use"
+		currentTime := time.Now().UnixMilli()
+		devices.HubDevicesData.Mu.Lock()
+		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
+			Device: models.Device{
+				UDID: udid,
+				Host: "localhost:8080",
+			},
+			Available:          true,
+			InUseBy:            "another-user",
+			InUseByTenant:      "tenant-a",
+			InUseTS:            currentTime,
+			InUseHTTPExpiresAt: currentTime + 60000,
+		}
+		devices.HubDevicesData.Mu.Unlock()
+
+		router := gin.New()
+		router.GET("/device/:udid/*path", DeviceProxyHandler)
+
+		req, _ := http.NewRequest("GET", "/device/"+udid+"/status", nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+
+		devices.HubDevicesData.Mu.Lock()
+		delete(devices.HubDevicesData.Devices, udid)
+		devices.HubDevicesData.Mu.Unlock()
+	})
+
 	t.Run("Missing Client Credentials - Should Return W3C Error Format", func(t *testing.T) {
 		// Setup a device
 		udid := "test-device-no-credentials"

@@ -201,7 +201,7 @@ func GetInstalledAppsIOS(device *models.Device) []string {
 func uninstallAppIOS(device *models.Device, bundleID string) error {
 	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
 	if err != nil {
-		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed creating installation proxy connection - %v", bundleID, err))
+		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed creating installation proxy connection for bundleID `%s` - %v", bundleID, err))
 		return err
 	}
 	err = svc.Uninstall(bundleID)
@@ -239,7 +239,7 @@ func installAppIOS(device *models.Device, appPath string) error {
 func launchAppIOS(device *models.Device, bundleID string, killExisting bool) error {
 	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
 	if err != nil {
-		return fmt.Errorf("launchAppIOS: Failed to initiate process control launching app with bundleID `$s` - %s", bundleID, err)
+		return fmt.Errorf("launchAppIOS: Failed to initiate process control launching app with bundleID `%s` - %s", bundleID, err)
 	}
 
 	opts := map[string]any{}

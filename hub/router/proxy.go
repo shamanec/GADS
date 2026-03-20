@@ -11,9 +11,13 @@ package router
 
 import (
 	"GADS/common/db"
+	"GADS/common/models"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -87,12 +91,44 @@ func DeviceProxyHandler(c *gin.Context) {
 		}
 	}
 
+	if c.Request.Method == http.MethodPost && strings.HasSuffix(path, "/session") && authToken == "" {
+		requestBody, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read session request body"})
+			return
+		}
+
+		// Restore request body so the downstream proxy can read it.
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
+
+		var sessionRequest map[string]interface{}
+		err = json.Unmarshal(requestBody, &sessionRequest)
+		if err == nil {
+			clientSecret := models.ExtractClientSecretFromSession(sessionRequest, capabilityPrefix)
+			if clientSecret == "" {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"value": gin.H{
+						"error":      "invalid argument",
+						"message":    fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix),
+						"stacktrace": "",
+					},
+				})
+				return
+			}
+		}
+	}
+
+	now := time.Now().UnixMilli()
+
 	devices.HubDevicesData.Mu.Lock()
 	device, ok := devices.HubDevicesData.Devices[udid]
+	if ok && device != nil {
+		clearExpiredHTTPLeaseLocked(device, now)
+	}
 
 	// Verify if the device is already in use by another user
 	if ok && device != nil && device.InUseBy != "" &&
-		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
+		(device.InUseWSConnection != nil || hasActiveHTTPLeaseLocked(device, now) || (now-device.InUseTS) < 3000) &&
 		(device.InUseBy != username || device.InUseByTenant != tenant) {
 
 		devices.HubDevicesData.Mu.Unlock()

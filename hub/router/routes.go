@@ -37,6 +37,88 @@ var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
 
+const (
+	minDeviceLockTimeoutMS int64 = 1000
+	maxDeviceLockTimeoutMS int64 = 6 * 60 * 60 * 1000
+)
+
+func clearManualLockFields(device *models.LocalHubDevice) {
+	device.InUseTS = 0
+	device.InUseBy = ""
+	device.InUseByTenant = ""
+	device.InUseHTTPExpiresAt = 0
+}
+
+func clearExpiredHTTPLeaseLocked(device *models.LocalHubDevice, now int64) {
+	if device == nil || device.InUseWSConnection != nil {
+		return
+	}
+
+	if device.InUseHTTPExpiresAt > 0 && device.InUseHTTPExpiresAt <= now {
+		device.InUseHTTPExpiresAt = 0
+		if !device.IsRunningAutomation {
+			clearManualLockFields(device)
+		}
+	}
+}
+
+func hasActiveHTTPLeaseLocked(device *models.LocalHubDevice, now int64) bool {
+	if device == nil || device.InUseWSConnection != nil {
+		return false
+	}
+
+	return device.InUseHTTPExpiresAt > now && device.InUseBy != ""
+}
+
+func hasActiveManualLockLocked(device *models.LocalHubDevice, now int64) bool {
+	if device == nil {
+		return false
+	}
+
+	if device.InUseWSConnection != nil {
+		return true
+	}
+
+	return hasActiveHTTPLeaseLocked(device, now)
+}
+
+func scheduleHTTPLeaseRelease(udid string, username string, tenant string, expiresAt int64) {
+	delay := time.Until(time.UnixMilli(expiresAt))
+	if delay < 0 {
+		delay = 0
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	<-timer.C
+
+	now := time.Now().UnixMilli()
+
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+
+	device, exists := devices.HubDevicesData.Devices[udid]
+	if !exists || device == nil {
+		return
+	}
+
+	if device.InUseWSConnection != nil {
+		return
+	}
+
+	if device.InUseBy == username &&
+		device.InUseByTenant == tenant &&
+		device.InUseHTTPExpiresAt == expiresAt &&
+		device.InUseHTTPExpiresAt <= now {
+		if !device.IsRunningAutomation {
+			clearManualLockFields(device)
+			return
+		}
+
+		device.InUseHTTPExpiresAt = 0
+	}
+}
+
 // HealthCheck godoc
 // @Summary      Health check endpoint
 // @Description  Check if the GADS hub is running and healthy
@@ -449,6 +531,176 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
+// LockDeviceHTTP godoc
+// @Summary      Lock device for manual control
+// @Description  Acquire a timeout-based lock for a device without websocket heartbeat
+// @Tags         Devices Control
+// @Accept       json
+// @Produce      json
+// @Param        udid  path      string                    true  "Device UDID"
+// @Param        body  body      models.DeviceLockRequest  true  "Lock timeout in milliseconds"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  models.ErrorResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
+// @Failure      409   {object}  models.ErrorResponse
+// @Failure      422   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /devices/control/{udid}/lock [post]
+func LockDeviceHTTP(c *gin.Context) {
+	udid := c.Param("udid")
+	if udid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing device udid"})
+		return
+	}
+
+	usernameValue, usernameExists := c.Get("username")
+	if !usernameExists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	username := fmt.Sprintf("%v", usernameValue)
+
+	tenant := ""
+	if tenantValue, tenantExists := c.Get("tenant"); tenantExists {
+		tenant = fmt.Sprintf("%v", tenantValue)
+	}
+
+	var lockRequest models.DeviceLockRequest
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to parse request body"})
+		return
+	}
+
+	err = json.Unmarshal(body, &lockRequest)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON body"})
+		return
+	}
+
+	if lockRequest.TimeoutMS < minDeviceLockTimeoutMS || lockRequest.TimeoutMS > maxDeviceLockTimeoutMS {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("timeout_ms must be between %d and %d", minDeviceLockTimeoutMS, maxDeviceLockTimeoutMS)})
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	leaseExpiresAt := now + lockRequest.TimeoutMS
+
+	devices.HubDevicesData.Mu.Lock()
+	device, exists := devices.HubDevicesData.Devices[udid]
+	if !exists || device == nil {
+		devices.HubDevicesData.Mu.Unlock()
+		c.JSON(http.StatusNotFound, gin.H{"error": "device not found"})
+		return
+	}
+
+	clearExpiredHTTPLeaseLocked(device, now)
+
+	if !device.Available {
+		devices.HubDevicesData.Mu.Unlock()
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": fmt.Sprintf("Device `%s` is not available", udid)})
+		return
+	}
+
+	isSameUser := device.InUseBy == username && device.InUseByTenant == tenant
+	if device.InUseBy != "" && !isSameUser {
+		if device.InUseWSConnection != nil || hasActiveHTTPLeaseLocked(device, now) || (now-device.InUseTS) < 3000 {
+			devices.HubDevicesData.Mu.Unlock()
+			c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
+			return
+		}
+	}
+
+	device.InUseBy = username
+	device.InUseByTenant = tenant
+	device.InUseTS = now
+	device.LastActionTS = now
+	device.InUseHTTPExpiresAt = leaseExpiresAt
+	devices.HubDevicesData.Mu.Unlock()
+
+	go scheduleHTTPLeaseRelease(udid, username, tenant, leaseExpiresAt)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Device lock acquired",
+		"udid":       udid,
+		"in_use_by":  username,
+		"expires_at": leaseExpiresAt,
+	})
+}
+
+// UnlockDeviceHTTP godoc
+// @Summary      Unlock device for manual control
+// @Description  Release a timeout-based lock before it expires
+// @Tags         Devices Control
+// @Accept       json
+// @Produce      json
+// @Param        udid  path      string  true  "Device UDID"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      403   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
+// @Failure      409   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /devices/control/{udid}/unlock [post]
+func UnlockDeviceHTTP(c *gin.Context) {
+	udid := c.Param("udid")
+	if udid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing device udid"})
+		return
+	}
+
+	usernameValue, usernameExists := c.Get("username")
+	if !usernameExists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	username := fmt.Sprintf("%v", usernameValue)
+
+	tenant := ""
+	if tenantValue, tenantExists := c.Get("tenant"); tenantExists {
+		tenant = fmt.Sprintf("%v", tenantValue)
+	}
+
+	role := ""
+	if roleValue, roleExists := c.Get("role"); roleExists {
+		role = fmt.Sprintf("%v", roleValue)
+	}
+
+	now := time.Now().UnixMilli()
+
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+
+	device, exists := devices.HubDevicesData.Devices[udid]
+	if !exists || device == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "device not found"})
+		return
+	}
+
+	clearExpiredHTTPLeaseLocked(device, now)
+
+	if device.InUseWSConnection != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "device has active websocket lock"})
+		return
+	}
+
+	if !hasActiveHTTPLeaseLocked(device, now) {
+		c.JSON(http.StatusOK, gin.H{"message": "Device is not locked by HTTP lease"})
+		return
+	}
+
+	isAdmin := role == "admin"
+	isOwner := device.InUseBy == username && device.InUseByTenant == tenant
+	if !isAdmin && !isOwner {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only lock owner or admin can unlock this device"})
+		return
+	}
+
+	clearManualLockFields(device)
+	c.JSON(http.StatusOK, gin.H{"message": "Device lock released"})
+}
+
 // DeviceInUseWS godoc
 // @Summary      Device in-use WebSocket
 // @Description  WebSocket connection to manage device usage status and control
@@ -501,6 +753,8 @@ func DeviceInUseWS(c *gin.Context) {
 		userTenant = claims.Tenant
 	}
 
+	now := time.Now().UnixMilli()
+
 	// Verify if the device is already in use by another user
 	devices.HubDevicesData.Mu.Lock()
 	device, exists := devices.HubDevicesData.Devices[udid]
@@ -509,6 +763,8 @@ func DeviceInUseWS(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
+
+	clearExpiredHTTPLeaseLocked(device, now)
 
 	// Check if device is in use by another user
 	if device.InUseBy != "" {
@@ -523,7 +779,14 @@ func DeviceInUseWS(c *gin.Context) {
 		}
 
 		// If not the same user and device was used recently, also deny
-		if !isSameUser && (time.Now().UnixMilli()-device.InUseTS) < 3000 {
+		if !isSameUser && hasActiveHTTPLeaseLocked(device, now) {
+			devices.HubDevicesData.Mu.Unlock()
+			c.Status(http.StatusConflict)
+			return
+		}
+
+		// If not the same user and device was used recently, also deny
+		if !isSameUser && (now-device.InUseTS) < 3000 {
 			devices.HubDevicesData.Mu.Unlock()
 			c.Status(http.StatusConflict)
 			return
@@ -536,6 +799,7 @@ func DeviceInUseWS(c *gin.Context) {
 	devices.HubDevicesData.Devices[udid].InUseBy = username
 	devices.HubDevicesData.Devices[udid].InUseByTenant = userTenant
 	devices.HubDevicesData.Devices[udid].LastActionTS = time.Now().UnixMilli()
+	devices.HubDevicesData.Devices[udid].InUseHTTPExpiresAt = 0
 	devices.HubDevicesData.Mu.Unlock()
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
@@ -570,6 +834,7 @@ func DeviceInUseWS(c *gin.Context) {
 			devices.HubDevicesData.Devices[udid].InUseTS = 0
 			devices.HubDevicesData.Devices[udid].InUseBy = ""
 			devices.HubDevicesData.Devices[udid].InUseByTenant = ""
+			devices.HubDevicesData.Devices[udid].InUseHTTPExpiresAt = 0
 		}
 		devices.HubDevicesData.Mu.Unlock()
 	}()
@@ -677,9 +942,7 @@ func DeviceInUseWS(c *gin.Context) {
 			devices.HubDevicesData.Mu.Lock()
 			// Only clear user info if not running automation
 			if !devices.HubDevicesData.Devices[udid].IsRunningAutomation {
-				devices.HubDevicesData.Devices[udid].InUseTS = 0
-				devices.HubDevicesData.Devices[udid].InUseBy = ""
-				devices.HubDevicesData.Devices[udid].InUseByTenant = ""
+				clearManualLockFields(devices.HubDevicesData.Devices[udid])
 			}
 			devices.HubDevicesData.Mu.Unlock()
 			return
@@ -712,6 +975,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 	c.Stream(func(w io.Writer) bool {
 
 		devices.HubDevicesData.Mu.Lock()
+		now := time.Now().UnixMilli()
 		// Extract the keys from the map and order them
 		var hubDeviceMapKeys []string
 		for key := range devices.HubDevicesData.Devices {
@@ -722,13 +986,14 @@ func AvailableDevicesSSE(c *gin.Context) {
 		var deviceList = []*models.LocalHubDevice{}
 		for _, key := range hubDeviceMapKeys {
 			device := devices.HubDevicesData.Devices[key]
+			clearExpiredHTTPLeaseLocked(device, now)
 
 			// Filter by workspace
 			if device.Device.WorkspaceID != workspaceID {
 				continue
 			}
 
-			if device.Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && device.Device.Connected {
+			if device.Device.LastUpdatedTimestamp < (now-3000) && device.Device.Connected {
 				device.Available = false
 			} else if device.Device.ProviderState != "live" {
 				device.Available = false
@@ -736,7 +1001,8 @@ func AvailableDevicesSSE(c *gin.Context) {
 				device.Available = true
 			}
 
-			if device.InUseTS > (time.Now().UnixMilli() - 3000) {
+			isInUseNow := hasActiveManualLockLocked(device, now) || device.InUseTS > (now-3000)
+			if isInUseNow {
 				if !device.InUse {
 					device.InUse = true
 				}
@@ -1016,25 +1282,50 @@ func GetDevices(c *gin.Context) {
 // @Router       /admin/device/{udid}/release [post]
 func ReleaseUsedDevice(c *gin.Context) {
 	udid := c.Param("udid")
+	now := time.Now().UnixMilli()
+
+	devices.HubDevicesData.Mu.Lock()
+	defer devices.HubDevicesData.Mu.Unlock()
+
+	device, exists := devices.HubDevicesData.Devices[udid]
+	if !exists || device == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "device not found"})
+		return
+	}
+
+	clearExpiredHTTPLeaseLocked(device, now)
+
+	if device.InUseWSConnection == nil {
+		if hasActiveHTTPLeaseLocked(device, now) {
+			clearManualLockFields(device)
+			c.JSON(http.StatusOK, gin.H{"message": "Device HTTP lock was successfully released"})
+			return
+		}
+
+		if device.InUseBy != "" && !device.IsRunningAutomation {
+			clearManualLockFields(device)
+			c.JSON(http.StatusOK, gin.H{"message": "Device lock was successfully released"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Device is not currently locked"})
+		return
+	}
 
 	// Send a release device message on the device in use websocket connection
 	deviceInUseMessage := models.DeviceInUseMessage{
 		Type: "releaseDevice",
 	}
 	deviceInUseMessageJson, _ := json.Marshal(deviceInUseMessage)
-
-	devices.HubDevicesData.Mu.Lock()
-	defer devices.HubDevicesData.Mu.Unlock()
-	err := wsutil.WriteServerText(devices.HubDevicesData.Devices[udid].InUseWSConnection, deviceInUseMessageJson)
+	err := wsutil.WriteServerText(device.InUseWSConnection, deviceInUseMessageJson)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to send release device message - " + err.Error()})
 		return
 	}
 
-	devices.HubDevicesData.Devices[udid].InUseWSConnection.Close()
-	devices.HubDevicesData.Devices[udid].InUseTS = 0
-	devices.HubDevicesData.Devices[udid].InUseBy = ""
-	devices.HubDevicesData.Devices[udid].InUseByTenant = ""
+	device.InUseWSConnection.Close()
+	device.InUseWSConnection = nil
+	clearManualLockFields(device)
 
 	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
 }

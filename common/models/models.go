@@ -208,9 +208,10 @@ type LocalHubDevice struct {
 	InUseTS                  int64    `json:"in_use_ts"`
 	AppiumNewCommandTimeout  int64    `json:"appium_new_command_timeout"`
 	IsAvailableForAutomation bool     `json:"is_available_for_automation"`
-	Available                bool     `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
-	InUseWSConnection        net.Conn `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
-	LastActionTS             int64    `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
+	Available                bool     `json:"available" bson:"-"`              // if device is currently available - not only connected, but setup completed
+	InUseWSConnection        net.Conn `json:"-" bson:"-"`                      // stores the ws connection made when device is in use to send data from different sources
+	InUseHTTPExpiresAt       int64    `json:"in_use_http_expires_at" bson:"-"` // timestamp until which the device is considered in use based on HTTP requests - this is used to handle the case when a user has a session but didn't connect via WS for some reason, so we can still consider the device in use until this timestamp expires based on the last HTTP request made by the user for this device
+	LastActionTS             int64    `json:"-" bson:"-"`                      // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
 }
 
 type DeviceStreamSettings struct {
@@ -235,6 +236,10 @@ type UpdateStreamSettings struct {
 type DeviceInUseMessage struct {
 	Type    string      `json:"type"`
 	Payload interface{} `json:"payload"`
+}
+
+type DeviceLockRequest struct {
+	TimeoutMS int64 `json:"timeout_ms"`
 }
 
 type DBFile struct {

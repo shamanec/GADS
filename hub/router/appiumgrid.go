@@ -257,10 +257,11 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				foundDevice.IsRunningAutomation = false
 				if resp.StatusCode != http.StatusInternalServerError {
 					// Only clear user info if no manual session is active
-					if foundDevice.InUseWSConnection == nil {
+					if !hasActiveManualLockLocked(foundDevice, time.Now().UnixMilli()) {
 						foundDevice.InUseBy = ""
 						foundDevice.InUseByTenant = ""
 						foundDevice.InUseTS = 0
+						foundDevice.InUseHTTPExpiresAt = 0
 					}
 				}
 				devices.HubDevicesData.Mu.Unlock()
@@ -275,10 +276,11 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 							foundDevice.SessionID = ""
 							foundDevice.IsRunningAutomation = false
 							// Only clear user info if no manual session is active
-							if foundDevice.InUseWSConnection == nil {
+							if !hasActiveManualLockLocked(foundDevice, time.Now().UnixMilli()) {
 								foundDevice.InUseBy = ""
 								foundDevice.InUseByTenant = ""
 								foundDevice.InUseTS = 0
+								foundDevice.InUseHTTPExpiresAt = 0
 							}
 						}
 						devices.HubDevicesData.Mu.Unlock()
@@ -336,10 +338,11 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				automationUser = "unknown"
 			}
 			// Only update InUseBy if no manual session is active
-			if foundDevice.InUseWSConnection == nil {
+			if !hasActiveManualLockLocked(foundDevice, time.Now().UnixMilli()) {
 				foundDevice.InUseBy = automationUser
 				foundDevice.InUseByTenant = credential.Tenant
 				foundDevice.InUseTS = time.Now().UnixMilli()
+				foundDevice.InUseHTTPExpiresAt = 0
 			}
 			devices.HubDevicesData.Mu.Unlock()
 		} else {
@@ -439,10 +442,11 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 						foundDevice.SessionID = ""
 						foundDevice.IsRunningAutomation = false
 						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
+						if !hasActiveManualLockLocked(foundDevice, time.Now().UnixMilli()) {
 							foundDevice.InUseBy = ""
 							foundDevice.InUseByTenant = ""
 							foundDevice.InUseTS = 0
+							foundDevice.InUseHTTPExpiresAt = 0
 						}
 					}
 					devices.HubDevicesData.Mu.Unlock()
@@ -459,10 +463,11 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 						foundDevice.IsAvailableForAutomation = true
 						foundDevice.IsRunningAutomation = false
 						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
+						if !hasActiveManualLockLocked(foundDevice, time.Now().UnixMilli()) {
 							foundDevice.InUseBy = ""
 							foundDevice.InUseByTenant = ""
 							foundDevice.InUseTS = 0
+							foundDevice.InUseHTTPExpiresAt = 0
 						}
 					}
 					devices.HubDevicesData.Mu.Unlock()

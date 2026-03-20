@@ -695,7 +695,7 @@ func PushFileToSharedStorage(c *gin.Context) {
 		// Remove the temporary file, we don't want to keep it on long running hosts
 		defer os.Remove(tempPath)
 		if err := c.SaveUploadedFile(file, tempPath); err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error), nil)
+			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error()), nil)
 			return
 		}
 
