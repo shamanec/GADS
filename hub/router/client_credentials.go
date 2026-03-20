@@ -27,9 +27,9 @@ import (
 // @Produce json
 // @Param request body models.CreateCredentialRequest true "Create credential request"
 // @Success 201 {object} models.CredentialCreateResponse
-// @Failure 400 {object} models.MessageResponse
-// @Failure 401 {object} models.MessageResponse
-// @Failure 500 {object} models.MessageResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Security BearerAuth
 // @Router /client-credentials [post]
 func CreateClientCredential(c *gin.Context) {
@@ -84,8 +84,8 @@ func CreateClientCredential(c *gin.Context) {
 // @Tags Hub - Client Credentials
 // @Produce json
 // @Success 200 {object} models.CredentialListResponse
-// @Failure 401 {object} models.MessageResponse
-// @Failure 500 {object} models.MessageResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
 // @Security BearerAuth
 // @Router /client-credentials [get]
 func ListClientCredentials(c *gin.Context) {
@@ -143,11 +143,11 @@ func ListClientCredentials(c *gin.Context) {
 // @Tags Hub - Client Credentials
 // @Produce json
 // @Param id path string true "Client ID"
-// @Success 200 {object} models.MessageResponse
-// @Failure 400 {object} models.MessageResponse
-// @Failure 401 {object} models.MessageResponse
-// @Failure 403 {object} models.MessageResponse
-// @Failure 404 {object} models.MessageResponse
+// @Success 200 {object} models.CredentialGetResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
 // @Security BearerAuth
 // @Router /client-credentials/{id} [get]
 func GetClientCredential(c *gin.Context) {
@@ -210,11 +210,11 @@ func GetClientCredential(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Client ID"
 // @Param request body models.UpdateCredentialRequest true "Update credential request"
-// @Success 200 {object} models.MessageResponse
-// @Failure 400 {object} models.MessageResponse
-// @Failure 401 {object} models.MessageResponse
-// @Failure 403 {object} models.MessageResponse
-// @Failure 404 {object} models.MessageResponse
+// @Success 200 {object} models.CredentialGetResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
 // @Security BearerAuth
 // @Router /client-credentials/{id} [put]
 func UpdateClientCredential(c *gin.Context) {
@@ -295,11 +295,11 @@ func UpdateClientCredential(c *gin.Context) {
 // @Tags Hub - Client Credentials
 // @Produce json
 // @Param id path string true "Client ID"
-// @Success 200 {object} models.MessageResponse
-// @Failure 400 {object} models.MessageResponse
-// @Failure 401 {object} models.MessageResponse
-// @Failure 403 {object} models.MessageResponse
-// @Failure 404 {object} models.MessageResponse
+// @Success 200 {object} models.SuccessResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 403 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
 // @Security BearerAuth
 // @Router /client-credentials/{id} [delete]
 func RevokeClientCredential(c *gin.Context) {

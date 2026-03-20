@@ -42,7 +42,7 @@ func secretKeyToResponse(key *auth.SecretKey) models.SecretKeyResponse {
 // @Produce      json
 // @Param        status  query  string  false  "Filter by status (active/disabled)"
 // @Success      200     {object}  models.SecretKeyListResponse
-// @Failure      500     {object}  models.MessageResponse
+// @Failure      500     {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys [get]
 func GetSecretKeys(c *gin.Context) {
@@ -71,8 +71,8 @@ func GetSecretKeys(c *gin.Context) {
 // @Produce      json
 // @Param        secretKey  body      models.SecretKeyRequest  true  "Secret key data"
 // @Success      200        {object}  models.SecretKeyListResponse
-// @Failure      400        {object}  models.MessageResponse
-// @Failure      500        {object}  models.MessageResponse
+// @Failure      400        {object}  models.ErrorResponse
+// @Failure      500        {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys [post]
 func AddSecretKey(c *gin.Context) {
@@ -139,9 +139,9 @@ func AddSecretKey(c *gin.Context) {
 // @Param        id         path      string                   true  "Secret key ID"
 // @Param        secretKey  body      models.SecretKeyRequest  true  "Secret key data"
 // @Success      200        {object}  models.SecretKeyListResponse
-// @Failure      400        {object}  models.MessageResponse
-// @Failure      404        {object}  models.MessageResponse
-// @Failure      500        {object}  models.MessageResponse
+// @Failure      400        {object}  models.ErrorResponse
+// @Failure      404        {object}  models.ErrorResponse
+// @Failure      500        {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/{id} [put]
 func UpdateSecretKey(c *gin.Context) {
@@ -224,10 +224,10 @@ func UpdateSecretKey(c *gin.Context) {
 // @Produce      json
 // @Param        id            path      string                        true  "Secret key ID"
 // @Param        justification body      models.JustificationRequest  true  "Justification for disabling"
-// @Success      200           {object}  models.MessageResponse
-// @Failure      400           {object}  models.MessageResponse
-// @Failure      404           {object}  models.MessageResponse
-// @Failure      500           {object}  models.MessageResponse
+// @Success      200           {object}  models.SuccessResponse
+// @Failure      400           {object}  models.ErrorResponse
+// @Failure      404           {object}  models.ErrorResponse
+// @Failure      500           {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/{id} [delete]
 func DisableSecretKey(c *gin.Context) {
@@ -295,7 +295,7 @@ func DisableSecretKey(c *gin.Context) {
 // @Param        from_date query  string  false  "Filter from date (RFC3339 format)"
 // @Param        to_date   query  string  false  "Filter to date (RFC3339 format)"
 // @Success      200       {object}  models.WorkspacePageResponse
-// @Failure      500       {object}  models.MessageResponse
+// @Failure      500       {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/history [get]
 func GetSecretKeyHistory(c *gin.Context) {
@@ -366,9 +366,9 @@ func GetSecretKeyHistory(c *gin.Context) {
 // @Produce      json
 // @Param        id  path      string  true  "Audit log ID"
 // @Success      200 {object}  models.SecretKeyAuditLogResponse
-// @Failure      400 {object}  models.MessageResponse
-// @Failure      404 {object}  models.MessageResponse
-// @Failure      500 {object}  models.MessageResponse
+// @Failure      400 {object}  models.ErrorResponse
+// @Failure      404 {object}  models.ErrorResponse
+// @Failure      500 {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/secret-keys/history/{id} [get]
 func GetSecretKeyHistoryByID(c *gin.Context) {

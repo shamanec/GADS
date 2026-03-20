@@ -38,11 +38,11 @@ type WorkspaceResponse = APIResponse[Workspace]
 type WorkspacePageResponse = APIResponse[WorkspacesPage]
 type ProviderResponse = APIResponse[Provider]
 type ProviderListResponse = APIResponse[[]Provider]
-type MessageResponse = APIResponse[any]
 type AuthTokenResponse = APIResponse[AuthResponse]
 type SecretKeyListResponse = APIResponse[[]SecretKeyResponse]
 type CredentialCreateResponse = APIResponse[CreateCredentialResponse]
 type CredentialListResponse = APIResponse[ClientCredentialsListResponse]
+type CredentialGetResponse = APIResponse[CredentialResponse]
 type FileListResponse = APIResponse[[]DBFile]
 type StringDataResponse = APIResponse[string]
 type CustomActionResponse = APIResponse[CustomAction]
@@ -52,8 +52,18 @@ type StreamSettingsResponse = APIResponse[StreamSettings]
 type MinioConfigResponse = APIResponse[MinioConfig]
 type TURNConfigResponse = APIResponse[TURNConfig]
 type SysStatusResponse = APIResponse[SystemStatusResponse]
-type ErrorResponse = APIResponse[any]
-type SuccessResponse = APIResponse[any]
+
+// ErrorResponse is the Swagger schema for error API responses (no result payload).
+type ErrorResponse struct {
+	Success bool   `json:"success" example:"false"`
+	Message string `json:"message" example:"An error occurred"`
+}
+
+// SuccessResponse is the Swagger schema for success API responses without a result payload.
+type SuccessResponse struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message" example:"Operation completed successfully"`
+}
 
 type OAuthErrorResponse struct {
 	Error string `json:"error"`

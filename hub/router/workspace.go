@@ -41,8 +41,8 @@ func ensureWorkspaceTenant(workspace *models.Workspace, c *gin.Context) error {
 // @Produce      json
 // @Param        workspace  body      models.Workspace  true  "Workspace data"
 // @Success      200        {object}  models.WorkspaceResponse
-// @Failure      400        {object}  models.MessageResponse
-// @Failure      500        {object}  models.MessageResponse
+// @Failure      400        {object}  models.ErrorResponse
+// @Failure      500        {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/workspaces [post]
 func CreateWorkspace(c *gin.Context) {
@@ -85,8 +85,8 @@ func CreateWorkspace(c *gin.Context) {
 // @Produce      json
 // @Param        workspace  body      models.Workspace  true  "Workspace data"
 // @Success      200        {object}  models.WorkspaceResponse
-// @Failure      400        {object}  models.MessageResponse
-// @Failure      500        {object}  models.MessageResponse
+// @Failure      400        {object}  models.ErrorResponse
+// @Failure      500        {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/workspaces [put]
 func UpdateWorkspace(c *gin.Context) {
@@ -126,10 +126,10 @@ func UpdateWorkspace(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id  path      string  true  "Workspace ID"
-// @Success      200 {object}  models.MessageResponse
-// @Failure      400 {object}  models.MessageResponse
-// @Failure      404 {object}  models.MessageResponse
-// @Failure      500 {object}  models.MessageResponse
+// @Success      200 {object}  models.SuccessResponse
+// @Failure      400 {object}  models.ErrorResponse
+// @Failure      404 {object}  models.ErrorResponse
+// @Failure      500 {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/workspaces/{id} [delete]
 func DeleteWorkspace(c *gin.Context) {
@@ -170,8 +170,8 @@ func DeleteWorkspace(c *gin.Context) {
 // @Param        search query  string  false  "Search term"
 // @Param        tenant query  string  false  "Filter by tenant"
 // @Success      200    {object}  models.WorkspacePageResponse
-// @Failure      400    {object}  models.MessageResponse
-// @Failure      500    {object}  models.MessageResponse
+// @Failure      400    {object}  models.ErrorResponse
+// @Failure      500    {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/workspaces [get]
 func GetWorkspaces(c *gin.Context) {
@@ -220,7 +220,7 @@ func GetWorkspaces(c *gin.Context) {
 // @Param        limit  query  int     false  "Items per page (default 10)"
 // @Param        search query  string  false  "Search term"
 // @Success      200    {object}  models.UserListResponse
-// @Failure      401    {object}  models.MessageResponse
+// @Failure      401    {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /workspaces [get]
 func GetUserWorkspaces(c *gin.Context) {

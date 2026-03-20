@@ -1264,7 +1264,7 @@ func GetMinioConfig(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        config  body      models.MinioConfig  true  "MinIO configuration"
-// @Success      200     {object}  models.MessageResponse
+// @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -1331,7 +1331,7 @@ func GetTURNConfig(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        config  body      models.TURNConfig  true  "TURN configuration"
-// @Success      200     {object}  models.MessageResponse
+// @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
 // @Security     BearerAuth
