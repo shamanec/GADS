@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -58,7 +57,7 @@ func HealthCheck(c *gin.Context) {
 // @Produce      json
 // @Param        collection  query     string  true   "Collection name"
 // @Param        logLimit    query     int     false  "Log limit (max 1000, default 100)"
-// @Success      200         {array}   models.LogEntry
+// @Success      200         {object}   models.LogsResponse
 // @Failure      400         {object}  models.ErrorResponse
 // @Failure      500         {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -80,7 +79,7 @@ func GetAppiumLogs(c *gin.Context) {
 		api.InternalError(c, fmt.Sprintf("Failed to get logs - %s", err))
 	}
 
-	api.OK(c, "", logs)
+	api.OK(c, "Successfully retrieved Appium logs", logs)
 }
 
 // GetProviderLogs godoc
@@ -91,7 +90,7 @@ func GetAppiumLogs(c *gin.Context) {
 // @Produce      json
 // @Param        collection  query     string  true   "Collection name"
 // @Param        logLimit    query     int     false  "Log limit (max 1000, default 200)"
-// @Success      200         {array}   models.LogEntry
+// @Success      200         {object}   models.LogsResponse
 // @Failure      400         {object}  models.ErrorResponse
 // @Failure      500         {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -114,7 +113,7 @@ func GetProviderLogs(c *gin.Context) {
 		return
 	}
 
-	api.OK(c, "", logs)
+	api.OK(c, "Successfully retrieved provider logs", logs)
 }
 
 // AddUser godoc
@@ -273,7 +272,7 @@ func GetProviderInfo(c *gin.Context) {
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
-			api.OK(c, "", provider)
+			api.OK(c, "Successfully retrieved providers data", provider)
 			return
 		}
 	}
@@ -343,7 +342,7 @@ func AddProvider(c *gin.Context) {
 	}
 
 	providersDB, _ := db.GlobalMongoStore.GetAllProviders()
-	api.OK(c, "", providersDB)
+	api.OK(c, "Successfully added provider", providersDB)
 }
 
 // UpdateProvider godoc
@@ -452,22 +451,7 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
-// DeviceInUseWS godoc
-// @Summary      Device in-use WebSocket
-// @Description  WebSocket connection to manage device usage status and control
-// @Tags         Hub - Devices Control
-// @Accept       json
-// @Produce      json
-// @Param        udid   path   string  true   "Device UDID"
-// @Param        token  query  string  true   "Bearer authentication token"
-// @Success      101    {string}  string  "Switching Protocols"
-// @Failure      400    {object}  models.ErrorResponse
-// @Failure      401    {object}  models.ErrorResponse
-// @Failure      404    {object}  models.ErrorResponse
-// @Failure      409    {object}  models.ErrorResponse
-// @Router       /devices/control/{udid}/in-use [get]
-// This websocket connection is used to both set the device in use when remotely controlled
-// As well as send live updates when needed - device info, release device, etc
+// No proper Swagger documentation for websockets
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -1003,7 +987,7 @@ func GetDevices(c *gin.Context) {
 		},
 	}
 
-	api.OK(c, "", adminDeviceData)
+	api.OK(c, "Successfully retrieved devices data", adminDeviceData)
 }
 
 // ReleaseUsedDevice godoc
@@ -1106,7 +1090,7 @@ func ProviderUpdate(c *gin.Context) {
 		devices.HubDevicesData.Mu.Unlock()
 	}
 
-	api.OKMessage(c, "")
+	api.OKMessage(c, "Provider data updated in hub")
 }
 
 // GetUsers godoc
@@ -1115,7 +1099,7 @@ func ProviderUpdate(c *gin.Context) {
 // @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  []models.User
+// @Success      200  {object}  models.UserListResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/users [get]
@@ -1126,7 +1110,7 @@ func GetUsers(c *gin.Context) {
 		users[i].Password = ""
 	}
 
-	api.OK(c, "", users)
+	api.OK(c, "Successfully retrieved users data", users)
 }
 
 // GetFiles godoc
@@ -1135,54 +1119,13 @@ func GetUsers(c *gin.Context) {
 // @Tags         Hub - Admin - Files
 // @Accept       json
 // @Produce      json
-// @Success      200  {array}  models.FileEntry
+// @Success      200  {object}  models.FileListResponse
 // @Security     BearerAuth
 // @Router       /admin/files [get]
 func GetFiles(c *gin.Context) {
 	files, _ := db.GlobalMongoStore.GetFiles()
 
-	api.OK(c, "", files)
-}
-
-// DownloadResourceFromGithubRepo godoc
-// @Summary      Download resource from GitHub repository
-// @Description  Download a resource file from the GADS GitHub repository
-// @Tags         Hub - Admin - Files
-// @Accept       json
-// @Produce      text/plain
-// @Param        fileName  query  string  true  "Name of the file to download"
-// @Success      200       {string}  string  "File downloaded successfully"
-// @Failure      500       {string}  string  "Internal server error"
-// @Security     BearerAuth
-// @Router       /admin/download-github-file [post]
-func DownloadResourceFromGithubRepo(c *gin.Context) {
-	fileName := c.Query("fileName")
-	fmt.Println("Filename " + fileName)
-
-	// Create the file
-	out, err := os.Create(fileName)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Create"+err.Error())
-		return
-	}
-	defer out.Close()
-
-	// Get the data
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/shamanec/GADS/wda-signing/resources/%s", fileName))
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Get"+err.Error())
-		return
-	}
-	defer resp.Body.Close()
-
-	// Check server response
-	if resp.StatusCode != http.StatusOK {
-		c.String(resp.StatusCode, "Statuscode"+err.Error())
-		return
-	}
-
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
+	api.OK(c, "Successfully retrieved files data", files)
 }
 
 // GetGlobalStreamSettings godoc
@@ -1191,7 +1134,7 @@ func DownloadResourceFromGithubRepo(c *gin.Context) {
 // @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.StreamSettings
+// @Success      200  {object}  models.StreamSettingsResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/global-settings [get]
@@ -1204,7 +1147,7 @@ func GetGlobalStreamSettings(c *gin.Context) {
 	}
 
 	// Return the stream settings as a JSON response
-	api.OK(c, "", streamSettings)
+	api.OK(c, "Successfully retrieved global stream settings", streamSettings)
 }
 
 // UpdateGlobalStreamSettings godoc

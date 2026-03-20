@@ -52,6 +52,7 @@ type StreamSettingsResponse = APIResponse[StreamSettings]
 type MinioConfigResponse = APIResponse[MinioConfig]
 type TURNConfigResponse = APIResponse[TURNConfig]
 type SysStatusResponse = APIResponse[SystemStatusResponse]
+type LogsResponse = APIResponse[[]LogEntry]
 
 // ErrorResponse is the Swagger schema for error API responses (no result payload).
 type ErrorResponse struct {

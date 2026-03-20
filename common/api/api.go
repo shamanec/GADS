@@ -65,4 +65,3 @@ func Conflict(c *gin.Context, message string) {
 func InternalError(c *gin.Context, message string) {
 	ErrorResponse(c, http.StatusInternalServerError, message)
 }
-
