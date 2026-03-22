@@ -244,7 +244,7 @@ func GetProviderData(c *gin.Context) {
 	providerData.ProviderData = *config.ProviderConfig
 	providerData.DeviceData = deviceData
 
-	api.OK(c, "", providerData)
+	api.OK(c, "Successfully retrieved provider data", providerData)
 }
 
 type WdaOrientationResponse struct {
@@ -287,7 +287,7 @@ func DeviceInfo(c *gin.Context) {
 			dev.CurrentRotation = strings.ToLower(responseJson.Orientation)
 		}
 
-		api.OK(c, "", dev)
+		api.OK(c, "Successfully retrieved device info", dev)
 		return
 	}
 	api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
@@ -308,7 +308,7 @@ func DeviceInstalledApps(c *gin.Context) {
 		case "webos":
 			installedApps = devices.GetInstalledAppsWebOS(dev)
 		}
-		api.OK(c, "", installedApps)
+		api.OK(c, "Successfully retrieved device installed apps", installedApps)
 		return
 	}
 	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
@@ -360,7 +360,7 @@ func DevicesInfo(c *gin.Context) {
 	}
 	devices.DbDeviceMapMutex.RUnlock()
 
-	api.OK(c, "", deviceList)
+	api.OK(c, "Successfully retrieved devices info", deviceList)
 }
 
 type ProcessApp struct {
@@ -695,7 +695,7 @@ func PushFileToSharedStorage(c *gin.Context) {
 		// Remove the temporary file, we don't want to keep it on long running hosts
 		defer os.Remove(tempPath)
 		if err := c.SaveUploadedFile(file, tempPath); err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error))
+			api.InternalError(c, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error()))
 			return
 		}
 
@@ -708,6 +708,7 @@ func PushFileToSharedStorage(c *gin.Context) {
 		}
 
 		api.OKMessage(c, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath))
+		return
 	}
 
 	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))

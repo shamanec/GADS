@@ -13,7 +13,7 @@ package models
 // Use the concrete type aliases below for Swagger annotations.
 type APIResponse[T any] struct {
 	Success bool   `json:"success" example:"true"`
-	Message string `json:"message" example:"Operation completed successfully"`
+	Message string `json:"message,omitempty" example:"Operation completed successfully"`
 	Result  T      `json:"result,omitempty"`
 }
 

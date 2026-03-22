@@ -65,3 +65,8 @@ func Conflict(c *gin.Context, message string) {
 func InternalError(c *gin.Context, message string) {
 	ErrorResponse(c, http.StatusInternalServerError, message)
 }
+
+// AbortUnauthorized aborts the request chain and sends a 401 response.
+func AbortUnauthorized(c *gin.Context, message string) {
+	c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: message})
+}

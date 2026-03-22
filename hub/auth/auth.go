@@ -15,7 +15,6 @@ import (
 	"GADS/common/models"
 	"encoding/json"
 	"io"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -310,7 +309,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		if strings.HasPrefix(authToken, "Bearer ") {
 			tokenString, err := ExtractTokenFromBearer(authToken)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "invalid token format"})
+				api.AbortUnauthorized(c, "invalid token format")
 				return
 			}
 
@@ -320,19 +319,19 @@ func AuthMiddleware() gin.HandlerFunc {
 			// Validate JWT token with the origin
 			claims, err := ValidateJWT(tokenString, origin)
 			if err != nil {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "invalid or expired token"})
+				api.AbortUnauthorized(c, "invalid or expired token")
 				return
 			}
 
 			// Check if token has expired
 			if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "token expired"})
+				api.AbortUnauthorized(c, "token expired")
 				return
 			}
 
 			// Check permissions (admin)
 			if strings.Contains(path, "admin") && claims.Role != "admin" {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "you need admin privileges to access this endpoint"})
+				api.AbortUnauthorized(c, "you need admin privileges to access this endpoint")
 				return
 			}
 
@@ -348,6 +347,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// If no valid bearer token is provided
-		c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: "unauthorized"})
+		api.AbortUnauthorized(c, "unauthorized")
 	}
 }

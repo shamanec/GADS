@@ -22,7 +22,7 @@ import (
 // CreateClientCredential godoc
 // @Summary Create a new client credential
 // @Description Create a new client credential for the authenticated user
-// @Tags Hub  - Client Credentials
+// @Tags Hub - Client Credentials
 // @Accept json
 // @Produce json
 // @Param request body models.CreateCredentialRequest true "Create credential request"
