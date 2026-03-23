@@ -16,29 +16,57 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GenericResponse(c *gin.Context, statusCode int, message string, result interface{}) {
-	c.JSON(statusCode, models.APIResponse{
-		Message: message,
-		Result:  result,
-	})
+// OK sends a 200 response with result payload.
+func OK[T any](c *gin.Context, message string, result T) {
+	c.JSON(http.StatusOK, models.APIResponse[T]{Success: true, Message: message, Result: result})
 }
 
-func InternalServerErrorResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusInternalServerError, message, result)
+// OKMessage sends a 200 response with a message only (no result payload).
+func OKMessage(c *gin.Context, message string) {
+	c.JSON(http.StatusOK, models.APIResponse[any]{Success: true, Message: message})
 }
 
-func OKResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusOK, message, result)
+// Created sends a 201 response with result payload.
+func Created[T any](c *gin.Context, message string, result T) {
+	c.JSON(http.StatusCreated, models.APIResponse[T]{Success: true, Message: message, Result: result})
 }
 
-func NotFoundResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusNotFound, message, result)
+// ErrorResponse sends an error response with the given status code.
+func ErrorResponse(c *gin.Context, status int, message string) {
+	c.JSON(status, models.APIResponse[any]{Success: false, Message: message})
 }
 
-func BadRequestResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusBadRequest, message, result)
+// BadRequest sends a 400 error response.
+func BadRequest(c *gin.Context, message string) {
+	ErrorResponse(c, http.StatusBadRequest, message)
 }
 
-func ForbiddenResponse(c *gin.Context, message string, result interface{}) {
-	GenericResponse(c, http.StatusForbidden, message, result)
+// Unauthorized sends a 401 error response.
+func Unauthorized(c *gin.Context, message string) {
+	ErrorResponse(c, http.StatusUnauthorized, message)
+}
+
+// Forbidden sends a 403 error response.
+func Forbidden(c *gin.Context, message string) {
+	ErrorResponse(c, http.StatusForbidden, message)
+}
+
+// NotFound sends a 404 error response.
+func NotFound(c *gin.Context, message string) {
+	ErrorResponse(c, http.StatusNotFound, message)
+}
+
+// Conflict sends a 409 error response.
+func Conflict(c *gin.Context, message string) {
+	ErrorResponse(c, http.StatusConflict, message)
+}
+
+// InternalError sends a 500 error response.
+func InternalError(c *gin.Context, message string) {
+	ErrorResponse(c, http.StatusInternalServerError, message)
+}
+
+// AbortUnauthorized aborts the request chain and sends a 401 response.
+func AbortUnauthorized(c *gin.Context, message string) {
+	c.AbortWithStatusJSON(http.StatusUnauthorized, models.APIResponse[any]{Success: false, Message: message})
 }

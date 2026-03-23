@@ -10,10 +10,10 @@
 package router
 
 import (
+	"GADS/common/api"
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +25,7 @@ func ensureWorkspaceTenant(workspace *models.Workspace, c *gin.Context) error {
 	if workspace.Tenant == "" {
 		defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get default tenant"})
+			api.InternalError(c, "Failed to get default tenant")
 			return err
 		}
 		workspace.Tenant = defaultTenant
@@ -36,11 +36,11 @@ func ensureWorkspaceTenant(workspace *models.Workspace, c *gin.Context) error {
 // CreateWorkspace godoc
 // @Summary      Create a new workspace
 // @Description  Create a new workspace in the system
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        workspace  body      models.Workspace  true  "Workspace data"
-// @Success      200        {object}  models.Workspace
+// @Success      200        {object}  models.WorkspaceResponse
 // @Failure      400        {object}  models.ErrorResponse
 // @Failure      500        {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -48,7 +48,7 @@ func ensureWorkspaceTenant(workspace *models.Workspace, c *gin.Context) error {
 func CreateWorkspace(c *gin.Context) {
 	var workspace models.Workspace
 	if err := c.ShouldBindJSON(&workspace); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
@@ -62,7 +62,7 @@ func CreateWorkspace(c *gin.Context) {
 	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
 	for _, ws := range existingWorkspaces {
 		if ws.Name == workspace.Name {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})
+			api.BadRequest(c, "Workspace name must be unique")
 			return
 		}
 	}
@@ -70,21 +70,21 @@ func CreateWorkspace(c *gin.Context) {
 	// Save to database
 	err := db.GlobalMongoStore.AddWorkspace(&workspace)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create workspace"})
+		api.InternalError(c, "Failed to create workspace")
 		return
 	}
 
-	c.JSON(http.StatusOK, workspace)
+	api.OK(c, "", workspace)
 }
 
 // UpdateWorkspace godoc
 // @Summary      Update a workspace
 // @Description  Update an existing workspace in the system
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        workspace  body      models.Workspace  true  "Workspace data"
-// @Success      200        {object}  models.Workspace
+// @Success      200        {object}  models.WorkspaceResponse
 // @Failure      400        {object}  models.ErrorResponse
 // @Failure      500        {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -92,7 +92,7 @@ func CreateWorkspace(c *gin.Context) {
 func UpdateWorkspace(c *gin.Context) {
 	var workspace models.Workspace
 	if err := c.ShouldBindJSON(&workspace); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
@@ -104,7 +104,7 @@ func UpdateWorkspace(c *gin.Context) {
 	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
 	for _, ws := range existingWorkspaces {
 		if ws.Name == workspace.Name && ws.ID != workspace.ID {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Workspace name must be unique"})
+			api.BadRequest(c, "Workspace name must be unique")
 			return
 		}
 	}
@@ -112,17 +112,17 @@ func UpdateWorkspace(c *gin.Context) {
 	// Update workspace in database
 	err := db.GlobalMongoStore.UpdateWorkspace(&workspace)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update workspace"})
+		api.InternalError(c, "Failed to update workspace")
 		return
 	}
 
-	c.JSON(http.StatusOK, workspace)
+	api.OK(c, "", workspace)
 }
 
 // DeleteWorkspace godoc
 // @Summary      Delete a workspace
 // @Description  Remove a workspace from the system
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        id  path      string  true  "Workspace ID"
@@ -138,38 +138,40 @@ func DeleteWorkspace(c *gin.Context) {
 	workspace, err := db.GlobalMongoStore.GetWorkspaceByID(id)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Workspace not found"})
+			api.NotFound(c, "Workspace not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspace"})
+		api.InternalError(c, "Failed to get workspace")
 		return
 	}
 
 	if workspace.IsDefault || db.GlobalMongoStore.WorkspaceHasDevices(id) || db.GlobalMongoStore.WorkspaceHasUsers(id) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete default workspace or workspace with devices/users"})
+		api.BadRequest(c, "Cannot delete default workspace or workspace with devices/users")
 		return
 	}
 
 	err = db.GlobalMongoStore.DeleteWorkspace(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete workspace"})
+		api.InternalError(c, "Failed to delete workspace")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Workspace deleted"})
+	api.OKMessage(c, "Workspace deleted")
 }
 
 // GetWorkspaces godoc
 // @Summary      Get all workspaces
 // @Description  Retrieve list of all workspaces with pagination and filtering
-// @Tags         Admin - Workspaces
+// @Tags         Hub - Admin - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        page   query  int     false  "Page number (default 1)"
 // @Param        limit  query  int     false  "Items per page (default 10)"
 // @Param        search query  string  false  "Search term"
 // @Param        tenant query  string  false  "Filter by tenant"
-// @Success      200    {object}  models.WorkspacesWithDeviceCountResponse
+// @Success      200    {object}  models.WorkspacePageResponse
+// @Failure      400    {object}  models.ErrorResponse
+// @Failure      500    {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/workspaces [get]
 func GetWorkspaces(c *gin.Context) {
@@ -185,35 +187,39 @@ func GetWorkspaces(c *gin.Context) {
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit < 1 {
-		limit = 10 // Default limit
+		limit = 10
 	}
 
 	workspaces, totalCount, err := db.GlobalMongoStore.GetWorkspacesWithDeviceCount(page, limit, searchStr, tenantStr)
 
 	if err != nil {
 		if err == db.ErrInvalidPagination {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pagination parameters"})
-		} else if err == db.ErrAggregationFailed {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspaces"})
+			api.BadRequest(c, "Invalid pagination parameters")
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get workspaces"})
+			api.InternalError(c, "Failed to get workspaces")
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"workspaces": workspaces, "total": totalCount})
+	totalPages := int((totalCount + int64(limit) - 1) / int64(limit))
+	api.OK(c, "", models.WorkspacesPage{
+		Items:      workspaces,
+		Total:      totalCount,
+		Page:       page,
+		TotalPages: totalPages,
+	})
 }
 
 // GetUserWorkspaces godoc
 // @Summary      Get user workspaces
 // @Description  Retrieve workspaces accessible to the current user
-// @Tags         Workspaces
+// @Tags         Hub - Workspaces
 // @Accept       json
 // @Produce      json
 // @Param        page   query  int     false  "Page number (default 1)"
 // @Param        limit  query  int     false  "Items per page (default 10)"
 // @Param        search query  string  false  "Search term"
-// @Success      200    {object}  models.WorkspacesResponse
+// @Success      200    {object}  models.UserListResponse
 // @Failure      401    {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /workspaces [get]
@@ -246,7 +252,7 @@ func GetUserWorkspaces(c *gin.Context) {
 
 	// If we couldn't get the user info from JWT token, try the legacy session approach
 	if username == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		api.Unauthorized(c, "unauthorized")
 		return
 	}
 
@@ -261,7 +267,7 @@ func GetUserWorkspaces(c *gin.Context) {
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit < 1 {
-		limit = 10 // Default limit
+		limit = 10
 	}
 
 	var workspaces []models.Workspace = make([]models.Workspace, 0)
@@ -299,8 +305,5 @@ func GetUserWorkspaces(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"workspaces": workspaces,
-		"total":      len(workspaces),
-	})
+	api.OK(c, "", workspaces)
 }

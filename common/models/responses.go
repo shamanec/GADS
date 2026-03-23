@@ -9,19 +9,65 @@
 
 package models
 
-// SuccessResponse represents a successful API response
+// APIResponse is the standard response envelope for all GADS API endpoints.
+// Use the concrete type aliases below for Swagger annotations.
+type APIResponse[T any] struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message,omitempty" example:"Operation completed successfully"`
+	Result  T      `json:"result,omitempty"`
+}
+
+// Page is a generic paginated result wrapper.
+type Page[T any] struct {
+	Items      []T   `json:"items"`
+	Total      int64 `json:"total"`
+	Page       int   `json:"page,omitempty"`
+	TotalPages int   `json:"total_pages,omitempty"`
+}
+
+// Concrete page types for Swagger annotations.
+type WorkspacesPage = Page[WorkspaceWithDeviceCount]
+type AuditLogsPage = Page[SecretKeyAuditLogResponse]
+
+// Concrete types for Swagger annotations (swag does not support Go generics directly).
+type DeviceResponse = APIResponse[Device]
+type DeviceListResponse = APIResponse[[]Device]
+type UserResponse = APIResponse[User]
+type UserListResponse = APIResponse[[]User]
+type WorkspaceResponse = APIResponse[Workspace]
+type WorkspacePageResponse = APIResponse[WorkspacesPage]
+type ProviderResponse = APIResponse[Provider]
+type ProviderListResponse = APIResponse[[]Provider]
+type AuthTokenResponse = APIResponse[AuthResponse]
+type SecretKeyListResponse = APIResponse[[]SecretKeyResponse]
+type CredentialCreateResponse = APIResponse[CreateCredentialResponse]
+type CredentialListResponse = APIResponse[ClientCredentialsListResponse]
+type CredentialGetResponse = APIResponse[CredentialResponse]
+type FileListResponse = APIResponse[[]DBFile]
+type StringDataResponse = APIResponse[string]
+type CustomActionResponse = APIResponse[CustomAction]
+type CustomActionListResponse = APIResponse[[]CustomAction]
+type InstalledAppsResponse = APIResponse[[]string]
+type StreamSettingsResponse = APIResponse[StreamSettings]
+type MinioConfigResponse = APIResponse[MinioConfig]
+type TURNConfigResponse = APIResponse[TURNConfig]
+type SysStatusResponse = APIResponse[SystemStatusResponse]
+type LogsResponse = APIResponse[[]LogEntry]
+
+// ErrorResponse is the Swagger schema for error API responses (no result payload).
+type ErrorResponse struct {
+	Success bool   `json:"success" example:"false"`
+	Message string `json:"message" example:"An error occurred"`
+}
+
+// SuccessResponse is the Swagger schema for success API responses without a result payload.
 type SuccessResponse struct {
+	Success bool   `json:"success" example:"true"`
 	Message string `json:"message" example:"Operation completed successfully"`
 }
 
-// ErrorResponse represents an error API response
-type ErrorResponse struct {
-	Error string `json:"error" example:"Something went wrong"`
-}
-
-// HealthResponse represents the health check response
-type HealthResponse struct {
-	Message string `json:"message" example:"ok"`
+type OAuthErrorResponse struct {
+	Error string `json:"error"`
 }
 
 // SecretKeyResponse represents a secret key response (without exposing the actual key)
@@ -156,4 +202,15 @@ type CreateCredentialResponse struct {
 type ClientCredentialsListResponse struct {
 	Credentials []CredentialResponse `json:"credentials"`
 	Total       int64                `json:"total" example:"5"`
+}
+
+// System status response structures
+type SystemStatusMessage struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+	Action  string `json:"action"`
+}
+
+type SystemStatusResponse struct {
+	Messages []SystemStatusMessage `json:"messages"`
 }
