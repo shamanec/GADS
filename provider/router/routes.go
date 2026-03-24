@@ -530,7 +530,12 @@ func CloseApp(c *gin.Context) {
 
 func KillApp(c *gin.Context) {
 	udid := c.Param("udid")
-	bundleId := c.Param("bundleId")
+	bundleId := c.Query("bundleId")
+
+	if bundleId == "" {
+		api.BadRequest(c, "No bundleId url param sent")
+		return
+	}
 
 	if dev, ok := devices.DBDeviceMap[udid]; ok {
 		switch dev.OS {
