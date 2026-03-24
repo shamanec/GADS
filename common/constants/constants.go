@@ -823,5 +823,4 @@ var IOSSystemAppsBundleIds = []string{
 	"com.apple.mobilenotes",
 	"com.apple.mobilesafari",
 	"com.apple.Preferences",
-	"com.apple.TestFlight",
 }

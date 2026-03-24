@@ -542,7 +542,7 @@ func KillApp(c *gin.Context) {
 			}
 			api.OKMessage(c, fmt.Sprintf("Successfully killed app with bundle id(package name) `%s`", bundleId))
 		case "android":
-			_, err := androidRemoteServerRequest(dev, http.MethodPost, fmt.Sprintf("kill-app/%s", bundleId), nil)
+			err := devices.KillAppAndroid(dev, bundleId)
 			if err != nil {
 				api.InternalError(c, fmt.Sprintf("Failed killing app with bundle id(package name) `%s`", bundleId))
 				return

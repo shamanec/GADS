@@ -554,20 +554,50 @@ func GetRunningAppsIOS(device *models.Device) ([]models.RunningApp, error) {
 }
 
 func KillAppIOS(device *models.Device, bundleIdentifier string) error {
-	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
-	if err != nil {
-		return fmt.Errorf("KillAppIOS: Failed to create process control - %w", err)
-	}
+	var allApps []installationproxy.AppInfo
+	var processList []instruments.ProcessInfo
+	var pControl *instruments.ProcessControl
+	var err error
 
-	// Get the installed apps
-	installationService, err := installationproxy.New(device.GoIOSDeviceEntry)
-	if err != nil {
-		return fmt.Errorf("KillAppIOS: Failed to create installation service: %w", err)
-	}
+	g, _ := errgroup.WithContext(context.Background())
+	g.Go(func() error {
+		svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("failed to connect to installation proxy for all apps: %w", err)
+		}
+		defer svc.Close()
+		allApps, err = svc.BrowseAllApps()
+		if err != nil {
+			return fmt.Errorf("failed to browse all apps: %w", err)
+		}
+		return nil
+	})
 
-	allApps, err := installationService.BrowseAllApps()
-	if err != nil {
-		return fmt.Errorf("KillAppIOS: Failed to browse all apps: %w", err)
+	g.Go(func() error {
+		// Create device info service and get the processes list
+		infoService, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("KillAppIOS: Failed to create device info service - %w", err)
+		}
+		defer infoService.Close()
+
+		processList, err = infoService.ProcessList()
+		if err != nil {
+			return fmt.Errorf("KillAppIOS: Failed to get device processes list - %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		pControl, err = instruments.NewProcessControl(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("KillAppIOS: Failed to create process control - %w", err)
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	// Check if the provided bundle identifier exists in the installed apps
@@ -579,17 +609,6 @@ func KillAppIOS(device *models.Device, bundleIdentifier string) error {
 	}
 	if appProcessName == "" {
 		return fmt.Errorf("KillAppIOS: App with bundle identifier `%s` is not installed on device", bundleIdentifier)
-	}
-
-	// Create device info service and get the processes list
-	infoService, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
-	if err != nil {
-		return fmt.Errorf("KillAppIOS: Failed to create device info service - %w", err)
-	}
-
-	processList, err := infoService.ProcessList()
-	if err != nil {
-		return fmt.Errorf("KillAppIOS: Failed to get device processes list - %w", err)
 	}
 
 	// Check if the target app is in the processes list and kill it
