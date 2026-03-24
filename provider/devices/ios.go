@@ -35,6 +35,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
+	"golang.org/x/sync/errgroup"
 )
 
 func goIosForward(device *models.Device, hostPort string, devicePort string) {
@@ -177,25 +178,103 @@ func pairIOS(device *models.Device) (pairErr error) {
 	return nil
 }
 
-func GetInstalledAppsIOS(device *models.Device) []string {
-	installedApps := make([]string, 0)
+func getAllAppsGoIOS(device *models.Device) ([]installationproxy.AppInfo, error) {
+	var allApps = make([]installationproxy.AppInfo, 0)
+	var err error
+
 	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
 	if err != nil {
-		logger.ProviderLogger.LogError("get_installed_apps", fmt.Sprintf("Failed to create installation proxy connection for device `%s` when getting installed apps - %s", device.UDID, err))
-		return installedApps
+		return allApps, fmt.Errorf("getAllAppsGoIOS: failed to connect to installation proxy for all apps: %w", err)
 	}
+	defer svc.Close()
 
-	response, err := svc.BrowseUserApps()
+	allApps, err = svc.BrowseAllApps()
 	if err != nil {
-		logger.ProviderLogger.LogError("get_installed_apps", fmt.Sprintf("Failed to get installed apsp for device `%s` - %s", device.UDID, err))
+		return allApps, fmt.Errorf("getAllAppsGoIOS: failed to browse all apps: %w", err)
+	}
+	return allApps, nil
+}
+
+func getUserAppsGoIOS(device *models.Device) ([]installationproxy.AppInfo, error) {
+	var userApps = make([]installationproxy.AppInfo, 0)
+	var err error
+
+	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+	if err != nil {
+		return userApps, fmt.Errorf("getUserAppsGoIOS: failed to connect to installation proxy for user apps: %w", err)
+	}
+	defer svc.Close()
+
+	userApps, err = svc.BrowseUserApps()
+	if err != nil {
+		return userApps, fmt.Errorf("getUserAppsGoIOS: failed to browse user apps: %w", err)
+	}
+	return userApps, nil
+}
+
+func GetInstalledAppsIOS(device *models.Device) []models.DeviceApp {
+	var installedApps = make([]models.DeviceApp, 0)
+	var allApps, userApps []installationproxy.AppInfo
+	var err error
+
+	g, _ := errgroup.WithContext(context.Background())
+
+	g.Go(func() error {
+		allApps, err = getAllAppsGoIOS(device)
+		if err != nil {
+			return fmt.Errorf("failed to browse all apps: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		userApps, err = getUserAppsGoIOS(device)
+		if err != nil {
+			return fmt.Errorf("failed to browse user apps: %w", err)
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
 		return installedApps
 	}
 
-	for _, appInfo := range response {
-		installedApps = append(installedApps, appInfo.CFBundleIdentifier())
+	// Build a map from bundle identifier to executable name
+	bundleIdToExecutable := make(map[string]string, len(allApps))
+	for _, app := range allApps {
+		bundleIdToExecutable[app.CFBundleIdentifier()] = app.CFBundleExecutable()
+	}
+
+	// Loop and add the user apps to the list
+	// They can all be uninstalled
+	for _, userApp := range userApps {
+		if !strings.Contains(userApp.CFBundleExecutable(), "WebDriverAgentRunner") && !strings.Contains(userApp.CFBundleExecutable(), "h264-broadcast-extension") {
+			installedApps = append(installedApps, models.DeviceApp{AppName: userApp.CFBundleExecutable(), BundleIdentifier: userApp.CFBundleIdentifier(), CanUninstall: true})
+		}
+	}
+
+	// Loop through the system apps and add them to the list
+	// The cannot be uninstalled
+	for _, bundleId := range constants.IOSSystemAppsBundleIds {
+		appName := bundleIdToExecutable[bundleId]
+		if appName == "" {
+			appName = "Unknown name"
+		}
+		installedApps = append(installedApps, models.DeviceApp{AppName: appName, BundleIdentifier: bundleId, CanUninstall: false})
 	}
 
 	return installedApps
+}
+
+func GetInstalledAppsBundleIdentifiersIOS(device *models.Device) []string {
+	var bundleIdentifiers = make([]string, 0)
+	installedAppsInfo := GetInstalledAppsIOS(device)
+
+	for _, installedApp := range installedAppsInfo {
+		bundleIdentifiers = append(bundleIdentifiers, installedApp.BundleIdentifier)
+	}
+
+	return bundleIdentifiers
 }
 
 func uninstallAppIOS(device *models.Device, bundleID string) error {
@@ -390,4 +469,139 @@ func disableProcessMemoryLimit(device *models.Device, pid uint64) error {
 	}
 
 	return nil
+}
+
+// Get a list of running apps on the device that are killable
+func GetRunningAppsIOS(device *models.Device) ([]models.RunningApp, error) {
+	var runningApps = make([]models.RunningApp, 0)
+
+	var allApps, userApps []installationproxy.AppInfo
+	var procList []instruments.ProcessInfo
+
+	g, _ := errgroup.WithContext(context.Background())
+
+	g.Go(func() error {
+		svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("failed to connect to installation proxy for all apps: %w", err)
+		}
+		defer svc.Close()
+		allApps, err = svc.BrowseAllApps()
+		if err != nil {
+			return fmt.Errorf("failed to browse all apps: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("failed to connect to installation proxy for user apps: %w", err)
+		}
+		defer svc.Close()
+		userApps, err = svc.BrowseUserApps()
+		if err != nil {
+			return fmt.Errorf("failed to browse user apps: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		svc, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
+		if err != nil {
+			return fmt.Errorf("failed to create device info service: %w", err)
+		}
+		defer svc.Close()
+		procList, err = svc.ProcessList()
+		if err != nil {
+			return fmt.Errorf("failed to get process list: %w", err)
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return runningApps, err
+	}
+
+	// Build a map from executable name to bundle identifier
+	execToBundleId := make(map[string]string, len(allApps))
+	for _, app := range allApps {
+		execToBundleId[app.CFBundleExecutable()] = app.CFBundleIdentifier()
+	}
+
+	// Build allow list: system apps from constants + user-installed apps
+	appsAllowList := make(map[string]bool)
+	for _, bundleId := range constants.IOSSystemAppsBundleIds {
+		appsAllowList[bundleId] = true
+	}
+	for _, userApp := range userApps {
+		if !strings.Contains(userApp.CFBundleExecutable(), "WebDriverAgentRunner") && !strings.Contains(userApp.CFBundleExecutable(), "h264-broadcast-extension") {
+			appsAllowList[userApp.CFBundleIdentifier()] = true
+		}
+	}
+
+	for _, proc := range procList {
+		bundleID, found := execToBundleId[proc.Name]
+		if !found {
+			continue
+		}
+		if appsAllowList[bundleID] {
+			runningApps = append(runningApps, models.RunningApp{AppName: proc.Name, BundleIdentifier: bundleID})
+		}
+	}
+
+	return runningApps, nil
+}
+
+func KillAppIOS(device *models.Device, bundleIdentifier string) error {
+	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("KillAppIOS: Failed to create process control - %w", err)
+	}
+
+	// Get the installed apps
+	installationService, err := installationproxy.New(device.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("KillAppIOS: Failed to create installation service: %w", err)
+	}
+
+	allApps, err := installationService.BrowseAllApps()
+	if err != nil {
+		return fmt.Errorf("KillAppIOS: Failed to browse all apps: %w", err)
+	}
+
+	// Check if the provided bundle identifier exists in the installed apps
+	var appProcessName string
+	for _, app := range allApps {
+		if app.CFBundleIdentifier() == bundleIdentifier {
+			appProcessName = app.CFBundleExecutable()
+		}
+	}
+	if appProcessName == "" {
+		return fmt.Errorf("KillAppIOS: App with bundle identifier `%s` is not installed on device", bundleIdentifier)
+	}
+
+	// Create device info service and get the processes list
+	infoService, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("KillAppIOS: Failed to create device info service - %w", err)
+	}
+
+	processList, err := infoService.ProcessList()
+	if err != nil {
+		return fmt.Errorf("KillAppIOS: Failed to get device processes list - %w", err)
+	}
+
+	// Check if the target app is in the processes list and kill it
+	for _, p := range processList {
+		if p.Name == appProcessName {
+			err := pControl.KillProcess(p.Pid)
+			if err != nil {
+				return fmt.Errorf("KillAppIOS: Failed killing app with bundle id `%s` and pid `%v`", bundleIdentifier, p.Pid)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("KillAppIOS: App with bundle id `%s` is not running", bundleIdentifier)
 }

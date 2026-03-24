@@ -803,3 +803,25 @@ var IOSDeviceInfoMap = map[string]models.IOSModelData{
 		Model:  "iPad Pro 11-inch (M5) WiFi + Cellular",
 	},
 }
+
+// List of iOS system app bundle identifiers
+// Used mostly to add them to the list of installed apps for iOS devices
+// To be able to kill those apps from the UI
+var IOSSystemAppsBundleIds = []string{
+	"com.apple.AppStore",
+	"com.apple.camera",
+	"com.apple.clips",
+	"com.apple.compass",
+	"com.apple.MobileAddressBook",
+	"com.apple.facetime",
+	"com.apple.DocumentsApp",
+	"com.apple.Home",
+	"com.apple.iMovie",
+	"com.apple.mobilemail",
+	"com.apple.Maps",
+	"com.apple.Music",
+	"com.apple.mobilenotes",
+	"com.apple.mobilesafari",
+	"com.apple.Preferences",
+	"com.apple.TestFlight",
+}

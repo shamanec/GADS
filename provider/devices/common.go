@@ -415,7 +415,7 @@ func setupAndroidDevice(device *models.Device) {
 
 	// Get the currently installed appes on the device
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Checking for existing GADS Android apps on device `%v`", device.UDID))
-	device.InstalledApps = GetInstalledAppsAndroid(device)
+	device.InstalledApps = GetInstalledAppsBundleIdentifiersAndroid(device)
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", device.UDID))
 	// Uninstall the GADS-Settings app if present
 	if slices.Contains(device.InstalledApps, "com.gads.settings") {
@@ -949,7 +949,7 @@ func setupIOSDevice(device *models.Device) {
 		}
 	}
 
-	device.InstalledApps = GetInstalledAppsIOS(device)
+	device.InstalledApps = GetInstalledAppsBundleIdentifiersIOS(device)
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Updated installed apps for device `%v`", device.UDID))
 
 	// Mark the device as 'live'
@@ -1263,9 +1263,9 @@ func startGridNode(device *models.Device) {
 
 func UpdateInstalledApps(device *models.Device) {
 	if device.OS == "ios" {
-		device.InstalledApps = GetInstalledAppsIOS(device)
+		device.InstalledApps = GetInstalledAppsBundleIdentifiersIOS(device)
 	} else {
-		device.InstalledApps = GetInstalledAppsAndroid(device)
+		device.InstalledApps = GetInstalledAppsBundleIdentifiersAndroid(device)
 	}
 }
 
