@@ -1291,25 +1291,26 @@ func UninstallApp(device *models.Device, app string) error {
 }
 
 func InstallApp(device *models.Device, app string) error {
-	if device.OS == "ios" {
+	switch device.OS {
+	case "ios":
 		err := installAppDefaultPath(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_ios", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
-	} else if device.OS == "android" {
+	case "android":
 		err := installAppAndroid(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_android", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
-	} else if device.OS == "tizen" {
+	case "tizen":
 		err := installAppTizen(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_tizen", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
 			return err
 		}
-	} else if device.OS == "webos" {
+	case "webos":
 		err := installAppWebOS(device, app)
 		if err != nil {
 			device.Logger.LogError("install_app_webos", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))

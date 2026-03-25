@@ -556,7 +556,6 @@ func GetRunningAppsIOS(device *models.Device) ([]models.RunningApp, error) {
 func KillAppIOS(device *models.Device, bundleIdentifier string) error {
 	var allApps []installationproxy.AppInfo
 	var processList []instruments.ProcessInfo
-	var pControl *instruments.ProcessControl
 	var err error
 
 	g, _ := errgroup.WithContext(context.Background())
@@ -588,17 +587,15 @@ func KillAppIOS(device *models.Device, bundleIdentifier string) error {
 		return nil
 	})
 
-	g.Go(func() error {
-		pControl, err = instruments.NewProcessControl(device.GoIOSDeviceEntry)
-		if err != nil {
-			return fmt.Errorf("KillAppIOS: Failed to create process control - %w", err)
-		}
-		return nil
-	})
-
 	if err := g.Wait(); err != nil {
 		return err
 	}
+
+	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("KillAppIOS: Failed to create process controll service - %w", err)
+	}
+	defer pControl.Close()
 
 	// Check if the provided bundle identifier exists in the installed apps
 	var appProcessName string
@@ -616,7 +613,7 @@ func KillAppIOS(device *models.Device, bundleIdentifier string) error {
 		if p.Name == appProcessName {
 			err := pControl.KillProcess(p.Pid)
 			if err != nil {
-				return fmt.Errorf("KillAppIOS: Failed killing app with bundle id `%s` and pid `%v`", bundleIdentifier, p.Pid)
+				return fmt.Errorf("KillAppIOS: Failed killing app with bundle id `%s` and pid `%v` - %w", bundleIdentifier, p.Pid, err)
 			}
 			return nil
 		}

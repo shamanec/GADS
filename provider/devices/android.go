@@ -37,18 +37,18 @@ import (
 	"github.com/gobwas/ws/wsutil"
 )
 
-func androidRemoteServerRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
-	var controlNetClient = &http.Client{
-		Timeout: time.Second * 120,
-	}
+var remoteServerNetClient = &http.Client{
+	Timeout: time.Second * 120,
+}
 
+func androidRemoteServerRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/%s", device.AndroidRemoteServerPort, endpoint)
 	device.Logger.LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
 	}
-	return controlNetClient.Do(req)
+	return remoteServerNetClient.Do(req)
 }
 
 // Check if the GADS-stream service is running on the device
@@ -383,6 +383,7 @@ func GetInstalledAppsAndroidRemoteServer(device *models.Device) []models.DeviceA
 
 	runningAppsResp, err := androidRemoteServerRequest(device, http.MethodGet, "installed-apps", nil)
 	if err != nil {
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsAndroidRemoteServer: Failed executing remote server request - %s", err.Error()))
 		fmt.Println("error in running apps resp - " + err.Error())
 		return deviceApps
 	}
@@ -390,12 +391,12 @@ func GetInstalledAppsAndroidRemoteServer(device *models.Device) []models.DeviceA
 
 	payload, err := io.ReadAll(runningAppsResp.Body)
 	if err != nil {
-		fmt.Println("error in payload read - " + err.Error())
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsAndroidRemoteServer: Failed executing reading remote server response body - %s", err.Error()))
 		return deviceApps
 	}
 	err = json.Unmarshal(payload, &deviceApps)
 	if err != nil {
-		fmt.Println("error in unmarshal - " + err.Error())
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsAndroidRemoteServer: Failed unmarshalling remote server response - %s", err.Error()))
 		return deviceApps
 	}
 
