@@ -151,11 +151,11 @@ func UploadAndInstallApp(c *gin.Context) {
 			// If the uploaded file is a zip archive
 			// Open the zip to read it before extracting
 			file, err := file.Open()
-			defer file.Close()
 			if err != nil {
 				api.InternalError(c, fmt.Sprintf("Failed to open provided zip file - %s", err))
 				return
 			}
+			defer file.Close()
 
 			// Read the file content into a byte slice
 			var buf bytes.Buffer
@@ -374,7 +374,9 @@ func getInstalledAppIDs(device *models.Device) []string {
 	case "ios":
 		installedApps = devices.GetInstalledAppsBundleIdentifiersIOS(device)
 	case "android":
-		installedApps = devices.GetInstalledAppsBundleIdentifiersAndroid(device)
+		for _, app := range devices.GetInstalledAppsAndroidRemoteServer(device) {
+			installedApps = append(installedApps, app.BundleIdentifier)
+		}
 	case "tizen":
 		tizenApps := devices.GetInstalledAppsTizen(device)
 		for _, app := range tizenApps {

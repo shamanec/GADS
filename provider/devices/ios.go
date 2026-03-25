@@ -215,11 +215,11 @@ func getUserAppsGoIOS(device *models.Device) ([]installationproxy.AppInfo, error
 func GetInstalledAppsIOS(device *models.Device) []models.DeviceApp {
 	var installedApps = make([]models.DeviceApp, 0)
 	var allApps, userApps []installationproxy.AppInfo
-	var err error
 
 	g, _ := errgroup.WithContext(context.Background())
 
 	g.Go(func() error {
+		var err error
 		allApps, err = getAllAppsGoIOS(device)
 		if err != nil {
 			return fmt.Errorf("failed to browse all apps: %w", err)
@@ -228,6 +228,7 @@ func GetInstalledAppsIOS(device *models.Device) []models.DeviceApp {
 	})
 
 	g.Go(func() error {
+		var err error
 		userApps, err = getUserAppsGoIOS(device)
 		if err != nil {
 			return fmt.Errorf("failed to browse user apps: %w", err)
