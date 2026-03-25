@@ -382,3 +382,14 @@ func ValidateDevice(device *Device) error {
 
 	return nil
 }
+
+type RunningApp struct {
+	AppName          string `json:"app_name" bson:"-"`
+	BundleIdentifier string `json:"bundle_identifier" bson:"-"`
+}
+
+type DeviceApp struct {
+	AppName          string `json:"app_name" bson:"-"`
+	BundleIdentifier string `json:"bundle_identifier" bson:"-"`
+	CanUninstall     bool   `json:"can_uninstall" bson:"-"`
+}

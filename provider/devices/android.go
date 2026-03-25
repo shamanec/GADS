@@ -20,7 +20,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -33,6 +36,20 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 )
+
+var remoteServerNetClient = &http.Client{
+	Timeout: time.Second * 120,
+}
+
+func androidRemoteServerRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+	url := fmt.Sprintf("http://localhost:%s/%s", device.AndroidRemoteServerPort, endpoint)
+	device.Logger.LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
+	req, err := http.NewRequest(method, url, requestBody)
+	if err != nil {
+		return nil, err
+	}
+	return remoteServerNetClient.Do(req)
+}
 
 // Check if the GADS-stream service is running on the device
 func isGadsStreamServiceRunning(device *models.Device) (bool, error) {
@@ -328,8 +345,8 @@ func updateAndroidScreenSizeADB(device *models.Device) error {
 	return nil
 }
 
-// Get all installed apps on an Android device
-func GetInstalledAppsAndroid(device *models.Device) []string {
+// Get all installed apps on an Android device - returns only the bundle identifiers (package names)
+func GetInstalledAppsBundleIdentifiersAndroid(device *models.Device) []string {
 	installedApps := make([]string, 0)
 	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "cmd", "package", "list", "packages", "-3")
 
@@ -357,6 +374,33 @@ func GetInstalledAppsAndroid(device *models.Device) []string {
 	}
 
 	return installedApps
+}
+
+// Get all installed apps on an Android device
+func GetInstalledAppsAndroidRemoteServer(device *models.Device) []models.DeviceApp {
+	var deviceApps = make([]models.DeviceApp, 0)
+	var err error
+
+	runningAppsResp, err := androidRemoteServerRequest(device, http.MethodGet, "installed-apps", nil)
+	if err != nil {
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsAndroidRemoteServer: Failed executing remote server request - %s", err.Error()))
+		fmt.Println("error in running apps resp - " + err.Error())
+		return deviceApps
+	}
+	defer runningAppsResp.Body.Close()
+
+	payload, err := io.ReadAll(runningAppsResp.Body)
+	if err != nil {
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsAndroidRemoteServer: Failed executing reading remote server response body - %s", err.Error()))
+		return deviceApps
+	}
+	err = json.Unmarshal(payload, &deviceApps)
+	if err != nil {
+		device.Logger.LogError("get_installed_apps", fmt.Sprintf("GetInstalledAppsAndroidRemoteServer: Failed unmarshalling remote server response - %s", err.Error()))
+		return deviceApps
+	}
+
+	return deviceApps
 }
 
 // Uninstall app from Android device by package name
@@ -659,4 +703,14 @@ func addAndroidSharedStorageFilePathNode(root *models.AndroidFileNode, fullPath 
 
 		current = child
 	}
+}
+
+func KillAppAndroid(device *models.Device, bundleIdentifier string) error {
+	cmd := exec.CommandContext(device.Context, "adb", "-s", device.UDID, "shell", "am", "force-stop", bundleIdentifier)
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("KillAppAndroid: Failed killing app with bundle identifier(package name) `%s` via adb shell", bundleIdentifier)
+	}
+
+	return nil
 }

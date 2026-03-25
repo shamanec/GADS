@@ -151,11 +151,11 @@ func UploadAndInstallApp(c *gin.Context) {
 			// If the uploaded file is a zip archive
 			// Open the zip to read it before extracting
 			file, err := file.Open()
-			defer file.Close()
 			if err != nil {
 				api.InternalError(c, fmt.Sprintf("Failed to open provided zip file - %s", err))
 				return
 			}
+			defer file.Close()
 
 			// Read the file content into a byte slice
 			var buf bytes.Buffer
@@ -302,7 +302,7 @@ func DeviceInstalledApps(c *gin.Context) {
 		case "ios":
 			installedApps = devices.GetInstalledAppsIOS(dev)
 		case "android":
-			installedApps = devices.GetInstalledAppsAndroid(dev)
+			installedApps = devices.GetInstalledAppsAndroidRemoteServer(dev)
 		case "tizen":
 			installedApps = devices.GetInstalledAppsTizen(dev)
 		case "webos":
@@ -372,9 +372,11 @@ func getInstalledAppIDs(device *models.Device) []string {
 
 	switch device.OS {
 	case "ios":
-		installedApps = devices.GetInstalledAppsIOS(device)
+		installedApps = devices.GetInstalledAppsBundleIdentifiersIOS(device)
 	case "android":
-		installedApps = devices.GetInstalledAppsAndroid(device)
+		for _, app := range devices.GetInstalledAppsAndroidRemoteServer(device) {
+			installedApps = append(installedApps, app.BundleIdentifier)
+		}
 	case "tizen":
 		tizenApps := devices.GetInstalledAppsTizen(device)
 		for _, app := range tizenApps {
@@ -525,6 +527,39 @@ func CloseApp(c *gin.Context) {
 		return
 	}
 
+	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+}
+
+func KillApp(c *gin.Context) {
+	udid := c.Param("udid")
+	bundleId := c.Query("bundleId")
+
+	if bundleId == "" {
+		api.BadRequest(c, "No bundleId url param sent")
+		return
+	}
+
+	if dev, ok := devices.DBDeviceMap[udid]; ok {
+		switch dev.OS {
+		case "ios":
+			err := devices.KillAppIOS(dev, bundleId)
+			if err != nil {
+				api.InternalError(c, fmt.Sprintf("Failed killing app with bundle id `%s`", bundleId))
+				return
+			}
+			api.OKMessage(c, fmt.Sprintf("Successfully killed app with bundle id(package name) `%s`", bundleId))
+		case "android":
+			err := devices.KillAppAndroid(dev, bundleId)
+			if err != nil {
+				api.InternalError(c, fmt.Sprintf("Failed killing app with bundle id(package name) `%s`", bundleId))
+				return
+			}
+			api.OKMessage(c, fmt.Sprintf("Successfully killed app with bundle id(package name) `%s`", bundleId))
+		default:
+			api.BadRequest(c, "Killing apps is not supported on Tizen/WebOS")
+		}
+		return
+	}
 	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 }
 
