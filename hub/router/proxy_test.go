@@ -28,23 +28,16 @@ func TestDeviceProxyHandler(t *testing.T) {
 	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
-	// Initialize the global devices data structure if not already done
-	if devices.HubDevicesData.Devices == nil {
-		devices.HubDevicesData.Devices = make(map[string]*models.LocalHubDevice)
-	}
-
 	t.Run("Available Device - Should Proxy Normally", func(t *testing.T) {
 		// Setup an available device
 		udid := "test-device-available"
-		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
 			Available: true,
-		}
-		devices.HubDevicesData.Mu.Unlock()
+		})
 
 		// Create request
 		router := gin.New()
@@ -61,23 +54,19 @@ func TestDeviceProxyHandler(t *testing.T) {
 		assert.NotEqual(t, http.StatusUnprocessableEntity, w.Code)
 
 		// Cleanup
-		devices.HubDevicesData.Mu.Lock()
-		delete(devices.HubDevicesData.Devices, udid)
-		devices.HubDevicesData.Mu.Unlock()
+		devices.HubDeviceStore.Delete(udid)
 	})
 
 	t.Run("Unavailable Device - Should Return 422", func(t *testing.T) {
 		// Setup an unavailable device
 		udid := "test-device-unavailable"
-		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
 			Available: false,
-		}
-		devices.HubDevicesData.Mu.Unlock()
+		})
 
 		// Create request
 		router := gin.New()
@@ -99,9 +88,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		assert.Equal(t, "Device `test-device-unavailable` is not available", response["error"])
 
 		// Cleanup
-		devices.HubDevicesData.Mu.Lock()
-		delete(devices.HubDevicesData.Devices, udid)
-		devices.HubDevicesData.Mu.Unlock()
+		devices.HubDeviceStore.Delete(udid)
 	})
 
 	t.Run("Non-existent Device - Should Return 400", func(t *testing.T) {
@@ -129,8 +116,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		// Setup a device in use by another user
 		udid := "test-device-in-use"
 		currentTime := time.Now().UnixMilli()
-		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
@@ -138,8 +124,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 			Available: true,
 			InUseBy:   "another-user",
 			InUseTS:   currentTime, // Use current time to simulate active session
-		}
-		devices.HubDevicesData.Mu.Unlock()
+		})
 
 		// Create request
 		router := gin.New()
@@ -155,23 +140,19 @@ func TestDeviceProxyHandler(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, w.Code)
 
 		// Cleanup
-		devices.HubDevicesData.Mu.Lock()
-		delete(devices.HubDevicesData.Devices, udid)
-		devices.HubDevicesData.Mu.Unlock()
+		devices.HubDeviceStore.Delete(udid)
 	})
 
 	t.Run("Missing Client Credentials - Should Return W3C Error Format", func(t *testing.T) {
 		// Setup a device
 		udid := "test-device-no-credentials"
-		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid] = &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
 			},
 			Available: true,
-		}
-		devices.HubDevicesData.Mu.Unlock()
+		})
 
 		// Create request WITHOUT credentials
 		router := gin.New()
@@ -213,9 +194,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		assert.Equal(t, "", value["stacktrace"])
 
 		// Cleanup
-		devices.HubDevicesData.Mu.Lock()
-		delete(devices.HubDevicesData.Devices, udid)
-		devices.HubDevicesData.Mu.Unlock()
+		devices.HubDeviceStore.Delete(udid)
 	})
 
 }

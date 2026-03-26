@@ -198,8 +198,9 @@ func StreamTypesForOS(os string) []StreamType {
 }
 
 type LocalHubDevice struct {
-	Device                   Device   `json:"info"`
-	SessionID                string   `json:"-"`
+	Mu                       sync.RWMutex `json:"-" bson:"-"` // protects this device's fields
+	Device                   Device       `json:"info"`
+	SessionID                string       `json:"-"`
 	IsRunningAutomation      bool     `json:"is_running_automation"`
 	LastAutomationActionTS   int64    `json:"last_automation_action_ts"`
 	InUse                    bool     `json:"in_use"`
