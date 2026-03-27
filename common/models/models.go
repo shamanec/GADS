@@ -216,11 +216,6 @@ type UpdateStreamSettings struct {
 	ScalingFactor int `json:"scaling_factor,omitempty"`
 }
 
-type DeviceInUseMessage struct {
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
-}
-
 type DBFile struct {
 	FileName   string             `json:"name" bson:"filename"`
 	UploadDate primitive.DateTime `json:"upload_date" bson:"uploadDate"`
