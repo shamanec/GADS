@@ -25,22 +25,22 @@ const (
 // LocalHubDevice represents a device as tracked by the hub at runtime.
 // All field access must be protected by Mu.
 type LocalHubDevice struct {
-	Mu                       sync.RWMutex `json:"-" bson:"-"` // protects this device's fields
+	Mu                       sync.RWMutex  `json:"-" bson:"-"` // protects this device's fields
 	Device                   models.Device `json:"info"`
-	SessionID                string       `json:"-"`
-	IsRunningAutomation      bool         `json:"is_running_automation"`
-	LastAutomationActionTS   int64        `json:"last_automation_action_ts"`
-	InUse                    bool         `json:"in_use"`
-	InUseBy                  string       `json:"in_use_by"`
-	InUseByTenant            string       `json:"in_use_by_tenant"`
-	InUseTS                  int64        `json:"in_use_ts"`
-	LockSource               string       `json:"lock_source" bson:"-"` // "ui", "api", or ""
-	LeaseExpiresAt           int64        `json:"-" bson:"-"`           // Unix ms, 0 = no active lease
-	AppiumNewCommandTimeout  int64        `json:"appium_new_command_timeout"`
-	IsAvailableForAutomation bool         `json:"is_available_for_automation"`
-	Available                bool         `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
-	InUseWSConnection        net.Conn     `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
-	LastActionTS             int64        `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
+	SessionID                string        `json:"-"`
+	IsRunningAutomation      bool          `json:"is_running_automation"`
+	LastAutomationActionTS   int64         `json:"last_automation_action_ts"`
+	InUse                    bool          `json:"in_use"`
+	InUseBy                  string        `json:"in_use_by"`
+	InUseByTenant            string        `json:"in_use_by_tenant"`
+	InUseTS                  int64         `json:"in_use_ts"`
+	LockSource               string        `json:"lock_source" bson:"-"` // "ui", "api", or ""
+	LeaseExpiresAt           int64         `json:"-" bson:"-"`           // Unix ms, 0 = no active lease
+	AppiumNewCommandTimeout  int64         `json:"appium_new_command_timeout"`
+	IsAvailableForAutomation bool          `json:"is_available_for_automation"`
+	Available                bool          `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
+	InUseWSConnection        net.Conn      `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
+	LastActionTS             int64         `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
 }
 
 // All methods below assume the caller holds device.Mu.

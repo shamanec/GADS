@@ -503,9 +503,14 @@ func DeviceInUseWS(c *gin.Context) {
 		return
 	}
 
-	// Reserve the device BEFORE upgrading the WebSocket
-	// This prevents another user from passing the verification while we are upgrading the WebSocket
-	device.AcquireLock(username, userTenant, devices.LockSourceUI) //nolint:errcheck — AcquireLock only fails when locked by other, already checked above
+	// If the device is already held via an API lease by this user, preserve the API lock.
+	// Calling AcquireLock here would overwrite LockSource to "ui", which would cause
+	// HasActiveLease() to return false and the API lock to be released on WS disconnect.
+	// For a pure UI session (no prior lock), reserve the device now to prevent a race
+	// between passing the check above and completing the WebSocket upgrade below.
+	if !device.HasActiveLease() {
+		device.AcquireLock(username, userTenant, devices.LockSourceUI) //nolint:errcheck — AcquireLock only fails when locked by other, already checked above
+	}
 	device.Mu.Unlock()
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
@@ -531,7 +536,10 @@ func DeviceInUseWS(c *gin.Context) {
 		conn.Close()
 		device.Mu.Lock()
 		device.ClearWSConnection()
-		if !device.IsRunningAutomation {
+		// Do not release the lock if automation is still running or if an API lease is still active.
+		// The user intentionally locked the device via API (or owns the automation session)
+		// and must remain the lock holder after closing remote control.
+		if !device.IsRunningAutomation && !device.HasActiveLease() {
 			device.ReleaseLock()
 		}
 		device.Mu.Unlock()
