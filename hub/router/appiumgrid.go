@@ -47,8 +47,13 @@ type SeleniumSessionErrorResponseValue struct {
 // And clean the automation session if no action was taken in the timeout limit
 func UpdateExpiredGridSessions() {
 	for {
+		now := time.Now().UnixMilli()
 		for _, hubDevice := range devices.HubDeviceStore.All() {
 			hubDevice.Mu.Lock()
+			// Release expired API leases
+			if hubDevice.LockSource == devices.LockSourceAPI && hubDevice.LeaseExpiresAt > 0 && hubDevice.LeaseExpiresAt < now {
+				hubDevice.ReleaseLock()
+			}
 			// Reset device if its not connected
 			// Or it hasn't received any Appium requests in the command timeout and is running automation
 			// Or if its provider state is not "live" - device was re-provisioned for example

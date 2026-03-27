@@ -88,6 +88,8 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/available-devices", AvailableDevicesSSE)
 	authGroup.GET("/admin/provider/:nickname/info", ProviderInfoSSE)
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
+	authGroup.POST("/devices/control/:udid/lock", LockDevice)
+	authGroup.POST("/devices/control/:udid/unlock", UnlockDevice)
 	authGroup.POST("/provider-update", ProviderUpdate)
 	// OAuth2 endpoints (unauthenticated)
 	authGroup.POST("/oauth/token", OAuth2TokenEndpoint)

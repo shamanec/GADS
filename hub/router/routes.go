@@ -911,6 +911,154 @@ func ReleaseUsedDevice(c *gin.Context) {
 	api.OKMessage(c, "Device was successfully released")
 }
 
+type lockDeviceResponse struct {
+	UDID        string `json:"udid"`
+	LockedBy    string `json:"locked_by"`
+	Tenant      string `json:"tenant"`
+	ExpiresAtMS int64  `json:"expires_at_ms"`
+}
+
+// getClaimsFromRequest extracts JWT claims from the Authorization header (Bearer token)
+// or the raw ?token= query param (no "Bearer " prefix needed for the query param).
+// Returns nil if no token is present or the token is invalid.
+func getClaimsFromRequest(c *gin.Context) *auth.JWTClaims {
+	var tokenString string
+
+	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+		t, err := auth.ExtractTokenFromBearer(authHeader)
+		if err != nil {
+			return nil
+		}
+		tokenString = t
+	} else if raw := c.Query("token"); raw != "" {
+		tokenString = raw
+	} else {
+		return nil
+	}
+
+	origin := auth.GetOriginFromRequest(c)
+	claims, err := auth.GetClaimsFromToken(tokenString, origin)
+	if err != nil {
+		return nil
+	}
+	return claims
+}
+
+// LockDevice godoc
+// @Summary      Lock a device via REST API
+// @Description  Acquire an exclusive lock on a device. Authenticate via Authorization header (Bearer token) or ?token= query param (raw token, no Bearer prefix). Optional ?ttl_minutes= (default 10, max 60). If locked by another user returns 409. Admins can take over any lock.
+// @Tags         Hub - Devices
+// @Produce      json
+// @Param        udid         path   string  true   "Device UDID"
+// @Param        token        query  string  false  "Raw JWT token (alternative to Authorization header)"
+// @Param        ttl_minutes  query  int     false  "Lock TTL in minutes (default 10, max 60)"
+// @Success      200   {object}  lockDeviceResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
+// @Failure      409   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /devices/control/{udid}/lock [post]
+func LockDevice(c *gin.Context) {
+	udid := c.Param("udid")
+
+	claims := getClaimsFromRequest(c)
+	if claims == nil || claims.Username == "" {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	ttl, _ := strconv.Atoi(c.DefaultQuery("ttl_minutes", "10"))
+	if ttl <= 0 {
+		ttl = 10
+	}
+	if ttl > 60 {
+		ttl = 60
+	}
+
+	device, ok := devices.HubDeviceStore.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
+		return
+	}
+
+	device.Mu.Lock()
+	defer device.Mu.Unlock()
+
+	if device.IsLockedByOther(claims.Username, claims.Tenant) {
+		if claims.Role != "admin" {
+			api.Conflict(c, fmt.Sprintf("Device `%s` is already locked by another user", udid))
+			return
+		}
+		// Admin takeover: kick the current holder out via close frame if UI session
+		if device.InUseWSConnection != nil {
+			ws.WriteFrame(device.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "released by admin"))) //nolint:errcheck
+		}
+		device.ReleaseLock()
+	}
+
+	device.AcquireLock(claims.Username, claims.Tenant, devices.LockSourceAPI) //nolint:errcheck — IsLockedByOther already checked above
+	expiresAt := time.Now().Add(time.Duration(ttl) * time.Minute).UnixMilli()
+	device.LeaseExpiresAt = expiresAt
+
+	c.JSON(http.StatusOK, lockDeviceResponse{
+		UDID:        udid,
+		LockedBy:    claims.Username,
+		Tenant:      claims.Tenant,
+		ExpiresAtMS: expiresAt,
+	})
+}
+
+// UnlockDevice godoc
+// @Summary      Unlock a device via REST API
+// @Description  Release a lock on a device. No-op if device is already free. Returns 409 if locked by another user (admins can always unlock). Authenticate via Authorization header or ?token= query param.
+// @Tags         Hub - Devices
+// @Produce      json
+// @Param        udid   path   string  true   "Device UDID"
+// @Param        token  query  string  false  "Raw JWT token (alternative to Authorization header)"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
+// @Failure      409   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /devices/control/{udid}/unlock [post]
+func UnlockDevice(c *gin.Context) {
+	udid := c.Param("udid")
+
+	claims := getClaimsFromRequest(c)
+	if claims == nil || claims.Username == "" {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	device, ok := devices.HubDeviceStore.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
+		return
+	}
+
+	device.Mu.Lock()
+	defer device.Mu.Unlock()
+
+	if !device.IsLocked() {
+		api.OKMessage(c, "Device is not locked")
+		return
+	}
+
+	if device.IsLockedByOther(claims.Username, claims.Tenant) {
+		if claims.Role != "admin" {
+			api.Conflict(c, fmt.Sprintf("Device `%s` is locked by another user", udid))
+			return
+		}
+		// Admin kick-out via close frame if UI session
+		if device.InUseWSConnection != nil {
+			ws.WriteFrame(device.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "released by admin"))) //nolint:errcheck
+		}
+	}
+
+	device.ReleaseLock()
+	api.OKMessage(c, "Device successfully unlocked")
+}
+
 // syncDeviceFields synchronizes operational fields from provider to hub device
 // Only updates fields that are different between the two devices
 func syncDeviceFields(target *models.Device, source *models.Device) {
