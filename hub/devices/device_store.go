@@ -10,7 +10,6 @@
 package devices
 
 import (
-	"GADS/common/models"
 	"sort"
 	"sync"
 )
@@ -20,12 +19,12 @@ import (
 // while each device has its own Mu for protecting its fields.
 type DeviceStore struct {
 	mu      sync.RWMutex
-	devices map[string]*models.LocalHubDevice
+	devices map[string]*LocalHubDevice
 }
 
 func NewDeviceStore() *DeviceStore {
 	return &DeviceStore{
-		devices: make(map[string]*models.LocalHubDevice),
+		devices: make(map[string]*LocalHubDevice),
 	}
 }
 
@@ -33,7 +32,7 @@ func NewDeviceStore() *DeviceStore {
 var HubDeviceStore = NewDeviceStore()
 
 // Get returns the device for the given UDID and whether it was found.
-func (s *DeviceStore) Get(udid string) (*models.LocalHubDevice, bool) {
+func (s *DeviceStore) Get(udid string) (*LocalHubDevice, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	d, ok := s.devices[udid]
@@ -41,7 +40,7 @@ func (s *DeviceStore) Get(udid string) (*models.LocalHubDevice, bool) {
 }
 
 // Set adds or replaces the device for the given UDID.
-func (s *DeviceStore) Set(udid string, d *models.LocalHubDevice) {
+func (s *DeviceStore) Set(udid string, d *LocalHubDevice) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.devices[udid] = d
@@ -56,10 +55,10 @@ func (s *DeviceStore) Delete(udid string) {
 
 // All returns a snapshot slice of all devices. Callers may iterate freely;
 // use each device's own Mu to protect field access.
-func (s *DeviceStore) All() []*models.LocalHubDevice {
+func (s *DeviceStore) All() []*LocalHubDevice {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	result := make([]*models.LocalHubDevice, 0, len(s.devices))
+	result := make([]*LocalHubDevice, 0, len(s.devices))
 	for _, d := range s.devices {
 		result = append(result, d)
 	}
@@ -68,7 +67,7 @@ func (s *DeviceStore) All() []*models.LocalHubDevice {
 
 // AllSorted returns a snapshot slice of all devices ordered by UDID.
 // Callers may iterate freely; use each device's own Mu to protect field access.
-func (s *DeviceStore) AllSorted() []*models.LocalHubDevice {
+func (s *DeviceStore) AllSorted() []*LocalHubDevice {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	keys := make([]string, 0, len(s.devices))
@@ -76,7 +75,7 @@ func (s *DeviceStore) AllSorted() []*models.LocalHubDevice {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	result := make([]*models.LocalHubDevice, 0, len(keys))
+	result := make([]*LocalHubDevice, 0, len(keys))
 	for _, k := range keys {
 		result = append(result, s.devices[k])
 	}

@@ -93,17 +93,12 @@ func DeviceProxyHandler(c *gin.Context) {
 		return
 	}
 
-	// Verify if the device is already in use by another user
 	device.Mu.RLock()
-	inUseBy := device.InUseBy
-	inUseByTenant := device.InUseByTenant
-	inUseTS := device.InUseTS
 	isAvailable := device.Available
+	isLockedByOther := device.IsLockedByOther(username, tenant)
 	device.Mu.RUnlock()
 
-	if inUseBy != "" &&
-		(time.Now().UnixMilli()-inUseTS) < 3000 &&
-		(inUseBy != username || inUseByTenant != tenant) {
+	if isLockedByOther {
 		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
 		return
 	}
@@ -149,9 +144,10 @@ func DeviceProxyHandler(c *gin.Context) {
 		},
 	}
 
-	// Set the last action performed timestamp through the proxy
+	// Keep the lock alive and record the action timestamp
 	device.Mu.Lock()
 	device.LastActionTS = time.Now().UnixMilli()
+	device.RefreshLock()
 	device.Mu.Unlock()
 
 	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects

@@ -497,41 +497,22 @@ func DeviceInUseWS(c *gin.Context) {
 
 	device.Mu.Lock()
 
-	// Check if device is in use by another user
-	if device.InUseBy != "" {
-		// Check if it's the same user (including tenant)
-		isSameUser := device.InUseBy == username && device.InUseByTenant == userTenant
-
-		// If not the same user AND there's an active WebSocket connection, always deny
-		if !isSameUser && device.InUseWSConnection != nil {
-			device.Mu.Unlock()
-			c.Status(http.StatusConflict)
-			return
-		}
-
-		// If not the same user and device was used recently, also deny
-		if !isSameUser && (time.Now().UnixMilli()-device.InUseTS) < 3000 {
-			device.Mu.Unlock()
-			c.Status(http.StatusConflict)
-			return
-		}
+	if device.IsLockedByOther(username, userTenant) {
+		device.Mu.Unlock()
+		c.Status(http.StatusConflict)
+		return
 	}
 
 	// Reserve the device BEFORE upgrading the WebSocket
 	// This prevents another user from passing the verification while we are upgrading the WebSocket
-	device.InUseTS = time.Now().UnixMilli()
-	device.InUseBy = username
-	device.InUseByTenant = userTenant
-	device.LastActionTS = time.Now().UnixMilli()
+	device.AcquireLock(username, userTenant, devices.LockSourceUI) //nolint:errcheck — AcquireLock only fails when locked by other, already checked above
 	device.Mu.Unlock()
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		// Clear the reservation if the upgrade fails
 		device.Mu.Lock()
-		device.InUseTS = 0
-		device.InUseBy = ""
-		device.InUseByTenant = ""
+		device.ReleaseLock()
 		device.Mu.Unlock()
 
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
@@ -541,7 +522,7 @@ func DeviceInUseWS(c *gin.Context) {
 	// Add the created connection to the respective device in the map
 	// So we can send different messages to it from other sources
 	device.Mu.Lock()
-	device.InUseWSConnection = conn
+	device.SetWSConnection(conn)
 	device.Mu.Unlock()
 
 	// If this function returns then we close the connection
@@ -549,14 +530,9 @@ func DeviceInUseWS(c *gin.Context) {
 	defer func() {
 		conn.Close()
 		device.Mu.Lock()
-		// Clear the connection
-		device.InUseWSConnection = nil
-
-		// Only clear user info if not running automation
+		device.ClearWSConnection()
 		if !device.IsRunningAutomation {
-			device.InUseTS = 0
-			device.InUseBy = ""
-			device.InUseByTenant = ""
+			device.ReleaseLock()
 		}
 		device.Mu.Unlock()
 	}()
@@ -602,13 +578,9 @@ func DeviceInUseWS(c *gin.Context) {
 							}
 							sessionExpiredJson, _ := json.Marshal(sessionExpiredMessage)
 							wsutil.WriteServerText(conn, sessionExpiredJson)
-							// Update the hub device to no longer be in use
 							device.Mu.Lock()
-							device.InUseTS = 0
-							device.InUseBy = ""
-							device.InUseByTenant = ""
+							device.ReleaseLock()
 							device.Mu.Unlock()
-							// Cancel the current websocket goroutines and stuff
 							cancel()
 							return
 						}
@@ -652,11 +624,9 @@ func DeviceInUseWS(c *gin.Context) {
 		// If a message is received over the channel with the username of the user occupying the device
 		// We set the last timestamp for in use and set the name of the person using it
 		// We reset the timer each time a message was received
-		case userName := <-messageReceived:
+		case <-messageReceived:
 			device.Mu.Lock()
-			device.InUseTS = time.Now().UnixMilli()
-			device.InUseBy = userName
-			device.InUseByTenant = userTenant
+			device.RefreshLock()
 			device.Mu.Unlock()
 			if !timer.Stop() {
 				<-timer.C
@@ -667,11 +637,8 @@ func DeviceInUseWS(c *gin.Context) {
 		// And remove the name of the person that was using it
 		case <-timer.C:
 			device.Mu.Lock()
-			// Only clear user info if not running automation
 			if !device.IsRunningAutomation {
-				device.InUseTS = 0
-				device.InUseBy = ""
-				device.InUseByTenant = ""
+				device.ReleaseLock()
 			}
 			device.Mu.Unlock()
 			return
@@ -690,7 +657,7 @@ func DeviceInUseWS(c *gin.Context) {
 // @Accept       json
 // @Produce      text/event-stream
 // @Param        workspaceId  query  string  true  "Workspace ID"
-// @Success      200          {object}  []models.LocalHubDevice
+// @Success      200          {object}  []devices.LocalHubDevice
 // @Failure      400          {object}  models.ErrorResponse
 // @Router       /available-devices [get]
 func AvailableDevicesSSE(c *gin.Context) {
@@ -702,7 +669,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 	}
 
 	c.Stream(func(w io.Writer) bool {
-		var deviceList []*models.LocalHubDevice
+		var deviceList []*devices.LocalHubDevice
 
 		for _, d := range devices.HubDeviceStore.AllSorted() {
 			d.Mu.Lock()
@@ -1019,10 +986,7 @@ func ReleaseUsedDevice(c *gin.Context) {
 		return
 	}
 
-	releaseDevice.InUseWSConnection.Close()
-	releaseDevice.InUseTS = 0
-	releaseDevice.InUseBy = ""
-	releaseDevice.InUseByTenant = ""
+	releaseDevice.ReleaseLock()
 
 	api.OKMessage(c, "Message to release device was successfully sent")
 }
@@ -1079,7 +1043,7 @@ func ProviderUpdate(c *gin.Context) {
 		if !providerDevice.Connected {
 			hubDevice.IsAvailableForAutomation = false
 			hubDevice.IsRunningAutomation = false
-			hubDevice.InUseBy = ""
+			hubDevice.ReleaseLockIfNotHeld()
 			hubDevice.SessionID = ""
 			hubDevice.Mu.Unlock()
 			continue

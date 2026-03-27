@@ -58,11 +58,7 @@ func UpdateExpiredGridSessions() {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
-				if hubDevice.InUseBy != "" {
-					hubDevice.InUseBy = ""
-					hubDevice.InUseByTenant = ""
-					hubDevice.InUseTS = 0
-				}
+				hubDevice.ReleaseLockIfNotHeld()
 			}
 			hubDevice.Mu.Unlock()
 		}
@@ -157,7 +153,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			// Check for available device
-			var foundDevice *models.LocalHubDevice
+			var foundDevice *devices.LocalHubDevice
 			var deviceErr error
 
 			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
@@ -261,12 +257,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				if resp.StatusCode != http.StatusInternalServerError {
-					// Only clear user info if no manual session is active
-					if foundDevice.InUseWSConnection == nil {
-						foundDevice.InUseBy = ""
-						foundDevice.InUseByTenant = ""
-						foundDevice.InUseTS = 0
-					}
+					foundDevice.ReleaseLockIfNotHeld()
 				}
 				foundDevice.Mu.Unlock()
 
@@ -279,12 +270,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 							foundDevice.IsAvailableForAutomation = true
 							foundDevice.SessionID = ""
 							foundDevice.IsRunningAutomation = false
-							// Only clear user info if no manual session is active
-							if foundDevice.InUseWSConnection == nil {
-								foundDevice.InUseBy = ""
-								foundDevice.InUseByTenant = ""
-								foundDevice.InUseTS = 0
-							}
+							foundDevice.ReleaseLockIfNotHeld()
 						}
 						foundDevice.Mu.Unlock()
 					}()
@@ -341,8 +327,8 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			if automationUser == "" {
 				automationUser = "unknown"
 			}
-			// Only update InUseBy if no manual session is active
-			if foundDevice.InUseWSConnection == nil {
+			// Only update InUseBy if no UI or API session is active
+			if !foundDevice.HasUISession() && !foundDevice.HasActiveLease() {
 				foundDevice.InUseBy = automationUser
 				foundDevice.InUseByTenant = credential.Tenant
 				foundDevice.InUseTS = time.Now().UnixMilli()
@@ -449,12 +435,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
 						foundDevice.SessionID = ""
 						foundDevice.IsRunningAutomation = false
-						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
-							foundDevice.InUseBy = ""
-							foundDevice.InUseByTenant = ""
-							foundDevice.InUseTS = 0
-						}
+						foundDevice.ReleaseLockIfNotHeld()
 					}
 					foundDevice.Mu.Unlock()
 				}()
@@ -469,12 +450,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 						foundDevice.SessionID = ""
 						foundDevice.IsAvailableForAutomation = true
 						foundDevice.IsRunningAutomation = false
-						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
-							foundDevice.InUseBy = ""
-							foundDevice.InUseByTenant = ""
-							foundDevice.InUseTS = 0
-						}
+						foundDevice.ReleaseLockIfNotHeld()
 					}
 					foundDevice.Mu.Unlock()
 				}()
@@ -512,7 +488,7 @@ func readBody(r io.Reader) ([]byte, error) {
 	return body, nil
 }
 
-func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
+func getDeviceBySessionID(sessionID string) (*devices.LocalHubDevice, error) {
 	for _, localDevice := range devices.HubDeviceStore.All() {
 		localDevice.Mu.RLock()
 		sid := localDevice.SessionID
@@ -524,7 +500,7 @@ func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
 	return nil, fmt.Errorf("No device with session ID `%s` was found", sessionID)
 }
 
-func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
+func getDeviceByUDID(udid string) (*devices.LocalHubDevice, error) {
 	// Try direct lookup first (O(1))
 	if d, ok := devices.HubDeviceStore.Get(udid); ok {
 		return d, nil
@@ -562,8 +538,8 @@ func getTargetOSFromCaps(caps models.CommonCapabilities) string {
 	return ""
 }
 
-func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*models.LocalHubDevice, error) {
-	var foundDevice *models.LocalHubDevice
+func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*devices.LocalHubDevice, error) {
+	var foundDevice *devices.LocalHubDevice
 
 	var deviceUDID = ""
 	if caps.DeviceUDID != "" {
@@ -606,7 +582,7 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 		return nil, fmt.Errorf("Device is currently not available for automation")
 	}
 
-	var availableDevices []*models.LocalHubDevice
+	var availableDevices []*devices.LocalHubDevice
 
 	targetOS := getTargetOSFromCaps(caps)
 	if targetOS != "" {
@@ -619,8 +595,7 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 			available := localDevice.IsAvailableForAutomation
 			usage := localDevice.Device.Usage
 			wsID := localDevice.Device.WorkspaceID
-			inUseBy := localDevice.InUseBy
-			inUseByTenant := localDevice.InUseByTenant
+			isLockedByOther := localDevice.IsLockedByOther(userID, userTenant)
 			localDevice.Mu.RUnlock()
 
 			if !strings.EqualFold(os, targetOS) ||
@@ -644,14 +619,8 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 				continue
 			}
 
-			if inUseBy != "" && inUseByTenant != "" {
-				currentUser := userID
-				if currentUser == "" {
-					currentUser = "unknown"
-				}
-				if inUseBy != currentUser || inUseByTenant != userTenant {
-					continue
-				}
+			if isLockedByOther {
+				continue
 			}
 
 			availableDevices = append(availableDevices, localDevice)

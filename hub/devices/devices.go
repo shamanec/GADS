@@ -93,7 +93,7 @@ func GetLatestDBDevices() {
 			} else {
 				dbDevice.InstalledApps = make([]string, 0)
 				dbDevice.SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
-				HubDeviceStore.Set(dbDevice.UDID, &models.LocalHubDevice{
+				HubDeviceStore.Set(dbDevice.UDID, &LocalHubDevice{
 					Device:                   *dbDevice,
 					IsRunningAutomation:      false,
 					IsAvailableForAutomation: true,
@@ -105,7 +105,7 @@ func GetLatestDBDevices() {
 	}
 }
 
-func GetHubDeviceByUDID(udid string) *models.LocalHubDevice {
+func GetHubDeviceByUDID(udid string) *LocalHubDevice {
 	device, ok := HubDeviceStore.Get(udid)
 	if ok {
 		return device

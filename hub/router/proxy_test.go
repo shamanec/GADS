@@ -31,7 +31,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 	t.Run("Available Device - Should Proxy Normally", func(t *testing.T) {
 		// Setup an available device
 		udid := "test-device-available"
-		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
@@ -60,7 +60,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 	t.Run("Unavailable Device - Should Return 422", func(t *testing.T) {
 		// Setup an unavailable device
 		udid := "test-device-unavailable"
-		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
@@ -116,7 +116,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 		// Setup a device in use by another user
 		udid := "test-device-in-use"
 		currentTime := time.Now().UnixMilli()
-		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
@@ -146,7 +146,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 	t.Run("Missing Client Credentials - Should Return W3C Error Format", func(t *testing.T) {
 		// Setup a device
 		udid := "test-device-no-credentials"
-		devices.HubDeviceStore.Set(udid, &models.LocalHubDevice{
+		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
 				Host: "localhost:8080",
