@@ -470,23 +470,14 @@ func DeviceInUseWS(c *gin.Context) {
 	var username string
 	var userTenant string
 
-	// Extract token from Bearer format
-	tokenString, err := auth.ExtractTokenFromBearer(tokenParam)
-	if err == nil {
-		// Get origin from request
-		origin := auth.GetOriginFromRequest(c)
-
-		// Get claims from token with origin
-		claims, err := auth.GetClaimsFromToken(tokenString, origin)
-		if err != nil || claims.Username == "" {
-			// Return 401 for any token validation error
-			c.Status(http.StatusUnauthorized)
-			return
-		}
-
-		username = claims.Username
-		userTenant = claims.Tenant
+	// Extract token from the request
+	claims := getClaimsFromRequest(c)
+	if claims == nil || claims.Username == "" {
+		c.Status(http.StatusUnauthorized)
+		return
 	}
+	username = claims.Username
+	userTenant = claims.Tenant
 
 	// Verify if the device is already in use by another user
 	device, exists := devices.HubDeviceStore.Get(udid)

@@ -77,11 +77,7 @@ func (d *LocalHubDevice) ReleaseLockIfNotHeld() {
 	if d.HasUISession() || d.HasActiveLease() {
 		return
 	}
-	d.InUseBy = ""
-	d.InUseByTenant = ""
-	d.InUseTS = 0
-	d.LockSource = ""
-	d.LeaseExpiresAt = 0
+	d.ReleaseLock()
 }
 
 // IsLocked reports whether the device is currently locked by any means:
