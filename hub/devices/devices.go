@@ -14,7 +14,6 @@ import (
 	"GADS/common/models"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -35,17 +34,8 @@ func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canva
 	return
 }
 
-type HubDevices struct {
-	Mu      sync.Mutex
-	Devices map[string]*models.LocalHubDevice
-}
-
-var HubDevicesData HubDevices
-
 func InitHubDevicesData() {
-	HubDevicesData = HubDevices{
-		Devices: make(map[string]*models.LocalHubDevice),
-	}
+	HubDeviceStore = NewDeviceStore()
 }
 
 // Get the latest devices information from MongoDB each second
@@ -55,26 +45,29 @@ func GetLatestDBDevices() {
 	for {
 		latestDBDevices, _ = db.GlobalMongoStore.GetDevices()
 
-		HubDevicesData.Mu.Lock()
-		for udid, _ := range HubDevicesData.Devices {
+		// Remove devices from the store that are no longer in the DB
+		var toDelete []string
+		for _, hubDevice := range HubDeviceStore.All() {
 			found := false
 			for _, dbDevice := range latestDBDevices {
-				if dbDevice.UDID == udid {
+				if dbDevice.UDID == hubDevice.Device.UDID {
 					found = true
 					break
 				}
 			}
 			if !found {
-				delete(HubDevicesData.Devices, udid)
+				toDelete = append(toDelete, hubDevice.Device.UDID)
 			}
 		}
-		HubDevicesData.Mu.Unlock()
+		for _, udid := range toDelete {
+			HubDeviceStore.Delete(udid)
+		}
 
-		for _, dbDevice := range latestDBDevices {
-			HubDevicesData.Mu.Lock()
-			hubDevice, ok := HubDevicesData.Devices[dbDevice.UDID]
+		for i := range latestDBDevices {
+			dbDevice := &latestDBDevices[i]
+			hubDevice, ok := HubDeviceStore.Get(dbDevice.UDID)
 			if ok {
-				// Update data only if needed
+				hubDevice.Mu.Lock()
 				if hubDevice.Device.OSVersion != dbDevice.OSVersion {
 					hubDevice.Device.OSVersion = dbDevice.OSVersion
 				}
@@ -96,32 +89,26 @@ func GetLatestDBDevices() {
 				if hubDevice.Device.WorkspaceID != dbDevice.WorkspaceID {
 					hubDevice.Device.WorkspaceID = dbDevice.WorkspaceID
 				}
+				hubDevice.Mu.Unlock()
 			} else {
 				dbDevice.InstalledApps = make([]string, 0)
 				dbDevice.SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
-				HubDevicesData.Devices[dbDevice.UDID] = &models.LocalHubDevice{
-					Device:                   dbDevice,
+				HubDeviceStore.Set(dbDevice.UDID, &LocalHubDevice{
+					Device:                   *dbDevice,
 					IsRunningAutomation:      false,
 					IsAvailableForAutomation: true,
 					LastAutomationActionTS:   0,
-				}
+				})
 			}
-			HubDevicesData.Mu.Unlock()
 		}
 		time.Sleep(1 * time.Second)
 	}
 }
 
-var getDeviceMu sync.RWMutex
-
-func GetHubDeviceByUDID(udid string) *models.LocalHubDevice {
-	getDeviceMu.Lock()
-	defer getDeviceMu.Unlock()
-	for _, hubDevice := range HubDevicesData.Devices {
-		if hubDevice.Device.UDID == udid {
-			return hubDevice
-		}
+func GetHubDeviceByUDID(udid string) *LocalHubDevice {
+	device, ok := HubDeviceStore.Get(udid)
+	if ok {
+		return device
 	}
-
 	return nil
 }

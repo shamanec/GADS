@@ -87,30 +87,21 @@ func DeviceProxyHandler(c *gin.Context) {
 		}
 	}
 
-	devices.HubDevicesData.Mu.Lock()
-	device, ok := devices.HubDevicesData.Devices[udid]
-
-	// Verify if the device is already in use by another user
-	if ok && device != nil && device.InUseBy != "" &&
-		(time.Now().UnixMilli()-device.InUseTS) < 3000 &&
-		(device.InUseBy != username || device.InUseByTenant != tenant) {
-
-		devices.HubDevicesData.Mu.Unlock()
-		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
-		return
-	}
-
-	devices.HubDevicesData.Mu.Unlock()
-
+	device, ok := devices.HubDeviceStore.Get(udid)
 	if !ok || device == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device with UDID `%s` not found or is nil", udid)})
 		return
 	}
 
-	// Check if device is available before proceeding with proxy operations
-	devices.HubDevicesData.Mu.Lock()
-	isAvailable := devices.HubDevicesData.Devices[udid].Available
-	devices.HubDevicesData.Mu.Unlock()
+	device.Mu.RLock()
+	isAvailable := device.Available
+	isLockedByOther := device.IsLockedByOther(username, tenant)
+	device.Mu.RUnlock()
+
+	if isLockedByOther {
+		c.JSON(http.StatusConflict, gin.H{"error": "This device is already linked to another user with an active session"})
+		return
+	}
 
 	if !isAvailable {
 		if c.Request.Method == "POST" && strings.HasSuffix(path, "/session") {
@@ -136,9 +127,9 @@ func DeviceProxyHandler(c *gin.Context) {
 	proxy := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "http"
-			devices.HubDevicesData.Mu.Lock()
-			req.URL.Host = devices.HubDevicesData.Devices[udid].Device.Host
-			devices.HubDevicesData.Mu.Unlock()
+			device.Mu.RLock()
+			req.URL.Host = device.Device.Host
+			device.Mu.RUnlock()
 			req.URL.Path = "/device/" + udid + path
 		},
 		Transport: proxyTransport,
@@ -153,10 +144,11 @@ func DeviceProxyHandler(c *gin.Context) {
 		},
 	}
 
-	// Set the last action performed timestamp through the proxy
-	devices.HubDevicesData.Mu.Lock()
-	devices.HubDevicesData.Devices[udid].LastActionTS = time.Now().UnixMilli()
-	devices.HubDevicesData.Mu.Unlock()
+	// Keep the lock alive and record the action timestamp
+	device.Mu.Lock()
+	device.LastActionTS = time.Now().UnixMilli()
+	device.RefreshLock()
+	device.Mu.Unlock()
 
 	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
 	proxy.ServeHTTP(c.Writer, c.Request)
