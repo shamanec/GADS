@@ -39,9 +39,11 @@ type PlatformDevice interface {
 	SetProviderState(state string)
 	IsConnected() bool
 	SetConnected(connected bool)
+	GetHost() string
+	SetHost(host string)
 
-	// Hub sync - builds a models.Device with runtime fields populated for JSON serialization to hub
-	ToHubDevice() models.Device
+	// Hub sync - builds the lightweight update sent to the hub each second
+	ToSyncUpdate() models.ProviderDeviceSync
 
 	// Appium - returns platform-specific Appium server capabilities
 	AppiumCapabilities() models.AppiumServerCapabilities

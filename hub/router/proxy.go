@@ -128,7 +128,7 @@ func DeviceProxyHandler(c *gin.Context) {
 		Director: func(req *http.Request) {
 			req.URL.Scheme = "http"
 			device.Mu.RLock()
-			req.URL.Host = device.Device.Host
+			req.URL.Host = device.Host
 			device.Mu.RUnlock()
 			req.URL.Path = "/device/" + udid + path
 		},

@@ -609,9 +609,9 @@ func AvailableDevicesSSE(c *gin.Context) {
 				continue
 			}
 
-			if d.Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && d.Device.Connected {
+			if d.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && d.Connected {
 				d.Available = false
-			} else if d.Device.ProviderState != "live" {
+			} else if d.ProviderState != "live" {
 				d.Available = false
 			} else {
 				d.Available = true
@@ -1054,17 +1054,13 @@ func UnlockDevice(c *gin.Context) {
 	api.OKMessage(c, "Device successfully unlocked")
 }
 
-// syncDeviceFields synchronizes operational fields from provider to hub device
-// Only updates fields that are different between the two devices
-func syncDeviceFields(target *models.Device, source *models.Device) {
+// syncDeviceFields synchronizes operational fields from provider to hub device.
+func syncDeviceFields(target *devices.LocalHubDevice, source *models.ProviderDeviceSync) {
 	if target.Connected != source.Connected {
 		target.Connected = source.Connected
 	}
 	if target.ProviderState != source.ProviderState {
 		target.ProviderState = source.ProviderState
-	}
-	if target.LastUpdatedTimestamp != source.LastUpdatedTimestamp {
-		target.LastUpdatedTimestamp = source.LastUpdatedTimestamp
 	}
 	if target.Host != source.Host {
 		target.Host = source.Host
@@ -1102,8 +1098,10 @@ func ProviderUpdate(c *gin.Context) {
 		}
 		hubDevice.Mu.Lock()
 		// If device is not connected reset all fields that might allow it to get stuck in Running automation state
-		// If its not connected, then its not running automation or is available for automation
 		if !providerDevice.Connected {
+			hubDevice.Connected = false
+			hubDevice.ProviderState = providerDevice.ProviderState
+			hubDevice.Host = providerDevice.Host
 			hubDevice.IsAvailableForAutomation = false
 			hubDevice.IsRunningAutomation = false
 			hubDevice.ReleaseLockIfNotHeld()
@@ -1111,11 +1109,10 @@ func ProviderUpdate(c *gin.Context) {
 			hubDevice.Mu.Unlock()
 			continue
 		}
-		// Set a timestamp to indicate last time info about the device was updated from the provider
-		providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
+		// Stamp when we last heard from the provider about this device
+		hubDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
-		// Update only operational fields from provider
-		syncDeviceFields(&hubDevice.Device, providerDevice)
+		syncDeviceFields(hubDevice, providerDevice)
 		hubDevice.Mu.Unlock()
 	}
 

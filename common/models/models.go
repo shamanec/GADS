@@ -51,12 +51,7 @@ type Device struct {
 	// This field will be removed in next major version release. Only kept for backward compatibility during migration.
 	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
 	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
-	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
-	// NON-DB DATA — hub-visible runtime fields (synced from provider to hub)
-	Host                 string `json:"host" bson:"-"`                   // IP address of the device host(provider)
-	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"-"` // last time the device data was updated
-	Connected            bool   `json:"connected" bson:"-"`              // if device is currently connected
-	ProviderState        string `json:"provider_state" bson:"-"`         // current state of the device on the provider - init, preparing, live
+	StreamType StreamingType `json:"stream_type" bson:"stream_type"` // The type of video streaming for the device
 }
 
 // Device stream type - mjpeg, webrtc, etc

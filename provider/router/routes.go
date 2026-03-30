@@ -236,13 +236,13 @@ func GetProviderData(c *gin.Context) {
 	var providerData models.ProviderData
 
 	allDevs := devices.DevManager.All()
-	deviceData := make([]models.Device, 0, len(allDevs))
+	syncData := make([]models.ProviderDeviceSync, 0, len(allDevs))
 	for _, dev := range allDevs {
-		deviceData = append(deviceData, dev.ToHubDevice())
+		syncData = append(syncData, dev.ToSyncUpdate())
 	}
 
 	providerData.ProviderData = *config.ProviderConfig
-	providerData.DeviceData = deviceData
+	providerData.DeviceData = syncData
 
 	api.OK(c, "Successfully retrieved provider data", providerData)
 }
@@ -252,9 +252,14 @@ type WdaOrientationResponse struct {
 }
 
 // DeviceInfoResponse is the composite response for the DeviceInfo endpoint,
-// combining DB fields with provider-only runtime state.
+// combining DB fields with all runtime state from the provider.
 type DeviceInfoResponse struct {
 	models.Device
+	// Hub-synced runtime fields
+	Host          string `json:"host"`
+	Connected     bool   `json:"connected"`
+	ProviderState string `json:"provider_state"`
+	// Provider-only runtime fields
 	HardwareModel        string             `json:"hardware_model"`
 	IsResetting          bool               `json:"is_resetting"`
 	StreamTargetFPS      int                `json:"stream_target_fps,omitempty"`
@@ -280,7 +285,10 @@ func DeviceInfo(c *gin.Context) {
 	}
 
 	resp := DeviceInfoResponse{
-		Device:               platDev.ToHubDevice(),
+		Device:               *platDev.GetDBDevice(),
+		Host:                 platDev.GetHost(),
+		Connected:            platDev.IsConnected(),
+		ProviderState:        platDev.GetProviderState(),
 		HardwareModel:        platDev.GetHardwareModelValue(),
 		IsResetting:          platDev.GetIsResetting(),
 		StreamTargetFPS:      platDev.GetStreamTargetFPS(),
@@ -385,12 +393,12 @@ func DeviceChangeRotation(c *gin.Context) {
 
 func DevicesInfo(c *gin.Context) {
 	allDevs := devices.DevManager.All()
-	deviceList := make([]models.Device, 0, len(allDevs))
+	syncList := make([]models.ProviderDeviceSync, 0, len(allDevs))
 	for _, dev := range allDevs {
-		deviceList = append(deviceList, dev.ToHubDevice())
+		syncList = append(syncList, dev.ToSyncUpdate())
 	}
 
-	api.OK(c, "Successfully retrieved devices info", deviceList)
+	api.OK(c, "Successfully retrieved devices info", syncList)
 }
 
 type ProcessApp struct {

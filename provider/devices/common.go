@@ -116,7 +116,7 @@ func updateProviderHub() {
 					}
 				}
 
-				properJson.DeviceData = append(properJson.DeviceData, platDev.ToHubDevice())
+				properJson.DeviceData = append(properJson.DeviceData, platDev.ToSyncUpdate())
 			} else {
 				// Device no longer exists in DB, mark for removal
 				devicesToRemove = append(devicesToRemove, udid)
@@ -145,7 +145,7 @@ func updateProviderHub() {
 					continue
 				}
 				if platDev, ok := DevManager.Get(udid); ok {
-					properJson.DeviceData = append(properJson.DeviceData, platDev.ToHubDevice())
+					properJson.DeviceData = append(properJson.DeviceData, platDev.ToSyncUpdate())
 				}
 			}
 		}
@@ -183,12 +183,6 @@ func updateProviderHub() {
 // initializeDevice initializes a single device: sets up DB-level fields, creates a
 // PlatformDevice with Logger/SemVer on RuntimeState, and stores it in DevManager.
 func initializeDevice(dbDevice *models.Device) error {
-	dbDevice.ProviderState = "init"
-	dbDevice.Connected = false
-	dbDevice.LastUpdatedTimestamp = 0
-
-	dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
-
 	sv, err := semver.NewVersion(dbDevice.OSVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get semver for device `%s` - %s", dbDevice.UDID, err)
@@ -245,6 +239,12 @@ func initializeDevice(dbDevice *models.Device) error {
 	if platDev == nil {
 		return fmt.Errorf("unsupported OS `%s` for device `%s`", dbDevice.OS, dbDevice.UDID)
 	}
+
+	// Initialize runtime state
+	platDev.SetProviderState("init")
+	platDev.SetConnected(false)
+	platDev.SetHost(fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port))
+
 	DevManager.Set(dbDevice.UDID, platDev)
 
 	return nil
@@ -326,8 +326,9 @@ func updateDevices() {
 					continue
 				}
 				if slices.Contains(connectedDevices, udid) {
-					dbDevice.Connected = true
-					if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
+					platDev.SetConnected(true)
+					state := platDev.GetProviderState()
+					if state != "preparing" && state != "live" {
 						// Validate device configuration before setup
 						err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
 						if err != nil {
@@ -340,7 +341,7 @@ func updateDevices() {
 					}
 				} else {
 					platDev.Reset("Device is no longer connected.")
-					dbDevice.Connected = false
+					platDev.SetConnected(false)
 				}
 			}
 

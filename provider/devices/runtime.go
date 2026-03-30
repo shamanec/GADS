@@ -40,7 +40,12 @@ type RuntimeState struct {
 	AppiumReadyChan  chan bool
 	AppiumPort       string // port assigned to the device for the Appium server
 
-	// Provider-only runtime fields (not on models.Device, not synced to hub)
+	// Runtime fields synced to hub
+	Host          string
+	Connected     bool
+	ProviderState string
+
+	// Provider-only runtime fields
 	HardwareModel        string
 	IsResetting          bool
 	StreamTargetFPS      int
@@ -60,10 +65,12 @@ type RuntimeState struct {
 func (r *RuntimeState) GetUDID() string                { return r.DBDevice.UDID }
 func (r *RuntimeState) GetOS() string                  { return r.DBDevice.OS }
 func (r *RuntimeState) GetDBDevice() *models.Device    { return r.DBDevice }
-func (r *RuntimeState) GetProviderState() string       { return r.DBDevice.ProviderState }
-func (r *RuntimeState) SetProviderState(state string)  { r.DBDevice.ProviderState = state }
-func (r *RuntimeState) IsConnected() bool              { return r.DBDevice.Connected }
-func (r *RuntimeState) SetConnected(connected bool)    { r.DBDevice.Connected = connected }
+func (r *RuntimeState) GetProviderState() string       { return r.ProviderState }
+func (r *RuntimeState) SetProviderState(state string)  { r.ProviderState = state }
+func (r *RuntimeState) IsConnected() bool              { return r.Connected }
+func (r *RuntimeState) SetConnected(connected bool)    { r.Connected = connected }
+func (r *RuntimeState) GetHost() string                { return r.Host }
+func (r *RuntimeState) SetHost(host string)            { r.Host = host }
 func (r *RuntimeState) GetLogger() models.CustomLogger { return r.Logger }
 func (r *RuntimeState) GetContext() context.Context     { return r.Context }
 func (r *RuntimeState) GetAppiumPort() string      { return r.AppiumPort }
@@ -96,30 +103,13 @@ func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelF
 	r.CtxCancel = cancel
 }
 
-// ToHubDevice builds a models.Device populated with DB + hub-visible runtime fields
-// for JSON serialization to the hub. Only the 4 hub-synced runtime fields are included.
-func (r *RuntimeState) ToHubDevice() models.Device {
-	db := r.DBDevice
-	return models.Device{
-		// DB-persisted fields
-		UDID:         db.UDID,
-		OS:           db.OS,
-		Name:         db.Name,
-		OSVersion:    db.OSVersion,
-		IPAddress:    db.IPAddress,
-		Provider:     db.Provider,
-		Usage:        db.Usage,
-		ScreenWidth:  db.ScreenWidth,
-		ScreenHeight: db.ScreenHeight,
-		DeviceType:   db.DeviceType,
-		WorkspaceID:  db.WorkspaceID,
-		StreamType:   db.StreamType,
-
-		// Hub-visible runtime fields
-		Host:                db.Host,
-		LastUpdatedTimestamp: db.LastUpdatedTimestamp,
-		Connected:           db.Connected,
-		ProviderState:       db.ProviderState,
+// ToSyncUpdate builds the lightweight struct sent to the hub each second.
+func (r *RuntimeState) ToSyncUpdate() models.ProviderDeviceSync {
+	return models.ProviderDeviceSync{
+		UDID:          r.DBDevice.UDID,
+		Host:          r.Host,
+		Connected:     r.Connected,
+		ProviderState: r.ProviderState,
 	}
 }
 
@@ -128,14 +118,14 @@ func (r *RuntimeState) ToHubDevice() models.Device {
 func (r *RuntimeState) ResetBase(reason string) bool {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
-	if !r.IsResetting && r.DBDevice.ProviderState != "init" {
+	if !r.IsResetting && r.ProviderState != "init" {
 		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", r.DBDevice.UDID, reason))
 
 		r.IsResetting = true
 		if r.CtxCancel != nil {
 			r.CtxCancel()
 		}
-		r.DBDevice.ProviderState = "init"
+		r.ProviderState = "init"
 		r.IsResetting = false
 
 		// Free AppiumPort (common to all platforms)

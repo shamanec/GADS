@@ -34,8 +34,8 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: true,
 		})
 
@@ -63,8 +63,8 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: false,
 		})
 
@@ -119,8 +119,8 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: true,
 			InUseBy:   "another-user",
 			InUseTS:   currentTime, // Use current time to simulate active session
@@ -149,8 +149,8 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
 			Device: models.Device{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: true,
 		})
 

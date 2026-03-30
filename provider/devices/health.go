@@ -16,12 +16,11 @@ import (
 	"io"
 	"net/http"
 
-	"GADS/common/models"
 )
 
 // Check if a device is healthy by checking Appium and WebDriverAgent(for iOS) services
-func GetDeviceHealth(device *models.Device) (bool, error) {
-	return device.Connected, nil
+func GetDeviceHealth(dev PlatformDevice) (bool, error) {
+	return dev.IsConnected(), nil
 }
 
 func checkAppiumSession(dev PlatformDevice) error {
