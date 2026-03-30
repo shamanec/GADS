@@ -10,16 +10,11 @@
 package models
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -79,25 +74,14 @@ type Device struct {
 	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
 	///// NON-RETURNABLE VALUES
 
-	WDASessionID            string             `json:"-" bson:"-"` // current WebDriverAgent session ID
-	AppiumPort              string             `json:"-" bson:"-"` // port assigned to the device for the Appium server
-	StreamPort              string             `json:"-" bson:"-"` // port assigned to the device for the video stream
-	WDAStreamPort           string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
-	WDAPort                 string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
-	AndroidIMEPort          string             `json:"-" bson:"-"` // port assigned to Android devices for the custom IME keyboard instance
-	AndroidRemoteServerPort string             `json:"-" bson:"-"` // port assigned to Android devices for the custom remote control server
-	WdaReadyChan            chan bool          `json:"-" bson:"-"` // channel for checking that WebDriverAgent is up after start
-	AppiumReadyChan         chan bool          `json:"-" bson:"-"` // channel for checking that Appium is up after start
-	Context                 context.Context    `json:"-" bson:"-"` // context used to control the device set up since we have multiple goroutines
-	CtxCancel               context.CancelFunc `json:"-" bson:"-"` // cancel func for the context above, can be used to stop all running device goroutines
-	GoIOSDeviceEntry        ios.DeviceEntry    `json:"-" bson:"-"` // `go-ios` device entry object used for `go-ios` library interactions
-	Logger                  CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
-	Mutex                   sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
-	SetupMutex              sync.Mutex         `json:"-" bson:"-"` // Mutex for synchronizing device setup operations
-	GoIOSTunnel             tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
-	SemVer                  *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
-	InitialSetupDone        bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
-	DeviceAddress           string             `json:"-" bson:"-"`
+	WDASessionID            string       `json:"-" bson:"-"` // current WebDriverAgent session ID
+	AppiumPort              string       `json:"-" bson:"-"` // port assigned to the device for the Appium server
+	StreamPort              string       `json:"-" bson:"-"` // port assigned to the device for the video stream
+	WDAStreamPort           string       `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
+	WDAPort                 string       `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
+	AndroidIMEPort          string       `json:"-" bson:"-"` // port assigned to Android devices for the custom IME keyboard instance
+	AndroidRemoteServerPort string       `json:"-" bson:"-"` // port assigned to Android devices for the custom remote control server
+	Logger                  CustomLogger `json:"-" bson:"-"` // CustomLogger object for the device
 }
 
 // Device stream type - mjpeg, webrtc, etc

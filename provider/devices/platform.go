@@ -9,7 +9,11 @@
 
 package devices
 
-import "GADS/common/models"
+import (
+	"context"
+
+	"GADS/common/models"
+)
 
 // PlatformDevice is the interface that each OS-specific device type implements.
 // It provides a unified API for device lifecycle and app management,
@@ -41,6 +45,12 @@ type PlatformDevice interface {
 
 	// Appium - returns platform-specific Appium server capabilities
 	AppiumCapabilities() models.AppiumServerCapabilities
+
+	// Infrastructure accessors
+	GetLogger() models.CustomLogger
+	GetContext() context.Context
+	GetAppiumPort() string
+	SetNewContext(ctx context.Context, cancel context.CancelFunc)
 }
 
 // RemoteControllable extends PlatformDevice with capabilities for devices that support

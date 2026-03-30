@@ -127,7 +127,9 @@ func updateProviderHub() {
 					}
 				}
 
-				properJson.DeviceData = append(properJson.DeviceData, *dbDevice)
+				if platDev, ok := DevManager.Get(udid); ok {
+						properJson.DeviceData = append(properJson.DeviceData, platDev.ToHubDevice())
+					}
 			} else {
 				// Device no longer exists in DB, mark for removal
 				devicesToRemove = append(devicesToRemove, udid)
@@ -187,21 +189,20 @@ func updateProviderHub() {
 	}
 }
 
-// initializeDevice initializes a single device with necessary setup
+// initializeDevice initializes a single device: sets up DB-level fields, creates a
+// PlatformDevice with Logger/SemVer on RuntimeState, and stores it in DevManager.
 func initializeDevice(dbDevice *models.Device) error {
 	dbDevice.ProviderState = "init"
 	dbDevice.Connected = false
 	dbDevice.LastUpdatedTimestamp = 0
 	dbDevice.IsResetting = false
-	dbDevice.InitialSetupDone = false
 
 	dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 
-	semver, err := semver.NewVersion(dbDevice.OSVersion)
+	sv, err := semver.NewVersion(dbDevice.OSVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get semver for device `%s` - %s", dbDevice.UDID, err)
 	}
-	dbDevice.SemVer = semver
 
 	if config.ProviderConfig.SetupAppiumServers {
 		// Check if a capped Appium logs collection already exists for the current device
@@ -243,13 +244,18 @@ func initializeDevice(dbDevice *models.Device) error {
 		}
 	}
 
-	// Create a custom logger and attach it to the local device
+	// Create a custom logger
 	deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
 	if err != nil {
 		return fmt.Errorf("could not create custom logger for device `%s` - %s", dbDevice.UDID, err)
 	}
-	dbDevice.Logger = *deviceLogger
-	dbDevice.InitialSetupDone = true
+
+	// Create PlatformDevice with runtime fields on RuntimeState
+	platDev := newPlatformDevice(dbDevice, *deviceLogger, sv)
+	if platDev == nil {
+		return fmt.Errorf("unsupported OS `%s` for device `%s`", dbDevice.OS, dbDevice.UDID)
+	}
+	DevManager.Set(dbDevice.UDID, platDev)
 
 	return nil
 }
@@ -263,26 +269,39 @@ func setupDevices() {
 	}
 }
 
-// newPlatformDevice creates a PlatformDevice wrapping the given *models.Device.
-func newPlatformDevice(dbDevice *models.Device) PlatformDevice {
+// newPlatformDevice creates a PlatformDevice wrapping the given *models.Device
+// with Logger and SemVer set on RuntimeState.
+func newPlatformDevice(dbDevice *models.Device, deviceLogger models.CustomLogger, sv *semver.Version) PlatformDevice {
+	// Each case builds RuntimeState inline to avoid copying sync.Mutex via struct assignment.
 	switch dbDevice.OS {
 	case "ios":
-		return &IOSDevice{
-			RuntimeState: RuntimeState{DBDevice: dbDevice},
-			WdaReadyChan: make(chan bool, 1),
-		}
+		d := &IOSDevice{WdaReadyChan: make(chan bool, 1)}
+		d.DBDevice = dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	case "android":
-		return &AndroidDevice{
-			RuntimeState: RuntimeState{DBDevice: dbDevice},
-		}
+		d := &AndroidDevice{}
+		d.DBDevice = dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	case "tizen":
-		return &TizenDevice{
-			RuntimeState: RuntimeState{DBDevice: dbDevice},
-		}
+		d := &TizenDevice{}
+		d.DBDevice = dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	case "webos":
-		return &WebOSDevice{
-			RuntimeState: RuntimeState{DBDevice: dbDevice},
-		}
+		d := &WebOSDevice{}
+		d.DBDevice = dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	default:
 		return nil
 	}
@@ -322,8 +341,10 @@ func updateDevices() {
 				if slices.Contains(connectedDevices, dbDeviceUDID) {
 					dbDevice.Connected = true
 					if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
-						if !dbDevice.InitialSetupDone {
-							logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Device %s initial setup not completed (invalid os_version?). Skipping.", dbDevice.UDID))
+						// Device must be in DevManager (initialized at startup or when added)
+						platDev, ok := DevManager.Get(dbDeviceUDID)
+						if !ok {
+							logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Device %s not initialized. Skipping.", dbDevice.UDID))
 							continue
 						}
 						// Validate device configuration before setup
@@ -334,18 +355,12 @@ func updateDevices() {
 						}
 
 						setContext(dbDevice)
-
-						// Create platform device, store it, and start setup
-						platDev := newPlatformDevice(dbDevice)
-						if platDev == nil {
-							logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Unsupported OS `%s` for device `%s`", dbDevice.OS, dbDevice.UDID))
-							continue
-						}
-						DevManager.Set(dbDeviceUDID, platDev)
 						go platDev.Setup()
 					}
 				} else {
-					ResetLocalDevice(dbDevice, "Device is no longer connected.")
+					if platDev, ok := DevManager.Get(dbDeviceUDID); ok {
+						platDev.Reset("Device is no longer connected.")
+					}
 					dbDevice.Connected = false
 				}
 			}
@@ -452,38 +467,23 @@ func getConnectedDevicesAndroid() []string {
 	return connectedDevices
 }
 
-// ResetLocalDevice resets a device to init state. Kept for backward compatibility with the router.
+// ResetLocalDevice resets a device to init state by delegating to the PlatformDevice.Reset().
+// Kept for backward compatibility with code that only has a *models.Device reference.
 func ResetLocalDevice(device *models.Device, reason string) {
-	device.Mutex.Lock()
-	defer device.Mutex.Unlock()
-	if !device.IsResetting && device.ProviderState != "init" {
-		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", device.UDID, reason))
-
-		device.IsResetting = true
-		device.CtxCancel()
-		device.ProviderState = "init"
-		device.IsResetting = false
-		if device.GoIOSTunnel.Address != "" {
-			device.GoIOSTunnel.Close()
-		}
-
-		// Free any used ports from the map where we keep them
-		common.MutexManager.LocalDevicePorts.Lock()
-		delete(providerutil.UsedPorts, device.WDAPort)
-		delete(providerutil.UsedPorts, device.StreamPort)
-		delete(providerutil.UsedPorts, device.AppiumPort)
-		delete(providerutil.UsedPorts, device.WDAStreamPort)
-		common.MutexManager.LocalDevicePorts.Unlock()
+	if platDev, ok := DevManager.Get(device.UDID); ok {
+		platDev.Reset(reason)
 	}
 }
 
-// Set a context for a device to enable cancelling running goroutines related to that device when its disconnected
+// setContext creates a new context for a device and stores it on the PlatformDevice's RuntimeState.
 func setContext(device *models.Device) {
-	device.SetupMutex.Lock()
-	defer device.SetupMutex.Unlock()
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	device.CtxCancel = cancelFunc
-	device.Context = ctx
+	platDev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		cancelFunc()
+		return
+	}
+	platDev.SetNewContext(ctx, cancelFunc)
 }
 
 func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {

@@ -4,6 +4,7 @@ import (
 	"GADS/common/models"
 	"GADS/common/utils"
 	"GADS/provider/config"
+	"GADS/provider/devices"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -141,7 +142,15 @@ func deviceScreenshot(device *models.Device) (string, error) {
 
 		return base64Screenshot, nil
 	} else {
-		screenshotService, err := instruments.NewScreenshotService(device.GoIOSDeviceEntry)
+		platDev, ok := devices.DevManager.Get(device.UDID)
+		if !ok {
+			return "", fmt.Errorf("device %s not found in DevManager", device.UDID)
+		}
+		iosDev, ok := platDev.(*devices.IOSDevice)
+		if !ok {
+			return "", fmt.Errorf("device %s is not an iOS device", device.UDID)
+		}
+		screenshotService, err := instruments.NewScreenshotService(iosDev.GoIOSDeviceEntry)
 		if err != nil {
 			return "", err
 		}

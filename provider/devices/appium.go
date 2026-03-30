@@ -32,24 +32,28 @@ import (
 // setupAppiumForDevice handles the full Appium setup for any platform device:
 // kill existing process, allocate port, start Appium, wait for ready, optionally start Selenium Grid node.
 func setupAppiumForDevice(d PlatformDevice) error {
-	device := d.GetDBDevice()
+	udid := d.GetUDID()
 
-	if err := cli.KillDeviceAppiumProcess(device.UDID); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
+	if err := cli.KillDeviceAppiumProcess(udid); err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", udid, err))
 		d.Reset("Failed to kill existing Appium processes.")
 		return err
 	}
 
 	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", device.UDID, err))
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", udid, err))
 		d.Reset("Failed to allocate free Appium port for device.")
 		return err
 	}
-	device.AppiumPort = appiumPort
+	// Set AppiumPort on both RuntimeState and models.Device (backward compat)
+	d.GetDBDevice().AppiumPort = appiumPort
+	if setter, ok := d.(interface{ SetAppiumPort(string) }); ok {
+		setter.SetAppiumPort(appiumPort)
+	}
 
 	caps := d.AppiumCapabilities()
-	go startAppium(device, caps)
+	go startAppium(d, caps)
 
 	timeout := time.After(30 * time.Second)
 	tick := time.Tick(200 * time.Millisecond)
@@ -57,24 +61,25 @@ AppiumLoop:
 	for {
 		select {
 		case <-timeout:
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 30 seconds", device.UDID))
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 30 seconds", udid))
 			d.Reset("Failed to start Appium for device.")
 			return fmt.Errorf("appium did not start in time")
 		case <-tick:
-			if device.IsAppiumUp {
-				logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
+			if d.GetDBDevice().IsAppiumUp {
+				logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", udid, appiumPort))
 				break AppiumLoop
 			}
 		}
 	}
 
 	if config.ProviderConfig.UseSeleniumGrid {
+		device := d.GetDBDevice()
 		if err := createGridTOML(device, caps.AutomationName); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", device.UDID, err))
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", udid, err))
 			d.Reset("Failed to create TOML for device.")
 			return err
 		}
-		go startGridNode(device)
+		go startGridNode(d)
 	}
 
 	return nil
@@ -82,21 +87,23 @@ AppiumLoop:
 
 // startAppium starts the Appium server process with the given capabilities.
 // It runs as a goroutine and blocks until the process exits.
-func startAppium(device *models.Device, capabilities models.AppiumServerCapabilities) {
+func startAppium(d PlatformDevice, capabilities models.AppiumServerCapabilities) {
+	udid := d.GetUDID()
+	appiumPort := d.GetAppiumPort()
 	capabilitiesJson, _ := json.Marshal(capabilities)
 
 	pluginConfig := models.AppiumPluginConfiguration{
 		ProviderUrl:       fmt.Sprintf("http://%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port),
 		HeartBeatInterval: "2000",
-		UDID:              device.UDID,
+		UDID:              udid,
 	}
 	pluginConfigJson, _ := json.Marshal(pluginConfig)
 
 	cmd := exec.CommandContext(
-		device.Context,
+		d.GetContext(),
 		"appium",
 		"-p",
-		device.AppiumPort,
+		appiumPort,
 		"--log-timestamp",
 		"--use-plugin=gads",
 		fmt.Sprintf("--plugin-gads-config=%s", string(pluginConfigJson)),
@@ -105,20 +112,20 @@ func startAppium(device *models.Device, capabilities models.AppiumServerCapabili
 		"--relaxed-security",
 		"--default-capabilities", string(capabilitiesJson))
 
-	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", device.UDID, cmd.Args))
+	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", udid, cmd.Args))
 
 	if err := cmd.Start(); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, device.UDID, err))
-		ResetLocalDevice(device, "Failed to execute Appium command.")
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, udid, err))
+		d.Reset("Failed to execute Appium command.")
 		return
 	}
 
 	if err := cmd.Wait(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
 			"startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
-			cmd.Args, device.UDID, err))
+			cmd.Args, udid, err))
 
-		ResetLocalDevice(device, "Appium command errored out or device was disconnected.")
+		d.Reset("Appium command errored out or device was disconnected.")
 	}
 }
 
@@ -167,9 +174,12 @@ func createGridTOML(device *models.Device, automationName string) error {
 
 // startGridNode starts a Selenium Grid node for the device.
 // It runs as a goroutine and blocks until the process exits.
-func startGridNode(device *models.Device) {
+func startGridNode(d PlatformDevice) {
+	udid := d.GetUDID()
+	deviceLogger := d.GetLogger()
+
 	time.Sleep(5 * time.Second)
-	cmd := exec.CommandContext(device.Context,
+	cmd := exec.CommandContext(d.GetContext(),
 		"java",
 		"-jar",
 		fmt.Sprintf("%s/selenium.jar", config.ProviderConfig.ProviderFolder),
@@ -177,23 +187,23 @@ func startGridNode(device *models.Device) {
 		"--host",
 		config.ProviderConfig.HostAddress,
 		"--config",
-		fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, device.UDID),
+		fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, udid),
 		"--grid-url",
 		config.ProviderConfig.SeleniumGrid,
 	)
 
-	logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s` with command `%s`", device.UDID, cmd.Args))
+	logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s` with command `%s`", udid, cmd.Args))
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error creating stdoutpipe while starting Selenium Grid node for device `%v` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to create stdoutpipe while starting Selenium Grid node.")
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error creating stdoutpipe while starting Selenium Grid node for device `%v` - %v", udid, err))
+		d.Reset("Failed to create stdoutpipe while starting Selenium Grid node.")
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Could not start Selenium Grid node for device `%v` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to start Selenium Grid node.")
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Could not start Selenium Grid node for device `%v` - %v", udid, err))
+		d.Reset("Failed to start Selenium Grid node.")
 		return
 	}
 
@@ -201,11 +211,11 @@ func startGridNode(device *models.Device) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		device.Logger.LogDebug("grid-node", strings.TrimSpace(line))
+		deviceLogger.LogDebug("grid-node", strings.TrimSpace(line))
 	}
 
 	if err := cmd.Wait(); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error waiting for Selenium Grid node command to finish, it errored out or device `%v` was disconnected - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to wait for Selenium Grid node command to finish.")
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error waiting for Selenium Grid node command to finish, it errored out or device `%v` was disconnected - %v", udid, err))
+		d.Reset("Failed to wait for Selenium Grid node command to finish.")
 	}
 }

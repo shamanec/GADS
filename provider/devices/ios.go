@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"GADS/common"
 	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
@@ -54,8 +55,8 @@ type IOSDevice struct {
 
 // Setup runs the full iOS device provisioning sequence.
 func (d *IOSDevice) Setup() error {
-	d.DBDevice.SetupMutex.Lock()
-	defer d.DBDevice.SetupMutex.Unlock()
+	d.SetupMutex.Lock()
+	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
@@ -68,7 +69,7 @@ func (d *IOSDevice) Setup() error {
 		return err
 	}
 	d.GoIOSDeviceEntry = goIosDeviceEntry
-	d.DBDevice.GoIOSDeviceEntry = goIosDeviceEntry
+	d.GoIOSDeviceEntry = goIosDeviceEntry
 
 	// Pair device
 	if err := d.pair(); err != nil {
@@ -78,7 +79,7 @@ func (d *IOSDevice) Setup() error {
 	}
 
 	// Check developer mode for iOS 16+
-	if d.DBDevice.SemVer.Major() >= 16 {
+	if d.SemVer.Major() >= 16 {
 		devModeEnabled, err := imagemounter.IsDevModeEnabled(d.GoIOSDeviceEntry)
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not check developer mode status on device `%s` - %s", d.GetUDID(), err))
@@ -126,7 +127,7 @@ func (d *IOSDevice) Setup() error {
 	d.GoIOSDeviceEntry.UserspaceTUNPort = intTunnelPort
 
 	// Create userspace tunnel for iOS 17.4+
-	if d.DBDevice.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
+	if d.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
 		deviceTunnel, err := d.createTunnel()
 		if err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", d.GetUDID(), err))
@@ -134,7 +135,7 @@ func (d *IOSDevice) Setup() error {
 			return err
 		}
 		d.GoIOSTunnel = deviceTunnel
-		d.DBDevice.GoIOSTunnel = deviceTunnel
+		d.GoIOSTunnel = deviceTunnel
 
 		d.GoIOSDeviceEntry.UserspaceTUNPort = d.GoIOSTunnel.UserspaceTUNPort
 		d.GoIOSDeviceEntry.UserspaceTUN = d.GoIOSTunnel.UserspaceTUN
@@ -167,7 +168,6 @@ func (d *IOSDevice) Setup() error {
 		return err
 	}
 	d.WDAPort = wdaPort
-	d.DBDevice.WDAPort = wdaPort
 
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -175,7 +175,6 @@ func (d *IOSDevice) Setup() error {
 		return err
 	}
 	d.StreamPort = streamPort
-	d.DBDevice.StreamPort = streamPort
 
 	wdaStreamPort, err := providerutil.GetFreePort()
 	if err != nil {
@@ -183,7 +182,6 @@ func (d *IOSDevice) Setup() error {
 		return err
 	}
 	d.WDAStreamPort = wdaStreamPort
-	d.DBDevice.WDAStreamPort = wdaStreamPort
 
 	// Forward ports
 	go d.goIosForward(d.WDAPort, "8100")
@@ -191,7 +189,7 @@ func (d *IOSDevice) Setup() error {
 	go d.goIosForward(d.WDAStreamPort, "9100")
 
 	// Install/launch WDA
-	if d.DBDevice.SemVer.Major() < 17 || d.DBDevice.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
+	if d.SemVer.Major() < 17 || d.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
 		if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
 			d.Reset("Failed to install WebDriverAgent on device.")
@@ -240,6 +238,20 @@ func (d *IOSDevice) Setup() error {
 	return nil
 }
 
+// Reset overrides RuntimeState.Reset to close iOS tunnels and free iOS-specific ports.
+func (d *IOSDevice) Reset(reason string) {
+	if d.ResetBase(reason) {
+		if d.GoIOSTunnel.Address != "" {
+			d.GoIOSTunnel.Close()
+		}
+		common.MutexManager.LocalDevicePorts.Lock()
+		delete(providerutil.UsedPorts, d.WDAPort)
+		delete(providerutil.UsedPorts, d.StreamPort)
+		delete(providerutil.UsedPorts, d.WDAStreamPort)
+		common.MutexManager.LocalDevicePorts.Unlock()
+	}
+}
+
 // AppiumCapabilities returns the iOS-specific Appium server capabilities.
 func (d *IOSDevice) AppiumCapabilities() models.AppiumServerCapabilities {
 	return models.AppiumServerCapabilities{
@@ -269,7 +281,7 @@ func (d *IOSDevice) goIosForward(hostPort string, devicePort string) {
 	}
 
 	select {
-	case <-d.DBDevice.Context.Done():
+	case <-d.Context.Done():
 		cl.Close()
 		return
 	}
@@ -534,7 +546,7 @@ func (d *IOSDevice) deviceWithRsdProvider() error {
 	newEntry.UserspaceTUN = d.GoIOSDeviceEntry.UserspaceTUN
 	newEntry.UserspaceTUNPort = d.GoIOSDeviceEntry.UserspaceTUNPort
 	d.GoIOSDeviceEntry = newEntry
-	d.DBDevice.GoIOSDeviceEntry = newEntry
+	d.GoIOSDeviceEntry = newEntry
 	if err != nil {
 		return err
 	}
@@ -549,7 +561,7 @@ func (d *IOSDevice) runWDA() {
 		Device:             d.GoIOSDeviceEntry,
 		Listener:           testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()),
 	}
-	_, err := testmanagerd.RunTestWithConfig(d.DBDevice.Context, testConfig)
+	_, err := testmanagerd.RunTestWithConfig(d.Context, testConfig)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to run WebDriverAgent via testmanagerd on device `%s` - %s", d.GetUDID(), err))
 		d.Reset("Failed to run WebDriverAgent due to an error.")

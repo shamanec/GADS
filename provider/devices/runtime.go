@@ -38,17 +38,26 @@ type RuntimeState struct {
 	SemVer           *semver.Version
 	InitialSetupDone bool
 	AppiumReadyChan  chan bool
+	AppiumPort       string // port assigned to the device for the Appium server
 }
 
 // Common accessor implementations inherited by all platform types via embedding.
 
-func (r *RuntimeState) GetUDID() string              { return r.DBDevice.UDID }
-func (r *RuntimeState) GetOS() string                 { return r.DBDevice.OS }
-func (r *RuntimeState) GetDBDevice() *models.Device   { return r.DBDevice }
-func (r *RuntimeState) GetProviderState() string      { return r.DBDevice.ProviderState }
-func (r *RuntimeState) SetProviderState(state string) { r.DBDevice.ProviderState = state }
-func (r *RuntimeState) IsConnected() bool             { return r.DBDevice.Connected }
-func (r *RuntimeState) SetConnected(connected bool)   { r.DBDevice.Connected = connected }
+func (r *RuntimeState) GetUDID() string                { return r.DBDevice.UDID }
+func (r *RuntimeState) GetOS() string                  { return r.DBDevice.OS }
+func (r *RuntimeState) GetDBDevice() *models.Device    { return r.DBDevice }
+func (r *RuntimeState) GetProviderState() string       { return r.DBDevice.ProviderState }
+func (r *RuntimeState) SetProviderState(state string)  { r.DBDevice.ProviderState = state }
+func (r *RuntimeState) IsConnected() bool              { return r.DBDevice.Connected }
+func (r *RuntimeState) SetConnected(connected bool)    { r.DBDevice.Connected = connected }
+func (r *RuntimeState) GetLogger() models.CustomLogger { return r.Logger }
+func (r *RuntimeState) GetContext() context.Context     { return r.Context }
+func (r *RuntimeState) GetAppiumPort() string    { return r.AppiumPort }
+func (r *RuntimeState) SetAppiumPort(port string) { r.AppiumPort = port }
+func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelFunc) {
+	r.Context = ctx
+	r.CtxCancel = cancel
+}
 
 // ToHubDevice builds a models.Device populated with runtime fields for JSON serialization to the hub.
 // Fields are assigned individually to avoid copying the sync.Mutex embedded in models.Device.
@@ -89,27 +98,31 @@ func (r *RuntimeState) ToHubDevice() models.Device {
 	}
 }
 
-// Reset cancels the device context, closes tunnels, frees ports, and resets state to "init".
-func (r *RuntimeState) Reset(reason string) {
-	r.DBDevice.Mutex.Lock()
-	defer r.DBDevice.Mutex.Unlock()
+// ResetBase cancels the device context, frees the Appium port, and resets state to "init".
+// Platform types should call this from their own Reset() method after doing platform-specific cleanup.
+func (r *RuntimeState) ResetBase(reason string) bool {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 	if !r.DBDevice.IsResetting && r.DBDevice.ProviderState != "init" {
 		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", r.DBDevice.UDID, reason))
 
 		r.DBDevice.IsResetting = true
-		r.DBDevice.CtxCancel()
+		if r.CtxCancel != nil {
+			r.CtxCancel()
+		}
 		r.DBDevice.ProviderState = "init"
 		r.DBDevice.IsResetting = false
-		if r.DBDevice.GoIOSTunnel.Address != "" {
-			r.DBDevice.GoIOSTunnel.Close()
-		}
 
-		// Free any used ports from the map where we keep them
+		// Free AppiumPort (common to all platforms)
 		common.MutexManager.LocalDevicePorts.Lock()
-		delete(providerutil.UsedPorts, r.DBDevice.WDAPort)
-		delete(providerutil.UsedPorts, r.DBDevice.StreamPort)
-		delete(providerutil.UsedPorts, r.DBDevice.AppiumPort)
-		delete(providerutil.UsedPorts, r.DBDevice.WDAStreamPort)
+		delete(providerutil.UsedPorts, r.AppiumPort)
 		common.MutexManager.LocalDevicePorts.Unlock()
+		return true
 	}
+	return false
+}
+
+// Reset is the default reset implementation. Platform types with ports or tunnels should override this.
+func (r *RuntimeState) Reset(reason string) {
+	r.ResetBase(reason)
 }

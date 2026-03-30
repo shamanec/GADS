@@ -48,8 +48,8 @@ type tizenRetryState struct {
 
 // Setup runs the full Tizen device provisioning sequence.
 func (d *TizenDevice) Setup() error {
-	d.DBDevice.SetupMutex.Lock()
-	defer d.DBDevice.SetupMutex.Unlock()
+	d.SetupMutex.Lock()
+	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("tizen_device_setup", fmt.Sprintf("Running setup for Tizen device `%v`", d.GetUDID()))
@@ -112,7 +112,6 @@ func (d *TizenDevice) getTVInfo() error {
 	d.DBDevice.OSVersion = tvInfo.Version
 	d.DBDevice.IPAddress = tvInfo.Device.IP
 	d.DeviceAddress = d.GetUDID()
-	d.DBDevice.DeviceAddress = d.GetUDID()
 
 	if tvInfo.Device.Resolution != "" {
 		dimensions := strings.Split(tvInfo.Device.Resolution, "x")

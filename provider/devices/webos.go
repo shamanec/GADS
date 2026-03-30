@@ -27,8 +27,8 @@ type connectedWebOSDevice struct {
 
 // Setup runs the full WebOS device provisioning sequence.
 func (d *WebOSDevice) Setup() error {
-	d.DBDevice.SetupMutex.Lock()
-	defer d.DBDevice.SetupMutex.Unlock()
+	d.SetupMutex.Lock()
+	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("webos_device_setup", fmt.Sprintf("Running setup for WebOS device `%v`", d.GetUDID()))

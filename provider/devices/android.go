@@ -10,6 +10,7 @@
 package devices
 
 import (
+	"GADS/common"
 	"GADS/common/auth"
 	"GADS/common/constants"
 	"GADS/common/db"
@@ -53,8 +54,8 @@ var remoteServerNetClient = &http.Client{
 
 // Setup runs the full Android device provisioning sequence.
 func (d *AndroidDevice) Setup() error {
-	d.DBDevice.SetupMutex.Lock()
-	defer d.DBDevice.SetupMutex.Unlock()
+	d.SetupMutex.Lock()
+	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
@@ -91,8 +92,7 @@ func (d *AndroidDevice) Setup() error {
 		return err
 	}
 	d.StreamPort = streamPort
-	d.DBDevice.StreamPort = streamPort
-
+	
 	imePort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS Android IME for device `%v` - %v", d.GetUDID(), err))
@@ -100,8 +100,7 @@ func (d *AndroidDevice) Setup() error {
 		return err
 	}
 	d.AndroidIMEPort = imePort
-	d.DBDevice.AndroidIMEPort = imePort
-
+	
 	remoteServerPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS Android remote control server for device `%v` - %v", d.GetUDID(), err))
@@ -109,8 +108,7 @@ func (d *AndroidDevice) Setup() error {
 		return err
 	}
 	d.AndroidRemoteServerPort = remoteServerPort
-	d.DBDevice.AndroidRemoteServerPort = remoteServerPort
-
+	
 	// Get installed apps and clean up old GADS apps
 	d.DBDevice.InstalledApps = d.GetInstalledAppBundleIDs()
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", d.GetUDID()))
@@ -154,7 +152,7 @@ func (d *AndroidDevice) Setup() error {
 		}
 		time.Sleep(2 * time.Second)
 
-		if d.DBDevice.SemVer.Major() >= 15 {
+		if d.SemVer.Major() >= 15 {
 			if err := d.addStreamPostNotificationsPermission(); err != nil {
 				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings POST_NOTIFICATIONS permissions on Android device - %v:\n %v", d.GetUDID(), err))
 				d.Reset("Failed to add GADS Settings POST_NOTIFICATIONS permissions on Android device.")
@@ -247,9 +245,20 @@ func (d *AndroidDevice) AppiumCapabilities() models.AppiumServerCapabilities {
 	}
 }
 
+// Reset overrides RuntimeState.Reset to free Android-specific ports.
+func (d *AndroidDevice) Reset(reason string) {
+	if d.ResetBase(reason) {
+		common.MutexManager.LocalDevicePorts.Lock()
+		delete(providerutil.UsedPorts, d.StreamPort)
+		delete(providerutil.UsedPorts, d.AndroidIMEPort)
+		delete(providerutil.UsedPorts, d.AndroidRemoteServerPort)
+		common.MutexManager.LocalDevicePorts.Unlock()
+	}
+}
+
 func (d *AndroidDevice) androidRemoteServerRequest(method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/%s", d.AndroidRemoteServerPort, endpoint)
-	d.DBDevice.Logger.LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, d.GetUDID()))
+	d.Logger.LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, d.GetUDID()))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -258,7 +267,7 @@ func (d *AndroidDevice) androidRemoteServerRequest(method, endpoint string, requ
 }
 
 func (d *AndroidDevice) isStreamServiceRunning() (bool, error) {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "dumpsys", "activity", "services", d.getStreamServiceName())
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "dumpsys", "activity", "services", d.getStreamServiceName())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, fmt.Errorf("isStreamServiceRunning: Error executing `%s` with combined output - %s", cmd.Args, err)
@@ -270,7 +279,7 @@ func (d *AndroidDevice) isStreamServiceRunning() (bool, error) {
 }
 
 func (d *AndroidDevice) stopStreamService() {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "am", "stopservice", d.getStreamServiceName())
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "am", "stopservice", d.getStreamServiceName())
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to stop GADS-stream service properly - %s", err))
 	}
@@ -278,7 +287,7 @@ func (d *AndroidDevice) stopStreamService() {
 
 func (d *AndroidDevice) installGadsSettingsApp() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Installing GADS Settings apk on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "install", "-r", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder))
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "install", "-r", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("installGadsSettingsApp: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -287,7 +296,7 @@ func (d *AndroidDevice) installGadsSettingsApp() error {
 
 func (d *AndroidDevice) pushGadsSettingsInTmpLocal() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Pushing GADS Settings apk to /tmp/local on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "push", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder), "/data/local/tmp/gads-settings")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "push", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder), "/data/local/tmp/gads-settings")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("pushGadsSettingsInTmpLocal: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -295,11 +304,11 @@ func (d *AndroidDevice) pushGadsSettingsInTmpLocal() error {
 }
 
 func (d *AndroidDevice) startRemoteControlServer() {
-	killCmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "pkill -f RemoteControlServerKt")
+	killCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "pkill -f RemoteControlServerKt")
 	_ = killCmd.Run()
 	time.Sleep(1 * time.Second)
 
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell",
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
 		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.RemoteControlServerKt 1994")
 
 	if err := cmd.Start(); err != nil {
@@ -314,11 +323,11 @@ func (d *AndroidDevice) startRemoteControlServer() {
 }
 
 func (d *AndroidDevice) startH264Stream() {
-	killCmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "pkill -f H264Server")
+	killCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "pkill -f H264Server")
 	_ = killCmd.Run()
 	time.Sleep(1 * time.Second)
 
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell",
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
 		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.server.H264Server")
 
 	if err := cmd.Start(); err != nil {
@@ -334,14 +343,14 @@ func (d *AndroidDevice) startH264Stream() {
 
 func (d *AndroidDevice) setupIME() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Enabling GADS Android IME on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "enable", "com.gads.settings/.GADSKeyboardIME")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "enable", "com.gads.settings/.GADSKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("enableGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
 	}
 	time.Sleep(1 * time.Second)
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Setting GADS Android IME as active on device `%v`", d.GetUDID()))
-	cmd = exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "set", "com.gads.settings/.GADSKeyboardIME")
+	cmd = exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "set", "com.gads.settings/.GADSKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("setGadsAndroidIMEAsActive: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -350,7 +359,7 @@ func (d *AndroidDevice) setupIME() error {
 
 func (d *AndroidDevice) addStreamRecordingPermissions() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS-stream recording permissions on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "appops", "set", d.getStreamServicePackageName(), "PROJECT_MEDIA", "allow")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "appops", "set", d.getStreamServicePackageName(), "PROJECT_MEDIA", "allow")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("addStreamRecordingPermissions: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -359,7 +368,7 @@ func (d *AndroidDevice) addStreamRecordingPermissions() error {
 
 func (d *AndroidDevice) addStreamPostNotificationsPermission() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS app post notification permissions on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "pm", "grant", d.getStreamServicePackageName(), "android.permission.POST_NOTIFICATIONS")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "pm", "grant", d.getStreamServicePackageName(), "android.permission.POST_NOTIFICATIONS")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("addStreamPostNotificationsPermission: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -368,7 +377,7 @@ func (d *AndroidDevice) addStreamPostNotificationsPermission() error {
 
 func (d *AndroidDevice) startStreaming() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Starting GADS-stream app on `%s`", d.GetUDID()))
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "am", "start", "-n", d.getStreamServiceActivityName())
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "am", "start", "-n", d.getStreamServiceActivityName())
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("startStreaming: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -376,14 +385,14 @@ func (d *AndroidDevice) startStreaming() error {
 }
 
 func (d *AndroidDevice) pressHomeButton() {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "input", "keyevent", "KEYCODE_HOME")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "input", "keyevent", "KEYCODE_HOME")
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("pressHomeButton: Could not 'press' Home button - %v", err))
 	}
 }
 
 func (d *AndroidDevice) forwardPort(devicePort, hostPort string) error {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "forward", "tcp:"+hostPort, "tcp:"+devicePort)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "forward", "tcp:"+hostPort, "tcp:"+devicePort)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("forwardPort: Error forwarding device port %s to host port %s - %s", devicePort, hostPort, err)
 	}
@@ -406,7 +415,7 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Attempting to automatically update the screen size for device `%v`", d.GetUDID()))
 
 	var outBuffer bytes.Buffer
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "wm", "size")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "wm", "size")
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("updateScreenSizeADB: Error executing `%s` - %s", cmd.Args, err)
@@ -436,12 +445,12 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 // GetInstalledAppBundleIDs returns the bundle identifiers (package names) of third-party installed apps.
 func (d *AndroidDevice) GetInstalledAppBundleIDs() []string {
 	installedApps := make([]string, 0)
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "cmd", "package", "list", "packages", "-3")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "cmd", "package", "list", "packages", "-3")
 
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
-		d.DBDevice.Logger.LogError("get_installed_apps", fmt.Sprintf("Error getting installed apps - %v", err))
+		d.Logger.LogError("get_installed_apps", fmt.Sprintf("Error getting installed apps - %v", err))
 		return installedApps
 	}
 
@@ -462,18 +471,18 @@ func (d *AndroidDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 
 	runningAppsResp, err := d.androidRemoteServerRequest(http.MethodGet, "installed-apps", nil)
 	if err != nil {
-		d.DBDevice.Logger.LogError("get_installed_apps", fmt.Sprintf("Failed executing remote server request - %s", err.Error()))
+		d.Logger.LogError("get_installed_apps", fmt.Sprintf("Failed executing remote server request - %s", err.Error()))
 		return deviceApps, err
 	}
 	defer runningAppsResp.Body.Close()
 
 	payload, err := io.ReadAll(runningAppsResp.Body)
 	if err != nil {
-		d.DBDevice.Logger.LogError("get_installed_apps", fmt.Sprintf("Failed reading remote server response body - %s", err.Error()))
+		d.Logger.LogError("get_installed_apps", fmt.Sprintf("Failed reading remote server response body - %s", err.Error()))
 		return deviceApps, err
 	}
 	if err := json.Unmarshal(payload, &deviceApps); err != nil {
-		d.DBDevice.Logger.LogError("get_installed_apps", fmt.Sprintf("Failed unmarshalling remote server response - %s", err.Error()))
+		d.Logger.LogError("get_installed_apps", fmt.Sprintf("Failed unmarshalling remote server response - %s", err.Error()))
 		return deviceApps, err
 	}
 	return deviceApps, nil
@@ -481,9 +490,9 @@ func (d *AndroidDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 
 // UninstallApp uninstalls an app by package name.
 func (d *AndroidDevice) UninstallApp(packageName string) error {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "uninstall", packageName)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "uninstall", packageName)
 	if err := cmd.Run(); err != nil {
-		d.DBDevice.Logger.LogError("uninstall_app", fmt.Sprintf("Error uninstalling app `%s` - %v", packageName, err))
+		d.Logger.LogError("uninstall_app", fmt.Sprintf("Error uninstalling app `%s` - %v", packageName, err))
 		return err
 	}
 	return nil
@@ -491,16 +500,16 @@ func (d *AndroidDevice) UninstallApp(packageName string) error {
 
 // InstallApp installs an app from a file in the provider folder.
 func (d *AndroidDevice) InstallApp(appName string) error {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "install", "-r", fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName))
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "install", "-r", fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName))
 	if err := cmd.Run(); err != nil {
-		d.DBDevice.Logger.LogError("install_app", fmt.Sprintf("Error installing app `%s` - %v", appName, err))
+		d.Logger.LogError("install_app", fmt.Sprintf("Error installing app `%s` - %v", appName, err))
 		return err
 	}
 	return nil
 }
 
 func (d *AndroidDevice) disableAutoRotation() error {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "put", "system", "accelerometer_rotation", "0")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "put", "system", "accelerometer_rotation", "0")
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -509,7 +518,7 @@ func (d *AndroidDevice) disableAutoRotation() error {
 
 // GetCurrentRotation returns "portrait" or "landscape".
 func (d *AndroidDevice) GetCurrentRotation() (string, error) {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "get", "system", "user_rotation")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "get", "system", "user_rotation")
 
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
@@ -530,7 +539,7 @@ func (d *AndroidDevice) ChangeRotation(rotation string) error {
 	if rotation == "landscape" {
 		adbRotationValue = "1"
 	}
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "put", "system", "user_rotation", adbRotationValue)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "put", "system", "user_rotation", adbRotationValue)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -632,7 +641,7 @@ func (d *AndroidDevice) GetHardwareModel() (string, error) {
 }
 
 func (d *AndroidDevice) getHardwareModel() {
-	brandCmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "ro.product.brand")
+	brandCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "ro.product.brand")
 	var outBuffer bytes.Buffer
 	brandCmd.Stdout = &outBuffer
 	if err := brandCmd.Run(); err != nil {
@@ -641,7 +650,7 @@ func (d *AndroidDevice) getHardwareModel() {
 	brand := outBuffer.String()
 	outBuffer.Reset()
 
-	modelCmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "ro.product.model")
+	modelCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "ro.product.model")
 	modelCmd.Stdout = &outBuffer
 	if err := modelCmd.Run(); err != nil {
 		d.DBDevice.HardwareModel = "Unknown"
@@ -658,7 +667,7 @@ func (d *AndroidDevice) LaunchApp(bundleID string) error {
 
 // KillApp force-stops an Android app by package name.
 func (d *AndroidDevice) KillApp(bundleIdentifier string) error {
-	cmd := exec.CommandContext(d.DBDevice.Context, "adb", "-s", d.GetUDID(), "shell", "am", "force-stop", bundleIdentifier)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "am", "force-stop", bundleIdentifier)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("KillApp: Failed killing app with package name `%s` via adb shell", bundleIdentifier)
 	}
