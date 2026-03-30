@@ -126,3 +126,10 @@ func (r *RuntimeState) ResetBase(reason string) bool {
 func (r *RuntimeState) Reset(reason string) {
 	r.ResetBase(reason)
 }
+
+// resetWithError logs an error, resets the device, and returns the error — used by Setup() step methods.
+func (r *RuntimeState) resetWithError(step string, err error) error {
+	logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to %s for device `%s` - %v", step, r.GetUDID(), err))
+	r.Reset(fmt.Sprintf("Failed to %s", step))
+	return fmt.Errorf("%s: %w", step, err)
+}

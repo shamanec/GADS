@@ -61,48 +61,76 @@ func (d *IOSDevice) Setup() error {
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
 
-	// Get go-ios DeviceEntry
+	if err := d.initGoIOSDevice(); err != nil {
+		return d.resetWithError("get go-ios DeviceEntry", err)
+	}
+	if err := d.pair(); err != nil {
+		return d.resetWithError("pair device", err)
+	}
+	if err := d.checkDeveloperMode(); err != nil {
+		return d.resetWithError("check developer mode status", err)
+	}
+	if err := d.mountDeveloperImage(); err != nil {
+		return d.resetWithError("mount Developer Disk Image (DDI)", err)
+	}
+	if err := d.getDeviceInfoAndScreenSize(); err != nil {
+		return err // already reset inside
+	}
+	if err := d.setupTunnelIfNeeded(); err != nil {
+		return err // already reset inside
+	}
+
+	time.Sleep(1 * time.Second)
+	d.disableBroadcastExtensionMemoryLimit()
+
+	if err := d.allocateAndForwardPorts(); err != nil {
+		return d.resetWithError("allocate or forward ports", err)
+	}
+	if err := d.startWebDriverAgent(); err != nil {
+		return err // already reset inside
+	}
+	if err := d.waitForWebDriverAgent(); err != nil {
+		return err // already reset inside
+	}
+	if err := d.applyStreamConfig(); err != nil {
+		return d.resetWithError("apply device stream settings", err)
+	}
+	if err := d.setupAppiumIfNeeded(); err != nil {
+		return err
+	}
+
+	d.DBDevice.InstalledApps = d.GetInstalledAppBundleIDs()
+	d.SetProviderState("live")
+	return nil
+}
+
+func (d *IOSDevice) initGoIOSDevice() error {
 	goIosDeviceEntry, err := ios.GetDevice(d.GetUDID())
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get `go-ios` DeviceEntry for device - %v, err - %v", d.GetUDID(), err))
-		d.Reset("Failed to get `go-ios` DeviceEntry for device.")
-		return err
+		return fmt.Errorf("could not get go-ios DeviceEntry for device `%s` - %w", d.GetUDID(), err)
 	}
 	d.GoIOSDeviceEntry = goIosDeviceEntry
-	d.GoIOSDeviceEntry = goIosDeviceEntry
+	return nil
+}
 
-	// Pair device
-	if err := d.pair(); err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair device `%s` - %v", d.GetUDID(), err))
-		d.Reset("Failed to pair device.")
-		return err
+func (d *IOSDevice) checkDeveloperMode() error {
+	if d.SemVer.Major() < 16 {
+		return nil
 	}
-
-	// Check developer mode for iOS 16+
-	if d.SemVer.Major() >= 16 {
-		devModeEnabled, err := imagemounter.IsDevModeEnabled(d.GoIOSDeviceEntry)
-		if err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not check developer mode status on device `%s` - %s", d.GetUDID(), err))
-			d.Reset("Failed to check developer mode status on device.")
-			return err
-		}
-		if !devModeEnabled {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Device `%s` is iOS 16+ but developer mode is not enabled!", d.GetUDID()))
-			d.Reset("Device is iOS 16+ but developer mode is not enabled.")
-			return fmt.Errorf("developer mode not enabled")
-		}
+	devModeEnabled, err := imagemounter.IsDevModeEnabled(d.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("could not check developer mode status on device `%s` - %w", d.GetUDID(), err)
 	}
-
-	// Mount DDI
-	if err := d.mountDeveloperImage(); err != nil {
-		d.Reset("Failed to mount Developer Disk Image (DDI) on the device.")
-		return err
+	if !devModeEnabled {
+		return fmt.Errorf("device `%s` is iOS 16+ but developer mode is not enabled", d.GetUDID())
 	}
+	return nil
+}
 
-	// Get device info
+func (d *IOSDevice) getDeviceInfoAndScreenSize() error {
 	plistValues, err := ios.GetValuesPlist(d.GoIOSDeviceEntry)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get info plist values with go-ios `%v` - %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get info plist values with go-ios for device `%v` - %v", d.GetUDID(), err))
 		d.Reset("Failed to get info plist values with go-ios.")
 		return err
 	}
@@ -115,80 +143,82 @@ func (d *IOSDevice) Setup() error {
 			return err
 		}
 	}
+	return nil
+}
 
-	// Allocate tunnel port
+func (d *IOSDevice) setupTunnelIfNeeded() error {
 	tunnelPort, err := providerutil.GetFreePort()
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent port for device `%v` - %v", d.GetUDID(), err))
-		d.Reset("Failed to allocate free WebDriverAgent port for device.")
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free tunnel port for device `%v` - %v", d.GetUDID(), err))
+		d.Reset("Failed to allocate free tunnel port for device.")
 		return err
 	}
 	intTunnelPort, _ := strconv.Atoi(tunnelPort)
 	d.GoIOSDeviceEntry.UserspaceTUNPort = intTunnelPort
 
-	// Create userspace tunnel for iOS 17.4+
-	if d.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
-		deviceTunnel, err := d.createTunnel()
-		if err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", d.GetUDID(), err))
-			d.Reset("Failed to create userspace tunnel for device.")
-			return err
-		}
-		d.GoIOSTunnel = deviceTunnel
-		d.GoIOSTunnel = deviceTunnel
-
-		d.GoIOSDeviceEntry.UserspaceTUNPort = d.GoIOSTunnel.UserspaceTUNPort
-		d.GoIOSDeviceEntry.UserspaceTUN = d.GoIOSTunnel.UserspaceTUN
-
-		if err := d.deviceWithRsdProvider(); err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create go-ios device entry with rsd provider for device `%s` - %v", d.GetUDID(), err))
-			d.Reset("Failed to create go-ios device entry with rsd provider for device.")
-			return err
-		}
+	if d.SemVer.Compare(semver.MustParse("17.4.0")) < 0 {
+		return nil
 	}
 
-	time.Sleep(1 * time.Second)
-
-	// Disable memory limit for broadcast extension
-	if d.DBDevice.StreamType == models.IOSWebRTCBroadcastExtensionId {
-		pid, err := d.getProcessPid("gads-broadcast-extension")
-		if err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to get pid for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
-		} else {
-			if err := d.disableProcessMemoryLimit(pid); err != nil {
-				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to disable memory limit for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
-			}
-		}
+	deviceTunnel, err := d.createTunnel()
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", d.GetUDID(), err))
+		d.Reset("Failed to create userspace tunnel for device.")
+		return err
 	}
+	d.GoIOSTunnel = deviceTunnel
 
-	// Allocate ports
+	d.GoIOSDeviceEntry.UserspaceTUNPort = d.GoIOSTunnel.UserspaceTUNPort
+	d.GoIOSDeviceEntry.UserspaceTUN = d.GoIOSTunnel.UserspaceTUN
+
+	if err := d.deviceWithRsdProvider(); err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create go-ios device entry with rsd provider for device `%s` - %v", d.GetUDID(), err))
+		d.Reset("Failed to create go-ios device entry with rsd provider for device.")
+		return err
+	}
+	return nil
+}
+
+func (d *IOSDevice) disableBroadcastExtensionMemoryLimit() {
+	if d.DBDevice.StreamType != models.IOSWebRTCBroadcastExtensionId {
+		return
+	}
+	pid, err := d.getProcessPid("gads-broadcast-extension")
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to get pid for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
+		return
+	}
+	if err := d.disableProcessMemoryLimit(pid); err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to disable memory limit for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
+	}
+}
+
+func (d *IOSDevice) allocateAndForwardPorts() error {
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
-		d.Reset("Failed to allocate free WebDriverAgent port for device.")
-		return err
+		return fmt.Errorf("could not allocate free WebDriverAgent port - %w", err)
 	}
 	d.WDAPort = wdaPort
 
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
-		d.Reset("Failed to allocate free iOS stream port for device.")
-		return err
+		return fmt.Errorf("could not allocate free iOS stream port - %w", err)
 	}
 	d.StreamPort = streamPort
 
 	wdaStreamPort, err := providerutil.GetFreePort()
 	if err != nil {
-		d.Reset("Failed to allocate free WebDriverAgent stream port for device.")
-		return err
+		return fmt.Errorf("could not allocate free WebDriverAgent stream port - %w", err)
 	}
 	d.WDAStreamPort = wdaStreamPort
 
-	// Forward ports
 	go d.goIosForward(d.WDAPort, "8100")
 	go d.goIosForward(d.StreamPort, "8765")
 	go d.goIosForward(d.WDAStreamPort, "9100")
+	return nil
+}
 
-	// Install/launch WDA
+func (d *IOSDevice) startWebDriverAgent() error {
 	if d.SemVer.Major() < 17 || d.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
 		if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
@@ -203,39 +233,38 @@ func (d *IOSDevice) Setup() error {
 			return err
 		}
 	}
+	return nil
+}
 
+func (d *IOSDevice) waitForWebDriverAgent() error {
 	go d.checkWebDriverAgentUp()
 
 	select {
 	case <-d.WdaReadyChan:
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", d.GetUDID(), d.WDAPort))
+		return nil
 	case <-time.After(60 * time.Second):
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 60 seconds", d.GetUDID()))
 		d.Reset("Failed to start WebDriverAgent on device.")
 		return fmt.Errorf("WDA did not start in time")
 	}
+}
 
-	// Apply stream settings
+func (d *IOSDevice) applyStreamConfig() error {
 	if err := d.ApplyStreamSettings(); err != nil {
-		d.Reset("Failed to apply device stream settings.")
-		return err
+		return fmt.Errorf("could not apply device stream settings - %w", err)
 	}
-
 	if err := d.UpdateStreamSettingsOnDevice(); err != nil {
-		d.Reset("Failed to create WebDriverAgent session or update its stream settings.")
-		return err
+		return fmt.Errorf("could not create WebDriverAgent session or update its stream settings - %w", err)
 	}
-
-	// Setup Appium if configured
-	if config.ProviderConfig.SetupAppiumServers {
-		if err := setupAppiumForDevice(d); err != nil {
-			return err
-		}
-	}
-
-	d.DBDevice.InstalledApps = d.GetInstalledAppBundleIDs()
-	d.SetProviderState("live")
 	return nil
+}
+
+func (d *IOSDevice) setupAppiumIfNeeded() error {
+	if !config.ProviderConfig.SetupAppiumServers {
+		return nil
+	}
+	return setupAppiumForDevice(d)
 }
 
 // Reset overrides RuntimeState.Reset to close iOS tunnels and free iOS-specific ports.

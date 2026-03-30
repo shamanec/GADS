@@ -60,84 +60,107 @@ func (d *AndroidDevice) Setup() error {
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
 
+	d.detectHardwareModel()
+
+	if err := d.updateScreenSizeIfNeeded(); err != nil {
+		return d.resetWithError("update screen dimensions with adb", err)
+	}
+	if err := d.disableAutoRotation(); err != nil {
+		return d.resetWithError("disable auto-rotation", err)
+	}
+	if err := d.allocatePorts(); err != nil {
+		return d.resetWithError("allocate free host ports", err)
+	}
+	if err := d.cleanupOldApps(); err != nil {
+		return err // already reset inside cleanupOldApps
+	}
+	if err := d.installAndPushGadsSettings(); err != nil {
+		return d.resetWithError("install/push GADS Settings on Android device", err)
+	}
+	if err := d.startServicesAndStreaming(); err != nil {
+		return err // already reset inside
+	}
+	if err := d.forwardAndSetupPorts(); err != nil {
+		return err // already reset inside
+	}
+	if err := d.applyStreamConfig(); err != nil {
+		return d.resetWithError("apply device stream settings", err)
+	}
+	if err := d.setupAppiumIfNeeded(); err != nil {
+		return err
+	}
+
+	d.SetProviderState("live")
+	return nil
+}
+
+func (d *AndroidDevice) detectHardwareModel() {
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Retrieving hardware model for device `%s`", d.GetUDID()))
 	d.getHardwareModel()
+}
 
-	// Get the device screen and height from adb if they are not supplied in the device configuration
-	if d.DBDevice.ScreenHeight == "" || d.DBDevice.ScreenWidth == "" {
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updating screen dimensions for device `%v`", d.GetUDID()))
-		err := d.updateScreenSizeADB()
-		if err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to update screen dimensions with adb for device `%v` - %v", d.GetUDID(), err))
-			d.Reset("Failed to update screen dimensions.")
-			return err
-		}
-		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully updated screen dimensions for device `%v`", d.GetUDID()))
+func (d *AndroidDevice) updateScreenSizeIfNeeded() error {
+	if d.DBDevice.ScreenHeight != "" && d.DBDevice.ScreenWidth != "" {
+		return nil
 	}
-
-	// Disable auto-rotation on the device so we can control it with adb
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Disabling auto-rotation for device `%v`", d.GetUDID()))
-	err := d.disableAutoRotation()
-	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not disable auto-rotation for device `%v` - %v", d.GetUDID(), err))
-		d.Reset("Failed to disable auto-rotation.")
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updating screen dimensions for device `%v`", d.GetUDID()))
+	if err := d.updateScreenSizeADB(); err != nil {
 		return err
 	}
+	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Successfully updated screen dimensions for device `%v`", d.GetUDID()))
+	return nil
+}
 
-	// Allocate free ports
+func (d *AndroidDevice) allocatePorts() error {
 	streamPort, err := providerutil.GetFreePort()
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS-stream for device `%v` - %v", d.GetUDID(), err))
-		d.Reset("Failed to allocate free host port for GADS-stream.")
-		return err
+		return fmt.Errorf("could not allocate free host port for GADS-stream - %w", err)
 	}
 	d.StreamPort = streamPort
-	
+
 	imePort, err := providerutil.GetFreePort()
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS Android IME for device `%v` - %v", d.GetUDID(), err))
-		d.Reset("Failed to allocate free host port for GADS Android IME.")
-		return err
+		return fmt.Errorf("could not allocate free host port for GADS Android IME - %w", err)
 	}
 	d.AndroidIMEPort = imePort
-	
+
 	remoteServerPort, err := providerutil.GetFreePort()
 	if err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not allocate free host port for GADS Android remote control server for device `%v` - %v", d.GetUDID(), err))
-		d.Reset("Failed to allocate free host port for GADS Android remote control server.")
-		return err
+		return fmt.Errorf("could not allocate free host port for GADS Android remote control server - %w", err)
 	}
 	d.AndroidRemoteServerPort = remoteServerPort
-	
-	// Get installed apps and clean up old GADS apps
+	return nil
+}
+
+func (d *AndroidDevice) cleanupOldApps() error {
 	d.DBDevice.InstalledApps = d.GetInstalledAppBundleIDs()
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", d.GetUDID()))
 
 	for _, pkg := range []string{"com.gads.settings", "com.gads.webrtc", "com.shamanec.stream", "com.gads.gads_ime"} {
 		if slices.Contains(d.DBDevice.InstalledApps, pkg) {
 			if err := d.UninstallApp(pkg); err != nil {
-				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall %s from Android device - %v:\n %v", pkg, d.GetUDID(), err))
+				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall %s from Android device `%v` - %v", pkg, d.GetUDID(), err))
 				d.Reset(fmt.Sprintf("Failed to uninstall %s from Android device.", pkg))
+				return err
 			}
 			time.Sleep(3 * time.Second)
 		}
 	}
+	return nil
+}
 
-	// Install the GADS-Settings app
+func (d *AndroidDevice) installAndPushGadsSettings() error {
 	if err := d.installGadsSettingsApp(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not install GADS Settings on Android device - %v:\n %v", d.GetUDID(), err))
-		d.Reset("Failed to install GADS Settings on Android device.")
-		return err
+		return fmt.Errorf("could not install GADS Settings - %w", err)
 	}
-
-	// Push the GADS-Settings app to /tmp/local for the remote control server
 	if err := d.pushGadsSettingsInTmpLocal(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not push GADS Settings on Android device - %v:\n %v", d.GetUDID(), err))
-		d.Reset("Failed to push GADS Settings on Android device.")
-		return err
+		return fmt.Errorf("could not push GADS Settings to /tmp/local - %w", err)
 	}
-	time.Sleep(2 * time.Second)
+	return nil
+}
 
+func (d *AndroidDevice) startServicesAndStreaming() error {
+	time.Sleep(2 * time.Second)
 	go d.startRemoteControlServer()
 	time.Sleep(2 * time.Second)
 
@@ -146,7 +169,7 @@ func (d *AndroidDevice) Setup() error {
 		go d.startH264Stream()
 	} else {
 		if err := d.addStreamRecordingPermissions(); err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings stream recording permissions on Android device - %v:\n %v", d.GetUDID(), err))
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings stream recording permissions on Android device `%v` - %v", d.GetUDID(), err))
 			d.Reset("Failed to add GADS Settings stream recording permissions on Android device.")
 			return err
 		}
@@ -154,7 +177,7 @@ func (d *AndroidDevice) Setup() error {
 
 		if d.SemVer.Major() >= 15 {
 			if err := d.addStreamPostNotificationsPermission(); err != nil {
-				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings POST_NOTIFICATIONS permissions on Android device - %v:\n %v", d.GetUDID(), err))
+				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not add GADS Settings POST_NOTIFICATIONS permissions on Android device `%v` - %v", d.GetUDID(), err))
 				d.Reset("Failed to add GADS Settings POST_NOTIFICATIONS permissions on Android device.")
 				return err
 			}
@@ -162,7 +185,7 @@ func (d *AndroidDevice) Setup() error {
 		}
 
 		if err := d.startStreaming(); err != nil {
-			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS streaming on Android device - %v:\n %v", d.GetUDID(), err))
+			logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not start GADS streaming on Android device `%v` - %v", d.GetUDID(), err))
 			d.Reset("Failed to start GADS streaming on Android device.")
 			return err
 		}
@@ -171,68 +194,67 @@ func (d *AndroidDevice) Setup() error {
 
 	// Forward the video stream to the host
 	if err := d.forwardStream(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS streaming port to host port %v for Android device - %v:\n %v", d.StreamPort, d.GetUDID(), err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS streaming port to host port %v for Android device `%v` - %v", d.StreamPort, d.GetUDID(), err))
 		d.Reset("Failed to forward GADS-stream port to host port.")
 		return err
 	}
 
-	// Send TURN configuration to WebRTC service
+	// Send TURN configuration to WebRTC service (non-fatal)
 	if models.IsWebRTCStreamType(d.DBDevice.StreamType) {
 		if err := d.UpdateWebRTCTURNConfig(); err != nil {
 			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not send TURN config to device `%s` - %v (WebRTC will use STUN only)", d.GetUDID(), err))
 		}
 	}
+	return nil
+}
 
+func (d *AndroidDevice) forwardAndSetupPorts() error {
 	// Setup GADS Android IME
 	if err := d.setupIME(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to setup GADS Android IME for Android device `%v` - \n %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to setup GADS Android IME for Android device `%v` - %v", d.GetUDID(), err))
 		d.Reset("Failed to setup GADS Android IME.")
+		return err
 	}
 
-	// Forward IME and remote server ports
+	// Forward IME port
 	if err := d.forwardIME(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS Android IME port for Android device - %v:\n %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS Android IME port for Android device `%v` - %v", d.GetUDID(), err))
 		d.Reset("Failed to forward GADS Android IME port to host port.")
 		return err
 	}
 
+	// Forward remote server port
 	if err := d.forwardRemoteServer(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS Android Settings port for Android device - %v:\n %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS Android Settings port for Android device `%v` - %v", d.GetUDID(), err))
 		d.Reset("Failed to forward GADS Android Settings port to host port.")
 		return err
 	}
+	return nil
+}
 
-	// Apply stream settings
+func (d *AndroidDevice) applyStreamConfig() error {
 	if err := d.ApplyStreamSettings(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Did not successfully apply the device stream settings to device `%v` - %v", d.GetUDID(), err))
-		d.Reset("Failed to apply device stream settings.")
-		return err
+		return fmt.Errorf("could not apply device stream settings - %w", err)
 	}
-
 	if err := d.UpdateStreamSettingsOnDevice(); err != nil {
-		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Failed to update GADS stream settings for device `%s` - %v", d.GetUDID(), err))
-		d.Reset("Failed to update GADS stream settings.")
-		return err
+		return fmt.Errorf("could not update GADS stream settings on device - %w", err)
 	}
+	return nil
+}
 
-	// Setup Appium if configured
-	if config.ProviderConfig.SetupAppiumServers {
-		// Uninstall old Appium packages before starting
-		for _, pkg := range []string{"io.appium.settings", "io.appium.uiautomator2.server", "io.appium.uiautomator2.server.test"} {
-			if slices.Contains(d.DBDevice.InstalledApps, pkg) {
-				if err := d.UninstallApp(pkg); err != nil {
-					logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall %s on device %s - %s", pkg, d.GetUDID(), err))
-				}
+func (d *AndroidDevice) setupAppiumIfNeeded() error {
+	if !config.ProviderConfig.SetupAppiumServers {
+		return nil
+	}
+	// Uninstall old Appium packages before starting
+	for _, pkg := range []string{"io.appium.settings", "io.appium.uiautomator2.server", "io.appium.uiautomator2.server.test"} {
+		if slices.Contains(d.DBDevice.InstalledApps, pkg) {
+			if err := d.UninstallApp(pkg); err != nil {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall %s on device %s - %s", pkg, d.GetUDID(), err))
 			}
 		}
-
-		if err := setupAppiumForDevice(d); err != nil {
-			return err
-		}
 	}
-
-	d.SetProviderState("live")
-	return nil
+	return setupAppiumForDevice(d)
 }
 
 // AppiumCapabilities returns the Android-specific Appium server capabilities.
