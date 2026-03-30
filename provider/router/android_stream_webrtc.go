@@ -38,7 +38,7 @@ type AndroidH264Frame struct {
 
 // AndroidWebRTCSession manages a WebRTC peer connection for Android streaming
 type AndroidWebRTCSession struct {
-	device          *models.Device
+	device          *models.DBDevice
 	streamPort      string
 	streamTargetFPS int
 	peerConnection  *webrtc.PeerConnection
@@ -57,7 +57,7 @@ type AndroidWebRTCSession struct {
 }
 
 // NewAndroidWebRTCSession creates a new WebRTC session for Android device streaming
-func NewAndroidWebRTCSession(device *models.Device, streamPort string, streamTargetFPS int) (*AndroidWebRTCSession, error) {
+func NewAndroidWebRTCSession(device *models.DBDevice, streamPort string, streamTargetFPS int) (*AndroidWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &AndroidWebRTCSession{

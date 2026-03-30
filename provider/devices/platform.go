@@ -34,7 +34,7 @@ type PlatformDevice interface {
 	// State accessors
 	GetUDID() string
 	GetOS() string
-	GetDBDevice() *models.Device
+	GetDBDevice() *models.DBDevice
 	GetProviderState() string
 	SetProviderState(state string)
 	IsConnected() bool

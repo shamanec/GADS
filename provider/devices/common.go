@@ -178,7 +178,7 @@ func updateProviderHub() {
 
 // initializeDevice initializes a single device: sets up DB-level fields, creates a
 // PlatformDevice with Logger/SemVer on RuntimeState, and stores it in DevManager.
-func initializeDevice(dbDevice *models.Device) error {
+func initializeDevice(dbDevice *models.DBDevice) error {
 	sv, err := semver.NewVersion(dbDevice.OSVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get semver for device `%s` - %s", dbDevice.UDID, err)
@@ -256,9 +256,9 @@ func setupDevices() {
 	}
 }
 
-// newPlatformDevice creates a PlatformDevice wrapping the given *models.Device
+// newPlatformDevice creates a PlatformDevice wrapping the given *models.DBDevice
 // with Logger and SemVer set on RuntimeState.
-func newPlatformDevice(dbDevice *models.Device, deviceLogger models.CustomLogger, sv *semver.Version) PlatformDevice {
+func newPlatformDevice(dbDevice *models.DBDevice, deviceLogger models.CustomLogger, sv *semver.Version) PlatformDevice {
 	// Each case builds RuntimeState inline to avoid copying sync.Mutex via struct assignment.
 	switch dbDevice.OS {
 	case "ios":

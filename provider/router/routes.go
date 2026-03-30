@@ -254,7 +254,7 @@ type WdaOrientationResponse struct {
 // DeviceInfoResponse is the composite response for the DeviceInfo endpoint,
 // combining DB fields with all runtime state from the provider.
 type DeviceInfoResponse struct {
-	models.Device
+	models.DBDevice
 	// Hub-synced runtime fields
 	Host          string `json:"host"`
 	Connected     bool   `json:"connected"`
@@ -285,7 +285,7 @@ func DeviceInfo(c *gin.Context) {
 	}
 
 	resp := DeviceInfoResponse{
-		Device:               *platDev.GetDBDevice(),
+		DBDevice:             *platDev.GetDBDevice(),
 		Host:                 platDev.GetHost(),
 		Connected:            platDev.IsConnected(),
 		ProviderState:        platDev.GetProviderState(),

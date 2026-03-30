@@ -30,8 +30,8 @@ type WorkspacesPage = Page[WorkspaceWithDeviceCount]
 type AuditLogsPage = Page[SecretKeyAuditLogResponse]
 
 // Concrete types for Swagger annotations (swag does not support Go generics directly).
-type DeviceResponse = APIResponse[Device]
-type DeviceListResponse = APIResponse[[]Device]
+type DeviceResponse = APIResponse[DBDevice]
+type DeviceListResponse = APIResponse[[]DBDevice]
 type UserResponse = APIResponse[User]
 type UserListResponse = APIResponse[[]User]
 type WorkspaceResponse = APIResponse[Workspace]

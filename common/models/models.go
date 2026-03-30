@@ -35,8 +35,7 @@ type User struct {
 	WorkspaceIDs []string `json:"workspace_ids" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
 }
 
-type Device struct {
-	// DB DATA
+type DBDevice struct {
 	UDID         string `json:"udid" bson:"udid"`                   // device UDID
 	OS           string `json:"os" bson:"os"`                       // device OS
 	Name         string `json:"name" bson:"name"`                   // name of the device
@@ -302,7 +301,7 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 }
 
 // ValidateDevice performs comprehensive validation on a device struct
-func ValidateDevice(device *Device) error {
+func ValidateDevice(device *DBDevice) error {
 	if device == nil {
 		return errors.New("device cannot be nil")
 	}

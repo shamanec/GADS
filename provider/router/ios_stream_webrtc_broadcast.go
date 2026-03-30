@@ -33,7 +33,7 @@ import (
 
 // IOSWebRTCSession manages a WebRTC peer connection for iOS broadcast streaming
 type IOSWebRTCSession struct {
-	device          *models.Device
+	device          *models.DBDevice
 	streamPort      string
 	streamTargetFPS int
 	peerConnection  *webrtc.PeerConnection
@@ -51,7 +51,7 @@ type IOSWebRTCSession struct {
 }
 
 // NewIOSWebRTCSession creates a new WebRTC session for iOS broadcast streaming
-func NewIOSWebRTCSession(device *models.Device, streamPort string, streamTargetFPS int) (*IOSWebRTCSession, error) {
+func NewIOSWebRTCSession(device *models.DBDevice, streamPort string, streamTargetFPS int) (*IOSWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &IOSWebRTCSession{

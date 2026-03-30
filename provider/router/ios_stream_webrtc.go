@@ -89,7 +89,7 @@ func parseJPEGDimensions(data []byte) (width, height int, err error) {
 
 // WDAJPEGExtractor handles extracting JPEG frames from WebDriverAgent MJPEG stream
 type WDAJPEGExtractor struct {
-	device             *models.Device
+	device             *models.DBDevice
 	httpResp           *http.Response
 	multiReader        *multipart.Reader
 	jpegChannel        chan []byte
@@ -105,7 +105,7 @@ type WDAJPEGExtractor struct {
 }
 
 // NewWDAJPEGExtractor creates a new JPEG extractor for WebDriverAgent stream
-func NewWDAJPEGExtractor(device *models.Device, wdaStreamPort string) (*WDAJPEGExtractor, error) {
+func NewWDAJPEGExtractor(device *models.DBDevice, wdaStreamPort string) (*WDAJPEGExtractor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	success := false
 	defer func() {
@@ -254,7 +254,7 @@ func (e *WDAJPEGExtractor) Close() {
 
 // FFmpegH264Encoder handles encoding JPEG frames to H.264
 type FFmpegH264Encoder struct {
-	device          *models.Device
+	device          *models.DBDevice
 	streamTargetFPS int
 	jpegInput       <-chan []byte
 	h264Output      chan []byte
@@ -266,7 +266,7 @@ type FFmpegH264Encoder struct {
 }
 
 // NewFFmpegH264Encoder creates a new H.264 encoder using FFmpeg
-func NewFFmpegH264Encoder(device *models.Device, streamTargetFPS int, jpegInput <-chan []byte) (*FFmpegH264Encoder, error) {
+func NewFFmpegH264Encoder(device *models.DBDevice, streamTargetFPS int, jpegInput <-chan []byte) (*FFmpegH264Encoder, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	success := false
 	defer func() {
@@ -532,7 +532,7 @@ func (e *FFmpegH264Encoder) Close() {
 
 // WebRTCSession manages a single WebRTC peer connection for streaming
 type WebRTCSession struct {
-	device                  *models.Device
+	device                  *models.DBDevice
 	wdaStreamPort           string
 	streamTargetFPS         int
 	peerConnection          *webrtc.PeerConnection
@@ -548,7 +548,7 @@ type WebRTCSession struct {
 }
 
 // NewWebRTCSession creates a new WebRTC session for device streaming
-func NewWebRTCSession(device *models.Device, wdaStreamPort string, streamTargetFPS int) (*WebRTCSession, error) {
+func NewWebRTCSession(device *models.DBDevice, wdaStreamPort string, streamTargetFPS int) (*WebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &WebRTCSession{

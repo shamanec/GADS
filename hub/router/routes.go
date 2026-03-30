@@ -678,7 +678,7 @@ func UploadFile(c *gin.Context) {
 // @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      models.DBDevice  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
@@ -692,7 +692,7 @@ func AddDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var device models.Device
+	var device models.DBDevice
 	err = json.Unmarshal(reqBody, &device)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
@@ -729,7 +729,7 @@ func AddDevice(c *gin.Context) {
 // @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      models.DBDevice  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      404     {object}  models.ErrorResponse
@@ -744,7 +744,7 @@ func UpdateDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var reqDevice models.Device
+	var reqDevice models.DBDevice
 	err = json.Unmarshal(reqBody, &reqDevice)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
@@ -830,7 +830,7 @@ func DeleteDevice(c *gin.Context) {
 }
 
 type AdminDeviceData struct {
-	Devices           []models.Device     `json:"devices"`
+	Devices           []models.DBDevice     `json:"devices"`
 	Providers         []string            `json:"providers"`
 	DeviceStreamTypes []models.StreamType `json:"device_stream_types"`
 }
@@ -855,7 +855,7 @@ func GetDevices(c *gin.Context) {
 	}
 
 	if len(dbDevices) == 0 || len(providerNames) == 0 {
-		dbDevices = []models.Device{}
+		dbDevices = []models.DBDevice{}
 	}
 
 	var adminDeviceData = AdminDeviceData{

@@ -703,13 +703,13 @@ func (d *AndroidDevice) ApplyStreamSettings() error {
 	return applyDeviceStreamSettings(d)
 }
 
-func DeleteAndroidSharedStorageFile(device *models.Device, filePath string) error {
+func DeleteAndroidSharedStorageFile(device *models.DBDevice, filePath string) error {
 	deleteFileCmd := exec.Command("adb", "-s", device.UDID, "shell", "rm", fmt.Sprintf("\"%s\"", filePath))
 	_, err := deleteFileCmd.Output()
 	return err
 }
 
-func PullAndroidSharedStorageFile(device *models.Device, filePath string, fileName string) (string, error) {
+func PullAndroidSharedStorageFile(device *models.DBDevice, filePath string, fileName string) (string, error) {
 	var tempFilePath = filepath.Join(os.TempDir(), fileName)
 	pullFileCmd := exec.Command("adb", "-s", device.UDID, "pull", filePath, tempFilePath)
 	_, err := pullFileCmd.Output()

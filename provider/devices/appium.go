@@ -126,7 +126,7 @@ func startAppium(d PlatformDevice, capabilities models.AppiumServerCapabilities)
 }
 
 // createGridTOML creates a Selenium Grid TOML configuration file for the device.
-func createGridTOML(device *models.Device, automationName string) error {
+func createGridTOML(device *models.DBDevice, automationName string) error {
 	url := fmt.Sprintf("http://%s:%v/device/%s/appium", config.ProviderConfig.HostAddress, config.ProviderConfig.Port, device.UDID)
 	configs := fmt.Sprintf(`{"appium:deviceName": "%s", "platformName": "%s", "appium:platformVersion": "%s", "appium:automationName": "%s", "appium:udid": "%s"}`, device.Name, device.OS, device.OSVersion, automationName, device.UDID)
 
