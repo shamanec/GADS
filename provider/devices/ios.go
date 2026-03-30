@@ -26,7 +26,9 @@ import (
 	"GADS/common/models"
 	"GADS/provider/config"
 	"GADS/provider/logger"
+	"GADS/provider/providerutil"
 
+	"github.com/Masterminds/semver"
 	"github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
@@ -38,119 +40,304 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func goIosForward(device *models.Device, hostPort string, devicePort string) {
+// IOSDevice holds iOS-specific runtime state alongside the shared RuntimeState.
+type IOSDevice struct {
+	RuntimeState
+	WDAPort          string          // host port for WebDriverAgent server (device port 8100)
+	WDAStreamPort    string          // host port for WebDriverAgent MJPEG stream (device port 9100)
+	StreamPort       string          // host port for device video stream (device port 8765)
+	WDASessionID     string          // current WebDriverAgent session ID
+	GoIOSDeviceEntry ios.DeviceEntry // go-ios library device entry for USB communication
+	GoIOSTunnel      tunnel.Tunnel   // userspace tunnel for iOS 17.4+
+	WdaReadyChan     chan bool       // signals WebDriverAgent is up after start
+}
+
+// Setup runs the full iOS device provisioning sequence.
+func (d *IOSDevice) Setup() error {
+	d.DBDevice.SetupMutex.Lock()
+	defer d.DBDevice.SetupMutex.Unlock()
+
+	d.SetProviderState("preparing")
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
+
+	// Get go-ios DeviceEntry
+	goIosDeviceEntry, err := ios.GetDevice(d.GetUDID())
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get `go-ios` DeviceEntry for device - %v, err - %v", d.GetUDID(), err))
+		d.Reset("Failed to get `go-ios` DeviceEntry for device.")
+		return err
+	}
+	d.GoIOSDeviceEntry = goIosDeviceEntry
+	d.DBDevice.GoIOSDeviceEntry = goIosDeviceEntry
+
+	// Pair device
+	if err := d.pair(); err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to pair device `%s` - %v", d.GetUDID(), err))
+		d.Reset("Failed to pair device.")
+		return err
+	}
+
+	// Check developer mode for iOS 16+
+	if d.DBDevice.SemVer.Major() >= 16 {
+		devModeEnabled, err := imagemounter.IsDevModeEnabled(d.GoIOSDeviceEntry)
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not check developer mode status on device `%s` - %s", d.GetUDID(), err))
+			d.Reset("Failed to check developer mode status on device.")
+			return err
+		}
+		if !devModeEnabled {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Device `%s` is iOS 16+ but developer mode is not enabled!", d.GetUDID()))
+			d.Reset("Device is iOS 16+ but developer mode is not enabled.")
+			return fmt.Errorf("developer mode not enabled")
+		}
+	}
+
+	// Mount DDI
+	if err := d.mountDeveloperImage(); err != nil {
+		d.Reset("Failed to mount Developer Disk Image (DDI) on the device.")
+		return err
+	}
+
+	// Get device info
+	plistValues, err := ios.GetValuesPlist(d.GoIOSDeviceEntry)
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get info plist values with go-ios `%v` - %v", d.GetUDID(), err))
+		d.Reset("Failed to get info plist values with go-ios.")
+		return err
+	}
+	d.DBDevice.HardwareModel = plistValues["HardwareModel"].(string)
+
+	if d.DBDevice.ScreenHeight == "" || d.DBDevice.ScreenWidth == "" {
+		if err := d.updateScreenSize(plistValues["ProductType"].(string)); err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to update screen dimensions for device `%s` - %s", d.GetUDID(), err))
+			d.Reset("Failed to update screen dimensions for device.")
+			return err
+		}
+	}
+
+	// Allocate tunnel port
+	tunnelPort, err := providerutil.GetFreePort()
+	if err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free WebDriverAgent port for device `%v` - %v", d.GetUDID(), err))
+		d.Reset("Failed to allocate free WebDriverAgent port for device.")
+		return err
+	}
+	intTunnelPort, _ := strconv.Atoi(tunnelPort)
+	d.GoIOSDeviceEntry.UserspaceTUNPort = intTunnelPort
+
+	// Create userspace tunnel for iOS 17.4+
+	if d.DBDevice.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
+		deviceTunnel, err := d.createTunnel()
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", d.GetUDID(), err))
+			d.Reset("Failed to create userspace tunnel for device.")
+			return err
+		}
+		d.GoIOSTunnel = deviceTunnel
+		d.DBDevice.GoIOSTunnel = deviceTunnel
+
+		d.GoIOSDeviceEntry.UserspaceTUNPort = d.GoIOSTunnel.UserspaceTUNPort
+		d.GoIOSDeviceEntry.UserspaceTUN = d.GoIOSTunnel.UserspaceTUN
+
+		if err := d.deviceWithRsdProvider(); err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create go-ios device entry with rsd provider for device `%s` - %v", d.GetUDID(), err))
+			d.Reset("Failed to create go-ios device entry with rsd provider for device.")
+			return err
+		}
+	}
+
+	time.Sleep(1 * time.Second)
+
+	// Disable memory limit for broadcast extension
+	if d.DBDevice.StreamType == models.IOSWebRTCBroadcastExtensionId {
+		pid, err := d.getProcessPid("gads-broadcast-extension")
+		if err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to get pid for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
+		} else {
+			if err := d.disableProcessMemoryLimit(pid); err != nil {
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to disable memory limit for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
+			}
+		}
+	}
+
+	// Allocate ports
+	wdaPort, err := providerutil.GetFreePort()
+	if err != nil {
+		d.Reset("Failed to allocate free WebDriverAgent port for device.")
+		return err
+	}
+	d.WDAPort = wdaPort
+	d.DBDevice.WDAPort = wdaPort
+
+	streamPort, err := providerutil.GetFreePort()
+	if err != nil {
+		d.Reset("Failed to allocate free iOS stream port for device.")
+		return err
+	}
+	d.StreamPort = streamPort
+	d.DBDevice.StreamPort = streamPort
+
+	wdaStreamPort, err := providerutil.GetFreePort()
+	if err != nil {
+		d.Reset("Failed to allocate free WebDriverAgent stream port for device.")
+		return err
+	}
+	d.WDAStreamPort = wdaStreamPort
+	d.DBDevice.WDAStreamPort = wdaStreamPort
+
+	// Forward ports
+	go d.goIosForward(d.WDAPort, "8100")
+	go d.goIosForward(d.StreamPort, "8765")
+	go d.goIosForward(d.WDAStreamPort, "9100")
+
+	// Install/launch WDA
+	if d.DBDevice.SemVer.Major() < 17 || d.DBDevice.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
+		if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
+			d.Reset("Failed to install WebDriverAgent on device.")
+			return err
+		}
+		go d.runWDA()
+	} else {
+		if err := d.launchApp(config.ProviderConfig.WdaBundleID, true); err != nil {
+			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not launch WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
+			d.Reset("Failed to launch WebDriverAgent on device.")
+			return err
+		}
+	}
+
+	go d.checkWebDriverAgentUp()
+
+	select {
+	case <-d.WdaReadyChan:
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", d.GetUDID(), d.WDAPort))
+	case <-time.After(60 * time.Second):
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 60 seconds", d.GetUDID()))
+		d.Reset("Failed to start WebDriverAgent on device.")
+		return fmt.Errorf("WDA did not start in time")
+	}
+
+	// Apply stream settings
+	if err := d.ApplyStreamSettings(); err != nil {
+		d.Reset("Failed to apply device stream settings.")
+		return err
+	}
+
+	if err := d.UpdateStreamSettingsOnDevice(); err != nil {
+		d.Reset("Failed to create WebDriverAgent session or update its stream settings.")
+		return err
+	}
+
+	// Setup Appium if configured
+	if config.ProviderConfig.SetupAppiumServers {
+		if err := setupAppiumForDevice(d); err != nil {
+			return err
+		}
+	}
+
+	d.DBDevice.InstalledApps = d.GetInstalledAppBundleIDs()
+	d.SetProviderState("live")
+	return nil
+}
+
+// AppiumCapabilities returns the iOS-specific Appium server capabilities.
+func (d *IOSDevice) AppiumCapabilities() models.AppiumServerCapabilities {
+	return models.AppiumServerCapabilities{
+		UDID:                  d.GetUDID(),
+		WdaURL:                "http://localhost:" + d.WDAPort,
+		WdaLocalPort:          d.WDAPort,
+		WdaLaunchTimeout:      "120000",
+		WdaConnectionTimeout:  "240000",
+		ClearSystemFiles:      "false",
+		PreventWdaAttachments: "true",
+		SimpleIsVisibleCheck:  "false",
+		AutomationName:        "XCUITest",
+		PlatformName:          "iOS",
+		DeviceName:            d.DBDevice.Name,
+	}
+}
+
+func (d *IOSDevice) goIosForward(hostPort string, devicePort string) {
 	hostPortInt, _ := strconv.Atoi(hostPort)
 	devicePortInt, _ := strconv.Atoi(devicePort)
 
-	cl, err := forward.Forward(device.GoIOSDeviceEntry, uint16(hostPortInt), uint16(devicePortInt))
+	cl, err := forward.Forward(d.GoIOSDeviceEntry, uint16(hostPortInt), uint16(devicePortInt))
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to forward device port %s to host port %s for device `%s` - %s", devicePort, hostPort, device.UDID, err))
-		ResetLocalDevice(device, "Failed to forward device port to host port due to an error.")
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to forward device port %s to host port %s for device `%s` - %s", devicePort, hostPort, d.GetUDID(), err))
+		d.Reset("Failed to forward device port to host port due to an error.")
 		return
 	}
 
-	// Close the forward connection if device context is done
 	select {
-	case <-device.Context.Done():
+	case <-d.DBDevice.Context.Done():
 		cl.Close()
 		return
 	}
 }
 
-// Create a new WebDriverAgent session and update stream settings
-func updateWebDriverAgent(device *models.Device) error {
-	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("updateWebDriverAgent: Updating WebDriverAgent session and mjpeg stream settings for device `%s`", device.UDID))
-
-	err := UpdateWebDriverAgentStreamSettings(device)
-	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("updateWebDriverAgent: Could not update WebDriverAgent stream settings for device %v - %v", device.UDID, err))
-		return err
-	}
-
-	return nil
-}
-
-func UpdateWebDriverAgentStreamSettings(device *models.Device) error {
+// UpdateStreamSettingsOnDevice updates WebDriverAgent stream settings.
+func (d *IOSDevice) UpdateStreamSettingsOnDevice() error {
 	var mjpegProperties models.WDAMjpegProperties
-	mjpegProperties.MjpegServerFramerate = device.StreamTargetFPS
-	mjpegProperties.MjpegServerScreenshotQuality = device.StreamJpegQuality
-	mjpegProperties.MjpegServerScalingFactor = device.StreamScalingFactor
+	mjpegProperties.MjpegServerFramerate = d.DBDevice.StreamTargetFPS
+	mjpegProperties.MjpegServerScreenshotQuality = d.DBDevice.StreamJpegQuality
+	mjpegProperties.MjpegServerScalingFactor = d.DBDevice.StreamScalingFactor
 
-	mjpegSettings := models.WDAMjpegSettings{
-		Settings: mjpegProperties,
-	}
-
-	// Marshal the struct to JSON
+	mjpegSettings := models.WDAMjpegSettings{Settings: mjpegProperties}
 	requestBody, err := json.Marshal(mjpegSettings)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Updating Appium settings")
-	fmt.Println(bytes.NewBuffer(requestBody))
-
-	var url = fmt.Sprintf("http://localhost:%v/appium/settings", device.WDAPort)
-
-	// Post the mjpeg server settings
+	var url = fmt.Sprintf("http://localhost:%v/appium/settings", d.WDAPort)
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
 		return err
 	}
-
-	// TODO - potentially read the body to supply in the error
 	if response.StatusCode != 200 {
-		return fmt.Errorf("updateWebDriverAgentStreamSettings: Could not successfully update WDA stream settings, status code=%v", response.StatusCode)
+		return fmt.Errorf("could not successfully update WDA stream settings, status code=%v", response.StatusCode)
 	}
-
 	return nil
 }
 
-func mountDeveloperImageIOS(device *models.Device) error {
+func (d *IOSDevice) mountDeveloperImage() error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
-	path, err := imagemounter.DownloadImageFor(device.GoIOSDeviceEntry, basedir)
+	path, err := imagemounter.DownloadImageFor(d.GoIOSDeviceEntry, basedir)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` to path `%s` - %s", device.UDID, basedir, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` to path `%s` - %s", d.GetUDID(), basedir, err))
 		return fmt.Errorf("failed to download DDI: %w", err)
 	}
 
-	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Mounting DDI from path `%s` on device `%s`", path, device.UDID))
-	err = imagemounter.MountImage(device.GoIOSDeviceEntry, path)
+	err = imagemounter.MountImage(d.GoIOSDeviceEntry, path)
 	if err != nil {
 		if strings.Contains(err.Error(), "already mounted") || strings.Contains(err.Error(), "AlreadyMounted") {
-			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("DDI already mounted on device `%s`", device.UDID))
 			return nil
 		}
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to mount DDI on device `%s` from path `%s` - %s", device.UDID, path, err))
 		return fmt.Errorf("failed to mount DDI: %w", err)
 	}
-
-	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully mounted DDI on device `%s`", device.UDID))
 	return nil
 }
 
-// Pair an iOS device with host with/without supervision
-func pairIOS(device *models.Device) (pairErr error) {
+func (d *IOSDevice) pair() (pairErr error) {
 	if config.ProviderConfig.UseIOSPairCache {
-		if err := restorePairRecordToUsbmuxd(device.UDID); err == nil {
-			logger.ProviderLogger.LogInfo("ios_device_setup",
-				fmt.Sprintf("Restored cached pairing record for device `%s`, skipping pairing", device.UDID))
+		if err := restorePairRecordToUsbmuxd(d.GetUDID()); err == nil {
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Restored cached pairing record for device `%s`, skipping pairing", d.GetUDID()))
 			return nil
 		}
 	}
 
-	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", device.UDID))
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", d.GetUDID()))
 
 	defer func() {
 		if pairErr == nil && config.ProviderConfig.UseIOSPairCache {
-			cachePairRecord(device.UDID)
+			cachePairRecord(d.GetUDID())
 		}
 	}()
 
 	p12, err := os.ReadFile(fmt.Sprintf("%s/supervision.p12", config.ProviderConfig.ProviderFolder))
 	if err != nil {
-		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not read supervision.p12 file when pairing device with UDID: %s, falling back to unsupervised pairing - %s", device.UDID, err))
-		err = ios.Pair(device.GoIOSDeviceEntry)
+		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not read supervision.p12 file when pairing device with UDID: %s, falling back to unsupervised pairing - %s", d.GetUDID(), err))
+		err = ios.Pair(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
 		}
@@ -158,104 +345,73 @@ func pairIOS(device *models.Device) (pairErr error) {
 	}
 
 	if config.ProviderConfig.SupervisionPassword == "" {
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Supervision profile exists but no password provided, falling back to unsupervised pairing for device `%s`", device.UDID))
-		err = ios.Pair(device.GoIOSDeviceEntry)
+		err = ios.Pair(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
 		}
 		return nil
 	}
-	err = ios.PairSupervised(device.GoIOSDeviceEntry, p12, config.ProviderConfig.SupervisionPassword)
+	err = ios.PairSupervised(d.GoIOSDeviceEntry, p12, config.ProviderConfig.SupervisionPassword)
 	if err != nil {
-		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to perform supervised pairing on device `%s`, device unsupervised or unknown error - %s. Falling back to unsupervised pairing", device.UDID, err))
-		err = ios.Pair(device.GoIOSDeviceEntry)
+		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to perform supervised pairing on device `%s`, falling back to unsupervised - %s", d.GetUDID(), err))
+		err = ios.Pair(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
 		}
 		return nil
 	}
-
 	return nil
 }
 
-func getAllAppsGoIOS(device *models.Device) ([]installationproxy.AppInfo, error) {
-	var allApps = make([]installationproxy.AppInfo, 0)
-	var err error
-
-	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+func (d *IOSDevice) getAllApps() ([]installationproxy.AppInfo, error) {
+	svc, err := installationproxy.New(d.GoIOSDeviceEntry)
 	if err != nil {
-		return allApps, fmt.Errorf("getAllAppsGoIOS: failed to connect to installation proxy for all apps: %w", err)
+		return nil, fmt.Errorf("failed to connect to installation proxy for all apps: %w", err)
 	}
 	defer svc.Close()
-
-	allApps, err = svc.BrowseAllApps()
-	if err != nil {
-		return allApps, fmt.Errorf("getAllAppsGoIOS: failed to browse all apps: %w", err)
-	}
-	return allApps, nil
+	return svc.BrowseAllApps()
 }
 
-func getUserAppsGoIOS(device *models.Device) ([]installationproxy.AppInfo, error) {
-	var userApps = make([]installationproxy.AppInfo, 0)
-	var err error
-
-	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+func (d *IOSDevice) getUserApps() ([]installationproxy.AppInfo, error) {
+	svc, err := installationproxy.New(d.GoIOSDeviceEntry)
 	if err != nil {
-		return userApps, fmt.Errorf("getUserAppsGoIOS: failed to connect to installation proxy for user apps: %w", err)
+		return nil, fmt.Errorf("failed to connect to installation proxy for user apps: %w", err)
 	}
 	defer svc.Close()
-
-	userApps, err = svc.BrowseUserApps()
-	if err != nil {
-		return userApps, fmt.Errorf("getUserAppsGoIOS: failed to browse user apps: %w", err)
-	}
-	return userApps, nil
+	return svc.BrowseUserApps()
 }
 
-func GetInstalledAppsIOS(device *models.Device) []models.DeviceApp {
+// GetInstalledApps returns detailed info about installed apps.
+func (d *IOSDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 	var installedApps = make([]models.DeviceApp, 0)
 	var allApps, userApps []installationproxy.AppInfo
 
 	g, _ := errgroup.WithContext(context.Background())
-
 	g.Go(func() error {
 		var err error
-		allApps, err = getAllAppsGoIOS(device)
-		if err != nil {
-			return fmt.Errorf("failed to browse all apps: %w", err)
-		}
-		return nil
+		allApps, err = d.getAllApps()
+		return err
 	})
-
 	g.Go(func() error {
 		var err error
-		userApps, err = getUserAppsGoIOS(device)
-		if err != nil {
-			return fmt.Errorf("failed to browse user apps: %w", err)
-		}
-		return nil
+		userApps, err = d.getUserApps()
+		return err
 	})
-
 	if err := g.Wait(); err != nil {
-		return installedApps
+		return installedApps, err
 	}
 
-	// Build a map from bundle identifier to executable name
 	bundleIdToExecutable := make(map[string]string, len(allApps))
 	for _, app := range allApps {
 		bundleIdToExecutable[app.CFBundleIdentifier()] = app.CFBundleExecutable()
 	}
 
-	// Loop and add the user apps to the list
-	// They can all be uninstalled
 	for _, userApp := range userApps {
 		if !strings.Contains(userApp.CFBundleExecutable(), "WebDriverAgentRunner") && !strings.Contains(userApp.CFBundleExecutable(), "h264-broadcast-extension") {
 			installedApps = append(installedApps, models.DeviceApp{AppName: userApp.CFBundleExecutable(), BundleIdentifier: userApp.CFBundleIdentifier(), CanUninstall: true})
 		}
 	}
 
-	// Loop through the system apps and add them to the list
-	// The cannot be uninstalled
 	for _, bundleId := range constants.IOSSystemAppsBundleIds {
 		appName := bundleIdToExecutable[bundleId]
 		if appName == "" {
@@ -264,62 +420,57 @@ func GetInstalledAppsIOS(device *models.Device) []models.DeviceApp {
 		installedApps = append(installedApps, models.DeviceApp{AppName: appName, BundleIdentifier: bundleId, CanUninstall: false})
 	}
 
-	return installedApps
+	return installedApps, nil
 }
 
-func GetInstalledAppsBundleIdentifiersIOS(device *models.Device) []string {
+// GetInstalledAppBundleIDs returns the bundle identifiers of all installed apps.
+func (d *IOSDevice) GetInstalledAppBundleIDs() []string {
 	var bundleIdentifiers = make([]string, 0)
-	installedAppsInfo := GetInstalledAppsIOS(device)
-
+	installedAppsInfo, err := d.GetInstalledApps()
+	if err != nil {
+		return bundleIdentifiers
+	}
 	for _, installedApp := range installedAppsInfo {
 		bundleIdentifiers = append(bundleIdentifiers, installedApp.BundleIdentifier)
 	}
-
 	return bundleIdentifiers
 }
 
-func uninstallAppIOS(device *models.Device, bundleID string) error {
-	svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+// UninstallApp uninstalls an app by bundle ID.
+func (d *IOSDevice) UninstallApp(bundleID string) error {
+	svc, err := installationproxy.New(d.GoIOSDeviceEntry)
 	if err != nil {
-		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed creating installation proxy connection - %v", bundleID, err))
-		return err
+		return fmt.Errorf("failed creating installation proxy connection - %v", err)
 	}
-	err = svc.Uninstall(bundleID)
-	if err != nil {
-		device.Logger.LogError("uninstall_app", fmt.Sprintf("uninstallAppIOS: Failed uninstalling app with bundleID `%s` - %v", bundleID, err))
-		return err
-	}
-
-	return nil
+	return svc.Uninstall(bundleID)
 }
 
-func installAppDefaultPath(device *models.Device, appName string) error {
+// InstallApp installs an app from a file in the provider folder.
+func (d *IOSDevice) InstallApp(appName string) error {
 	appPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName)
-
-	return installAppIOS(device, appPath)
+	return d.installApp(appPath)
 }
 
-func installAppIOS(device *models.Device, appPath string) error {
+func (d *IOSDevice) installApp(appPath string) error {
 	if config.ProviderConfig.OS == "windows" {
 		appPath = strings.TrimPrefix(appPath, "./")
 	}
 
-	logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s`", appPath, device.UDID))
-	conn, err := zipconduit.New(device.GoIOSDeviceEntry)
+	logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s`", appPath, d.GetUDID()))
+	conn, err := zipconduit.New(d.GoIOSDeviceEntry)
 	if err != nil {
-		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to create zipconduit connection when installing app `%s` on device `%s`", appPath, device.UDID))
-		ResetLocalDevice(device, "Failed to create zipconduit connection for app installation.")
+		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to create zipconduit connection when installing app `%s` on device `%s`", appPath, d.GetUDID()))
+		d.Reset("Failed to create zipconduit connection for app installation.")
 		return err
 	}
-	err = conn.SendFile(appPath)
-
+	conn.SendFile(appPath)
 	return nil
 }
 
-func launchAppIOS(device *models.Device, bundleID string, killExisting bool) error {
-	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+func (d *IOSDevice) launchApp(bundleID string, killExisting bool) error {
+	pControl, err := instruments.NewProcessControl(d.GoIOSDeviceEntry)
 	if err != nil {
-		return fmt.Errorf("launchAppIOS: Failed to initiate process control launching app with bundleID `$s` - %s", bundleID, err)
+		return fmt.Errorf("failed to initiate process control - %s", err)
 	}
 
 	opts := map[string]any{}
@@ -328,24 +479,25 @@ func launchAppIOS(device *models.Device, bundleID string, killExisting bool) err
 	}
 	_, err = pControl.LaunchAppWithArgs(bundleID, nil, nil, opts)
 	if err != nil {
-		ResetLocalDevice(device, "Failed to launch app with bundleID due to process control error.")
-		return fmt.Errorf("launchAppIOS: Failed to launch app with bundleID `%s` - %s", bundleID, err)
+		d.Reset("Failed to launch app with bundleID due to process control error.")
+		return fmt.Errorf("failed to launch app with bundleID `%s` - %s", bundleID, err)
 	}
-
 	return nil
 }
 
-func checkWebDriverAgentUp(device *models.Device) {
-	var netClient = &http.Client{
-		Timeout: time.Second * 30,
-	}
+// LaunchApp launches an app by bundle ID (for the PlatformDevice interface).
+func (d *IOSDevice) LaunchApp(bundleID string) error {
+	return d.launchApp(bundleID, true)
+}
 
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", device.WDAPort), nil)
+func (d *IOSDevice) checkWebDriverAgentUp() {
+	var netClient = &http.Client{Timeout: time.Second * 30}
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%v/status", d.WDAPort), nil)
 
 	loops := 0
 	for {
 		if loops >= 30 {
-			ResetLocalDevice(device, "WebDriverAgent did not respond within the expected time.")
+			d.Reset("WebDriverAgent did not respond within the expected time.")
 			return
 		}
 		resp, err := netClient.Do(req)
@@ -353,7 +505,7 @@ func checkWebDriverAgentUp(device *models.Device) {
 			time.Sleep(1 * time.Second)
 		} else {
 			if resp.StatusCode == http.StatusOK {
-				device.WdaReadyChan <- true
+				d.WdaReadyChan <- true
 				return
 			}
 		}
@@ -361,18 +513,15 @@ func checkWebDriverAgentUp(device *models.Device) {
 	}
 }
 
-// Only for iOS 17.4+
-func createGoIOSTunnel(ctx context.Context, device *models.Device) (tunnel.Tunnel, error) {
-	tun, err := tunnel.ConnectUserSpaceTunnelLockdown(device.GoIOSDeviceEntry, device.GoIOSDeviceEntry.UserspaceTUNPort)
+func (d *IOSDevice) createTunnel() (tunnel.Tunnel, error) {
+	tun, err := tunnel.ConnectUserSpaceTunnelLockdown(d.GoIOSDeviceEntry, d.GoIOSDeviceEntry.UserspaceTUNPort)
 	tun.UserspaceTUN = true
-
-	tun.UserspaceTUNPort = device.GoIOSDeviceEntry.UserspaceTUNPort
+	tun.UserspaceTUNPort = d.GoIOSDeviceEntry.UserspaceTUNPort
 	return tun, err
 }
 
-func goIosDeviceWithRsdProvider(device *models.Device) error {
-	var err error
-	rsdService, err := ios.NewWithAddrPortDevice(device.GoIOSTunnel.Address, device.GoIOSTunnel.RsdPort, device.GoIOSDeviceEntry)
+func (d *IOSDevice) deviceWithRsdProvider() error {
+	rsdService, err := ios.NewWithAddrPortDevice(d.GoIOSTunnel.Address, d.GoIOSTunnel.RsdPort, d.GoIOSDeviceEntry)
 	if err != nil {
 		return err
 	}
@@ -381,156 +530,127 @@ func goIosDeviceWithRsdProvider(device *models.Device) error {
 	if err != nil {
 		return err
 	}
-	newEntry, err := ios.GetDeviceWithAddress(device.UDID, device.GoIOSTunnel.Address, rsdProvider)
-	newEntry.UserspaceTUN = device.GoIOSDeviceEntry.UserspaceTUN
-	newEntry.UserspaceTUNPort = device.GoIOSDeviceEntry.UserspaceTUNPort
-	device.GoIOSDeviceEntry = newEntry
+	newEntry, err := ios.GetDeviceWithAddress(d.GetUDID(), d.GoIOSTunnel.Address, rsdProvider)
+	newEntry.UserspaceTUN = d.GoIOSDeviceEntry.UserspaceTUN
+	newEntry.UserspaceTUNPort = d.GoIOSDeviceEntry.UserspaceTUNPort
+	d.GoIOSDeviceEntry = newEntry
+	d.DBDevice.GoIOSDeviceEntry = newEntry
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func runWDAGoIOS(device *models.Device) {
+func (d *IOSDevice) runWDA() {
 	testConfig := testmanagerd.TestConfig{
 		BundleId:           config.ProviderConfig.WdaBundleID,
 		TestRunnerBundleId: config.ProviderConfig.WdaBundleID,
 		XctestConfigName:   "WebDriverAgentRunner.xctest",
-		Env:                nil,
-		Args:               nil,
-		TestsToRun:         nil,
-		TestsToSkip:        nil,
-		XcTest:             false,
-		Device:             device.GoIOSDeviceEntry,
+		Device:             d.GoIOSDeviceEntry,
 		Listener:           testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()),
 	}
-	_, err := testmanagerd.RunTestWithConfig(
-		device.Context,
-		testConfig)
+	_, err := testmanagerd.RunTestWithConfig(d.DBDevice.Context, testConfig)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to run WebDriverAgent via testmanagerd on device `%s` - %s", device.UDID, err))
-		ResetLocalDevice(device, "Failed to run WebDriverAgent due to an error.")
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to run WebDriverAgent via testmanagerd on device `%s` - %s", d.GetUDID(), err))
+		d.Reset("Failed to run WebDriverAgent due to an error.")
 	}
 }
 
-func updateIOSScreenSize(device *models.Device, deviceMachineCode string) error {
+func (d *IOSDevice) updateScreenSize(deviceMachineCode string) error {
 	if dimensions, ok := constants.IOSDeviceInfoMap[deviceMachineCode]; ok {
-		device.ScreenHeight = dimensions.Height
-		device.ScreenWidth = dimensions.Width
+		d.DBDevice.ScreenHeight = dimensions.Height
+		d.DBDevice.ScreenWidth = dimensions.Width
 	} else {
-		return fmt.Errorf("Could not find `%s` device machine code in the IOSDeviceInfoMap map, please update the map", deviceMachineCode)
+		return fmt.Errorf("could not find `%s` device machine code in the IOSDeviceInfoMap map", deviceMachineCode)
 	}
 
-	// Update the device with the new dimensions in the DB
-	err := db.GlobalMongoStore.AddOrUpdateDevice(device)
-	if err != nil {
-		return fmt.Errorf("Failed to update DB with new device dimensions - %s", err)
+	if err := db.GlobalMongoStore.AddOrUpdateDevice(d.DBDevice); err != nil {
+		return fmt.Errorf("failed to update DB with new device dimensions - %s", err)
 	}
-
 	return nil
 }
 
-func getProcessPid(device *models.Device, processName string) (uint64, error) {
-	svc, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
+func (d *IOSDevice) getProcessPid(processName string) (uint64, error) {
+	svc, err := instruments.NewDeviceInfoService(d.GoIOSDeviceEntry)
 	if err != nil {
-		return 0, fmt.Errorf("getProcessPid: Failed to create device info service for device `%s`", device.UDID)
+		return 0, fmt.Errorf("failed to create device info service for device `%s`", d.GetUDID())
 	}
 	defer svc.Close()
 
-	var availableProcesses []string
 	processList, err := svc.ProcessList()
 	if err != nil {
-		return 0, fmt.Errorf("getProcessPid: Failed to get process list for device `%s` - %s", device.UDID, err)
+		return 0, fmt.Errorf("failed to get process list for device `%s` - %s", d.GetUDID(), err)
 	}
 
 	for _, process := range processList {
 		if process.Pid > 1 && process.Name == processName {
 			return process.Pid, nil
 		}
-		availableProcesses = append(availableProcesses, process.Name)
 	}
-
-	return 0, fmt.Errorf("getProcessPid: No process with name `%s` found on device `%s`. Available processes: %s", processName, device.UDID, availableProcesses)
+	return 0, fmt.Errorf("no process with name `%s` found on device `%s`", processName, d.GetUDID())
 }
 
-func disableProcessMemoryLimit(device *models.Device, pid uint64) error {
-	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+func (d *IOSDevice) disableProcessMemoryLimit(pid uint64) error {
+	pControl, err := instruments.NewProcessControl(d.GoIOSDeviceEntry)
 	if err != nil {
-		return fmt.Errorf("disableProcessMemoryLimit: Failed to create process control instance for device `%s` - %s", device.UDID, err)
+		return fmt.Errorf("failed to create process control instance for device `%s` - %s", d.GetUDID(), err)
 	}
 
 	disabled, err := pControl.DisableMemoryLimit(pid)
 	if err != nil {
-		return fmt.Errorf("disableProcessMemoryLimit: Failed to disable memory limit for pid `%v` for device `%s` - %s", pid, device.UDID, err)
+		return fmt.Errorf("failed to disable memory limit for pid `%v` for device `%s` - %s", pid, d.GetUDID(), err)
 	}
-
 	if !disabled {
-		return fmt.Errorf("disableProcessMemoryLimit: Failed to disable memory limit for pid `%v` for device `%s` without explicit error", pid, device.UDID)
+		return fmt.Errorf("failed to disable memory limit for pid `%v` for device `%s` without explicit error", pid, d.GetUDID())
 	}
-
 	return nil
 }
 
-// Get a list of running apps on the device that are killable
-func GetRunningAppsIOS(device *models.Device) ([]models.RunningApp, error) {
+// GetRunningApps returns a list of running apps on the device that are killable.
+func (d *IOSDevice) GetRunningApps() ([]models.RunningApp, error) {
 	var runningApps = make([]models.RunningApp, 0)
 
 	var allApps, userApps []installationproxy.AppInfo
 	var procList []instruments.ProcessInfo
 
 	g, _ := errgroup.WithContext(context.Background())
-
 	g.Go(func() error {
-		svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+		svc, err := installationproxy.New(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("failed to connect to installation proxy for all apps: %w", err)
 		}
 		defer svc.Close()
 		allApps, err = svc.BrowseAllApps()
-		if err != nil {
-			return fmt.Errorf("failed to browse all apps: %w", err)
-		}
-		return nil
+		return err
 	})
-
 	g.Go(func() error {
-		svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+		svc, err := installationproxy.New(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("failed to connect to installation proxy for user apps: %w", err)
 		}
 		defer svc.Close()
 		userApps, err = svc.BrowseUserApps()
-		if err != nil {
-			return fmt.Errorf("failed to browse user apps: %w", err)
-		}
-		return nil
+		return err
 	})
-
 	g.Go(func() error {
-		svc, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
+		svc, err := instruments.NewDeviceInfoService(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("failed to create device info service: %w", err)
 		}
 		defer svc.Close()
 		procList, err = svc.ProcessList()
-		if err != nil {
-			return fmt.Errorf("failed to get process list: %w", err)
-		}
-		return nil
+		return err
 	})
 
 	if err := g.Wait(); err != nil {
 		return runningApps, err
 	}
 
-	// Build a map from executable name to bundle identifier
 	execToBundleId := make(map[string]string, len(allApps))
 	for _, app := range allApps {
 		execToBundleId[app.CFBundleExecutable()] = app.CFBundleIdentifier()
 	}
 
-	// Build allow list: system apps from constants + user-installed apps
 	appsAllowList := make(map[string]bool)
 	for _, bundleId := range constants.IOSSystemAppsBundleIds {
 		appsAllowList[bundleId] = true
@@ -554,51 +674,41 @@ func GetRunningAppsIOS(device *models.Device) ([]models.RunningApp, error) {
 	return runningApps, nil
 }
 
-func KillAppIOS(device *models.Device, bundleIdentifier string) error {
+// KillApp kills a running app by bundle identifier.
+func (d *IOSDevice) KillApp(bundleIdentifier string) error {
 	var allApps []installationproxy.AppInfo
 	var processList []instruments.ProcessInfo
-	var err error
 
 	g, _ := errgroup.WithContext(context.Background())
 	g.Go(func() error {
-		svc, err := installationproxy.New(device.GoIOSDeviceEntry)
+		svc, err := installationproxy.New(d.GoIOSDeviceEntry)
 		if err != nil {
-			return fmt.Errorf("failed to connect to installation proxy for all apps: %w", err)
+			return fmt.Errorf("failed to connect to installation proxy: %w", err)
 		}
 		defer svc.Close()
 		allApps, err = svc.BrowseAllApps()
-		if err != nil {
-			return fmt.Errorf("failed to browse all apps: %w", err)
-		}
-		return nil
+		return err
 	})
-
 	g.Go(func() error {
-		// Create device info service and get the processes list
-		infoService, err := instruments.NewDeviceInfoService(device.GoIOSDeviceEntry)
+		infoService, err := instruments.NewDeviceInfoService(d.GoIOSDeviceEntry)
 		if err != nil {
-			return fmt.Errorf("KillAppIOS: Failed to create device info service - %w", err)
+			return fmt.Errorf("failed to create device info service - %w", err)
 		}
 		defer infoService.Close()
-
 		processList, err = infoService.ProcessList()
-		if err != nil {
-			return fmt.Errorf("KillAppIOS: Failed to get device processes list - %w", err)
-		}
-		return nil
+		return err
 	})
 
 	if err := g.Wait(); err != nil {
 		return err
 	}
 
-	pControl, err := instruments.NewProcessControl(device.GoIOSDeviceEntry)
+	pControl, err := instruments.NewProcessControl(d.GoIOSDeviceEntry)
 	if err != nil {
-		return fmt.Errorf("KillAppIOS: Failed to create process controll service - %w", err)
+		return fmt.Errorf("failed to create process control service - %w", err)
 	}
 	defer pControl.Close()
 
-	// Check if the provided bundle identifier exists in the installed apps
 	var appProcessName string
 	for _, app := range allApps {
 		if app.CFBundleIdentifier() == bundleIdentifier {
@@ -606,19 +716,89 @@ func KillAppIOS(device *models.Device, bundleIdentifier string) error {
 		}
 	}
 	if appProcessName == "" {
-		return fmt.Errorf("KillAppIOS: App with bundle identifier `%s` is not installed on device", bundleIdentifier)
+		return fmt.Errorf("app with bundle identifier `%s` is not installed on device", bundleIdentifier)
 	}
 
-	// Check if the target app is in the processes list and kill it
 	for _, p := range processList {
 		if p.Name == appProcessName {
-			err := pControl.KillProcess(p.Pid)
-			if err != nil {
-				return fmt.Errorf("KillAppIOS: Failed killing app with bundle id `%s` and pid `%v` - %w", bundleIdentifier, p.Pid, err)
-			}
-			return nil
+			return pControl.KillProcess(p.Pid)
 		}
 	}
+	return fmt.Errorf("app with bundle id `%s` is not running", bundleIdentifier)
+}
 
-	return fmt.Errorf("KillAppIOS: App with bundle id `%s` is not running", bundleIdentifier)
+// GetScreenSize returns the device screen dimensions.
+func (d *IOSDevice) GetScreenSize() (width, height string, err error) {
+	return d.DBDevice.ScreenWidth, d.DBDevice.ScreenHeight, nil
+}
+
+// GetHardwareModel returns the hardware model string.
+func (d *IOSDevice) GetHardwareModel() (string, error) {
+	return d.DBDevice.HardwareModel, nil
+}
+
+// GetCurrentRotation returns the current device rotation (iOS uses WDA for this, handled by router).
+func (d *IOSDevice) GetCurrentRotation() (string, error) {
+	return d.DBDevice.CurrentRotation, nil
+}
+
+// ChangeRotation is handled via WDA in the router for iOS.
+func (d *IOSDevice) ChangeRotation(rotation string) error {
+	return fmt.Errorf("iOS rotation is handled via WebDriverAgent")
+}
+
+// ApplyStreamSettings applies stream settings from DB to the device runtime state.
+func (d *IOSDevice) ApplyStreamSettings() error {
+	return applyDeviceStreamSettings(d.DBDevice)
+}
+
+// --- Legacy exported functions used by the provider router ---
+
+func GetInstalledAppsIOS(device *models.Device) []models.DeviceApp {
+	dev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		return []models.DeviceApp{}
+	}
+	iosDev, ok := dev.(*IOSDevice)
+	if !ok {
+		return []models.DeviceApp{}
+	}
+	apps, _ := iosDev.GetInstalledApps()
+	return apps
+}
+
+func GetRunningAppsIOS(device *models.Device) ([]models.RunningApp, error) {
+	dev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		return nil, fmt.Errorf("device not found")
+	}
+	iosDev, ok := dev.(*IOSDevice)
+	if !ok {
+		return nil, fmt.Errorf("device is not iOS")
+	}
+	return iosDev.GetRunningApps()
+}
+
+func KillAppIOS(device *models.Device, bundleIdentifier string) error {
+	dev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		return fmt.Errorf("device not found")
+	}
+	iosDev, ok := dev.(*IOSDevice)
+	if !ok {
+		return fmt.Errorf("device is not iOS")
+	}
+	return iosDev.KillApp(bundleIdentifier)
+}
+
+func UpdateWebDriverAgentStreamSettings(device *models.Device) error {
+	dev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		return fmt.Errorf("device not found")
+	}
+	iosDev, ok := dev.(*IOSDevice)
+	if !ok {
+		return fmt.Errorf("device is not iOS")
+	}
+	return iosDev.UpdateStreamSettingsOnDevice()
 }

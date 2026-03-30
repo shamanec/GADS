@@ -4,16 +4,20 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
-	"time"
 
-	"GADS/common/cli"
 	"GADS/common/models"
 	"GADS/common/utils"
 	"GADS/provider/config"
 	"GADS/provider/logger"
-	"GADS/provider/providerutil"
 )
+
+// WebOSDevice holds WebOS TV-specific runtime state alongside the shared RuntimeState.
+type WebOSDevice struct {
+	RuntimeState
+	DeviceAddress string // IP address of the WebOS TV (same as UDID for WebOS)
+}
 
 // connectedWebOSDevice represents a WebOS device returned by ares-setup-device --list
 type connectedWebOSDevice struct {
@@ -21,49 +25,36 @@ type connectedWebOSDevice struct {
 	ip   string
 }
 
-func setupWebOSDevice(device *models.Device) {
-	device.SetupMutex.Lock()
-	defer device.SetupMutex.Unlock()
+// Setup runs the full WebOS device provisioning sequence.
+func (d *WebOSDevice) Setup() error {
+	d.DBDevice.SetupMutex.Lock()
+	defer d.DBDevice.SetupMutex.Unlock()
 
-	device.ProviderState = "preparing"
-	logger.ProviderLogger.LogInfo("webos_device_setup", fmt.Sprintf("Running setup for WebOS device `%v`", device.UDID))
+	d.SetProviderState("preparing")
+	logger.ProviderLogger.LogInfo("webos_device_setup", fmt.Sprintf("Running setup for WebOS device `%v`", d.GetUDID()))
 
-	err := cli.KillDeviceAppiumProcess(device.UDID)
-	if err != nil {
-		logger.ProviderLogger.LogError("webos_device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to kill existing Appium processes.")
-		return
+	d.DBDevice.IPAddress = d.GetUDID()
+
+	if err := setupAppiumForDevice(d); err != nil {
+		return err
 	}
 
-	appiumPort, err := providerutil.GetFreePort()
-	if err != nil {
-		logger.ProviderLogger.LogError("webos_device_setup", fmt.Sprintf("Could not allocate free host port for Appium for device `%v` - %v", device.UDID, err))
-		ResetLocalDevice(device, "Failed to allocate free host port for Appium")
-		return
+	d.SetProviderState("live")
+	return nil
+}
+
+// AppiumCapabilities returns the WebOS-specific Appium server capabilities.
+func (d *WebOSDevice) AppiumCapabilities() models.AppiumServerCapabilities {
+	chromeDriverPath := filepath.Join(config.ProviderConfig.ProviderFolder, "drivers/chromedriver")
+	absolutePath, _ := filepath.Abs(chromeDriverPath)
+	return models.AppiumServerCapabilities{
+		AutomationName:         "webos",
+		PlatformName:           "lgtv",
+		UDID:                   d.GetUDID(),
+		DeviceHost:             d.GetUDID(),
+		DeviceName:             d.DBDevice.Name,
+		ChromeDriverExecutable: absolutePath,
 	}
-	device.AppiumPort = appiumPort
-	device.IPAddress = device.UDID
-
-	go startAppium(device)
-
-	timeout := time.After(30 * time.Second)
-	tick := time.Tick(200 * time.Millisecond)
-AppiumLoop:
-	for {
-		select {
-		case <-timeout:
-			logger.ProviderLogger.LogError("webos_device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 30 seconds", device.UDID))
-			ResetLocalDevice(device, "Failed to start Appium for device.")
-			return
-		case <-tick:
-			if device.IsAppiumUp {
-				logger.ProviderLogger.LogInfo("webos_device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", device.UDID, device.AppiumPort))
-				break AppiumLoop
-			}
-		}
-	}
-
-	device.ProviderState = "live"
 }
 
 // getConnectedDevicesWebOS gets the connected WebOS devices using ares-setup-device
@@ -79,17 +70,12 @@ func getConnectedDevicesWebOS() []string {
 	lines := strings.Split(string(output), "\n")
 
 	for _, line := range lines {
-		// Skip empty lines, header and emulator lines
 		if line == "" || strings.Contains(line, "name") || strings.Contains(line, "----") || strings.Contains(line, "emulator") {
 			continue
 		}
 
-		// ares-setup-device --list output format:
-		// name            deviceinfo                connection  profile
-		// TVLG (default)  prisoner@10.1.16.22:9922  ssh         tv
 		fields := strings.Fields(line)
 		if len(fields) >= 2 {
-			// Find the field that contains @ and : (deviceinfo field)
 			var deviceInfo string
 			for _, field := range fields {
 				if strings.Contains(field, "@") && strings.Contains(field, ":") {
@@ -98,9 +84,7 @@ func getConnectedDevicesWebOS() []string {
 				}
 			}
 
-			// Extract IP from deviceinfo if found
 			if deviceInfo != "" {
-				// Format is user@IP:PORT, extract just the IP
 				parts := strings.Split(deviceInfo, "@")
 				if len(parts) == 2 {
 					ipPort := parts[1]
@@ -117,36 +101,37 @@ func getConnectedDevicesWebOS() []string {
 	return connectedDevices
 }
 
-func installAppWebOS(device *models.Device, appName string) error {
+// InstallApp installs an app on the WebOS device.
+func (d *WebOSDevice) InstallApp(appName string) error {
 	appPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName)
 
 	if strings.HasSuffix(appName, ".ipk") {
-		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing .ipk file directly on device %s", device.UDID))
+		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing .ipk file directly on device %s", d.GetUDID()))
 
-		installCmd := exec.Command("ares-install", "--device", device.Name, appPath)
+		installCmd := exec.Command("ares-install", "--device", d.DBDevice.Name, appPath)
 		output, err := installCmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to install .ipk: %s. Output: %s", err, string(output))
 		}
 
-		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", device.UDID))
+		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", d.GetUDID()))
 		return nil
 	}
 
-	tempDir := fmt.Sprintf("%s/webos_temp_%s", os.TempDir(), device.UDID)
+	tempDir := fmt.Sprintf("%s/webos_temp_%s", os.TempDir(), d.GetUDID())
 
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Extracting source code for device %s", device.UDID))
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Extracting source code for device %s", d.GetUDID()))
 
 	if err := utils.ExtractZipToDir(appPath, tempDir); err != nil {
 		return fmt.Errorf("failed to extract app file: %w", err)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Packaging app for device %s", device.UDID))
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Packaging app for device %s", d.GetUDID()))
 
 	packageCmd := exec.Command("ares-package", tempDir)
 	output, err := packageCmd.CombinedOutput()
@@ -173,15 +158,30 @@ func installAppWebOS(device *models.Device, appName string) error {
 
 	defer os.Remove(ipkFile)
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing app on device %s", device.UDID))
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing app on device %s", d.GetUDID()))
 
-	installCmd := exec.Command("ares-install", "--device", device.Name, ipkFile)
+	installCmd := exec.Command("ares-install", "--device", d.DBDevice.Name, ipkFile)
 	output, err = installCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to install app: %s. Output: %s", err, string(output))
 	}
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", device.UDID))
+	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", d.GetUDID()))
+	return nil
+}
+
+// UninstallApp uninstalls an app from the WebOS device.
+func (d *WebOSDevice) UninstallApp(appID string) error {
+	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Uninstalling app %s from device %s", appID, d.GetUDID()))
+
+	cmd := exec.Command("ares-install", "--device", d.DBDevice.Name, "--remove", appID)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("webos_uninstall_app", fmt.Sprintf("Failed to uninstall app %s from device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output)))
+		return fmt.Errorf("failed to uninstall app %s: %w", appID, err)
+	}
+
+	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Successfully uninstalled app %s from device %s", appID, d.GetUDID()))
 	return nil
 }
 
@@ -189,17 +189,31 @@ type WebOSApp struct {
 	AppID     string `json:"appId"`
 	Title     string `json:"title"`
 	Version   string `json:"version"`
-	IsDevApp  bool   `json:"isDevApp"`  // always true (ares-install lists only dev apps)
-	SystemApp bool   `json:"systemApp"` // parsed from output (always false for CLI apps)
+	IsDevApp  bool   `json:"isDevApp"`
+	SystemApp bool   `json:"systemApp"`
 }
 
-func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
+// GetInstalledApps returns installed apps info (returns as []models.DeviceApp for the interface).
+func (d *WebOSDevice) GetInstalledApps() ([]models.DeviceApp, error) {
+	webosApps := d.getInstalledAppsWebOS()
+	var result []models.DeviceApp
+	for _, app := range webosApps {
+		result = append(result, models.DeviceApp{
+			AppName:          app.Title,
+			BundleIdentifier: app.AppID,
+			CanUninstall:     app.IsDevApp,
+		})
+	}
+	return result, nil
+}
+
+func (d *WebOSDevice) getInstalledAppsWebOS() []WebOSApp {
 	apps := []WebOSApp{}
 
-	cmd := exec.Command("ares-install", "--device", device.Name, "--listfull")
+	cmd := exec.Command("ares-install", "--device", d.DBDevice.Name, "--listfull")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_list_apps", fmt.Sprintf("Failed to list apps for device %s: %v. Output: %s", device.UDID, err, string(output)))
+		logger.ProviderLogger.LogError("webos_list_apps", fmt.Sprintf("Failed to list apps for device %s: %v. Output: %s", d.GetUDID(), err, string(output)))
 		return apps
 	}
 
@@ -243,48 +257,84 @@ func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
 		apps = append(apps, currentApp)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_list_apps", fmt.Sprintf("Found %d installed apps on device %s", len(apps), device.UDID))
+	logger.ProviderLogger.LogInfo("webos_list_apps", fmt.Sprintf("Found %d installed apps on device %s", len(apps), d.GetUDID()))
 	return apps
 }
 
-func LaunchAppWebOS(device *models.Device, appID string) error {
-	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Launching app %s on device %s", appID, device.UDID))
+// GetInstalledAppBundleIDs returns bundle identifiers of installed apps.
+func (d *WebOSDevice) GetInstalledAppBundleIDs() []string {
+	var ids []string
+	for _, app := range d.getInstalledAppsWebOS() {
+		ids = append(ids, app.AppID)
+	}
+	return ids
+}
 
-	cmd := exec.Command("ares-launch", "--device", device.Name, appID)
+// LaunchApp launches an app on the WebOS device.
+func (d *WebOSDevice) LaunchApp(appID string) error {
+	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Launching app %s on device %s", appID, d.GetUDID()))
+
+	cmd := exec.Command("ares-launch", "--device", d.DBDevice.Name, appID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_launch_app", fmt.Sprintf("Failed to launch app %s on device %s: %v. Output: %s", appID, device.UDID, err, string(output)))
+		logger.ProviderLogger.LogError("webos_launch_app", fmt.Sprintf("Failed to launch app %s on device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output)))
 		return fmt.Errorf("failed to launch app %s: %w", appID, err)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Successfully launched app %s on device %s", appID, device.UDID))
+	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Successfully launched app %s on device %s", appID, d.GetUDID()))
 	return nil
 }
 
-func CloseAppWebOS(device *models.Device, appID string) error {
-	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Closing app %s on device %s", appID, device.UDID))
+// CloseApp closes an app on the WebOS device.
+func (d *WebOSDevice) CloseApp(appID string) error {
+	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Closing app %s on device %s", appID, d.GetUDID()))
 
-	cmd := exec.Command("ares-launch", "--device", device.Name, "--close", appID)
+	cmd := exec.Command("ares-launch", "--device", d.DBDevice.Name, "--close", appID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_close_app", fmt.Sprintf("Failed to close app %s on device %s: %v. Output: %s", appID, device.UDID, err, string(output)))
+		logger.ProviderLogger.LogError("webos_close_app", fmt.Sprintf("Failed to close app %s on device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output)))
 		return fmt.Errorf("failed to close app %s: %w", appID, err)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Successfully closed app %s on device %s", appID, device.UDID))
+	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Successfully closed app %s on device %s", appID, d.GetUDID()))
 	return nil
 }
 
-func uninstallAppWebOS(device *models.Device, appID string) error {
-	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Uninstalling app %s from device %s", appID, device.UDID))
+// KillApp kills an app on WebOS (same as CloseApp).
+func (d *WebOSDevice) KillApp(appID string) error {
+	return d.CloseApp(appID)
+}
 
-	cmd := exec.Command("ares-install", "--device", device.Name, "--remove", appID)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		logger.ProviderLogger.LogError("webos_uninstall_app", fmt.Sprintf("Failed to uninstall app %s from device %s: %v. Output: %s", appID, device.UDID, err, string(output)))
-		return fmt.Errorf("failed to uninstall app %s: %w", appID, err)
+// --- Legacy exported functions used by the provider router ---
+
+func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
+	dev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		return []WebOSApp{}
 	}
+	webosDev, ok := dev.(*WebOSDevice)
+	if !ok {
+		return []WebOSApp{}
+	}
+	return webosDev.getInstalledAppsWebOS()
+}
 
-	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Successfully uninstalled app %s from device %s", appID, device.UDID))
-	return nil
+func LaunchAppWebOS(device *models.Device, appID string) error {
+	dev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		return fmt.Errorf("device not found")
+	}
+	return dev.LaunchApp(appID)
+}
+
+func CloseAppWebOS(device *models.Device, appID string) error {
+	dev, ok := DevManager.Get(device.UDID)
+	if !ok {
+		return fmt.Errorf("device not found")
+	}
+	webosDev, ok := dev.(*WebOSDevice)
+	if !ok {
+		return fmt.Errorf("device is not WebOS")
+	}
+	return webosDev.CloseApp(appID)
 }
