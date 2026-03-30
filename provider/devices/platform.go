@@ -56,12 +56,31 @@ type PlatformDevice interface {
 	// Port accessor — platform types return their stream port; TV types return ""
 	GetStreamPort() string
 
-	// Appium state accessors — delegates to DBDevice fields for hub sync
+	// Appium state accessors
 	GetAppiumSessionID() string
 	SetAppiumSessionID(id string)
 	SetAppiumUp(up bool)
 	SetAppiumLastPingTS(ts int64)
 	SetHasAppiumSession(has bool)
+	GetIsAppiumUp() bool
+
+	// Runtime state accessors (provider-only fields on RuntimeState)
+	GetIsResetting() bool
+	SetIsResetting(v bool)
+	GetHardwareModelValue() string
+	SetHardwareModel(model string)
+	GetStreamTargetFPS() int
+	SetStreamTargetFPS(fps int)
+	GetStreamJpegQuality() int
+	SetStreamJpegQuality(q int)
+	GetStreamScalingFactor() int
+	SetStreamScalingFactor(f int)
+	GetCurrentRotationValue() string
+	SetCurrentRotation(rotation string)
+	GetSupportedStreamTypes() []models.StreamType
+	SetSupportedStreamTypes(types []models.StreamType)
+	GetInstalledAppIDs() []string
+	SetInstalledAppIDs(apps []string)
 }
 
 // RemoteControllable extends PlatformDevice with capabilities for devices that support

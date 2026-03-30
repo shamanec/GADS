@@ -52,25 +52,11 @@ type Device struct {
 	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
 	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
 	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
-	// NON-DB DATA
-	/// COMMON VALUES
-	Host                 string       `json:"host" bson:"-"`                            // IP address of the device host(provider)
-	HardwareModel        string       `json:"hardware_model" bson:"-"`                  // hardware model of device
-	LastUpdatedTimestamp int64        `json:"last_updated_timestamp" bson:"-"`          // last time the device data was updated
-	Connected            bool         `json:"connected" bson:"-"`                       // if device is currently connected
-	IsResetting          bool         `json:"is_resetting" bson:"-"`                    // if device setup is currently being reset
-	ProviderState        string       `json:"provider_state" bson:"-"`                  // current state of the device on the provider - init, preparing, live
-	StreamTargetFPS      int          `json:"stream_target_fps,omitempty" bson:"-"`     // The target FPS for the MJPEG video streams
-	StreamJpegQuality    int          `json:"stream_jpeg_quality,omitempty" bson:"-"`   // The target JPEG quality for the MJPEG video streams
-	StreamScalingFactor  int          `json:"stream_scaling_factor,omitempty" bson:"-"` // The target scaling factor for the MJPEG video streams
-	AppiumLastPingTS     int64        `json:"appium_last_ts" bson:"-"`                  // The last time the Appium server pinged the provider - the plugin sends regular pings while up
-	AppiumSessionID      string       `json:"appium_session_id" bson:"-"`               // Current Appium session ID - the plugin sends a request for this when a session is created, also the session ID is available for all logs
-	IsAppiumUp           bool         `json:"is_appium_up" bson:"-"`                    // Reflects if Appium server is up or not - the plugin sends a request for this
-	HasAppiumSession     bool         `json:"has_appium_session" bson:"-"`              // This is a "just in case" property - it will be set to `true` when the plugin sends a new session registration request and to `false` when the plugin sends a remove session request
-	CurrentRotation      string       `json:"current_rotation" bson:"-"`                // The device current rotation - portrait/landscape
-	SupportedStreamTypes []StreamType `json:"supported_stream_types" bson:"-"`
-	//// RETURNABLE VALUES
-	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
+	// NON-DB DATA — hub-visible runtime fields (synced from provider to hub)
+	Host                 string `json:"host" bson:"-"`                   // IP address of the device host(provider)
+	LastUpdatedTimestamp int64  `json:"last_updated_timestamp" bson:"-"` // last time the device data was updated
+	Connected            bool   `json:"connected" bson:"-"`              // if device is currently connected
+	ProviderState        string `json:"provider_state" bson:"-"`         // current state of the device on the provider - init, preparing, live
 }
 
 // Device stream type - mjpeg, webrtc, etc

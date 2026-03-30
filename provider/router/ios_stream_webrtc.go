@@ -254,18 +254,19 @@ func (e *WDAJPEGExtractor) Close() {
 
 // FFmpegH264Encoder handles encoding JPEG frames to H.264
 type FFmpegH264Encoder struct {
-	device       *models.Device
-	jpegInput    <-chan []byte
-	h264Output   chan []byte
-	ctx          context.Context
-	cancel       context.CancelFunc
-	ffmpegCmd    *exec.Cmd
-	ffmpegStdin  io.WriteCloser
-	ffmpegStdout io.ReadCloser
+	device          *models.Device
+	streamTargetFPS int
+	jpegInput       <-chan []byte
+	h264Output      chan []byte
+	ctx             context.Context
+	cancel          context.CancelFunc
+	ffmpegCmd       *exec.Cmd
+	ffmpegStdin     io.WriteCloser
+	ffmpegStdout    io.ReadCloser
 }
 
 // NewFFmpegH264Encoder creates a new H.264 encoder using FFmpeg
-func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmpegH264Encoder, error) {
+func NewFFmpegH264Encoder(device *models.Device, streamTargetFPS int, jpegInput <-chan []byte) (*FFmpegH264Encoder, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	success := false
 	defer func() {
@@ -275,8 +276,9 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 	}()
 
 	encoder := &FFmpegH264Encoder{
-		device:     device,
-		jpegInput:  jpegInput,
+		device:          device,
+		streamTargetFPS: streamTargetFPS,
+		jpegInput:       jpegInput,
 		h264Output: make(chan []byte, 10), // Smaller buffer for lower latency
 		ctx:        ctx,
 		cancel:     cancel,
@@ -316,7 +318,7 @@ func NewFFmpegH264Encoder(device *models.Device, jpegInput <-chan []byte) (*FFmp
 		"-fflags", "nobuffer",
 		"-flags", "low_delay",
 		"-f", "image2pipe",
-		"-framerate", fmt.Sprintf("%v", device.StreamTargetFPS),
+		"-framerate", fmt.Sprintf("%v", encoder.streamTargetFPS),
 		"-i", "-",
 		"-vf", "scale='trunc(iw/2)*2:trunc(ih/2)*2'",
 		"-c:v", "libx264",
@@ -532,6 +534,7 @@ func (e *FFmpegH264Encoder) Close() {
 type WebRTCSession struct {
 	device                  *models.Device
 	wdaStreamPort           string
+	streamTargetFPS         int
 	peerConnection          *webrtc.PeerConnection
 	videoTrack              *webrtc.TrackLocalStaticSample
 	extractor               *WDAJPEGExtractor
@@ -545,15 +548,16 @@ type WebRTCSession struct {
 }
 
 // NewWebRTCSession creates a new WebRTC session for device streaming
-func NewWebRTCSession(device *models.Device, wdaStreamPort string) (*WebRTCSession, error) {
+func NewWebRTCSession(device *models.Device, wdaStreamPort string, streamTargetFPS int) (*WebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &WebRTCSession{
-		device:        device,
-		wdaStreamPort: wdaStreamPort,
-		ctx:           ctx,
-		cancel:        cancel,
-		iceCandidates: make([]webrtc.ICECandidateInit, 0),
+		device:          device,
+		wdaStreamPort:   wdaStreamPort,
+		streamTargetFPS: streamTargetFPS,
+		ctx:             ctx,
+		cancel:          cancel,
+		iceCandidates:   make([]webrtc.ICECandidateInit, 0),
 	}
 
 	// Create WebRTC configuration
@@ -614,7 +618,7 @@ func (s *WebRTCSession) Start() error {
 	extractor.Start()
 
 	// Create H.264 encoder
-	encoder, err := NewFFmpegH264Encoder(s.device, extractor.GetJPEGChannel())
+	encoder, err := NewFFmpegH264Encoder(s.device, s.streamTargetFPS, extractor.GetJPEGChannel())
 	if err != nil {
 		extractor.Close()
 		return fmt.Errorf("failed to create H.264 encoder: %w", err)
@@ -638,8 +642,8 @@ func (s *WebRTCSession) writeH264ToTrack() {
 
 	// Calculate frame duration based on device settings (default 30fps)
 	fps := 30
-	if s.device.StreamTargetFPS > 0 {
-		fps = s.device.StreamTargetFPS
+	if s.streamTargetFPS > 0 {
+		fps = s.streamTargetFPS
 	}
 	frameDuration := time.Second / time.Duration(fps)
 
@@ -800,7 +804,7 @@ func IOSWebRTCSocket(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	session, err := NewWebRTCSession(platDev.GetDBDevice(), iosDev.GetWDAStreamPort())
+	session, err := NewWebRTCSession(platDev.GetDBDevice(), iosDev.GetWDAStreamPort(), platDev.GetStreamTargetFPS())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

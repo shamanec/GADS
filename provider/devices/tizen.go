@@ -108,7 +108,7 @@ func (d *TizenDevice) getTVInfo() error {
 		return fmt.Errorf("failed to decode TV info - %s", err)
 	}
 
-	d.DBDevice.HardwareModel = tvInfo.Device.ModelName
+	d.HardwareModel = tvInfo.Device.ModelName
 	d.DBDevice.OSVersion = tvInfo.Version
 	d.DBDevice.IPAddress = tvInfo.Device.IP
 	d.DeviceAddress = d.GetUDID()

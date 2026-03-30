@@ -251,6 +251,25 @@ type WdaOrientationResponse struct {
 	Orientation string `json:"value"`
 }
 
+// DeviceInfoResponse is the composite response for the DeviceInfo endpoint,
+// combining DB fields with provider-only runtime state.
+type DeviceInfoResponse struct {
+	models.Device
+	HardwareModel        string             `json:"hardware_model"`
+	IsResetting          bool               `json:"is_resetting"`
+	StreamTargetFPS      int                `json:"stream_target_fps,omitempty"`
+	StreamJpegQuality    int                `json:"stream_jpeg_quality,omitempty"`
+	StreamScalingFactor  int                `json:"stream_scaling_factor,omitempty"`
+	AppiumLastPingTS     int64              `json:"appium_last_ts"`
+	AppiumSessionID      string             `json:"appium_session_id"`
+	IsAppiumUp           bool               `json:"is_appium_up"`
+	HasAppiumSession     bool               `json:"has_appium_session"`
+	CurrentRotation      string             `json:"current_rotation"`
+	SupportedStreamTypes []models.StreamType `json:"supported_stream_types"`
+	InstalledApps        []string           `json:"installed_apps"`
+}
+
+
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -260,25 +279,36 @@ func DeviceInfo(c *gin.Context) {
 		return
 	}
 
-	dev := platDev.GetDBDevice()
-	if dev.SupportedStreamTypes == nil {
-		dev.SupportedStreamTypes = models.StreamTypesForOS(dev.OS)
+	resp := DeviceInfoResponse{
+		Device:               platDev.ToHubDevice(),
+		HardwareModel:        platDev.GetHardwareModelValue(),
+		IsResetting:          platDev.GetIsResetting(),
+		StreamTargetFPS:      platDev.GetStreamTargetFPS(),
+		StreamJpegQuality:    platDev.GetStreamJpegQuality(),
+		StreamScalingFactor:  platDev.GetStreamScalingFactor(),
+		AppiumSessionID:      platDev.GetAppiumSessionID(),
+		IsAppiumUp:           platDev.GetIsAppiumUp(),
+		SupportedStreamTypes: platDev.GetSupportedStreamTypes(),
+		InstalledApps:        platDev.GetInstalledAppBundleIDs(),
 	}
 
-	dev.InstalledApps = platDev.GetInstalledAppBundleIDs()
-	switch dev.OS {
+	if resp.SupportedStreamTypes == nil {
+		resp.SupportedStreamTypes = models.StreamTypesForOS(platDev.GetOS())
+	}
+
+	switch platDev.GetOS() {
 	case "android":
 		if rc, rcOk := platDev.(devices.RemoteControllable); rcOk {
 			rotation, err := rc.GetCurrentRotation()
 			if err == nil {
-				dev.CurrentRotation = rotation
+				resp.CurrentRotation = rotation
 			}
 		}
 	case "ios":
 		wdaResp, err := wdaRequest(platDev, http.MethodGet, "orientation", nil)
 		if err != nil {
-			dev.CurrentRotation = "portrait"
-			api.OK(c, "", dev)
+			resp.CurrentRotation = "portrait"
+			api.OK(c, "", resp)
 			return
 		}
 		defer wdaResp.Body.Close()
@@ -287,14 +317,14 @@ func DeviceInfo(c *gin.Context) {
 		var responseJson WdaOrientationResponse
 		err = json.Unmarshal(responseBody, &responseJson)
 		if err != nil {
-			dev.CurrentRotation = "portrait"
-			api.OK(c, "", dev)
+			resp.CurrentRotation = "portrait"
+			api.OK(c, "", resp)
 			return
 		}
-		dev.CurrentRotation = strings.ToLower(responseJson.Orientation)
+		resp.CurrentRotation = strings.ToLower(responseJson.Orientation)
 	}
 
-	api.OK(c, "Successfully retrieved device info", dev)
+	api.OK(c, "Successfully retrieved device info", resp)
 }
 
 func DeviceInstalledApps(c *gin.Context) {
@@ -519,8 +549,7 @@ func ResetDevice(c *gin.Context) {
 		return
 	}
 
-	dev := platDev.GetDBDevice()
-	if dev.IsResetting {
+	if platDev.GetIsResetting() {
 		api.Conflict(c, "Device setup is already being reset")
 		return
 	}
@@ -559,15 +588,14 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 	common.MutexManager.StreamSettings.Lock()
 	defer common.MutexManager.StreamSettings.Unlock()
 
-	device := platDev.GetDBDevice()
-	if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
-		device.StreamTargetFPS = streamSettings.TargetFPS
+	if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != platDev.GetStreamTargetFPS() {
+		platDev.SetStreamTargetFPS(streamSettings.TargetFPS)
 	}
-	if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != device.StreamJpegQuality {
-		device.StreamJpegQuality = streamSettings.JpegQuality
+	if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != platDev.GetStreamJpegQuality() {
+		platDev.SetStreamJpegQuality(streamSettings.JpegQuality)
 	}
-	if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
-		device.StreamScalingFactor = streamSettings.ScalingFactor
+	if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != platDev.GetStreamScalingFactor() {
+		platDev.SetStreamScalingFactor(streamSettings.ScalingFactor)
 	}
 
 	rc, rcOk := platDev.(devices.RemoteControllable)
@@ -580,9 +608,9 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 
 	deviceStreamSettings := models.DeviceStreamSettings{
 		UDID:                udid,
-		StreamTargetFPS:     device.StreamTargetFPS,
-		StreamJpegQuality:   device.StreamJpegQuality,
-		StreamScalingFactor: device.StreamScalingFactor,
+		StreamTargetFPS:     platDev.GetStreamTargetFPS(),
+		StreamJpegQuality:   platDev.GetStreamJpegQuality(),
+		StreamScalingFactor: platDev.GetStreamScalingFactor(),
 	}
 
 	err = db.GlobalMongoStore.UpdateDeviceStreamSettings(udid, deviceStreamSettings)

@@ -61,7 +61,7 @@ AppiumLoop:
 			d.Reset("Failed to start Appium for device.")
 			return fmt.Errorf("appium did not start in time")
 		case <-tick:
-			if d.GetDBDevice().IsAppiumUp {
+			if d.GetIsAppiumUp() {
 				logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", udid, appiumPort))
 				break AppiumLoop
 			}

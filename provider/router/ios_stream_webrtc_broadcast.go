@@ -33,15 +33,16 @@ import (
 
 // IOSWebRTCSession manages a WebRTC peer connection for iOS broadcast streaming
 type IOSWebRTCSession struct {
-	device     *models.Device
-	streamPort string
-	peerConnection *webrtc.PeerConnection
-	videoTrack     *webrtc.TrackLocalStaticSample
-	tcpConn        net.Conn
-	ctx            context.Context
-	cancel         context.CancelFunc
-	mu             sync.Mutex
-	iceCandidates  []webrtc.ICECandidateInit
+	device          *models.Device
+	streamPort      string
+	streamTargetFPS int
+	peerConnection  *webrtc.PeerConnection
+	videoTrack      *webrtc.TrackLocalStaticSample
+	tcpConn         net.Conn
+	ctx             context.Context
+	cancel          context.CancelFunc
+	mu              sync.Mutex
+	iceCandidates   []webrtc.ICECandidateInit
 
 	// Timestamp tracking
 	firstTimestamp uint64
@@ -50,15 +51,16 @@ type IOSWebRTCSession struct {
 }
 
 // NewIOSWebRTCSession creates a new WebRTC session for iOS broadcast streaming
-func NewIOSWebRTCSession(device *models.Device, streamPort string) (*IOSWebRTCSession, error) {
+func NewIOSWebRTCSession(device *models.Device, streamPort string, streamTargetFPS int) (*IOSWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &IOSWebRTCSession{
-		device:        device,
-		streamPort:    streamPort,
-		ctx:           ctx,
-		cancel:        cancel,
-		iceCandidates: make([]webrtc.ICECandidateInit, 0),
+		device:          device,
+		streamPort:      streamPort,
+		streamTargetFPS: streamTargetFPS,
+		ctx:             ctx,
+		cancel:          cancel,
+		iceCandidates:   make([]webrtc.ICECandidateInit, 0),
 	}
 
 	// Create WebRTC configuration
@@ -133,8 +135,8 @@ func (s *IOSWebRTCSession) readAndStreamFrames() {
 
 	buffer := make([]byte, 0, 1024*1024)                // 1MB buffer
 	fallbackDuration := time.Second / time.Duration(30) // Default 30fps
-	if s.device.StreamTargetFPS > 0 {
-		fallbackDuration = time.Second / time.Duration(s.device.StreamTargetFPS)
+	if s.streamTargetFPS > 0 {
+		fallbackDuration = time.Second / time.Duration(s.streamTargetFPS)
 	}
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s", s.device.UDID))
@@ -329,7 +331,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewIOSWebRTCSession(platDev.GetDBDevice(), platDev.GetStreamPort())
+	session, err := NewIOSWebRTCSession(platDev.GetDBDevice(), platDev.GetStreamPort(), platDev.GetStreamTargetFPS())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

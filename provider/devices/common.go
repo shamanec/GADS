@@ -186,7 +186,6 @@ func initializeDevice(dbDevice *models.Device) error {
 	dbDevice.ProviderState = "init"
 	dbDevice.Connected = false
 	dbDevice.LastUpdatedTimestamp = 0
-	dbDevice.IsResetting = false
 
 	dbDevice.Host = fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port)
 
@@ -256,7 +255,7 @@ func setupDevices() {
 	dbDevices := getDBProviderDevices()
 	for _, dbDevice := range dbDevices {
 		if err := initializeDevice(dbDevice); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: %s", dbDevice.UDID, err))
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: device `%s` - %s", dbDevice.UDID, err))
 		}
 	}
 }
@@ -453,43 +452,44 @@ func setContext(platDev PlatformDevice) {
 	platDev.SetNewContext(ctx, cancelFunc)
 }
 
-func updateDeviceWithGlobalSettings(dbDevice *models.Device) error {
+func updateDeviceWithGlobalSettings(platDev PlatformDevice) error {
 	globalSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
 		return fmt.Errorf("failed to get global stream settings: %v", err)
 	}
 
-	dbDevice.StreamTargetFPS = globalSettings.TargetFPS
-	dbDevice.StreamJpegQuality = globalSettings.JpegQuality
+	platDev.SetStreamTargetFPS(globalSettings.TargetFPS)
+	platDev.SetStreamJpegQuality(globalSettings.JpegQuality)
 
 	// Check the device OS before assigning the scaling factor
-	if dbDevice.OS == "android" {
-		dbDevice.StreamScalingFactor = globalSettings.ScalingFactorAndroid
-	} else if dbDevice.OS == "ios" {
-		dbDevice.StreamScalingFactor = globalSettings.ScalingFactoriOS
+	if platDev.GetOS() == "android" {
+		platDev.SetStreamScalingFactor(globalSettings.ScalingFactorAndroid)
+	} else if platDev.GetOS() == "ios" {
+		platDev.SetStreamScalingFactor(globalSettings.ScalingFactoriOS)
 	}
 
 	return nil
 }
 
-func applyDeviceStreamSettings(device *models.Device) error {
+func applyDeviceStreamSettings(platDev PlatformDevice) error {
 	common.MutexManager.StreamSettings.Lock()
 	defer common.MutexManager.StreamSettings.Unlock()
 	// Get the DeviceStreamSettings for the current device
-	deviceStreamSettings, err := db.GlobalMongoStore.GetDeviceStreamSettings(device.UDID)
+	udid := platDev.GetUDID()
+	deviceStreamSettings, err := db.GlobalMongoStore.GetDeviceStreamSettings(udid)
 
 	if err != nil {
 		// If there's an error (including not found), update the device with global settings
-		err = updateDeviceWithGlobalSettings(device)
+		err = updateDeviceWithGlobalSettings(platDev)
 		if err != nil {
-			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", device.UDID, err))
+			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", udid, err))
 			return err
 		}
 	} else {
 		// Apply the retrieved stream settings
-		device.StreamTargetFPS = deviceStreamSettings.StreamTargetFPS
-		device.StreamJpegQuality = deviceStreamSettings.StreamJpegQuality
-		device.StreamScalingFactor = deviceStreamSettings.StreamScalingFactor
+		platDev.SetStreamTargetFPS(deviceStreamSettings.StreamTargetFPS)
+		platDev.SetStreamJpegQuality(deviceStreamSettings.StreamJpegQuality)
+		platDev.SetStreamScalingFactor(deviceStreamSettings.StreamScalingFactor)
 	}
 
 	return nil

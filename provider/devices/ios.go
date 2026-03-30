@@ -105,7 +105,7 @@ func (d *IOSDevice) Setup() error {
 		return err
 	}
 
-	d.DBDevice.InstalledApps = d.GetInstalledAppBundleIDs()
+	d.InstalledApps = d.GetInstalledAppBundleIDs()
 	d.SetProviderState("live")
 	return nil
 }
@@ -140,7 +140,7 @@ func (d *IOSDevice) getDeviceInfoAndScreenSize() error {
 		d.Reset("Failed to get info plist values with go-ios.")
 		return err
 	}
-	d.DBDevice.HardwareModel = plistValues["HardwareModel"].(string)
+	d.HardwareModel = plistValues["HardwareModel"].(string)
 
 	if d.DBDevice.ScreenHeight == "" || d.DBDevice.ScreenWidth == "" {
 		if err := d.updateScreenSize(plistValues["ProductType"].(string)); err != nil {
@@ -322,9 +322,9 @@ func (d *IOSDevice) goIosForward(hostPort string, devicePort string) {
 // UpdateStreamSettingsOnDevice updates WebDriverAgent stream settings.
 func (d *IOSDevice) UpdateStreamSettingsOnDevice() error {
 	var mjpegProperties models.WDAMjpegProperties
-	mjpegProperties.MjpegServerFramerate = d.DBDevice.StreamTargetFPS
-	mjpegProperties.MjpegServerScreenshotQuality = d.DBDevice.StreamJpegQuality
-	mjpegProperties.MjpegServerScalingFactor = d.DBDevice.StreamScalingFactor
+	mjpegProperties.MjpegServerFramerate = d.StreamTargetFPS
+	mjpegProperties.MjpegServerScreenshotQuality = d.StreamJpegQuality
+	mjpegProperties.MjpegServerScalingFactor = d.StreamScalingFactor
 
 	mjpegSettings := models.WDAMjpegSettings{Settings: mjpegProperties}
 	requestBody, err := json.Marshal(mjpegSettings)
@@ -778,12 +778,12 @@ func (d *IOSDevice) GetScreenSize() (width, height string, err error) {
 
 // GetHardwareModel returns the hardware model string.
 func (d *IOSDevice) GetHardwareModel() (string, error) {
-	return d.DBDevice.HardwareModel, nil
+	return d.HardwareModel, nil
 }
 
 // GetCurrentRotation returns the current device rotation (iOS uses WDA for this, handled by router).
 func (d *IOSDevice) GetCurrentRotation() (string, error) {
-	return d.DBDevice.CurrentRotation, nil
+	return d.CurrentRotation, nil
 }
 
 // ChangeRotation is handled via WDA in the router for iOS.
@@ -793,6 +793,6 @@ func (d *IOSDevice) ChangeRotation(rotation string) error {
 
 // ApplyStreamSettings applies stream settings from DB to the device runtime state.
 func (d *IOSDevice) ApplyStreamSettings() error {
-	return applyDeviceStreamSettings(d.DBDevice)
+	return applyDeviceStreamSettings(d)
 }
 

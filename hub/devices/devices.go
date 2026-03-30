@@ -91,8 +91,6 @@ func GetLatestDBDevices() {
 				}
 				hubDevice.Mu.Unlock()
 			} else {
-				dbDevice.InstalledApps = make([]string, 0)
-				dbDevice.SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
 				HubDeviceStore.Set(dbDevice.UDID, &LocalHubDevice{
 					Device:                   *dbDevice,
 					IsRunningAutomation:      false,

@@ -134,11 +134,11 @@ func (d *AndroidDevice) allocatePorts() error {
 }
 
 func (d *AndroidDevice) cleanupOldApps() error {
-	d.DBDevice.InstalledApps = d.GetInstalledAppBundleIDs()
+	d.InstalledApps = d.GetInstalledAppBundleIDs()
 	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Updated installed apps for Android device `%v`", d.GetUDID()))
 
 	for _, pkg := range []string{"com.gads.settings", "com.gads.webrtc", "com.shamanec.stream", "com.gads.gads_ime"} {
-		if slices.Contains(d.DBDevice.InstalledApps, pkg) {
+		if slices.Contains(d.InstalledApps, pkg) {
 			if err := d.UninstallApp(pkg); err != nil {
 				logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not uninstall %s from Android device `%v` - %v", pkg, d.GetUDID(), err))
 				d.Reset(fmt.Sprintf("Failed to uninstall %s from Android device.", pkg))
@@ -249,7 +249,7 @@ func (d *AndroidDevice) setupAppiumIfNeeded() error {
 	}
 	// Uninstall old Appium packages before starting
 	for _, pkg := range []string{"io.appium.settings", "io.appium.uiautomator2.server", "io.appium.uiautomator2.server.test"} {
-		if slices.Contains(d.DBDevice.InstalledApps, pkg) {
+		if slices.Contains(d.InstalledApps, pkg) {
 			if err := d.UninstallApp(pkg); err != nil {
 				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Failed to uninstall %s on device %s - %s", pkg, d.GetUDID(), err))
 			}
@@ -579,11 +579,11 @@ func (d *AndroidDevice) UpdateStreamSettingsOnDevice() error {
 	defer destConn.Close()
 
 	socketMsg := fmt.Sprintf("targetFPS=%v:jpegQuality=%v:scalingFactor=%v",
-		d.DBDevice.StreamTargetFPS, d.DBDevice.StreamJpegQuality, d.DBDevice.StreamScalingFactor)
+		d.StreamTargetFPS, d.StreamJpegQuality, d.StreamScalingFactor)
 
 	if d.DBDevice.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
 		socketMsg = fmt.Sprintf("targetFPS=%v:scalingFactor=%v",
-			d.DBDevice.StreamTargetFPS, d.DBDevice.StreamScalingFactor)
+			d.StreamTargetFPS, d.StreamScalingFactor)
 	}
 
 	if err := wsutil.WriteServerMessage(destConn, ws.OpText, []byte(socketMsg)); err != nil {
@@ -660,7 +660,7 @@ func (d *AndroidDevice) GetScreenSize() (width, height string, err error) {
 
 // GetHardwareModel returns the hardware model string.
 func (d *AndroidDevice) GetHardwareModel() (string, error) {
-	return d.DBDevice.HardwareModel, nil
+	return d.HardwareModel, nil
 }
 
 func (d *AndroidDevice) getHardwareModel() {
@@ -668,7 +668,7 @@ func (d *AndroidDevice) getHardwareModel() {
 	var outBuffer bytes.Buffer
 	brandCmd.Stdout = &outBuffer
 	if err := brandCmd.Run(); err != nil {
-		d.DBDevice.HardwareModel = "Unknown"
+		d.HardwareModel = "Unknown"
 	}
 	brand := outBuffer.String()
 	outBuffer.Reset()
@@ -676,11 +676,11 @@ func (d *AndroidDevice) getHardwareModel() {
 	modelCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "ro.product.model")
 	modelCmd.Stdout = &outBuffer
 	if err := modelCmd.Run(); err != nil {
-		d.DBDevice.HardwareModel = "Unknown"
+		d.HardwareModel = "Unknown"
 		return
 	}
 	model := outBuffer.String()
-	d.DBDevice.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
+	d.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
 }
 
 // LaunchApp is not supported for Android via this interface (use Appium).
@@ -699,7 +699,7 @@ func (d *AndroidDevice) KillApp(bundleIdentifier string) error {
 
 // ApplyStreamSettings applies stream settings from DB to the device runtime state.
 func (d *AndroidDevice) ApplyStreamSettings() error {
-	return applyDeviceStreamSettings(d.DBDevice)
+	return applyDeviceStreamSettings(d)
 }
 
 func DeleteAndroidSharedStorageFile(device *models.Device, filePath string) error {

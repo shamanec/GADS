@@ -39,6 +39,20 @@ type RuntimeState struct {
 	InitialSetupDone bool
 	AppiumReadyChan  chan bool
 	AppiumPort       string // port assigned to the device for the Appium server
+
+	// Provider-only runtime fields (not on models.Device, not synced to hub)
+	HardwareModel        string
+	IsResetting          bool
+	StreamTargetFPS      int
+	StreamJpegQuality    int
+	StreamScalingFactor  int
+	AppiumLastPingTS     int64
+	AppiumSessionID      string
+	IsAppiumUp           bool
+	HasAppiumSession     bool
+	CurrentRotation      string
+	SupportedStreamTypes []models.StreamType
+	InstalledApps        []string
 }
 
 // Common accessor implementations inherited by all platform types via embedding.
@@ -55,18 +69,35 @@ func (r *RuntimeState) GetContext() context.Context     { return r.Context }
 func (r *RuntimeState) GetAppiumPort() string      { return r.AppiumPort }
 func (r *RuntimeState) SetAppiumPort(port string)   { r.AppiumPort = port }
 func (r *RuntimeState) GetStreamPort() string        { return "" } // overridden by Android/iOS
-func (r *RuntimeState) GetAppiumSessionID() string   { return r.DBDevice.AppiumSessionID }
-func (r *RuntimeState) SetAppiumSessionID(id string) { r.DBDevice.AppiumSessionID = id }
-func (r *RuntimeState) SetAppiumUp(up bool)          { r.DBDevice.IsAppiumUp = up }
-func (r *RuntimeState) SetAppiumLastPingTS(ts int64) { r.DBDevice.AppiumLastPingTS = ts }
-func (r *RuntimeState) SetHasAppiumSession(has bool) { r.DBDevice.HasAppiumSession = has }
+func (r *RuntimeState) GetAppiumSessionID() string   { return r.AppiumSessionID }
+func (r *RuntimeState) SetAppiumSessionID(id string) { r.AppiumSessionID = id }
+func (r *RuntimeState) SetAppiumUp(up bool)          { r.IsAppiumUp = up }
+func (r *RuntimeState) SetAppiumLastPingTS(ts int64) { r.AppiumLastPingTS = ts }
+func (r *RuntimeState) SetHasAppiumSession(has bool) { r.HasAppiumSession = has }
+func (r *RuntimeState) GetIsResetting() bool         { return r.IsResetting }
+func (r *RuntimeState) SetIsResetting(v bool)        { r.IsResetting = v }
+func (r *RuntimeState) GetIsAppiumUp() bool          { return r.IsAppiumUp }
+func (r *RuntimeState) GetHardwareModelValue() string       { return r.HardwareModel }
+func (r *RuntimeState) SetHardwareModel(model string)       { r.HardwareModel = model }
+func (r *RuntimeState) GetStreamTargetFPS() int             { return r.StreamTargetFPS }
+func (r *RuntimeState) SetStreamTargetFPS(fps int)          { r.StreamTargetFPS = fps }
+func (r *RuntimeState) GetStreamJpegQuality() int           { return r.StreamJpegQuality }
+func (r *RuntimeState) SetStreamJpegQuality(q int)          { r.StreamJpegQuality = q }
+func (r *RuntimeState) GetStreamScalingFactor() int         { return r.StreamScalingFactor }
+func (r *RuntimeState) SetStreamScalingFactor(f int)        { r.StreamScalingFactor = f }
+func (r *RuntimeState) GetCurrentRotationValue() string     { return r.CurrentRotation }
+func (r *RuntimeState) SetCurrentRotation(rotation string)  { r.CurrentRotation = rotation }
+func (r *RuntimeState) GetSupportedStreamTypes() []models.StreamType { return r.SupportedStreamTypes }
+func (r *RuntimeState) SetSupportedStreamTypes(types []models.StreamType) { r.SupportedStreamTypes = types }
+func (r *RuntimeState) GetInstalledAppIDs() []string        { return r.InstalledApps }
+func (r *RuntimeState) SetInstalledAppIDs(apps []string)    { r.InstalledApps = apps }
 func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelFunc) {
 	r.Context = ctx
 	r.CtxCancel = cancel
 }
 
-// ToHubDevice builds a models.Device populated with runtime fields for JSON serialization to the hub.
-// Fields are assigned individually to avoid copying the sync.Mutex embedded in models.Device.
+// ToHubDevice builds a models.Device populated with DB + hub-visible runtime fields
+// for JSON serialization to the hub. Only the 4 hub-synced runtime fields are included.
 func (r *RuntimeState) ToHubDevice() models.Device {
 	db := r.DBDevice
 	return models.Device{
@@ -84,23 +115,11 @@ func (r *RuntimeState) ToHubDevice() models.Device {
 		WorkspaceID:  db.WorkspaceID,
 		StreamType:   db.StreamType,
 
-		// Runtime fields the hub needs (json-tagged, bson:"-")
-		Host:                 db.Host,
-		HardwareModel:        db.HardwareModel,
-		LastUpdatedTimestamp:  db.LastUpdatedTimestamp,
-		Connected:            db.Connected,
-		IsResetting:          db.IsResetting,
-		ProviderState:        db.ProviderState,
-		StreamTargetFPS:      db.StreamTargetFPS,
-		StreamJpegQuality:    db.StreamJpegQuality,
-		StreamScalingFactor:  db.StreamScalingFactor,
-		SupportedStreamTypes: db.SupportedStreamTypes,
-		AppiumLastPingTS:     db.AppiumLastPingTS,
-		AppiumSessionID:      db.AppiumSessionID,
-		IsAppiumUp:           db.IsAppiumUp,
-		HasAppiumSession:     db.HasAppiumSession,
-		CurrentRotation:      db.CurrentRotation,
-		InstalledApps:        db.InstalledApps,
+		// Hub-visible runtime fields
+		Host:                db.Host,
+		LastUpdatedTimestamp: db.LastUpdatedTimestamp,
+		Connected:           db.Connected,
+		ProviderState:       db.ProviderState,
 	}
 }
 
@@ -109,15 +128,15 @@ func (r *RuntimeState) ToHubDevice() models.Device {
 func (r *RuntimeState) ResetBase(reason string) bool {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
-	if !r.DBDevice.IsResetting && r.DBDevice.ProviderState != "init" {
+	if !r.IsResetting && r.DBDevice.ProviderState != "init" {
 		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", r.DBDevice.UDID, reason))
 
-		r.DBDevice.IsResetting = true
+		r.IsResetting = true
 		if r.CtxCancel != nil {
 			r.CtxCancel()
 		}
 		r.DBDevice.ProviderState = "init"
-		r.DBDevice.IsResetting = false
+		r.IsResetting = false
 
 		// Free AppiumPort (common to all platforms)
 		common.MutexManager.LocalDevicePorts.Lock()

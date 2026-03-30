@@ -858,10 +858,6 @@ func GetDevices(c *gin.Context) {
 		dbDevices = []models.Device{}
 	}
 
-	for index, dbDevice := range dbDevices {
-		dbDevices[index].SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
-	}
-
 	var adminDeviceData = AdminDeviceData{
 		Devices:   dbDevices,
 		Providers: providerNames,
