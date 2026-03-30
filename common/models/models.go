@@ -69,11 +69,8 @@ type Device struct {
 	HasAppiumSession     bool         `json:"has_appium_session" bson:"-"`              // This is a "just in case" property - it will be set to `true` when the plugin sends a new session registration request and to `false` when the plugin sends a remove session request
 	CurrentRotation      string       `json:"current_rotation" bson:"-"`                // The device current rotation - portrait/landscape
 	SupportedStreamTypes []StreamType `json:"supported_stream_types" bson:"-"`
-	/// PROVIDER ONLY VALUES
 	//// RETURNABLE VALUES
 	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
-	///// NON-RETURNABLE VALUES
-
 }
 
 // Device stream type - mjpeg, webrtc, etc
@@ -171,7 +168,6 @@ func StreamTypesForOS(os string) []StreamType {
 		return []StreamType{}
 	}
 }
-
 
 type DeviceStreamSettings struct {
 	UDID                string `json:"udid" bson:"udid"`                                             // device UDID

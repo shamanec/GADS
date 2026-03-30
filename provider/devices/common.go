@@ -43,7 +43,6 @@ var netClient = &http.Client{
 }
 
 // DevManager is the primary device store holding PlatformDevice instances.
-// It replaces the old DBDeviceMap for internal use.
 var DevManager = NewDeviceStore()
 
 // dbDevices holds the raw DB device map for initial setup. Not exported or used by the router.
