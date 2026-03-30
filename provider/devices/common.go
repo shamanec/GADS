@@ -45,11 +45,7 @@ var netClient = &http.Client{
 // DevManager is the primary device store holding PlatformDevice instances.
 var DevManager = NewDeviceStore()
 
-// dbDevices holds the raw DB device map for initial setup. Not exported or used by the router.
-var dbDevices map[string]*models.Device
-
 func Listener() {
-	dbDevices = getDBProviderDevices()
 	setupDevices()
 
 	Setup()
@@ -257,6 +253,7 @@ func initializeDevice(dbDevice *models.Device) error {
 
 // When provider is started and respective devices are taken from the DB, we do the initial device data setup here
 func setupDevices() {
+	dbDevices := getDBProviderDevices()
 	for _, dbDevice := range dbDevices {
 		if err := initializeDevice(dbDevice); err != nil {
 			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: %s", err))
