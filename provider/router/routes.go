@@ -343,7 +343,10 @@ func DeviceInstalledApps(c *gin.Context) {
 		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
-	installedApps, _ := platDev.GetInstalledApps()
+	installedApps, err := platDev.GetInstalledApps()
+	if err != nil {
+		platDev.GetLogger().LogError("device_apps", fmt.Sprintf("Failed to get installed apps - %s", err))
+	}
 	api.OK(c, "Successfully retrieved device installed apps", installedApps)
 }
 
@@ -405,9 +408,6 @@ type ProcessApp struct {
 	App string `json:"app"`
 }
 
-func getInstalledAppIDs(dev devices.PlatformDevice) []string {
-	return dev.GetInstalledAppBundleIDs()
-}
 
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
@@ -431,7 +431,7 @@ func UninstallApp(c *gin.Context) {
 		return
 	}
 
-	installedApps := getInstalledAppIDs(platDev)
+	installedApps := platDev.GetInstalledAppBundleIDs()
 
 	if slices.Contains(installedApps, payloadJson.App) {
 		err = platDev.UninstallApp(payloadJson.App)
@@ -471,7 +471,7 @@ func LaunchApp(c *gin.Context) {
 		return
 	}
 
-	installedApps := getInstalledAppIDs(platDev)
+	installedApps := platDev.GetInstalledAppBundleIDs()
 
 	if !slices.Contains(installedApps, payloadJson.App) {
 		api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
@@ -509,7 +509,7 @@ func CloseApp(c *gin.Context) {
 		return
 	}
 
-	installedApps := getInstalledAppIDs(platDev)
+	installedApps := platDev.GetInstalledAppBundleIDs()
 
 	if !slices.Contains(installedApps, payloadJson.App) {
 		api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))

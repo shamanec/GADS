@@ -926,7 +926,13 @@ func getClaimsFromRequest(c *gin.Context) *auth.JWTClaims {
 		}
 		tokenString = t
 	} else if raw := c.Query("token"); raw != "" {
-		tokenString = raw
+		// The query param may arrive as "Bearer <token>" (e.g. from WebSocket URLs).
+		// Try to strip the prefix; if it's a bare token, use it as-is.
+		if t, err := auth.ExtractTokenFromBearer(raw); err == nil {
+			tokenString = t
+		} else {
+			tokenString = raw
+		}
 	} else {
 		return nil
 	}
