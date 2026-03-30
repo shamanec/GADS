@@ -21,7 +21,6 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Masterminds/semver"
@@ -47,15 +46,11 @@ var netClient = &http.Client{
 // It replaces the old DBDeviceMap for internal use.
 var DevManager = NewDeviceStore()
 
-// DBDeviceMap and DbDeviceMapMutex are kept for backward compatibility with the provider router.
-// The router will be updated in a later phase to use DevManager directly.
-var (
-	DBDeviceMap      = make(map[string]*models.Device)
-	DbDeviceMapMutex sync.RWMutex
-)
+// dbDevices holds the raw DB device map for initial setup. Not exported or used by the router.
+var dbDevices map[string]*models.Device
 
 func Listener() {
-	DBDeviceMap = getDBProviderDevices()
+	dbDevices = getDBProviderDevices()
 	setupDevices()
 
 	Setup()
@@ -80,15 +75,18 @@ func updateProviderHub() {
 
 		updatedDevices := getDBProviderDevices()
 
-		DbDeviceMapMutex.Lock()
-
-		// Track devices to remove (deleted from DB)
+		// Track devices to remove or reset
 		var devicesToRemove []string
+		var devicesToReset []string
 
 		var properJson models.ProviderData
 		properJson.ProviderData = *config.ProviderConfig
 
-		for udid, dbDevice := range DBDeviceMap {
+		// Iterate current devices in DevManager
+		allDevs := DevManager.All()
+		for _, platDev := range allDevs {
+			udid := platDev.GetUDID()
+			dbDevice := platDev.GetDBDevice()
 			// Check if device still exists in DB
 			if updatedDevice, ok := updatedDevices[udid]; ok {
 				// Update configuration fields from DB
@@ -110,13 +108,9 @@ func updateProviderHub() {
 				if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
 					dbDevice.WorkspaceID = updatedDevice.WorkspaceID
 				}
-				streamTypeChanged := false
 				if dbDevice.StreamType != updatedDevice.StreamType {
 					dbDevice.StreamType = updatedDevice.StreamType
-					streamTypeChanged = true
-				}
-				if streamTypeChanged {
-					ResetLocalDevice(dbDevice, "WebRTC configuration changed, reprovisioning device")
+					devicesToReset = append(devicesToReset, udid)
 				}
 
 				// If the provider does not set up Appium servers
@@ -127,38 +121,40 @@ func updateProviderHub() {
 					}
 				}
 
-				if platDev, ok := DevManager.Get(udid); ok {
-						properJson.DeviceData = append(properJson.DeviceData, platDev.ToHubDevice())
-					}
+				properJson.DeviceData = append(properJson.DeviceData, platDev.ToHubDevice())
 			} else {
 				// Device no longer exists in DB, mark for removal
 				devicesToRemove = append(devicesToRemove, udid)
 			}
 		}
 
-		// Remove devices that no longer exist in DB
+		// Process resets and removals
+		for _, udid := range devicesToReset {
+			if platDev, ok := DevManager.Get(udid); ok {
+				platDev.Reset("WebRTC configuration changed, reprovisioning device")
+			}
+		}
 		for _, udid := range devicesToRemove {
-			if device, ok := DBDeviceMap[udid]; ok {
-				ResetLocalDevice(device, "Device removed from DB")
-				delete(DBDeviceMap, udid)
+			if platDev, ok := DevManager.Get(udid); ok {
+				platDev.Reset("Device removed from DB")
 				DevManager.Delete(udid)
 			}
 		}
 
 		// Add new devices from DB
 		for udid, updatedDevice := range updatedDevices {
-			if _, exists := DBDeviceMap[udid]; !exists {
+			if _, exists := DevManager.Get(udid); !exists {
 				logger.ProviderLogger.LogInfo("update_provider_hub", fmt.Sprintf("New device `%s` detected in DB, adding to provider", udid))
-				DBDeviceMap[udid] = updatedDevice
 				if err := initializeDevice(updatedDevice); err != nil {
 					logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Failed to initialize new device `%s` - %s", udid, err))
 					continue
 				}
-				properJson.DeviceData = append(properJson.DeviceData, *updatedDevice)
+				if platDev, ok := DevManager.Get(udid); ok {
+					properJson.DeviceData = append(properJson.DeviceData, platDev.ToHubDevice())
+				}
 			}
 		}
 
-		DbDeviceMapMutex.Unlock()
 		jsonData, err := json.Marshal(properJson)
 		if err != nil {
 			updateFailureCounter++
@@ -262,11 +258,13 @@ func initializeDevice(dbDevice *models.Device) error {
 
 // When provider is started and respective devices are taken from the DB, we do the initial device data setup here
 func setupDevices() {
-	for _, dbDevice := range DBDeviceMap {
+	for _, dbDevice := range dbDevices {
 		if err := initializeDevice(dbDevice); err != nil {
 			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: %s", err))
 		}
 	}
+	// dbDevices is no longer needed after initial setup
+	dbDevices = nil
 }
 
 // newPlatformDevice creates a PlatformDevice wrapping the given *models.Device
@@ -325,42 +323,30 @@ func updateDevices() {
 		case <-ticker.C:
 			connectedDevices := GetConnectedDevicesCommon()
 
-			// Create a copy of devices to iterate over (with read lock)
-			DbDeviceMapMutex.RLock()
-			devicesCopy := make(map[string]*models.Device, len(DBDeviceMap))
-			for udid, device := range DBDeviceMap {
-				devicesCopy[udid] = device
-			}
-			DbDeviceMapMutex.RUnlock()
+			// Create a snapshot of devices to iterate over
+			allDevices := DevManager.All()
 
-		DEVICE_MAP_LOOP:
-			for dbDeviceUDID, dbDevice := range devicesCopy {
+			for _, platDev := range allDevices {
+				dbDevice := platDev.GetDBDevice()
+				udid := platDev.GetUDID()
 				if dbDevice.Usage == "disabled" {
-					continue DEVICE_MAP_LOOP
+					continue
 				}
-				if slices.Contains(connectedDevices, dbDeviceUDID) {
+				if slices.Contains(connectedDevices, udid) {
 					dbDevice.Connected = true
 					if dbDevice.ProviderState != "preparing" && dbDevice.ProviderState != "live" {
-						// Device must be in DevManager (initialized at startup or when added)
-						platDev, ok := DevManager.Get(dbDeviceUDID)
-						if !ok {
-							logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Device %s not initialized. Skipping.", dbDevice.UDID))
-							continue
-						}
 						// Validate device configuration before setup
 						err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
 						if err != nil {
-							logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", dbDevice.UDID, err.Error()))
+							logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", udid, err.Error()))
 							continue
 						}
 
-						setContext(dbDevice)
+						setContext(platDev)
 						go platDev.Setup()
 					}
 				} else {
-					if platDev, ok := DevManager.Get(dbDeviceUDID); ok {
-						platDev.Reset("Device is no longer connected.")
-					}
+					platDev.Reset("Device is no longer connected.")
 					dbDevice.Connected = false
 				}
 			}
@@ -476,13 +462,8 @@ func ResetLocalDevice(device *models.Device, reason string) {
 }
 
 // setContext creates a new context for a device and stores it on the PlatformDevice's RuntimeState.
-func setContext(device *models.Device) {
+func setContext(platDev PlatformDevice) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	platDev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		cancelFunc()
-		return
-	}
 	platDev.SetNewContext(ctx, cancelFunc)
 }
 
@@ -551,109 +532,4 @@ func getConnectedDevicesTizen() []string {
 	}
 
 	return devices
-}
-
-// --- Backward-compatible dispatch functions for the provider router ---
-// These delegate to the PlatformDevice stored in DevManager.
-// They will be removed when the router is updated to use PlatformDevice directly.
-
-// UpdateInstalledApps updates the installed apps list on the device model.
-func UpdateInstalledApps(device *models.Device) {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return
-	}
-	device.InstalledApps = dev.GetInstalledAppBundleIDs()
-}
-
-// UpdateCurrentRotation updates the current rotation on the device model.
-func UpdateCurrentRotation(device *models.Device) {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return
-	}
-	rc, ok := dev.(RemoteControllable)
-	if !ok {
-		return
-	}
-	rotation, err := rc.GetCurrentRotation()
-	if err == nil {
-		device.CurrentRotation = rotation
-	}
-}
-
-// UninstallApp uninstalls an app from the device.
-func UninstallApp(device *models.Device, app string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device `%s` not found in DevManager", device.UDID)
-	}
-	return dev.UninstallApp(app)
-}
-
-// InstallApp installs an app on the device.
-func InstallApp(device *models.Device, app string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device `%s` not found in DevManager", device.UDID)
-	}
-	err := dev.InstallApp(app)
-	if err != nil {
-		device.Logger.LogError("install_app", fmt.Sprintf("Failed installing app on device `%s` - %s", device.UDID, err))
-	}
-	return err
-}
-
-// ChangeRotationAndroid changes the rotation for an Android device.
-func ChangeRotationAndroid(device *models.Device, rotation string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	rc, ok := dev.(RemoteControllable)
-	if !ok {
-		return fmt.Errorf("device does not support rotation")
-	}
-	return rc.ChangeRotation(rotation)
-}
-
-// GetInstalledAppsAndroidRemoteServer returns installed apps for Android via remote server.
-func GetInstalledAppsAndroidRemoteServer(device *models.Device) []models.DeviceApp {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return []models.DeviceApp{}
-	}
-	apps, _ := dev.GetInstalledApps()
-	return apps
-}
-
-// KillAppAndroid kills an Android app by package name.
-func KillAppAndroid(device *models.Device, bundleIdentifier string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	return dev.KillApp(bundleIdentifier)
-}
-
-// GetInstalledAppsBundleIdentifiersIOS returns bundle IDs for iOS.
-func GetInstalledAppsBundleIdentifiersIOS(device *models.Device) []string {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return []string{}
-	}
-	return dev.GetInstalledAppBundleIDs()
-}
-
-// UpdateGadsStreamSettings updates stream settings on the device.
-func UpdateGadsStreamSettings(device *models.Device) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	rc, ok := dev.(RemoteControllable)
-	if !ok {
-		return fmt.Errorf("device does not support stream settings")
-	}
-	return rc.UpdateStreamSettingsOnDevice()
 }

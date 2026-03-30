@@ -38,7 +38,8 @@ type AndroidH264Frame struct {
 
 // AndroidWebRTCSession manages a WebRTC peer connection for Android streaming
 type AndroidWebRTCSession struct {
-	device         *models.Device
+	device     *models.Device
+	streamPort string
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
 	wsConn         io.ReadWriteCloser
@@ -55,11 +56,12 @@ type AndroidWebRTCSession struct {
 }
 
 // NewAndroidWebRTCSession creates a new WebRTC session for Android device streaming
-func NewAndroidWebRTCSession(device *models.Device) (*AndroidWebRTCSession, error) {
+func NewAndroidWebRTCSession(device *models.Device, streamPort string) (*AndroidWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &AndroidWebRTCSession{
 		device:        device,
+		streamPort:    streamPort,
 		ctx:           ctx,
 		cancel:        cancel,
 		iceCandidates: make([]webrtc.ICECandidateInit, 0),
@@ -116,7 +118,7 @@ func NewAndroidWebRTCSession(device *models.Device) (*AndroidWebRTCSession, erro
 // Start begins the streaming pipeline
 func (s *AndroidWebRTCSession) Start() error {
 	// Connect to Android stream WebSocket
-	streamURL := "ws://localhost:" + s.device.StreamPort
+	streamURL := "ws://localhost:" + s.streamPort
 
 	// Dial WebSocket connection
 	conn, _, _, err := ws.Dial(s.ctx, streamURL)
@@ -337,9 +339,9 @@ func (s *AndroidWebRTCSession) Close() {
 func AndroidWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -353,7 +355,7 @@ func AndroidWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewAndroidWebRTCSession(device)
+	session, err := NewAndroidWebRTCSession(platDev.GetDBDevice(), platDev.GetStreamPort())
 	if err != nil {
 		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

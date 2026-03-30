@@ -24,16 +24,16 @@ func GetDeviceHealth(device *models.Device) (bool, error) {
 	return device.Connected, nil
 }
 
-func checkAppiumSession(device *models.Device) error {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%s/sessions", device.AppiumPort), nil)
+func checkAppiumSession(dev PlatformDevice) error {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%s/sessions", dev.GetAppiumPort()), nil)
 	if err != nil {
-		device.AppiumSessionID = ""
+		dev.SetAppiumSessionID("")
 		return fmt.Errorf("checkAppiumSession: Failed creating request - %s", err)
 	}
 
 	response, err := netClient.Do(req)
 	if err != nil {
-		device.AppiumSessionID = ""
+		dev.SetAppiumSessionID("")
 		return fmt.Errorf("checkAppiumSession: Failed executing request `%s` - %s", req.URL, err)
 	}
 	responseBody, _ := io.ReadAll(response.Body)
@@ -41,29 +41,29 @@ func checkAppiumSession(device *models.Device) error {
 	var responseJson AppiumGetSessionsResponse
 	err = json.Unmarshal(responseBody, &responseJson)
 	if err != nil {
-		device.AppiumSessionID = ""
+		dev.SetAppiumSessionID("")
 		return fmt.Errorf("checkAppiumSession: Failed unmarshaling response json - %s", err)
 	}
 
 	if len(responseJson.Value) == 0 {
-		sessionID, err := createAppiumSession(device)
+		sessionID, err := createAppiumSession(dev)
 		if err != nil {
-			device.AppiumSessionID = ""
+			dev.SetAppiumSessionID("")
 			return fmt.Errorf("checkAppiumSession: Could not create new Appium session - %s", err)
 		}
-		device.AppiumSessionID = sessionID
+		dev.SetAppiumSessionID(sessionID)
 		return nil
 	}
 
-	device.AppiumSessionID = responseJson.Value[0].ID
+	dev.SetAppiumSessionID(responseJson.Value[0].ID)
 	return nil
 }
 
-func createAppiumSession(device *models.Device) (string, error) {
+func createAppiumSession(dev PlatformDevice) (string, error) {
 	var automationName = "UiAutomator2"
 	var platformName = "Android"
 	var waitForIdleTimeout = 10
-	if device.OS == "ios" {
+	if dev.GetOS() == "ios" {
 		automationName = "XCUITest"
 		platformName = "iOS"
 		waitForIdleTimeout = 0
@@ -92,7 +92,7 @@ func createAppiumSession(device *models.Device) (string, error) {
 		return "", fmt.Errorf("createAppiumSession: Failed marshalling payload json - %s", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/session", device.AppiumPort), bytes.NewBuffer(jsonString))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/session", dev.GetAppiumPort()), bytes.NewBuffer(jsonString))
 	if err != nil {
 		return "", fmt.Errorf("createAppiumSession: Failed creating request for Appium session - %s", err)
 	}

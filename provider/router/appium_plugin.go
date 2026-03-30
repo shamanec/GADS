@@ -16,7 +16,7 @@ import (
 // AppiumPluginLog The plugin sends all logs from the server so we can store them in Mongo without having to parse output from the exec command
 func AppiumPluginLog(c *gin.Context) {
 	udid := c.Param("udid")
-	if _, ok := devices.DBDeviceMap[udid]; ok {
+	if _, ok := devices.DevManager.Get(udid); ok {
 		// Read the log request body
 		body, err := io.ReadAll(c.Request.Body)
 		defer c.Request.Body.Close()
@@ -39,9 +39,9 @@ func AppiumPluginLog(c *gin.Context) {
 // AppiumPluginRegister The plugin sends a notification request when the server is started
 func AppiumPluginRegister(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.IsAppiumUp = true
+	if dev, ok := devices.DevManager.Get(udid); ok {
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Appium registered as up")
 		return
 	}
@@ -51,12 +51,12 @@ func AppiumPluginRegister(c *gin.Context) {
 // AppiumPluginAddSession The plugin sends a notification request when a new session is started
 func AppiumPluginAddSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
+	if dev, ok := devices.DevManager.Get(udid); ok {
 		sessionID := c.Param("session_id")
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.HasAppiumSession = true
-		dev.AppiumSessionID = sessionID
-		dev.IsAppiumUp = true
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetHasAppiumSession(true)
+		dev.SetAppiumSessionID(sessionID)
+		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Session added")
 		return
 	}
@@ -66,11 +66,11 @@ func AppiumPluginAddSession(c *gin.Context) {
 // AppiumPluginRemoveSession The plugin sends a notification request when the session is deleted
 func AppiumPluginRemoveSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.HasAppiumSession = false
-		dev.AppiumSessionID = ""
-		dev.IsAppiumUp = true
+	if dev, ok := devices.DevManager.Get(udid); ok {
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetHasAppiumSession(false)
+		dev.SetAppiumSessionID("")
+		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Session cleared")
 		return
 	}
@@ -80,9 +80,9 @@ func AppiumPluginRemoveSession(c *gin.Context) {
 // AppiumPluginPing The plugin periodically sends pings so we can keep track if the server is up
 func AppiumPluginPing(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.IsAppiumUp = true
+	if dev, ok := devices.DevManager.Get(udid); ok {
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Ping for Appium server availability successful")
 		return
 	}

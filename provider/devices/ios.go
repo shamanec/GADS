@@ -53,6 +53,12 @@ type IOSDevice struct {
 	WdaReadyChan     chan bool       // signals WebDriverAgent is up after start
 }
 
+// Port accessors for router access via type assertion.
+func (d *IOSDevice) GetStreamPort() string    { return d.StreamPort }
+func (d *IOSDevice) GetWDAPort() string       { return d.WDAPort }
+func (d *IOSDevice) GetWDAStreamPort() string { return d.WDAStreamPort }
+func (d *IOSDevice) GetWDASessionID() string  { return d.WDASessionID }
+
 // Setup runs the full iOS device provisioning sequence.
 func (d *IOSDevice) Setup() error {
 	d.SetupMutex.Lock()

@@ -105,7 +105,7 @@ type WDAJPEGExtractor struct {
 }
 
 // NewWDAJPEGExtractor creates a new JPEG extractor for WebDriverAgent stream
-func NewWDAJPEGExtractor(device *models.Device) (*WDAJPEGExtractor, error) {
+func NewWDAJPEGExtractor(device *models.Device, wdaStreamPort string) (*WDAJPEGExtractor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	success := false
 	defer func() {
@@ -123,7 +123,7 @@ func NewWDAJPEGExtractor(device *models.Device) (*WDAJPEGExtractor, error) {
 	}
 
 	// Connect to WDA MJPEG stream
-	streamUrl := "http://localhost:" + device.WDAStreamPort
+	streamUrl := "http://localhost:" + wdaStreamPort
 	req, err := http.NewRequestWithContext(ctx, "GET", streamUrl, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -531,6 +531,7 @@ func (e *FFmpegH264Encoder) Close() {
 // WebRTCSession manages a single WebRTC peer connection for streaming
 type WebRTCSession struct {
 	device                  *models.Device
+	wdaStreamPort           string
 	peerConnection          *webrtc.PeerConnection
 	videoTrack              *webrtc.TrackLocalStaticSample
 	extractor               *WDAJPEGExtractor
@@ -544,11 +545,12 @@ type WebRTCSession struct {
 }
 
 // NewWebRTCSession creates a new WebRTC session for device streaming
-func NewWebRTCSession(device *models.Device) (*WebRTCSession, error) {
+func NewWebRTCSession(device *models.Device, wdaStreamPort string) (*WebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &WebRTCSession{
 		device:        device,
+		wdaStreamPort: wdaStreamPort,
 		ctx:           ctx,
 		cancel:        cancel,
 		iceCandidates: make([]webrtc.ICECandidateInit, 0),
@@ -604,7 +606,7 @@ func NewWebRTCSession(device *models.Device) (*WebRTCSession, error) {
 // Start begins the streaming pipeline
 func (s *WebRTCSession) Start() error {
 	// Create JPEG extractor
-	extractor, err := NewWDAJPEGExtractor(s.device)
+	extractor, err := NewWDAJPEGExtractor(s.device, s.wdaStreamPort)
 	if err != nil {
 		return fmt.Errorf("failed to create JPEG extractor: %w", err)
 	}
@@ -776,9 +778,9 @@ type WebRTCSignalingMessage struct {
 func IOSWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -792,7 +794,13 @@ func IOSWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewWebRTCSession(device)
+	iosDev, ok2 := platDev.(*devices.IOSDevice)
+	if !ok2 {
+		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device `%s` is not an iOS device", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	session, err := NewWebRTCSession(platDev.GetDBDevice(), iosDev.GetWDAStreamPort())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

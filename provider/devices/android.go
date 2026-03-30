@@ -52,6 +52,11 @@ var remoteServerNetClient = &http.Client{
 	Timeout: time.Second * 120,
 }
 
+// Port accessors for router access via type assertion.
+func (d *AndroidDevice) GetStreamPort() string              { return d.StreamPort }
+func (d *AndroidDevice) GetAndroidIMEPort() string          { return d.AndroidIMEPort }
+func (d *AndroidDevice) GetAndroidRemoteServerPort() string { return d.AndroidRemoteServerPort }
+
 // Setup runs the full Android device provisioning sequence.
 func (d *AndroidDevice) Setup() error {
 	d.SetupMutex.Lock()

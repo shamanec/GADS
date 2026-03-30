@@ -32,19 +32,24 @@ import (
 
 func AndroidStreamProxy(c *gin.Context) {
 	udid := c.Param("udid")
-	device := devices.DBDeviceMap[udid]
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed upgrading http to ws for device `%s` - %s", device.UDID, err))
+		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed upgrading http to ws for device `%s` - %s", udid, err))
 		return
 	}
 	defer conn.Close()
 
-	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
+	u := url.URL{Scheme: "ws", Host: "localhost:" + platDev.GetStreamPort(), Path: ""}
 	destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed connecting to device `%s` stream port - %s", device.UDID, err))
+		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed connecting to device `%s` stream port - %s", udid, err))
 		return
 	}
 	defer destConn.Close()
@@ -54,13 +59,13 @@ func AndroidStreamProxy(c *gin.Context) {
 	for {
 		data, code, err := wsutil.ReadServerData(destConn)
 		if err != nil {
-			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed reading data from device `%s` ws conn - %s", device.UDID, err))
+			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed reading data from device `%s` ws conn - %s", udid, err))
 			return
 		}
 
 		err = wsutil.WriteServerMessage(conn, code, data)
 		if err != nil {
-			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed writing data to provider ws connection for device `%s` - %s", device.UDID, err))
+			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed writing data to provider ws connection for device `%s` - %s", udid, err))
 			return
 		}
 	}
@@ -72,17 +77,17 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("AndroidStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("AndroidStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
-	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
+	u := url.URL{Scheme: "ws", Host: "localhost:" + platDev.GetStreamPort(), Path: ""}
 	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed connecting to device `%s` stream port - %s", device.UDID, err))
+		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed connecting to device `%s` stream port - %s", udid, err))
 		return
 	}
 	defer conn.Close()
@@ -92,7 +97,7 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	for {
 		data, _, err := wsutil.ReadServerData(conn)
 		if err != nil {
-			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed reading data from device `%s` ws conn - %s", device.UDID, err))
+			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed reading data from device `%s` ws conn - %s", udid, err))
 			return
 		}
 
@@ -127,15 +132,15 @@ func IOSStreamMJPEG(c *gin.Context) {
 	c.Deadline()
 
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("IOSStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("IOSStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	// Read data from device
-	server := "localhost:" + device.StreamPort
+	server := "localhost:" + platDev.GetStreamPort()
 	// Connect to the server
 	conn, err := net.Dial("tcp", server)
 	if err != nil {
@@ -187,9 +192,16 @@ func IOSStreamMJPEG(c *gin.Context) {
 
 func IOSStreamMJPEGWda(c *gin.Context) {
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("IOSStreamMJPEGWda", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("IOSStreamMJPEGWda", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+		iosDev, ok2 := platDev.(*devices.IOSDevice)
+	if !ok2 {
+		logger.ProviderLogger.LogError("IOSStreamMJPEGWda", fmt.Sprintf("Device `%s` is not an iOS device", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -200,7 +212,7 @@ func IOSStreamMJPEGWda(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
 	c.Deadline()
 
-	streamUrl := "http://localhost:" + device.WDAStreamPort
+	streamUrl := "http://localhost:" + iosDev.GetWDAStreamPort()
 
 	req, err := http.NewRequest("GET", streamUrl, nil)
 	if err != nil {
@@ -264,9 +276,9 @@ func IOSStreamMJPEGWda(c *gin.Context) {
 
 func IosStreamProxyGADS(c *gin.Context) {
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("IosStreamProxyGADS", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("IosStreamProxyGADS", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -283,7 +295,7 @@ func IosStreamProxyGADS(c *gin.Context) {
 	}
 
 	// Read data from device
-	server := "localhost:" + device.StreamPort
+	server := "localhost:" + platDev.GetStreamPort()
 	// Connect to the server
 	conn, err := net.Dial("tcp", server)
 	if err != nil {
@@ -357,9 +369,9 @@ func IosStreamProxyGADS(c *gin.Context) {
 
 func IosStreamProxyWDA(c *gin.Context) {
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("IosStreamProxyWDA", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("IosStreamProxyWDA", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -370,7 +382,13 @@ func IosStreamProxyWDA(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	streamUrl := "http://localhost:" + device.WDAStreamPort
+	iosDev, ok2 := platDev.(*devices.IOSDevice)
+	if !ok2 {
+		logger.ProviderLogger.LogError("IosStreamProxyWDA", fmt.Sprintf("Device `%s` is not an iOS device", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	streamUrl := "http://localhost:" + iosDev.GetWDAStreamPort()
 
 	req, err := http.NewRequest("GET", streamUrl, nil)
 	if err != nil {

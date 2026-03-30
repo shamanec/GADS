@@ -198,11 +198,12 @@ func shouldAttemptTizenConnection(deviceID string) bool {
 }
 
 func handleTizenAutoConnection(connectedDevices []string) {
-	DevManager.ForEach(func(udid string, dev PlatformDevice) {
+	for _, dev := range DevManager.All() {
 		if dev.GetOS() != "tizen" || dev.GetDBDevice().Usage == "disabled" {
-			return
+			continue
 		}
 
+		udid := dev.GetUDID()
 		isConnectedViaSdb := isTizenDeviceConnected(udid)
 		isInConnectedList := slices.Contains(connectedDevices, udid)
 
@@ -216,7 +217,7 @@ func handleTizenAutoConnection(connectedDevices []string) {
 				attemptTizenConnection(udid)
 			}
 		}
-	})
+	}
 }
 
 func attemptTizenConnection(deviceUDID string) {

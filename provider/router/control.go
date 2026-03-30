@@ -22,9 +22,13 @@ var controlNetClient = &http.Client{
 	Timeout: time.Second * 120,
 }
 
-func androidRemoteServerRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
-	url := fmt.Sprintf("http://localhost:%s/%s", device.AndroidRemoteServerPort, endpoint)
-	device.Logger.LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
+func androidRemoteServerRequest(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+	andDev, ok := dev.(*devices.AndroidDevice)
+	if !ok {
+		return nil, fmt.Errorf("device %s is not an Android device", dev.GetUDID())
+	}
+	url := fmt.Sprintf("http://localhost:%s/%s", andDev.GetAndroidRemoteServerPort(), endpoint)
+	dev.GetLogger().LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -32,9 +36,13 @@ func androidRemoteServerRequest(device *models.Device, method, endpoint string, 
 	return controlNetClient.Do(req)
 }
 
-func androidRemoteServerRequestJson(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
-	url := fmt.Sprintf("http://localhost:%s/%s", device.AndroidRemoteServerPort, endpoint)
-	device.Logger.LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
+func androidRemoteServerRequestJson(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+	andDev, ok := dev.(*devices.AndroidDevice)
+	if !ok {
+		return nil, fmt.Errorf("device %s is not an Android device", dev.GetUDID())
+	}
+	url := fmt.Sprintf("http://localhost:%s/%s", andDev.GetAndroidRemoteServerPort(), endpoint)
+	dev.GetLogger().LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -43,9 +51,9 @@ func androidRemoteServerRequestJson(device *models.Device, method, endpoint stri
 	return controlNetClient.Do(req)
 }
 
-func appiumRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
-	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", device.AppiumPort, device.AppiumSessionID, endpoint)
-	device.Logger.LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
+func appiumRequest(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", dev.GetAppiumPort(), dev.GetAppiumSessionID(), endpoint)
+	dev.GetLogger().LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -53,9 +61,9 @@ func appiumRequest(device *models.Device, method, endpoint string, requestBody i
 	return controlNetClient.Do(req)
 }
 
-func appiumRequestNoSession(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
-	url := fmt.Sprintf("http://localhost:%s/%s", device.AppiumPort, endpoint)
-	device.Logger.LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
+func appiumRequestNoSession(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+	url := fmt.Sprintf("http://localhost:%s/%s", dev.GetAppiumPort(), endpoint)
+	dev.GetLogger().LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -63,9 +71,13 @@ func appiumRequestNoSession(device *models.Device, method, endpoint string, requ
 	return controlNetClient.Do(req)
 }
 
-func wdaRequest(device *models.Device, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
-	url := fmt.Sprintf("http://localhost:%v/%s", device.WDAPort, endpoint)
-	device.Logger.LogDebug("wda_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, device.UDID))
+func wdaRequest(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
+	iosDev, ok := dev.(*devices.IOSDevice)
+	if !ok {
+		return nil, fmt.Errorf("device %s is not an iOS device", dev.GetUDID())
+	}
+	url := fmt.Sprintf("http://localhost:%v/%s", iosDev.GetWDAPort(), endpoint)
+	dev.GetLogger().LogDebug("wda_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -73,15 +85,15 @@ func wdaRequest(device *models.Device, method, endpoint string, requestBody io.R
 	return controlNetClient.Do(req)
 }
 
-func deviceLock(device *models.Device, lock string) (*http.Response, error) {
-	if device.OS == "ios" {
-		return wdaRequest(device, http.MethodPost, "wda/"+lock, nil)
+func deviceLock(dev devices.PlatformDevice, lock string) (*http.Response, error) {
+	if dev.GetOS() == "ios" {
+		return wdaRequest(dev, http.MethodPost, "wda/"+lock, nil)
 	} else {
-		return androidRemoteServerRequest(device, http.MethodPost, lock, nil)
+		return androidRemoteServerRequest(dev, http.MethodPost, lock, nil)
 	}
 }
 
-func deviceTap(device *models.Device, x float64, y float64) (*http.Response, error) {
+func deviceTap(dev devices.PlatformDevice, x float64, y float64) (*http.Response, error) {
 	requestBody := struct {
 		X float64 `json:"x"`
 		Y float64 `json:"y"`
@@ -94,15 +106,15 @@ func deviceTap(device *models.Device, x float64, y float64) (*http.Response, err
 		return nil, err
 	}
 
-	if device.OS == "ios" {
-		return wdaRequest(device, http.MethodPost, "wda/tap", bytes.NewReader(actionJSON))
+	if dev.GetOS() == "ios" {
+		return wdaRequest(dev, http.MethodPost, "wda/tap", bytes.NewReader(actionJSON))
 	} else {
-		return androidRemoteServerRequestJson(device, http.MethodPost, "tap", bytes.NewReader([]byte(actionJSON)))
+		return androidRemoteServerRequestJson(dev, http.MethodPost, "tap", bytes.NewReader([]byte(actionJSON)))
 	}
 }
 
-func deviceTouchAndHold(device *models.Device, x float64, y float64, duration float64) (*http.Response, error) {
-	if device.OS == "ios" {
+func deviceTouchAndHold(dev devices.PlatformDevice, x float64, y float64, duration float64) (*http.Response, error) {
+	if dev.GetOS() == "ios" {
 		duration = float64(duration) / 1000
 	}
 	requestBody := struct {
@@ -119,16 +131,16 @@ func deviceTouchAndHold(device *models.Device, x float64, y float64, duration fl
 		return nil, err
 	}
 
-	if device.OS == "ios" {
-		return wdaRequest(device, http.MethodPost, "wda/touchAndHold", bytes.NewReader(actionJSON))
+	if dev.GetOS() == "ios" {
+		return wdaRequest(dev, http.MethodPost, "wda/touchAndHold", bytes.NewReader(actionJSON))
 	} else {
-		return androidRemoteServerRequestJson(device, http.MethodPost, "touchAndHold", bytes.NewReader([]byte(actionJSON)))
+		return androidRemoteServerRequestJson(dev, http.MethodPost, "touchAndHold", bytes.NewReader([]byte(actionJSON)))
 	}
 }
 
-func deviceScreenshot(device *models.Device) (string, error) {
-	if device.OS == "android" {
-		cmd := exec.Command("adb", "-s", device.UDID, "exec-out", "screencap", "-p")
+func deviceScreenshot(dev devices.PlatformDevice) (string, error) {
+	if dev.GetOS() == "android" {
+		cmd := exec.Command("adb", "-s", dev.GetUDID(), "exec-out", "screencap", "-p")
 		var out bytes.Buffer
 		cmd.Stdout = &out
 
@@ -142,13 +154,9 @@ func deviceScreenshot(device *models.Device) (string, error) {
 
 		return base64Screenshot, nil
 	} else {
-		platDev, ok := devices.DevManager.Get(device.UDID)
+		iosDev, ok := dev.(*devices.IOSDevice)
 		if !ok {
-			return "", fmt.Errorf("device %s not found in DevManager", device.UDID)
-		}
-		iosDev, ok := platDev.(*devices.IOSDevice)
-		if !ok {
-			return "", fmt.Errorf("device %s is not an iOS device", device.UDID)
+			return "", fmt.Errorf("device %s is not an iOS device", dev.GetUDID())
 		}
 		screenshotService, err := instruments.NewScreenshotService(iosDev.GoIOSDeviceEntry)
 		if err != nil {
@@ -165,8 +173,8 @@ func deviceScreenshot(device *models.Device) (string, error) {
 	}
 }
 
-func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Response, error) {
-	if device.OS == "ios" {
+func deviceSwipe(dev devices.PlatformDevice, x, y, endX, endY float64) (*http.Response, error) {
+	if dev.GetOS() == "ios" {
 		requestBody := struct {
 			X     float64 `json:"startX"`
 			Y     float64 `json:"startY"`
@@ -184,7 +192,7 @@ func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Respons
 		if err != nil {
 			return nil, err
 		}
-		return wdaRequest(device, http.MethodPost, "wda/swipe", bytes.NewReader(actionJSON))
+		return wdaRequest(dev, http.MethodPost, "wda/swipe", bytes.NewReader(actionJSON))
 	} else {
 		requestBody := struct {
 			X     float64 `json:"x1"`
@@ -203,12 +211,12 @@ func deviceSwipe(device *models.Device, x, y, endX, endY float64) (*http.Respons
 		if err != nil {
 			return nil, err
 		}
-		return androidRemoteServerRequestJson(device, http.MethodPost, "swipe", bytes.NewReader([]byte(actionJSON)))
+		return androidRemoteServerRequestJson(dev, http.MethodPost, "swipe", bytes.NewReader([]byte(actionJSON)))
 	}
 }
 
-func devicePinch(device *models.Device, x, y, scale float64) (*http.Response, error) {
-	if device.OS == "ios" {
+func devicePinch(dev devices.PlatformDevice, x, y, scale float64) (*http.Response, error) {
+	if dev.GetOS() == "ios" {
 		requestBody := struct {
 			CenterX    float64 `json:"centerX"`
 			CenterY    float64 `json:"centerY"`
@@ -228,7 +236,7 @@ func devicePinch(device *models.Device, x, y, scale float64) (*http.Response, er
 			return nil, fmt.Errorf("failed to marshal iOS pinch payload: %w", err)
 		}
 
-		return wdaRequest(device, http.MethodPost, "wda/pinch", bytes.NewReader(actionJSON))
+		return wdaRequest(dev, http.MethodPost, "wda/pinch", bytes.NewReader(actionJSON))
 	} else {
 		requestBody := struct {
 			CenterX   float64 `json:"centerX"`
@@ -249,11 +257,11 @@ func devicePinch(device *models.Device, x, y, scale float64) (*http.Response, er
 			return nil, fmt.Errorf("failed to marshal Android pinch payload: %w", err)
 		}
 
-		return androidRemoteServerRequestJson(device, http.MethodPost, "pinch", bytes.NewReader(actionJSON))
+		return androidRemoteServerRequestJson(dev, http.MethodPost, "pinch", bytes.NewReader(actionJSON))
 	}
 }
 
-func deviceDoubleTap(device *models.Device, x, y float64) (*http.Response, error) {
+func deviceDoubleTap(dev devices.PlatformDevice, x, y float64) (*http.Response, error) {
 	requestBody := struct {
 		X float64 `json:"x"`
 		Y float64 `json:"y"`
@@ -266,23 +274,23 @@ func deviceDoubleTap(device *models.Device, x, y float64) (*http.Response, error
 		return nil, err
 	}
 
-	if device.OS == "ios" {
-		return wdaRequest(device, http.MethodPost, "wda/doubleTap", bytes.NewReader(actionJSON))
+	if dev.GetOS() == "ios" {
+		return wdaRequest(dev, http.MethodPost, "wda/doubleTap", bytes.NewReader(actionJSON))
 	}
 
-	return androidRemoteServerRequestJson(device, http.MethodPost, "doubleTap", bytes.NewReader(actionJSON))
+	return androidRemoteServerRequestJson(dev, http.MethodPost, "doubleTap", bytes.NewReader(actionJSON))
 }
 
-func deviceHome(device *models.Device) (*http.Response, error) {
-	if device.OS == "ios" {
-		return wdaRequest(device, http.MethodPost, "wda/homescreen", nil)
+func deviceHome(dev devices.PlatformDevice) (*http.Response, error) {
+	if dev.GetOS() == "ios" {
+		return wdaRequest(dev, http.MethodPost, "wda/homescreen", nil)
 	} else {
-		return androidRemoteServerRequest(device, http.MethodPost, "home", nil)
+		return androidRemoteServerRequest(dev, http.MethodPost, "home", nil)
 	}
 }
 
-func activateApp(device *models.Device, appIdentifier string) (*http.Response, error) {
-	if device.OS == "ios" {
+func activateApp(dev devices.PlatformDevice, appIdentifier string) (*http.Response, error) {
+	if dev.GetOS() == "ios" {
 		requestBody := struct {
 			BundleId string `json:"bundleId"`
 		}{
@@ -291,17 +299,17 @@ func activateApp(device *models.Device, appIdentifier string) (*http.Response, e
 
 		reqJson, err := json.MarshalIndent(requestBody, "", "  ")
 		if err != nil {
-			return nil, fmt.Errorf("appiumActivateApp: Failed to marshal request body json when activating app for device `%s` - %s", device.UDID, err)
+			return nil, fmt.Errorf("appiumActivateApp: Failed to marshal request body json when activating app for device `%s` - %s", dev.GetUDID(), err)
 		}
 
-		return wdaRequest(device, http.MethodPost, "wda/apps/activate", bytes.NewReader(reqJson))
+		return wdaRequest(dev, http.MethodPost, "wda/apps/activate", bytes.NewReader(reqJson))
 	}
 
 	return nil, fmt.Errorf("App activation available only for iOS devices")
 }
 
-func deviceGetClipboard(device *models.Device) (*http.Response, error) {
-	if device.OS == "ios" {
+func deviceGetClipboard(dev devices.PlatformDevice) (*http.Response, error) {
+	if dev.GetOS() == "ios" {
 		requestBody := struct {
 			ContentType string `json:"contentType"`
 		}{
@@ -309,32 +317,32 @@ func deviceGetClipboard(device *models.Device) (*http.Response, error) {
 		}
 		reqJson, err := json.MarshalIndent(requestBody, "", "  ")
 		if err != nil {
-			return nil, fmt.Errorf("appiumGetClipboard: Failed to marshal request body json when getting clipboard for device `%s` - %s", device.UDID, err)
+			return nil, fmt.Errorf("appiumGetClipboard: Failed to marshal request body json when getting clipboard for device `%s` - %s", dev.GetUDID(), err)
 		}
 
-		activateAppResp, err := activateApp(device, config.ProviderConfig.WdaBundleID)
+		activateAppResp, err := activateApp(dev, config.ProviderConfig.WdaBundleID)
 		if err != nil {
 			return activateAppResp, fmt.Errorf("appiumGetClipboard: Failed to activate app - %s", err)
 		}
 		defer activateAppResp.Body.Close()
 
-		clipboardResp, err := wdaRequest(device, http.MethodPost, "wda/getPasteboard", bytes.NewReader(reqJson))
+		clipboardResp, err := wdaRequest(dev, http.MethodPost, "wda/getPasteboard", bytes.NewReader(reqJson))
 		if err != nil {
-			return clipboardResp, fmt.Errorf("appiumGetClipboard: Failed to execute Appium request for device `%s` - %s", device.UDID, err)
+			return clipboardResp, fmt.Errorf("appiumGetClipboard: Failed to execute Appium request for device `%s` - %s", dev.GetUDID(), err)
 		}
 
-		_, err = deviceHome(device)
+		_, err = deviceHome(dev)
 		if err != nil {
-			device.Logger.LogWarn("appium_interact", "appiumGetClipboard: Failed to navigate to Home/Springboard using Appium")
+			dev.GetLogger().LogWarn("appium_interact", "appiumGetClipboard: Failed to navigate to Home/Springboard using Appium")
 		}
 
 		return clipboardResp, nil
 	} else {
-		return androidRemoteServerRequest(device, http.MethodPost, "clipboard", nil)
+		return androidRemoteServerRequest(dev, http.MethodPost, "clipboard", nil)
 	}
 }
 
-func executeTypeText(device *models.Device, text string) (*http.Response, error) {
+func executeTypeText(dev devices.PlatformDevice, text string) (*http.Response, error) {
 	typeTextPayload := models.AppiumTypeText{
 		Text: text,
 	}
@@ -343,10 +351,14 @@ func executeTypeText(device *models.Device, text string) (*http.Response, error)
 		return nil, err
 	}
 
-	if device.OS == "ios" {
-		return wdaRequest(device, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
+	if dev.GetOS() == "ios" {
+		return wdaRequest(dev, http.MethodPost, "wda/type", bytes.NewBuffer(typeJSON))
 	} else {
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/type", device.AndroidIMEPort), bytes.NewBuffer(typeJSON))
+		andDev, ok := dev.(*devices.AndroidDevice)
+		if !ok {
+			return nil, fmt.Errorf("device %s is not an Android device", dev.GetUDID())
+		}
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%v/type", andDev.GetAndroidIMEPort()), bytes.NewBuffer(typeJSON))
 		if err != nil {
 			return nil, err
 		}
@@ -354,7 +366,8 @@ func executeTypeText(device *models.Device, text string) (*http.Response, error)
 	}
 }
 
-func getCenterCoordinates(device *models.Device) (float64, float64, error) {
+func getCenterCoordinates(dev devices.PlatformDevice) (float64, float64, error) {
+	device := dev.GetDBDevice()
 	width, err := strconv.ParseFloat(device.ScreenWidth, 64)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid screen width %q: %w", device.ScreenWidth, err)
@@ -368,14 +381,14 @@ func getCenterCoordinates(device *models.Device) (float64, float64, error) {
 	return width / 2, height / 2, nil
 }
 
-func normalizeCoordinates(device *models.Device, x, y float64) (float64, float64, error) {
+func normalizeCoordinates(dev devices.PlatformDevice, x, y float64) (float64, float64, error) {
 	if x == 0 && y == 0 {
-		return getCenterCoordinates(device)
+		return getCenterCoordinates(dev)
 	}
 	return x, y, nil
 }
 
-func executeCustomAction(device *models.Device, actionType string, params map[string]any) (*http.Response, error) {
+func executeCustomAction(dev devices.PlatformDevice, actionType string, params map[string]any) (*http.Response, error) {
 	if params == nil {
 		params = make(map[string]any)
 	}
@@ -384,70 +397,70 @@ func executeCustomAction(device *models.Device, actionType string, params map[st
 	case "tap":
 		x := utils.GetFloat(params, "x", 0)
 		y := utils.GetFloat(params, "y", 0)
-		x, y, err := normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(dev, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
 		}
-		return deviceTap(device, x, y)
+		return deviceTap(dev, x, y)
 
 	case "double_tap":
 		x := utils.GetFloat(params, "x", 0)
 		y := utils.GetFloat(params, "y", 0)
-		x, y, err := normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(dev, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
 		}
-		return deviceDoubleTap(device, x, y)
+		return deviceDoubleTap(dev, x, y)
 
 	case "swipe":
 		x := utils.GetFloat(params, "x", 0)
 		y := utils.GetFloat(params, "y", 0)
 		endX := utils.GetFloat(params, "endX", 0)
 		endY := utils.GetFloat(params, "endY", 0)
-		return deviceSwipe(device, x, y, endX, endY)
+		return deviceSwipe(dev, x, y, endX, endY)
 
 	case "touch_and_hold":
 		x := utils.GetFloat(params, "x", 0)
 		y := utils.GetFloat(params, "y", 0)
-		x, y, err := normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(dev, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
 		}
 		duration := utils.GetFloat(params, "duration", 1000)
-		return deviceTouchAndHold(device, x, y, duration)
+		return deviceTouchAndHold(dev, x, y, duration)
 
 	case "pinch":
 		x := utils.GetFloat(params, "x", 0)
 		y := utils.GetFloat(params, "y", 0)
-		x, y, err := normalizeCoordinates(device, x, y)
+		x, y, err := normalizeCoordinates(dev, x, y)
 		if err != nil {
 			return nil, fmt.Errorf("normalizing coordinates: %w", err)
 		}
 		scale := utils.GetFloat(params, "scale", 1.0)
-		return devicePinch(device, x, y, scale)
+		return devicePinch(dev, x, y, scale)
 
 	case "type_text":
 		text := utils.GetString(params, "text", "")
-		return executeTypeText(device, text)
+		return executeTypeText(dev, text)
 
 	case "home":
-		return deviceHome(device)
+		return deviceHome(dev)
 
 	case "lock":
-		return deviceLock(device, "lock")
+		return deviceLock(dev, "lock")
 
 	case "unlock":
-		return deviceLock(device, "unlock")
+		return deviceLock(dev, "unlock")
 
 	case "pinch_in":
 		x := utils.GetFloat(params, "x", 250)
 		y := utils.GetFloat(params, "y", 500)
-		return devicePinch(device, x, y, 0.5)
+		return devicePinch(dev, x, y, 0.5)
 
 	case "pinch_out":
 		x := utils.GetFloat(params, "x", 250)
 		y := utils.GetFloat(params, "y", 500)
-		return devicePinch(device, x, y, 2.0)
+		return devicePinch(dev, x, y, 2.0)
 
 	default:
 		return nil, fmt.Errorf("unsupported action type: %s", actionType)

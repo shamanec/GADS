@@ -46,11 +46,7 @@ func setupAppiumForDevice(d PlatformDevice) error {
 		d.Reset("Failed to allocate free Appium port for device.")
 		return err
 	}
-	// Set AppiumPort on both RuntimeState and models.Device (backward compat)
-	d.GetDBDevice().AppiumPort = appiumPort
-	if setter, ok := d.(interface{ SetAppiumPort(string) }); ok {
-		setter.SetAppiumPort(appiumPort)
-	}
+	d.SetAppiumPort(appiumPort)
 
 	caps := d.AppiumCapabilities()
 	go startAppium(d, caps)

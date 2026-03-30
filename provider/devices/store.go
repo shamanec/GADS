@@ -86,16 +86,6 @@ func (s *DeviceStore) Len() int {
 	return len(s.devices)
 }
 
-// ForEach calls fn for each device in the store while holding a read lock.
-// Do not call store methods from within fn to avoid deadlock.
-func (s *DeviceStore) ForEach(fn func(udid string, dev PlatformDevice)) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for udid, dev := range s.devices {
-		fn(udid, dev)
-	}
-}
-
 // UDIDs returns a slice of all device UDIDs currently in the store.
 func (s *DeviceStore) UDIDs() []string {
 	s.mu.RLock()

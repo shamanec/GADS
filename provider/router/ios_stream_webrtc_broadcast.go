@@ -33,7 +33,8 @@ import (
 
 // IOSWebRTCSession manages a WebRTC peer connection for iOS broadcast streaming
 type IOSWebRTCSession struct {
-	device         *models.Device
+	device     *models.Device
+	streamPort string
 	peerConnection *webrtc.PeerConnection
 	videoTrack     *webrtc.TrackLocalStaticSample
 	tcpConn        net.Conn
@@ -49,11 +50,12 @@ type IOSWebRTCSession struct {
 }
 
 // NewIOSWebRTCSession creates a new WebRTC session for iOS broadcast streaming
-func NewIOSWebRTCSession(device *models.Device) (*IOSWebRTCSession, error) {
+func NewIOSWebRTCSession(device *models.Device, streamPort string) (*IOSWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &IOSWebRTCSession{
 		device:        device,
+		streamPort:    streamPort,
 		ctx:           ctx,
 		cancel:        cancel,
 		iceCandidates: make([]webrtc.ICECandidateInit, 0),
@@ -109,7 +111,7 @@ func NewIOSWebRTCSession(device *models.Device) (*IOSWebRTCSession, error) {
 // Start begins the streaming pipeline
 func (s *IOSWebRTCSession) Start() error {
 	// Connect to iOS broadcast extension TCP server
-	broadcastServer := "localhost:" + s.device.StreamPort
+	broadcastServer := "localhost:" + s.streamPort
 
 	conn, err := net.Dial("tcp", broadcastServer)
 	if err != nil {
@@ -311,9 +313,9 @@ func (s *IOSWebRTCSession) Close() {
 func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -327,7 +329,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewIOSWebRTCSession(device)
+	session, err := NewIOSWebRTCSession(platDev.GetDBDevice(), platDev.GetStreamPort())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

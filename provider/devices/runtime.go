@@ -52,8 +52,14 @@ func (r *RuntimeState) IsConnected() bool              { return r.DBDevice.Conne
 func (r *RuntimeState) SetConnected(connected bool)    { r.DBDevice.Connected = connected }
 func (r *RuntimeState) GetLogger() models.CustomLogger { return r.Logger }
 func (r *RuntimeState) GetContext() context.Context     { return r.Context }
-func (r *RuntimeState) GetAppiumPort() string    { return r.AppiumPort }
-func (r *RuntimeState) SetAppiumPort(port string) { r.AppiumPort = port }
+func (r *RuntimeState) GetAppiumPort() string      { return r.AppiumPort }
+func (r *RuntimeState) SetAppiumPort(port string)   { r.AppiumPort = port }
+func (r *RuntimeState) GetStreamPort() string        { return "" } // overridden by Android/iOS
+func (r *RuntimeState) GetAppiumSessionID() string   { return r.DBDevice.AppiumSessionID }
+func (r *RuntimeState) SetAppiumSessionID(id string) { r.DBDevice.AppiumSessionID = id }
+func (r *RuntimeState) SetAppiumUp(up bool)          { r.DBDevice.IsAppiumUp = up }
+func (r *RuntimeState) SetAppiumLastPingTS(ts int64) { r.DBDevice.AppiumLastPingTS = ts }
+func (r *RuntimeState) SetHasAppiumSession(has bool) { r.DBDevice.HasAppiumSession = has }
 func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelFunc) {
 	r.Context = ctx
 	r.CtxCancel = cancel

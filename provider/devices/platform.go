@@ -50,7 +50,18 @@ type PlatformDevice interface {
 	GetLogger() models.CustomLogger
 	GetContext() context.Context
 	GetAppiumPort() string
+	SetAppiumPort(port string)
 	SetNewContext(ctx context.Context, cancel context.CancelFunc)
+
+	// Port accessor — platform types return their stream port; TV types return ""
+	GetStreamPort() string
+
+	// Appium state accessors — delegates to DBDevice fields for hub sync
+	GetAppiumSessionID() string
+	SetAppiumSessionID(id string)
+	SetAppiumUp(up bool)
+	SetAppiumLastPingTS(ts int64)
+	SetHasAppiumSession(has bool)
 }
 
 // RemoteControllable extends PlatformDevice with capabilities for devices that support

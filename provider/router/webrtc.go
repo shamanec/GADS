@@ -26,7 +26,6 @@ func WebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
 	fmt.Println("DEVICE " + udid)
-	// device := devices.DBDeviceMap[udid]
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		log.Printf("Failed to upgrade connection: %v", err)

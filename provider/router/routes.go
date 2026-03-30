@@ -55,9 +55,13 @@ func AppiumReverseProxy(c *gin.Context) {
 		return
 	}
 
-	device := devices.DBDeviceMap[udid]
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		c.JSON(http.StatusNotFound, createAppiumErrorResponse("Device not found"))
+		return
+	}
 
-	target := "http://localhost:" + device.AppiumPort
+	target := "http://localhost:" + platDev.GetAppiumPort()
 	path := c.Param("proxyPath")
 
 	proxy := newAppiumProxy(target, path)
@@ -106,10 +110,7 @@ func UploadAndInstallApp(c *gin.Context) {
 	}
 
 	udid := c.Param("udid")
-	// Check if the target device is currently provisioned
-	devices.DbDeviceMapMutex.RLock()
-	dev, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
+	platDev, ok := devices.DevManager.Get(udid)
 
 	if ok {
 		// If the uploaded file is not a zip archive
@@ -132,7 +133,7 @@ func UploadAndInstallApp(c *gin.Context) {
 			}()
 
 			// Try to install the app after saving the file
-			err = devices.InstallApp(dev, file.Filename)
+			err = platDev.InstallApp(file.Filename)
 			if err != nil {
 				api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
 				return
@@ -187,7 +188,7 @@ func UploadAndInstallApp(c *gin.Context) {
 				}
 
 				// Attempt to install the unzipped app file
-				err = devices.InstallApp(dev, fileNames[0])
+				err = platDev.InstallApp(fileNames[0])
 				if err != nil {
 					api.InternalError(c, fmt.Sprintf("Failed to install app - %s", err))
 					return
@@ -210,7 +211,7 @@ func UploadAndInstallApp(c *gin.Context) {
 				}
 
 				// Attempt to install the unzipped .app directory
-				err = devices.InstallApp(dev, fileNames[0])
+				err = platDev.InstallApp(fileNames[0])
 				if err != nil {
 					api.InternalError(c, fmt.Sprintf("Failed to install unzipped .app directory - %s", err))
 					return
@@ -234,12 +235,11 @@ func UploadAndInstallApp(c *gin.Context) {
 func GetProviderData(c *gin.Context) {
 	var providerData models.ProviderData
 
-	devices.DbDeviceMapMutex.RLock()
-	deviceData := []models.Device{}
-	for _, device := range devices.DBDeviceMap {
-		deviceData = append(deviceData, *device)
+	allDevs := devices.DevManager.All()
+	deviceData := make([]models.Device, 0, len(allDevs))
+	for _, dev := range allDevs {
+		deviceData = append(deviceData, dev.ToHubDevice())
 	}
-	devices.DbDeviceMapMutex.RUnlock()
 
 	providerData.ProviderData = *config.ProviderConfig
 	providerData.DeviceData = deviceData
@@ -254,72 +254,65 @@ type WdaOrientationResponse struct {
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
 
-	devices.DbDeviceMapMutex.RLock()
-	dev, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	if ok {
-		if dev.SupportedStreamTypes == nil {
-			dev.SupportedStreamTypes = models.StreamTypesForOS(dev.OS)
-		}
-
-		devices.UpdateInstalledApps(dev)
-		switch dev.OS {
-		case "android":
-			devices.UpdateCurrentRotation(dev)
-		case "ios":
-			wdaResp, err := wdaRequest(dev, http.MethodGet, "orientation", nil)
-			if err != nil {
-				dev.CurrentRotation = "portrait"
-				api.OK(c, "", dev)
-				return
-			}
-			defer wdaResp.Body.Close()
-
-			responseBody, _ := io.ReadAll(wdaResp.Body)
-			var responseJson WdaOrientationResponse
-			err = json.Unmarshal(responseBody, &responseJson)
-			if err != nil {
-				dev.CurrentRotation = "portrait"
-				api.OK(c, "", dev)
-				return
-			}
-			dev.CurrentRotation = strings.ToLower(responseJson.Orientation)
-		}
-
-		api.OK(c, "Successfully retrieved device info", dev)
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
-	api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+
+	dev := platDev.GetDBDevice()
+	if dev.SupportedStreamTypes == nil {
+		dev.SupportedStreamTypes = models.StreamTypesForOS(dev.OS)
+	}
+
+	dev.InstalledApps = platDev.GetInstalledAppBundleIDs()
+	switch dev.OS {
+	case "android":
+		if rc, rcOk := platDev.(devices.RemoteControllable); rcOk {
+			rotation, err := rc.GetCurrentRotation()
+			if err == nil {
+				dev.CurrentRotation = rotation
+			}
+		}
+	case "ios":
+		wdaResp, err := wdaRequest(platDev, http.MethodGet, "orientation", nil)
+		if err != nil {
+			dev.CurrentRotation = "portrait"
+			api.OK(c, "", dev)
+			return
+		}
+		defer wdaResp.Body.Close()
+
+		responseBody, _ := io.ReadAll(wdaResp.Body)
+		var responseJson WdaOrientationResponse
+		err = json.Unmarshal(responseBody, &responseJson)
+		if err != nil {
+			dev.CurrentRotation = "portrait"
+			api.OK(c, "", dev)
+			return
+		}
+		dev.CurrentRotation = strings.ToLower(responseJson.Orientation)
+	}
+
+	api.OK(c, "Successfully retrieved device info", dev)
 }
 
 func DeviceInstalledApps(c *gin.Context) {
 	udid := c.Param("udid")
-	var installedApps interface{}
 
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		switch dev.OS {
-		case "ios":
-			installedApps = devices.GetInstalledAppsIOS(dev)
-		case "android":
-			installedApps = devices.GetInstalledAppsAndroidRemoteServer(dev)
-		case "tizen":
-			installedApps = devices.GetInstalledAppsTizen(dev)
-		case "webos":
-			installedApps = devices.GetInstalledAppsWebOS(dev)
-		}
-		api.OK(c, "Successfully retrieved device installed apps", installedApps)
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	installedApps, _ := platDev.GetInstalledApps()
+	api.OK(c, "Successfully retrieved device installed apps", installedApps)
 }
 
 func DeviceChangeRotation(c *gin.Context) {
 	udid := c.Param("udid")
 
-	devices.DbDeviceMapMutex.RLock()
-	dev, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
+	platDev, ok := devices.DevManager.Get(udid)
 	if !ok {
 		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
@@ -331,20 +324,29 @@ func DeviceChangeRotation(c *gin.Context) {
 		return
 	}
 
+	rc, rcOk := platDev.(devices.RemoteControllable)
+	if !rcOk {
+		api.BadRequest(c, "Device does not support rotation")
+		return
+	}
+
+	dev := platDev.GetDBDevice()
 	if dev.OS == "android" {
-		devices.ChangeRotationAndroid(dev, requestBody.Rotation)
+		if err := rc.ChangeRotation(requestBody.Rotation); err != nil {
+			api.InternalError(c, err.Error())
+		}
 	} else {
-		requestBody := struct {
+		reqBody := struct {
 			Orientation string `json:"orientation"`
 		}{
 			Orientation: strings.ToUpper(requestBody.Rotation),
 		}
-		orientationJson, err := json.MarshalIndent(requestBody, "", "  ")
+		orientationJson, err := json.MarshalIndent(reqBody, "", "  ")
 		if err != nil {
 			api.InternalError(c, err.Error())
 			return
 		}
-		_, err = wdaRequest(dev, http.MethodPost, "orientation", bytes.NewReader(orientationJson))
+		_, err = wdaRequest(platDev, http.MethodPost, "orientation", bytes.NewReader(orientationJson))
 		if err != nil {
 			api.InternalError(c, err.Error())
 		}
@@ -352,13 +354,11 @@ func DeviceChangeRotation(c *gin.Context) {
 }
 
 func DevicesInfo(c *gin.Context) {
-	deviceList := []*models.Device{}
-
-	devices.DbDeviceMapMutex.RLock()
-	for _, device := range devices.DBDeviceMap {
-		deviceList = append(deviceList, device)
+	allDevs := devices.DevManager.All()
+	deviceList := make([]models.Device, 0, len(allDevs))
+	for _, dev := range allDevs {
+		deviceList = append(deviceList, dev.ToHubDevice())
 	}
-	devices.DbDeviceMapMutex.RUnlock()
 
 	api.OK(c, "Successfully retrieved devices info", deviceList)
 }
@@ -367,167 +367,124 @@ type ProcessApp struct {
 	App string `json:"app"`
 }
 
-func getInstalledAppIDs(device *models.Device) []string {
-	var installedApps []string
-
-	switch device.OS {
-	case "ios":
-		installedApps = devices.GetInstalledAppsBundleIdentifiersIOS(device)
-	case "android":
-		for _, app := range devices.GetInstalledAppsAndroidRemoteServer(device) {
-			installedApps = append(installedApps, app.BundleIdentifier)
-		}
-	case "tizen":
-		tizenApps := devices.GetInstalledAppsTizen(device)
-		for _, app := range tizenApps {
-			installedApps = append(installedApps, app.AppID)
-		}
-	case "webos":
-		webosApps := devices.GetInstalledAppsWebOS(device)
-		for _, app := range webosApps {
-			installedApps = append(installedApps, app.AppID)
-		}
-	}
-
-	return installedApps
+func getInstalledAppIDs(dev devices.PlatformDevice) []string {
+	return dev.GetInstalledAppBundleIDs()
 }
 
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
 
-	devices.DbDeviceMapMutex.RLock()
-	dev, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	var installedApps []string
-	if ok {
-		payload, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		var payloadJson ProcessApp
-		err = json.Unmarshal(payload, &payloadJson)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		installedApps = getInstalledAppIDs(dev)
-
-		if slices.Contains(installedApps, payloadJson.App) {
-			err = devices.UninstallApp(dev, payloadJson.App)
-			if err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App))
-				return
-			}
-			deletedAppIndex := slices.Index(installedApps, payloadJson.App)
-			if deletedAppIndex != -1 {
-				installedApps = append(installedApps[:deletedAppIndex], installedApps[deletedAppIndex+1:]...)
-			}
-			api.OK(c, fmt.Sprintf("Successfully uninstalled app `%s`", payloadJson.App), installedApps)
-			return
-		}
-		api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
 
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	payload, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	var payloadJson ProcessApp
+	err = json.Unmarshal(payload, &payloadJson)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	installedApps := getInstalledAppIDs(platDev)
+
+	if slices.Contains(installedApps, payloadJson.App) {
+		err = platDev.UninstallApp(payloadJson.App)
+		if err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App))
+			return
+		}
+		deletedAppIndex := slices.Index(installedApps, payloadJson.App)
+		if deletedAppIndex != -1 {
+			installedApps = append(installedApps[:deletedAppIndex], installedApps[deletedAppIndex+1:]...)
+		}
+		api.OK(c, fmt.Sprintf("Successfully uninstalled app `%s`", payloadJson.App), installedApps)
+		return
+	}
+	api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
 }
 
 func LaunchApp(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		payload, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		var payloadJson ProcessApp
-		err = json.Unmarshal(payload, &payloadJson)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		installedApps := getInstalledAppIDs(dev)
-
-		if !slices.Contains(installedApps, payloadJson.App) {
-			api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
-			return
-		}
-
-		var launchErr error
-		switch dev.OS {
-		case "tizen":
-			launchErr = devices.LaunchAppTizen(dev, payloadJson.App)
-		case "webos":
-			launchErr = devices.LaunchAppWebOS(dev, payloadJson.App)
-		default:
-			api.BadRequest(c, fmt.Sprintf("Launch app not supported for OS: %s", dev.OS))
-			return
-		}
-
-		if launchErr != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to launch app `%s`: %v", payloadJson.App, launchErr))
-			return
-		}
-
-		api.OK(c, fmt.Sprintf("Successfully launched app `%s`", payloadJson.App), installedApps)
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
 
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	payload, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	var payloadJson ProcessApp
+	err = json.Unmarshal(payload, &payloadJson)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	installedApps := getInstalledAppIDs(platDev)
+
+	if !slices.Contains(installedApps, payloadJson.App) {
+		api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
+		return
+	}
+
+	launchErr := platDev.LaunchApp(payloadJson.App)
+	if launchErr != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to launch app `%s`: %v", payloadJson.App, launchErr))
+		return
+	}
+
+	api.OK(c, fmt.Sprintf("Successfully launched app `%s`", payloadJson.App), installedApps)
 }
 
 func CloseApp(c *gin.Context) {
 	udid := c.Param("udid")
 
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		payload, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		var payloadJson ProcessApp
-		err = json.Unmarshal(payload, &payloadJson)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		installedApps := getInstalledAppIDs(dev)
-
-		if !slices.Contains(installedApps, payloadJson.App) {
-			api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
-			return
-		}
-
-		var closeErr error
-		switch dev.OS {
-		case "tizen":
-			closeErr = devices.CloseAppTizen(dev, payloadJson.App)
-		case "webos":
-			closeErr = devices.CloseAppWebOS(dev, payloadJson.App)
-		default:
-			api.BadRequest(c, fmt.Sprintf("Close app not supported for OS: %s", dev.OS))
-			return
-		}
-
-		if closeErr != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to close app `%s`: %v", payloadJson.App, closeErr))
-			return
-		}
-
-		api.OK(c, fmt.Sprintf("Successfully closed app `%s`", payloadJson.App), installedApps)
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
 
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	payload, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	var payloadJson ProcessApp
+	err = json.Unmarshal(payload, &payloadJson)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	installedApps := getInstalledAppIDs(platDev)
+
+	if !slices.Contains(installedApps, payloadJson.App) {
+		api.BadRequest(c, fmt.Sprintf("App `%s` is not installed on device", payloadJson.App))
+		return
+	}
+
+	closeErr := platDev.KillApp(payloadJson.App)
+	if closeErr != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to close app `%s`: %v", payloadJson.App, closeErr))
+		return
+	}
+
+	api.OK(c, fmt.Sprintf("Successfully closed app `%s`", payloadJson.App), installedApps)
 }
 
 func KillApp(c *gin.Context) {
@@ -539,214 +496,179 @@ func KillApp(c *gin.Context) {
 		return
 	}
 
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		switch dev.OS {
-		case "ios":
-			err := devices.KillAppIOS(dev, bundleId)
-			if err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed killing app with bundle id `%s`", bundleId))
-				return
-			}
-			api.OKMessage(c, fmt.Sprintf("Successfully killed app with bundle id(package name) `%s`", bundleId))
-		case "android":
-			err := devices.KillAppAndroid(dev, bundleId)
-			if err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed killing app with bundle id(package name) `%s`", bundleId))
-				return
-			}
-			api.OKMessage(c, fmt.Sprintf("Successfully killed app with bundle id(package name) `%s`", bundleId))
-		default:
-			api.BadRequest(c, "Killing apps is not supported on Tizen/WebOS")
-		}
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+
+	err := platDev.KillApp(bundleId)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed killing app with bundle id(package name) `%s`", bundleId))
+		return
+	}
+	api.OKMessage(c, fmt.Sprintf("Successfully killed app with bundle id(package name) `%s`", bundleId))
 }
 
 func ResetDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	devices.DbDeviceMapMutex.RLock()
-	device, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	if ok {
-		if device.IsResetting {
-			api.Conflict(c, "Device setup is already being reset")
-			return
-		}
-		if device.ProviderState != "live" {
-			api.InternalError(c, fmt.Sprintf("Only devices in `live` state can be reset, current state is `%s`", device.ProviderState))
-			return
-		}
-
-		devices.ResetLocalDevice(device, "Re-provisioning device")
-
-		api.OKMessage(c, "Initiated device re-provisioning")
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
 
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	dev := platDev.GetDBDevice()
+	if dev.IsResetting {
+		api.Conflict(c, "Device setup is already being reset")
+		return
+	}
+	if platDev.GetProviderState() != "live" {
+		api.InternalError(c, fmt.Sprintf("Only devices in `live` state can be reset, current state is `%s`", platDev.GetProviderState()))
+		return
+	}
+
+	platDev.Reset("Re-provisioning device")
+
+	api.OKMessage(c, "Initiated device re-provisioning")
 }
 
 func UpdateDeviceStreamSettings(c *gin.Context) {
 	udid := c.Param("udid")
 
-	devices.DbDeviceMapMutex.RLock()
-	device, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	if ok {
-		payload, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		var streamSettings models.UpdateStreamSettings
-		err = json.Unmarshal(payload, &streamSettings)
-		if err != nil {
-			api.BadRequest(c, "Invalid payload")
-			return
-		}
-
-		common.MutexManager.StreamSettings.Lock()
-		defer common.MutexManager.StreamSettings.Unlock()
-
-		if device.OS == "ios" {
-			if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
-				device.StreamTargetFPS = streamSettings.TargetFPS
-			}
-			if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != device.StreamJpegQuality {
-				device.StreamJpegQuality = streamSettings.JpegQuality
-			}
-			if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
-				device.StreamScalingFactor = streamSettings.ScalingFactor
-			}
-
-			err = devices.UpdateWebDriverAgentStreamSettings(device)
-			if err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed to update stream settings - %s", err))
-				return
-			}
-		} else {
-			if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
-				device.StreamTargetFPS = streamSettings.TargetFPS
-			}
-			if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != device.StreamJpegQuality {
-				device.StreamJpegQuality = streamSettings.JpegQuality
-			}
-			if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
-				device.StreamScalingFactor = streamSettings.ScalingFactor
-			}
-
-			if err = devices.UpdateGadsStreamSettings(device); err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed to update stream settings - %s", err))
-				return
-			}
-		}
-
-		deviceStreamSettings := models.DeviceStreamSettings{
-			UDID:                udid,
-			StreamTargetFPS:     device.StreamTargetFPS,
-			StreamJpegQuality:   device.StreamJpegQuality,
-			StreamScalingFactor: device.StreamScalingFactor,
-		}
-
-		err = db.GlobalMongoStore.UpdateDeviceStreamSettings(udid, deviceStreamSettings)
-		if err != nil {
-			api.InternalError(c, "Failed to update device stream settings in the DB")
-			return
-		}
-
-		api.OKMessage(c, "Stream settings updated")
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
 
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	payload, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	var streamSettings models.UpdateStreamSettings
+	err = json.Unmarshal(payload, &streamSettings)
+	if err != nil {
+		api.BadRequest(c, "Invalid payload")
+		return
+	}
+
+	common.MutexManager.StreamSettings.Lock()
+	defer common.MutexManager.StreamSettings.Unlock()
+
+	device := platDev.GetDBDevice()
+	if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != device.StreamTargetFPS {
+		device.StreamTargetFPS = streamSettings.TargetFPS
+	}
+	if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != device.StreamJpegQuality {
+		device.StreamJpegQuality = streamSettings.JpegQuality
+	}
+	if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != device.StreamScalingFactor {
+		device.StreamScalingFactor = streamSettings.ScalingFactor
+	}
+
+	rc, rcOk := platDev.(devices.RemoteControllable)
+	if rcOk {
+		if err = rc.UpdateStreamSettingsOnDevice(); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to update stream settings - %s", err))
+			return
+		}
+	}
+
+	deviceStreamSettings := models.DeviceStreamSettings{
+		UDID:                udid,
+		StreamTargetFPS:     device.StreamTargetFPS,
+		StreamJpegQuality:   device.StreamJpegQuality,
+		StreamScalingFactor: device.StreamScalingFactor,
+	}
+
+	err = db.GlobalMongoStore.UpdateDeviceStreamSettings(udid, deviceStreamSettings)
+	if err != nil {
+		api.InternalError(c, "Failed to update device stream settings in the DB")
+		return
+	}
+
+	api.OKMessage(c, "Stream settings updated")
 }
 
 func DeviceFiles(c *gin.Context) {
 	udid := c.Param("udid")
 
-	devices.DbDeviceMapMutex.RLock()
-	device, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	if ok {
-		if device.OS == "android" {
-			filesResp, err := androidRemoteServerRequest(device, http.MethodGet, "files", nil)
-			if err != nil {
-				api.InternalError(c, "Failed to get shared storage file tree")
-				return
-			}
-			defer filesResp.Body.Close()
-
-			payload, err := io.ReadAll(filesResp.Body)
-			if err != nil {
-				api.InternalError(c, "Failed to read shared storage file tree response")
-				return
-			}
-			var fileTree models.AndroidFileNode
-			err = json.Unmarshal(payload, &fileTree)
-			if err != nil {
-				api.InternalError(c, "Failed to unmarshal storage file tree response")
-				return
-			}
-
-			api.OK(c, "Successfully got shared storage file tree", fileTree)
-			return
-		} else {
-			api.BadRequest(c, "Functionality not supported on iOS")
-		}
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+		return
 	}
 
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	if platDev.GetOS() == "android" {
+		filesResp, err := androidRemoteServerRequest(platDev, http.MethodGet, "files", nil)
+		if err != nil {
+			api.InternalError(c, "Failed to get shared storage file tree")
+			return
+		}
+		defer filesResp.Body.Close()
+
+		payload, err := io.ReadAll(filesResp.Body)
+		if err != nil {
+			api.InternalError(c, "Failed to read shared storage file tree response")
+			return
+		}
+		var fileTree models.AndroidFileNode
+		err = json.Unmarshal(payload, &fileTree)
+		if err != nil {
+			api.InternalError(c, "Failed to unmarshal storage file tree response")
+			return
+		}
+
+		api.OK(c, "Successfully got shared storage file tree", fileTree)
+		return
+	}
+	api.BadRequest(c, "Functionality not supported on iOS")
 }
 
 func PushFileToSharedStorage(c *gin.Context) {
 	udid := c.Param("udid")
 
-	devices.DbDeviceMapMutex.RLock()
-	device, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	if ok {
-		if device.OS == "ios" {
-			api.BadRequest(c, "Functionality not supported for iOS devices")
-			return
-		}
-
-		destPath := c.PostForm("destPath")
-		file, err := c.FormFile("file")
-		if err != nil {
-			api.BadRequest(c, "Missing file in form data")
-			return
-		}
-
-		// Save uploaded file in a temporary folder so we can push it via adb
-		tempPath := filepath.Join(os.TempDir(), file.Filename)
-
-		// Remove the temporary file, we don't want to keep it on long running hosts
-		defer os.Remove(tempPath)
-		if err := c.SaveUploadedFile(file, tempPath); err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error()))
-			return
-		}
-
-		// Push the file via adb to from the temporary folder to the target shared storage path
-		adbCmd := exec.Command("adb", "-s", device.UDID, "push", tempPath, destPath)
-		_, err = adbCmd.CombinedOutput()
-		if err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to push file `%s` to `%s` - %s", file.Filename, destPath, err))
-			return
-		}
-
-		api.OKMessage(c, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath))
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
 
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+	if platDev.GetOS() == "ios" {
+		api.BadRequest(c, "Functionality not supported for iOS devices")
+		return
+	}
+
+	destPath := c.PostForm("destPath")
+	file, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, "Missing file in form data")
+		return
+	}
+
+	// Save uploaded file in a temporary folder so we can push it via adb
+	tempPath := filepath.Join(os.TempDir(), file.Filename)
+
+	// Remove the temporary file, we don't want to keep it on long running hosts
+	defer os.Remove(tempPath)
+	if err := c.SaveUploadedFile(file, tempPath); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to save file `%s` to temp dir `%s` - %s", file.Filename, tempPath, err.Error()))
+		return
+	}
+
+	// Push the file via adb to from the temporary folder to the target shared storage path
+	adbCmd := exec.Command("adb", "-s", platDev.GetUDID(), "push", tempPath, destPath)
+	_, err = adbCmd.CombinedOutput()
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to push file `%s` to `%s` - %s", file.Filename, destPath, err))
+		return
+	}
+
+	api.OKMessage(c, fmt.Sprintf("File `%s` successfully pushed to `%s`", file.Filename, destPath))
 }
 
 func DeleteFileFromSharedStorage(c *gin.Context) {
@@ -757,26 +679,25 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 		return
 	}
 
-	devices.DbDeviceMapMutex.RLock()
-	device, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	if ok {
-		if device.OS == "ios" {
-			api.BadRequest(c, "Functionality not supported for iOS devices")
-			return
-		}
-
-		err := devices.DeleteAndroidSharedStorageFile(device, filePath)
-		if err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to delete file on path `%s`", filePath))
-			return
-		}
-
-		api.OKMessage(c, "Successfully deleted file")
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+
+	if platDev.GetOS() == "ios" {
+		api.BadRequest(c, "Functionality not supported for iOS devices")
+		return
+	}
+
+	device := platDev.GetDBDevice()
+	err := devices.DeleteAndroidSharedStorageFile(device, filePath)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to delete file on path `%s`", filePath))
+		return
+	}
+
+	api.OKMessage(c, "Successfully deleted file")
 }
 
 func createAppiumErrorResponse(message string) gin.H {
@@ -799,27 +720,26 @@ func PullFileFromSharedStorage(c *gin.Context) {
 	}
 	fileName := filepath.Base(filePath)
 
-	devices.DbDeviceMapMutex.RLock()
-	device, ok := devices.DBDeviceMap[udid]
-	devices.DbDeviceMapMutex.RUnlock()
-
-	if ok {
-		if device.OS == "ios" {
-			api.BadRequest(c, "Functionality not supported for iOS devices")
-			return
-		}
-
-		tempFilePath, err := devices.PullAndroidSharedStorageFile(device, filePath, fileName)
-		defer os.Remove(tempFilePath)
-		if err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to pull file from path `%s` to a temporary directory", filePath))
-			return
-		}
-
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
-		c.Header("Access-Control-Expose-Headers", "Content-Disposition")
-		c.File(tempFilePath)
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
 		return
 	}
-	api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+
+	if platDev.GetOS() == "ios" {
+		api.BadRequest(c, "Functionality not supported for iOS devices")
+		return
+	}
+
+	device := platDev.GetDBDevice()
+	tempFilePath, err := devices.PullAndroidSharedStorageFile(device, filePath, fileName)
+	defer os.Remove(tempFilePath)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to pull file from path `%s` to a temporary directory", filePath))
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
+	c.Header("Access-Control-Expose-Headers", "Content-Disposition")
+	c.File(tempFilePath)
 }
