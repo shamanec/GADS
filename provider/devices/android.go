@@ -62,7 +62,7 @@ func (d *AndroidDevice) Setup() error {
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
 
-	d.detectHardwareModel()
+	d.getHardwareModel()
 
 	if err := d.updateScreenSizeIfNeeded(); err != nil {
 		return d.resetWithError("update screen dimensions with adb", err)
@@ -76,9 +76,14 @@ func (d *AndroidDevice) Setup() error {
 	if err := d.cleanupOldApps(); err != nil {
 		return err // already reset inside cleanupOldApps
 	}
-	if err := d.installAndPushGadsSettings(); err != nil {
-		return d.resetWithError("install/push GADS Settings on Android device", err)
+	if err := d.installGadsSettingsApp(); err != nil {
+		return d.resetWithError("could not install GADS Settings", err)
 	}
+	time.Sleep(1 * time.Second)
+	if err := d.pushGadsSettingsInTmpLocal(); err != nil {
+		return fmt.Errorf("could not push GADS Settings to /tmp/local", err)
+	}
+	time.Sleep(2 * time.Second)
 	if err := d.startServicesAndStreaming(); err != nil {
 		return err // already reset inside
 	}
@@ -94,11 +99,6 @@ func (d *AndroidDevice) Setup() error {
 
 	d.SetProviderState("live")
 	return nil
-}
-
-func (d *AndroidDevice) detectHardwareModel() {
-	logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("Retrieving hardware model for device `%s`", d.GetUDID()))
-	d.getHardwareModel()
 }
 
 func (d *AndroidDevice) updateScreenSizeIfNeeded() error {
@@ -151,18 +151,7 @@ func (d *AndroidDevice) cleanupOldApps() error {
 	return nil
 }
 
-func (d *AndroidDevice) installAndPushGadsSettings() error {
-	if err := d.installGadsSettingsApp(); err != nil {
-		return fmt.Errorf("could not install GADS Settings - %w", err)
-	}
-	if err := d.pushGadsSettingsInTmpLocal(); err != nil {
-		return fmt.Errorf("could not push GADS Settings to /tmp/local - %w", err)
-	}
-	return nil
-}
-
 func (d *AndroidDevice) startServicesAndStreaming() error {
-	time.Sleep(2 * time.Second)
 	go d.startRemoteControlServer()
 	time.Sleep(2 * time.Second)
 
