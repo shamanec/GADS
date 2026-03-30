@@ -50,7 +50,7 @@ func Listener() {
 
 	Setup()
 
-	// Start updating devices each 10 seconds in a goroutine
+	// Start updating devices in a goroutine
 	go updateDevices()
 	// Start updating the local devices data to the hub in a goroutine
 	go updateProviderHub()
@@ -206,7 +206,7 @@ func initializeDevice(dbDevice *models.Device) error {
 		if !exists {
 			err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs_new", dbDevice.UDID, 30000, 30)
 			if err != nil {
-				return fmt.Errorf("failed to create capped collection for device `%s` - %s", dbDevice.UDID, err)
+				return fmt.Errorf("failed to create capped Appium logs collection for device `%s` - %s", dbDevice.UDID, err)
 			}
 		}
 
@@ -256,11 +256,9 @@ func setupDevices() {
 	dbDevices := getDBProviderDevices()
 	for _, dbDevice := range dbDevices {
 		if err := initializeDevice(dbDevice); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: %s", err))
+			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: %s", dbDevice.UDID, err))
 		}
 	}
-	// dbDevices is no longer needed after initial setup
-	dbDevices = nil
 }
 
 // newPlatformDevice creates a PlatformDevice wrapping the given *models.Device
