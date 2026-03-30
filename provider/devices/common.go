@@ -453,14 +453,6 @@ func getConnectedDevicesAndroid() []string {
 	return connectedDevices
 }
 
-// ResetLocalDevice resets a device to init state by delegating to the PlatformDevice.Reset().
-// Kept for backward compatibility with code that only has a *models.Device reference.
-func ResetLocalDevice(device *models.Device, reason string) {
-	if platDev, ok := DevManager.Get(device.UDID); ok {
-		platDev.Reset(reason)
-	}
-}
-
 // setContext creates a new context for a device and stores it on the PlatformDevice's RuntimeState.
 func setContext(platDev PlatformDevice) {
 	ctx, cancelFunc := context.WithCancel(context.Background())

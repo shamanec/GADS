@@ -305,36 +305,3 @@ func (d *WebOSDevice) KillApp(appID string) error {
 	return d.CloseApp(appID)
 }
 
-// --- Legacy exported functions used by the provider router ---
-
-func GetInstalledAppsWebOS(device *models.Device) []WebOSApp {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return []WebOSApp{}
-	}
-	webosDev, ok := dev.(*WebOSDevice)
-	if !ok {
-		return []WebOSApp{}
-	}
-	return webosDev.getInstalledAppsWebOS()
-}
-
-func LaunchAppWebOS(device *models.Device, appID string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	return dev.LaunchApp(appID)
-}
-
-func CloseAppWebOS(device *models.Device, appID string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	webosDev, ok := dev.(*WebOSDevice)
-	if !ok {
-		return fmt.Errorf("device is not WebOS")
-	}
-	return webosDev.CloseApp(appID)
-}

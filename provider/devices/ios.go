@@ -315,11 +315,8 @@ func (d *IOSDevice) goIosForward(hostPort string, devicePort string) {
 		return
 	}
 
-	select {
-	case <-d.Context.Done():
-		cl.Close()
-		return
-	}
+	<-d.Context.Done()
+	cl.Close()
 }
 
 // UpdateStreamSettingsOnDevice updates WebDriverAgent stream settings.
@@ -799,53 +796,3 @@ func (d *IOSDevice) ApplyStreamSettings() error {
 	return applyDeviceStreamSettings(d.DBDevice)
 }
 
-// --- Legacy exported functions used by the provider router ---
-
-func GetInstalledAppsIOS(device *models.Device) []models.DeviceApp {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return []models.DeviceApp{}
-	}
-	iosDev, ok := dev.(*IOSDevice)
-	if !ok {
-		return []models.DeviceApp{}
-	}
-	apps, _ := iosDev.GetInstalledApps()
-	return apps
-}
-
-func GetRunningAppsIOS(device *models.Device) ([]models.RunningApp, error) {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return nil, fmt.Errorf("device not found")
-	}
-	iosDev, ok := dev.(*IOSDevice)
-	if !ok {
-		return nil, fmt.Errorf("device is not iOS")
-	}
-	return iosDev.GetRunningApps()
-}
-
-func KillAppIOS(device *models.Device, bundleIdentifier string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	iosDev, ok := dev.(*IOSDevice)
-	if !ok {
-		return fmt.Errorf("device is not iOS")
-	}
-	return iosDev.KillApp(bundleIdentifier)
-}
-
-func UpdateWebDriverAgentStreamSettings(device *models.Device) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	iosDev, ok := dev.(*IOSDevice)
-	if !ok {
-		return fmt.Errorf("device is not iOS")
-	}
-	return iosDev.UpdateStreamSettingsOnDevice()
-}

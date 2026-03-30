@@ -26,7 +26,7 @@ import (
 // Each concrete device type (AndroidDevice, IOSDevice, etc.) embeds this struct
 // to inherit common state and accessor methods.
 type RuntimeState struct {
-	// DB model - pointer to the *models.Device entry (shared with DBDeviceMap for backward compat)
+	// DB model - pointer to the *models.Device entry for hub-visible fields
 	DBDevice *models.Device
 
 	// Infrastructure

@@ -443,36 +443,3 @@ func (d *TizenDevice) KillApp(appID string) error {
 	return d.CloseApp(appID)
 }
 
-// --- Legacy exported functions used by the provider router ---
-
-func GetInstalledAppsTizen(device *models.Device) []TizenApp {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return []TizenApp{}
-	}
-	tizenDev, ok := dev.(*TizenDevice)
-	if !ok {
-		return []TizenApp{}
-	}
-	return tizenDev.getInstalledAppsTizen()
-}
-
-func LaunchAppTizen(device *models.Device, appID string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	return dev.LaunchApp(appID)
-}
-
-func CloseAppTizen(device *models.Device, appID string) error {
-	dev, ok := DevManager.Get(device.UDID)
-	if !ok {
-		return fmt.Errorf("device not found")
-	}
-	tizenDev, ok := dev.(*TizenDevice)
-	if !ok {
-		return fmt.Errorf("device is not Tizen")
-	}
-	return tizenDev.CloseApp(appID)
-}
