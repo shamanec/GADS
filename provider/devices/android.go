@@ -77,11 +77,11 @@ func (d *AndroidDevice) Setup() error {
 		return err // already reset inside cleanupOldApps
 	}
 	if err := d.installGadsSettingsApp(); err != nil {
-		return d.resetWithError("could not install GADS Settings", err)
+		return d.resetWithError("install GADS Settings", err)
 	}
 	time.Sleep(1 * time.Second)
 	if err := d.pushGadsSettingsInTmpLocal(); err != nil {
-		return fmt.Errorf("could not push GADS Settings to /tmp/local", err)
+		return fmt.Errorf("push GADS Settings to /tmp/local", err)
 	}
 	time.Sleep(2 * time.Second)
 	if err := d.startServicesAndStreaming(); err != nil {

@@ -45,14 +45,8 @@ func DeviceHealth(c *gin.Context) {
 		api.NotFound(c, fmt.Sprintf("Device with UDID %s not found", udid))
 		return
 	}
-	healthy, err := devices.GetDeviceHealth(platDev)
-	if err != nil {
-		platDev.GetLogger().LogInfo("device", fmt.Sprintf("Could not check device health - %s", err))
-		api.InternalError(c, err.Error())
-		return
-	}
 
-	if healthy {
+	if platDev.IsConnected() {
 		platDev.GetLogger().LogInfo("device", "Device is healthy")
 		api.OKMessage(c, "Device is healthy")
 		return

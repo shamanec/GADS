@@ -62,42 +62,44 @@ type RuntimeState struct {
 
 // Common accessor implementations inherited by all platform types via embedding.
 
-func (r *RuntimeState) GetUDID() string                { return r.DBDevice.UDID }
-func (r *RuntimeState) GetOS() string                  { return r.DBDevice.OS }
-func (r *RuntimeState) GetDBDevice() *models.DBDevice    { return &r.DBDevice }
-func (r *RuntimeState) GetProviderState() string       { return r.ProviderState }
-func (r *RuntimeState) SetProviderState(state string)  { r.ProviderState = state }
-func (r *RuntimeState) IsConnected() bool              { return r.Connected }
-func (r *RuntimeState) SetConnected(connected bool)    { r.Connected = connected }
-func (r *RuntimeState) GetHost() string                { return r.Host }
-func (r *RuntimeState) SetHost(host string)            { r.Host = host }
-func (r *RuntimeState) GetLogger() models.CustomLogger { return r.Logger }
-func (r *RuntimeState) GetContext() context.Context     { return r.Context }
-func (r *RuntimeState) GetAppiumPort() string      { return r.AppiumPort }
-func (r *RuntimeState) SetAppiumPort(port string)   { r.AppiumPort = port }
-func (r *RuntimeState) GetStreamPort() string        { return "" } // overridden by Android/iOS
-func (r *RuntimeState) GetAppiumSessionID() string   { return r.AppiumSessionID }
-func (r *RuntimeState) SetAppiumSessionID(id string) { r.AppiumSessionID = id }
-func (r *RuntimeState) SetAppiumUp(up bool)          { r.IsAppiumUp = up }
-func (r *RuntimeState) SetAppiumLastPingTS(ts int64) { r.AppiumLastPingTS = ts }
-func (r *RuntimeState) SetHasAppiumSession(has bool) { r.HasAppiumSession = has }
-func (r *RuntimeState) GetIsResetting() bool         { return r.IsResetting }
-func (r *RuntimeState) SetIsResetting(v bool)        { r.IsResetting = v }
-func (r *RuntimeState) GetIsAppiumUp() bool          { return r.IsAppiumUp }
-func (r *RuntimeState) GetHardwareModelValue() string       { return r.HardwareModel }
-func (r *RuntimeState) SetHardwareModel(model string)       { r.HardwareModel = model }
-func (r *RuntimeState) GetStreamTargetFPS() int             { return r.StreamTargetFPS }
-func (r *RuntimeState) SetStreamTargetFPS(fps int)          { r.StreamTargetFPS = fps }
-func (r *RuntimeState) GetStreamJpegQuality() int           { return r.StreamJpegQuality }
-func (r *RuntimeState) SetStreamJpegQuality(q int)          { r.StreamJpegQuality = q }
-func (r *RuntimeState) GetStreamScalingFactor() int         { return r.StreamScalingFactor }
-func (r *RuntimeState) SetStreamScalingFactor(f int)        { r.StreamScalingFactor = f }
-func (r *RuntimeState) GetCurrentRotationValue() string     { return r.CurrentRotation }
-func (r *RuntimeState) SetCurrentRotation(rotation string)  { r.CurrentRotation = rotation }
+func (r *RuntimeState) GetUDID() string                              { return r.DBDevice.UDID }
+func (r *RuntimeState) GetOS() string                                { return r.DBDevice.OS }
+func (r *RuntimeState) GetDBDevice() *models.DBDevice                { return &r.DBDevice }
+func (r *RuntimeState) GetProviderState() string                     { return r.ProviderState }
+func (r *RuntimeState) SetProviderState(state string)                { r.ProviderState = state }
+func (r *RuntimeState) IsConnected() bool                            { return r.Connected }
+func (r *RuntimeState) SetConnected(connected bool)                  { r.Connected = connected }
+func (r *RuntimeState) GetHost() string                              { return r.Host }
+func (r *RuntimeState) SetHost(host string)                          { r.Host = host }
+func (r *RuntimeState) GetLogger() models.CustomLogger               { return r.Logger }
+func (r *RuntimeState) GetContext() context.Context                  { return r.Context }
+func (r *RuntimeState) GetAppiumPort() string                        { return r.AppiumPort }
+func (r *RuntimeState) SetAppiumPort(port string)                    { r.AppiumPort = port }
+func (r *RuntimeState) GetStreamPort() string                        { return "" } // overridden by Android/iOS
+func (r *RuntimeState) GetAppiumSessionID() string                   { return r.AppiumSessionID }
+func (r *RuntimeState) SetAppiumSessionID(id string)                 { r.AppiumSessionID = id }
+func (r *RuntimeState) SetAppiumUp(up bool)                          { r.IsAppiumUp = up }
+func (r *RuntimeState) SetAppiumLastPingTS(ts int64)                 { r.AppiumLastPingTS = ts }
+func (r *RuntimeState) SetHasAppiumSession(has bool)                 { r.HasAppiumSession = has }
+func (r *RuntimeState) GetIsResetting() bool                         { return r.IsResetting }
+func (r *RuntimeState) SetIsResetting(v bool)                        { r.IsResetting = v }
+func (r *RuntimeState) GetIsAppiumUp() bool                          { return r.IsAppiumUp }
+func (r *RuntimeState) GetHardwareModelValue() string                { return r.HardwareModel }
+func (r *RuntimeState) SetHardwareModel(model string)                { r.HardwareModel = model }
+func (r *RuntimeState) GetStreamTargetFPS() int                      { return r.StreamTargetFPS }
+func (r *RuntimeState) SetStreamTargetFPS(fps int)                   { r.StreamTargetFPS = fps }
+func (r *RuntimeState) GetStreamJpegQuality() int                    { return r.StreamJpegQuality }
+func (r *RuntimeState) SetStreamJpegQuality(q int)                   { r.StreamJpegQuality = q }
+func (r *RuntimeState) GetStreamScalingFactor() int                  { return r.StreamScalingFactor }
+func (r *RuntimeState) SetStreamScalingFactor(f int)                 { r.StreamScalingFactor = f }
+func (r *RuntimeState) GetCurrentRotationValue() string              { return r.CurrentRotation }
+func (r *RuntimeState) SetCurrentRotation(rotation string)           { r.CurrentRotation = rotation }
 func (r *RuntimeState) GetSupportedStreamTypes() []models.StreamType { return r.SupportedStreamTypes }
-func (r *RuntimeState) SetSupportedStreamTypes(types []models.StreamType) { r.SupportedStreamTypes = types }
-func (r *RuntimeState) GetInstalledAppIDs() []string        { return r.InstalledApps }
-func (r *RuntimeState) SetInstalledAppIDs(apps []string)    { r.InstalledApps = apps }
+func (r *RuntimeState) SetSupportedStreamTypes(types []models.StreamType) {
+	r.SupportedStreamTypes = types
+}
+func (r *RuntimeState) GetInstalledAppIDs() []string     { return r.InstalledApps }
+func (r *RuntimeState) SetInstalledAppIDs(apps []string) { r.InstalledApps = apps }
 func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelFunc) {
 	r.Context = ctx
 	r.CtxCancel = cancel
