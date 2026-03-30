@@ -10,7 +10,6 @@
 package devices
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -18,13 +17,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
 
 	"GADS/common"
 	"GADS/common/constants"
@@ -56,127 +52,127 @@ func Listener() {
 	go updateProviderHub()
 }
 
+// syncDevicesToDB polls the DB for device config changes and reconciles DevManager:
+// updates DB fields on existing devices, removes deleted devices, adds new ones.
+func syncDevicesToDB() {
+	updatedDevices := getDBProviderDevices()
+
+	var devicesToRemove []string
+	var devicesToReset []string
+
+	allDevs := DevManager.All()
+	for _, platDev := range allDevs {
+		udid := platDev.GetUDID()
+		dbDevice := platDev.GetDBDevice()
+		updatedDevice, ok := updatedDevices[udid]
+		if !ok {
+			devicesToRemove = append(devicesToRemove, udid)
+			continue
+		}
+
+		// Update configuration fields from DB
+		if dbDevice.ScreenWidth != updatedDevice.ScreenWidth {
+			dbDevice.ScreenWidth = updatedDevice.ScreenWidth
+		}
+		if dbDevice.ScreenHeight != updatedDevice.ScreenHeight {
+			dbDevice.ScreenHeight = updatedDevice.ScreenHeight
+		}
+		if dbDevice.Name != updatedDevice.Name {
+			dbDevice.Name = updatedDevice.Name
+		}
+		if dbDevice.OSVersion != updatedDevice.OSVersion {
+			dbDevice.OSVersion = updatedDevice.OSVersion
+		}
+		if dbDevice.Usage != updatedDevice.Usage {
+			dbDevice.Usage = updatedDevice.Usage
+		}
+		if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
+			dbDevice.WorkspaceID = updatedDevice.WorkspaceID
+		}
+		if dbDevice.StreamType != updatedDevice.StreamType {
+			dbDevice.StreamType = updatedDevice.StreamType
+			devicesToReset = append(devicesToReset, udid)
+		}
+
+		// If the provider does not set up Appium servers, force usage to `control`
+		if !config.ProviderConfig.SetupAppiumServers {
+			if dbDevice.Usage != "disabled" {
+				dbDevice.Usage = "control"
+			}
+		}
+	}
+
+	// Process resets and removals
+	for _, udid := range devicesToReset {
+		if platDev, ok := DevManager.Get(udid); ok {
+			platDev.Reset("Stream configuration changed, reprovisioning device")
+		}
+	}
+	for _, udid := range devicesToRemove {
+		if platDev, ok := DevManager.Get(udid); ok {
+			platDev.Reset("Device removed from DB")
+			DevManager.Delete(udid)
+		}
+	}
+
+	// Add new devices from DB
+	for udid, updatedDevice := range updatedDevices {
+		if _, exists := DevManager.Get(udid); !exists {
+			logger.ProviderLogger.LogInfo("device_sync", fmt.Sprintf("New device `%s` detected in DB, adding to provider", udid))
+			if err := initializeDevice(updatedDevice); err != nil {
+				logger.ProviderLogger.LogError("device_sync", fmt.Sprintf("Failed to initialize new device `%s` - %s", udid, err))
+			}
+		}
+	}
+}
+
+// updateProviderHub sends the current device state to the hub every second.
 func updateProviderHub() {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	var updateFailureCounter = 1
+	var failureCounter = 1
 
 	for {
-		if updateFailureCounter >= 30 {
+		if failureCounter >= 30 {
 			log.Fatalf("Unsuccessfully attempted to update device data in hub 30 times, killing provider")
 		}
 		time.Sleep(1 * time.Second)
 
-		updatedDevices := getDBProviderDevices()
+		var syncPayload models.ProviderData
+		syncPayload.ProviderData = *config.ProviderConfig
 
-		// Track devices to remove or reset
-		var devicesToRemove []string
-		var devicesToReset []string
-
-		var properJson models.ProviderData
-		properJson.ProviderData = *config.ProviderConfig
-
-		// Iterate current devices in DevManager
 		allDevs := DevManager.All()
 		for _, platDev := range allDevs {
-			udid := platDev.GetUDID()
-			dbDevice := platDev.GetDBDevice()
-			// Check if device still exists in DB
-			if updatedDevice, ok := updatedDevices[udid]; ok {
-				// Update configuration fields from DB
-				if dbDevice.ScreenWidth != updatedDevice.ScreenWidth {
-					dbDevice.ScreenWidth = updatedDevice.ScreenWidth
-				}
-				if dbDevice.ScreenHeight != updatedDevice.ScreenHeight {
-					dbDevice.ScreenHeight = updatedDevice.ScreenHeight
-				}
-				if dbDevice.Name != updatedDevice.Name {
-					dbDevice.Name = updatedDevice.Name
-				}
-				if dbDevice.OSVersion != updatedDevice.OSVersion {
-					dbDevice.OSVersion = updatedDevice.OSVersion
-				}
-				if dbDevice.Usage != updatedDevice.Usage {
-					dbDevice.Usage = updatedDevice.Usage
-				}
-				if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
-					dbDevice.WorkspaceID = updatedDevice.WorkspaceID
-				}
-				if dbDevice.StreamType != updatedDevice.StreamType {
-					dbDevice.StreamType = updatedDevice.StreamType
-					devicesToReset = append(devicesToReset, udid)
-				}
-
-				// If the provider does not set up Appium servers
-				// Always return device usage as `control`
-				if !config.ProviderConfig.SetupAppiumServers {
-					if dbDevice.Usage != "disabled" {
-						dbDevice.Usage = "control"
-					}
-				}
-
-				properJson.DeviceData = append(properJson.DeviceData, platDev.ToSyncUpdate())
-			} else {
-				// Device no longer exists in DB, mark for removal
-				devicesToRemove = append(devicesToRemove, udid)
-			}
+			syncPayload.DeviceData = append(syncPayload.DeviceData, platDev.ToSyncUpdate())
 		}
 
-		// Process resets and removals
-		for _, udid := range devicesToReset {
-			if platDev, ok := DevManager.Get(udid); ok {
-				platDev.Reset("WebRTC configuration changed, reprovisioning device")
-			}
-		}
-		for _, udid := range devicesToRemove {
-			if platDev, ok := DevManager.Get(udid); ok {
-				platDev.Reset("Device removed from DB")
-				DevManager.Delete(udid)
-			}
-		}
-
-		// Add new devices from DB
-		for udid, updatedDevice := range updatedDevices {
-			if _, exists := DevManager.Get(udid); !exists {
-				logger.ProviderLogger.LogInfo("update_provider_hub", fmt.Sprintf("New device `%s` detected in DB, adding to provider", udid))
-				if err := initializeDevice(updatedDevice); err != nil {
-					logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Failed to initialize new device `%s` - %s", udid, err))
-					continue
-				}
-				if platDev, ok := DevManager.Get(udid); ok {
-					properJson.DeviceData = append(properJson.DeviceData, platDev.ToSyncUpdate())
-				}
-			}
-		}
-
-		jsonData, err := json.Marshal(properJson)
+		jsonData, err := json.Marshal(syncPayload)
 		if err != nil {
-			updateFailureCounter++
-			logger.ProviderLogger.LogError("update_provider_hub", "Failed marshaling provider data to json - "+err.Error())
+			failureCounter++
+			logger.ProviderLogger.LogError("hub_sync", "Failed marshaling provider data to json - "+err.Error())
 			continue
 		}
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
 		if err != nil {
-			updateFailureCounter++
-			logger.ProviderLogger.LogError("update_provider_hub", "Failed to create request to update provider data in hub - "+err.Error())
+			failureCounter++
+			logger.ProviderLogger.LogError("hub_sync", "Failed to create request to update provider data in hub - "+err.Error())
 			continue
 		}
 
 		resp, err := client.Do(req)
 		if err != nil {
-			updateFailureCounter++
-			logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", updateFailureCounter, err))
+			failureCounter++
+			logger.ProviderLogger.LogError("hub_sync", fmt.Sprintf("Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", failureCounter, err))
 			continue
 		}
 
 		if resp.StatusCode != 200 {
-			updateFailureCounter++
-			logger.ProviderLogger.LogError("update_provider_hub", fmt.Sprintf("Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", updateFailureCounter, err))
+			failureCounter++
+			logger.ProviderLogger.LogError("hub_sync", fmt.Sprintf("Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", failureCounter, err))
 			continue
 		}
-		// Reset the counter if update went well
-		updateFailureCounter = 1
+		failureCounter = 1
 	}
 }
 
@@ -267,28 +263,28 @@ func newPlatformDevice(dbDevice *models.Device, deviceLogger models.CustomLogger
 	switch dbDevice.OS {
 	case "ios":
 		d := &IOSDevice{WdaReadyChan: make(chan bool, 1)}
-		d.DBDevice = dbDevice
+		d.DBDevice = *dbDevice
 		d.Logger = deviceLogger
 		d.SemVer = sv
 		d.InitialSetupDone = true
 		return d
 	case "android":
 		d := &AndroidDevice{}
-		d.DBDevice = dbDevice
+		d.DBDevice = *dbDevice
 		d.Logger = deviceLogger
 		d.SemVer = sv
 		d.InitialSetupDone = true
 		return d
 	case "tizen":
 		d := &TizenDevice{}
-		d.DBDevice = dbDevice
+		d.DBDevice = *dbDevice
 		d.Logger = deviceLogger
 		d.SemVer = sv
 		d.InitialSetupDone = true
 		return d
 	case "webos":
 		d := &WebOSDevice{}
-		d.DBDevice = dbDevice
+		d.DBDevice = *dbDevice
 		d.Logger = deviceLogger
 		d.SemVer = sv
 		d.InitialSetupDone = true
@@ -299,7 +295,7 @@ func newPlatformDevice(dbDevice *models.Device, deviceLogger models.CustomLogger
 }
 
 func updateDevices() {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
 	var tizenTicker *time.Ticker
@@ -314,6 +310,7 @@ func updateDevices() {
 	for {
 		select {
 		case <-ticker.C:
+			syncDevicesToDB()
 			connectedDevices := GetConnectedDevicesCommon()
 
 			// Create a snapshot of devices to iterate over
@@ -395,58 +392,6 @@ func GetConnectedDevicesCommon() []string {
 	return connectedDevices
 }
 
-// Gets the connected iOS devices using the `go-ios` library
-func getConnectedDevicesIOS() []string {
-	var connectedDevices []string
-
-	deviceList, err := ios.ListDevices()
-	if err != nil {
-		return connectedDevices
-	}
-
-	for _, connDevice := range deviceList.DeviceList {
-		connectedDevices = append(connectedDevices, connDevice.Properties.SerialNumber)
-	}
-	return connectedDevices
-}
-
-// Gets the connected android devices using `adb`
-func getConnectedDevicesAndroid() []string {
-	var connectedDevices []string
-
-	cmd := exec.Command("adb", "devices")
-	// Create a pipe to capture the command's output
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Creating exec cmd StdoutPipe failed, returning empty slice - %s", err))
-		return connectedDevices
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Error executing `%s` , returning empty slice - %s", cmd.Args, err))
-		return connectedDevices
-	}
-
-	// Create a scanner to read the command's output line by line
-	scanner := bufio.NewScanner(stdout)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") {
-			connectedDevices = append(connectedDevices, strings.Fields(line)[0])
-		}
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Waiting for `%s` command to finish failed, returning empty slice - %s", cmd.Args, err))
-		return []string{}
-	}
-
-	return connectedDevices
-}
-
 // setContext creates a new context for a device and stores it on the PlatformDevice's RuntimeState.
 func setContext(platDev PlatformDevice) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -494,29 +439,4 @@ func applyDeviceStreamSettings(platDev PlatformDevice) error {
 	}
 
 	return nil
-}
-
-func getConnectedDevicesTizen() []string {
-	var devices []string
-	cmd := exec.Command("sdb", "devices")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to get connected Tizen devices - %s", err))
-		return devices
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "List of devices attached") || strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 3 && fields[1] == "device" {
-			deviceID := fields[0]
-			devices = append(devices, deviceID)
-		}
-	}
-
-	return devices
 }

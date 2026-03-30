@@ -608,7 +608,7 @@ func (d *IOSDevice) updateScreenSize(deviceMachineCode string) error {
 		return fmt.Errorf("could not find `%s` device machine code in the IOSDeviceInfoMap map", deviceMachineCode)
 	}
 
-	if err := db.GlobalMongoStore.AddOrUpdateDevice(d.DBDevice); err != nil {
+	if err := db.GlobalMongoStore.AddOrUpdateDevice(&d.DBDevice); err != nil {
 		return fmt.Errorf("failed to update DB with new device dimensions - %s", err)
 	}
 	return nil
@@ -796,3 +796,17 @@ func (d *IOSDevice) ApplyStreamSettings() error {
 	return applyDeviceStreamSettings(d)
 }
 
+// Gets the connected iOS devices using the `go-ios` library
+func getConnectedDevicesIOS() []string {
+	var connectedDevices []string
+
+	deviceList, err := ios.ListDevices()
+	if err != nil {
+		return connectedDevices
+	}
+
+	for _, connDevice := range deviceList.DeviceList {
+		connectedDevices = append(connectedDevices, connDevice.Properties.SerialNumber)
+	}
+	return connectedDevices
+}

@@ -443,3 +443,27 @@ func (d *TizenDevice) KillApp(appID string) error {
 	return d.CloseApp(appID)
 }
 
+func getConnectedDevicesTizen() []string {
+	var devices []string
+	cmd := exec.Command("sdb", "devices")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to get connected Tizen devices - %s", err))
+		return devices
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "List of devices attached") || strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[1] == "device" {
+			deviceID := fields[0]
+			devices = append(devices, deviceID)
+		}
+	}
+
+	return devices
+}

@@ -17,6 +17,7 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -459,7 +460,7 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 		d.DBDevice.ScreenHeight = strings.TrimSpace(screenDimensions[1])
 	}
 
-	if err := db.GlobalMongoStore.AddOrUpdateDevice(d.DBDevice); err != nil {
+	if err := db.GlobalMongoStore.AddOrUpdateDevice(&d.DBDevice); err != nil {
 		return fmt.Errorf("Failed to upsert new device screen dimensions to DB - %s", err)
 	}
 	return nil
@@ -715,4 +716,39 @@ func PullAndroidSharedStorageFile(device *models.Device, filePath string, fileNa
 	return tempFilePath, err
 }
 
+// Gets the connected android devices using `adb`
+func getConnectedDevicesAndroid() []string {
+	var connectedDevices []string
 
+	cmd := exec.Command("adb", "devices")
+	// Create a pipe to capture the command's output
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Creating exec cmd StdoutPipe failed, returning empty slice - %s", err))
+		return connectedDevices
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Error executing `%s` , returning empty slice - %s", cmd.Args, err))
+		return connectedDevices
+	}
+
+	// Create a scanner to read the command's output line by line
+	scanner := bufio.NewScanner(stdout)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") {
+			connectedDevices = append(connectedDevices, strings.Fields(line)[0])
+		}
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		logger.ProviderLogger.LogDebug("provider", fmt.Sprintf("getConnectedDevicesAndroid: Waiting for `%s` command to finish failed, returning empty slice - %s", cmd.Args, err))
+		return []string{}
+	}
+
+	return connectedDevices
+}

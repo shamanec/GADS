@@ -26,8 +26,8 @@ import (
 // Each concrete device type (AndroidDevice, IOSDevice, etc.) embeds this struct
 // to inherit common state and accessor methods.
 type RuntimeState struct {
-	// DB model - pointer to the *models.Device entry for hub-visible fields
-	DBDevice *models.Device
+	// DB model — the MongoDB device record, owned by this RuntimeState
+	DBDevice models.Device
 
 	// Infrastructure
 	Context          context.Context
@@ -64,7 +64,7 @@ type RuntimeState struct {
 
 func (r *RuntimeState) GetUDID() string                { return r.DBDevice.UDID }
 func (r *RuntimeState) GetOS() string                  { return r.DBDevice.OS }
-func (r *RuntimeState) GetDBDevice() *models.Device    { return r.DBDevice }
+func (r *RuntimeState) GetDBDevice() *models.Device    { return &r.DBDevice }
 func (r *RuntimeState) GetProviderState() string       { return r.ProviderState }
 func (r *RuntimeState) SetProviderState(state string)  { r.ProviderState = state }
 func (r *RuntimeState) IsConnected() bool              { return r.Connected }
