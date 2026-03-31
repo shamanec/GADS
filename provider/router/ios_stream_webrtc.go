@@ -279,9 +279,9 @@ func NewFFmpegH264Encoder(device *models.DBDevice, streamTargetFPS int, jpegInpu
 		device:          device,
 		streamTargetFPS: streamTargetFPS,
 		jpegInput:       jpegInput,
-		h264Output: make(chan []byte, 10), // Smaller buffer for lower latency
-		ctx:        ctx,
-		cancel:     cancel,
+		h264Output:      make(chan []byte, 10), // Smaller buffer for lower latency
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 
 	// Create FFmpeg command for JPEG to H.264 encoding with minimal latency
@@ -782,8 +782,8 @@ type WebRTCSignalingMessage struct {
 func IOSWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	platDev, ok := devices.DevManager.Get(udid)
-	if !ok {
+	platDev, deviceFound := devices.DevManager.Get(udid)
+	if !deviceFound {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
@@ -798,13 +798,14 @@ func IOSWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	iosDev, ok2 := platDev.(*devices.IOSDevice)
-	if !ok2 {
+	iosDev, isIosDevice := platDev.(*devices.IOSDevice)
+	if !isIosDevice {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device `%s` is not an iOS device", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	session, err := NewWebRTCSession(platDev.GetDBDevice(), iosDev.GetWDAStreamPort(), platDev.GetStreamTargetFPS())
+	rcDev := platDev.(devices.RemoteControllable)
+	session, err := NewWebRTCSession(rcDev.GetDBDevice(), iosDev.GetWDAStreamPort(), rcDev.GetStreamTargetFPS())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

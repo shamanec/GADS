@@ -398,44 +398,44 @@ func setContext(platDev PlatformDevice) {
 	platDev.SetNewContext(ctx, cancelFunc)
 }
 
-func updateDeviceWithGlobalSettings(platDev PlatformDevice) error {
+func updateDeviceWithGlobalSettings(rcDev RemoteControllable) error {
 	globalSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
 		return fmt.Errorf("failed to get global stream settings: %v", err)
 	}
 
-	platDev.SetStreamTargetFPS(globalSettings.TargetFPS)
-	platDev.SetStreamJpegQuality(globalSettings.JpegQuality)
+	rcDev.SetStreamTargetFPS(globalSettings.TargetFPS)
+	rcDev.SetStreamJpegQuality(globalSettings.JpegQuality)
 
 	// Check the device OS before assigning the scaling factor
-	if platDev.GetOS() == "android" {
-		platDev.SetStreamScalingFactor(globalSettings.ScalingFactorAndroid)
-	} else if platDev.GetOS() == "ios" {
-		platDev.SetStreamScalingFactor(globalSettings.ScalingFactoriOS)
+	if rcDev.GetOS() == "android" {
+		rcDev.SetStreamScalingFactor(globalSettings.ScalingFactorAndroid)
+	} else if rcDev.GetOS() == "ios" {
+		rcDev.SetStreamScalingFactor(globalSettings.ScalingFactoriOS)
 	}
 
 	return nil
 }
 
-func applyDeviceStreamSettings(platDev PlatformDevice) error {
+func applyDeviceStreamSettings(rcDev RemoteControllable) error {
 	common.MutexManager.StreamSettings.Lock()
 	defer common.MutexManager.StreamSettings.Unlock()
 	// Get the DeviceStreamSettings for the current device
-	udid := platDev.GetUDID()
+	udid := rcDev.GetUDID()
 	deviceStreamSettings, err := db.GlobalMongoStore.GetDeviceStreamSettings(udid)
 
 	if err != nil {
 		// If there's an error (including not found), update the device with global settings
-		err = updateDeviceWithGlobalSettings(platDev)
+		err = updateDeviceWithGlobalSettings(rcDev)
 		if err != nil {
 			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", udid, err))
 			return err
 		}
 	} else {
 		// Apply the retrieved stream settings
-		platDev.SetStreamTargetFPS(deviceStreamSettings.StreamTargetFPS)
-		platDev.SetStreamJpegQuality(deviceStreamSettings.StreamJpegQuality)
-		platDev.SetStreamScalingFactor(deviceStreamSettings.StreamScalingFactor)
+		rcDev.SetStreamTargetFPS(deviceStreamSettings.StreamTargetFPS)
+		rcDev.SetStreamJpegQuality(deviceStreamSettings.StreamJpegQuality)
+		rcDev.SetStreamScalingFactor(deviceStreamSettings.StreamScalingFactor)
 	}
 
 	return nil

@@ -74,7 +74,6 @@ func (r *RuntimeState) GetLogger() models.CustomLogger               { return r.
 func (r *RuntimeState) GetContext() context.Context                  { return r.Context }
 func (r *RuntimeState) GetAppiumPort() string                        { return r.AppiumPort }
 func (r *RuntimeState) SetAppiumPort(port string)                    { r.AppiumPort = port }
-func (r *RuntimeState) GetStreamPort() string                        { return "" } // overridden by Android/iOS
 func (r *RuntimeState) GetAppiumSessionID() string                   { return r.AppiumSessionID }
 func (r *RuntimeState) SetAppiumSessionID(id string)                 { r.AppiumSessionID = id }
 func (r *RuntimeState) SetAppiumUp(up bool)                          { r.IsAppiumUp = up }

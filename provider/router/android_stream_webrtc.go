@@ -341,9 +341,15 @@ func (s *AndroidWebRTCSession) Close() {
 func AndroidWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	platDev, ok := devices.DevManager.Get(udid)
-	if !ok {
+	platDev, deviceFound := devices.DevManager.Get(udid)
+	if !deviceFound {
 		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
+	if !isRcDevice {
+		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Device `%s` does not support streaming", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -357,7 +363,7 @@ func AndroidWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewAndroidWebRTCSession(platDev.GetDBDevice(), platDev.GetStreamPort(), platDev.GetStreamTargetFPS())
+	session, err := NewAndroidWebRTCSession(rcDev.GetDBDevice(), rcDev.GetStreamPort(), rcDev.GetStreamTargetFPS())
 	if err != nil {
 		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

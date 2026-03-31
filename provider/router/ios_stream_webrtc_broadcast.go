@@ -315,9 +315,15 @@ func (s *IOSWebRTCSession) Close() {
 func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	platDev, ok := devices.DevManager.Get(udid)
-	if !ok {
+	platDev, deviceFound := devices.DevManager.Get(udid)
+	if !deviceFound {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
+	if !isRcDevice {
+		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device `%s` does not support streaming", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -331,7 +337,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewIOSWebRTCSession(platDev.GetDBDevice(), platDev.GetStreamPort(), platDev.GetStreamTargetFPS())
+	session, err := NewIOSWebRTCSession(rcDev.GetDBDevice(), rcDev.GetStreamPort(), rcDev.GetStreamTargetFPS())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

@@ -260,20 +260,19 @@ type DeviceInfoResponse struct {
 	Connected     bool   `json:"connected"`
 	ProviderState string `json:"provider_state"`
 	// Provider-only runtime fields
-	HardwareModel        string             `json:"hardware_model"`
-	IsResetting          bool               `json:"is_resetting"`
-	StreamTargetFPS      int                `json:"stream_target_fps,omitempty"`
-	StreamJpegQuality    int                `json:"stream_jpeg_quality,omitempty"`
-	StreamScalingFactor  int                `json:"stream_scaling_factor,omitempty"`
-	AppiumLastPingTS     int64              `json:"appium_last_ts"`
-	AppiumSessionID      string             `json:"appium_session_id"`
-	IsAppiumUp           bool               `json:"is_appium_up"`
-	HasAppiumSession     bool               `json:"has_appium_session"`
-	CurrentRotation      string             `json:"current_rotation"`
+	HardwareModel        string              `json:"hardware_model"`
+	IsResetting          bool                `json:"is_resetting"`
+	StreamTargetFPS      int                 `json:"stream_target_fps,omitempty"`
+	StreamJpegQuality    int                 `json:"stream_jpeg_quality,omitempty"`
+	StreamScalingFactor  int                 `json:"stream_scaling_factor,omitempty"`
+	AppiumLastPingTS     int64               `json:"appium_last_ts"`
+	AppiumSessionID      string              `json:"appium_session_id"`
+	IsAppiumUp           bool                `json:"is_appium_up"`
+	HasAppiumSession     bool                `json:"has_appium_session"`
+	CurrentRotation      string              `json:"current_rotation"`
 	SupportedStreamTypes []models.StreamType `json:"supported_stream_types"`
-	InstalledApps        []string           `json:"installed_apps"`
+	InstalledApps        []string            `json:"installed_apps"`
 }
-
 
 func DeviceInfo(c *gin.Context) {
 	udid := c.Param("udid")
@@ -285,19 +284,22 @@ func DeviceInfo(c *gin.Context) {
 	}
 
 	resp := DeviceInfoResponse{
-		DBDevice:             *platDev.GetDBDevice(),
-		Host:                 platDev.GetHost(),
-		Connected:            platDev.IsConnected(),
-		ProviderState:        platDev.GetProviderState(),
-		HardwareModel:        platDev.GetHardwareModelValue(),
-		IsResetting:          platDev.GetIsResetting(),
-		StreamTargetFPS:      platDev.GetStreamTargetFPS(),
-		StreamJpegQuality:    platDev.GetStreamJpegQuality(),
-		StreamScalingFactor:  platDev.GetStreamScalingFactor(),
-		AppiumSessionID:      platDev.GetAppiumSessionID(),
-		IsAppiumUp:           platDev.GetIsAppiumUp(),
-		SupportedStreamTypes: platDev.GetSupportedStreamTypes(),
-		InstalledApps:        platDev.GetInstalledAppBundleIDs(),
+		DBDevice:        *platDev.GetDBDevice(),
+		Host:            platDev.GetHost(),
+		Connected:       platDev.IsConnected(),
+		ProviderState:   platDev.GetProviderState(),
+		HardwareModel:   platDev.GetHardwareModelValue(),
+		IsResetting:     platDev.GetIsResetting(),
+		AppiumSessionID: platDev.GetAppiumSessionID(),
+		IsAppiumUp:      platDev.GetIsAppiumUp(),
+		InstalledApps:   platDev.GetInstalledAppBundleIDs(),
+	}
+
+	if rcDev, rcOk := platDev.(devices.RemoteControllable); rcOk {
+		resp.StreamTargetFPS = rcDev.GetStreamTargetFPS()
+		resp.StreamJpegQuality = rcDev.GetStreamJpegQuality()
+		resp.StreamScalingFactor = rcDev.GetStreamScalingFactor()
+		resp.SupportedStreamTypes = rcDev.GetSupportedStreamTypes()
 	}
 
 	if resp.SupportedStreamTypes == nil {
@@ -407,7 +409,6 @@ func DevicesInfo(c *gin.Context) {
 type ProcessApp struct {
 	App string `json:"app"`
 }
-
 
 func UninstallApp(c *gin.Context) {
 	udid := c.Param("udid")
@@ -574,9 +575,14 @@ func ResetDevice(c *gin.Context) {
 func UpdateDeviceStreamSettings(c *gin.Context) {
 	udid := c.Param("udid")
 
-	platDev, ok := devices.DevManager.Get(udid)
-	if !ok {
+	platDev, deviceFound := devices.DevManager.Get(udid)
+	if !deviceFound {
 		api.BadRequest(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+		return
+	}
+	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
+	if !isRcDevice {
+		api.BadRequest(c, fmt.Sprintf("Device `%s` does not support stream settings", udid))
 		return
 	}
 
@@ -596,29 +602,26 @@ func UpdateDeviceStreamSettings(c *gin.Context) {
 	common.MutexManager.StreamSettings.Lock()
 	defer common.MutexManager.StreamSettings.Unlock()
 
-	if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != platDev.GetStreamTargetFPS() {
-		platDev.SetStreamTargetFPS(streamSettings.TargetFPS)
+	if streamSettings.TargetFPS != 0 && streamSettings.TargetFPS != rcDev.GetStreamTargetFPS() {
+		rcDev.SetStreamTargetFPS(streamSettings.TargetFPS)
 	}
-	if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != platDev.GetStreamJpegQuality() {
-		platDev.SetStreamJpegQuality(streamSettings.JpegQuality)
+	if streamSettings.JpegQuality != 0 && streamSettings.JpegQuality != rcDev.GetStreamJpegQuality() {
+		rcDev.SetStreamJpegQuality(streamSettings.JpegQuality)
 	}
-	if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != platDev.GetStreamScalingFactor() {
-		platDev.SetStreamScalingFactor(streamSettings.ScalingFactor)
+	if streamSettings.ScalingFactor != 0 && streamSettings.ScalingFactor != rcDev.GetStreamScalingFactor() {
+		rcDev.SetStreamScalingFactor(streamSettings.ScalingFactor)
 	}
 
-	rc, rcOk := platDev.(devices.RemoteControllable)
-	if rcOk {
-		if err = rc.UpdateStreamSettingsOnDevice(); err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to update stream settings - %s", err))
-			return
-		}
+	if err = rcDev.UpdateStreamSettingsOnDevice(); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to update stream settings - %s", err))
+		return
 	}
 
 	deviceStreamSettings := models.DeviceStreamSettings{
 		UDID:                udid,
-		StreamTargetFPS:     platDev.GetStreamTargetFPS(),
-		StreamJpegQuality:   platDev.GetStreamJpegQuality(),
-		StreamScalingFactor: platDev.GetStreamScalingFactor(),
+		StreamTargetFPS:     rcDev.GetStreamTargetFPS(),
+		StreamJpegQuality:   rcDev.GetStreamJpegQuality(),
+		StreamScalingFactor: rcDev.GetStreamScalingFactor(),
 	}
 
 	err = db.GlobalMongoStore.UpdateDeviceStreamSettings(udid, deviceStreamSettings)

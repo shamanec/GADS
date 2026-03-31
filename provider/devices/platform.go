@@ -55,9 +55,6 @@ type PlatformDevice interface {
 	SetAppiumPort(port string)
 	SetNewContext(ctx context.Context, cancel context.CancelFunc)
 
-	// Port accessor — platform types return their stream port; TV types return ""
-	GetStreamPort() string
-
 	// Appium state accessors
 	GetAppiumSessionID() string
 	SetAppiumSessionID(id string)
@@ -71,16 +68,6 @@ type PlatformDevice interface {
 	SetIsResetting(v bool)
 	GetHardwareModelValue() string
 	SetHardwareModel(model string)
-	GetStreamTargetFPS() int
-	SetStreamTargetFPS(fps int)
-	GetStreamJpegQuality() int
-	SetStreamJpegQuality(q int)
-	GetStreamScalingFactor() int
-	SetStreamScalingFactor(f int)
-	GetCurrentRotationValue() string
-	SetCurrentRotation(rotation string)
-	GetSupportedStreamTypes() []models.StreamType
-	SetSupportedStreamTypes(types []models.StreamType)
 	GetInstalledAppIDs() []string
 	SetInstalledAppIDs(apps []string)
 }
@@ -91,6 +78,9 @@ type PlatformDevice interface {
 type RemoteControllable interface {
 	PlatformDevice
 
+	// Only remote-controllable devices have stream ports
+	GetStreamPort() string
+
 	// Device info
 	GetScreenSize() (width, height string, err error)
 	GetHardwareModel() (string, error)
@@ -98,8 +88,18 @@ type RemoteControllable interface {
 	// Rotation
 	GetCurrentRotation() (string, error)
 	ChangeRotation(rotation string) error
+	GetCurrentRotationValue() string
+	SetCurrentRotation(rotation string)
 
 	// Stream settings
 	ApplyStreamSettings() error
 	UpdateStreamSettingsOnDevice() error
+	GetStreamTargetFPS() int
+	SetStreamTargetFPS(fps int)
+	GetStreamJpegQuality() int
+	SetStreamJpegQuality(q int)
+	GetStreamScalingFactor() int
+	SetStreamScalingFactor(f int)
+	GetSupportedStreamTypes() []models.StreamType
+	SetSupportedStreamTypes(types []models.StreamType)
 }
