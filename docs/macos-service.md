@@ -25,11 +25,11 @@ Paste the following configuration, adjusting the values for your environment:
         <string>/usr/local/bin/gads</string>
         <string>provider</string>
         <string>--hub</string>
-        <string>[http://192.168.254.___:PORT](http://192.168.254.___:PORT)</string>
+        <string>http://___.___.___.___:PORT</string>
         <string>--mongo-db</string>
-        <string>192.168.254.___:27017</string>
+        <string>___.___.___.___:27017</string>
         <string>--nickname</string>
-        <string>[your-provider-name]</string>
+        <string>YOUR-PROVIDER-NAME</string>
         <string>--log-level</string>
         <string>info</string>
     </array>
