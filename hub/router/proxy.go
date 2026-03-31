@@ -66,25 +66,9 @@ func DeviceProxyHandler(c *gin.Context) {
 	var tenant string
 
 	// If not a session creation or no credentials in capabilities, check for bearer token
-	authToken := c.GetHeader("Authorization")
-	if authToken == "" {
-		authToken = c.Query("token")
-	}
-
-	if authToken != "" {
-		// Extract token from Bearer format
-		tokenString, err := auth.ExtractTokenFromBearer(authToken)
-		if err == nil {
-			// Get origin from request
-			origin := auth.GetOriginFromRequest(c)
-
-			// Get claims from token with origin
-			claims, err := auth.GetClaimsFromToken(tokenString, origin)
-			if err == nil {
-				username = claims.Username
-				tenant = claims.Tenant
-			}
-		}
+	if claims, err := auth.GetClaimsFromRequest(c); err == nil {
+		username = claims.Username
+		tenant = claims.Tenant
 	}
 
 	device, ok := devices.HubDeviceStore.Get(udid)

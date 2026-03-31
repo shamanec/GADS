@@ -471,8 +471,8 @@ func DeviceInUseWS(c *gin.Context) {
 	var userTenant string
 
 	// Extract token from the request
-	claims := getClaimsFromRequest(c)
-	if claims == nil || claims.Username == "" {
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
 		c.Status(http.StatusUnauthorized)
 		return
 	}
@@ -913,37 +913,6 @@ type lockDeviceResponse struct {
 	ExpiresAtMS int64  `json:"expires_at_ms"`
 }
 
-// getClaimsFromRequest extracts JWT claims from the Authorization header (Bearer token)
-// or the raw ?token= query param (no "Bearer " prefix needed for the query param).
-// Returns nil if no token is present or the token is invalid.
-func getClaimsFromRequest(c *gin.Context) *auth.JWTClaims {
-	var tokenString string
-
-	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
-		t, err := auth.ExtractTokenFromBearer(authHeader)
-		if err != nil {
-			return nil
-		}
-		tokenString = t
-	} else if raw := c.Query("token"); raw != "" {
-		// The query param may arrive as "Bearer <token>" (e.g. from WebSocket URLs).
-		// Try to strip the prefix; if it's a bare token, use it as-is.
-		if t, err := auth.ExtractTokenFromBearer(raw); err == nil {
-			tokenString = t
-		} else {
-			tokenString = raw
-		}
-	} else {
-		return nil
-	}
-
-	origin := auth.GetOriginFromRequest(c)
-	claims, err := auth.GetClaimsFromToken(tokenString, origin)
-	if err != nil {
-		return nil
-	}
-	return claims
-}
 
 // LockDevice godoc
 // @Summary      Lock a device via REST API
@@ -962,8 +931,8 @@ func getClaimsFromRequest(c *gin.Context) *auth.JWTClaims {
 func LockDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	claims := getClaimsFromRequest(c)
-	if claims == nil || claims.Username == "" {
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
 		c.Status(http.StatusUnauthorized)
 		return
 	}
@@ -1025,8 +994,8 @@ func LockDevice(c *gin.Context) {
 func UnlockDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	claims := getClaimsFromRequest(c)
-	if claims == nil || claims.Username == "" {
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
 		c.Status(http.StatusUnauthorized)
 		return
 	}
