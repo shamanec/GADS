@@ -37,7 +37,6 @@ type RuntimeState struct {
 	Logger           models.CustomLogger
 	SemVer           *semver.Version
 	InitialSetupDone bool
-	AppiumReadyChan  chan bool
 	AppiumPort       string // port assigned to the device for the Appium server
 
 	// Runtime fields synced to hub

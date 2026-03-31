@@ -575,13 +575,13 @@ func (d *IOSDevice) deviceWithRsdProvider() error {
 		return err
 	}
 	newEntry, err := ios.GetDeviceWithAddress(d.GetUDID(), d.GoIOSTunnel.Address, rsdProvider)
-	newEntry.UserspaceTUN = d.GoIOSDeviceEntry.UserspaceTUN
-	newEntry.UserspaceTUNPort = d.GoIOSDeviceEntry.UserspaceTUNPort
-	d.GoIOSDeviceEntry = newEntry
-	d.GoIOSDeviceEntry = newEntry
 	if err != nil {
 		return err
 	}
+	newEntry.UserspaceTUN = d.GoIOSDeviceEntry.UserspaceTUN
+	newEntry.UserspaceTUNPort = d.GoIOSDeviceEntry.UserspaceTUNPort
+	d.GoIOSDeviceEntry = newEntry
+
 	return nil
 }
 

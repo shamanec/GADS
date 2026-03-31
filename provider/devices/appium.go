@@ -52,7 +52,8 @@ func setupAppiumForDevice(d PlatformDevice) error {
 	go startAppium(d, caps)
 
 	timeout := time.After(30 * time.Second)
-	tick := time.Tick(200 * time.Millisecond)
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
 AppiumLoop:
 	for {
 		select {
@@ -60,7 +61,7 @@ AppiumLoop:
 			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 30 seconds", udid))
 			d.Reset("Failed to start Appium for device.")
 			return fmt.Errorf("appium did not start in time")
-		case <-tick:
+		case <-ticker.C:
 			if d.GetIsAppiumUp() {
 				logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", udid, appiumPort))
 				break AppiumLoop
