@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func CalculateCanvasDimensions(device *models.Device) (canvasWidth string, canvasHeight string) {
+func CalculateCanvasDimensions(device *models.DBDevice) (canvasWidth string, canvasHeight string) {
 	// Get the width and height provided
 	widthString := device.ScreenWidth
 	heightString := device.ScreenHeight
@@ -40,7 +40,7 @@ func InitHubDevicesData() {
 
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
-	var latestDBDevices []models.Device
+	var latestDBDevices []models.DBDevice
 
 	for {
 		latestDBDevices, _ = db.GlobalMongoStore.GetDevices()
@@ -91,8 +91,6 @@ func GetLatestDBDevices() {
 				}
 				hubDevice.Mu.Unlock()
 			} else {
-				dbDevice.InstalledApps = make([]string, 0)
-				dbDevice.SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
 				HubDeviceStore.Set(dbDevice.UDID, &LocalHubDevice{
 					Device:                   *dbDevice,
 					IsRunningAutomation:      false,

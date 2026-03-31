@@ -57,9 +57,9 @@ func UpdateExpiredGridSessions() {
 			// Reset device if its not connected
 			// Or it hasn't received any Appium requests in the command timeout and is running automation
 			// Or if its provider state is not "live" - device was re-provisioned for example
-			if !hubDevice.Device.Connected ||
+			if !hubDevice.Connected ||
 				(hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation) ||
-				hubDevice.Device.ProviderState != "live" {
+				hubDevice.ProviderState != "live" {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
@@ -224,7 +224,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			updatedSessionBody, _ := json.Marshal(sessionReq)
 			// Create a new request to the device target URL
 			foundDevice.Mu.RLock()
-			deviceHost := foundDevice.Device.Host
+			deviceHost := foundDevice.Host
 			deviceUDID := foundDevice.Device.UDID
 			foundDevice.Mu.RUnlock()
 
@@ -396,7 +396,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}()
 
 			foundDevice.Mu.RLock()
-			deviceHost := foundDevice.Device.Host
+			deviceHost := foundDevice.Host
 			deviceUDID := foundDevice.Device.UDID
 			foundDevice.Mu.RUnlock()
 
@@ -594,9 +594,9 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 		for _, localDevice := range devices.HubDeviceStore.All() {
 			localDevice.Mu.RLock()
 			os := localDevice.Device.OS
-			connected := localDevice.Device.Connected
-			state := localDevice.Device.ProviderState
-			lastUpdated := localDevice.Device.LastUpdatedTimestamp
+			connected := localDevice.Connected
+			state := localDevice.ProviderState
+			lastUpdated := localDevice.LastUpdatedTimestamp
 			available := localDevice.IsAvailableForAutomation
 			usage := localDevice.Device.Usage
 			wsID := localDevice.Device.WorkspaceID

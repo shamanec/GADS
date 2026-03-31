@@ -31,9 +31,15 @@ type WebRTCMessage struct {
 func DevicesWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, deviceFound := devices.DevManager.Get(udid)
+	if !deviceFound {
+		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
+	if !isRcDevice {
+		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Device `%s` does not support streaming", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -45,7 +51,7 @@ func DevicesWebRTCSocket(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	u := url.URL{Scheme: "ws", Host: "localhost:" + device.StreamPort, Path: ""}
+	u := url.URL{Scheme: "ws", Host: "localhost:" + rcDev.GetStreamPort(), Path: ""}
 	deviceConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
 		logger.ProviderLogger.LogError("device_webrtc", fmt.Sprintf("Failed to dial stream websocket for device `%s` - %s", udid, err))

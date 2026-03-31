@@ -26,7 +26,12 @@ const (
 // All field access must be protected by Mu.
 type LocalHubDevice struct {
 	Mu                       sync.RWMutex  `json:"-" bson:"-"` // protects this device's fields
-	Device                   models.Device `json:"info"`
+	Device                   models.DBDevice `json:"info"`
+	// Runtime fields synced from provider
+	Host                     string        `json:"host"`
+	Connected                bool          `json:"connected"`
+	ProviderState            string        `json:"provider_state"`
+	LastUpdatedTimestamp      int64         `json:"last_updated_timestamp"`
 	SessionID                string        `json:"-"`
 	IsRunningAutomation      bool          `json:"is_running_automation"`
 	LastAutomationActionTS   int64         `json:"last_automation_action_ts"`

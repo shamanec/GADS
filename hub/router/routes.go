@@ -471,8 +471,8 @@ func DeviceInUseWS(c *gin.Context) {
 	var userTenant string
 
 	// Extract token from the request
-	claims := getClaimsFromRequest(c)
-	if claims == nil || claims.Username == "" {
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
 		c.Status(http.StatusUnauthorized)
 		return
 	}
@@ -609,9 +609,9 @@ func AvailableDevicesSSE(c *gin.Context) {
 				continue
 			}
 
-			if d.Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && d.Device.Connected {
+			if d.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && d.Connected {
 				d.Available = false
-			} else if d.Device.ProviderState != "live" {
+			} else if d.ProviderState != "live" {
 				d.Available = false
 			} else {
 				d.Available = true
@@ -678,7 +678,7 @@ func UploadFile(c *gin.Context) {
 // @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      models.DBDevice  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
@@ -692,7 +692,7 @@ func AddDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var device models.Device
+	var device models.DBDevice
 	err = json.Unmarshal(reqBody, &device)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
@@ -729,7 +729,7 @@ func AddDevice(c *gin.Context) {
 // @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      models.DBDevice  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      404     {object}  models.ErrorResponse
@@ -744,7 +744,7 @@ func UpdateDevice(c *gin.Context) {
 	}
 	defer c.Request.Body.Close()
 
-	var reqDevice models.Device
+	var reqDevice models.DBDevice
 	err = json.Unmarshal(reqBody, &reqDevice)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
@@ -830,7 +830,7 @@ func DeleteDevice(c *gin.Context) {
 }
 
 type AdminDeviceData struct {
-	Devices           []models.Device     `json:"devices"`
+	Devices           []models.DBDevice     `json:"devices"`
 	Providers         []string            `json:"providers"`
 	DeviceStreamTypes []models.StreamType `json:"device_stream_types"`
 }
@@ -855,11 +855,7 @@ func GetDevices(c *gin.Context) {
 	}
 
 	if len(dbDevices) == 0 || len(providerNames) == 0 {
-		dbDevices = []models.Device{}
-	}
-
-	for index, dbDevice := range dbDevices {
-		dbDevices[index].SupportedStreamTypes = models.StreamTypesForOS(dbDevice.OS)
+		dbDevices = []models.DBDevice{}
 	}
 
 	var adminDeviceData = AdminDeviceData{
@@ -917,31 +913,6 @@ type lockDeviceResponse struct {
 	ExpiresAtMS int64  `json:"expires_at_ms"`
 }
 
-// getClaimsFromRequest extracts JWT claims from the Authorization header (Bearer token)
-// or the raw ?token= query param (no "Bearer " prefix needed for the query param).
-// Returns nil if no token is present or the token is invalid.
-func getClaimsFromRequest(c *gin.Context) *auth.JWTClaims {
-	var tokenString string
-
-	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
-		t, err := auth.ExtractTokenFromBearer(authHeader)
-		if err != nil {
-			return nil
-		}
-		tokenString = t
-	} else if raw := c.Query("token"); raw != "" {
-		tokenString = raw
-	} else {
-		return nil
-	}
-
-	origin := auth.GetOriginFromRequest(c)
-	claims, err := auth.GetClaimsFromToken(tokenString, origin)
-	if err != nil {
-		return nil
-	}
-	return claims
-}
 
 // LockDevice godoc
 // @Summary      Lock a device via REST API
@@ -960,8 +931,8 @@ func getClaimsFromRequest(c *gin.Context) *auth.JWTClaims {
 func LockDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	claims := getClaimsFromRequest(c)
-	if claims == nil || claims.Username == "" {
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
 		c.Status(http.StatusUnauthorized)
 		return
 	}
@@ -1023,8 +994,8 @@ func LockDevice(c *gin.Context) {
 func UnlockDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	claims := getClaimsFromRequest(c)
-	if claims == nil || claims.Username == "" {
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
 		c.Status(http.StatusUnauthorized)
 		return
 	}
@@ -1058,17 +1029,13 @@ func UnlockDevice(c *gin.Context) {
 	api.OKMessage(c, "Device successfully unlocked")
 }
 
-// syncDeviceFields synchronizes operational fields from provider to hub device
-// Only updates fields that are different between the two devices
-func syncDeviceFields(target *models.Device, source *models.Device) {
+// syncDeviceFields synchronizes operational fields from provider to hub device.
+func syncDeviceFields(target *devices.LocalHubDevice, source *models.ProviderDeviceSync) {
 	if target.Connected != source.Connected {
 		target.Connected = source.Connected
 	}
 	if target.ProviderState != source.ProviderState {
 		target.ProviderState = source.ProviderState
-	}
-	if target.LastUpdatedTimestamp != source.LastUpdatedTimestamp {
-		target.LastUpdatedTimestamp = source.LastUpdatedTimestamp
 	}
 	if target.Host != source.Host {
 		target.Host = source.Host
@@ -1106,8 +1073,10 @@ func ProviderUpdate(c *gin.Context) {
 		}
 		hubDevice.Mu.Lock()
 		// If device is not connected reset all fields that might allow it to get stuck in Running automation state
-		// If its not connected, then its not running automation or is available for automation
 		if !providerDevice.Connected {
+			hubDevice.Connected = false
+			hubDevice.ProviderState = providerDevice.ProviderState
+			hubDevice.Host = providerDevice.Host
 			hubDevice.IsAvailableForAutomation = false
 			hubDevice.IsRunningAutomation = false
 			hubDevice.ReleaseLockIfNotHeld()
@@ -1115,11 +1084,10 @@ func ProviderUpdate(c *gin.Context) {
 			hubDevice.Mu.Unlock()
 			continue
 		}
-		// Set a timestamp to indicate last time info about the device was updated from the provider
-		providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
+		// Stamp when we last heard from the provider about this device
+		hubDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
-		// Update only operational fields from provider
-		syncDeviceFields(&hubDevice.Device, providerDevice)
+		syncDeviceFields(hubDevice, providerDevice)
 		hubDevice.Mu.Unlock()
 	}
 

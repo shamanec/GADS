@@ -31,9 +31,18 @@ type Provider struct {
 	UseIOSPairCache      bool   `json:"-" bson:"-"`
 }
 
+// ProviderDeviceSync is the lightweight struct sent from provider to hub each second
+// for each device. It carries only the runtime fields the hub needs.
+type ProviderDeviceSync struct {
+	UDID          string `json:"udid"`
+	Host          string `json:"host"`
+	Connected     bool   `json:"connected"`
+	ProviderState string `json:"provider_state"`
+}
+
 type ProviderData struct {
-	ProviderData Provider `json:"provider"`
-	DeviceData   []Device `json:"device_data"`
+	ProviderData Provider             `json:"provider"`
+	DeviceData   []ProviderDeviceSync `json:"device_data"`
 }
 
 type HubConfig struct {

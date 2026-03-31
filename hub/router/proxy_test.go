@@ -32,10 +32,10 @@ func TestDeviceProxyHandler(t *testing.T) {
 		// Setup an available device
 		udid := "test-device-available"
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
-			Device: models.Device{
+			Device: models.DBDevice{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: true,
 		})
 
@@ -61,10 +61,10 @@ func TestDeviceProxyHandler(t *testing.T) {
 		// Setup an unavailable device
 		udid := "test-device-unavailable"
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
-			Device: models.Device{
+			Device: models.DBDevice{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: false,
 		})
 
@@ -117,10 +117,10 @@ func TestDeviceProxyHandler(t *testing.T) {
 		udid := "test-device-in-use"
 		currentTime := time.Now().UnixMilli()
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
-			Device: models.Device{
+			Device: models.DBDevice{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: true,
 			InUseBy:   "another-user",
 			InUseTS:   currentTime, // Use current time to simulate active session
@@ -147,10 +147,10 @@ func TestDeviceProxyHandler(t *testing.T) {
 		// Setup a device
 		udid := "test-device-no-credentials"
 		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
-			Device: models.Device{
+			Device: models.DBDevice{
 				UDID: udid,
-				Host: "localhost:8080",
 			},
+			Host:      "localhost:8080",
 			Available: true,
 		})
 

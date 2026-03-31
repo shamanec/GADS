@@ -33,14 +33,16 @@ import (
 
 // IOSWebRTCSession manages a WebRTC peer connection for iOS broadcast streaming
 type IOSWebRTCSession struct {
-	device         *models.Device
-	peerConnection *webrtc.PeerConnection
-	videoTrack     *webrtc.TrackLocalStaticSample
-	tcpConn        net.Conn
-	ctx            context.Context
-	cancel         context.CancelFunc
-	mu             sync.Mutex
-	iceCandidates  []webrtc.ICECandidateInit
+	device          *models.DBDevice
+	streamPort      string
+	streamTargetFPS int
+	peerConnection  *webrtc.PeerConnection
+	videoTrack      *webrtc.TrackLocalStaticSample
+	tcpConn         net.Conn
+	ctx             context.Context
+	cancel          context.CancelFunc
+	mu              sync.Mutex
+	iceCandidates   []webrtc.ICECandidateInit
 
 	// Timestamp tracking
 	firstTimestamp uint64
@@ -49,14 +51,16 @@ type IOSWebRTCSession struct {
 }
 
 // NewIOSWebRTCSession creates a new WebRTC session for iOS broadcast streaming
-func NewIOSWebRTCSession(device *models.Device) (*IOSWebRTCSession, error) {
+func NewIOSWebRTCSession(device *models.DBDevice, streamPort string, streamTargetFPS int) (*IOSWebRTCSession, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	session := &IOSWebRTCSession{
-		device:        device,
-		ctx:           ctx,
-		cancel:        cancel,
-		iceCandidates: make([]webrtc.ICECandidateInit, 0),
+		device:          device,
+		streamPort:      streamPort,
+		streamTargetFPS: streamTargetFPS,
+		ctx:             ctx,
+		cancel:          cancel,
+		iceCandidates:   make([]webrtc.ICECandidateInit, 0),
 	}
 
 	// Create WebRTC configuration
@@ -109,7 +113,7 @@ func NewIOSWebRTCSession(device *models.Device) (*IOSWebRTCSession, error) {
 // Start begins the streaming pipeline
 func (s *IOSWebRTCSession) Start() error {
 	// Connect to iOS broadcast extension TCP server
-	broadcastServer := "localhost:" + s.device.StreamPort
+	broadcastServer := "localhost:" + s.streamPort
 
 	conn, err := net.Dial("tcp", broadcastServer)
 	if err != nil {
@@ -131,8 +135,8 @@ func (s *IOSWebRTCSession) readAndStreamFrames() {
 
 	buffer := make([]byte, 0, 1024*1024)                // 1MB buffer
 	fallbackDuration := time.Second / time.Duration(30) // Default 30fps
-	if s.device.StreamTargetFPS > 0 {
-		fallbackDuration = time.Second / time.Duration(s.device.StreamTargetFPS)
+	if s.streamTargetFPS > 0 {
+		fallbackDuration = time.Second / time.Duration(s.streamTargetFPS)
 	}
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s", s.device.UDID))
@@ -311,9 +315,15 @@ func (s *IOSWebRTCSession) Close() {
 func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	udid := c.Param("udid")
 
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found or is nil", udid))
+	platDev, deviceFound := devices.DevManager.Get(udid)
+	if !deviceFound {
+		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
+	if !isRcDevice {
+		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device `%s` does not support streaming", udid))
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -327,7 +337,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// Create WebRTC session
-	session, err := NewIOSWebRTCSession(device)
+	session, err := NewIOSWebRTCSession(rcDev.GetDBDevice(), rcDev.GetStreamPort(), rcDev.GetStreamTargetFPS())
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))

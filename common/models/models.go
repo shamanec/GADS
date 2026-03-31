@@ -10,16 +10,11 @@
 package models
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
-	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -40,8 +35,7 @@ type User struct {
 	WorkspaceIDs []string `json:"workspace_ids" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
 }
 
-type Device struct {
-	// DB DATA
+type DBDevice struct {
 	UDID         string `json:"udid" bson:"udid"`                   // device UDID
 	OS           string `json:"os" bson:"os"`                       // device OS
 	Name         string `json:"name" bson:"name"`                   // name of the device
@@ -56,48 +50,7 @@ type Device struct {
 	// This field will be removed in next major version release. Only kept for backward compatibility during migration.
 	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
 	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
-	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
-	// NON-DB DATA
-	/// COMMON VALUES
-	Host                 string       `json:"host" bson:"-"`                            // IP address of the device host(provider)
-	HardwareModel        string       `json:"hardware_model" bson:"-"`                  // hardware model of device
-	LastUpdatedTimestamp int64        `json:"last_updated_timestamp" bson:"-"`          // last time the device data was updated
-	Connected            bool         `json:"connected" bson:"-"`                       // if device is currently connected
-	IsResetting          bool         `json:"is_resetting" bson:"-"`                    // if device setup is currently being reset
-	ProviderState        string       `json:"provider_state" bson:"-"`                  // current state of the device on the provider - init, preparing, live
-	StreamTargetFPS      int          `json:"stream_target_fps,omitempty" bson:"-"`     // The target FPS for the MJPEG video streams
-	StreamJpegQuality    int          `json:"stream_jpeg_quality,omitempty" bson:"-"`   // The target JPEG quality for the MJPEG video streams
-	StreamScalingFactor  int          `json:"stream_scaling_factor,omitempty" bson:"-"` // The target scaling factor for the MJPEG video streams
-	AppiumLastPingTS     int64        `json:"appium_last_ts" bson:"-"`                  // The last time the Appium server pinged the provider - the plugin sends regular pings while up
-	AppiumSessionID      string       `json:"appium_session_id" bson:"-"`               // Current Appium session ID - the plugin sends a request for this when a session is created, also the session ID is available for all logs
-	IsAppiumUp           bool         `json:"is_appium_up" bson:"-"`                    // Reflects if Appium server is up or not - the plugin sends a request for this
-	HasAppiumSession     bool         `json:"has_appium_session" bson:"-"`              // This is a "just in case" property - it will be set to `true` when the plugin sends a new session registration request and to `false` when the plugin sends a remove session request
-	CurrentRotation      string       `json:"current_rotation" bson:"-"`                // The device current rotation - portrait/landscape
-	SupportedStreamTypes []StreamType `json:"supported_stream_types" bson:"-"`
-	/// PROVIDER ONLY VALUES
-	//// RETURNABLE VALUES
-	InstalledApps []string `json:"installed_apps" bson:"-"` // list of installed apps on device
-	///// NON-RETURNABLE VALUES
-
-	WDASessionID            string             `json:"-" bson:"-"` // current WebDriverAgent session ID
-	AppiumPort              string             `json:"-" bson:"-"` // port assigned to the device for the Appium server
-	StreamPort              string             `json:"-" bson:"-"` // port assigned to the device for the video stream
-	WDAStreamPort           string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent stream
-	WDAPort                 string             `json:"-" bson:"-"` // port assigned to iOS devices for the WebDriverAgent instance
-	AndroidIMEPort          string             `json:"-" bson:"-"` // port assigned to Android devices for the custom IME keyboard instance
-	AndroidRemoteServerPort string             `json:"-" bson:"-"` // port assigned to Android devices for the custom remote control server
-	WdaReadyChan            chan bool          `json:"-" bson:"-"` // channel for checking that WebDriverAgent is up after start
-	AppiumReadyChan         chan bool          `json:"-" bson:"-"` // channel for checking that Appium is up after start
-	Context                 context.Context    `json:"-" bson:"-"` // context used to control the device set up since we have multiple goroutines
-	CtxCancel               context.CancelFunc `json:"-" bson:"-"` // cancel func for the context above, can be used to stop all running device goroutines
-	GoIOSDeviceEntry        ios.DeviceEntry    `json:"-" bson:"-"` // `go-ios` device entry object used for `go-ios` library interactions
-	Logger                  CustomLogger       `json:"-" bson:"-"` // CustomLogger object for the device
-	Mutex                   sync.Mutex         `json:"-" bson:"-"` // Mutex to lock resources - especially on device reset
-	SetupMutex              sync.Mutex         `json:"-" bson:"-"` // Mutex for synchronizing device setup operations
-	GoIOSTunnel             tunnel.Tunnel      `json:"-" bson:"-"` // Tunnel obj for go-ios handling of iOS 17.4+
-	SemVer                  *semver.Version    `json:"-" bson:"-"` // Semantic version of device for checks around the provider
-	InitialSetupDone        bool               `json:"-" bson:"-"` // On provider startup some data is prepared for devices like logger, Mongo collection, etc. This is true if all is done
-	DeviceAddress           string             `json:"-" bson:"-"`
+	StreamType StreamingType `json:"stream_type" bson:"stream_type"` // The type of video streaming for the device
 }
 
 // Device stream type - mjpeg, webrtc, etc
@@ -195,7 +148,6 @@ func StreamTypesForOS(os string) []StreamType {
 		return []StreamType{}
 	}
 }
-
 
 type DeviceStreamSettings struct {
 	UDID                string `json:"udid" bson:"udid"`                                             // device UDID
@@ -349,7 +301,7 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 }
 
 // ValidateDevice performs comprehensive validation on a device struct
-func ValidateDevice(device *Device) error {
+func ValidateDevice(device *DBDevice) error {
 	if device == nil {
 		return errors.New("device cannot be nil")
 	}

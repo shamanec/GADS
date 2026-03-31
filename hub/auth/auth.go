@@ -14,6 +14,7 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/url"
 	"strings"
@@ -290,6 +291,35 @@ func GetUserInfoHandler(c *gin.Context) {
 	})
 }
 
+// GetClaimsFromRequest extracts a JWT token from the Authorization header or the
+// "token" query parameter, validates it against the request origin, and returns
+// the parsed claims. The query parameter may arrive with or without a "Bearer "
+// prefix (e.g. from WebSocket URLs) — both forms are handled.
+func GetClaimsFromRequest(c *gin.Context) (*JWTClaims, error) {
+	var tokenString string
+
+	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+		t, err := ExtractTokenFromBearer(authHeader)
+		if err != nil {
+			return nil, err
+		}
+		tokenString = t
+	} else if raw := c.Query("token"); raw != "" {
+		// The query param may arrive as "Bearer <token>" (e.g. from WebSocket URLs).
+		// Try to strip the prefix; if it's a bare token, use it as-is.
+		if t, err := ExtractTokenFromBearer(raw); err == nil {
+			tokenString = t
+		} else {
+			tokenString = raw
+		}
+	} else {
+		return nil, errors.New("no token provided")
+	}
+
+	origin := GetOriginFromRequest(c)
+	return ValidateJWT(tokenString, origin)
+}
+
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
@@ -300,53 +330,31 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Check JWT token in Authorization header or query parameter
-		authToken := c.GetHeader("Authorization")
-		if authToken == "" {
-			authToken = c.Query("token")
-		}
-
-		if strings.HasPrefix(authToken, "Bearer ") {
-			tokenString, err := ExtractTokenFromBearer(authToken)
-			if err != nil {
-				api.AbortUnauthorized(c, "invalid token format")
-				return
-			}
-
-			// Get the request origin
-			origin := GetOriginFromRequest(c)
-
-			// Validate JWT token with the origin
-			claims, err := ValidateJWT(tokenString, origin)
-			if err != nil {
-				api.AbortUnauthorized(c, "invalid or expired token")
-				return
-			}
-
-			// Check if token has expired
-			if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
-				api.AbortUnauthorized(c, "token expired")
-				return
-			}
-
-			// Check permissions (admin)
-			if strings.Contains(path, "admin") && claims.Role != "admin" {
-				api.AbortUnauthorized(c, "you need admin privileges to access this endpoint")
-				return
-			}
-
-			// Store user information in context for later use
-			c.Set("username", claims.Username)
-			c.Set("role", claims.Role)
-			c.Set("tenant", claims.Tenant)
-			c.Set("origin", claims.Origin) // Store origin in context
-
-			// Continue execution
-			c.Next()
+		claims, err := GetClaimsFromRequest(c)
+		if err != nil {
+			api.AbortUnauthorized(c, "invalid or expired token")
 			return
 		}
 
-		// If no valid bearer token is provided
-		api.AbortUnauthorized(c, "unauthorized")
+		// Check if token has expired
+		if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+			api.AbortUnauthorized(c, "token expired")
+			return
+		}
+
+		// Check permissions (admin)
+		if strings.Contains(path, "admin") && claims.Role != "admin" {
+			api.AbortUnauthorized(c, "you need admin privileges to access this endpoint")
+			return
+		}
+
+		// Store user information in context for later use
+		c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
+		c.Set("tenant", claims.Tenant)
+		c.Set("origin", claims.Origin) // Store origin in context
+
+		// Continue execution
+		c.Next()
 	}
 }
