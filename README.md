@@ -189,7 +189,7 @@ For detailed instructions on how to create a service for Linux using systemd, pl
 For detailed instructions on how to create a service for Windows using WinSW, please refer to the [Windows Service Documentation](./docs/windows-service.md).
 
 ### 🍏 macOS
-*Note: Service implementation for macOS is yet to be documented.*
+For detailed instructions on how to create a service for macOS using launchd, please refer to the [macOS Service Documentation](./docs/macos-service.md).
 
 ## ❓ FAQ
 
