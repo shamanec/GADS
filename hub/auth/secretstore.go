@@ -34,7 +34,6 @@ type SecretKey struct {
 	Disabled              bool               `bson:"disabled" json:"disabled"`
 	DisabledAt            *time.Time         `bson:"disabled_at,omitempty" json:"disabled_at,omitempty"`
 	UserIdentifierClaim   string             `bson:"user_identifier_claim,omitempty" json:"user_identifier_claim,omitempty"`
-	TenantIdentifierClaim string             `bson:"tenant_identifier_claim,omitempty" json:"tenant_identifier_claim,omitempty"`
 }
 
 // Errors

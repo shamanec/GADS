@@ -39,12 +39,6 @@ func CreateClientCredential(c *gin.Context) {
 		return
 	}
 
-	tenant, _ := c.Get("tenant")
-	tenantStr := ""
-	if tenant != nil {
-		tenantStr = tenant.(string)
-	}
-
 	var req models.CreateCredentialRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		api.BadRequest(c, "invalid request format")
@@ -58,7 +52,6 @@ func CreateClientCredential(c *gin.Context) {
 		req.Name,
 		req.Description,
 		username.(string),
-		tenantStr,
 	)
 	if err != nil {
 		api.InternalError(c, "failed to create credential")
@@ -68,7 +61,6 @@ func CreateClientCredential(c *gin.Context) {
 	response := models.CreateCredentialResponse{
 		ClientID:         credential.ClientID,
 		ClientSecret:     credential.ClientSecret,
-		Tenant:           credential.Tenant,
 		Name:             credential.Name,
 		Description:      credential.Description,
 		CreatedAt:        credential.CreatedAt.Format("2006-01-02T15:04:05Z"),
@@ -95,18 +87,11 @@ func ListClientCredentials(c *gin.Context) {
 		return
 	}
 
-	tenant, _ := c.Get("tenant")
-	tenantStr := ""
-	if tenant != nil {
-		tenantStr = tenant.(string)
-	}
-
 	store := db.GlobalMongoStore
 	credentials, err := clientcredentials.ListCredentials(
 		context.Background(),
 		store,
 		username.(string),
-		tenantStr,
 	)
 	if err != nil {
 		api.InternalError(c, "failed to list credentials")
@@ -157,12 +142,6 @@ func GetClientCredential(c *gin.Context) {
 		return
 	}
 
-	tenant, _ := c.Get("tenant")
-	tenantStr := ""
-	if tenant != nil {
-		tenantStr = tenant.(string)
-	}
-
 	clientID := c.Param("id")
 	if clientID == "" {
 		api.BadRequest(c, "client ID is required")
@@ -175,10 +154,9 @@ func GetClientCredential(c *gin.Context) {
 		store,
 		clientID,
 		username.(string),
-		tenantStr,
 	)
 	if err != nil {
-		if err.Error() == "access denied: not owner" || err.Error() == "access denied: wrong tenant" {
+		if err.Error() == "access denied: not owner" {
 			api.Forbidden(c, "access denied")
 			return
 		}
@@ -224,12 +202,6 @@ func UpdateClientCredential(c *gin.Context) {
 		return
 	}
 
-	tenant, _ := c.Get("tenant")
-	tenantStr := ""
-	if tenant != nil {
-		tenantStr = tenant.(string)
-	}
-
 	clientID := c.Param("id")
 	if clientID == "" {
 		api.BadRequest(c, "client ID is required")
@@ -250,10 +222,9 @@ func UpdateClientCredential(c *gin.Context) {
 		req.Name,
 		req.Description,
 		username.(string),
-		tenantStr,
 	)
 	if err != nil {
-		if err.Error() == "access denied: not owner" || err.Error() == "access denied: wrong tenant" {
+		if err.Error() == "access denied: not owner" {
 			api.Forbidden(c, "access denied")
 			return
 		}
@@ -266,7 +237,6 @@ func UpdateClientCredential(c *gin.Context) {
 		store,
 		clientID,
 		username.(string),
-		tenantStr,
 	)
 	if err != nil {
 		api.InternalError(c, "failed to retrieve updated credential")
@@ -309,12 +279,6 @@ func RevokeClientCredential(c *gin.Context) {
 		return
 	}
 
-	tenant, _ := c.Get("tenant")
-	tenantStr := ""
-	if tenant != nil {
-		tenantStr = tenant.(string)
-	}
-
 	clientID := c.Param("id")
 	if clientID == "" {
 		api.BadRequest(c, "client ID is required")
@@ -327,10 +291,9 @@ func RevokeClientCredential(c *gin.Context) {
 		store,
 		clientID,
 		username.(string),
-		tenantStr,
 	)
 	if err != nil {
-		if err.Error() == "access denied: not owner" || err.Error() == "access denied: wrong tenant" {
+		if err.Error() == "access denied: not owner" {
 			api.Forbidden(c, "access denied")
 			return
 		}

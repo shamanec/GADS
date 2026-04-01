@@ -30,7 +30,6 @@ import (
 // @Produce json
 // @Param client_id formData string true "Client ID"
 // @Param client_secret formData string true "Client Secret"
-// @Param tenant formData string true "Tenant"
 // @Success 200 {object} models.AuthResponse
 // @Failure 400 {object} models.OAuthErrorResponse
 // @Failure 401 {object} models.OAuthErrorResponse
@@ -42,7 +41,6 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 	if contentType == "application/x-www-form-urlencoded" {
 		clientID := c.PostForm("client_id")
 		clientSecret := c.PostForm("client_secret")
-		tenant := c.PostForm("tenant")
 		if clientID == "" || clientSecret == "" {
 			c.JSON(http.StatusBadRequest, models.OAuthErrorResponse{Error: "invalid_request"})
 			return
@@ -51,7 +49,6 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 		req = models.OAuth2TokenRequest{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
-			Tenant:       tenant,
 		}
 	} else {
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -68,7 +65,6 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 		store,
 		req.ClientID,
 		req.ClientSecret,
-		req.Tenant,
 	)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, models.OAuthErrorResponse{Error: "invalid_client"})
@@ -107,7 +103,6 @@ func generateAccessToken(credential *models.ClientCredentials, origin string, us
 	token, err := auth.GenerateJWT(
 		credential.UserID,
 		userRole,
-		credential.Tenant,
 		[]string{userRole},
 		time.Hour,
 		origin,

@@ -20,19 +20,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// ensureWorkspaceTenant ensures the workspace has a tenant, using default if empty
-func ensureWorkspaceTenant(workspace *models.Workspace, c *gin.Context) error {
-	if workspace.Tenant == "" {
-		defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
-		if err != nil {
-			api.InternalError(c, "Failed to get default tenant")
-			return err
-		}
-		workspace.Tenant = defaultTenant
-	}
-	return nil
-}
-
 // CreateWorkspace godoc
 // @Summary      Create a new workspace
 // @Description  Create a new workspace in the system
@@ -53,10 +40,6 @@ func CreateWorkspace(c *gin.Context) {
 	}
 
 	workspace.IsDefault = false
-
-	if err := ensureWorkspaceTenant(&workspace, c); err != nil {
-		return
-	}
 
 	// Validate unique name
 	existingWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
@@ -93,10 +76,6 @@ func UpdateWorkspace(c *gin.Context) {
 	var workspace models.Workspace
 	if err := c.ShouldBindJSON(&workspace); err != nil {
 		api.BadRequest(c, "Invalid input")
-		return
-	}
-
-	if err := ensureWorkspaceTenant(&workspace, c); err != nil {
 		return
 	}
 
@@ -168,7 +147,6 @@ func DeleteWorkspace(c *gin.Context) {
 // @Param        page   query  int     false  "Page number (default 1)"
 // @Param        limit  query  int     false  "Items per page (default 10)"
 // @Param        search query  string  false  "Search term"
-// @Param        tenant query  string  false  "Filter by tenant"
 // @Success      200    {object}  models.WorkspacePageResponse
 // @Failure      400    {object}  models.ErrorResponse
 // @Failure      500    {object}  models.ErrorResponse
@@ -178,7 +156,6 @@ func GetWorkspaces(c *gin.Context) {
 	pageStr := c.Query("page")
 	limitStr := c.Query("limit")
 	searchStr := c.Query("search")
-	tenantStr := c.Query("tenant")
 
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
@@ -190,7 +167,7 @@ func GetWorkspaces(c *gin.Context) {
 		limit = 10
 	}
 
-	workspaces, totalCount, err := db.GlobalMongoStore.GetWorkspacesWithDeviceCount(page, limit, searchStr, tenantStr)
+	workspaces, totalCount, err := db.GlobalMongoStore.GetWorkspacesWithDeviceCount(page, limit, searchStr)
 
 	if err != nil {
 		if err == db.ErrInvalidPagination {
@@ -229,8 +206,6 @@ func GetUserWorkspaces(c *gin.Context) {
 
 	var username string
 	var role string
-	var tenant string
-	var issuer string
 
 	if authHeader != "" {
 		// Extract token from Bearer format
@@ -244,8 +219,6 @@ func GetUserWorkspaces(c *gin.Context) {
 			if err == nil {
 				username = claims.Username
 				role = claims.Role
-				tenant = claims.Tenant
-				issuer = claims.Issuer
 			}
 		}
 	}
@@ -256,52 +229,30 @@ func GetUserWorkspaces(c *gin.Context) {
 		return
 	}
 
-	pageStr := c.Query("page")
-	limitStr := c.Query("limit")
-	searchStr := c.Query("search")
-
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		page = 1
-	}
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 {
-		limit = 10
-	}
-
 	var workspaces []models.Workspace = make([]models.Workspace, 0)
 
 	// If user is admin, return all workspaces
 	if role == "admin" {
+		pageStr := c.Query("page")
+		limitStr := c.Query("limit")
+		searchStr := c.Query("search")
+
+		page, err := strconv.Atoi(pageStr)
+		if err != nil || page < 1 {
+			page = 1
+		}
+
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit < 1 {
+			limit = 10
+		}
+
 		workspaces, _ = db.GlobalMongoStore.GetWorkspacesPaginated(page, limit, searchStr)
 	} else {
-		// Check if the token was issued by GADS itself
-		if issuer == "gads" {
-			// For internal tokens, use the standard method based on user association
-			workspaces = db.GlobalMongoStore.GetUserWorkspaces(username)
-			if workspaces == nil {
-				workspaces = make([]models.Workspace, 0)
-			}
-		} else {
-			// For external tokens, get all workspaces and filter by tenant
-			allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
-
-			// If tenant is specified, filter by it
-			if tenant != "" {
-				for _, ws := range allWorkspaces {
-					if ws.Tenant == tenant {
-						workspaces = append(workspaces, ws)
-					}
-				}
-			} else {
-				// If there is no tenant in the token, show only workspaces without tenant
-				for _, ws := range allWorkspaces {
-					if ws.Tenant == "" {
-						workspaces = append(workspaces, ws)
-					}
-				}
-			}
+		// For regular users, use the standard method based on user association
+		workspaces = db.GlobalMongoStore.GetUserWorkspaces(username)
+		if workspaces == nil {
+			workspaces = make([]models.Workspace, 0)
 		}
 	}
 

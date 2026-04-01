@@ -30,7 +30,6 @@ func secretKeyToResponse(key *auth.SecretKey) models.SecretKeyResponse {
 		CreatedAt:             key.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:             key.UpdatedAt.Format(time.RFC3339),
 		UserIdentifierClaim:   key.UserIdentifierClaim,
-		TenantIdentifierClaim: key.TenantIdentifierClaim,
 	}
 }
 
@@ -90,7 +89,6 @@ func AddSecretKey(c *gin.Context) {
 		IsDefault             bool   `json:"is_default"`
 		Justification         string `json:"justification" binding:"required"`
 		UserIdentifierClaim   string `json:"user_identifier_claim"`
-		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		api.BadRequest(c, "Invalid request body")
@@ -99,13 +97,12 @@ func AddSecretKey(c *gin.Context) {
 
 	// Create secret key
 	secretKey := &auth.SecretKey{
-		Origin:                request.Origin,
-		Key:                   request.Key,
-		IsDefault:             request.IsDefault,
-		CreatedAt:             time.Now(),
-		UpdatedAt:             time.Now(),
-		UserIdentifierClaim:   request.UserIdentifierClaim,
-		TenantIdentifierClaim: request.TenantIdentifierClaim,
+		Origin:              request.Origin,
+		Key:                 request.Key,
+		IsDefault:           request.IsDefault,
+		CreatedAt:           time.Now(),
+		UpdatedAt:           time.Now(),
+		UserIdentifierClaim: request.UserIdentifierClaim,
 	}
 
 	// Add secret key to database
@@ -165,8 +162,7 @@ func UpdateSecretKey(c *gin.Context) {
 		Key                   string `json:"key"`
 		IsDefault             bool   `json:"is_default"`
 		Justification         string `json:"justification" binding:"required"`
-		UserIdentifierClaim   string `json:"user_identifier_claim"`
-		TenantIdentifierClaim string `json:"tenant_identifier_claim"`
+		UserIdentifierClaim string `json:"user_identifier_claim"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		api.BadRequest(c, "Invalid request body")
@@ -194,9 +190,6 @@ func UpdateSecretKey(c *gin.Context) {
 	secretKey.UpdatedAt = time.Now()
 	if request.UserIdentifierClaim != "" {
 		secretKey.UserIdentifierClaim = request.UserIdentifierClaim
-	}
-	if request.TenantIdentifierClaim != "" {
-		secretKey.TenantIdentifierClaim = request.TenantIdentifierClaim
 	}
 
 	// Save secret key to database

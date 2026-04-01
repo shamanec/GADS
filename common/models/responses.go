@@ -78,7 +78,6 @@ type SecretKeyResponse struct {
 	CreatedAt             string `json:"created_at" example:"2023-01-01T00:00:00Z"`
 	UpdatedAt             string `json:"updated_at" example:"2023-01-01T00:00:00Z"`
 	UserIdentifierClaim   string `json:"user_identifier_claim" example:"username"`
-	TenantIdentifierClaim string `json:"tenant_identifier_claim" example:"tenant"`
 }
 
 // SecretKeyRequest represents the request to create/update a secret key
@@ -88,7 +87,6 @@ type SecretKeyRequest struct {
 	IsDefault             bool   `json:"is_default" example:"false"`
 	Justification         string `json:"justification" example:"Adding new key for web client"`
 	UserIdentifierClaim   string `json:"user_identifier_claim,omitempty" example:"username"`
-	TenantIdentifierClaim string `json:"tenant_identifier_claim,omitempty" example:"tenant"`
 }
 
 // JustificationRequest represents a request that requires justification
@@ -121,7 +119,6 @@ type AuthResponse struct {
 type UserInfoResponse struct {
 	Username            string   `json:"username" example:"john_doe"`
 	Role                string   `json:"role" example:"user"`
-	Tenant              string   `json:"tenant,omitempty" example:"acme-corp"`
 	Scopes              []string `json:"scopes" example:"user,admin"`
 	UserIdentifierClaim string   `json:"user_identifier_claim,omitempty" example:"username"`
 }
@@ -176,7 +173,6 @@ type UpdateCredentialRequest struct {
 type OAuth2TokenRequest struct {
 	ClientID     string `json:"client_id" binding:"required" example:"cc_1234567890abcdef"`
 	ClientSecret string `json:"client_secret" binding:"required" example:"cs_abcdef1234567890"`
-	Tenant       string `json:"tenant,omitempty" example:"acme-corp"`
 }
 
 // Client Credentials Response structures
@@ -192,7 +188,6 @@ type CredentialResponse struct {
 type CreateCredentialResponse struct {
 	ClientID         string `json:"client_id" example:"cc_1234567890abcdef"`
 	ClientSecret     string `json:"client_secret" example:"cs_abcdef1234567890"`
-	Tenant           string `json:"tenant" example:"acme-corp"`
 	Name             string `json:"name" example:"My API Client"`
 	Description      string `json:"description" example:"Client credentials for my application"`
 	CreatedAt        string `json:"created_at" example:"2023-01-01T00:00:00Z"`

@@ -45,7 +45,6 @@ func (m *MongoStore) UpdateWorkspace(workspace *models.Workspace) error {
 	update := bson.M{
 		"name":        workspace.Name,
 		"description": workspace.Description,
-		"tenant":      workspace.Tenant,
 	}
 	return PartialDocumentUpdate(m.Ctx, coll, filter, update)
 }
@@ -111,11 +110,10 @@ func (m *MongoStore) GetWorkspacesPaginated(page, limit int, search string) ([]m
 
 	filter := bson.M{}
 	if search != "" {
-		// Case-insensitive search in name, description, or tenant
+		// Case-insensitive search in name or description
 		filter["$or"] = []bson.M{
 			{"name": bson.M{"$regex": search, "$options": "i"}},
 			{"description": bson.M{"$regex": search, "$options": "i"}},
-			{"tenant": bson.M{"$regex": search, "$options": "i"}},
 		}
 	}
 
@@ -150,7 +148,7 @@ func (m *MongoStore) GetUserWorkspaces(username string) []models.Workspace {
 	return userWorkspaces
 }
 
-func (m *MongoStore) GetWorkspacesWithDeviceCount(page, limit int, search, tenant string) ([]models.WorkspaceWithDeviceCount, int64, error) {
+func (m *MongoStore) GetWorkspacesWithDeviceCount(page, limit int, search string) ([]models.WorkspaceWithDeviceCount, int64, error) {
 	if page < 1 || limit < 1 || limit > 1000 {
 		return nil, 0, ErrInvalidPagination
 	}
@@ -164,12 +162,7 @@ func (m *MongoStore) GetWorkspacesWithDeviceCount(page, limit int, search, tenan
 		matchFilter["$or"] = []bson.M{
 			{"name": regex},
 			{"description": regex},
-			{"tenant": regex},
 		}
-	}
-
-	if tenant != "" {
-		matchFilter["tenant"] = tenant
 	}
 
 	pipeline := []bson.M{

@@ -38,15 +38,8 @@ func (m *MongoStore) GetClientCredentialsByUser(userID string) ([]models.ClientC
 	return GetDocuments[models.ClientCredentials](m.Ctx, coll, filter)
 }
 
-// GetClientCredentialsByTenant retrieves all client credentials for a specific tenant
-func (m *MongoStore) GetClientCredentialsByTenant(tenant string) ([]models.ClientCredentials, error) {
-	coll := m.GetCollection("client_credentials")
-	filter := bson.D{{Key: "tenant", Value: tenant}, {Key: "is_active", Value: true}}
-	return GetDocuments[models.ClientCredentials](m.Ctx, coll, filter)
-}
-
 // CreateClientCredential creates a new client credential with generated client_id and secret
-func (m *MongoStore) CreateClientCredential(name, description, userID, tenant string) (models.ClientCredentials, error) {
+func (m *MongoStore) CreateClientCredential(name, description, userID string) (models.ClientCredentials, error) {
 	clientID := clientcredentials.GenerateClientIDWithPrefix(getClientIDPrefix())
 
 	clientSecret, err := clientcredentials.GenerateClientSecret()
@@ -66,7 +59,6 @@ func (m *MongoStore) CreateClientCredential(name, description, userID, tenant st
 		Name:         name,
 		Description:  description,
 		UserID:       userID,
-		Tenant:       tenant,
 		IsActive:     true,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
@@ -203,15 +195,7 @@ func (m *MongoStore) CreateClientCredentialIndexes() error {
 		},
 	}
 
-	// Compound index on tenant and is_active for tenant queries
-	tenantActiveIndex := mongo.IndexModel{
-		Keys: bson.D{
-			{Key: "tenant", Value: 1},
-			{Key: "is_active", Value: 1},
-		},
-	}
-
-	indexes := []mongo.IndexModel{clientIDIndex, secretLookupIndex, userActiveIndex, tenantActiveIndex}
+	indexes := []mongo.IndexModel{clientIDIndex, secretLookupIndex, userActiveIndex}
 
 	_, err := coll.Indexes().CreateMany(m.Ctx, indexes)
 	return err

@@ -14,24 +14,21 @@ import (
 const customActionsCollection = "custom_actions"
 const userFavoriteActionsCollection = "user_favorite_actions"
 
-func (m *MongoStore) GetCustomActions(tenant string) ([]models.CustomAction, error) {
+func (m *MongoStore) GetCustomActions() ([]models.CustomAction, error) {
 	coll := m.GetCollection(customActionsCollection)
-	filter := bson.M{"tenant": tenant}
+	filter := bson.M{}
 	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}})
 	return GetDocuments[models.CustomAction](m.Ctx, coll, filter, opts)
 }
 
-func (m *MongoStore) GetCustomAction(id, tenant string) (models.CustomAction, error) {
+func (m *MongoStore) GetCustomAction(id string) (models.CustomAction, error) {
 	coll := m.GetCollection(customActionsCollection)
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return models.CustomAction{}, fmt.Errorf("invalid id format: %w", err)
 	}
 
-	filter := bson.M{
-		"_id":    objectID,
-		"tenant": tenant,
-	}
+	filter := bson.M{"_id": objectID}
 	return GetDocument[models.CustomAction](m.Ctx, coll, filter)
 }
 
@@ -53,17 +50,14 @@ func (m *MongoStore) CreateCustomAction(action *models.CustomAction) error {
 	return nil
 }
 
-func (m *MongoStore) UpdateCustomAction(id, tenant string, action *models.CustomAction) error {
+func (m *MongoStore) UpdateCustomAction(id string, action *models.CustomAction) error {
 	coll := m.GetCollection(customActionsCollection)
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return fmt.Errorf("invalid id format: %w", err)
 	}
 
-	filter := bson.M{
-		"_id":    objectID,
-		"tenant": tenant,
-	}
+	filter := bson.M{"_id": objectID}
 
 	action.UpdatedAt = time.Now()
 	updates := bson.M{
@@ -77,17 +71,14 @@ func (m *MongoStore) UpdateCustomAction(id, tenant string, action *models.Custom
 	return PartialDocumentUpdate(m.Ctx, coll, filter, updates)
 }
 
-func (m *MongoStore) DeleteCustomAction(id, tenant string) error {
+func (m *MongoStore) DeleteCustomAction(id string) error {
 	coll := m.GetCollection(customActionsCollection)
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return fmt.Errorf("invalid id format: %w", err)
 	}
 
-	filter := bson.M{
-		"_id":    objectID,
-		"tenant": tenant,
-	}
+	filter := bson.M{"_id": objectID}
 
 	if err := DeleteDocument(m.Ctx, coll, filter); err != nil {
 		return err
@@ -101,12 +92,9 @@ func (m *MongoStore) DeleteCustomAction(id, tenant string) error {
 	return nil
 }
 
-func (m *MongoStore) GetUserFavoriteActionIDs(username, tenant string) ([]string, error) {
+func (m *MongoStore) GetUserFavoriteActionIDs(username string) ([]string, error) {
 	coll := m.GetCollection(userFavoriteActionsCollection)
-	filter := bson.M{
-		"username": username,
-		"tenant":   tenant,
-	}
+	filter := bson.M{"username": username}
 
 	var favorites []models.UserFavoriteAction
 	cursor, err := coll.Find(m.Ctx, filter)
@@ -126,8 +114,8 @@ func (m *MongoStore) GetUserFavoriteActionIDs(username, tenant string) ([]string
 	return ids, nil
 }
 
-func (m *MongoStore) AddUserFavoriteAction(username, tenant, actionID string) error {
-	count, err := m.CountUserFavoriteActions(username, tenant)
+func (m *MongoStore) AddUserFavoriteAction(username, actionID string) error {
+	count, err := m.CountUserFavoriteActions(username)
 	if err != nil {
 		return err
 	}
@@ -138,7 +126,6 @@ func (m *MongoStore) AddUserFavoriteAction(username, tenant, actionID string) er
 	coll := m.GetCollection(userFavoriteActionsCollection)
 	favorite := models.UserFavoriteAction{
 		Username: username,
-		Tenant:   tenant,
 		ActionID: actionID,
 	}
 
@@ -146,22 +133,18 @@ func (m *MongoStore) AddUserFavoriteAction(username, tenant, actionID string) er
 	return err
 }
 
-func (m *MongoStore) RemoveUserFavoriteAction(username, tenant, actionID string) error {
+func (m *MongoStore) RemoveUserFavoriteAction(username, actionID string) error {
 	coll := m.GetCollection(userFavoriteActionsCollection)
 	filter := bson.M{
 		"username":  username,
-		"tenant":    tenant,
 		"action_id": actionID,
 	}
 	return DeleteDocument(m.Ctx, coll, filter)
 }
 
-func (m *MongoStore) CountUserFavoriteActions(username, tenant string) (int64, error) {
+func (m *MongoStore) CountUserFavoriteActions(username string) (int64, error) {
 	coll := m.GetCollection(userFavoriteActionsCollection)
-	filter := bson.M{
-		"username": username,
-		"tenant":   tenant,
-	}
+	filter := bson.M{"username": username}
 	return CountDocuments(m.Ctx, coll, filter)
 }
 
@@ -176,12 +159,11 @@ func (m *MongoStore) DeleteFavoritesByActionID(actionID string) error {
 func (m *MongoStore) CreateUserFavoriteActionIndexes() error {
 	coll := m.GetCollection(userFavoriteActionsCollection)
 
-	// Unique compound index on (username, tenant, action_id)
+	// Unique compound index on (username, action_id)
 	// Prevents duplicate favorites for the same user
 	uniqueIndex := mongo.IndexModel{
 		Keys: bson.D{
 			{Key: "username", Value: 1},
-			{Key: "tenant", Value: 1},
 			{Key: "action_id", Value: 1},
 		},
 		Options: &options.IndexOptions{
@@ -189,11 +171,10 @@ func (m *MongoStore) CreateUserFavoriteActionIndexes() error {
 		},
 	}
 
-	// Compound index on (username, tenant) for fast user favorite queries
-	userTenantIndex := mongo.IndexModel{
+	// Index on username for fast user favorite queries
+	usernameIndex := mongo.IndexModel{
 		Keys: bson.D{
 			{Key: "username", Value: 1},
-			{Key: "tenant", Value: 1},
 		},
 	}
 
@@ -202,7 +183,7 @@ func (m *MongoStore) CreateUserFavoriteActionIndexes() error {
 		Keys: bson.D{{Key: "action_id", Value: 1}},
 	}
 
-	indexes := []mongo.IndexModel{uniqueIndex, userTenantIndex, actionIDIndex}
+	indexes := []mongo.IndexModel{uniqueIndex, usernameIndex, actionIDIndex}
 
 	_, err := coll.Indexes().CreateMany(m.Ctx, indexes)
 	return err

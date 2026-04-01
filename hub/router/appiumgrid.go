@@ -124,35 +124,18 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			if credential.Tenant != "" {
-				defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
-				useAllTenantWorkspaces := true
-
-				// Check if we need to filter by user workspaces
-				if credential.Tenant == defaultTenant && credential.UserID != "" {
-					user, err := db.GlobalMongoStore.GetUser(credential.UserID)
-					if err != nil {
-						c.JSON(http.StatusUnauthorized, createErrorResponse("User not found", "session not created", ""))
-						return
-					}
-
-					if user.Role != "admin" {
-						// Regular user: only assigned workspaces
-						useAllTenantWorkspaces = false
-						userWorkspaces := db.GlobalMongoStore.GetUserWorkspaces(credential.UserID)
-						for _, ws := range userWorkspaces {
-							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
-						}
-					}
+			if credential.UserID != "" {
+				user, err := db.GlobalMongoStore.GetUser(credential.UserID)
+				if err != nil {
+					c.JSON(http.StatusUnauthorized, createErrorResponse("User not found", "session not created", ""))
+					return
 				}
 
-				// Admin users or non-default tenant: all workspaces of the tenant
-				if useAllTenantWorkspaces {
-					allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
-					for _, ws := range allWorkspaces {
-						if ws.Tenant == credential.Tenant {
-							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
-						}
+				if user.Role != "admin" {
+					// Regular user: only assigned workspaces
+					userWorkspaces := db.GlobalMongoStore.GetUserWorkspaces(credential.UserID)
+					for _, ws := range userWorkspaces {
+						allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
 					}
 				}
 			}
@@ -161,7 +144,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var foundDevice *devices.LocalHubDevice
 			var deviceErr error
 
-			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID)
 
 			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
 				c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
@@ -178,7 +161,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+						foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
@@ -327,7 +310,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			foundDevice.Mu.Lock()
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			// Set InUseBy with user ID and tenant for tracking
+			// Set InUseBy with user ID for tracking
 			automationUser := credential.UserID
 			if automationUser == "" {
 				automationUser = "unknown"
@@ -335,7 +318,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Only update InUseBy if no UI or API session is active
 			if !foundDevice.HasUISession() && !foundDevice.HasActiveLease() {
 				foundDevice.InUseBy = automationUser
-				foundDevice.InUseByTenant = credential.Tenant
 				foundDevice.InUseTS = time.Now().UnixMilli()
 			}
 			foundDevice.Mu.Unlock()
@@ -543,7 +525,7 @@ func getTargetOSFromCaps(caps models.CommonCapabilities) string {
 	return ""
 }
 
-func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*devices.LocalHubDevice, error) {
+func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string) (*devices.LocalHubDevice, error) {
 	var foundDevice *devices.LocalHubDevice
 
 	var deviceUDID = ""
@@ -600,7 +582,7 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 			available := localDevice.IsAvailableForAutomation
 			usage := localDevice.Device.Usage
 			wsID := localDevice.Device.WorkspaceID
-			isLockedByOther := localDevice.IsLockedByOther(userID, userTenant)
+			isLockedByOther := localDevice.IsLockedByOther(userID)
 			localDevice.Mu.RUnlock()
 
 			if !strings.EqualFold(os, targetOS) ||

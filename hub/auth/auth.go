@@ -137,15 +137,8 @@ func LoginHandler(c *gin.Context) {
 	// Get the request origin
 	origin := GetOriginFromRequest(c)
 
-	// Get the default tenant
-	defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
-	if err != nil {
-		api.InternalError(c, "Failed to get default tenant")
-		return
-	}
-
 	// Generate JWT token with 1 hour validity
-	token, err := GenerateJWT(user.Username, user.Role, defaultTenant, scopes, time.Hour, origin)
+	token, err := GenerateJWT(user.Username, user.Role, scopes, time.Hour, origin)
 	if err != nil {
 		api.InternalError(c, "Failed to generate token")
 		return
@@ -285,7 +278,6 @@ func GetUserInfoHandler(c *gin.Context) {
 	api.OK(c, "", models.UserInfoResponse{
 		Username:            userIdentifier,
 		Role:                role,
-		Tenant:              claims.Tenant,
 		Scopes:              scopes,
 		UserIdentifierClaim: userIdentifierClaim,
 	})
@@ -351,7 +343,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Store user information in context for later use
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
-		c.Set("tenant", claims.Tenant)
 		c.Set("origin", claims.Origin) // Store origin in context
 
 		// Continue execution

@@ -44,7 +44,6 @@ func TestCreateClientCredential(t *testing.T) {
 			"Test Client",
 			"Test Description",
 			"user123",
-			"test-tenant",
 		)
 
 		require.NoError(t, err)
@@ -54,7 +53,6 @@ func TestCreateClientCredential(t *testing.T) {
 		assert.NotEmpty(t, credential.ClientSecret)
 		assert.Equal(t, "Test Client", credential.Name)
 		assert.Equal(t, "user123", credential.UserID)
-		assert.Equal(t, "test-tenant", credential.Tenant)
 		assert.True(t, credential.IsActive)
 	})
 }
@@ -100,7 +98,6 @@ func TestGetClientCredential(t *testing.T) {
 		assert.Equal(t, clientID, retrieved.ClientID)
 		assert.Equal(t, "Test Client", retrieved.Name)
 		assert.Equal(t, "user123", retrieved.UserID)
-		assert.Equal(t, "test-tenant", retrieved.Tenant)
 		assert.Equal(t, clientSecretHash, retrieved.ClientSecret)
 	})
 
@@ -401,12 +398,12 @@ func TestClientIDGeneration(t *testing.T) {
 		}
 
 		// Test default prefix
-		cred1, err := store.CreateClientCredential("Test 1", "Desc 1", "user1", "tenant1")
+		cred1, err := store.CreateClientCredential("Test 1", "Desc 1", "user1")
 		require.NoError(t, err)
 		assert.Contains(t, cred1.ClientID, "gads_")
 
 		// Create another to test uniqueness
-		cred2, err := store.CreateClientCredential("Test 2", "Desc 2", "user1", "tenant1")
+		cred2, err := store.CreateClientCredential("Test 2", "Desc 2", "user1")
 		require.NoError(t, err)
 		assert.Contains(t, cred2.ClientID, "gads_")
 
@@ -435,7 +432,7 @@ func TestClientIDPrefixConfiguration(t *testing.T) {
 
 		// Test custom prefix
 		t.Setenv("GADS_CLIENT_ID_PREFIX", "myorg")
-		cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+		cred, err := store.CreateClientCredential("Test", "Desc", "user1")
 		require.NoError(t, err)
 		assert.Contains(t, cred.ClientID, "myorg_")
 		assert.NotContains(t, cred.ClientID, "gads_")
@@ -457,7 +454,7 @@ func TestClientIDPrefixConfiguration(t *testing.T) {
 
 		// Test empty prefix falls back to default
 		t.Setenv("GADS_CLIENT_ID_PREFIX", "")
-		cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+		cred, err := store.CreateClientCredential("Test", "Desc", "user1")
 		require.NoError(t, err)
 		assert.Contains(t, cred.ClientID, "gads_")
 	})
@@ -482,7 +479,7 @@ func TestClientSecretValidation(t *testing.T) {
 
 		// First, create a credential and capture the generated secret
 		mt.AddMockResponses(insertResponse)
-		cred, err := store.CreateClientCredential("Test", "Desc", "user1", "tenant1")
+		cred, err := store.CreateClientCredential("Test", "Desc", "user1")
 		require.NoError(t, err)
 		
 		// The stored hash should validate with the returned secret

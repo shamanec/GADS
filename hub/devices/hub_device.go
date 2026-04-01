@@ -37,7 +37,6 @@ type LocalHubDevice struct {
 	LastAutomationActionTS   int64         `json:"last_automation_action_ts"`
 	InUse                    bool          `json:"in_use"`
 	InUseBy                  string        `json:"in_use_by"`
-	InUseByTenant            string        `json:"in_use_by_tenant"`
 	InUseTS                  int64         `json:"in_use_ts"`
 	LockSource               string        `json:"lock_source" bson:"-"` // "ui", "api", or ""
 	LeaseExpiresAt           int64         `json:"-" bson:"-"`           // Unix ms, 0 = no active lease
@@ -51,12 +50,11 @@ type LocalHubDevice struct {
 // All methods below assume the caller holds device.Mu.
 
 // AcquireLock reserves the device for a user. Returns an error if already locked by another user.
-func (d *LocalHubDevice) AcquireLock(user, tenant, source string) error {
-	if d.IsLockedByOther(user, tenant) {
+func (d *LocalHubDevice) AcquireLock(user, source string) error {
+	if d.IsLockedByOther(user) {
 		return fmt.Errorf("device is already locked by another user")
 	}
 	d.InUseBy = user
-	d.InUseByTenant = tenant
 	d.InUseTS = time.Now().UnixMilli()
 	d.LockSource = source
 	d.LastActionTS = time.Now().UnixMilli()
@@ -70,7 +68,6 @@ func (d *LocalHubDevice) ReleaseLock() {
 		d.InUseWSConnection = nil
 	}
 	d.InUseBy = ""
-	d.InUseByTenant = ""
 	d.InUseTS = 0
 	d.LockSource = ""
 	d.LeaseExpiresAt = 0
@@ -100,12 +97,12 @@ func (d *LocalHubDevice) IsLocked() bool {
 	return false
 }
 
-// IsLockedByOther reports whether the device is locked by a different user/tenant combination.
-func (d *LocalHubDevice) IsLockedByOther(user, tenant string) bool {
+// IsLockedByOther reports whether the device is locked by a different user.
+func (d *LocalHubDevice) IsLockedByOther(user string) bool {
 	if d.InUseBy == "" {
 		return false
 	}
-	if d.InUseBy == user && d.InUseByTenant == tenant {
+	if d.InUseBy == user {
 		return false
 	}
 	return d.IsLocked()

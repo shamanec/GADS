@@ -51,11 +51,7 @@ A prominent warning alerts you that **the client secret will not be shown again*
    - Can be toggled between visible/hidden using the eye icon
    - **This is shown only once** - save it securely!
 
-3. **Tenant**
-   - The tenant/workspace associated with the credential
-   - Automatically assigned based on your current context
-
-4. **Appium Capabilities**
+3. **Appium Capabilities**
    - Pre-formatted JSON showing how to use the credential
    - Example:
    ```json
@@ -67,7 +63,7 @@ A prominent warning alerts you that **the client secret will not be shown again*
 ### Copying Information
 
 Each field has a copy button (📋) allowing you to easily copy:
-- Individual fields (Client ID, Secret, Tenant)
+- Individual fields (Client ID, Secret)
 - The complete Appium capabilities JSON
 
 ## 📊 Managing Existing Credentials

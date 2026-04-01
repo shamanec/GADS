@@ -34,13 +34,13 @@ func (f *fakeConn) SetWriteDeadline(t time.Time) error { return nil }
 func TestAcquireLock_Success(t *testing.T) {
 	d := &LocalHubDevice{}
 	d.Mu.Lock()
-	err := d.AcquireLock("alice", "tenantA", LockSourceUI)
+	err := d.AcquireLock("alice", LockSourceUI)
 	d.Mu.Unlock()
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if d.InUseBy != "alice" || d.InUseByTenant != "tenantA" || d.LockSource != LockSourceUI {
+	if d.InUseBy != "alice" || d.LockSource != LockSourceUI {
 		t.Error("lock fields not set correctly")
 	}
 	if d.InUseTS == 0 {
@@ -52,11 +52,10 @@ func TestAcquireLock_FailsWhenLockedByOther(t *testing.T) {
 	d := &LocalHubDevice{}
 	d.InUseWSConnection = &fakeConn{}
 	d.InUseBy = "alice"
-	d.InUseByTenant = "tenantA"
 	d.InUseTS = time.Now().UnixMilli()
 
 	d.Mu.Lock()
-	err := d.AcquireLock("bob", "tenantA", LockSourceUI)
+	err := d.AcquireLock("bob", LockSourceUI)
 	d.Mu.Unlock()
 
 	if err == nil {
@@ -67,11 +66,10 @@ func TestAcquireLock_FailsWhenLockedByOther(t *testing.T) {
 func TestAcquireLock_SameUserSucceeds(t *testing.T) {
 	d := &LocalHubDevice{}
 	d.InUseBy = "alice"
-	d.InUseByTenant = "tenantA"
 	d.InUseTS = time.Now().UnixMilli()
 
 	d.Mu.Lock()
-	err := d.AcquireLock("alice", "tenantA", LockSourceUI)
+	err := d.AcquireLock("alice", LockSourceUI)
 	d.Mu.Unlock()
 
 	if err != nil {
@@ -84,7 +82,6 @@ func TestReleaseLock_ClearsAllFields(t *testing.T) {
 	conn := &fakeConn{}
 	d.InUseWSConnection = conn
 	d.InUseBy = "alice"
-	d.InUseByTenant = "tenantA"
 	d.InUseTS = time.Now().UnixMilli()
 	d.LockSource = LockSourceUI
 	d.LeaseExpiresAt = time.Now().Add(10 * time.Minute).UnixMilli()
@@ -93,7 +90,7 @@ func TestReleaseLock_ClearsAllFields(t *testing.T) {
 	d.ReleaseLock()
 	d.Mu.Unlock()
 
-	if d.InUseBy != "" || d.InUseByTenant != "" || d.InUseTS != 0 {
+	if d.InUseBy != "" || d.InUseTS != 0 {
 		t.Error("user fields should be cleared")
 	}
 	if d.LockSource != "" || d.LeaseExpiresAt != 0 {
@@ -194,7 +191,7 @@ func TestIsLockedByOther_NotLocked(t *testing.T) {
 	d := &LocalHubDevice{}
 
 	d.Mu.RLock()
-	result := d.IsLockedByOther("alice", "tenantA")
+	result := d.IsLockedByOther("alice")
 	d.Mu.RUnlock()
 
 	if result {
@@ -205,11 +202,10 @@ func TestIsLockedByOther_NotLocked(t *testing.T) {
 func TestIsLockedByOther_SameUser(t *testing.T) {
 	d := &LocalHubDevice{}
 	d.InUseBy = "alice"
-	d.InUseByTenant = "tenantA"
 	d.InUseWSConnection = &fakeConn{}
 
 	d.Mu.RLock()
-	result := d.IsLockedByOther("alice", "tenantA")
+	result := d.IsLockedByOther("alice")
 	d.Mu.RUnlock()
 
 	if result {
@@ -220,30 +216,14 @@ func TestIsLockedByOther_SameUser(t *testing.T) {
 func TestIsLockedByOther_DifferentUser(t *testing.T) {
 	d := &LocalHubDevice{}
 	d.InUseBy = "alice"
-	d.InUseByTenant = "tenantA"
 	d.InUseWSConnection = &fakeConn{}
 
 	d.Mu.RLock()
-	result := d.IsLockedByOther("bob", "tenantA")
+	result := d.IsLockedByOther("bob")
 	d.Mu.RUnlock()
 
 	if !result {
 		t.Error("should be locked by other when different user holds WS session")
-	}
-}
-
-func TestIsLockedByOther_DifferentTenant(t *testing.T) {
-	d := &LocalHubDevice{}
-	d.InUseBy = "alice"
-	d.InUseByTenant = "tenantA"
-	d.InUseWSConnection = &fakeConn{}
-
-	d.Mu.RLock()
-	result := d.IsLockedByOther("alice", "tenantB")
-	d.Mu.RUnlock()
-
-	if !result {
-		t.Error("should be locked by other when same user but different tenant")
 	}
 }
 
@@ -287,14 +267,13 @@ func TestReleaseLockIfNotHeld_WithActiveLease(t *testing.T) {
 func TestReleaseLockIfNotHeld_NoHold(t *testing.T) {
 	d := &LocalHubDevice{}
 	d.InUseBy = "alice"
-	d.InUseByTenant = "tenantA"
 	d.InUseTS = time.Now().Add(-10 * time.Second).UnixMilli()
 
 	d.Mu.Lock()
 	d.ReleaseLockIfNotHeld()
 	d.Mu.Unlock()
 
-	if d.InUseBy != "" || d.InUseByTenant != "" {
+	if d.InUseBy != "" {
 		t.Error("should clear user fields when not held by UI or API")
 	}
 }

@@ -39,7 +39,7 @@ export GADS_CLIENT_ID_PREFIX=dev-testing
 The configurable prefix provides valuable flexibility for:
 
 1. **Environment-specific naming**: Different environments (dev, staging, prod) can use distinct prefixes to clearly identify resources and prevent cross-environment conflicts
-2. **Multi-tenant scenarios**: Organizations running multiple GADS instances can differentiate them using custom prefixes
+2. **Multi-instance scenarios**: Organizations running multiple GADS instances can differentiate them using custom prefixes
 3. **Integration requirements**: Some organizations may have existing naming conventions or security policies that require specific prefixes
 
 ## 📱 Using Credentials with Appium

@@ -20,7 +20,7 @@ import (
 
 // CredentialStore defines the interface for client credential storage operations
 type CredentialStore interface {
-	CreateClientCredential(name, description, userID, tenant string) (models.ClientCredentials, error)
+	CreateClientCredential(name, description, userID string) (models.ClientCredentials, error)
 	GetClientCredential(clientID string) (models.ClientCredentials, error)
 	GetClientCredentialsByUser(userID string) ([]models.ClientCredentials, error)
 	UpdateClientCredential(clientID string, updates bson.M) error
@@ -28,7 +28,7 @@ type CredentialStore interface {
 	ValidateClientCredentials(clientID, clientSecret string) (models.ClientCredentials, error)
 }
 
-func CreateCredential(ctx context.Context, store CredentialStore, name, description string, userID string, tenant string) (*models.ClientCredentials, error) {
+func CreateCredential(ctx context.Context, store CredentialStore, name, description string, userID string) (*models.ClientCredentials, error) {
 	if name == "" {
 		return nil, errors.New("name cannot be empty")
 	}
@@ -37,7 +37,7 @@ func CreateCredential(ctx context.Context, store CredentialStore, name, descript
 	}
 
 	// Use existing DB function directly
-	credential, err := store.CreateClientCredential(name, description, userID, tenant)
+	credential, err := store.CreateClientCredential(name, description, userID)
 	if err != nil {
 		log.Printf("Error creating client credential: %v", err)
 		return nil, err
@@ -47,7 +47,7 @@ func CreateCredential(ctx context.Context, store CredentialStore, name, descript
 	return &credential, nil
 }
 
-func GetCredential(ctx context.Context, store CredentialStore, clientID string, userID string, tenant string) (*models.ClientCredentials, error) {
+func GetCredential(ctx context.Context, store CredentialStore, clientID string, userID string) (*models.ClientCredentials, error) {
 	if clientID == "" {
 		return nil, errors.New("client ID cannot be empty")
 	}
@@ -61,11 +61,6 @@ func GetCredential(ctx context.Context, store CredentialStore, clientID string, 
 		return nil, err
 	}
 
-	// Check tenant access
-	if credential.Tenant != tenant {
-		return nil, errors.New("access denied: wrong tenant")
-	}
-
 	// Check if user owns credential
 	if credential.UserID != userID {
 		return nil, errors.New("access denied: not owner")
@@ -74,16 +69,13 @@ func GetCredential(ctx context.Context, store CredentialStore, clientID string, 
 	return &credential, nil
 }
 
-// ListCredentials retrieves all active client credentials for a specific user and tenant
-func ListCredentials(ctx context.Context, store CredentialStore, userID string, tenant string) ([]models.ClientCredentials, error) {
+// ListCredentials retrieves all active client credentials for a specific user
+func ListCredentials(ctx context.Context, store CredentialStore, userID string) ([]models.ClientCredentials, error) {
 	if userID == "" {
 		return nil, errors.New("userID cannot be empty")
 	}
-	if tenant == "" {
-		return nil, errors.New("tenant cannot be empty")
-	}
 
-	log.Printf("Listing credentials for user %s in tenant %s", userID, tenant)
+	log.Printf("Listing credentials for user %s", userID)
 
 	// Get all credentials for the user
 	userCredentials, err := store.GetClientCredentialsByUser(userID)
@@ -91,19 +83,11 @@ func ListCredentials(ctx context.Context, store CredentialStore, userID string, 
 		return nil, err
 	}
 
-	// Filter by tenant to ensure tenant isolation
-	var filteredCredentials []models.ClientCredentials
-	for _, cred := range userCredentials {
-		if cred.Tenant == tenant && cred.IsActive {
-			filteredCredentials = append(filteredCredentials, cred)
-		}
-	}
-
-	return filteredCredentials, nil
+	return userCredentials, nil
 }
 
-func UpdateCredential(ctx context.Context, store CredentialStore, clientID, name, description string, userID string, tenant string) error {
-	_, err := GetCredential(ctx, store, clientID, userID, tenant)
+func UpdateCredential(ctx context.Context, store CredentialStore, clientID, name, description string, userID string) error {
+	_, err := GetCredential(ctx, store, clientID, userID)
 	if err != nil {
 		return err
 	}
@@ -125,8 +109,8 @@ func UpdateCredential(ctx context.Context, store CredentialStore, clientID, name
 	return nil
 }
 
-func RevokeCredential(ctx context.Context, store CredentialStore, clientID string, userID string, tenant string) error {
-	_, err := GetCredential(ctx, store, clientID, userID, tenant)
+func RevokeCredential(ctx context.Context, store CredentialStore, clientID string, userID string) error {
+	_, err := GetCredential(ctx, store, clientID, userID)
 	if err != nil {
 		return err
 	}
@@ -142,8 +126,8 @@ func RevokeCredential(ctx context.Context, store CredentialStore, clientID strin
 	return nil
 }
 
-func ValidateCredentials(ctx context.Context, store CredentialStore, clientID, clientSecret, tenant string) (*models.ClientCredentials, error) {
-	if clientID == "" || clientSecret == "" || tenant == "" {
+func ValidateCredentials(ctx context.Context, store CredentialStore, clientID, clientSecret string) (*models.ClientCredentials, error) {
+	if clientID == "" || clientSecret == "" {
 		return nil, errors.New("invalid credentials")
 	}
 
@@ -151,12 +135,6 @@ func ValidateCredentials(ctx context.Context, store CredentialStore, clientID, c
 	credential, err := store.ValidateClientCredentials(clientID, clientSecret)
 	if err != nil {
 		log.Printf("Credential validation failed for %s: %v", clientID, err)
-		return nil, errors.New("invalid credentials")
-	}
-
-	// Check tenant
-	if credential.Tenant != tenant {
-		log.Printf("Tenant mismatch for credential %s", clientID)
 		return nil, errors.New("invalid credentials")
 	}
 

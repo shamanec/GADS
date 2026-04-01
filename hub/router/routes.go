@@ -468,7 +468,6 @@ func DeviceInUseWS(c *gin.Context) {
 	}
 
 	var username string
-	var userTenant string
 
 	// Extract token from the request
 	claims, err := auth.GetClaimsFromRequest(c)
@@ -477,7 +476,6 @@ func DeviceInUseWS(c *gin.Context) {
 		return
 	}
 	username = claims.Username
-	userTenant = claims.Tenant
 
 	// Verify if the device is already in use by another user
 	device, exists := devices.HubDeviceStore.Get(udid)
@@ -488,7 +486,7 @@ func DeviceInUseWS(c *gin.Context) {
 
 	device.Mu.Lock()
 
-	if device.IsLockedByOther(username, userTenant) {
+	if device.IsLockedByOther(username) {
 		device.Mu.Unlock()
 		c.Status(http.StatusConflict)
 		return
@@ -500,7 +498,7 @@ func DeviceInUseWS(c *gin.Context) {
 	// For a pure UI session (no prior lock), reserve the device now to prevent a race
 	// between passing the check above and completing the WebSocket upgrade below.
 	if !device.HasActiveLease() {
-		device.AcquireLock(username, userTenant, devices.LockSourceUI) //nolint:errcheck — AcquireLock only fails when locked by other, already checked above
+		device.AcquireLock(username, devices.LockSourceUI) //nolint:errcheck — AcquireLock only fails when locked by other, already checked above
 	}
 	device.Mu.Unlock()
 
@@ -909,7 +907,6 @@ func ReleaseUsedDevice(c *gin.Context) {
 type lockDeviceResponse struct {
 	UDID        string `json:"udid"`
 	LockedBy    string `json:"locked_by"`
-	Tenant      string `json:"tenant"`
 	ExpiresAtMS int64  `json:"expires_at_ms"`
 }
 
@@ -954,7 +951,7 @@ func LockDevice(c *gin.Context) {
 	device.Mu.Lock()
 	defer device.Mu.Unlock()
 
-	if device.IsLockedByOther(claims.Username, claims.Tenant) {
+	if device.IsLockedByOther(claims.Username) {
 		if claims.Role != "admin" {
 			api.Conflict(c, fmt.Sprintf("Device `%s` is already locked by another user", udid))
 			return
@@ -966,14 +963,13 @@ func LockDevice(c *gin.Context) {
 		device.ReleaseLock()
 	}
 
-	device.AcquireLock(claims.Username, claims.Tenant, devices.LockSourceAPI) //nolint:errcheck — IsLockedByOther already checked above
+	device.AcquireLock(claims.Username, devices.LockSourceAPI) //nolint:errcheck — IsLockedByOther already checked above
 	expiresAt := time.Now().Add(time.Duration(ttl) * time.Minute).UnixMilli()
 	device.LeaseExpiresAt = expiresAt
 
 	c.JSON(http.StatusOK, lockDeviceResponse{
 		UDID:        udid,
 		LockedBy:    claims.Username,
-		Tenant:      claims.Tenant,
 		ExpiresAtMS: expiresAt,
 	})
 }
@@ -1014,7 +1010,7 @@ func UnlockDevice(c *gin.Context) {
 		return
 	}
 
-	if device.IsLockedByOther(claims.Username, claims.Tenant) {
+	if device.IsLockedByOther(claims.Username) {
 		if claims.Role != "admin" {
 			api.Conflict(c, fmt.Sprintf("Device `%s` is locked by another user", udid))
 			return

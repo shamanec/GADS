@@ -63,12 +63,10 @@ func DeviceProxyHandler(c *gin.Context) {
 	}
 
 	var username string
-	var tenant string
 
 	// If not a session creation or no credentials in capabilities, check for bearer token
 	if claims, err := auth.GetClaimsFromRequest(c); err == nil {
 		username = claims.Username
-		tenant = claims.Tenant
 	}
 
 	device, ok := devices.HubDeviceStore.Get(udid)
@@ -79,7 +77,7 @@ func DeviceProxyHandler(c *gin.Context) {
 
 	device.Mu.RLock()
 	isAvailable := device.Available
-	isLockedByOther := device.IsLockedByOther(username, tenant)
+	isLockedByOther := device.IsLockedByOther(username)
 	device.Mu.RUnlock()
 
 	if isLockedByOther {

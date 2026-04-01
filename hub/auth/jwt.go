@@ -43,7 +43,6 @@ type JWTClaims struct {
 	Username string   `json:"username"`
 	Role     string   `json:"role"`
 	Scope    []string `json:"scope"`
-	Tenant   string   `json:"tenant"`
 	Origin   string   `json:"origin,omitempty"` // Added origin claim
 }
 
@@ -109,7 +108,7 @@ func getDefaultSecretKey() ([]byte, error) {
 }
 
 // GenerateJWT generates a JWT token using HS256 with the appropriate secret key
-func GenerateJWT(username, role, tenant string, scope []string, duration time.Duration, origin ...string) (string, error) {
+func GenerateJWT(username, role string, scope []string, duration time.Duration, origin ...string) (string, error) {
 	originValue := ""
 	if len(origin) > 0 && origin[0] != "" {
 		originValue = origin[0]
@@ -125,7 +124,6 @@ func GenerateJWT(username, role, tenant string, scope []string, duration time.Du
 		Username: username,
 		Role:     role,
 		Scope:    scope,
-		Tenant:   tenant,
 		Origin:   originValue,
 	}
 
@@ -232,7 +230,6 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 
 	// Get the secret key from the origin to know which claim to use
 	var userIdentifierClaim string
-	var tenantIdentifierClaim string
 	store := GetSecretCache().store
 	if store != nil {
 		secretKey, err := store.GetSecretKeyByOrigin(usedOrigin)
@@ -243,9 +240,6 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 		if secretKey != nil {
 			if secretKey.UserIdentifierClaim != "" {
 				userIdentifierClaim = secretKey.UserIdentifierClaim
-			}
-			if secretKey.TenantIdentifierClaim != "" {
-				tenantIdentifierClaim = secretKey.TenantIdentifierClaim
 			}
 		}
 	}
@@ -262,17 +256,6 @@ func ValidateJWT(tokenString string, origin ...string) (*JWTClaims, error) {
 			switch userIdentifierClaim {
 			case "sub":
 				claims.Username = claims.Subject
-			}
-		}
-	}
-
-	// Get the correct claim value for tenant (dynamic)
-	if tenantIdentifierClaim != "" && mapClaims != nil {
-		if val, ok := mapClaims[tenantIdentifierClaim]; ok {
-			if s, ok := val.(string); ok {
-				claims.Tenant = s
-			} else {
-				claims.Tenant = ""
 			}
 		}
 	}

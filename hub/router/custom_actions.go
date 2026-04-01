@@ -146,9 +146,7 @@ func migrateV1Action(action *models.CustomAction) {
 }
 
 func GetCustomActions(c *gin.Context) {
-	tenant := c.GetString("tenant")
-
-	actions, err := db.GlobalMongoStore.GetCustomActions(tenant)
+	actions, err := db.GlobalMongoStore.GetCustomActions()
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to get custom actions: %s", err))
 		return
@@ -162,7 +160,6 @@ func GetCustomActions(c *gin.Context) {
 }
 
 func CreateCustomAction(c *gin.Context) {
-	tenant := c.GetString("tenant")
 	username := c.GetString("username")
 
 	var action models.CustomAction
@@ -176,7 +173,6 @@ func CreateCustomAction(c *gin.Context) {
 		return
 	}
 
-	action.Tenant = tenant
 	action.CreatedBy = username
 
 	if err := db.GlobalMongoStore.CreateCustomAction(&action); err != nil {
@@ -188,7 +184,6 @@ func CreateCustomAction(c *gin.Context) {
 }
 
 func UpdateCustomAction(c *gin.Context) {
-	tenant := c.GetString("tenant")
 	id := c.Param("id")
 
 	var updates models.CustomAction
@@ -202,21 +197,19 @@ func UpdateCustomAction(c *gin.Context) {
 		return
 	}
 
-	updates.Tenant = tenant
-	if err := db.GlobalMongoStore.UpdateCustomAction(id, tenant, &updates); err != nil {
+	if err := db.GlobalMongoStore.UpdateCustomAction(id, &updates); err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to update custom action: %s", err))
 		return
 	}
 
-	updated, _ := db.GlobalMongoStore.GetCustomAction(id, tenant)
+	updated, _ := db.GlobalMongoStore.GetCustomAction(id)
 	api.OK(c, "", updated)
 }
 
 func DeleteCustomAction(c *gin.Context) {
-	tenant := c.GetString("tenant")
 	id := c.Param("id")
 
-	if err := db.GlobalMongoStore.DeleteCustomAction(id, tenant); err != nil {
+	if err := db.GlobalMongoStore.DeleteCustomAction(id); err != nil {
 		api.NotFound(c, "custom action not found")
 		return
 	}
@@ -226,9 +219,8 @@ func DeleteCustomAction(c *gin.Context) {
 
 func GetUserFavorites(c *gin.Context) {
 	username := c.GetString("username")
-	tenant := c.GetString("tenant")
 
-	favoriteIDs, err := db.GlobalMongoStore.GetUserFavoriteActionIDs(username, tenant)
+	favoriteIDs, err := db.GlobalMongoStore.GetUserFavoriteActionIDs(username)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to fetch favorites: %s", err))
 		return
@@ -248,8 +240,7 @@ func GetUserFavorites(c *gin.Context) {
 	}
 
 	filter := bson.M{
-		"_id":    bson.M{"$in": objectIDs},
-		"tenant": tenant,
+		"_id": bson.M{"$in": objectIDs},
 	}
 
 	actions, err := db.GetDocuments[models.CustomAction](db.GlobalMongoStore.Ctx, coll, filter, nil)
@@ -264,15 +255,14 @@ func GetUserFavorites(c *gin.Context) {
 func AddUserFavorite(c *gin.Context) {
 	actionID := c.Param("id")
 	username := c.GetString("username")
-	tenant := c.GetString("tenant")
 
-	_, err := db.GlobalMongoStore.GetCustomAction(actionID, tenant)
+	_, err := db.GlobalMongoStore.GetCustomAction(actionID)
 	if err != nil {
 		api.NotFound(c, "Action not found or access denied")
 		return
 	}
 
-	err = db.GlobalMongoStore.AddUserFavoriteAction(username, tenant, actionID)
+	err = db.GlobalMongoStore.AddUserFavoriteAction(username, actionID)
 	if err != nil {
 		if strings.Contains(err.Error(), "maximum") {
 			api.BadRequest(c, err.Error())
@@ -292,9 +282,8 @@ func AddUserFavorite(c *gin.Context) {
 func RemoveUserFavorite(c *gin.Context) {
 	actionID := c.Param("id")
 	username := c.GetString("username")
-	tenant := c.GetString("tenant")
 
-	err := db.GlobalMongoStore.RemoveUserFavoriteAction(username, tenant, actionID)
+	err := db.GlobalMongoStore.RemoveUserFavoriteAction(username, actionID)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to remove favorite: %s", err))
 		return

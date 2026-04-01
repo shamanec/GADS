@@ -12,7 +12,6 @@ Secret Keys in GADS provide a flexible authentication system supporting multiple
 
 ### JWT Claim Mapping
 - Custom mapping of JWT claims to identify users
-- Optional tenant identification for multi-tenant environments
 - Flexible claim structure to adapt to different authentication providers
 
 ### Secure Key Management
@@ -25,7 +24,7 @@ Secret Keys in GADS provide a flexible authentication system supporting multiple
 ### Key Management Interface
 - Add, edit, and disable secret keys
 - Set default key for fallback authentication
-- Configure user and tenant identifier claims
+- Configure user identifier claims
 - Generate secure random keys
 
 ### Audit History
@@ -48,7 +47,6 @@ Manage multiple authentication keys during transition periods between identity p
 // Example JWT payload structure
 {
   "sub": "user123",           // User identifier (mapped with user_identifier_claim)
-  "org_id": "tenant456",      // Tenant identifier (mapped with tenant_identifier_claim)
   "name": "John Doe",
   "email": "john@example.com",
   "exp": 1713897600,
@@ -75,5 +73,4 @@ Manage multiple authentication keys during transition periods between identity p
 
 Secret Keys can be used in conjunction with the Workspace feature to provide comprehensive access control:
 - JWT claims can determine which workspace a user has access to
-- Tenant identification enables multi-tenant isolation
 - Different origins can have different workspace access patterns

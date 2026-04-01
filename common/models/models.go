@@ -196,7 +196,6 @@ type ClientCredentials struct {
 	Name         string     `json:"name" bson:"name"`
 	Description  string     `json:"description" bson:"description"`
 	UserID       string     `json:"user_id" bson:"user_id"`
-	Tenant       string     `json:"tenant" bson:"tenant"`
 	IsActive     bool       `json:"is_active" bson:"is_active"`
 	CreatedAt    time.Time  `json:"created_at" bson:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at" bson:"updated_at"`
@@ -208,7 +207,6 @@ type Workspace struct {
 	Name        string `json:"name" bson:"name" example:"Development Team"`
 	Description string `json:"description" bson:"description" example:"Workspace for development team testing"`
 	IsDefault   bool   `json:"is_default" bson:"is_default" example:"false"`
-	Tenant      string `json:"tenant" bson:"tenant,omitempty" example:"acme-corp"`
 }
 
 type WorkspaceWithDeviceCount struct {
@@ -216,7 +214,6 @@ type WorkspaceWithDeviceCount struct {
 	Name        string `json:"name" bson:"name" example:"Development Team"`
 	Description string `json:"description" bson:"description" example:"Workspace for development team testing"`
 	IsDefault   bool   `json:"is_default" bson:"is_default" example:"false"`
-	Tenant      string `json:"tenant" bson:"tenant,omitempty" example:"acme-corp"`
 	DeviceCount int    `json:"device_count" bson:"device_count" example:"5"`
 }
 

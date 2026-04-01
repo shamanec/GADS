@@ -163,7 +163,7 @@ func TestGenerateAndValidateJWTWithMultipleKeys(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Generate token with specific origin
-			token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, tc.origin)
+			token, err := GenerateJWT("testuser", "user", []string{"user"}, time.Hour, tc.origin)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, token)
 
@@ -174,7 +174,6 @@ func TestGenerateAndValidateJWTWithMultipleKeys(t *testing.T) {
 				assert.NotNil(t, claims)
 				assert.Equal(t, "testuser", claims.Username)
 				assert.Equal(t, "user", claims.Role)
-				assert.Equal(t, "tenant1", claims.Tenant)
 				assert.Equal(t, tc.origin, claims.Origin)
 			} else {
 				assert.Error(t, err)
@@ -204,7 +203,7 @@ func TestOriginClaimInToken(t *testing.T) {
 
 	// Generate token with origin
 	origin := "https://web.example.com"
-	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, origin)
+	token, err := GenerateJWT("testuser", "user", []string{"user"}, time.Hour, origin)
 	assert.NoError(t, err)
 
 	// Parse token to verify origin is included in claims
@@ -232,7 +231,7 @@ func TestFallbackToDefaultKey(t *testing.T) {
 
 	// Generate token with unknown origin
 	origin := "unknown-origin"
-	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, origin)
+	token, err := GenerateJWT("testuser", "user", []string{"user"}, time.Hour, origin)
 	assert.NoError(t, err)
 
 	// Validate token with unknown origin
@@ -304,7 +303,7 @@ func TestGetClaimsFromToken(t *testing.T) {
 
 	// Generate token
 	origin := "https://web.example.com"
-	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, origin)
+	token, err := GenerateJWT("testuser", "user", []string{"user"}, time.Hour, origin)
 	assert.NoError(t, err)
 
 	// Test cases
@@ -407,9 +406,8 @@ func TestDynamicIdentifierClaims(t *testing.T) {
 	customKey := &SecretKey{
 		Origin:                "custom-origin",
 		Key:                   "custom_secret_key",
-		IsDefault:             false,
-		UserIdentifierClaim:   "custom_user",
-		TenantIdentifierClaim: "custom_tenant",
+		IsDefault:           false,
+		UserIdentifierClaim: "custom_user",
 	}
 	store.AddSecretKey(customKey, "system", "Test setup")
 
@@ -426,10 +424,8 @@ func TestDynamicIdentifierClaims(t *testing.T) {
 	// Create a token with custom claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":           "standard-subject",
-		"custom_user":   "user-from-custom-claim",
-		"custom_tenant": "tenant-from-custom-claim",
-		"username":      "standard-username",
-		"tenant":        "standard-tenant",
+		"custom_user": "user-from-custom-claim",
+		"username":    "standard-username",
 		"role":          "user",
 		"scope":         []string{"user"},
 		"origin":        "custom-origin",
@@ -447,5 +443,4 @@ func TestDynamicIdentifierClaims(t *testing.T) {
 
 	// Should use the custom identifier claims
 	assert.Equal(t, "user-from-custom-claim", claims.Username)
-	assert.Equal(t, "tenant-from-custom-claim", claims.Tenant)
 }
