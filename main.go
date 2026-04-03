@@ -10,6 +10,7 @@
 package main
 
 import (
+	"GADS/client/adb"
 	"GADS/hub"
 	"GADS/provider"
 	"embed"
@@ -60,6 +61,25 @@ func main() {
 	providerCmd.Flags().String("turn-username-suffix", "gads", "Suffix to append to TURN usernames (format: timestamp:suffix)")
 	providerCmd.Flags().Bool("use-ios-pair-cache", false, "Cache iOS pair records on disk to skip Trust dialog on reconnect (for unsupervised devices)")
 	rootCmd.AddCommand(providerCmd)
+
+	// ADB Client Command
+	var adbClientCmd = &cobra.Command{
+		Use:   "adb-client",
+		Short: "Connect to a remote Android device via ADB tunnel through the hub",
+		Run: func(cmd *cobra.Command, args []string) {
+			adb.Start(cmd.Flags())
+		},
+	}
+	adbClientCmd.Flags().String("hub", "", "Hub URL (e.g. http://localhost:10000)")
+	adbClientCmd.Flags().String("udid", "", "Device UDID to tunnel")
+	adbClientCmd.Flags().String("username", "", "GADS username")
+	adbClientCmd.Flags().String("password", "", "GADS password")
+	adbClientCmd.Flags().Int("port", 0, "Local port to listen on (0 = auto)")
+	adbClientCmd.MarkFlagRequired("hub")
+	adbClientCmd.MarkFlagRequired("udid")
+	adbClientCmd.MarkFlagRequired("username")
+	adbClientCmd.MarkFlagRequired("password")
+	rootCmd.AddCommand(adbClientCmd)
 
 	var versionCmd = &cobra.Command{
 		Use:   "version",

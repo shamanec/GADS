@@ -66,6 +66,7 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.POST("/typeText", DeviceTypeText)
 	deviceGroup.GET("/getClipboard", DeviceGetClipboard)
 	deviceGroup.Any("/appium/*proxyPath", AppiumReverseProxy)
+	deviceGroup.GET("/adb-tunnel", ADBTunnelProxy)
 	deviceGroup.GET("/android-stream", AndroidStreamProxy)
 	deviceGroup.GET("/android-stream-mjpeg", AndroidStreamMJPEG)
 	deviceGroup.POST("/update-stream-settings", UpdateDeviceStreamSettings)

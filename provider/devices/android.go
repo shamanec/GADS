@@ -43,6 +43,7 @@ type AndroidDevice struct {
 	StreamPort              string // host port forwarded to device port 1991 (video stream)
 	AndroidIMEPort          string // host port forwarded to device port 1993 (IME keyboard)
 	AndroidRemoteServerPort string // host port forwarded to device port 1994 (remote control server)
+	ADBPort                 string // host port forwarded to device adbd port 5555 (ADB tunnel)
 }
 
 var remoteServerNetClient = &http.Client{
@@ -53,6 +54,7 @@ var remoteServerNetClient = &http.Client{
 func (d *AndroidDevice) GetStreamPort() string              { return d.StreamPort }
 func (d *AndroidDevice) GetAndroidIMEPort() string          { return d.AndroidIMEPort }
 func (d *AndroidDevice) GetAndroidRemoteServerPort() string { return d.AndroidRemoteServerPort }
+func (d *AndroidDevice) GetADBPort() string                 { return d.ADBPort }
 
 // Setup runs the full Android device provisioning sequence.
 func (d *AndroidDevice) Setup() error {
@@ -72,6 +74,9 @@ func (d *AndroidDevice) Setup() error {
 	}
 	if err := d.allocatePorts(); err != nil {
 		return d.resetWithError("allocate free host ports", err)
+	}
+	if err := d.enableADBTCPMode(); err != nil {
+		return d.resetWithError("enable ADB TCP mode", err)
 	}
 	if err := d.cleanupOldApps(); err != nil {
 		return err // already reset inside cleanupOldApps
@@ -131,6 +136,12 @@ func (d *AndroidDevice) allocatePorts() error {
 		return fmt.Errorf("could not allocate free host port for GADS Android remote control server - %w", err)
 	}
 	d.AndroidRemoteServerPort = remoteServerPort
+
+	adbPort, err := providerutil.GetFreePort()
+	if err != nil {
+		return fmt.Errorf("could not allocate free host port for ADB tunnel - %w", err)
+	}
+	d.ADBPort = adbPort
 	return nil
 }
 
@@ -220,6 +231,13 @@ func (d *AndroidDevice) forwardAndSetupPorts() error {
 		d.Reset("Failed to forward GADS Android Settings port to host port.")
 		return err
 	}
+
+	// Forward ADB port for remote ADB tunnel
+	if err := d.forwardADB(); err != nil {
+		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward ADB port for Android device `%v` - %v", d.GetUDID(), err))
+		d.Reset("Failed to forward ADB port to host port.")
+		return err
+	}
 	return nil
 }
 
@@ -265,6 +283,7 @@ func (d *AndroidDevice) Reset(reason string) {
 		delete(providerutil.UsedPorts, d.StreamPort)
 		delete(providerutil.UsedPorts, d.AndroidIMEPort)
 		delete(providerutil.UsedPorts, d.AndroidRemoteServerPort)
+		delete(providerutil.UsedPorts, d.ADBPort)
 		common.MutexManager.LocalDevicePorts.Unlock()
 	}
 }
@@ -422,6 +441,32 @@ func (d *AndroidDevice) forwardIME() error {
 
 func (d *AndroidDevice) forwardRemoteServer() error {
 	return d.forwardPort("1994", d.AndroidRemoteServerPort)
+}
+
+func (d *AndroidDevice) enableADBTCPMode() error {
+	// Check if tcpip mode is already enabled to avoid restarting adbd unnecessarily
+	checkCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "service.adb.tcp.port")
+	var outBuffer bytes.Buffer
+	checkCmd.Stdout = &outBuffer
+	if err := checkCmd.Run(); err == nil {
+		if strings.TrimSpace(outBuffer.String()) == "5555" {
+			logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("ADB TCP mode already enabled on device `%v`, skipping", d.GetUDID()))
+			return nil
+		}
+	}
+
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Enabling ADB TCP mode on device `%v`", d.GetUDID()))
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "tcpip", "5555")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("enableADBTCPMode: Error executing `%s` - %s", cmd.Args, err)
+	}
+	// Wait for adbd to restart and USB to reconnect
+	time.Sleep(2 * time.Second)
+	return nil
+}
+
+func (d *AndroidDevice) forwardADB() error {
+	return d.forwardPort("5555", d.ADBPort)
 }
 
 func (d *AndroidDevice) updateScreenSizeADB() error {
