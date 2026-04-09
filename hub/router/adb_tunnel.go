@@ -105,7 +105,7 @@ func ADBTunnelHandler(c *gin.Context) {
 	}()
 
 	// Bidirectional relay: client WebSocket <-> provider WebSocket
-	done := make(chan struct{})
+	done := make(chan struct{}, 2)
 
 	go func() {
 		io.Copy(providerConn, clientConn)

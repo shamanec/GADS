@@ -10,6 +10,7 @@
 package adb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"os/signal"
 	"strings"
@@ -35,6 +37,12 @@ func Start(flags *pflag.FlagSet) {
 	udid, _ := flags.GetString("udid")
 	username, _ := flags.GetString("username")
 	password, _ := flags.GetString("password")
+	if password == "" {
+		password = os.Getenv("GADS_PASSWORD")
+	}
+	if password == "" {
+		log.Fatal("password is required: use --password flag or GADS_PASSWORD env var")
+	}
 	localPort, _ := flags.GetInt("port")
 
 	hub = strings.TrimRight(hub, "/")
@@ -197,10 +205,13 @@ func wsErrorToMessage(err error) error {
 }
 
 func authenticate(hub, username, password string) (string, error) {
-	body := fmt.Sprintf(`{"username":"%s","password":"%s"}`, username, password)
-	resp, err := http.Post(hub+"/authenticate", "application/json", strings.NewReader(body))
+	payload, err := json.Marshal(map[string]string{"username": username, "password": password})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to encode credentials: %w", err)
+	}
+	resp, err := http.Post(hub+"/authenticate", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return "", fmt.Errorf("Failed to post to authenticate endpoint - %w", err)
 	}
 	defer resp.Body.Close()
 

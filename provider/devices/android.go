@@ -46,6 +46,8 @@ type AndroidDevice struct {
 	ADBPort                 string // host port forwarded to device adbd port 5555 (ADB tunnel)
 }
 
+const adbTCPPort = "5555"
+
 var remoteServerNetClient = &http.Client{
 	Timeout: time.Second * 120,
 }
@@ -449,14 +451,14 @@ func (d *AndroidDevice) enableADBTCPMode() error {
 	var outBuffer bytes.Buffer
 	checkCmd.Stdout = &outBuffer
 	if err := checkCmd.Run(); err == nil {
-		if strings.TrimSpace(outBuffer.String()) == "5555" {
+		if strings.TrimSpace(outBuffer.String()) == adbTCPPort {
 			logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("ADB TCP mode already enabled on device `%v`, skipping", d.GetUDID()))
 			return nil
 		}
 	}
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Enabling ADB TCP mode on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "tcpip", "5555")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "tcpip", adbTCPPort)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("enableADBTCPMode: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -466,7 +468,7 @@ func (d *AndroidDevice) enableADBTCPMode() error {
 }
 
 func (d *AndroidDevice) forwardADB() error {
-	return d.forwardPort("5555", d.ADBPort)
+	return d.forwardPort(adbTCPPort, d.ADBPort)
 }
 
 func (d *AndroidDevice) updateScreenSizeADB() error {
