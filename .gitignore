@@ -14,3 +14,5 @@ jsconfig.json
 Provider1/
 go-ios*
 memory/*
+GADS-Remote/*
+GADS-Remote

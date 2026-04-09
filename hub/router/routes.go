@@ -260,10 +260,7 @@ func DeleteUser(c *gin.Context) {
 // @Router       /admin/providers [get]
 func GetProviders(c *gin.Context) {
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
-	if len(providers) == 0 {
-		api.OK(c, "", []models.Provider{})
-		return
-	}
+
 	api.OK(c, "", providers)
 }
 
@@ -599,7 +596,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 	}
 
 	c.Stream(func(w io.Writer) bool {
-		var deviceList []*devices.LocalHubDevice
+		var deviceList = make([]*devices.LocalHubDevice, 0)
 
 		for _, d := range devices.HubDeviceStore.AllSorted() {
 			d.Mu.Lock()
@@ -830,7 +827,7 @@ func DeleteDevice(c *gin.Context) {
 }
 
 type AdminDeviceData struct {
-	Devices           []models.DBDevice     `json:"devices"`
+	Devices           []models.DBDevice   `json:"devices"`
 	Providers         []string            `json:"providers"`
 	DeviceStreamTypes []models.StreamType `json:"device_stream_types"`
 }
@@ -912,7 +909,6 @@ type lockDeviceResponse struct {
 	Tenant      string `json:"tenant"`
 	ExpiresAtMS int64  `json:"expires_at_ms"`
 }
-
 
 // LockDevice godoc
 // @Summary      Lock a device via REST API
