@@ -26,10 +26,12 @@ import (
 func ADBTunnelHandler(c *gin.Context) {
 	udid := c.Param("udid")
 
-	var username string
-	if claims, err := auth.GetClaimsFromRequest(c); err == nil {
-		username = claims.Username
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
 	}
+	username := claims.Username
 
 	device, ok := devices.HubDeviceStore.Get(udid)
 	if !ok || device == nil {
