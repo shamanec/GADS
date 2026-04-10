@@ -101,6 +101,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/appium-logs", GetAppiumLogs)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/logout", auth.LogoutHandler)
+	authGroup.GET("/devices/control/:udid/adb-tunnel", ADBTunnelHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
 	authGroup.Any("/provider/:name/*path", ProviderProxyHandler)
 	authGroup.GET("/admin/providers", GetProviders)

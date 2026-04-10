@@ -13,13 +13,14 @@
 
   <h1>GADS - Device Farm for Mobile & Smart TV Testing</h1>
 
-  [![GitHub Stars](https://img.shields.io/github/stars/shamanec/GADS?style=social)](https://github.com/shamanec/GADS/stargazers)
-  [![GitHub Release](https://img.shields.io/github/v/release/shamanec/GADS)](https://github.com/shamanec/GADS/releases)
-  [![GitHub Downloads](https://img.shields.io/github/downloads/shamanec/GADS/total)](https://github.com/shamanec/GADS/releases)
-  [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-  [![Discord](https://dcbadge.limes.pink/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
+[![GitHub Stars](https://img.shields.io/github/stars/shamanec/GADS?style=social)](https://github.com/shamanec/GADS/stargazers)
+[![GitHub Release](https://img.shields.io/github/v/release/shamanec/GADS)](https://github.com/shamanec/GADS/releases)
+[![GitHub Downloads](https://img.shields.io/github/downloads/shamanec/GADS/total)](https://github.com/shamanec/GADS/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Discord](https://dcbadge.limes.pink/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
 
-  🚀 **Self-Hosted Device Farm & Test Automation Platform** - Alternative to AWS Device Farm and Firebase Test Lab for Mobile & Smart TV Testing
+🚀 **Self-Hosted Device Farm & Test Automation Platform** - Alternative to AWS Device Farm and Firebase Test Lab for Mobile & Smart TV Testing
+
 </div>
 
 ## 🎯 What is GADS?
@@ -27,13 +28,16 @@
 **GADS** is a free, open-source device farm platform that enables **remote device control** and **Appium test execution** on mobile devices (iOS/Android) and smart TVs (currently supporting Samsung Tizen OS and LG WebOS). Perfect for QA teams, mobile developers, and organizations looking for a self-hosted alternative to expensive cloud testing services like AWS Device Farm and Firebase Test Lab.
 
 The platform architecture consists of two main components:
+
 - **Hub**: A web interface for remote device control and provider management.
 - **Provider**: Handles device setup and makes them available for remote access.
 
 ### Why Choose GADS?
+
 - 💰 **Free**: Self-hosted alternative to AWS Device Farm and Firebase Test Lab
 - 📱 **Cross-Platform**: Full support for iOS and Android devices, plus automated testing for Smart TVs (Samsung Tizen OS, LG WebOS)
 - 🎮 **Remote Control**: Real-time device control and testing capabilities
+- 🎮 **Local debugging - Android only**: [Connect](./docs/adb-client.md) remotely controlled Android device to your local `adb` instance for development and debugging
 - 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
 - 🔑 **Flexible Authentication**: Support for multiple JWT issuers with origin-based keys
 - 🛠 **Easy Setup**: Simple installation and configuration process
@@ -41,6 +45,7 @@ The platform architecture consists of two main components:
 ## ✨ Key Features
 
 ### Hub Features 🎯
+
 - 🔐 **Authentication System**
   - User login with session management
   - Admin user management
@@ -56,6 +61,7 @@ The platform architecture consists of two main components:
   - App installation/uninstallation
   - High-quality screenshots
   - Device reservation system
+  - Android devices remote debugging over `adb` [adb-client](./docs/adb-client.md)
 - 🔄 **Backend Capabilities**
   - Web interface serving
   - Provider communication proxy
@@ -66,6 +72,7 @@ The platform architecture consists of two main components:
   - [Detailed Workspace Documentation](./docs/workspaces.md)
 
 ### Provider Features 🔌
+
 - 🛠️ **Easy Setup**
   - UI-based device management
 - 🤖 **Automated Device Provisioning**
@@ -85,11 +92,11 @@ The platform architecture consists of two main components:
 
 ## 💻 Platform Support
 
-| OS         | Android Support | iOS Support | Smart TV Support    | Notes                                                                          |
-|------------|----------------|-------------|---------------------|--------------------------------------------------------------------------------|
-| **macOS**  | ✅             | ✅           | ✅ (automation only) | Full support for mobile, Smart TVs support only automated testing             |
-| **Linux**  | ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen & WebOS |
-| **Windows**| ✅             | ⚠️           | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen & WebOS |
+| OS          | Android Support | iOS Support | Smart TV Support     | Notes                                                                         |
+| ----------- | --------------- | ----------- | -------------------- | ----------------------------------------------------------------------------- |
+| **macOS**   | ✅              | ✅          | ✅ (automation only) | Full support for mobile, Smart TVs support only automated testing             |
+| **Linux**   | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen & WebOS |
+| **Windows** | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen & WebOS |
 
 **Important**: Smart TV support (Tizen OS and WebOS) is focused on **automated testing only**. Manual interaction and real-time device control available for mobile devices are not supported for smart TVs.
 
@@ -123,9 +130,12 @@ GADS, including both open source and obfuscated proprietary components, is freel
 ## 🚀 Getting Started
 
 > ### **Prerequisites**
+>
 > Before getting started, make sure you have the following:
+>
 > - A **MongoDB** instance (v6.0 recommended)
 > - Network connectivity between Hub, Providers, MongoDB, and Selenium Grid
+>
 > ---
 
 ### ⚡ Quick Start
@@ -135,7 +145,8 @@ GADS, including both open source and obfuscated proprietary components, is freel
 1. Go to the [releases page](https://github.com/shamanec/GADS/releases) and download the latest binary for your platform.
 
 #### Option 2: Build from source for non-UI related development
-**IMPORTANT** You can freely use the Go code to your ends or provide new features/bug fixes on mainstream project but any changes to the UI should be requested from the core team.  
+
+**IMPORTANT** You can freely use the Go code to your ends or provide new features/bug fixes on mainstream project but any changes to the UI should be requested from the core team.
 
 ```bash
 # Clone the repository
@@ -147,48 +158,63 @@ go build .
 ```
 
 #### Option 3: Build from source for UI related development
-**IMPORTANT** You can freely use the Go code to your ends or provide new features/bug fixes on mainstream project but any changes to the UI should be requested from the core team.  
+
+**IMPORTANT** You can freely use the Go code to your ends or provide new features/bug fixes on mainstream project but any changes to the UI should be requested from the core team.
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/shamanec/GADS
 ```
+
 2. Download the prebuilt UI files zip from the latest [release](https://github.com/shamanec/GADS/releases)
 3. Unzip the file from step into your GADS folder in a new folder named `hub-ui`, your folder structure should look like `../GADS/hub-ui/build/*`
 4. Build the application
+
 ```bash
 cd ../..
 go build -tags ui .
 ```
+
 > **Note**: Optionally before building you can update the docs.go (OpenAPI spec) by running `swag init -g hub/hub.go -o docs`
 
 ### 🛠️ Common setup
+
 #### 🌱 MongoDB
+
 The project uses MongoDB for storing logs and for synchronization of some data between hub and providers.
-You can either run MongoDB in a docker container:  
+You can either run MongoDB in a docker container:
+
 - You need to have Docker(Docker Desktop on macOS, Windows) installed.
 - Execute `docker run -d --restart=always --name mongodb -p 27017:27017 mongo:6.0`. This will pull the official MongoDB 6.0 image from Docker Hub and start a container binding ports `27017` for the MongoDB instance.
 - You can use MongoDB Compass or another tool to access the db if needed.
 
-or  
+or
+
 - Start MongoDB instance in the way you prefer
 
 #### ⚙️ Hub setup
-For detailed instructions on setting up the Hub, refer to the [Hub Setup Docs](./docs/hub.md)  
+
+For detailed instructions on setting up the Hub, refer to the [Hub Setup Docs](./docs/hub.md)
 
 #### 📱 Provider setup
+
 For detailed instructions on setting up the Provider, refer to the [Provider Setup Docs.](./docs/provider.md)
 
 ## Running GADS as a System Service
+
 To ensure that GADS runs continuously and can be managed easily, it is recommended to execute it as a service on your operating system. Running GADS as a service allows it to start automatically on boot, restart on failure, and be managed through standard service commands.
 
 ### 🐧 Linux
+
 For detailed instructions on how to create a service for Linux using systemd, please refer to the [Linux Service Documentation](./docs/linux-service.md).
 
 ### 🖥️ Windows
+
 For detailed instructions on how to create a service for Windows using WinSW, please refer to the [Windows Service Documentation](./docs/windows-service.md).
 
 ### 🍏 macOS
+
 For detailed instructions on how to create a service for macOS using launchd, please refer to the [macOS Service Documentation](./docs/macos-service.md).
 
 ## ❓ FAQ
@@ -199,36 +225,44 @@ For more details, refer to the [full FAQ](./docs/faq.md).
 
 ## 🙏 Thanks
 
-| | About                                                                                                                                                              |
-|---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
-|[go-ios](https://github.com/danielpaulus/go-ios)| Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
-|[Appium](https://github.com/appium)| It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                         |  
+|                                                  | About                                                                                                                                                      |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [go-ios](https://github.com/danielpaulus/go-ios) | Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
+| [Appium](https://github.com/appium)              | It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                 |
 
 ## 🎥 Videos
+
 #### Start hub
+
 https://github.com/user-attachments/assets/7a6dab5a-52d1-4c48-882d-48b67e180c89
 
 #### Add provider configuration
+
 https://github.com/user-attachments/assets/07c94ecf-217e-4185-9465-8b8054ddef7e
 
 #### Add devices and start provider
+
 https://github.com/user-attachments/assets/a1b323da-0169-463e-9a37-b0364fc52480
 
 #### Run Appium tests in parallel with TestNG
+
 https://github.com/user-attachments/assets/cb2da413-6a72-4ead-9433-c4d2b41d5f4b
 
 #### Remote control
+
 https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 
 ## 💡 Use Cases
 
 ### Mobile Testing 📱
+
 - **Mobile App Testing**: Automate testing across multiple real iOS and Android devices
 - **Manual QA**: Remote access to physical devices for manual testing and debugging
 - **Cross-Browser Testing**: Test web applications across multiple mobile browsers
 - **Device Lab Management**: Centralized management of your organization's mobile devices
 
 ### Smart TV Testing 📺
+
 - **Smart TV App Testing**: Automated testing for TV applications
 - **Currently Supported**: Samsung Tizen OS and LG WebOS
 - **TV-Specific Testing**: Validate TV app functionality, performance, and compatibility
