@@ -289,6 +289,14 @@ func deviceHome(dev devices.PlatformDevice) (*http.Response, error) {
 	}
 }
 
+func deviceRecents(dev devices.PlatformDevice) error {
+	if dev.GetOS() == "ios" {
+		return fmt.Errorf("App switcher not supported on iOS via WDA")
+	}
+	cmd := exec.CommandContext(dev.GetContext(), "adb", "-s", dev.GetUDID(), "shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
+	return cmd.Run()
+}
+
 func activateApp(dev devices.PlatformDevice, appIdentifier string) (*http.Response, error) {
 	if dev.GetOS() == "ios" {
 		requestBody := struct {

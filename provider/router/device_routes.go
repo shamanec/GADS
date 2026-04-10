@@ -86,6 +86,24 @@ func DeviceHome(c *gin.Context) {
 	c.JSON(homeResponse.StatusCode, models.APIResponse[any]{Success: homeResponse.StatusCode < 400, Message: string(homeResponseBody)})
 }
 
+func DeviceRecents(c *gin.Context) {
+	udid := c.Param("udid")
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with UDID %s not found", udid))
+		return
+	}
+	platDev.GetLogger().LogInfo("appium_interact", "Opening Recent Apps")
+
+	if err := deviceRecents(platDev); err != nil {
+		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to open Recent Apps - %s", err))
+		api.InternalError(c, err.Error())
+		return
+	}
+
+	api.OKMessage(c, "Recent Apps opened")
+}
+
 func DeviceGetClipboard(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, ok := devices.DevManager.Get(udid)
