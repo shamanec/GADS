@@ -37,7 +37,7 @@ The platform architecture consists of two main components:
 - 💰 **Free**: Self-hosted alternative to AWS Device Farm and Firebase Test Lab
 - 📱 **Cross-Platform**: Full support for iOS and Android devices, plus automated testing for Smart TVs (Samsung Tizen OS, LG WebOS)
 - 🎮 **Remote Control**: Real-time device control and testing capabilities
-- 🎮 **Local debugging - Android only**: [Connect](./docs/adb-client.md) remotely controlled Android device to your local `adb` instance for development and debugging
+- 🎮 **Local debugging - Android only**: [Connect](./docs/adb-tunnel.md) remotely controlled Android device to your local `adb` instance for development and debugging
 - 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
 - 🔑 **Flexible Authentication**: Support for multiple JWT issuers with origin-based keys
 - 🛠 **Easy Setup**: Simple installation and configuration process
@@ -61,7 +61,7 @@ The platform architecture consists of two main components:
   - App installation/uninstallation
   - High-quality screenshots
   - Device reservation system
-  - Android devices remote debugging over `adb` [adb-client](./docs/adb-client.md)
+  - Android devices remote debugging over `adb` [adb-tunnel](./docs/adb-tunnel.md)
 - 🔄 **Backend Capabilities**
   - Web interface serving
   - Provider communication proxy

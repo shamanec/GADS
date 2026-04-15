@@ -1,4 +1,4 @@
-# Android adb-client
+# Android adb-tunnel
 
 ## Overview
 
@@ -15,4 +15,4 @@ GADS allows you to connect Android devices to your local `adb` instance for debu
 
 - You can only create tunnel to devices that are currently being remotely controlled by you.
 - Stopping the remote control of the device through the hub interface will also drop the tunnel connection.
-- Stopping the adb client will not drop your remote control session.
+- Stopping the adb tunnel will not drop your remote control session.
