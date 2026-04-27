@@ -203,17 +203,28 @@ Fork is kept up to date with latest mainstream.
 #### Build WebDriverAgent IPA file manually using Xcode
 
 - Download the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent).
+- **macOS only**: ensure `xcode-select` points at the full Xcode app, not just Command Line Tools:
+  ```bash
+  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+  ```
 - Open `WebDriverAgent.xcodeproj` in Xcode.
-- Select signing profile for WebDriverAgentRunner. To do this go to: _Targets_, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
+- Select the `WebDriverAgentRunner` target → `Signing & Capabilities` tab.
+  - Enable **Automatically manage signing** and set your Team.
+  - Set the Bundle Identifier to something unique, e.g. `com.yourname.WebDriverAgentRunner`. Note this value — you will need to enter it as the **WDA bundle ID** in the provider configuration.
+- Plug in your iOS device and select it as the build destination in the Xcode toolbar (required for free Apple Developer accounts so the device UDID is included in the provisioning profile).
 - Select `Build > Clean build folder` (just in case)
-- Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
-   `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
-- Navigate to the folder above and create an empty directory with the name `Payload`.
-- Copy the `.app` bundle inside the `Payload` folder
-- Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
+- Select `Product > Build For Testing`. This will create a `Products/Debug-iphoneos` folder under the DerivedData directory.  
+   `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-<hash>/Build/Products/Debug-iphoneos**
+- Navigate to that folder and package the IPA using `ditto` (macOS only). Using `cp`/`zip` will break the code signature:
+  ```bash
+  cd /Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-<hash>/Build/Products/Debug-iphoneos
+  mkdir Payload
+  ditto WebDriverAgentRunner-Runner.app Payload/WebDriverAgentRunner-Runner.app
+  ditto -c -k --sequesterRsrc --keepParent Payload ~/Downloads/WebDriverAgent-signed.ipa
+  ```
 - **NB** iOS 17-17.3 Windows/Linux WebDriverAgent additional step
   - Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders before moving it to `Payload`
-  - IPA has to be re-signed after that once again uzing any applicable tool
+  - IPA has to be re-signed after that once again using any applicable tool
 
 ## Device Notes
 
@@ -225,6 +236,13 @@ Developer mode needs to be enabled on iOS 16+ devices to allow `go-ios` usage ag
 
 - Open `Settings > Privacy & Security > Developer Mode`
 - Enable the toggle
+
+#### Disable Auto-Lock
+
+> **Required.** When the device screen locks, iOS drops the tunnel connection used by GADS, causing WebDriverAgent to crash and the provider to enter a setup loop.
+
+- Open `Settings > Display & Brightness > Auto-Lock`
+- Set to **Never**
 
 #### Supervise devices
 
