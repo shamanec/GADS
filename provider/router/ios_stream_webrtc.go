@@ -647,15 +647,41 @@ func (s *WebRTCSession) writeH264ToTrack() {
 	}
 	frameDuration := time.Second / time.Duration(fps)
 
+	// Watchdog: if no H.264 frames arrive for 10s the WDA MJPEG stream has stalled
+	// without crashing. Cancel the context so the WebSocket handler closes the
+	// connection and the browser reconnects. 10s is safe — normal WDA hiccups are
+	// under 3s; anything longer is a real stall.
+	stallTimer := time.NewTimer(10 * time.Second)
+	defer stallTimer.Stop()
+
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
+		case <-stallTimer.C:
+			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("No H.264 frames for 10s for device %s, closing stalled pipeline", s.device.UDID))
+			if s.ctx.Err() == nil {
+				s.cancel()
+			}
+			return
 		case h264Data, ok := <-h264Channel:
 			if !ok {
 				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("H.264 channel closed for device %s", s.device.UDID))
+				// Cancel context to signal WebSocket handler to close the connection
+				if s.ctx.Err() == nil {
+					s.cancel()
+				}
 				return
 			}
+
+			// Reset stall watchdog on each successful frame
+			if !stallTimer.Stop() {
+				select {
+				case <-stallTimer.C:
+				default:
+				}
+			}
+			stallTimer.Reset(10 * time.Second)
 
 			// Write complete NAL unit to track
 			if err := s.videoTrack.WriteSample(media.Sample{
@@ -765,7 +791,13 @@ func (s *WebRTCSession) Close() {
 	}
 
 	if s.peerConnection != nil {
-		s.peerConnection.Close()
+		// Delay PeerConnection close so the WebSocket TCP close reaches the browser
+		// before DTLS teardown triggers ICE failure via UDP. Without this delay,
+		// the browser sees ICE fail before WebSocket onclose and doesn't reconnect.
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			s.peerConnection.Close()
+		}()
 	}
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Closed WebRTC session for device %s", s.device.UDID))
@@ -819,6 +851,12 @@ func IOSWebRTCSocket(c *gin.Context) {
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to start streaming"}`))
 		return
 	}
+
+	// Close WebSocket when pipeline dies to unblock ReadClientData and trigger session cleanup
+	go func() {
+		<-session.ctx.Done()
+		conn.Close()
+	}()
 
 	// Handle ICE candidates
 	session.OnICECandidate(func(candidate *webrtc.ICECandidate) {
