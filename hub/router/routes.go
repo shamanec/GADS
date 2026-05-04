@@ -35,6 +35,27 @@ var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
 
+const (
+	defaultLockTTLMinutes        = 10
+	maxLockTTLMinutes            = 360
+	deviceInUsePingInterval      = 5 * time.Second
+	deviceInUseInactivityTimeout = 30 * time.Minute
+)
+
+func normalizeLockTTLMinutes(ttl int) int {
+	if ttl <= 0 {
+		return defaultLockTTLMinutes
+	}
+	if ttl > maxLockTTLMinutes {
+		return maxLockTTLMinutes
+	}
+	return ttl
+}
+
+func isDeviceInUseSessionExpired(lastActionTS int64, now time.Time) bool {
+	return (now.UnixMilli() - lastActionTS) > deviceInUseInactivityTimeout.Milliseconds()
+}
+
 // HealthCheck godoc
 // @Summary      Health check endpoint
 // @Description  Check if the GADS hub is running and healthy
@@ -539,7 +560,7 @@ func DeviceInUseWS(c *gin.Context) {
 
 	// Goroutine: send pings every 5s and check for 30-min inactivity
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(deviceInUsePingInterval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -550,7 +571,7 @@ func DeviceInUseWS(c *gin.Context) {
 				lastActionTS := device.LastActionTS
 				device.Mu.RUnlock()
 
-				if (time.Now().UnixMilli() - lastActionTS) > (1800 * 1000) {
+				if isDeviceInUseSessionExpired(lastActionTS, time.Now()) {
 					ws.WriteFrame(conn, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4001), "session expired"))) //nolint:errcheck
 					cancel()
 					return
@@ -912,12 +933,12 @@ type lockDeviceResponse struct {
 
 // LockDevice godoc
 // @Summary      Lock a device via REST API
-// @Description  Acquire an exclusive lock on a device. Authenticate via Authorization header (Bearer token) or ?token= query param (raw token, no Bearer prefix). Optional ?ttl_minutes= (default 10, max 60). If locked by another user returns 409. Admins can take over any lock.
+// @Description  Acquire an exclusive lock on a device. Authenticate via Authorization header (Bearer token) or ?token= query param (raw token, no Bearer prefix). Optional ?ttl_minutes= (default 10, max 360). If locked by another user returns 409. Admins can take over any lock.
 // @Tags         Hub - Devices
 // @Produce      json
 // @Param        udid         path   string  true   "Device UDID"
 // @Param        token        query  string  false  "Raw JWT token (alternative to Authorization header)"
-// @Param        ttl_minutes  query  int     false  "Lock TTL in minutes (default 10, max 60)"
+// @Param        ttl_minutes  query  int     false  "Lock TTL in minutes (default 10, max 360)"
 // @Success      200   {object}  lockDeviceResponse
 // @Failure      401   {object}  models.ErrorResponse
 // @Failure      404   {object}  models.ErrorResponse
@@ -933,13 +954,8 @@ func LockDevice(c *gin.Context) {
 		return
 	}
 
-	ttl, _ := strconv.Atoi(c.DefaultQuery("ttl_minutes", "10"))
-	if ttl <= 0 {
-		ttl = 10
-	}
-	if ttl > 60 {
-		ttl = 60
-	}
+	ttl, _ := strconv.Atoi(c.DefaultQuery("ttl_minutes", strconv.Itoa(defaultLockTTLMinutes)))
+	ttl = normalizeLockTTLMinutes(ttl)
 
 	device, ok := devices.HubDeviceStore.Get(udid)
 	if !ok {
