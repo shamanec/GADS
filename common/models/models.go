@@ -59,7 +59,7 @@ type Device struct {
 	WorkspaceID        string        `json:"workspace_id" bson:"workspace_id"`                 // ID of the associated workspace
 	StreamType         StreamingType `json:"stream_type" bson:"stream_type"`                   // The type of video streaming for the device
 	AudioStreamEnabled bool          `json:"audio_stream_enabled" bson:"audio_stream_enabled"` // Enable audio streaming via WebRTC
-	AudioInputType     string        `json:"audio_input_type" bson:"audio_input_type"`         // Audio input source: "internal" (default, AudioPlaybackCapture API 29+) or "microphone" (TRRS)
+	AudioInputType     string        `json:"audio_input_type" bson:"audio_input_type"`         // Audio input source. Android: "internal" (default, AudioPlaybackCapture API 29+) or "microphone" (TRRS). iOS: "app_audio" (default, ReplayKit RPSampleBufferTypeAudioApp) or "microphone".
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string       `json:"host" bson:"-"`                            // IP address of the device host(provider)

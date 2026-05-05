@@ -903,10 +903,30 @@ func setupIOSDevice(device *models.Device) {
 	device.WDAStreamPort = wdaStreamPort
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free WebDriverAgent stream port `%s` for device `%s`", wdaStreamPort, device.UDID))
 
+	if device.AudioStreamEnabled {
+		if device.AudioInputType == "" {
+			device.AudioInputType = "app_audio"
+		}
+		audioPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not allocate audio port for device %v, continuing without audio - %v", device.UDID, err))
+			device.AudioStreamEnabled = false
+		} else {
+			device.AudioPort = audioPort
+			logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully allocated free port `%s` for audio stream for device `%s`", audioPort, device.UDID))
+		}
+	}
+
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Forwarding WebDriverAgent server and stream to the host for device `%s`", device.UDID))
 	go goIosForward(device, device.WDAPort, "8100")
 	go goIosForward(device, device.StreamPort, "9500")
 	go goIosForward(device, device.WDAStreamPort, "9100")
+	// iOS audio: provider reads from FBAudioBroadcastRelay running inside the
+	// WDA xctrunner on device:9202 (loopback). Forward host:device.AudioPort →
+	// device:9202. Raw TCP, same `[8B PTS BE][1920B PCM]` wire as Android.
+	if device.AudioStreamEnabled {
+		go goIosForward(device, device.AudioPort, "9202")
+	}
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully forwarded WebDriverAgent server and stream for device `%s`", device.UDID))
 
 	if device.SemVer.Major() < 17 || device.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
@@ -918,6 +938,23 @@ func setupIOSDevice(device *models.Device) {
 			return
 		}
 		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully installed WebDriverAgent on device `%s`", device.UDID))
+
+		// IntegrationApp hosts the WebDriverAgentBroadcast extension (audio).
+		// Optional — install only if the IPA was downloaded by config.SetupIntegrationAppFile.
+		if device.AudioStreamEnabled {
+			integrationPath := fmt.Sprintf("%s/IntegrationApp.ipa", config.ProviderConfig.ProviderFolder)
+			if _, statErr := os.Stat(integrationPath); statErr == nil {
+				logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Installing IntegrationApp (audio broadcast host) on device `%s`", device.UDID))
+				if err := installAppIOS(device, integrationPath); err != nil {
+					logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not install IntegrationApp on device `%s` - %s (audio capture may not work)", device.UDID, err))
+				} else {
+					logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully installed IntegrationApp on device `%s`", device.UDID))
+				}
+			} else {
+				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Skipping IntegrationApp install — file not present at %s; upload IntegrationApp.ipa to MongoDB GridFS to enable iOS audio", integrationPath))
+			}
+		}
+
 		go runWDAGoIOS(device)
 	} else {
 		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Launching WebDriverAgent on device `%s`", device.UDID))
@@ -1128,6 +1165,7 @@ func ResetLocalDevice(device *models.Device, reason string) {
 		delete(providerutil.UsedPorts, device.StreamPort)
 		delete(providerutil.UsedPorts, device.AppiumPort)
 		delete(providerutil.UsedPorts, device.WDAStreamPort)
+		delete(providerutil.UsedPorts, device.AudioPort)
 		common.MutexManager.LocalDevicePorts.Unlock()
 	}
 }

@@ -125,6 +125,11 @@ func mountDeveloperImageIOS(device *models.Device) {
 func pairIOS(device *models.Device) error {
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", device.UDID))
 
+	if _, err := ios.ReadPairRecord(device.UDID); err == nil {
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Device `%s` already paired, skipping pair flow", device.UDID))
+		return nil
+	}
+
 	p12, err := os.ReadFile(fmt.Sprintf("%s/supervision.p12", config.ProviderConfig.ProviderFolder))
 	if err != nil {
 		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not read supervision.p12 file when pairing device with UDID: %s, falling back to unsupervised pairing - %s", device.UDID, err))
@@ -171,7 +176,7 @@ func GetInstalledAppsIOS(device *models.Device) []string {
 	}
 
 	for _, appInfo := range response {
-		installedApps = append(installedApps, appInfo.CFBundleIdentifier)
+		installedApps = append(installedApps, appInfo.CFBundleIdentifier())
 	}
 
 	return installedApps

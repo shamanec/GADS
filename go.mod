@@ -6,7 +6,7 @@ toolchain go1.23.8
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/danielpaulus/go-ios v1.0.172
+	github.com/danielpaulus/go-ios v1.0.188
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gobwas/ws v1.4.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
@@ -76,6 +76,7 @@ require (
 	github.com/pion/stun v0.6.1 // indirect
 	github.com/pion/transport/v2 v2.2.10 // indirect
 	github.com/pion/turn/v2 v2.1.6 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
 	github.com/quic-go/quic-go v0.40.1-0.20231203135336-87ef8ec48d55 // indirect

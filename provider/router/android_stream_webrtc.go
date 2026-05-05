@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -26,7 +25,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	"github.com/hraban/opus"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
 )
@@ -34,12 +32,6 @@ import (
 // H264Frame represents a frame with its presentation timestamp
 type H264Frame struct {
 	Data []byte // H.264 frame data
-	PTS  int64  // Presentation timestamp in microseconds
-}
-
-// AudioFrame represents an audio frame with its presentation timestamp
-type AudioFrame struct {
-	Data []byte // Opus-encoded audio data
 	PTS  int64  // Presentation timestamp in microseconds
 }
 
@@ -128,37 +120,6 @@ func parseH264Message(msg []byte) (pts int64, h264Data []byte, err error) {
 	return pts, h264Data, nil
 }
 
-// parsePCMMessage parses the wire format sent by Android for audio frames:
-// [8 bytes big-endian PTS][PCM data]
-// Returns the PTS and raw PCM bytes, or an error when the message is too short.
-func parsePCMMessage(msg []byte) (pts int64, pcmData []byte, err error) {
-	if len(msg) < 8 {
-		return 0, nil, fmt.Errorf("message too short: got %d bytes, need at least 8", len(msg))
-	}
-	pts = int64(binary.BigEndian.Uint64(msg[0:8]))
-	pcmData = msg[8:]
-	return pts, pcmData, nil
-}
-
-// decodePCMToInt16 converts raw PCM bytes (little-endian int16 pairs) to []int16.
-// Trailing odd bytes are ignored.
-func decodePCMToInt16(pcmData []byte) []int16 {
-	numSamples := len(pcmData) / 2
-	samples := make([]int16, numSamples)
-	for i := 0; i < numSamples; i++ {
-		samples[i] = int16(pcmData[i*2]) | int16(pcmData[i*2+1])<<8
-	}
-	return samples
-}
-
-// padOrTruncatePCM returns a slice of exactly size samples from input.
-// Missing samples are filled with zeros; excess samples are discarded.
-func padOrTruncatePCM(samples []int16, size int) []int16 {
-	out := make([]int16, size)
-	copy(out, samples)
-	return out
-}
-
 // extractH264Frames reads H.264 frames from WebSocket and sends to channel
 // Android sends complete frames with SPS/PPS prepended to keyframes
 func (e *AndroidH264Extractor) extractH264Frames() {
@@ -227,176 +188,6 @@ func (e *AndroidH264Extractor) Close() {
 	}
 }
 
-// AndroidAudioExtractor handles extracting PCM audio from Android WebSocket stream and encoding to Opus
-type AndroidAudioExtractor struct {
-	device       *models.Device
-	conn         io.ReadWriteCloser
-	audioChannel chan AudioFrame
-	ctx          context.Context
-	cancel       context.CancelFunc
-	encoder      *opus.Encoder
-}
-
-// waitForAudioPort waits up to maxWait for the Android audio TCP port to accept connections.
-func waitForAudioPort(ctx context.Context, address string, maxWait time.Duration) error {
-	deadline := time.Now().Add(maxWait)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", address, 200*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(200 * time.Millisecond):
-		}
-	}
-	return fmt.Errorf("audio port %s not ready after %v", address, maxWait)
-}
-
-// NewAndroidAudioExtractor creates a new audio extractor for Android WebSocket stream
-func NewAndroidAudioExtractor(device *models.Device) (*AndroidAudioExtractor, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	extractor := &AndroidAudioExtractor{
-		device:       device,
-		audioChannel: make(chan AudioFrame, 30),
-		ctx:          ctx,
-		cancel:       cancel,
-	}
-
-	// Create Opus encoder (48kHz, 1 channel, audio application)
-	encoder, err := opus.NewEncoder(48000, 1, opus.AppAudio)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to create Opus encoder: %w", err)
-	}
-	if err := encoder.SetBitrate(64000); err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to set opus bitrate: %w", err)
-	}
-	if err := encoder.SetInBandFEC(true); err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to enable opus fec: %w", err)
-	}
-	if err := encoder.SetPacketLossPerc(5); err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to set opus packet loss perc: %w", err)
-	}
-	if err := encoder.SetMaxBandwidth(opus.Fullband); err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to set opus max bandwidth: %w", err)
-	}
-	extractor.encoder = encoder
-
-	// Wait for Android audio WebSocket server to be ready.
-	// Internal audio requires the user to approve the MediaProjection dialog, so allow more time.
-	audioWaitTimeout := 10 * time.Second
-	if device.AudioInputType == "internal" || device.AudioInputType == "" {
-		audioWaitTimeout = 30 * time.Second
-	}
-	tcpAddress := "localhost:" + device.AudioPort
-	if err := waitForAudioPort(ctx, tcpAddress, audioWaitTimeout); err != nil {
-		cancel()
-		return nil, fmt.Errorf("Android audio server not ready: %w", err)
-	}
-
-	audioURL := "ws://localhost:" + device.AudioPort
-	conn, _, _, err := ws.Dial(ctx, audioURL)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to connect to Android audio stream: %w", err)
-	}
-
-	extractor.conn = conn
-
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android audio stream for device %s", device.UDID))
-
-	// Start reading frames
-	go extractor.extractAudioFrames()
-
-	return extractor, nil
-}
-
-// extractAudioFrames reads PCM frames from WebSocket, encodes to Opus, sends to channel
-func (e *AndroidAudioExtractor) extractAudioFrames() {
-	defer close(e.audioChannel)
-	defer e.conn.Close()
-
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting audio frame extraction from WebSocket for device %s", e.device.UDID))
-
-	frameCount := 0
-
-	for {
-		select {
-		case <-e.ctx.Done():
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping audio extraction for device %s", e.device.UDID))
-			return
-		default:
-			// Read message from WebSocket
-			msg, _, err := wsutil.ReadServerData(e.conn)
-			if err != nil {
-				if err != io.EOF {
-					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading audio frame: %v", err))
-				}
-				return
-			}
-
-			pts, pcmData, err := parsePCMMessage(msg)
-			if err != nil {
-				continue
-			}
-
-			// Opus requires exactly 960 samples per frame (20ms @ 48kHz).
-			// Pad with silence if fewer samples received; truncate if more.
-			const opusFrameSize = 960
-			pcmSamples := padOrTruncatePCM(decodePCMToInt16(pcmData), opusFrameSize)
-
-			// Encode PCM to Opus (960 samples @ 48kHz = 20ms frame)
-			opusData := make([]byte, 4000) // Max Opus frame size
-			n, err := e.encoder.Encode(pcmSamples, opusData)
-			if err != nil {
-				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Opus encoding failed: %v", err))
-				continue
-			}
-
-			frameCount++
-
-			// Send to channel
-			audioFrame := AudioFrame{
-				Data: opusData[:n],
-				PTS:  pts,
-			}
-
-			select {
-			case e.audioChannel <- audioFrame:
-				if frameCount%100 == 0 {
-					logger.ProviderLogger.LogDebug("stream_webrtc", fmt.Sprintf("Processed audio frame #%d for device %s", frameCount, e.device.UDID))
-				}
-			case <-e.ctx.Done():
-				return
-			default:
-				// Drop frame if channel is full
-				logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropped audio frame #%d for device %s (channel full)", frameCount, e.device.UDID))
-			}
-		}
-	}
-}
-
-// GetAudioChannel returns the channel for reading audio frames
-func (e *AndroidAudioExtractor) GetAudioChannel() <-chan AudioFrame {
-	return e.audioChannel
-}
-
-// Close stops the extractor
-func (e *AndroidAudioExtractor) Close() {
-	e.cancel()
-	if e.conn != nil {
-		e.conn.Close()
-	}
-}
-
 // AndroidWebRTCSession manages a WebRTC peer connection for Android streaming
 type AndroidWebRTCSession struct {
 	device         *models.Device
@@ -404,7 +195,7 @@ type AndroidWebRTCSession struct {
 	videoTrack     *webrtc.TrackLocalStaticSample
 	audioTrack     *webrtc.TrackLocalStaticSample
 	extractor      *AndroidH264Extractor
-	audioExtractor *AndroidAudioExtractor
+	audioExtractor *PCMAudioExtractor
 	ctx            context.Context
 	cancel         context.CancelFunc
 	mu             sync.Mutex
@@ -524,7 +315,7 @@ func (s *AndroidWebRTCSession) Start() error {
 
 	// Start audio extractor if enabled
 	if s.device.AudioStreamEnabled && s.audioTrack != nil {
-		audioExtractor, err := NewAndroidAudioExtractor(s.device)
+		audioExtractor, err := NewPCMAudioExtractor(s.device)
 		if err != nil {
 			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio extractor: %v", err))
 		} else {

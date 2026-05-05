@@ -527,13 +527,43 @@ func (e *FFmpegH264Encoder) Close() {
 	}
 }
 
+// iosWebRTCSessions maps device UDID to its active iOS WebRTC session.
+// The audio endpoints (ios_audio.go) consult this registry to find the
+// session-owned PCMAudioExtractor. Single source of truth.
+var (
+	iosWebRTCSessions   = make(map[string]*WebRTCSession)
+	iosWebRTCSessionsMu sync.Mutex
+)
+
+func registerIOSWebRTCSession(udid string, session *WebRTCSession) {
+	iosWebRTCSessionsMu.Lock()
+	defer iosWebRTCSessionsMu.Unlock()
+	iosWebRTCSessions[udid] = session
+}
+
+func unregisterIOSWebRTCSession(udid string, session *WebRTCSession) {
+	iosWebRTCSessionsMu.Lock()
+	defer iosWebRTCSessionsMu.Unlock()
+	if iosWebRTCSessions[udid] == session {
+		delete(iosWebRTCSessions, udid)
+	}
+}
+
+func getIOSWebRTCSession(udid string) *WebRTCSession {
+	iosWebRTCSessionsMu.Lock()
+	defer iosWebRTCSessionsMu.Unlock()
+	return iosWebRTCSessions[udid]
+}
+
 // WebRTCSession manages a single WebRTC peer connection for streaming
 type WebRTCSession struct {
 	device                  *models.Device
 	peerConnection          *webrtc.PeerConnection
 	videoTrack              *webrtc.TrackLocalStaticSample
+	audioTrack              *webrtc.TrackLocalStaticSample
 	extractor               *WDAJPEGExtractor
 	encoder                 *FFmpegH264Encoder
+	audioExtractor          *PCMAudioExtractor
 	ctx                     context.Context
 	cancel                  context.CancelFunc
 	mu                      sync.Mutex
@@ -601,6 +631,38 @@ func NewWebRTCSession(device *models.Device) (*WebRTCSession, error) {
 		}
 	}()
 
+	if device.AudioStreamEnabled {
+		logger.ProviderLogger.LogInfo("webrtc_session", "Audio track enabled, creating Opus track")
+
+		audioTrack, err := webrtc.NewTrackLocalStaticSample(
+			webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus},
+			"audio",
+			"gads-stream",
+		)
+		if err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio track: %v", err))
+			device.AudioStreamEnabled = false
+		} else {
+			session.audioTrack = audioTrack
+
+			audioRtpSender, err := pc.AddTrack(audioTrack)
+			if err != nil {
+				logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to add audio track: %v", err))
+				device.AudioStreamEnabled = false
+			} else {
+				go func() {
+					rtcpBuf := make([]byte, 1500)
+					for {
+						if _, _, rtcpErr := audioRtpSender.Read(rtcpBuf); rtcpErr != nil {
+							return
+						}
+					}
+				}()
+				logger.ProviderLogger.LogInfo("webrtc_session", "Audio track successfully added to peer connection")
+			}
+		}
+	}
+
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Created WebRTC session for device %s", device.UDID))
 
 	return session, nil
@@ -631,8 +693,65 @@ func (s *WebRTCSession) Start() error {
 	// Start watching for orientation changes to signal client
 	go s.watchOrientationChanges()
 
+	if s.device.AudioStreamEnabled && s.audioTrack != nil {
+		// Trigger the iOS broadcast picker (IntegrationApp + buttonPressed: auto-tap).
+		// This launches the WebDriverAgentBroadcast extension, which writes PCM
+		// to FBAudioBroadcastReceiver:9201 → FBAudioBroadcastRelay:9202 — the
+		// stream the extractor below connects to.
+		if resp, err := wdaRequest(s.device, http.MethodPost, "gads/audio/prepare", nil); err != nil {
+			logger.ProviderLogger.LogWarn("webrtc_session", fmt.Sprintf("Failed to auto-trigger iOS broadcast picker for device %s: %v", s.device.UDID, err))
+		} else {
+			resp.Body.Close()
+			logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("iOS broadcast picker auto-triggered for device %s", s.device.UDID))
+		}
+
+		audioExtractor, err := NewPCMAudioExtractor(s.device)
+		if err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio extractor: %v", err))
+		} else {
+			s.audioExtractor = audioExtractor
+			go s.writeAudioToTrack()
+			logger.ProviderLogger.LogInfo("webrtc_session", "Audio extractor started successfully")
+		}
+	}
+
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Started streaming pipeline for device %s", s.device.UDID))
 	return nil
+}
+
+// writeAudioToTrack reads Opus frames from the audio extractor and writes them to the WebRTC audio track
+func (s *WebRTCSession) writeAudioToTrack() {
+	if s.audioExtractor == nil || s.audioTrack == nil {
+		return
+	}
+
+	frameCount := 0
+	// Fixed duration: 960 samples @ 48kHz = exactly 20ms per Opus frame.
+	// Using a constant ensures uniform RTP timestamps, preventing jitter on the receiver.
+	const frameDuration = 20 * time.Millisecond
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Starting audio streaming for device "+s.device.UDID)
+
+	for audioFrame := range s.audioExtractor.GetAudioChannel() {
+		frameCount++
+
+		if err := s.audioTrack.WriteSample(media.Sample{
+			Data:     audioFrame.Data,
+			Duration: frameDuration,
+		}); err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Error writing audio sample: %v", err))
+			return
+		}
+
+		if frameCount == 1 {
+			logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("First audio frame written to WebRTC track for device %s (size: %d bytes)", s.device.UDID, len(audioFrame.Data)))
+		}
+		if frameCount%100 == 0 {
+			logger.ProviderLogger.LogDebug("webrtc_session", fmt.Sprintf("Sent audio frame #%d for device %s", frameCount, s.device.UDID))
+		}
+	}
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Audio track writing stopped")
 }
 
 // writeH264ToTrack reads H.264 data and writes to WebRTC video track
@@ -763,6 +882,19 @@ func (s *WebRTCSession) Close() {
 		s.extractor.Close()
 	}
 
+	if s.audioExtractor != nil {
+		s.audioExtractor.Close()
+		// Tell WDA to stop the broadcast extension (Darwin notification).
+		// Idempotent + best-effort; iOS-only — Android sessions don't have this hook.
+		if s.device.OS == "ios" {
+			if resp, err := wdaRequest(s.device, http.MethodPost, "gads/audio/stop", nil); err != nil {
+				logger.ProviderLogger.LogWarn("webrtc_session", fmt.Sprintf("Failed to stop iOS broadcast on close for device %s: %v", s.device.UDID, err))
+			} else {
+				resp.Body.Close()
+			}
+		}
+	}
+
 	if s.peerConnection != nil {
 		s.peerConnection.Close()
 	}
@@ -803,7 +935,11 @@ func IOSWebRTCSocket(c *gin.Context) {
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))
 		return
 	}
-	defer session.Close()
+	registerIOSWebRTCSession(udid, session)
+	defer func() {
+		unregisterIOSWebRTCSession(udid, session)
+		session.Close()
+	}()
 
 	// Start streaming pipeline
 	if err := session.Start(); err != nil {

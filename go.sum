@@ -17,8 +17,8 @@ github.com/cloudwego/base64x v0.1.5/go.mod h1:0zlkT4Wn5C6NdauXdJRhSKRlJvmclQ1hhJ
 github.com/cloudwego/iasm v0.2.0/go.mod h1:8rXZaNYT2n95jn+zTI1sDr+IgcD2GVs0nlbbQPiEFhY=
 github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/danielpaulus/go-ios v1.0.172 h1:vtn/NN0A4llbn/PnM1tG0NnPeonjl5UcCWdbY+7OLj0=
-github.com/danielpaulus/go-ios v1.0.172/go.mod h1:ZkUcaC59yNba47j/+ULKsCi3dYPFwY9r39PxdmVmLHE=
+github.com/danielpaulus/go-ios v1.0.188 h1:HKIdiKRC1snf2vp6J9DdiHlr+cQS6vb6xEhdPbXxr7E=
+github.com/danielpaulus/go-ios v1.0.188/go.mod h1:ZkUcaC59yNba47j/+ULKsCi3dYPFwY9r39PxdmVmLHE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

@@ -178,6 +178,12 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		if err != nil {
 			log.Fatalf("Could not provide WebDriverAgent.ipa file from MongoDB - %s", err)
 		}
+		// IntegrationApp hosts the WebDriverAgentBroadcast extension (iOS audio).
+		// Optional — only fail if the GridFS file is missing on iOS providers
+		// that opted into audio. For now, log a warning and continue if absent.
+		if err := config.SetupIntegrationAppFile(); err != nil {
+			log.Printf("WARN: IntegrationApp.ipa not found in MongoDB (%v) — iOS audio capture won't auto-install the broadcast host app", err)
+		}
 	}
 
 	err = extractProviderResourceFiles(config.ProviderConfig.ProviderFolder, resourceFiles)

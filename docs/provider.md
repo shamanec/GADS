@@ -10,6 +10,7 @@ The provider component is responsible for setting up the Appium servers and mana
   - [Linux](#linux)
   - [Windows](#windows)
 - [Dependencies Notes](#dependencies-notes)
+  - [iOS Audio Streaming](#ios-audio-streaming---optional)
 - [Device Notes](#device-notes)
   - [iOS Phones](#ios-phones)
   - [Android](#android-phone)
@@ -48,6 +49,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 #### iOS
 -  **Prepare** [WebDriverAgent](#build-webdriveragent-ipa-file-manually-using-xcode).
+- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming---optional) if you want to hear app audio from iOS devices.
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### Tizen
@@ -73,6 +75,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 #### iOS
 - **Install** [usbmuxd](#usbmuxd) if providing iOS devices.
 - **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
+- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming---optional) if you want to hear app audio from iOS devices. Use the prebuilt + re-sign flow (Linux-compatible).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### Tizen
@@ -103,6 +106,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 #### iOS
 - **Install** [iTunes](#itunes) if providing iOS devices.
 - **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
+- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming---optional) if you want to hear app audio from iOS devices. Use the prebuilt + re-sign flow (Windows-compatible).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### Tizen
@@ -187,6 +191,116 @@ Fork is kept up to date with latest mainstream.
 - **NB** iOS 17-17.3 Windows/Linux WebDriverAgent additional step
   - Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders before moving it to `Payload`
   - IPA has to be re-signed after that once again uzing any applicable tool
+
+### iOS Audio Streaming - Optional
+
+GADS supports streaming audio from iOS devices to the hub UI so operators can hear the device's app audio while controlling it remotely. The pipeline uses an iOS Broadcast Upload Extension (`WebDriverAgentBroadcast.appex`) bundled inside a host app called `IntegrationApp`. Audio is captured via ReplayKit, forwarded over TCP loopback to the WebDriverAgentRunner, sent through the go-ios USB tunnel to the GADS provider, encoded to Opus, and delivered to the browser via WebRTC.
+
+> ⚠️ **iOS 17.0+ device required.** iOS 26.x is the most-tested version.
+
+You have two paths to obtain a signed `IntegrationApp.ipa`, mirroring how `WebDriverAgent.ipa` is distributed:
+
+| Path | OS support | Best for |
+|---|---|---|
+| Prebuilt + re-sign | macOS / Linux / Windows | Most users (no Xcode required) |
+| Build manually using Xcode | macOS only | Customizing the broadcast extension or developing locally |
+
+#### Prebuilt IntegrationApp + Re-sign (any OS)
+
+This mirrors the WebDriverAgent prebuilt flow above and works on **macOS, Linux and Windows**.
+
+- Download the prebuilt `IntegrationApp.ipa` from the fork's release page (same WebDriverAgent fork that ships the WDA prebuilt IPA).
+- Re-sign it with your Apple Developer certificate + provisioning profile using any of the following tools:
+  - [zsign](https://github.com/zhlynn/zsign) (Linux / Windows / macOS — recommended for non-macOS hosts)
+  - [fastlane sigh](https://docs.fastlane.tools/actions/sigh/) (any OS, requires Ruby)
+  - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html) (macOS only)
+
+Important when re-signing the IPA: the embedded extension `IntegrationApp.app/PlugIns/WebDriverAgentBroadcast.appex` must be re-signed too. `zsign` and `fastlane sigh` handle nested binaries automatically; if you script `codesign` manually, sign the `.appex` first then the `.app`.
+
+Verify that both bundles inside the resulting IPA carry an `embedded.mobileprovision` for the same Team after re-signing:
+
+```
+Payload/IntegrationApp.app/embedded.mobileprovision
+Payload/IntegrationApp.app/PlugIns/WebDriverAgentBroadcast.appex/embedded.mobileprovision
+```
+
+#### Build the IntegrationApp + Broadcast Extension manually using Xcode (macOS only)
+
+The same WDA fork repo includes the `IntegrationApp` and `WebDriverAgentBroadcast` targets in `WebDriverAgent.xcodeproj`. Build them as follows:
+
+- Open `WebDriverAgent.xcodeproj` in Xcode.
+- For each of the targets `IntegrationApp` and `WebDriverAgentBroadcast`, configure signing (Targets → *target* → Signing & Capabilities). Both must use the **same Team** as the WebDriverAgent.
+- Build the `IntegrationApp` scheme for `Generic iOS Device` (or specify your device's UDID):
+  ```bash
+  xcodebuild \
+    -project WebDriverAgent.xcodeproj \
+    -scheme IntegrationApp \
+    -sdk iphoneos \
+    -destination 'generic/platform=iOS' \
+    -derivedDataPath ./build \
+    -allowProvisioningUpdates \
+    build
+  ```
+- The output `IntegrationApp.app` will already include the broadcast extension at `IntegrationApp.app/PlugIns/WebDriverAgentBroadcast.appex`.
+- Repack as IPA:
+  ```bash
+  cd ./build/Build/Products/Debug-iphoneos
+  rm -f IntegrationApp.ipa
+  rm -rf Payload && mkdir Payload && cp -R IntegrationApp.app Payload/
+  zip -qry IntegrationApp.ipa Payload
+  ```
+
+> ⚠️ **Provisioning profile validity**: Apple Development profiles last **7 days**. If you see `0xe8008015 / MIInstallerErrorDomain Code=13` errors at install time, the profile expired — rebuild with `-allowProvisioningUpdates` (or re-sign with a fresh profile if using the prebuilt flow) and re-upload. Apple Developer Enterprise certificates last 1 year and avoid this churn.
+
+#### Upload IntegrationApp.ipa to the hub
+
+The GADS provider downloads `IntegrationApp.ipa` from the hub on every iOS device setup, mirroring how it handles `WebDriverAgent.ipa`.
+
+- Log in to the hub UI as admin.
+- Navigate to `Admin > Files`.
+- Upload your built `IntegrationApp.ipa`.
+
+> If you re-upload (e.g. after a provisioning renewal), the provider will pick up the new version on its next device setup.
+
+#### Enable audio streaming on a device
+
+In the hub UI > `Admin > Devices`, edit the iOS device:
+
+| Field | Value |
+|---|---|
+| `audio_stream_enabled` | `true` |
+| `audio_input_type` | `app_audio` |
+
+> Note: `audio_input_type` must be `app_audio` for iOS. The value `device` is for Android only.
+
+#### First-time use — manual extension selection (one-time per device)
+
+> 🚨 **iOS 26 limitation:** Apple intentionally blocks programmatic interaction with the system `RPSystemBroadcastPickerView` for security/anti-spam reasons. The first session on each device requires the operator to **physically tap on the iPhone** to select the broadcast extension. iOS persists the selection for subsequent sessions automatically.
+
+Procedure (only required once per device, or after a fresh `IntegrationApp` install):
+
+1. In the hub UI, open the iOS device with `Use`.
+2. Wait ~5 seconds — the iPhone shows the **"Screen Broadcast"** sheet.
+3. **On the physical iPhone** (not via remote control / synthetic taps):
+   - Tap the **`WebDriverAgentBroadcast`** row in the list. The list is alphabetical; you may need to scroll if many broadcast extensions are installed.
+   - Tap **"Start Broadcast"** (label varies by locale: "Iniciar Transmissão" in pt-BR, "Iniciar grabación" in es, "Démarrer la diffusion" in fr-FR, etc.).
+4. Wait the 3-second iOS countdown.
+5. The iPhone status bar shows a red **"Screen Recording"** pill — broadcast is active.
+6. Audio should now flow into the hub UI's audio player.
+
+#### Subsequent sessions — automatic
+
+After the initial setup, GADS detects that `WebDriverAgentBroadcast` is iOS's persisted selection and automatically completes the broadcast handshake on every `Use`. No manual interaction is required. Typical time from `Use` to audio flowing: ~5–8 seconds.
+
+If audio doesn't flow after a fresh provider restart, releasing the device in the hub and clicking `Use` again usually recovers (transient race condition on relay socket teardown after rapid provider lifecycle changes).
+
+#### Troubleshooting
+
+- **Audio not playing after `Use`** — verify the initial setup was done; confirm `audio_stream_enabled=true` and `audio_input_type=app_audio` on the device document.
+- **`0xe8008015 / MIInstallerErrorDomain Code=13`** at install time — provisioning profile expired (7-day limit). Rebuild with `-allowProvisioningUpdates` and re-upload `IntegrationApp.ipa`.
+- **Picker shows the wrong app pre-selected** (e.g. a previously used broadcast extension like Facebook, Photos, etc.) — the provider re-installs `IntegrationApp` on each device setup, which can reset iOS's cached selection. Repeat the manual setup procedure once.
+- **No audio after iPhone reboot** — the picker selection generally survives reboots. If it doesn't, repeat the manual setup once.
+- **Edge case: race condition** — if the provider is restarted during an active broadcast, the next `Use` may show "Screen sharing ended" briefly. Release and re-Use to recover.
 
 ## Device Notes
 
