@@ -62,4 +62,4 @@ The experimental grid was tested only using latest Appium and Selenium Java clie
 
 ### Android devices remote control debugging
 
-GADS allows you to create an adb tunnel to a remotely controlled Android device for local development and debugging - find more information on usage [here](./adb-client.md)
+GADS allows you to create an adb tunnel to a remotely controlled Android device for local development and debugging - find more information on usage [here](./adb-tunnel.md)

@@ -62,24 +62,24 @@ func main() {
 	providerCmd.Flags().Bool("use-ios-pair-cache", false, "Cache iOS pair records on disk to skip Trust dialog on reconnect (for unsupervised devices)")
 	rootCmd.AddCommand(providerCmd)
 
-	// ADB Client Command
-	var adbClientCmd = &cobra.Command{
-		Use:   "adb-client",
+	// ADB Tunnel Command
+	var adbTunnelCmd = &cobra.Command{
+		Use:   "adb-tunnel",
 		Short: "Connect to a remote Android device via ADB tunnel through the hub",
 		Run: func(cmd *cobra.Command, args []string) {
 			adb.Start(cmd.Flags())
 		},
 	}
-	adbClientCmd.Flags().String("hub", "", "Hub URL (e.g. http://localhost:10000)")
-	adbClientCmd.Flags().String("udid", "", "Device UDID to tunnel")
-	adbClientCmd.Flags().String("username", "", "GADS username")
-	adbClientCmd.Flags().String("password", "", "GADS password")
-	adbClientCmd.Flags().Int("port", 0, "Local port to listen on (0 = auto)")
-	adbClientCmd.MarkFlagRequired("hub")
-	adbClientCmd.MarkFlagRequired("udid")
-	adbClientCmd.MarkFlagRequired("username")
-	adbClientCmd.MarkFlagRequired("password")
-	rootCmd.AddCommand(adbClientCmd)
+	adbTunnelCmd.Flags().String("hub", "", "Hub URL (e.g. http://localhost:10000)")
+	adbTunnelCmd.Flags().String("udid", "", "Device UDID to tunnel")
+	adbTunnelCmd.Flags().String("username", "", "GADS username")
+	adbTunnelCmd.Flags().String("password", "", "GADS password")
+	adbTunnelCmd.Flags().Int("port", 0, "Local port to listen on (0 = auto)")
+	adbTunnelCmd.MarkFlagRequired("hub")
+	adbTunnelCmd.MarkFlagRequired("udid")
+	adbTunnelCmd.MarkFlagRequired("username")
+	adbTunnelCmd.MarkFlagRequired("password")
+	rootCmd.AddCommand(adbTunnelCmd)
 
 	var versionCmd = &cobra.Command{
 		Use:   "version",
