@@ -31,6 +31,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -752,6 +753,32 @@ func PullAndroidSharedStorageFile(device *models.DBDevice, filePath string, file
 	return tempFilePath, err
 }
 
+var (
+	androidOfflineReconnectMu sync.Mutex
+	androidOfflineReconnectAt = map[string]time.Time{}
+)
+
+// cooldown of 30s prevents reconnect spam on each 1-second polling tick
+func reconnectOfflineAndroid(udid string) {
+	const cooldown = 30 * time.Second
+
+	androidOfflineReconnectMu.Lock()
+	if last, ok := androidOfflineReconnectAt[udid]; ok && time.Since(last) < cooldown {
+		androidOfflineReconnectMu.Unlock()
+		return
+	}
+	androidOfflineReconnectAt[udid] = time.Now()
+	androidOfflineReconnectMu.Unlock()
+
+	logger.ProviderLogger.LogInfo("android_reconnect", fmt.Sprintf("Device %s is offline in ADB, attempting reconnect", udid))
+	cmd := exec.CommandContext(context.Background(), "adb", "-s", udid, "reconnect")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogError("android_reconnect", fmt.Sprintf("Failed to reconnect device %s: %v", udid, err))
+	} else {
+		logger.ProviderLogger.LogInfo("android_reconnect", fmt.Sprintf("Reconnect issued for device %s", udid))
+	}
+}
+
 // Gets the connected android devices using `adb`
 func getConnectedDevicesAndroid() []string {
 	var connectedDevices []string
@@ -775,8 +802,19 @@ func getConnectedDevicesAndroid() []string {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") {
-			connectedDevices = append(connectedDevices, strings.Fields(line)[0])
+		if line == "" || strings.Contains(line, "List of devices") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		udid, status := fields[0], fields[1]
+		switch status {
+		case "device":
+			connectedDevices = append(connectedDevices, udid)
+		case "offline":
+			go reconnectOfflineAndroid(udid)
 		}
 	}
 
