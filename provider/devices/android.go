@@ -344,7 +344,7 @@ func (d *AndroidDevice) startRemoteControlServer() {
 	time.Sleep(1 * time.Second)
 
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
-		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.RemoteControlServerKt 1994")
+		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.RemoteControlServerKt 1994")
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, d.GetUDID(), err))
@@ -363,7 +363,7 @@ func (d *AndroidDevice) startH264Stream() {
 	time.Sleep(1 * time.Second)
 
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
-		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.server.H264Server")
+		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.server.H264Server")
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, d.GetUDID(), err))
@@ -378,14 +378,14 @@ func (d *AndroidDevice) startH264Stream() {
 
 func (d *AndroidDevice) setupIME() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Enabling GADS Android IME on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "enable", "com.gads.settings/.GADSKeyboardIME")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "enable", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("enableGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
 	}
 	time.Sleep(1 * time.Second)
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Setting GADS Android IME as active on device `%v`", d.GetUDID()))
-	cmd = exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "set", "com.gads.settings/.GADSKeyboardIME")
+	cmd = exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "set", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("setGadsAndroidIMEAsActive: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -683,11 +683,11 @@ func (d *AndroidDevice) getStreamServicePackageName() string {
 func (d *AndroidDevice) getStreamServiceActivityName() string {
 	switch d.DBDevice.StreamType {
 	case models.MJPEGStreamTypeId:
-		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureActivity"
 	case models.AndroidWebRTCGetStreamStreamTypeId:
-		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
+		return "com.gads.settings/com.shamanec.settings.webrtc.WebRTCScreenCaptureActivity"
 	default:
-		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureActivity"
 	}
 }
 
