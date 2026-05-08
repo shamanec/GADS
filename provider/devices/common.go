@@ -921,11 +921,13 @@ func setupIOSDevice(device *models.Device) {
 	go goIosForward(device, device.WDAPort, "8100")
 	go goIosForward(device, device.StreamPort, "9500")
 	go goIosForward(device, device.WDAStreamPort, "9100")
-	// iOS audio: provider reads from FBAudioBroadcastRelay running inside the
-	// WDA xctrunner on device:9202 (loopback). Forward host:device.AudioPort →
-	// device:9202. Raw TCP, same `[8B PTS BE][1920B PCM]` wire as Android.
+	// iOS audio: provider reads from gads-broadcast-extension's WebSocket-style
+	// TCP server on device:8766 (loopback). Forward host:device.AudioPort →
+	// device:8766. Wire format is the unified h264 envelope:
+	//   [4B len BE][8B PTS BE][1920B PCM Int16 LE]
+	// (1932 B per frame; 48 kHz mono 20 ms).
 	if device.AudioStreamEnabled {
-		go goIosForward(device, device.AudioPort, "9202")
+		go goIosForward(device, device.AudioPort, "8766")
 	}
 	logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully forwarded WebDriverAgent server and stream for device `%s`", device.UDID))
 
@@ -939,19 +941,19 @@ func setupIOSDevice(device *models.Device) {
 		}
 		logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully installed WebDriverAgent on device `%s`", device.UDID))
 
-		// IntegrationApp hosts the WebDriverAgentBroadcast extension (audio).
-		// Optional — install only if the IPA was downloaded by config.SetupIntegrationAppFile.
+		// GADSBroadcast hosts the gads-broadcast-extension (audio + H.264 video).
+		// Optional — install only if the IPA was downloaded by config.SetupGADSBroadcastFile.
 		if device.AudioStreamEnabled {
-			integrationPath := fmt.Sprintf("%s/IntegrationApp.ipa", config.ProviderConfig.ProviderFolder)
-			if _, statErr := os.Stat(integrationPath); statErr == nil {
-				logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Installing IntegrationApp (audio broadcast host) on device `%s`", device.UDID))
-				if err := installAppIOS(device, integrationPath); err != nil {
-					logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not install IntegrationApp on device `%s` - %s (audio capture may not work)", device.UDID, err))
+			broadcastPath := fmt.Sprintf("%s/GADSBroadcast.ipa", config.ProviderConfig.ProviderFolder)
+			if _, statErr := os.Stat(broadcastPath); statErr == nil {
+				logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Installing GADSBroadcast (audio broadcast host) on device `%s`", device.UDID))
+				if err := installAppIOS(device, broadcastPath); err != nil {
+					logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not install GADSBroadcast on device `%s` - %s (audio capture may not work)", device.UDID, err))
 				} else {
-					logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully installed IntegrationApp on device `%s`", device.UDID))
+					logger.ProviderLogger.LogDebug("ios_device_setup", fmt.Sprintf("Successfully installed GADSBroadcast on device `%s`", device.UDID))
 				}
 			} else {
-				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Skipping IntegrationApp install — file not present at %s; upload IntegrationApp.ipa to MongoDB GridFS to enable iOS audio", integrationPath))
+				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Skipping GADSBroadcast install — file not present at %s; upload GADSBroadcast.ipa to MongoDB GridFS to enable iOS audio", broadcastPath))
 			}
 		}
 

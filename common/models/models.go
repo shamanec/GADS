@@ -55,11 +55,12 @@ type Device struct {
 	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
 	// DEPRECATED: UseWebRTCVideo will be deprecated, use StreamType instead.
 	// This field will be removed in next major version release. Only kept for backward compatibility during migration.
-	UseWebRTCVideo     bool          `json:"use_webrtc_video" bson:"use_webrtc_video"`         // Should the device use WebRTC video instead of MJPEG
-	WorkspaceID        string        `json:"workspace_id" bson:"workspace_id"`                 // ID of the associated workspace
-	StreamType         StreamingType `json:"stream_type" bson:"stream_type"`                   // The type of video streaming for the device
-	AudioStreamEnabled bool          `json:"audio_stream_enabled" bson:"audio_stream_enabled"` // Enable audio streaming via WebRTC
-	AudioInputType     string        `json:"audio_input_type" bson:"audio_input_type"`         // Audio input source. Android: "internal" (default, AudioPlaybackCapture API 29+) or "microphone" (TRRS). iOS: "app_audio" (default, ReplayKit RPSampleBufferTypeAudioApp) or "microphone".
+	UseWebRTCVideo       bool          `json:"use_webrtc_video" bson:"use_webrtc_video"`                                 // Should the device use WebRTC video instead of MJPEG
+	WorkspaceID          string        `json:"workspace_id" bson:"workspace_id"`                                         // ID of the associated workspace
+	StreamType           StreamingType `json:"stream_type" bson:"stream_type"`                                           // The type of video streaming for the device
+	AudioStreamEnabled   bool          `json:"audio_stream_enabled" bson:"audio_stream_enabled"`                         // Enable audio streaming via WebRTC
+	AudioInputType       string        `json:"audio_input_type" bson:"audio_input_type"`                                 // Audio input source. Android: "internal" (default, AudioPlaybackCapture API 29+) or "microphone" (TRRS). iOS: "app_audio" (default, ReplayKit RPSampleBufferTypeAudioApp) or "microphone".
+	AudioBroadcastTarget string        `json:"audio_broadcast_target,omitempty" bson:"audio_broadcast_target,omitempty"` // iOS only: display name or bundle ID of the broadcast extension to auto-select in RPSystemBroadcastPickerView. Empty falls through to WDA's default ("GADSBroadcast").
 	// NON-DB DATA
 	/// COMMON VALUES
 	Host                 string       `json:"host" bson:"-"`                            // IP address of the device host(provider)
@@ -360,6 +361,10 @@ func ValidateDevice(device *Device) error {
 	// Validate OS and Usage combination
 	if err := ValidateDeviceUsageForOS(device.OS, device.Usage); err != nil {
 		return err
+	}
+
+	if len(device.AudioBroadcastTarget) > 255 {
+		return fmt.Errorf("audio_broadcast_target must be 255 characters or fewer, got %d", len(device.AudioBroadcastTarget))
 	}
 
 	return nil

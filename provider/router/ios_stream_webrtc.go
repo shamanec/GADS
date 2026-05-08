@@ -694,15 +694,20 @@ func (s *WebRTCSession) Start() error {
 	go s.watchOrientationChanges()
 
 	if s.device.AudioStreamEnabled && s.audioTrack != nil {
-		// Trigger the iOS broadcast picker (IntegrationApp + buttonPressed: auto-tap).
-		// This launches the WebDriverAgentBroadcast extension, which writes PCM
-		// to FBAudioBroadcastReceiver:9201 → FBAudioBroadcastRelay:9202 — the
-		// stream the extractor below connects to.
-		if resp, err := wdaRequest(s.device, http.MethodPost, "gads/audio/prepare", nil); err != nil {
-			logger.ProviderLogger.LogWarn("webrtc_session", fmt.Sprintf("Failed to auto-trigger iOS broadcast picker for device %s: %v", s.device.UDID, err))
+		// Trigger the iOS broadcast picker (GADSBroadcast host + buttonPressed: auto-tap).
+		// Production target is gads-broadcast-extension (display "GADSBroadcast"),
+		// which writes PCM directly to device:8766 with the unified h264 envelope.
+		// AudioBroadcastTarget overrides the picker selection if set.
+		body, bodyErr := audioPrepareBody(s.device)
+		if bodyErr != nil {
+			logger.ProviderLogger.LogWarn("webrtc_session", fmt.Sprintf("Failed to encode audio prepare body for device %s: %v", s.device.UDID, bodyErr))
 		} else {
-			resp.Body.Close()
-			logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("iOS broadcast picker auto-triggered for device %s", s.device.UDID))
+			if resp, err := wdaRequest(s.device, http.MethodPost, "gads/audio/prepare", body); err != nil {
+				logger.ProviderLogger.LogWarn("webrtc_session", fmt.Sprintf("Failed to auto-trigger iOS broadcast picker for device %s: %v", s.device.UDID, err))
+			} else {
+				resp.Body.Close()
+				logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("iOS broadcast picker auto-triggered for device %s (target=%q)", s.device.UDID, s.device.AudioBroadcastTarget))
+			}
 		}
 
 		audioExtractor, err := NewPCMAudioExtractor(s.device)

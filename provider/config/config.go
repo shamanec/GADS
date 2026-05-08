@@ -48,6 +48,6 @@ func SetupWebDriverAgentFile() error {
 	return db.GlobalMongoStore.DownloadFile("WebDriverAgent.ipa", ProviderConfig.ProviderFolder)
 }
 
-func SetupIntegrationAppFile() error {
-	return db.GlobalMongoStore.DownloadFile("IntegrationApp.ipa", ProviderConfig.ProviderFolder)
+func SetupGADSBroadcastFile() error {
+	return db.GlobalMongoStore.DownloadFile("GADSBroadcast.ipa", ProviderConfig.ProviderFolder)
 }

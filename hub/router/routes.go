@@ -918,6 +918,10 @@ func UpdateDevice(c *gin.Context) {
 				dbDevice.AudioInputType = reqDevice.AudioInputType
 			}
 
+			if reqDevice.AudioBroadcastTarget != dbDevice.AudioBroadcastTarget {
+				dbDevice.AudioBroadcastTarget = reqDevice.AudioBroadcastTarget
+			}
+
 			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
 			}

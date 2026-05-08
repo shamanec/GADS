@@ -10,13 +10,14 @@
 package router
 
 // PCMAudioExtractor is media-agnostic: it consumes raw 48kHz/mono/16-bit-LE PCM frames
-// and encodes them to Opus for WebRTC delivery. Both Android and iOS produce frames
-// in the same wire format ([8B BE PTS][PCM int16 LE]).
+// and encodes them to Opus for WebRTC delivery.
 //
-// Producer/consumer roles differ between platforms:
-//   - Android: APK runs a WebSocket SERVER on device.AudioPort; provider is the CLIENT (ws.Dial).
-//   - iOS:     WDA's FBAudioWebSocketClient is the CLIENT; provider is the SERVER (Listen + Upgrade).
-//             The iOS path is selected via device.OS == "ios" in NewPCMAudioExtractor.
+// Wire formats by platform:
+//   - Android: WebSocket message body = [8B PTS BE][PCM int16 LE]. Provider is the CLIENT.
+//   - iOS:    Raw TCP framed by gads-broadcast-extension's h264 envelope:
+//             [4B payloadLen BE][8B PTS BE][payloadLen bytes PCM int16 LE].
+//             Provider connects via go-ios USB forward (loopback only inside the
+//             device). For audio frames payloadLen is always 1920 (20 ms @ 48 kHz mono).
 
 import (
 	"GADS/common/models"
@@ -100,6 +101,64 @@ func waitForAudioPort(ctx context.Context, address string, maxWait time.Duration
 	return fmt.Errorf("audio port %s not ready after %v", address, maxWait)
 }
 
+// iOS warm-up tunables: bridges the gap between /gads/audio/prepare returning
+// 200 and gads-broadcast-extension's SampleHandler.broadcastStarted actually
+// binding device port 8766. iproxy accepts the host-side connect immediately,
+// so the extractor's first ReadFull may see EOF if the on-device listener
+// isn't up yet. We tolerate that for a bounded window by reconnecting.
+//
+// The cold path includes WDA's autotap (~2-6 s, longer when Phase 2 horizontal
+// swipe is needed because GADSBroadcast wasn't iOS's persisted picker
+// selection) plus the mandatory iOS 3 s broadcast countdown. 20 s covers the
+// worst case (Phase 2 + slow device animations) with margin.
+const iosFirstHeaderMaxRetries = 100 // 100 × 200 ms = 20 s
+const iosFirstHeaderRetryDelay = 200 * time.Millisecond
+
+// readFirstHeaderWithReconnect performs the first 12-byte header read of an
+// iOS audio session, tolerating a transient EOF by closing and redialing the
+// USB-forwarded TCP connection. After the first frame is read, the steady-
+// state loop in extractAudioFramesIOSRaw treats any EOF as a legitimate
+// stream end.
+//
+// On success the freshly populated header is in `header` and e.conn points at
+// the connection that produced it. On failure (real read error, or no frame
+// after iosFirstHeaderMaxRetries × iosFirstHeaderRetryDelay) returns a
+// descriptive error and leaves e.conn closed.
+func (e *PCMAudioExtractor) readFirstHeaderWithReconnect(header []byte) error {
+	address := "localhost:" + e.device.AudioPort
+	for attempt := 1; attempt <= iosFirstHeaderMaxRetries; attempt++ {
+		select {
+		case <-e.ctx.Done():
+			return e.ctx.Err()
+		default:
+		}
+
+		_, err := io.ReadFull(e.conn, header)
+		if err == nil {
+			return nil
+		}
+		if err != io.EOF && err != io.ErrUnexpectedEOF {
+			return fmt.Errorf("first-header read error: %w", err)
+		}
+
+		// EOF before the first frame — the appex listener is probably not bound
+		// yet. Reconnect and retry.
+		_ = e.conn.Close()
+		select {
+		case <-e.ctx.Done():
+			return e.ctx.Err()
+		case <-time.After(iosFirstHeaderRetryDelay):
+		}
+		conn, dialErr := net.Dial("tcp", address)
+		if dialErr != nil {
+			logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("iOS audio reconnect attempt %d/%d failed for device %s: %v", attempt, iosFirstHeaderMaxRetries, e.device.UDID, dialErr))
+			continue
+		}
+		e.conn = conn
+	}
+	return fmt.Errorf("appex never emitted a frame after %d retries (~%s)", iosFirstHeaderMaxRetries, time.Duration(iosFirstHeaderMaxRetries)*iosFirstHeaderRetryDelay)
+}
+
 // NewPCMAudioExtractor creates a new audio extractor that connects to the device's audio WebSocket
 // and produces Opus-encoded frames on the audio channel.
 func NewPCMAudioExtractor(device *models.Device) (*PCMAudioExtractor, error) {
@@ -137,21 +196,21 @@ func NewPCMAudioExtractor(device *models.Device) (*PCMAudioExtractor, error) {
 	extractor.encoder = encoder
 
 	if device.OS == "ios" {
-		// iOS path: connect to the WDA FBAudioBroadcastRelay via the go-ios USB
-		// forward (host:device.AudioPort → device:9202). Raw TCP, same wire format
-		// as the Android WebSocket payload (`[8B PTS BE][1920B PCM Int16 LE]`).
+		// iOS path: connect to gads-broadcast-extension's TCP server via the
+		// go-ios USB forward (host:device.AudioPort → device:8766). Frames are
+		// the unified h264 envelope: [4B payloadLen BE][8B PTS BE][payloadLen B PCM].
 		tcpAddress := "localhost:" + device.AudioPort
 		if err := waitForAudioPort(ctx, tcpAddress, 30*time.Second); err != nil {
 			cancel()
-			return nil, fmt.Errorf("iOS audio relay not ready: %w", err)
+			return nil, fmt.Errorf("iOS audio source not ready: %w", err)
 		}
 		conn, err := net.Dial("tcp", tcpAddress)
 		if err != nil {
 			cancel()
-			return nil, fmt.Errorf("failed to connect to iOS audio relay: %w", err)
+			return nil, fmt.Errorf("failed to connect to iOS audio source: %w", err)
 		}
 		extractor.conn = conn
-		logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to iOS audio relay at %s for device %s", tcpAddress, device.UDID))
+		logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to iOS audio source at %s for device %s", tcpAddress, device.UDID))
 		go extractor.extractAudioFramesIOSRaw()
 		return extractor, nil
 	}
@@ -184,9 +243,17 @@ func NewPCMAudioExtractor(device *models.Device) (*PCMAudioExtractor, error) {
 	return extractor, nil
 }
 
-// extractAudioFramesIOSRaw reads fixed-size 1928-byte frames from the iOS
-// FBAudioBroadcastRelay TCP stream (no WebSocket framing). Each frame is
-// [8 B PTS BE][1920 B PCM Int16 LE]. Encodes to Opus and emits to audioChannel.
+// extractAudioFramesIOSRaw reads h264-envelope frames from the
+// gads-broadcast-extension TCP stream:
+//
+//	[4 B payloadLen BE][8 B PTS BE][payloadLen B PCM Int16 LE]
+//
+// For audio, payloadLen is always 1920 (20 ms @ 48 kHz mono). Frames with a
+// different length are logged and dropped (port 8766 is audio-only today; if
+// the extension ever multiplexes other types onto it, a type byte would need
+// to be added — out of scope for this iteration).
+//
+// Encodes each PCM frame to Opus and emits on audioChannel.
 func (e *PCMAudioExtractor) extractAudioFramesIOSRaw() {
 	defer close(e.audioChannel)
 	defer func() {
@@ -195,10 +262,24 @@ func (e *PCMAudioExtractor) extractAudioFramesIOSRaw() {
 		}
 	}()
 
-	const frameTotal = 1928
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting iOS raw audio frame extraction for device %s", e.device.UDID))
+	const expectedPayloadLen = 1920
+	const opusFrameSize = 960
+	// Hard cap on payload size to prevent allocating gigabytes if the upstream
+	// stream goes haywire; comfortably above expectedPayloadLen for headroom.
+	const maxPayloadLen = 64 * 1024
+
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting iOS audio frame extraction (8766/h264-envelope) for device %s", e.device.UDID))
 	frameCount := 0
-	buf := make([]byte, frameTotal)
+	header := make([]byte, 12)
+
+	// First-frame warm-up: the on-device broadcast extension may not have
+	// bound port 8766 yet at the moment iproxy accepts our connect. Tolerate
+	// transient EOFs by reconnecting until we get a real header.
+	if err := e.readFirstHeaderWithReconnect(header); err != nil {
+		logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("iOS audio extractor warm-up failed for device %s: %v", e.device.UDID, err))
+		return
+	}
+	firstIteration := true
 
 	for {
 		select {
@@ -207,18 +288,37 @@ func (e *PCMAudioExtractor) extractAudioFramesIOSRaw() {
 		default:
 		}
 
-		if _, err := io.ReadFull(e.conn, buf); err != nil {
+		if !firstIteration {
+			if _, err := io.ReadFull(e.conn, header); err != nil {
+				if err != io.EOF {
+					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("iOS audio header read error: %v", err))
+				}
+				return
+			}
+		}
+		firstIteration = false
+
+		payloadLen := binary.BigEndian.Uint32(header[0:4])
+		pts := int64(binary.BigEndian.Uint64(header[4:12]))
+
+		if payloadLen == 0 || payloadLen > maxPayloadLen {
+			logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("iOS audio frame has implausible payloadLen=%d for device %s — aborting stream", payloadLen, e.device.UDID))
+			return
+		}
+
+		pcmData := make([]byte, payloadLen)
+		if _, err := io.ReadFull(e.conn, pcmData); err != nil {
 			if err != io.EOF {
-				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("iOS raw audio read error: %v", err))
+				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("iOS audio payload read error (len=%d): %v", payloadLen, err))
 			}
 			return
 		}
 
-		pts, pcmData, err := parsePCMMessage(buf)
-		if err != nil {
+		if payloadLen != expectedPayloadLen {
+			logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropping iOS audio frame with unexpected payloadLen=%d (want %d) for device %s", payloadLen, expectedPayloadLen, e.device.UDID))
 			continue
 		}
-		const opusFrameSize = 960
+
 		pcmSamples := padOrTruncatePCM(decodePCMToInt16(pcmData), opusFrameSize)
 
 		opusData := make([]byte, 4000)

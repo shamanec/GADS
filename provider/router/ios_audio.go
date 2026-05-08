@@ -11,21 +11,43 @@ package router
 
 import (
 	"GADS/common/api"
+	"GADS/common/models"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
+
+// audioPrepareBody returns the JSON body to send to WDA's /gads/audio/prepare.
+// When the device has a configured AudioBroadcastTarget, the target is forwarded
+// so WDA can auto-select the matching broadcast extension in the picker. When
+// empty, we send no body — WDA falls back to its hardcoded default.
+func audioPrepareBody(device *models.Device) (io.Reader, error) {
+	if device == nil || device.AudioBroadcastTarget == "" {
+		return nil, nil
+	}
+	payload := struct {
+		Target string `json:"target"`
+	}{Target: device.AudioBroadcastTarget}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(b), nil
+}
 
 // The PCMAudioExtractor's lifecycle is owned by IOSWebRTCSession (see
 // ios_stream_webrtc.go: created in Start(), closed in Close()). These endpoints
 // are thin proxies that trigger the iOS-side broadcast UX via WDA — provider
 // state lives on the session, not here.
 
-// IOSAudioPrepare brings the IntegrationApp + RPSystemBroadcastPickerView to
-// the foreground on the iOS device by calling WDA's /gads/audio/prepare endpoint.
+// IOSAudioPrepare brings the GADSBroadcast host app + RPSystemBroadcastPickerView
+// to the foreground on the iOS device by calling WDA's /gads/audio/prepare endpoint.
 // Idempotent. Returns the host-side audio port.
 func IOSAudioPrepare(c *gin.Context) {
 	udid := c.Param("udid")
@@ -47,7 +69,15 @@ func IOSAudioPrepare(c *gin.Context) {
 		return
 	}
 
-	resp, err := wdaRequest(device, http.MethodPost, "gads/audio/prepare", nil)
+	body, err := audioPrepareBody(device)
+	if err != nil {
+		api.InternalServerErrorResponse(c, fmt.Sprintf("failed to encode audio prepare body: %v", err), nil)
+		return
+	}
+	if device.AudioBroadcastTarget != "" {
+		logger.ProviderLogger.LogInfo("ios_audio", fmt.Sprintf("calling /gads/audio/prepare for device %s with target=%q", udid, device.AudioBroadcastTarget))
+	}
+	resp, err := wdaRequest(device, http.MethodPost, "gads/audio/prepare", body)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_audio", fmt.Sprintf("Failed to call WDA /gads/audio/prepare for device %s: %v", udid, err))
 		api.InternalServerErrorResponse(c, fmt.Sprintf("failed to prepare audio on WDA: %v", err), nil)
@@ -62,8 +92,13 @@ func IOSAudioPrepare(c *gin.Context) {
 	api.OKResponse(c, "audio prepared", gin.H{"audio_port": device.AudioPort})
 }
 
-// IOSAudioStart triggers the WDA-side audio start (picker UX). The provider's
-// extractor is already running inside the active IOSWebRTCSession.
+// IOSAudioStart is a thin idempotent endpoint that confirms the audio source
+// is ready for the caller. With gads-broadcast-extension as the production
+// audio path, the runner is no longer in the data path — the extension writes
+// PCM directly to device:8766, and the provider's extractor (started inside
+// the active IOSWebRTCSession) reads from there. So there is no /gads/audio/start
+// call to make on the WDA side; this handler stays callable for backward
+// compatibility but performs no WDA round-trip.
 func IOSAudioStart(c *gin.Context) {
 	udid := c.Param("udid")
 	device, ok := devices.DBDeviceMap[udid]
@@ -84,16 +119,6 @@ func IOSAudioStart(c *gin.Context) {
 	if session == nil {
 		api.BadRequestResponse(c, "no active WebRTC session for device — start the stream first", nil)
 		return
-	}
-
-	// The provider reads frames from the on-device FBAudioBroadcastRelay via
-	// go-ios USB forward — no host/port handshake needed (loopback only).
-	// We still call /gads/audio/start to trigger the picker UX side-effect.
-	resp, err := wdaRequest(device, http.MethodPost, "gads/audio/start", nil)
-	if err != nil {
-		logger.ProviderLogger.LogWarn("ios_audio", fmt.Sprintf("WDA /gads/audio/start call failed for device %s: %v", udid, err))
-	} else {
-		resp.Body.Close()
 	}
 
 	api.OKResponse(c, "audio started", gin.H{"audio_port": device.AudioPort})
