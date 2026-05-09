@@ -10,25 +10,37 @@
 package models
 
 type Provider struct {
-	OS                   string `json:"os" bson:"os"`
-	Nickname             string `json:"nickname" bson:"nickname"`
-	HostAddress          string `json:"host_address" bson:"host_address"`
-	Port                 int    `json:"port" bson:"port"`
-	UseSeleniumGrid      bool   `json:"use_selenium_grid" bson:"use_selenium_grid"`
-	SeleniumGrid         string `json:"selenium_grid" bson:"selenium_grid"`
-	ProvideAndroid       bool   `json:"provide_android" bson:"provide_android"`
-	ProvideIOS           bool   `json:"provide_ios" bson:"provide_ios"`
-	ProvideTizen         bool   `json:"provide_tizen" bson:"provide_tizen"`
-	ProvideWebOS         bool   `json:"provide_webos" bson:"provide_webos"`
-	WdaBundleID          string `json:"wda_bundle_id" bson:"wda_bundle_id"`
-	SupervisionPassword  string `json:"supervision_password" bson:"supervision_password"`
-	ProviderFolder       string `json:"-" bson:"-"`
-	LastUpdatedTimestamp int64  `json:"last_updated" bson:"last_updated"`
-	UseGadsIosStream     bool   `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
-	HubAddress           string `json:"hub_address" bson:"-"`
-	SetupAppiumServers   bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
-	MinioAvailable       bool   `json:"minio_available" bson:"-"`
-	TURNUsernameSuffix   string `json:"-" bson:"-"`
+	OS                     string `json:"os" bson:"os"`
+	Nickname               string `json:"nickname" bson:"nickname"`
+	HostAddress            string `json:"host_address" bson:"host_address"`
+	Port                   int    `json:"port" bson:"port"`
+	UseSeleniumGrid        bool   `json:"use_selenium_grid" bson:"use_selenium_grid"`
+	SeleniumGrid           string `json:"selenium_grid" bson:"selenium_grid"`
+	ProvideAndroid         bool   `json:"provide_android" bson:"provide_android"`
+	ProvideIOS             bool   `json:"provide_ios" bson:"provide_ios"`
+	ProvideTizen           bool   `json:"provide_tizen" bson:"provide_tizen"`
+	ProvideWebOS           bool   `json:"provide_webos" bson:"provide_webos"`
+	WdaBundleID            string `json:"wda_bundle_id" bson:"wda_bundle_id"`
+	AudioBroadcastTarget   string `json:"audio_broadcast_target,omitempty" bson:"audio_broadcast_target,omitempty"`
+	AudioBroadcastBundleID string `json:"audio_broadcast_bundle_id,omitempty" bson:"audio_broadcast_bundle_id,omitempty"`
+	SupervisionPassword    string `json:"supervision_password" bson:"supervision_password"`
+	ProviderFolder         string `json:"-" bson:"-"`
+	LastUpdatedTimestamp   int64  `json:"last_updated" bson:"last_updated"`
+	UseGadsIosStream       bool   `json:"use_gads_ios_stream" bson:"use_gads_ios_stream"`
+	HubAddress             string `json:"hub_address" bson:"-"`
+	SetupAppiumServers     bool   `json:"setup_appium_servers" bson:"setup_appium_servers"`
+	MinioAvailable         bool   `json:"minio_available" bson:"-"`
+	TURNUsernameSuffix     string `json:"-" bson:"-"`
+	UseIOSPairCache        bool   `json:"-" bson:"-"`
+}
+
+// ProviderDeviceSync is the lightweight struct sent from provider to hub each second
+// for each device. It carries only the runtime fields the hub needs.
+type ProviderDeviceSync struct {
+	UDID          string `json:"udid"`
+	Host          string `json:"host"`
+	Connected     bool   `json:"connected"`
+	ProviderState string `json:"provider_state"`
 }
 
 type ProviderData struct {
