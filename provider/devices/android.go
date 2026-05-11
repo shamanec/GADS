@@ -29,9 +29,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"errors"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -49,21 +49,6 @@ type AndroidDevice struct {
 
 const adbTCPPort = "5555"
 
-const (
-	androidSetupBackoffBase = 10 * time.Second
-	androidSetupBackoffMax  = 60 * time.Second
-)
-
-type androidSetupBackoffState struct {
-	lastFailedAt        time.Time
-	consecutiveFailures int
-}
-
-var (
-	androidSetupBackoffMu sync.Mutex
-	androidSetupBackoffs  = map[string]*androidSetupBackoffState{}
-)
-
 var remoteServerNetClient = &http.Client{
 	Timeout: time.Second * 120,
 }
@@ -74,66 +59,29 @@ func (d *AndroidDevice) GetAndroidIMEPort() string          { return d.AndroidIM
 func (d *AndroidDevice) GetAndroidRemoteServerPort() string { return d.AndroidRemoteServerPort }
 func (d *AndroidDevice) GetADBPort() string                 { return d.ADBPort }
 
-// shouldAttemptAndroidSetup returns false if the device is in cooldown after a recent
-// rapid setup failure, preventing a tight retry loop from overwhelming the adb server.
-func shouldAttemptAndroidSetup(udid string) bool {
-	androidSetupBackoffMu.Lock()
-	defer androidSetupBackoffMu.Unlock()
-	state, ok := androidSetupBackoffs[udid]
-	if !ok || state.consecutiveFailures == 0 {
-		return true
-	}
-	shifts := state.consecutiveFailures - 1
-	if shifts > 3 {
-		shifts = 3 // 10s << 3 = 80s already exceeds the 60s cap
-	}
-	delay := androidSetupBackoffBase << shifts
-	if delay > androidSetupBackoffMax {
-		delay = androidSetupBackoffMax
-	}
-	return time.Since(state.lastFailedAt) >= delay
-}
-
-// recordAndroidSetupFailure increments the per-device backoff counter.
-// Errors from context cancellation or process kill are not counted — those are
-// external resets, not device faults.
-func recordAndroidSetupFailure(udid string, err error) {
-	msg := err.Error()
-	if strings.Contains(msg, "context canceled") || strings.Contains(msg, "signal: killed") {
-		return
-	}
-	androidSetupBackoffMu.Lock()
-	defer androidSetupBackoffMu.Unlock()
-	state := androidSetupBackoffs[udid]
-	if state == nil {
-		state = &androidSetupBackoffState{}
-		androidSetupBackoffs[udid] = state
-	}
-	state.consecutiveFailures++
-	state.lastFailedAt = time.Now()
-}
-
-// resetAndroidSetupBackoff clears backoff state after a successful setup.
-func resetAndroidSetupBackoff(udid string) {
-	androidSetupBackoffMu.Lock()
-	defer androidSetupBackoffMu.Unlock()
-	delete(androidSetupBackoffs, udid)
-}
-
 // Setup runs the full Android device provisioning sequence.
 func (d *AndroidDevice) Setup() (retErr error) {
-	if !shouldAttemptAndroidSetup(d.GetUDID()) {
-		return nil
-	}
-
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
 
+	if time.Now().Before(d.setupBackoffUntil) {
+		return nil
+	}
+
 	defer func() {
-		if retErr != nil {
-			recordAndroidSetupFailure(d.GetUDID(), retErr)
-		} else {
-			resetAndroidSetupBackoff(d.GetUDID())
+		switch {
+		case retErr == nil:
+			d.setupBackoffNext = 0
+			d.setupBackoffUntil = time.Time{}
+		case errors.Is(retErr, context.Canceled), errors.Is(retErr, context.DeadlineExceeded):
+			// external cancellation — do not apply backoff
+		default:
+			if d.setupBackoffNext == 0 {
+				d.setupBackoffNext = setupBackoffBase
+			} else {
+				d.setupBackoffNext = min(d.setupBackoffNext*2, setupBackoffMax)
+			}
+			d.setupBackoffUntil = time.Now().Add(d.setupBackoffNext)
 		}
 	}()
 

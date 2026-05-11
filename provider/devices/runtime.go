@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Masterminds/semver"
 
@@ -20,6 +21,11 @@ import (
 	"GADS/common/models"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
+)
+
+const (
+	setupBackoffBase = 10 * time.Second
+	setupBackoffMax  = 60 * time.Second
 )
 
 // RuntimeState holds runtime fields shared across all platform device types.
@@ -36,8 +42,10 @@ type RuntimeState struct {
 	SetupMutex       sync.Mutex
 	Logger           models.CustomLogger
 	SemVer           *semver.Version
-	InitialSetupDone bool
-	AppiumPort       string // port assigned to the device for the Appium server
+	InitialSetupDone  bool
+	AppiumPort        string // port assigned to the device for the Appium server
+	setupBackoffUntil time.Time
+	setupBackoffNext  time.Duration
 
 	// Runtime fields synced to hub
 	Host          string
