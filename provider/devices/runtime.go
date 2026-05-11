@@ -42,10 +42,8 @@ type RuntimeState struct {
 	SetupMutex       sync.Mutex
 	Logger           models.CustomLogger
 	SemVer           *semver.Version
-	InitialSetupDone  bool
-	AppiumPort        string // port assigned to the device for the Appium server
-	setupBackoffUntil time.Time
-	setupBackoffNext  time.Duration
+	InitialSetupDone bool
+	AppiumPort       string // port assigned to the device for the Appium server
 
 	// Runtime fields synced to hub
 	Host          string
@@ -65,6 +63,10 @@ type RuntimeState struct {
 	CurrentRotation      string
 	SupportedStreamTypes []models.StreamType
 	InstalledApps        []string
+
+	// Per-device setup backoff state, protected by SetupMutex
+	setupBackoffUntil time.Time
+	setupBackoffNext  time.Duration
 }
 
 // Common accessor implementations inherited by all platform types via embedding.
