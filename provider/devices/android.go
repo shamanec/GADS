@@ -75,6 +75,9 @@ func (d *AndroidDevice) Setup() error {
 	if err := d.disableAutoRotation(); err != nil {
 		return d.resetWithError("disable auto-rotation", err)
 	}
+	if d.SemVer != nil && d.SemVer.Major() >= 15 {
+		d.disableKeyguard()
+	}
 	if err := d.allocatePorts(); err != nil {
 		return d.resetWithError("allocate free host ports", err)
 	}
@@ -145,6 +148,16 @@ func (d *AndroidDevice) allocatePorts() error {
 		return fmt.Errorf("could not allocate free host port for ADB tunnel - %w", err)
 	}
 	d.ADBPort = adbPort
+
+	if d.DBDevice.AudioStreamEnabled && d.DBDevice.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+		audioPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not allocate audio port for device `%v` - disabling audio stream: %v", d.GetUDID(), err))
+			d.DBDevice.AudioStreamEnabled = false
+		} else {
+			d.DBDevice.AudioPort = audioPort
+		}
+	}
 	return nil
 }
 
@@ -208,6 +221,30 @@ func (d *AndroidDevice) startServicesAndStreaming() error {
 	if models.IsWebRTCStreamType(d.DBDevice.StreamType) {
 		if err := d.UpdateWebRTCTURNConfig(); err != nil {
 			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not send TURN config to device `%s` - %v (WebRTC will use STUN only)", d.GetUDID(), err))
+		}
+	}
+
+	// Audio streaming setup (Android-side). Internal AudioPlaybackCapture requires API 29+.
+	if d.DBDevice.AudioStreamEnabled {
+		if d.DBDevice.AudioInputType == "internal" && d.SemVer != nil && d.SemVer.Major() < 10 {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Internal audio capture requires Android 10+ but device `%s` is on Android %s — disabling audio stream", d.GetUDID(), d.SemVer.String()))
+			d.DBDevice.AudioStreamEnabled = false
+		} else if d.DBDevice.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+			if err := d.forwardAudioStream(); err != nil {
+				logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not forward GADS audio stream port for device `%s` - %v", d.GetUDID(), err))
+			}
+			if d.DBDevice.AudioInputType == "internal" {
+				if err := d.addStreamRecordingPermissions(); err != nil {
+					logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not grant PROJECT_MEDIA for audio capture on device `%s` - %v", d.GetUDID(), err))
+				}
+				d.startAudioService()
+				d.startAudioProjectionActivity()
+			} else {
+				d.grantRecordAudioPermission()
+				d.startAudioService()
+			}
+		} else {
+			d.grantRecordAudioPermission()
 		}
 	}
 	return nil
@@ -403,9 +440,74 @@ func (d *AndroidDevice) addStreamRecordingPermissions() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Adding GADS-stream recording permissions on device `%v`", d.GetUDID()))
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "appops", "set", d.getStreamServicePackageName(), "PROJECT_MEDIA", "allow")
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("addStreamRecordingPermissions: Error executing `%s` - %s", cmd.Args, err)
+		// Fallback: explicit --user 0 syntax for Android 14+ compatibility.
+		cmd2 := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "cmd", "appops", "set", "--user", "0", d.getStreamServicePackageName(), "PROJECT_MEDIA", "allow")
+		if err2 := cmd2.Run(); err2 != nil {
+			return fmt.Errorf("addStreamRecordingPermissions: appops set failed - %s; fallback also failed - %s", err, err2)
+		}
 	}
 	return nil
+}
+
+// grantRecordAudioPermission grants RECORD_AUDIO to com.gads.settings.
+// Required whenever a foreground service declares foregroundServiceType containing "microphone".
+func (d *AndroidDevice) grantRecordAudioPermission() {
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"pm", "grant", "com.gads.settings", "android.permission.RECORD_AUDIO")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not grant RECORD_AUDIO to com.gads.settings for device `%v` - %v", d.GetUDID(), err))
+	}
+}
+
+// startAudioService starts the foreground AudioService in com.gads.settings,
+// where AudioRecord works correctly (not possible in app_process shell context).
+func (d *AndroidDevice) startAudioService() {
+	d.grantRecordAudioPermission()
+
+	stopCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"am", "stopservice", "-n", "com.gads.settings/.audio.AudioService")
+	_ = stopCmd.Run()
+
+	audioInputType := d.DBDevice.AudioInputType
+	if audioInputType == "" {
+		audioInputType = "internal"
+	}
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"am", "start-foreground-service", "-n", "com.gads.settings/.audio.AudioService",
+		"--es", "audio_input_type", audioInputType)
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not start audio service for device `%v` - %v", d.GetUDID(), err))
+	}
+}
+
+// startAudioProjectionActivity launches the AudioProjectionActivity which shows
+// the system MediaProjection permission dialog. On user approval, it stores the
+// MediaProjection in MediaProjectionHolder so AudioService can use
+// AudioPlaybackCapture for internal audio.
+func (d *AndroidDevice) startAudioProjectionActivity() {
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"am", "start", "-n", "com.gads.settings/.audio.AudioProjectionActivity")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not start AudioProjectionActivity for device `%v` - %v", d.GetUDID(), err))
+	}
+}
+
+// forwardAudioStream forwards the GADS Android audio stream tcp to the host
+// audio port allocated in allocatePorts().
+func (d *AndroidDevice) forwardAudioStream() error {
+	return d.forwardPort("1992", d.DBDevice.AudioPort)
+}
+
+// disableKeyguard disables the device lock screen via adb locksettings.
+// On Android 15 (API 35) QPR1, MediaProjection is automatically stopped when
+// the keyguard activates. Disabling it prevents stream interruption on device
+// farms.
+func (d *AndroidDevice) disableKeyguard() {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Disabling keyguard on Android 15+ device `%v` to prevent stream interruption on lock", d.GetUDID()))
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "locksettings", "set-disabled", "true")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not disable keyguard for device `%v` - %v", d.GetUDID(), err))
+	}
 }
 
 func (d *AndroidDevice) addStreamPostNotificationsPermission() error {
