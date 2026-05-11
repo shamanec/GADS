@@ -111,7 +111,7 @@ jobs:
 
   build_macos_amd64:
     needs: build_ui
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
         with:
@@ -203,12 +203,14 @@ jobs:
           go-version-file: go.mod
 
       - name: Setup MSYS2 with libopus
+        id: msys2
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
           install: >-
             mingw-w64-x86_64-opus
+            mingw-w64-x86_64-opusfile
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-gcc
 
@@ -227,9 +229,9 @@ jobs:
       - name: Build Windows binary
         env:
           CGO_ENABLED: 1
-          CC: C:\msys64\mingw64\bin\gcc.exe
-          PKG_CONFIG: C:\msys64\mingw64\bin\pkg-config.exe
-          PKG_CONFIG_PATH: C:\msys64\mingw64\lib\pkgconfig
+          CC: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin\gcc.exe
+          PKG_CONFIG: ${{ steps.msys2.outputs.msys2-location }}\mingw64\bin\pkg-config.exe
+          PKG_CONFIG_PATH: ${{ steps.msys2.outputs.msys2-location }}\mingw64\lib\pkgconfig
         run: |
           go get
           go build -tags ui -ldflags="-X 'main.AppVersion=${{ github.ref_name }}'" -o GADS.exe .
