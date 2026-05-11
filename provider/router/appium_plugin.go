@@ -3,13 +3,11 @@ package router
 import (
 	"GADS/common/api"
 	"GADS/common/db"
-	"GADS/common/minio"
 	"GADS/common/models"
 	"GADS/provider/devices"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,12 +16,12 @@ import (
 // AppiumPluginLog The plugin sends all logs from the server so we can store them in Mongo without having to parse output from the exec command
 func AppiumPluginLog(c *gin.Context) {
 	udid := c.Param("udid")
-	if _, ok := devices.DBDeviceMap[udid]; ok {
+	if _, ok := devices.DevManager.Get(udid); ok {
 		// Read the log request body
 		body, err := io.ReadAll(c.Request.Body)
 		defer c.Request.Body.Close()
 		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read log request body - %s", err), nil)
+			api.InternalError(c, fmt.Sprintf("Failed to read log request body - %s", err))
 			return
 		}
 
@@ -32,169 +30,61 @@ func AppiumPluginLog(c *gin.Context) {
 		err = json.Unmarshal(body, &appiumPluginLog)
 
 		db.GlobalMongoStore.AddAppiumLog(udid, appiumPluginLog)
-		api.GenericResponse(c, http.StatusOK, "Logged successfully", nil)
+		api.OKMessage(c, "Logged successfully")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
-}
-
-// AppiumPluginSessionLog The plugin sends session action logs so we can store them in Mongo for Appium execution reporting
-func AppiumPluginSessionLog(c *gin.Context) {
-	udid := c.Param("udid")
-	if _, ok := devices.DBDeviceMap[udid]; ok {
-		// Read the log request body
-		body, err := io.ReadAll(c.Request.Body)
-		defer c.Request.Body.Close()
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to read log request body - %s", err), nil)
-			return
-		}
-
-		var appiumPluginSessionLog models.AppiumPluginSessionLog
-		err = json.Unmarshal(body, &appiumPluginSessionLog)
-
-		db.GlobalMongoStore.AddAppiumSessionLog(appiumPluginSessionLog.Tenant, appiumPluginSessionLog)
-		api.GenericResponse(c, http.StatusOK, "Logged successfully", nil)
-		return
-	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
-}
-
-// AppiumPluginScreenshot The plugin sends a screenshot request for particular commands, provider gets a screenshot from device and stores it in Minio in the respective buildId/sessionId bucket
-// to show in reports later
-func AppiumPluginScreenshot(c *gin.Context) {
-	udid := c.Param("udid")
-	if device, ok := devices.DBDeviceMap[udid]; ok {
-		if device.OS == "tizen" || device.OS == "webos" {
-			return
-		}
-
-		// Read the request body
-		requestBody, err := io.ReadAll(c.Request.Body)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, "Failed to read screenshot request body", nil)
-			return
-		}
-
-		// Try to unmarshal the request body
-		var screenshotReq models.AppiumPluginScreenshotRequest
-		err = json.Unmarshal(requestBody, &screenshotReq)
-		if err != nil {
-			api.GenericResponse(c, http.StatusBadRequest, "Failed to unmarshal screenshot request body", nil)
-			return
-		}
-
-		var screenshotResp *http.Response
-
-		if device.OS == "ios" {
-			screenshotResp, err = wdaRequest(device, http.MethodGet, "screenshot-lq", nil)
-			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, "Failed to take screenshot from Android server app", nil)
-				return
-			}
-		} else {
-			// Try to get a screenshot from the Android GADS server app
-			screenshotResp, err = androidRemoteServerRequest(device, http.MethodGet, "screenshot", nil)
-			if err != nil {
-				api.GenericResponse(c, http.StatusInternalServerError, "Failed to take screenshot from Android server app", nil)
-				return
-			}
-		}
-
-		// Read the screenshot response body
-		bodyBytes, err := io.ReadAll(screenshotResp.Body)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, "Failed to read screenshot response from Android server app", nil)
-			return
-		}
-
-		// Try to unmarshal the screenshot response
-		var screenshotResponse models.AppiumPluginScreenshotResponse
-		err = json.Unmarshal(bodyBytes, &screenshotResponse)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, "Failed to marshal screenshot response from Android server app", nil)
-			return
-		}
-
-		screenshotBase64 := screenshotResponse.Screenshot
-		if screenshotBase64 == "" {
-			screenshotBase64 = screenshotResponse.Value.Screenshot
-		}
-
-		// Return an error if we don't have a base64 encoded string for screenshot from GADS Android server or WebDriverAgent
-		if screenshotBase64 == "" {
-			api.GenericResponse(c, http.StatusInternalServerError, "No base64 encoded string for screenshot was received", nil)
-			return
-		}
-
-		// Store the screenshot in Minio
-		filename := screenshotReq.SequenceNumber
-		if screenshotReq.IsAfterCommand {
-			filename += "_after"
-		}
-		filename += ".jpg"
-
-		objectPath, err := minio.GlobalMinioClient.StoreAppiumScreenshot(screenshotReq.BuildID, screenshotReq.SessionID, filename, screenshotBase64)
-		if err != nil {
-			api.GenericResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to store screenshot in Minio: %s", err), nil)
-			return
-		}
-
-		api.GenericResponse(c, http.StatusOK, fmt.Sprintf("Screenshot stored successfully at %s", objectPath), nil)
-		return
-	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginRegister The plugin sends a notification request when the server is started
 func AppiumPluginRegister(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Appium registered as up", nil)
+	if dev, ok := devices.DevManager.Get(udid); ok {
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetAppiumUp(true)
+		api.OKMessage(c, "Appium registered as up")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginAddSession The plugin sends a notification request when a new session is started
 func AppiumPluginAddSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
+	if dev, ok := devices.DevManager.Get(udid); ok {
 		sessionID := c.Param("session_id")
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.HasAppiumSession = true
-		dev.AppiumSessionID = sessionID
-		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Session added", nil)
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetHasAppiumSession(true)
+		dev.SetAppiumSessionID(sessionID)
+		dev.SetAppiumUp(true)
+		api.OKMessage(c, "Session added")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginRemoveSession The plugin sends a notification request when the session is deleted
 func AppiumPluginRemoveSession(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.HasAppiumSession = false
-		dev.AppiumSessionID = ""
-		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Session cleared", nil)
+	if dev, ok := devices.DevManager.Get(udid); ok {
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetHasAppiumSession(false)
+		dev.SetAppiumSessionID("")
+		dev.SetAppiumUp(true)
+		api.OKMessage(c, "Session cleared")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }
 
 // AppiumPluginPing The plugin periodically sends pings so we can keep track if the server is up
 func AppiumPluginPing(c *gin.Context) {
 	udid := c.Param("udid")
-	if dev, ok := devices.DBDeviceMap[udid]; ok {
-		dev.AppiumLastPingTS = time.Now().UnixMilli()
-		dev.IsAppiumUp = true
-		api.GenericResponse(c, http.StatusOK, "Ping for Appium server availability successful", nil)
+	if dev, ok := devices.DevManager.Get(udid); ok {
+		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
+		dev.SetAppiumUp(true)
+		api.OKMessage(c, "Ping for Appium server availability successful")
 		return
 	}
-	api.GenericResponse(c, http.StatusNotFound, fmt.Sprintf("Device with udid `%s` not found", udid), nil)
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 }

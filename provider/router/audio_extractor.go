@@ -75,7 +75,7 @@ func padOrTruncatePCM(samples []int16, size int) []int16 {
 // PCMAudioExtractor handles extracting PCM audio from a producer WebSocket stream and encoding to Opus.
 // Producers (Android APK, iOS WDA) send PCM in the same wire format; this extractor is media-agnostic.
 type PCMAudioExtractor struct {
-	device       *models.Device
+	device       *models.DBDevice
 	conn         io.ReadWriteCloser
 	audioChannel chan AudioFrame
 	ctx          context.Context
@@ -161,7 +161,7 @@ func (e *PCMAudioExtractor) readFirstHeaderWithReconnect(header []byte) error {
 
 // NewPCMAudioExtractor creates a new audio extractor that connects to the device's audio WebSocket
 // and produces Opus-encoded frames on the audio channel.
-func NewPCMAudioExtractor(device *models.Device) (*PCMAudioExtractor, error) {
+func NewPCMAudioExtractor(device *models.DBDevice) (*PCMAudioExtractor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	extractor := &PCMAudioExtractor{

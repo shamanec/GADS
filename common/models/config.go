@@ -44,8 +44,8 @@ type ProviderDeviceSync struct {
 }
 
 type ProviderData struct {
-	ProviderData Provider `json:"provider"`
-	DeviceData   []Device `json:"device_data"`
+	ProviderData Provider             `json:"provider"`
+	DeviceData   []ProviderDeviceSync `json:"device_data"`
 }
 
 type HubConfig struct {
@@ -57,7 +57,6 @@ type HubConfig struct {
 	FilesTempDir         string `json:"-"`
 	OS                   string `json:"os"`
 	AuthEnabled          bool   `json:"auth_enabled"`
-	MinioAvailable       bool   `json:"minio_available"`
 	TURNUsernameSuffix   string `json:"-"`
 }
 

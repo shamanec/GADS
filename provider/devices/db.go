@@ -17,8 +17,8 @@ import (
 	"GADS/provider/config"
 )
 
-func getDBProviderDevices() map[string]*models.Device {
-	var deviceDataMap = make(map[string]*models.Device)
+func getDBProviderDevices() map[string]*models.DBDevice {
+	var deviceDataMap = make(map[string]*models.DBDevice)
 
 	deviceData, err := db.GlobalMongoStore.GetProviderDevices(config.ProviderConfig.Nickname)
 	if err != nil {

@@ -60,25 +60,6 @@ export class GadsApiClient {
         }
     }
 
-    // Send Appium action log to provider instance
-    async sendSessionLog(sessionLogData) {
-        try {
-            await this.api.post('/log-session', sessionLogData)
-        } catch (e) {
-            // Silent fail for session logs to avoid disrupting main flow
-        }
-    }
-
-    // Send screenshot request to provider instance
-    async sendScreenshotRequest(screenshotData) {
-        try {
-            await this.api.post('/screenshot', screenshotData)
-        } catch (e) {
-            // Silent fail for screenshots to avoid disrupting main flow
-        }
-    }
-
-
     // Ping to notify provider that the Appium server is live and running
     async sendPing(pingData) {
         try {

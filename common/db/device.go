@@ -16,9 +16,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (m *MongoStore) GetDevices() ([]models.Device, error) {
+func (m *MongoStore) GetDevices() ([]models.DBDevice, error) {
 	coll := m.GetCollection("new_devices")
-	return GetDocuments[models.Device](m.Ctx, coll, bson.D{{}})
+	return GetDocuments[models.DBDevice](m.Ctx, coll, bson.D{{}})
 }
 
 func (m *MongoStore) GetDeviceStreamSettings(udid string) (models.DeviceStreamSettings, error) {
@@ -33,16 +33,16 @@ func (m *MongoStore) DeleteDevice(udid string) error {
 	return DeleteDocument(m.Ctx, coll, filter)
 }
 
-func (m *MongoStore) AddOrUpdateDevice(device *models.Device) error {
+func (m *MongoStore) AddOrUpdateDevice(device *models.DBDevice) error {
 	coll := m.GetCollection("new_devices")
 	filter := bson.D{{Key: "udid", Value: device.UDID}}
-	return UpsertDocument[models.Device](m.Ctx, coll, filter, *device)
+	return UpsertDocument[models.DBDevice](m.Ctx, coll, filter, *device)
 }
 
-func (m *MongoStore) GetProviderDevices(providerNickname string) ([]models.Device, error) {
+func (m *MongoStore) GetProviderDevices(providerNickname string) ([]models.DBDevice, error) {
 	coll := m.GetCollection("new_devices")
 	filter := bson.M{"provider": providerNickname}
-	return GetDocuments[models.Device](m.Ctx, coll, filter)
+	return GetDocuments[models.DBDevice](m.Ctx, coll, filter)
 }
 
 // This function is meant to update the already existing devices to the new stream type structure

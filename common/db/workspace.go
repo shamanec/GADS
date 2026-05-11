@@ -150,7 +150,7 @@ func (m *MongoStore) GetUserWorkspaces(username string) []models.Workspace {
 	return userWorkspaces
 }
 
-func (m *MongoStore) GetWorkspacesWithDeviceCount(page, limit int, search string) ([]models.WorkspaceWithDeviceCount, int64, error) {
+func (m *MongoStore) GetWorkspacesWithDeviceCount(page, limit int, search, tenant string) ([]models.WorkspaceWithDeviceCount, int64, error) {
 	if page < 1 || limit < 1 || limit > 1000 {
 		return nil, 0, ErrInvalidPagination
 	}
@@ -166,6 +166,10 @@ func (m *MongoStore) GetWorkspacesWithDeviceCount(page, limit int, search string
 			{"description": regex},
 			{"tenant": regex},
 		}
+	}
+
+	if tenant != "" {
+		matchFilter["tenant"] = tenant
 	}
 
 	pipeline := []bson.M{

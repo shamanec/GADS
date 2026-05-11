@@ -24,7 +24,7 @@ import (
 // OAuth2TokenEndpoint godoc
 // @Summary OAuth2 Client Credentials Token Endpoint
 // @Description Generate an access token using OAuth2 client credentials flow
-// @Tags OAuth2
+// @Tags Hub - OAuth2
 // @Accept application/x-www-form-urlencoded
 // @Accept json
 // @Produce json
@@ -32,8 +32,8 @@ import (
 // @Param client_secret formData string true "Client Secret"
 // @Param tenant formData string true "Tenant"
 // @Success 200 {object} models.AuthResponse
-// @Failure 400 {object} models.ErrorResponse
-// @Failure 401 {object} models.ErrorResponse
+// @Failure 400 {object} models.OAuthErrorResponse
+// @Failure 401 {object} models.OAuthErrorResponse
 // @Router /oauth/token [post]
 func OAuth2TokenEndpoint(c *gin.Context) {
 	var req models.OAuth2TokenRequest
@@ -44,7 +44,7 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 		clientSecret := c.PostForm("client_secret")
 		tenant := c.PostForm("tenant")
 		if clientID == "" || clientSecret == "" {
-			c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_request"})
+			c.JSON(http.StatusBadRequest, models.OAuthErrorResponse{Error: "invalid_request"})
 			return
 		}
 
@@ -55,7 +55,7 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 		}
 	} else {
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid_request"})
+			c.JSON(http.StatusBadRequest, models.OAuthErrorResponse{Error: "invalid_request"})
 			return
 		}
 	}
@@ -71,12 +71,12 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 		req.Tenant,
 	)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "invalid_client"})
+		c.JSON(http.StatusUnauthorized, models.OAuthErrorResponse{Error: "invalid_client"})
 		return
 	}
 
 	if !credential.IsActive {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{Error: "invalid_client"})
+		c.JSON(http.StatusUnauthorized, models.OAuthErrorResponse{Error: "invalid_client"})
 		return
 	}
 
@@ -88,7 +88,7 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 
 	token, err := generateAccessToken(credential, origin, userRole)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "server_error"})
+		c.JSON(http.StatusInternalServerError, models.OAuthErrorResponse{Error: "server_error"})
 		return
 	}
 

@@ -47,25 +47,26 @@ type SeleniumSessionErrorResponseValue struct {
 // And clean the automation session if no action was taken in the timeout limit
 func UpdateExpiredGridSessions() {
 	for {
-		devices.HubDevicesData.Mu.Lock()
-		for _, hubDevice := range devices.HubDevicesData.Devices {
+		now := time.Now().UnixMilli()
+		for _, hubDevice := range devices.HubDeviceStore.All() {
+			hubDevice.Mu.Lock()
+			// Release expired API leases
+			if hubDevice.LockSource == devices.LockSourceAPI && hubDevice.LeaseExpiresAt > 0 && hubDevice.LeaseExpiresAt < now {
+				hubDevice.ReleaseLock()
+			}
 			// Reset device if its not connected
 			// Or it hasn't received any Appium requests in the command timeout and is running automation
 			// Or if its provider state is not "live" - device was re-provisioned for example
-			if !hubDevice.Device.Connected ||
+			if !hubDevice.Connected ||
 				(hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation) ||
-				hubDevice.Device.ProviderState != "live" {
+				hubDevice.ProviderState != "live" {
 				hubDevice.IsRunningAutomation = false
 				hubDevice.IsAvailableForAutomation = true
 				hubDevice.SessionID = ""
-				if hubDevice.InUseBy != "" {
-					hubDevice.InUseBy = ""
-					hubDevice.InUseByTenant = ""
-					hubDevice.InUseTS = 0
-				}
+				hubDevice.ReleaseLockIfNotHeld()
 			}
+			hubDevice.Mu.Unlock()
 		}
-		devices.HubDevicesData.Mu.Unlock()
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -124,16 +125,6 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			if credential.Tenant != "" {
-				// Create Appium action logs collection for the current tenant if needed
-				actionLogsCollectionExists, _ := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_session_logs", credential.Tenant)
-				if !actionLogsCollectionExists {
-					err = db.GlobalMongoStore.CreateAppiumTenantLogsCollection("appium_session_logs", credential.Tenant, 1_000_000, 500)
-					if err != nil {
-						c.JSON(http.StatusUnauthorized, createErrorResponse("Failed creating Appium action logs collection in MongoDB", "session not created", ""))
-						return
-					}
-				}
-
 				defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
 				useAllTenantWorkspaces := true
 
@@ -167,7 +158,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			// Check for available device
-			var foundDevice *models.LocalHubDevice
+			var foundDevice *devices.LocalHubDevice
 			var deviceErr error
 
 			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
@@ -215,7 +206,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			devices.HubDevicesData.Mu.Lock()
+			foundDevice.Mu.Lock()
 			// Set device found as running automation and is not available for automation
 			// Before even starting the Appium session creation request
 			// Also set an automation action timestamp so that the goroutine does not reset it while session is being created
@@ -228,24 +219,21 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			} else {
 				foundDevice.AppiumNewCommandTimeout = 60000
 			}
-			devices.HubDevicesData.Mu.Unlock()
+			foundDevice.Mu.Unlock()
 
-			// Add the tenant to the session request we proxy to the Appium server
-			if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
-				if always, ok := caps["alwaysMatch"].(map[string]interface{}); ok {
-					always["gads:tenant"] = credential.Tenant
-					always["gads:deviceName"] = foundDevice.Device.Name
-					always["platformName"] = foundDevice.Device.OS
-				}
-			}
 			updatedSessionBody, _ := json.Marshal(sessionReq)
 			// Create a new request to the device target URL
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", foundDevice.Device.Host, foundDevice.Device.UDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(updatedSessionBody))
+			foundDevice.Mu.RLock()
+			deviceHost := foundDevice.Host
+			deviceUDID := foundDevice.Device.UDID
+			foundDevice.Mu.RUnlock()
+
+			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", deviceHost, deviceUDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(updatedSessionBody))
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
+				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				foundDevice.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "session not created", err.Error()))
 				return
 			}
@@ -259,10 +247,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			client := &http.Client{}
 			resp, err := client.Do(proxyReq)
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
+				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				foundDevice.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium session endpoint", "session not created", err.Error()))
 				return
 			}
@@ -270,36 +258,26 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			if resp.StatusCode >= 400 {
 				// Release device for any error status
-				devices.HubDevicesData.Mu.Lock()
+				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
 				if resp.StatusCode != http.StatusInternalServerError {
-					// Only clear user info if no manual session is active
-					if foundDevice.InUseWSConnection == nil {
-						foundDevice.InUseBy = ""
-						foundDevice.InUseByTenant = ""
-						foundDevice.InUseTS = 0
-					}
+					foundDevice.ReleaseLockIfNotHeld()
 				}
-				devices.HubDevicesData.Mu.Unlock()
+				foundDevice.Mu.Unlock()
 
 				// For 500 errors, keep the existing behavior with goroutine
 				if resp.StatusCode == http.StatusInternalServerError {
 					go func() {
 						time.Sleep(10 * time.Second)
-						devices.HubDevicesData.Mu.Lock()
+						foundDevice.Mu.Lock()
 						if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 5000) {
 							foundDevice.IsAvailableForAutomation = true
 							foundDevice.SessionID = ""
 							foundDevice.IsRunningAutomation = false
-							// Only clear user info if no manual session is active
-							if foundDevice.InUseWSConnection == nil {
-								foundDevice.InUseBy = ""
-								foundDevice.InUseByTenant = ""
-								foundDevice.InUseTS = 0
-							}
+							foundDevice.ReleaseLockIfNotHeld()
 						}
-						devices.HubDevicesData.Mu.Unlock()
+						foundDevice.Mu.Unlock()
 					}()
 				}
 
@@ -316,10 +294,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Read the response sessionRequestBody from the proxied request
 			proxiedSessionResponseBody, err := readBody(resp.Body)
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
+				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				foundDevice.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
 				return
 			}
@@ -328,17 +306,17 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var proxySessionResponse AppiumSessionResponse
 			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
 			if err != nil {
-				devices.HubDevicesData.Mu.Lock()
+				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.IsRunningAutomation = false
-				devices.HubDevicesData.Mu.Unlock()
+				foundDevice.Mu.Unlock()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
 				return
 			}
 
-			devices.HubDevicesData.Mu.Lock()
+			foundDevice.Mu.Lock()
 			foundDevice.SessionID = proxySessionResponse.Value.SessionID
-			devices.HubDevicesData.Mu.Unlock()
+			foundDevice.Mu.Unlock()
 
 			// Copy the response back to the original client
 			for k, v := range resp.Header {
@@ -346,20 +324,21 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			c.Writer.WriteHeader(resp.StatusCode)
 			c.Writer.Write(proxiedSessionResponseBody)
-			devices.HubDevicesData.Mu.Lock()
+
+			foundDevice.Mu.Lock()
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			// Set InUseBy with user ID and tenant for tracking
 			automationUser := credential.UserID
 			if automationUser == "" {
 				automationUser = "unknown"
 			}
-			// Only update InUseBy if no manual session is active
-			if foundDevice.InUseWSConnection == nil {
+			// Only update InUseBy if no UI or API session is active
+			if !foundDevice.HasUISession() && !foundDevice.HasActiveLease() {
 				foundDevice.InUseBy = automationUser
 				foundDevice.InUseByTenant = credential.Tenant
 				foundDevice.InUseTS = time.Now().UnixMilli()
 			}
-			devices.HubDevicesData.Mu.Unlock()
+			foundDevice.Mu.Unlock()
 		} else {
 			// If this is not a request for a new session
 			var sessionID = ""
@@ -403,9 +382,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			defer c.Request.Body.Close()
 
 			// Check if there is a device in the local session map for that session ID
-			devices.HubDevicesData.Mu.Lock()
 			foundDevice, err := getDeviceBySessionID(sessionID)
-			devices.HubDevicesData.Mu.Unlock()
 			if err != nil {
 				c.JSON(http.StatusNotFound, createErrorResponse(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID), "", ""))
 				return
@@ -413,15 +390,22 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			// Set the device last automation action timestamp when call returns
 			defer func() {
+				foundDevice.Mu.Lock()
 				foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+				foundDevice.Mu.Unlock()
 			}()
+
+			foundDevice.Mu.RLock()
+			deviceHost := foundDevice.Host
+			deviceUDID := foundDevice.Device.UDID
+			foundDevice.Mu.RUnlock()
 
 			// Create a new request to the device target URL on its provider instance
 			proxyReq, err := http.NewRequest(
 				c.Request.Method,
 				fmt.Sprintf("http://%s/device/%s/appium%s",
-					foundDevice.Device.Host,
-					foundDevice.Device.UDID,
+					deviceHost,
+					deviceUDID,
 					strings.Replace(c.Request.URL.Path, "/grid", "", -1)),
 				bytes.NewBuffer(origRequestBody),
 			)
@@ -446,24 +430,19 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			// If the request succeeded and was a delete request, remove the session ID from the map
 			if c.Request.Method == http.MethodDelete {
-				devices.HubDevicesData.Mu.Lock()
+				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
-				devices.HubDevicesData.Mu.Unlock()
+				foundDevice.Mu.Unlock()
 				// Start a goroutine that will release the device after 1 second if no other actions were taken
 				go func() {
 					time.Sleep(1 * time.Second)
-					devices.HubDevicesData.Mu.Lock()
+					foundDevice.Mu.Lock()
 					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
 						foundDevice.SessionID = ""
 						foundDevice.IsRunningAutomation = false
-						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
-							foundDevice.InUseBy = ""
-							foundDevice.InUseByTenant = ""
-							foundDevice.InUseTS = 0
-						}
+						foundDevice.ReleaseLockIfNotHeld()
 					}
-					devices.HubDevicesData.Mu.Unlock()
+					foundDevice.Mu.Unlock()
 				}()
 			}
 
@@ -471,19 +450,14 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
 				go func() {
 					time.Sleep(10 * time.Second)
-					devices.HubDevicesData.Mu.Lock()
+					foundDevice.Mu.Lock()
 					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
 						foundDevice.SessionID = ""
 						foundDevice.IsAvailableForAutomation = true
 						foundDevice.IsRunningAutomation = false
-						// Only clear user info if no manual session is active
-						if foundDevice.InUseWSConnection == nil {
-							foundDevice.InUseBy = ""
-							foundDevice.InUseByTenant = ""
-							foundDevice.InUseTS = 0
-						}
+						foundDevice.ReleaseLockIfNotHeld()
 					}
-					devices.HubDevicesData.Mu.Unlock()
+					foundDevice.Mu.Unlock()
 				}()
 				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS got an internal server error from the proxy request to the device respective provider Appium endpoint", "", ""))
 				return
@@ -502,7 +476,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			c.Writer.WriteHeader(resp.StatusCode)
 			c.Writer.Write(proxiedRequestBody)
+
+			foundDevice.Mu.Lock()
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+			foundDevice.Mu.Unlock()
 		}
 	}
 }
@@ -516,17 +493,25 @@ func readBody(r io.Reader) ([]byte, error) {
 	return body, nil
 }
 
-func getDeviceBySessionID(sessionID string) (*models.LocalHubDevice, error) {
-	for _, localDevice := range devices.HubDevicesData.Devices {
-		if localDevice.SessionID == sessionID {
+func getDeviceBySessionID(sessionID string) (*devices.LocalHubDevice, error) {
+	for _, localDevice := range devices.HubDeviceStore.All() {
+		localDevice.Mu.RLock()
+		sid := localDevice.SessionID
+		localDevice.Mu.RUnlock()
+		if sid == sessionID {
 			return localDevice, nil
 		}
 	}
 	return nil, fmt.Errorf("No device with session ID `%s` was found", sessionID)
 }
 
-func getDeviceByUDID(udid string) (*models.LocalHubDevice, error) {
-	for _, localDevice := range devices.HubDevicesData.Devices {
+func getDeviceByUDID(udid string) (*devices.LocalHubDevice, error) {
+	// Try direct lookup first (O(1))
+	if d, ok := devices.HubDeviceStore.Get(udid); ok {
+		return d, nil
+	}
+	// Fall back to case-insensitive search
+	for _, localDevice := range devices.HubDeviceStore.All() {
 		if strings.EqualFold(localDevice.Device.UDID, udid) {
 			return localDevice, nil
 		}
@@ -558,11 +543,8 @@ func getTargetOSFromCaps(caps models.CommonCapabilities) string {
 	return ""
 }
 
-func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*models.LocalHubDevice, error) {
-	devices.HubDevicesData.Mu.Lock()
-	defer devices.HubDevicesData.Mu.Unlock()
-
-	var foundDevice *models.LocalHubDevice
+func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*devices.LocalHubDevice, error) {
+	var foundDevice *devices.LocalHubDevice
 
 	var deviceUDID = ""
 	if caps.DeviceUDID != "" {
@@ -574,15 +556,19 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 	}
 
 	if deviceUDID != "" {
-		foundDevice, err := getDeviceByUDID(deviceUDID)
+		d, err := getDeviceByUDID(deviceUDID)
 		if err != nil {
 			return nil, err
 		}
 
 		// Check if device is in allowed workspaces
+		d.Mu.RLock()
+		wsID := d.Device.WorkspaceID
+		d.Mu.RUnlock()
+
 		deviceAllowed := false
-		for _, wsID := range allowedWorkspaceIDs {
-			if foundDevice.Device.WorkspaceID == wsID {
+		for _, allowedWsID := range allowedWorkspaceIDs {
+			if wsID == allowedWsID {
 				deviceAllowed = true
 				break
 			}
@@ -591,94 +577,115 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 			return nil, fmt.Errorf("No device with udid `%s` was found", deviceUDID)
 		}
 
-		if foundDevice.IsAvailableForAutomation {
-			foundDevice.IsAvailableForAutomation = false
-			return foundDevice, nil
-		} else {
-			return nil, fmt.Errorf("Device is currently not available for automation")
+		d.Mu.Lock()
+		if d.IsAvailableForAutomation {
+			d.IsAvailableForAutomation = false
+			d.Mu.Unlock()
+			return d, nil
 		}
+		d.Mu.Unlock()
+		return nil, fmt.Errorf("Device is currently not available for automation")
+	}
 
-	} else {
-		var availableDevices []*models.LocalHubDevice
+	var availableDevices []*devices.LocalHubDevice
 
-		targetOS := getTargetOSFromCaps(caps)
-		if targetOS != "" {
-			// Loop through all latest devices looking for a device that is not currently `being prepared` for automation and the last time it was updated from provider was less than 3 seconds ago
-			// Also device should not be disabled or for remote control only
-			for _, localDevice := range devices.HubDevicesData.Devices {
-				if strings.EqualFold(localDevice.Device.OS, targetOS) &&
-					localDevice.Device.Connected &&
-					localDevice.Device.ProviderState == "live" &&
-					localDevice.Device.LastUpdatedTimestamp >= (time.Now().UnixMilli()-3000) &&
-					localDevice.IsAvailableForAutomation &&
-					localDevice.Device.Usage != "control" &&
-					localDevice.Device.Usage != "disabled" {
+	targetOS := getTargetOSFromCaps(caps)
+	if targetOS != "" {
+		for _, localDevice := range devices.HubDeviceStore.All() {
+			localDevice.Mu.RLock()
+			os := localDevice.Device.OS
+			connected := localDevice.Connected
+			state := localDevice.ProviderState
+			lastUpdated := localDevice.LastUpdatedTimestamp
+			available := localDevice.IsAvailableForAutomation
+			usage := localDevice.Device.Usage
+			wsID := localDevice.Device.WorkspaceID
+			isLockedByOther := localDevice.IsLockedByOther(userID, userTenant)
+			localDevice.Mu.RUnlock()
 
-					// Check if device is in allowed workspaces
-					deviceAllowed := false
-					for _, wsID := range allowedWorkspaceIDs {
-						if localDevice.Device.WorkspaceID == wsID {
-							deviceAllowed = true
-							break
-						}
-					}
-					if !deviceAllowed {
-						continue
-					}
+			if !strings.EqualFold(os, targetOS) ||
+				!connected ||
+				state != "live" ||
+				lastUpdated < (time.Now().UnixMilli()-3000) ||
+				!available ||
+				usage == "control" ||
+				usage == "disabled" {
+				continue
+			}
 
-					// Check if device is in use by another user
-					if localDevice.InUseBy != "" && localDevice.InUseByTenant != "" {
-						currentUser := userID
-						if currentUser == "" {
-							currentUser = "unknown"
-						}
-						if localDevice.InUseBy != currentUser || localDevice.InUseByTenant != userTenant {
-							continue
-						}
-					}
-
-					availableDevices = append(availableDevices, localDevice)
+			deviceAllowed := false
+			for _, wsID2 := range allowedWorkspaceIDs {
+				if wsID == wsID2 {
+					deviceAllowed = true
+					break
 				}
+			}
+			if !deviceAllowed {
+				continue
+			}
+
+			if isLockedByOther {
+				continue
+			}
+
+			availableDevices = append(availableDevices, localDevice)
+		}
+	}
+
+	if caps.PlatformVersion != "" {
+		// First try exact version match
+		for _, device := range availableDevices {
+			device.Mu.RLock()
+			osVersion := device.Device.OSVersion
+			device.Mu.RUnlock()
+
+			if osVersion == caps.PlatformVersion {
+				device.Mu.Lock()
+				if device.IsAvailableForAutomation {
+					device.IsAvailableForAutomation = false
+					device.Mu.Unlock()
+					foundDevice = device
+					break
+				}
+				device.Mu.Unlock()
 			}
 		}
 
-		// If we have `appium:platformVersion` capability provided, then we want to filter out the devices even more
-		// Loop through the accumulated available devices slice and get a device that matches the platform version
-		if caps.PlatformVersion != "" {
-			// First check if device completely matches the required version
-			if len(availableDevices) != 0 {
-				for _, device := range availableDevices {
-					if device.Device.OSVersion == caps.PlatformVersion {
+		// Fall back to major version match
+		if foundDevice == nil {
+			v, _ := semver.NewVersion(caps.PlatformVersion)
+			requestedMajorVersion := fmt.Sprintf("%d", v.Major())
+			constraint, _ := semver.NewConstraint(fmt.Sprintf("^%s.0.0", requestedMajorVersion))
+
+			for _, device := range availableDevices {
+				device.Mu.RLock()
+				osVersion := device.Device.OSVersion
+				device.Mu.RUnlock()
+
+				deviceV, _ := semver.NewVersion(osVersion)
+				if constraint.Check(deviceV) {
+					device.Mu.Lock()
+					if device.IsAvailableForAutomation {
+						device.IsAvailableForAutomation = false
+						device.Mu.Unlock()
 						foundDevice = device
-						foundDevice.IsAvailableForAutomation = false
 						break
 					}
+					device.Mu.Unlock()
 				}
 			}
-			// If no device completely matches the required version try a major version
-			if foundDevice == nil {
-				v, _ := semver.NewVersion(caps.PlatformVersion)
-				requestedMajorVersion := fmt.Sprintf("%d", v.Major())
-				// Create a constraint for the requested version
-				constraint, _ := semver.NewConstraint(fmt.Sprintf("^%s.0.0", requestedMajorVersion))
-
-				if len(availableDevices) != 0 {
-					for _, device := range availableDevices {
-						deviceV, _ := semver.NewVersion(device.Device.OSVersion)
-						if constraint.Check(deviceV) {
-							foundDevice = device
-							foundDevice.IsAvailableForAutomation = false
-							break
-						}
-					}
-				}
+		}
+	} else {
+		// No platform version requested — take the first available
+		for _, device := range availableDevices {
+			device.Mu.Lock()
+			if device.IsAvailableForAutomation {
+				device.IsAvailableForAutomation = false
+				device.Mu.Unlock()
+				foundDevice = device
+				break
 			}
-		} else {
-			// If no platform version capability is provided, get the first device from the available list
-			if len(availableDevices) != 0 {
-				foundDevice = availableDevices[0]
-				foundDevice.IsAvailableForAutomation = false
-			}
+			device.Mu.Unlock()
 		}
 	}
 

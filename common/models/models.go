@@ -13,7 +13,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
 	"sync"
 	"time"
@@ -38,11 +37,10 @@ type User struct {
 	Password     string   `json:"password" bson:"password,omitempty" example:"secure_password"`
 	Role         string   `json:"role,omitempty" bson:"role" example:"user" enums:"admin,user"`
 	ID           string   `json:"_id" bson:"_id,omitempty" example:"507f1f77bcf86cd799439011"`
-	WorkspaceIDs []string `json:"workspace_ids,omitempty" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
+	WorkspaceIDs []string `json:"workspace_ids" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
 }
 
-type Device struct {
-	// DB DATA
+type DBDevice struct {
 	UDID         string `json:"udid" bson:"udid"`                   // device UDID
 	OS           string `json:"os" bson:"os"`                       // device OS
 	Name         string `json:"name" bson:"name"`                   // name of the device
@@ -120,13 +118,15 @@ const (
 	IOSWebRTCFFMpegStreamTypeId        StreamingType = "ios_webrtc_ffmpeg"
 	AndroidWebRTCGetStreamStreamTypeId StreamingType = "android_webrtc_getstream"
 	AndroidWebRTCGadsH264StreamTypeId  StreamingType = "android_webrtc_gads_h264"
+	IOSWebRTCBroadcastExtensionId      StreamingType = "ios_webrtc_broadcast"
 )
 
 // IsWebRTCStreamType checks if the given StreamType is a WebRTC-based stream
 func IsWebRTCStreamType(st StreamingType) bool {
 	return st == AndroidWebRTCGetStreamStreamTypeId ||
 		st == AndroidWebRTCGadsH264StreamTypeId ||
-		st == IOSWebRTCFFMpegStreamTypeId
+		st == IOSWebRTCFFMpegStreamTypeId ||
+		st == IOSWebRTCBroadcastExtensionId
 }
 
 func (st StreamingType) Description() string {
@@ -139,6 +139,8 @@ func (st StreamingType) Description() string {
 		return "Android WebRTC GetStream"
 	case AndroidWebRTCGadsH264StreamTypeId:
 		return "Android WebRTC GADS H264"
+	case IOSWebRTCBroadcastExtensionId:
+		return "WebRTC - Broadcast Extension"
 	default:
 		return "Unknown"
 	}
@@ -168,9 +170,16 @@ var AndroidWebRTCGadsH264StreamType = StreamType{
 	DeviceOS: "android",
 }
 
+var IOSWebRTCBroadcastExtensionStreamType = StreamType{
+	Name:     IOSWebRTCBroadcastExtensionId.Description(),
+	ID:       IOSWebRTCBroadcastExtensionId,
+	DeviceOS: "ios",
+}
+
 var IOSStreamTypes = []StreamType{
 	MJPEGStreamType,
 	IOSWebRTCFFMpegStreamType,
+	IOSWebRTCBroadcastExtensionStreamType,
 }
 
 var AndroidStreamTypes = []StreamType{
@@ -179,20 +188,15 @@ var AndroidStreamTypes = []StreamType{
 	AndroidWebRTCGadsH264StreamType,
 }
 
-type LocalHubDevice struct {
-	Device                   Device   `json:"info"`
-	SessionID                string   `json:"-"`
-	IsRunningAutomation      bool     `json:"is_running_automation"`
-	LastAutomationActionTS   int64    `json:"last_automation_action_ts"`
-	InUse                    bool     `json:"in_use"`
-	InUseBy                  string   `json:"in_use_by"`
-	InUseByTenant            string   `json:"in_use_by_tenant"`
-	InUseTS                  int64    `json:"in_use_ts"`
-	AppiumNewCommandTimeout  int64    `json:"appium_new_command_timeout"`
-	IsAvailableForAutomation bool     `json:"is_available_for_automation"`
-	Available                bool     `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
-	InUseWSConnection        net.Conn `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
-	LastActionTS             int64    `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
+func StreamTypesForOS(os string) []StreamType {
+	switch os {
+	case "ios":
+		return IOSStreamTypes
+	case "android":
+		return AndroidStreamTypes
+	default:
+		return []StreamType{}
+	}
 }
 
 type DeviceStreamSettings struct {
@@ -212,11 +216,6 @@ type UpdateStreamSettings struct {
 	TargetFPS     int `json:"target_fps,omitempty"`
 	JpegQuality   int `json:"jpeg_quality,omitempty"`
 	ScalingFactor int `json:"scaling_factor,omitempty"`
-}
-
-type DeviceInUseMessage struct {
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
 }
 
 type DBFile struct {
@@ -326,7 +325,6 @@ type AppiumPluginConfiguration struct {
 	ProviderUrl       string `json:"providerUrl"`
 	UDID              string `json:"udid"`
 	HeartBeatInterval string `json:"heartbeatIntervalMs"`
-	MinioEnabled      bool   `json:"minioEnabled"`
 }
 
 // ValidateDeviceUsageForOS validates that the device usage is compatible with the device OS
@@ -353,7 +351,7 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 }
 
 // ValidateDevice performs comprehensive validation on a device struct
-func ValidateDevice(device *Device) error {
+func ValidateDevice(device *DBDevice) error {
 	if device == nil {
 		return errors.New("device cannot be nil")
 	}
@@ -368,4 +366,15 @@ func ValidateDevice(device *Device) error {
 	}
 
 	return nil
+}
+
+type RunningApp struct {
+	AppName          string `json:"app_name" bson:"-"`
+	BundleIdentifier string `json:"bundle_identifier" bson:"-"`
+}
+
+type DeviceApp struct {
+	AppName          string `json:"app_name" bson:"-"`
+	BundleIdentifier string `json:"bundle_identifier" bson:"-"`
+	CanUninstall     bool   `json:"can_uninstall" bson:"-"`
 }

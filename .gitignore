@@ -4,7 +4,7 @@ provider.log
 GADS
 hub/gads-ui/build/*
 hub/gads-ui/node_modules
-device_*
+# device_*
 .idea
 .DS_Store
 server.crt
@@ -12,3 +12,7 @@ server.key
 jsconfig.json
 .vscode/launch.json
 Provider1/
+go-ios*
+memory/*
+GADS-Remote/*
+GADS-Remote

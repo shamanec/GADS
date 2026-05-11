@@ -28,7 +28,7 @@ func SetupConfig(nickname, folder, hubAddress string) {
 		log.Fatal("Provider with this nickname is not registered in the DB")
 	}
 	provider.ProviderFolder = folder
-	provider.HubAddress = hubAddress
+	provider.HubAddress = strings.TrimSuffix(hubAddress, "/")
 	if !strings.HasSuffix(provider.WdaBundleID, ".xctrunner") {
 		provider.WdaBundleID = fmt.Sprintf("%s.xctrunner", provider.WdaBundleID)
 	}

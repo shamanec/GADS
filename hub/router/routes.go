@@ -12,10 +12,8 @@ package router
 import (
 	"GADS/common/api"
 	"GADS/common/db"
-	"GADS/common/minio"
 	"GADS/common/models"
 	"GADS/hub/auth"
-	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/provider/logger"
 	"context"
@@ -23,8 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -39,28 +35,49 @@ var netClient = &http.Client{
 	Timeout: time.Second * 120,
 }
 
+const (
+	defaultLockTTLMinutes        = 10
+	maxLockTTLMinutes            = 360
+	deviceInUsePingInterval      = 5 * time.Second
+	deviceInUseInactivityTimeout = 30 * time.Minute
+)
+
+func normalizeLockTTLMinutes(ttl int) int {
+	if ttl <= 0 {
+		return defaultLockTTLMinutes
+	}
+	if ttl > maxLockTTLMinutes {
+		return maxLockTTLMinutes
+	}
+	return ttl
+}
+
+func isDeviceInUseSessionExpired(lastActionTS int64, now time.Time) bool {
+	return (now.UnixMilli() - lastActionTS) > deviceInUseInactivityTimeout.Milliseconds()
+}
+
 // HealthCheck godoc
 // @Summary      Health check endpoint
 // @Description  Check if the GADS hub is running and healthy
-// @Tags         System
+// @Tags         Hub - System
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.HealthResponse
+// @Success      200  {object}  models.SuccessResponse
 // @Security     BearerAuth
 // @Router       /health [get]
 func HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	api.OKMessage(c, "ok")
 }
 
 // GetAppiumLogs godoc
 // @Summary      Get Appium logs
 // @Description  Retrieve Appium logs from a specific collection with optional limit
-// @Tags         Logs
+// @Tags         Hub - Logs
 // @Accept       json
 // @Produce      json
 // @Param        collection  query     string  true   "Collection name"
 // @Param        logLimit    query     int     false  "Log limit (max 1000, default 100)"
-// @Success      200         {array}   models.LogEntry
+// @Success      200         {object}   models.LogsResponse
 // @Failure      400         {object}  models.ErrorResponse
 // @Failure      500         {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -73,27 +90,28 @@ func GetAppiumLogs(c *gin.Context) {
 
 	collectionName := c.DefaultQuery("collection", "")
 	if collectionName == "" {
-		BadRequest(c, "Empty collection name provided")
+		api.BadRequest(c, "Empty collection name provided")
 		return
 	}
 
 	logs, err := db.GlobalMongoStore.GetAppiumLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		return
 	}
 
-	c.JSON(200, logs)
+	api.OK(c, "Successfully retrieved Appium logs", logs)
 }
 
 // GetProviderLogs godoc
 // @Summary      Get provider logs
 // @Description  Retrieve provider logs from a specific collection with optional limit
-// @Tags         Logs
+// @Tags         Hub - Logs
 // @Accept       json
 // @Produce      json
 // @Param        collection  query     string  true   "Collection name"
 // @Param        logLimit    query     int     false  "Log limit (max 1000, default 200)"
-// @Success      200         {array}   models.LogEntry
+// @Success      200         {object}   models.LogsResponse
 // @Failure      400         {object}  models.ErrorResponse
 // @Failure      500         {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -106,23 +124,23 @@ func GetProviderLogs(c *gin.Context) {
 
 	collectionName := c.DefaultQuery("collection", "")
 	if collectionName == "" {
-		BadRequest(c, "Empty collection name provided")
+		api.BadRequest(c, "Empty collection name provided")
 		return
 	}
 
 	logs, err := db.GlobalMongoStore.GetProviderLogs(collectionName, logLimit)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed to get logs - %s", err))
 		return
 	}
 
-	c.JSON(200, logs)
+	api.OK(c, "Successfully retrieved provider logs", logs)
 }
 
 // AddUser godoc
 // @Summary      Add a new user
 // @Description  Create a new user in the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
 // @Param        user  body      models.User  true  "User data"
@@ -136,50 +154,50 @@ func AddUser(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &user)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	if user.Username == "" || user.Password == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
-		BadRequest(c, "Empty or invalid body")
+		api.BadRequest(c, "Empty or invalid body")
 		return
 	}
 
 	if user.Role != "admin" && user.Role != "user" {
-		BadRequest(c, "Invalid role - `admin` and `user` are the accepted values")
+		api.BadRequest(c, "Invalid role - `admin` and `user` are the accepted values")
 		return
 	}
 
 	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
-		InternalServerError(c, "Failed checking for user in db - "+err.Error())
+		api.InternalError(c, "Failed checking for user in db - "+err.Error())
 		return
 	}
 
 	if dbUser.Username != "" {
-		BadRequest(c, "User already exists")
+		api.BadRequest(c, "User already exists")
 		return
 	}
 
 	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
 	}
 
-	OK(c, "Successfully added user")
+	api.OKMessage(c, "Successfully added user")
 }
 
 // UpdateUser godoc
 // @Summary      Update an existing user
 // @Description  Update user information in the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
 // @Param        user  body      models.User  true  "User data"
@@ -193,43 +211,45 @@ func UpdateUser(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &user)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	if user.Username == "" || (user.Role == "user" && len(user.WorkspaceIDs) == 0) {
-		BadRequest(c, "Username cannot be empty and non-admin users must have at least one workspace")
+		api.BadRequest(c, "Username cannot be empty and non-admin users must have at least one workspace")
 		return
 	}
 
 	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
-		InternalServerError(c, "Failed checking for user in db - "+err.Error())
+		api.InternalError(c, "Failed checking for user in db - "+err.Error())
 		return
 	}
 
 	if dbUser.Username == "" {
-		BadRequest(c, "Cannot update non-existing user")
+		api.BadRequest(c, "Cannot update non-existing user")
 		return
 	}
 
 	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
+		api.InternalError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
 	}
+
+	api.OKMessage(c, "Successfully updated user")
 }
 
 // DeleteUser godoc
 // @Summary      Delete a user
 // @Description  Remove a user from the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
 // @Param        nickname  path      string  true  "User nickname"
@@ -242,29 +262,27 @@ func DeleteUser(c *gin.Context) {
 
 	err := db.GlobalMongoStore.DeleteUser(nickname)
 	if err != nil {
-		InternalServerError(c, "Failed to delete user - "+err.Error())
+		api.InternalError(c, "Failed to delete user - "+err.Error())
 		return
 	}
 
-	OK(c, "Successfully deleted user")
+	api.OKMessage(c, "Successfully deleted user")
 }
 
 // GetProviders godoc
 // @Summary      Get all providers
 // @Description  Retrieve list of all providers in the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  []models.Provider
+// @Success      200  {object}  models.ProviderListResponse
+// @Failure      400  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/providers [get]
 func GetProviders(c *gin.Context) {
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
-	if len(providers) == 0 {
-		c.JSON(http.StatusOK, []interface{}{})
-		return
-	}
-	OkJSON(c, providers)
+
+	api.OK(c, "", providers)
 }
 
 func GetProviderInfo(c *gin.Context) {
@@ -272,21 +290,21 @@ func GetProviderInfo(c *gin.Context) {
 	providers, _ := db.GlobalMongoStore.GetAllProviders()
 	for _, provider := range providers {
 		if provider.Nickname == providerName {
-			c.JSON(http.StatusOK, provider)
+			api.OK(c, "Successfully retrieved providers data", provider)
 			return
 		}
 	}
-	NotFound(c, fmt.Sprintf("No provider with name `%s` found", providerName))
+	api.NotFound(c, fmt.Sprintf("No provider with name `%s` found", providerName))
 }
 
 // AddProvider godoc
 // @Summary      Add a new provider
 // @Description  Create a new provider in the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        provider  body      models.Provider  true  "Provider data"
-// @Success      200       {array}   models.Provider
+// @Success      200       {object}  models.ProviderListResponse
 // @Failure      400       {object}  models.ErrorResponse
 // @Failure      500       {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -295,41 +313,41 @@ func AddProvider(c *gin.Context) {
 	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &provider)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	// Validations
 	if provider.Nickname == "" {
-		BadRequest(c, "Missing or invalid nickname")
+		api.BadRequest(c, "Missing or invalid nickname")
 		return
 	}
 	providerDB, _ := db.GlobalMongoStore.GetProvider(provider.Nickname)
 	if providerDB.Nickname == provider.Nickname {
-		BadRequest(c, "Provider with this nickname already exists")
+		api.BadRequest(c, "Provider with this nickname already exists")
 		return
 	}
 
 	if provider.OS == "" {
-		BadRequest(c, "Missing or invalid OS")
+		api.BadRequest(c, "Missing or invalid OS")
 		return
 	}
 	if provider.HostAddress == "" {
-		BadRequest(c, "Missing or invalid host address")
+		api.BadRequest(c, "Missing or invalid host address")
 		return
 	}
 	if provider.Port == 0 {
-		BadRequest(c, "Missing or invalid port")
+		api.BadRequest(c, "Missing or invalid port")
 		return
 	}
 	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		BadRequest(c, "Missing or invalid Selenium Grid address")
+		api.BadRequest(c, "Missing or invalid Selenium Grid address")
 		return
 	}
 
@@ -337,18 +355,18 @@ func AddProvider(c *gin.Context) {
 
 	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
-		InternalServerError(c, "Could not create provider")
+		api.InternalError(c, "Could not create provider")
 		return
 	}
 
 	providersDB, _ := db.GlobalMongoStore.GetAllProviders()
-	OkJSON(c, providersDB)
+	api.OK(c, "Successfully added provider", providersDB)
 }
 
 // UpdateProvider godoc
 // @Summary      Update a provider
 // @Description  Update an existing provider in the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        provider  body      models.Provider  true  "Provider data"
@@ -361,35 +379,35 @@ func UpdateProvider(c *gin.Context) {
 	var provider models.Provider
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		InternalServerError(c, fmt.Sprintf("%s", err))
+		api.InternalError(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	err = json.Unmarshal(body, &provider)
 	if err != nil {
-		BadRequest(c, fmt.Sprintf("%s", err))
+		api.BadRequest(c, fmt.Sprintf("%s", err))
 		return
 	}
 
 	// Validations
 	if provider.Nickname == "" {
-		BadRequest(c, "missing `nickname` field")
+		api.BadRequest(c, "missing `nickname` field")
 		return
 	}
 	if provider.OS == "" {
-		BadRequest(c, "missing `os` field")
+		api.BadRequest(c, "missing `os` field")
 		return
 	}
 	if provider.HostAddress == "" {
-		BadRequest(c, "missing `host_address` field")
+		api.BadRequest(c, "missing `host_address` field")
 		return
 	}
 	if provider.Port == 0 {
-		BadRequest(c, "missing `port` field")
+		api.BadRequest(c, "missing `port` field")
 		return
 	}
 	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		BadRequest(c, "missing `selenium_grid` field")
+		api.BadRequest(c, "missing `selenium_grid` field")
 		return
 	}
 
@@ -397,16 +415,16 @@ func UpdateProvider(c *gin.Context) {
 
 	err = db.GlobalMongoStore.AddOrUpdateProvider(provider)
 	if err != nil {
-		InternalServerError(c, "Could not update provider")
+		api.InternalError(c, "Could not update provider")
 		return
 	}
-	OK(c, "Provider updated successfully")
+	api.OKMessage(c, "Provider updated successfully")
 }
 
 // DeleteProvider godoc
 // @Summary      Delete a provider
 // @Description  Remove a provider from the system
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        nickname  path      string  true  "Provider nickname"
@@ -419,17 +437,17 @@ func DeleteProvider(c *gin.Context) {
 
 	err := db.GlobalMongoStore.DeleteProvider(nickname)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete provider from DB - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to delete provider from DB - %s", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted provider with nickname `%s` from DB", nickname)})
+	api.OKMessage(c, fmt.Sprintf("Successfully deleted provider with nickname `%s` from DB", nickname))
 }
 
 // ProviderInfoSSE godoc
 // @Summary      Provider information stream
 // @Description  Server-sent events stream of provider information updates
-// @Tags         Admin - Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      text/event-stream
 // @Param        nickname  path  string  true  "Provider nickname"
@@ -451,22 +469,7 @@ func ProviderInfoSSE(c *gin.Context) {
 	})
 }
 
-// DeviceInUseWS godoc
-// @Summary      Device in-use WebSocket
-// @Description  WebSocket connection to manage device usage status and control
-// @Tags         Devices Control
-// @Accept       json
-// @Produce      json
-// @Param        udid   path   string  true   "Device UDID"
-// @Param        token  query  string  true   "Bearer authentication token"
-// @Success      101    {string}  string  "Switching Protocols"
-// @Failure      400    {object}  models.ErrorResponse
-// @Failure      401    {object}  models.ErrorResponse
-// @Failure      404    {object}  models.ErrorResponse
-// @Failure      409    {object}  models.ErrorResponse
-// @Router       /devices/control/{udid}/in-use [get]
-// This websocket connection is used to both set the device in use when remotely controlled
-// As well as send live updates when needed - device info, release device, etc
+// No proper Swagger documentation for websockets
 func DeviceInUseWS(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -485,69 +488,46 @@ func DeviceInUseWS(c *gin.Context) {
 	var username string
 	var userTenant string
 
-	// Extract token from Bearer format
-	tokenString, err := auth.ExtractTokenFromBearer(tokenParam)
-	if err == nil {
-		// Get origin from request
-		origin := auth.GetOriginFromRequest(c)
-
-		// Get claims from token with origin
-		claims, err := auth.GetClaimsFromToken(tokenString, origin)
-		if err != nil || claims.Username == "" {
-			// Return 401 for any token validation error
-			c.Status(http.StatusUnauthorized)
-			return
-		}
-
-		username = claims.Username
-		userTenant = claims.Tenant
+	// Extract token from the request
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
+		c.Status(http.StatusUnauthorized)
+		return
 	}
+	username = claims.Username
+	userTenant = claims.Tenant
 
 	// Verify if the device is already in use by another user
-	devices.HubDevicesData.Mu.Lock()
-	device, exists := devices.HubDevicesData.Devices[udid]
+	device, exists := devices.HubDeviceStore.Get(udid)
 	if !exists {
-		devices.HubDevicesData.Mu.Unlock()
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	// Check if device is in use by another user
-	if device.InUseBy != "" {
-		// Check if it's the same user (including tenant)
-		isSameUser := device.InUseBy == username && device.InUseByTenant == userTenant
+	device.Mu.Lock()
 
-		// If not the same user AND there's an active WebSocket connection, always deny
-		if !isSameUser && device.InUseWSConnection != nil {
-			devices.HubDevicesData.Mu.Unlock()
-			c.Status(http.StatusConflict)
-			return
-		}
-
-		// If not the same user and device was used recently, also deny
-		if !isSameUser && (time.Now().UnixMilli()-device.InUseTS) < 3000 {
-			devices.HubDevicesData.Mu.Unlock()
-			c.Status(http.StatusConflict)
-			return
-		}
+	if device.IsLockedByOther(username, userTenant) {
+		device.Mu.Unlock()
+		c.Status(http.StatusConflict)
+		return
 	}
 
-	// Reserve the device BEFORE upgrading the WebSocket
-	// This prevents another user from passing the verification while we are upgrading the WebSocket
-	devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
-	devices.HubDevicesData.Devices[udid].InUseBy = username
-	devices.HubDevicesData.Devices[udid].InUseByTenant = userTenant
-	devices.HubDevicesData.Devices[udid].LastActionTS = time.Now().UnixMilli()
-	devices.HubDevicesData.Mu.Unlock()
+	// If the device is already held via an API lease by this user, preserve the API lock.
+	// Calling AcquireLock here would overwrite LockSource to "ui", which would cause
+	// HasActiveLease() to return false and the API lock to be released on WS disconnect.
+	// For a pure UI session (no prior lock), reserve the device now to prevent a race
+	// between passing the check above and completing the WebSocket upgrade below.
+	if !device.HasActiveLease() {
+		device.AcquireLock(username, userTenant, devices.LockSourceUI) //nolint:errcheck — AcquireLock only fails when locked by other, already checked above
+	}
+	device.Mu.Unlock()
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
 		// Clear the reservation if the upgrade fails
-		devices.HubDevicesData.Mu.Lock()
-		devices.HubDevicesData.Devices[udid].InUseTS = 0
-		devices.HubDevicesData.Devices[udid].InUseBy = ""
-		devices.HubDevicesData.Devices[udid].InUseByTenant = ""
-		devices.HubDevicesData.Mu.Unlock()
+		device.Mu.Lock()
+		device.ReleaseLock()
+		device.Mu.Unlock()
 
 		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
 		return
@@ -555,201 +535,111 @@ func DeviceInUseWS(c *gin.Context) {
 
 	// Add the created connection to the respective device in the map
 	// So we can send different messages to it from other sources
-	devices.HubDevicesData.Mu.Lock()
-	devices.HubDevicesData.Devices[udid].InUseWSConnection = conn
-	devices.HubDevicesData.Mu.Unlock()
+	device.Mu.Lock()
+	device.SetWSConnection(conn)
+	device.Mu.Unlock()
 
 	// If this function returns then we close the connection
 	// And also set it to nil for the respective device in the map
 	defer func() {
 		conn.Close()
-		devices.HubDevicesData.Mu.Lock()
-		// Clear the connection
-		devices.HubDevicesData.Devices[udid].InUseWSConnection = nil
-
-		// Only clear user info if not running automation
-		if !devices.HubDevicesData.Devices[udid].IsRunningAutomation {
-			devices.HubDevicesData.Devices[udid].InUseTS = 0
-			devices.HubDevicesData.Devices[udid].InUseBy = ""
-			devices.HubDevicesData.Devices[udid].InUseByTenant = ""
+		device.Mu.Lock()
+		device.ClearWSConnection()
+		// Do not release the lock if automation is still running or if an API lease is still active.
+		// The user intentionally locked the device via API (or owns the automation session)
+		// and must remain the lock holder after closing remote control.
+		if !device.IsRunningAutomation && !device.HasActiveLease() {
+			device.ReleaseLock()
 		}
-		devices.HubDevicesData.Mu.Unlock()
+		device.Mu.Unlock()
 	}()
 
-	// Create a context with cancel to use in the goroutines
+	// Create a context with cancel to use in the goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create a channel to send data from the goroutine listening for messages coming from the client(UI)
-	// And then we receive from the channel in the for loop that sets the device in-use status
-	messageReceived := make(chan string)
-	defer close(messageReceived)
-
-	// Loop getting messages from the client
-	// To keep device in use
+	// Goroutine: send pings every 5s and check for 30-min inactivity
 	go func() {
+		ticker := time.NewTicker(deviceInUsePingInterval)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done(): // If context was cancelled in the other goroutine or the for loop we return to stop the current goroutine
+			case <-ctx.Done():
 				return
-			default:
-				data, code, err := wsutil.ReadClientData(conn)
-				if err != nil || code == 8 { // 8 is close code
-					cancel() // Trigger context cancellation for all goroutines and the for loop if we got an error from the websocket/client and return to stop the current goroutine
+			case <-ticker.C:
+				device.Mu.RLock()
+				lastActionTS := device.LastActionTS
+				device.Mu.RUnlock()
+
+				if isDeviceInUseSessionExpired(lastActionTS, time.Now()) {
+					ws.WriteFrame(conn, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4001), "session expired"))) //nolint:errcheck
+					cancel()
 					return
 				}
 
-				// If we got any data from the client that is not an empty string - this is the nickname of the person using the device
-				// So we send it to the messageReceived channel
-				if string(data) != "" {
-					// Check if device is currently being used by someone
-					if devices.HubDevicesData.Devices[udid].InUseBy != "" {
-						// If it is being used check if the any action was performed in the last 30 minutes
-						if (time.Now().UnixMilli() - devices.HubDevicesData.Devices[udid].LastActionTS) > (1800 * 1000) {
-							// Send to the websocket a message that the session expired
-							sessionExpiredMessage := models.DeviceInUseMessage{
-								Type: "sessionExpired",
-							}
-							sessionExpiredJson, _ := json.Marshal(sessionExpiredMessage)
-							wsutil.WriteServerText(conn, sessionExpiredJson)
-							// Update the hub device to no longer be in use
-							devices.HubDevicesData.Mu.Lock()
-							devices.HubDevicesData.Devices[udid].InUseTS = 0
-							devices.HubDevicesData.Devices[udid].InUseBy = ""
-							devices.HubDevicesData.Devices[udid].InUseByTenant = ""
-							devices.HubDevicesData.Mu.Unlock()
-							// Cancel the current websocket goroutines and stuff
-							cancel()
-							return
-						}
-					}
-					messageReceived <- string(data)
+				if err := wsutil.WriteServerText(conn, []byte("ping")); err != nil {
+					cancel()
+					return
 				}
 			}
 		}
 	}()
 
-	// Loop sending messages to client to keep the connection - like ping/pong
-	go func() {
-		for {
-			select {
-			case <-ctx.Done(): // If context was cancelled in the other goroutine or the for loop we return to stop the current goroutine
-				return
-			default:
-				// Send a ping message to the client(UI) using the DeviceInUseMessage struct as json string
-				deviceInUseMessage := models.DeviceInUseMessage{
-					Type: "ping",
-				}
-				deviceInUseMessageJson, _ := json.Marshal(deviceInUseMessage)
-				err := wsutil.WriteServerText(conn, deviceInUseMessageJson)
-				if err != nil {
-					cancel() // Trigger context cancellation for all goroutines and the for loop if we got an error from the websocket/client and return to stop the current goroutine
-					return
-				}
-				// Wait 1 second between pings
-				time.Sleep(1 * time.Second)
-			}
-		}
-	}()
-
-	// Create a new timer for the loop below
-	timer := time.NewTimer(2 * time.Second)
-	defer timer.Stop()
-
-	// We loop over the messageReceived channel, timer and the context cancellation signal
+	// Main loop: read client responses to keep the lock alive
 	for {
-		select {
-		// If a message is received over the channel with the username of the user occupying the device
-		// We set the last timestamp for in use and set the name of the person using it
-		// We reset the timer each time a message was received
-		case userName := <-messageReceived:
-			devices.HubDevicesData.Mu.Lock()
-			devices.HubDevicesData.Devices[udid].InUseTS = time.Now().UnixMilli()
-			devices.HubDevicesData.Devices[udid].InUseBy = userName
-			devices.HubDevicesData.Devices[udid].InUseByTenant = userTenant
-			devices.HubDevicesData.Mu.Unlock()
-			if !timer.Stop() {
-				<-timer.C
-			}
-			timer.Reset(2 * time.Second)
-		// If the timer limit is reached and the device is not in use by automation but a person
-		// We reset the in use timestamp
-		// And remove the name of the person that was using it
-		case <-timer.C:
-			devices.HubDevicesData.Mu.Lock()
-			// Only clear user info if not running automation
-			if !devices.HubDevicesData.Devices[udid].IsRunningAutomation {
-				devices.HubDevicesData.Devices[udid].InUseTS = 0
-				devices.HubDevicesData.Devices[udid].InUseBy = ""
-				devices.HubDevicesData.Devices[udid].InUseByTenant = ""
-			}
-			devices.HubDevicesData.Mu.Unlock()
-			return
-		// If the context was cancelled from the read/write goroutines
-		// We return to exit the loop
-		case <-ctx.Done():
+		conn.SetReadDeadline(time.Now().Add(10 * time.Second)) //nolint:errcheck
+		_, _, err := wsutil.ReadClientData(conn)
+		if err != nil {
 			return
 		}
+		device.Mu.Lock()
+		device.RefreshLock()
+		device.Mu.Unlock()
 	}
 }
 
 // AvailableDevicesSSE godoc
 // @Summary      Available devices stream
 // @Description  Server-sent events stream of available devices filtered by workspace
-// @Tags         Devices Control
+// @Tags         Hub - Devices selection
 // @Accept       json
 // @Produce      text/event-stream
 // @Param        workspaceId  query  string  true  "Workspace ID"
-// @Success      200          {object}  []models.LocalHubDevice
+// @Success      200          {object}  []devices.LocalHubDevice
 // @Failure      400          {object}  models.ErrorResponse
 // @Router       /available-devices [get]
 func AvailableDevicesSSE(c *gin.Context) {
 	// Get workspace ID from query parameter
 	workspaceID := c.Query("workspaceId")
 	if workspaceID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "workspaceId is required"})
+		api.BadRequest(c, "workspaceId is required")
 		return
 	}
 
 	c.Stream(func(w io.Writer) bool {
+		var deviceList = make([]*devices.LocalHubDevice, 0)
 
-		devices.HubDevicesData.Mu.Lock()
-		// Extract the keys from the map and order them
-		var hubDeviceMapKeys []string
-		for key := range devices.HubDevicesData.Devices {
-			hubDeviceMapKeys = append(hubDeviceMapKeys, key)
-		}
-		sort.Strings(hubDeviceMapKeys)
+		for _, d := range devices.HubDeviceStore.AllSorted() {
+			d.Mu.Lock()
 
-		var deviceList = []*models.LocalHubDevice{}
-		for _, key := range hubDeviceMapKeys {
-			device := devices.HubDevicesData.Devices[key]
-
-			// Filter by workspace
-			if device.Device.WorkspaceID != workspaceID {
+			if d.Device.WorkspaceID != workspaceID {
+				d.Mu.Unlock()
 				continue
 			}
 
-			if device.Device.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && device.Device.Connected {
-				device.Available = false
-			} else if device.Device.ProviderState != "live" {
-				device.Available = false
+			if d.LastUpdatedTimestamp < (time.Now().UnixMilli()-3000) && d.Connected {
+				d.Available = false
+			} else if d.ProviderState != "live" {
+				d.Available = false
 			} else {
-				device.Available = true
+				d.Available = true
 			}
 
-			if device.InUseTS > (time.Now().UnixMilli() - 3000) {
-				if !device.InUse {
-					device.InUse = true
-				}
-			} else {
-				if device.InUse {
-					device.InUse = false
-				}
-			}
-			deviceList = append(deviceList, device)
+			d.InUse = d.IsLocked()
+
+			d.Mu.Unlock()
+			deviceList = append(deviceList, d)
 		}
-		devices.HubDevicesData.Mu.Unlock()
 
 		jsonData, _ := json.Marshal(deviceList)
 		c.SSEvent("", string(jsonData))
@@ -762,7 +652,7 @@ func AvailableDevicesSSE(c *gin.Context) {
 // UploadFile godoc
 // @Summary      Upload a file
 // @Description  Upload a file to MongoDB with custom filename
-// @Tags         Admin - Files
+// @Tags         Hub - Admin - Files
 // @Accept       multipart/form-data
 // @Produce      json
 // @Param        file      formData  file    true  "File to upload"
@@ -775,38 +665,38 @@ func AvailableDevicesSSE(c *gin.Context) {
 func UploadFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("No file provided in form data - %s", err)})
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
 		return
 	}
 	fileName := c.PostForm("fileName")
 	if fileName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No fileName for MongoDB record was provided"})
+		api.BadRequest(c, "No fileName for MongoDB record was provided")
 		return
 	}
 
 	openedFile, err := file.Open()
 	defer openedFile.Close()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to open provided file - %s", err))})
+		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to open provided file - %s", err)))
 		return
 	}
 
 	err = db.GlobalMongoStore.UploadFile(openedFile, fmt.Sprintf("%s", fileName), true)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err))})
+		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err)))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("`%s` uploaded successfully", file.Filename)})
+	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
 }
 
 // AddDevice godoc
 // @Summary      Add a new device
 // @Description  Create a new device in the system
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      models.DBDevice  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
@@ -815,49 +705,49 @@ func UploadFile(c *gin.Context) {
 func AddDevice(c *gin.Context) {
 	reqBody, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to read request body - %s", err))
 		return
 	}
 	defer c.Request.Body.Close()
 
-	var device models.Device
+	var device models.DBDevice
 	err = json.Unmarshal(reqBody, &device)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
 		return
 	}
 
 	// Validate device configuration before processing
 	err = models.ValidateDevice(&device)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
+		api.BadRequest(c, fmt.Sprintf("Device validation failed: %s", err.Error()))
 		return
 	}
 
 	dbDevices, _ := db.GlobalMongoStore.GetDevices()
 	for _, dbDevice := range dbDevices {
 		if dbDevice.UDID == device.UDID {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Device already exists in the DB"})
+			api.BadRequest(c, "Device already exists in the DB")
 			return
 		}
 	}
 
 	err = db.GlobalMongoStore.AddOrUpdateDevice(&device)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+		api.InternalError(c, "Failed to upsert device in DB")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Added device in DB"})
+	api.OKMessage(c, "Added device in DB")
 }
 
 // UpdateDevice godoc
 // @Summary      Update a device
 // @Description  Update an existing device in the system
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
-// @Param        device  body      models.Device  true  "Device data"
+// @Param        device  body      models.DBDevice  true  "Device data"
 // @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      404     {object}  models.ErrorResponse
@@ -867,15 +757,15 @@ func AddDevice(c *gin.Context) {
 func UpdateDevice(c *gin.Context) {
 	reqBody, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read request body - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to read request body - %s", err))
 		return
 	}
 	defer c.Request.Body.Close()
 
-	var reqDevice models.Device
+	var reqDevice models.DBDevice
 	err = json.Unmarshal(reqBody, &reqDevice)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to unmarshal request body to struct - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to unmarshal request body to struct - %s", err))
 		return
 	}
 
@@ -929,27 +819,27 @@ func UpdateDevice(c *gin.Context) {
 			// Validate device configuration before saving to DB
 			err = models.ValidateDevice(&dbDevice)
 			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Device validation failed: %s", err.Error())})
+				api.BadRequest(c, fmt.Sprintf("Device validation failed: %s", err.Error()))
 				return
 			}
 
 			err = db.GlobalMongoStore.AddOrUpdateDevice(&dbDevice)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upsert device in DB"})
+				api.InternalError(c, "Failed to upsert device in DB")
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{"message": "Successfully updated device in DB"})
+			api.OKMessage(c, "Successfully updated device in DB")
 			return
 		}
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Device with udid `%s` does not exist in the DB", reqDevice.UDID)})
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` does not exist in the DB", reqDevice.UDID))
 }
 
 // DeleteDevice godoc
 // @Summary      Delete a device
 // @Description  Remove a device from the system
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
 // @Param        udid  path      string  true  "Device UDID"
@@ -962,15 +852,15 @@ func DeleteDevice(c *gin.Context) {
 
 	err := db.GlobalMongoStore.DeleteDevice(udid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete device from DB - %s", err)})
+		api.InternalError(c, fmt.Sprintf("Failed to delete device from DB - %s", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Successfully deleted device with udid `%s` from DB", udid)})
+	api.OKMessage(c, fmt.Sprintf("Successfully deleted device with udid `%s` from DB", udid))
 }
 
 type AdminDeviceData struct {
-	Devices           []models.Device     `json:"devices"`
+	Devices           []models.DBDevice   `json:"devices"`
 	Providers         []string            `json:"providers"`
 	DeviceStreamTypes []models.StreamType `json:"device_stream_types"`
 }
@@ -978,7 +868,7 @@ type AdminDeviceData struct {
 // GetDevices godoc
 // @Summary      Get all devices
 // @Description  Retrieve list of all devices with provider information
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  AdminDeviceData
@@ -995,15 +885,7 @@ func GetDevices(c *gin.Context) {
 	}
 
 	if len(dbDevices) == 0 || len(providerNames) == 0 {
-		dbDevices = []models.Device{}
-	}
-
-	for index, dbDevice := range dbDevices {
-		if dbDevice.OS == "ios" {
-			dbDevices[index].SupportedStreamTypes = models.IOSStreamTypes
-		} else if dbDevice.OS == "android" {
-			dbDevices[index].SupportedStreamTypes = models.AndroidStreamTypes
-		}
+		dbDevices = []models.DBDevice{}
 	}
 
 	var adminDeviceData = AdminDeviceData{
@@ -1014,16 +896,18 @@ func GetDevices(c *gin.Context) {
 			models.IOSWebRTCFFMpegStreamType,
 			models.AndroidWebRTCGadsH264StreamType,
 			models.AndroidWebRTCGetStreamStreamType,
+			models.IOSWebRTCBroadcastExtensionStreamType,
 		},
 	}
 
-	c.JSON(http.StatusOK, adminDeviceData)
+	api.OK(c, "Successfully retrieved devices data", adminDeviceData)
 }
 
 // ReleaseUsedDevice godoc
 // @Summary      Release a device in use
 // @Description  Force release a device that is currently in use
-// @Tags         Admin - Devices
+// @Tags         Hub - Admin - Devices
+// @Tags         Hub - Devices selection
 // @Accept       json
 // @Produce      json
 // @Param        udid  path      string  true  "Device UDID"
@@ -1034,55 +918,158 @@ func GetDevices(c *gin.Context) {
 func ReleaseUsedDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
-	// Send a release device message on the device in use websocket connection
-	deviceInUseMessage := models.DeviceInUseMessage{
-		Type: "releaseDevice",
-	}
-	deviceInUseMessageJson, _ := json.Marshal(deviceInUseMessage)
-
-	devices.HubDevicesData.Mu.Lock()
-	defer devices.HubDevicesData.Mu.Unlock()
-	err := wsutil.WriteServerText(devices.HubDevicesData.Devices[udid].InUseWSConnection, deviceInUseMessageJson)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to send release device message - " + err.Error()})
+	releaseDevice, ok := devices.HubDeviceStore.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
 		return
 	}
 
-	devices.HubDevicesData.Devices[udid].InUseWSConnection.Close()
-	devices.HubDevicesData.Devices[udid].InUseTS = 0
-	devices.HubDevicesData.Devices[udid].InUseBy = ""
-	devices.HubDevicesData.Devices[udid].InUseByTenant = ""
+	releaseDevice.Mu.Lock()
+	defer releaseDevice.Mu.Unlock()
 
-	c.JSON(200, gin.H{"message": "Message to release device was successfully sent"})
+	if releaseDevice.InUseWSConnection != nil {
+		ws.WriteFrame(releaseDevice.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "released by admin"))) //nolint:errcheck
+	}
+
+	releaseDevice.ReleaseLock()
+
+	api.OKMessage(c, "Device was successfully released")
 }
 
-// syncDeviceFields synchronizes operational fields from provider to hub device
-// Only updates fields that are different between the two devices
-func syncDeviceFields(target *models.Device, source *models.Device) {
+type lockDeviceResponse struct {
+	UDID        string `json:"udid"`
+	LockedBy    string `json:"locked_by"`
+	Tenant      string `json:"tenant"`
+	ExpiresAtMS int64  `json:"expires_at_ms"`
+}
+
+// LockDevice godoc
+// @Summary      Lock a device via REST API
+// @Description  Acquire an exclusive lock on a device. Authenticate via Authorization header (Bearer token) or ?token= query param (raw token, no Bearer prefix). Optional ?ttl_minutes= (default 10, max 360). If locked by another user returns 409. Admins can take over any lock.
+// @Tags         Hub - Devices
+// @Produce      json
+// @Param        udid         path   string  true   "Device UDID"
+// @Param        token        query  string  false  "Raw JWT token (alternative to Authorization header)"
+// @Param        ttl_minutes  query  int     false  "Lock TTL in minutes (default 10, max 360)"
+// @Success      200   {object}  lockDeviceResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
+// @Failure      409   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /devices/control/{udid}/lock [post]
+func LockDevice(c *gin.Context) {
+	udid := c.Param("udid")
+
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	ttl, _ := strconv.Atoi(c.DefaultQuery("ttl_minutes", strconv.Itoa(defaultLockTTLMinutes)))
+	ttl = normalizeLockTTLMinutes(ttl)
+
+	device, ok := devices.HubDeviceStore.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
+		return
+	}
+
+	device.Mu.Lock()
+	defer device.Mu.Unlock()
+
+	if device.IsLockedByOther(claims.Username, claims.Tenant) {
+		if claims.Role != "admin" {
+			api.Conflict(c, fmt.Sprintf("Device `%s` is already locked by another user", udid))
+			return
+		}
+		// Admin takeover: kick the current holder out via close frame if UI session
+		if device.InUseWSConnection != nil {
+			ws.WriteFrame(device.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "released by admin"))) //nolint:errcheck
+		}
+		device.ReleaseLock()
+	}
+
+	device.AcquireLock(claims.Username, claims.Tenant, devices.LockSourceAPI) //nolint:errcheck — IsLockedByOther already checked above
+	expiresAt := time.Now().Add(time.Duration(ttl) * time.Minute).UnixMilli()
+	device.LeaseExpiresAt = expiresAt
+
+	c.JSON(http.StatusOK, lockDeviceResponse{
+		UDID:        udid,
+		LockedBy:    claims.Username,
+		Tenant:      claims.Tenant,
+		ExpiresAtMS: expiresAt,
+	})
+}
+
+// UnlockDevice godoc
+// @Summary      Unlock a device via REST API
+// @Description  Release a lock on a device. No-op if device is already free. Returns 409 if locked by another user (admins can always unlock). Authenticate via Authorization header or ?token= query param.
+// @Tags         Hub - Devices
+// @Produce      json
+// @Param        udid   path   string  true   "Device UDID"
+// @Param        token  query  string  false  "Raw JWT token (alternative to Authorization header)"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
+// @Failure      409   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /devices/control/{udid}/unlock [post]
+func UnlockDevice(c *gin.Context) {
+	udid := c.Param("udid")
+
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil || claims.Username == "" {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	device, ok := devices.HubDeviceStore.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
+		return
+	}
+
+	device.Mu.Lock()
+	defer device.Mu.Unlock()
+
+	if !device.IsLocked() {
+		api.OKMessage(c, "Device is not locked")
+		return
+	}
+
+	if device.IsLockedByOther(claims.Username, claims.Tenant) {
+		if claims.Role != "admin" {
+			api.Conflict(c, fmt.Sprintf("Device `%s` is locked by another user", udid))
+			return
+		}
+		// Admin kick-out via close frame if UI session
+		if device.InUseWSConnection != nil {
+			ws.WriteFrame(device.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "released by admin"))) //nolint:errcheck
+		}
+	}
+
+	device.ReleaseLock()
+	api.OKMessage(c, "Device successfully unlocked")
+}
+
+// syncDeviceFields synchronizes operational fields from provider to hub device.
+func syncDeviceFields(target *devices.LocalHubDevice, source *models.ProviderDeviceSync) {
 	if target.Connected != source.Connected {
 		target.Connected = source.Connected
 	}
 	if target.ProviderState != source.ProviderState {
 		target.ProviderState = source.ProviderState
 	}
-	if target.LastUpdatedTimestamp != source.LastUpdatedTimestamp {
-		target.LastUpdatedTimestamp = source.LastUpdatedTimestamp
-	}
 	if target.Host != source.Host {
 		target.Host = source.Host
-	}
-	if target.AudioStreamEnabled != source.AudioStreamEnabled {
-		target.AudioStreamEnabled = source.AudioStreamEnabled
-	}
-	if target.AudioInputType != source.AudioInputType {
-		target.AudioInputType = source.AudioInputType
 	}
 }
 
 // ProviderUpdate godoc
 // @Summary      Provider update
 // @Description  Receive updates from providers about device status
-// @Tags         Providers
+// @Tags         Hub - Admin - Providers
 // @Accept       json
 // @Produce      json
 // @Param        providerData  body      models.ProviderData  true  "Provider device data"
@@ -1102,39 +1089,42 @@ func ProviderUpdate(c *gin.Context) {
 		// handle error if needed
 	}
 
-	for _, providerDevice := range providerDeviceData.DeviceData {
-		devices.HubDevicesData.Mu.Lock()
-		hubDevice, ok := devices.HubDevicesData.Devices[providerDevice.UDID]
-		if ok {
-			// If device is not connected reset all fields that might allow it to get stuck in Running automation state
-			// If its not connected, then its not running automation or is available for automation
-			if !providerDevice.Connected {
-				hubDevice.IsAvailableForAutomation = false
-				hubDevice.IsRunningAutomation = false
-				hubDevice.InUseBy = ""
-				hubDevice.SessionID = ""
-				devices.HubDevicesData.Mu.Unlock()
-				continue
-			}
-			// Set a timestamp to indicate last time info about the device was updated from the provider
-			providerDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
-
-			// Update only operational fields from provider
-			syncDeviceFields(&hubDevice.Device, &providerDevice)
+	for i := range providerDeviceData.DeviceData {
+		providerDevice := &providerDeviceData.DeviceData[i]
+		hubDevice, ok := devices.HubDeviceStore.Get(providerDevice.UDID)
+		if !ok {
+			continue
 		}
-		devices.HubDevicesData.Mu.Unlock()
+		hubDevice.Mu.Lock()
+		// If device is not connected reset all fields that might allow it to get stuck in Running automation state
+		if !providerDevice.Connected {
+			hubDevice.Connected = false
+			hubDevice.ProviderState = providerDevice.ProviderState
+			hubDevice.Host = providerDevice.Host
+			hubDevice.IsAvailableForAutomation = false
+			hubDevice.IsRunningAutomation = false
+			hubDevice.ReleaseLockIfNotHeld()
+			hubDevice.SessionID = ""
+			hubDevice.Mu.Unlock()
+			continue
+		}
+		// Stamp when we last heard from the provider about this device
+		hubDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
+
+		syncDeviceFields(hubDevice, providerDevice)
+		hubDevice.Mu.Unlock()
 	}
 
-	c.JSON(http.StatusOK, gin.H{})
+	api.OKMessage(c, "Provider data updated in hub")
 }
 
 // GetUsers godoc
 // @Summary      Get all users
 // @Description  Retrieve list of all users in the system
-// @Tags         Admin - Users
+// @Tags         Hub - Admin - Users
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  []models.User
+// @Success      200  {object}  models.UserListResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/users [get]
@@ -1145,72 +1135,31 @@ func GetUsers(c *gin.Context) {
 		users[i].Password = ""
 	}
 
-	c.JSON(http.StatusOK, users)
+	api.OK(c, "Successfully retrieved users data", users)
 }
 
 // GetFiles godoc
 // @Summary      Get all files
 // @Description  Retrieve list of all files stored in the system
-// @Tags         Admin - Files
+// @Tags         Hub - Admin - Files
 // @Accept       json
 // @Produce      json
-// @Success      200  {array}  models.FileEntry
+// @Success      200  {object}  models.FileListResponse
 // @Security     BearerAuth
 // @Router       /admin/files [get]
 func GetFiles(c *gin.Context) {
 	files, _ := db.GlobalMongoStore.GetFiles()
 
-	c.JSON(http.StatusOK, files)
-}
-
-// DownloadResourceFromGithubRepo godoc
-// @Summary      Download resource from GitHub repository
-// @Description  Download a resource file from the GADS GitHub repository
-// @Tags         Admin - Files
-// @Accept       json
-// @Produce      text/plain
-// @Param        fileName  query  string  true  "Name of the file to download"
-// @Success      200       {string}  string  "File downloaded successfully"
-// @Failure      500       {string}  string  "Internal server error"
-// @Security     BearerAuth
-// @Router       /admin/download-github-file [post]
-func DownloadResourceFromGithubRepo(c *gin.Context) {
-	fileName := c.Query("fileName")
-	fmt.Println("Filename " + fileName)
-
-	// Create the file
-	out, err := os.Create(fileName)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Create"+err.Error())
-		return
-	}
-	defer out.Close()
-
-	// Get the data
-	resp, err := http.Get(fmt.Sprintf("https://raw.githubusercontent.com/shamanec/GADS/wda-signing/resources/%s", fileName))
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Get"+err.Error())
-		return
-	}
-	defer resp.Body.Close()
-
-	// Check server response
-	if resp.StatusCode != http.StatusOK {
-		c.String(resp.StatusCode, "Statuscode"+err.Error())
-		return
-	}
-
-	// Write the body to file
-	_, err = io.Copy(out, resp.Body)
+	api.OK(c, "Successfully retrieved files data", files)
 }
 
 // GetGlobalStreamSettings godoc
 // @Summary      Get global stream settings
 // @Description  Retrieve global streaming settings from the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.StreamSettings
+// @Success      200  {object}  models.StreamSettingsResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/global-settings [get]
@@ -1218,18 +1167,18 @@ func GetGlobalStreamSettings(c *gin.Context) {
 	// Retrieve global stream settings from the database
 	streamSettings, err := db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve global stream settings"})
+		api.InternalError(c, "Failed to retrieve global stream settings")
 		return
 	}
 
 	// Return the stream settings as a JSON response
-	c.JSON(http.StatusOK, streamSettings)
+	api.OK(c, "Successfully retrieved global stream settings", streamSettings)
 }
 
 // UpdateGlobalStreamSettings godoc
 // @Summary      Update global stream settings
 // @Description  Update global streaming settings in the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
 // @Param        settings  body      models.StreamSettings  true  "Stream settings"
@@ -1243,47 +1192,47 @@ func UpdateGlobalStreamSettings(c *gin.Context) {
 
 	// Bind the JSON input to the settings struct
 	if err := c.ShouldBindJSON(&settings); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
 	err := db.GlobalMongoStore.UpdateGlobalStreamSettings(settings)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save settings"})
+		api.InternalError(c, "Failed to save settings")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
+	api.OKMessage(c, "Settings updated successfully")
 }
 
 // GetMinioConfig godoc
 // @Summary      Get MinIO configuration
 // @Description  Retrieve MinIO configuration settings from the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.APIResponse{result=models.MinioConfig}
+// @Success      200  {object}  models.MinioConfigResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/minio-config [get]
 func GetMinioConfig(c *gin.Context) {
 	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
 	if err != nil {
-		InternalServerError(c, "Failed to retrieve MinIO configuration")
+		api.InternalError(c, "Failed to retrieve MinIO configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "MinIO configuration retrieved successfully", minioConfig)
+	api.OK(c, "MinIO configuration retrieved successfully", minioConfig)
 }
 
 // UpdateMinioConfig godoc
 // @Summary      Update MinIO configuration
 // @Description  Update MinIO configuration settings in the database
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
 // @Param        config  body      models.MinioConfig  true  "MinIO configuration"
-// @Success      200     {object}  models.APIResponse{result=string}
+// @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -1292,65 +1241,65 @@ func UpdateMinioConfig(c *gin.Context) {
 	var config models.MinioConfig
 
 	if err := c.ShouldBindJSON(&config); err != nil {
-		BadRequest(c, "Invalid input")
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
 	// Basic validation
 	if config.Enabled {
 		if config.Endpoint == "" {
-			BadRequest(c, "Endpoint is required when MinIO is enabled")
+			api.BadRequest(c, "Endpoint is required when MinIO is enabled")
 			return
 		}
 
 		if config.AccessKeyID == "" {
-			BadRequest(c, "Access Key ID is required when MinIO is enabled")
+			api.BadRequest(c, "Access Key ID is required when MinIO is enabled")
 			return
 		}
 
 		if config.SecretAccessKey == "" {
-			BadRequest(c, "Secret Access Key is required when MinIO is enabled")
+			api.BadRequest(c, "Secret Access Key is required when MinIO is enabled")
 			return
 		}
 	}
 
 	err := db.GlobalMongoStore.UpdateMinioConfig(config)
 	if err != nil {
-		InternalServerError(c, "Failed to save MinIO configuration")
+		api.InternalError(c, "Failed to save MinIO configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "MinIO configuration updated successfully", "Configuration saved")
+	api.OKMessage(c, "MinIO configuration updated successfully")
 }
 
 // GetTURNConfig godoc
 // @Summary      Get TURN server configuration
 // @Description  Retrieve the TURN server configuration from MongoDB global settings
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.APIResponse{result=models.TURNConfig}
+// @Success      200  {object}  models.TURNConfigResponse
 // @Failure      500  {object}  models.ErrorResponse
 // @Security     BearerAuth
 // @Router       /admin/turn-config [get]
 func GetTURNConfig(c *gin.Context) {
 	turnConfig, err := db.GlobalMongoStore.GetTURNConfig()
 	if err != nil {
-		InternalServerError(c, "Failed to retrieve TURN configuration")
+		api.InternalError(c, "Failed to retrieve TURN configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "TURN configuration retrieved", turnConfig)
+	api.OK(c, "TURN configuration retrieved", turnConfig)
 }
 
 // UpdateTURNConfig godoc
 // @Summary      Update TURN server configuration
 // @Description  Update the TURN server configuration stored in MongoDB global settings
-// @Tags         Admin - Settings
+// @Tags         Hub - Admin - Settings
 // @Accept       json
 // @Produce      json
 // @Param        config  body      models.TURNConfig  true  "TURN configuration"
-// @Success      200     {object}  models.APIResponse{result=string}
+// @Success      200     {object}  models.SuccessResponse
 // @Failure      400     {object}  models.ErrorResponse
 // @Failure      500     {object}  models.ErrorResponse
 // @Security     BearerAuth
@@ -1359,24 +1308,24 @@ func UpdateTURNConfig(c *gin.Context) {
 	var config models.TURNConfig
 
 	if err := c.ShouldBindJSON(&config); err != nil {
-		BadRequest(c, "Invalid input")
+		api.BadRequest(c, "Invalid input")
 		return
 	}
 
 	// Validation: if enabled, validate required fields
 	if config.Enabled {
 		if config.Server == "" {
-			BadRequest(c, "Server is required when TURN is enabled")
+			api.BadRequest(c, "Server is required when TURN is enabled")
 			return
 		}
 
 		if config.Port <= 0 || config.Port > 65535 {
-			BadRequest(c, "Port must be between 1 and 65535")
+			api.BadRequest(c, "Port must be between 1 and 65535")
 			return
 		}
 
 		if config.SharedSecret == "" {
-			BadRequest(c, "Shared secret is required when TURN is enabled")
+			api.BadRequest(c, "Shared secret is required when TURN is enabled")
 			return
 		}
 
@@ -1388,51 +1337,24 @@ func UpdateTURNConfig(c *gin.Context) {
 
 	err := db.GlobalMongoStore.UpdateTURNConfig(config)
 	if err != nil {
-		InternalServerError(c, "Failed to save TURN configuration")
+		api.InternalError(c, "Failed to save TURN configuration")
 		return
 	}
 
-	api.GenericResponse(c, http.StatusOK, "TURN configuration updated successfully", "Configuration saved")
+	api.OKMessage(c, "TURN configuration updated successfully")
 }
 
 // GetSystemStatus godoc
 // @Summary      Get system status messages
 // @Description  Retrieve system status messages for administrators
-// @Tags         Admin - System
+// @Tags         Hub - Admin - System
 // @Accept       json
 // @Produce      json
-// @Success      200  {object}  models.SystemStatusAPIResponse
-// @Failure      500  {object}  models.APIResponse
+// @Success      200  {object}  models.SysStatusResponse
 // @Security     BearerAuth
 // @Router       /admin/system-status [get]
 func GetSystemStatus(c *gin.Context) {
 	var messages []models.SystemStatusMessage
-
-	// Check MinIO configuration
-	minioConfig, err := db.GlobalMongoStore.GetMinioConfig()
-	if err != nil {
-		// Check if it's a "not found" error (no config exists)
-		if err == mongo.ErrNoDocuments {
-			messages = append(messages, models.SystemStatusMessage{
-				Type:    "minio_not_configured",
-				Message: "MinIO is not configured. Screenshot storage and file uploads will not work.",
-				Action:  "Configure MinIO in Admin -> Global Settings",
-			})
-		} else {
-			// Other database error
-			api.InternalServerErrorResponse(c, "Failed to retrieve MinIO configuration", nil)
-			return
-		}
-	} else {
-		// Config exists, check if it's enabled
-		if !minioConfig.Enabled {
-			messages = append(messages, models.SystemStatusMessage{
-				Type:    "minio_disabled",
-				Message: "MinIO is disabled. Screenshot storage and file uploads will not work.",
-				Action:  "Enable MinIO in Admin -> Global Settings",
-			})
-		}
-	}
 
 	// Check if any devices are configured
 	devices, _ := db.GlobalMongoStore.GetDevices()
@@ -1458,62 +1380,5 @@ func GetSystemStatus(c *gin.Context) {
 		Messages: messages,
 	}
 
-	api.OKResponse(c, "System status retrieved successfully", response)
-}
-
-// GetScreenshot godoc
-// @Summary      Get screenshot for Appium session
-// @Description  Retrieve screenshot from Minio storage for specific build/session
-// @Tags         Reports
-// @Accept       json
-// @Produce      image/jpeg
-// @Param        build_id   path  string  true  "Build ID"
-// @Param        session_id path  string  true  "Session ID"
-// @Param        filename   path  string  true  "Screenshot filename"
-// @Success      200        {file}  binary  "Screenshot image"
-// @Failure      404        {object}  models.ErrorResponse
-// @Failure      500        {object}  models.ErrorResponse
-// @Security     BearerAuth
-// @Router       /reports/screenshots/{build_id}/{session_id}/{filename} [get]
-func GetScreenshot(c *gin.Context) {
-	buildID := c.Param("build_id")
-	sessionID := c.Param("session_id")
-	filename := c.Param("filename")
-
-	// Validate parameters
-	if buildID == "" || sessionID == "" || filename == "" {
-		BadRequest(c, "Missing required parameters: build_id, session_id, or filename")
-		return
-	}
-
-	// Check if MinIO is available
-	if !config.GlobalHubConfig.MinioAvailable {
-		NotFound(c, "Screenshot storage is not available - MinIO is not configured or enabled")
-		return
-	}
-
-	// Get screenshot from Minio
-	reader, err := minio.GlobalMinioClient.GetAppiumScreenshot(buildID, sessionID, filename)
-	if err != nil {
-		// Check if it's a not found error or other error
-		if err.Error() == "The specified key does not exist." {
-			NotFound(c, "Screenshot not found")
-		} else {
-			InternalServerError(c, fmt.Sprintf("Failed to retrieve screenshot: %s", err))
-		}
-		return
-	}
-	defer reader.Close()
-
-	// Set appropriate headers for image content
-	c.Header("Content-Type", "image/jpeg")
-	c.Header("Cache-Control", "public, max-age=3600") // Cache for 1 hour
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filename))
-
-	// Stream the image data to the response
-	_, err = io.Copy(c.Writer, reader)
-	if err != nil {
-		// Log error but response is already started, can't return error response
-		fmt.Printf("Error streaming screenshot: %v\n", err)
-	}
+	api.OK(c, "System status retrieved successfully", response)
 }

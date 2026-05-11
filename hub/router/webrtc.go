@@ -22,7 +22,7 @@ import (
 // GetICEConfig godoc
 // @Summary      Get WebRTC ICE configuration
 // @Description  Retrieve ICE servers configuration (STUN + optional TURN) for WebRTC connections
-// @Tags         WebRTC
+// @Tags         Hub - WebRTC
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}

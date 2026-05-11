@@ -27,7 +27,7 @@ import (
 // When the device has a configured AudioBroadcastTarget, the target is forwarded
 // so WDA can auto-select the matching broadcast extension in the picker. When
 // empty, we send no body — WDA falls back to its hardcoded default.
-func audioPrepareBody(device *models.Device) (io.Reader, error) {
+func audioPrepareBody(device *models.DBDevice) (io.Reader, error) {
 	if device == nil || device.AudioBroadcastTarget == "" {
 		return nil, nil
 	}
@@ -41,55 +41,66 @@ func audioPrepareBody(device *models.Device) (io.Reader, error) {
 	return bytes.NewReader(b), nil
 }
 
-// The PCMAudioExtractor's lifecycle is owned by IOSWebRTCSession (see
-// ios_stream_webrtc.go: created in Start(), closed in Close()). These endpoints
-// are thin proxies that trigger the iOS-side broadcast UX via WDA — provider
-// state lives on the session, not here.
+// resolveIOSDevice looks up the device via DevManager and returns its
+// PlatformDevice + DBDevice after verifying it is an iOS device. Sends an HTTP
+// error to the client on failure and returns (nil, nil, false).
+func resolveIOSDevice(c *gin.Context, udid string) (devices.PlatformDevice, *models.DBDevice, bool) {
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.BadRequest(c, fmt.Sprintf("Device with UDID `%s` not found", udid))
+		return nil, nil, false
+	}
+	if platDev.GetOS() != "ios" {
+		api.BadRequest(c, "this endpoint is only supported on iOS devices")
+		return nil, nil, false
+	}
+	rcDev, ok := platDev.(devices.RemoteControllable)
+	if !ok {
+		api.InternalError(c, "device does not support remote control")
+		return nil, nil, false
+	}
+	return platDev, rcDev.GetDBDevice(), true
+}
 
 // IOSAudioPrepare brings the GADSBroadcast host app + RPSystemBroadcastPickerView
 // to the foreground on the iOS device by calling WDA's /gads/audio/prepare endpoint.
 // Idempotent. Returns the host-side audio port.
 func IOSAudioPrepare(c *gin.Context) {
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		api.BadRequestResponse(c, fmt.Sprintf("Device with UDID `%s` not found", udid), nil)
-		return
-	}
-	if device.OS != "ios" {
-		api.BadRequestResponse(c, "audio prepare is only supported on iOS devices", nil)
+	platDev, device, ok := resolveIOSDevice(c, udid)
+	if !ok {
 		return
 	}
 	if !device.AudioStreamEnabled {
-		api.BadRequestResponse(c, "audio_stream_enabled is false for this device", nil)
+		api.BadRequest(c, "audio_stream_enabled is false for this device")
 		return
 	}
 	if device.AudioPort == "" {
-		api.InternalServerErrorResponse(c, "device has no allocated audio port", nil)
+		api.InternalError(c, "device has no allocated audio port")
 		return
 	}
 
 	body, err := audioPrepareBody(device)
 	if err != nil {
-		api.InternalServerErrorResponse(c, fmt.Sprintf("failed to encode audio prepare body: %v", err), nil)
+		api.InternalError(c, fmt.Sprintf("failed to encode audio prepare body: %v", err))
 		return
 	}
 	if device.AudioBroadcastTarget != "" {
 		logger.ProviderLogger.LogInfo("ios_audio", fmt.Sprintf("calling /gads/audio/prepare for device %s with target=%q", udid, device.AudioBroadcastTarget))
 	}
-	resp, err := wdaRequest(device, http.MethodPost, "gads/audio/prepare", body)
+	resp, err := wdaRequest(platDev, http.MethodPost, "gads/audio/prepare", body)
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_audio", fmt.Sprintf("Failed to call WDA /gads/audio/prepare for device %s: %v", udid, err))
-		api.InternalServerErrorResponse(c, fmt.Sprintf("failed to prepare audio on WDA: %v", err), nil)
+		api.InternalError(c, fmt.Sprintf("failed to prepare audio on WDA: %v", err))
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		api.GenericResponse(c, resp.StatusCode, fmt.Sprintf("WDA prepare returned %d", resp.StatusCode), nil)
+		api.ErrorResponse(c, resp.StatusCode, fmt.Sprintf("WDA prepare returned %d", resp.StatusCode))
 		return
 	}
 
-	api.OKResponse(c, "audio prepared", gin.H{"audio_port": device.AudioPort})
+	api.OK(c, "audio prepared", gin.H{"audio_port": device.AudioPort})
 }
 
 // IOSAudioStart is a thin idempotent endpoint that confirms the audio source
@@ -101,27 +112,22 @@ func IOSAudioPrepare(c *gin.Context) {
 // compatibility but performs no WDA round-trip.
 func IOSAudioStart(c *gin.Context) {
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		api.BadRequestResponse(c, fmt.Sprintf("Device with UDID `%s` not found", udid), nil)
-		return
-	}
-	if device.OS != "ios" {
-		api.BadRequestResponse(c, "audio start is only supported on iOS devices", nil)
+	_, device, ok := resolveIOSDevice(c, udid)
+	if !ok {
 		return
 	}
 	if !device.AudioStreamEnabled || device.AudioPort == "" {
-		api.BadRequestResponse(c, "audio not enabled or no port allocated", nil)
+		api.BadRequest(c, "audio not enabled or no port allocated")
 		return
 	}
 
 	session := getIOSWebRTCSession(udid)
 	if session == nil {
-		api.BadRequestResponse(c, "no active WebRTC session for device — start the stream first", nil)
+		api.BadRequest(c, "no active WebRTC session for device — start the stream first")
 		return
 	}
 
-	api.OKResponse(c, "audio started", gin.H{"audio_port": device.AudioPort})
+	api.OK(c, "audio started", gin.H{"audio_port": device.AudioPort})
 }
 
 // IOSAudioStop tears down the session-owned audio extractor (audio off, video
@@ -129,9 +135,8 @@ func IOSAudioStart(c *gin.Context) {
 // Idempotent: returns 200 even if no session/extractor was running.
 func IOSAudioStop(c *gin.Context) {
 	udid := c.Param("udid")
-	device, ok := devices.DBDeviceMap[udid]
-	if !ok || device == nil {
-		api.BadRequestResponse(c, fmt.Sprintf("Device with UDID `%s` not found", udid), nil)
+	platDev, _, ok := resolveIOSDevice(c, udid)
+	if !ok {
 		return
 	}
 
@@ -141,15 +146,13 @@ func IOSAudioStop(c *gin.Context) {
 		session.audioExtractor = nil
 	}
 
-	if device.OS == "ios" {
-		resp, err := wdaRequest(device, http.MethodPost, "gads/audio/stop", nil)
-		if err != nil {
-			logger.ProviderLogger.LogWarn("ios_audio", fmt.Sprintf("WDA /gads/audio/stop call failed for device %s: %v", udid, err))
-		} else {
-			resp.Body.Close()
-		}
+	resp, err := wdaRequest(platDev, http.MethodPost, "gads/audio/stop", nil)
+	if err != nil {
+		logger.ProviderLogger.LogWarn("ios_audio", fmt.Sprintf("WDA /gads/audio/stop call failed for device %s: %v", udid, err))
+	} else {
+		resp.Body.Close()
 	}
 
 	logger.ProviderLogger.LogInfo("ios_audio", fmt.Sprintf("iOS audio stop requested for device %s", udid))
-	api.OKResponse(c, "audio stopped", nil)
+	api.OKMessage(c, "audio stopped")
 }
