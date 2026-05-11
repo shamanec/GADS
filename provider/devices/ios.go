@@ -221,6 +221,17 @@ func (d *IOSDevice) allocateAndForwardPorts() error {
 	go d.goIosForward(d.WDAPort, "8100")
 	go d.goIosForward(d.StreamPort, "8765")
 	go d.goIosForward(d.WDAStreamPort, "9100")
+
+	if d.DBDevice.AudioStreamEnabled {
+		audioPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not allocate audio port for device `%s` - disabling audio stream: %v", d.GetUDID(), err))
+			d.DBDevice.AudioStreamEnabled = false
+		} else {
+			d.DBDevice.AudioPort = audioPort
+			go d.goIosForward(d.DBDevice.AudioPort, "8766")
+		}
+	}
 	return nil
 }
 
@@ -230,6 +241,16 @@ func (d *IOSDevice) startWebDriverAgent() error {
 			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
 			d.Reset("Failed to install WebDriverAgent on device.")
 			return err
+		}
+		if d.DBDevice.AudioStreamEnabled {
+			broadcastPath := fmt.Sprintf("%s/GADSBroadcast.ipa", config.ProviderConfig.ProviderFolder)
+			if _, statErr := os.Stat(broadcastPath); statErr == nil {
+				if err := d.installApp(broadcastPath); err != nil {
+					logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not install GADSBroadcast on device `%s` - %s (audio capture may not work)", d.GetUDID(), err))
+				}
+			} else {
+				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("GADSBroadcast.ipa not present at %s — audio capture won't work on device `%s`", broadcastPath, d.GetUDID()))
+			}
 		}
 		go d.runWDA()
 	} else {
