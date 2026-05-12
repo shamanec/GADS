@@ -11,7 +11,7 @@ The provider component is responsible for setting up the Appium servers and mana
   - [Linux](#linux)
   - [Windows](#windows)
 - [Dependencies Notes](#dependencies-notes)
-  - [iOS Audio Streaming](#ios-audio-streaming---optional)
+  - [iOS Audio Streaming](#ios-audio-streaming-optional)
 - [Device Notes](#device-notes)
   - [iOS Phones](#ios-phones)
   - [Android](#android-phone)
@@ -54,7 +54,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 #### iOS
 
 - **Prepare** [WebDriverAgent](#build-webdriveragent-ipa-file-manually-using-xcode).
-- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming---optional) if you want to hear app audio from iOS devices.
+- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming-optional) if you want to hear app audio from iOS devices.
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### Tizen
@@ -67,7 +67,8 @@ To specify a folder, create it on your machine and provide it at startup using t
 - **Install** [WebOS CLI](#webos-cli---webos-only)
 - **Enable** [Developer Mode](#developer-mode---webos) on each WebOS TV
 
-<br>
+  
+
 
 ---
 
@@ -86,7 +87,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 - **Install** [usbmuxd](#usbmuxd) if providing iOS devices.
 - **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
-- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming---optional) if you want to hear app audio from iOS devices. Use the prebuilt + re-sign flow (Linux-compatible).
+- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming-optional) if you want to hear app audio from iOS devices. Use the prebuilt + re-sign flow (Linux-compatible).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### Tizen
@@ -104,7 +105,8 @@ To specify a folder, create it on your machine and provide it at startup using t
 1. The command **driver.executeScript("mobile: startPerfRecord")** cannot be executed due to the unavailability of Xcode tools.
 2. Any functionality requiring Instruments or other Xcode/macOS-exclusive tools is limited.
 
-<br>
+  
+
 
 ---
 
@@ -123,7 +125,7 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 - **Install** [iTunes](#itunes) if providing iOS devices.
 - **Prepare** [WebDriverAgent](#prebuilt-custom-webdriveragent).
-- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming---optional) if you want to hear app audio from iOS devices. Use the prebuilt + re-sign flow (Windows-compatible).
+- (Optional) **Setup** [iOS Audio Streaming](#ios-audio-streaming-optional) if you want to hear app audio from iOS devices. Use the prebuilt + re-sign flow (Windows-compatible).
 - (Optional) **Supervise** [your iOS devices](#supervise-devices).
 
 #### Tizen
@@ -159,7 +161,8 @@ Installation is pretty similar for all operating systems, you just have to find 
 - Add any additional Appium dependencies like `ANDROID_HOME`(Android SDK) environment variable, Java, etc.
 - Test with `appium driver doctor uiautomator2` and `appium driver doctor xcuitest` to check for errors with the setup.
 
-<br>
+  
+
 
 ---
 
@@ -167,10 +170,12 @@ Installation is pretty similar for all operating systems, you just have to find 
 
 `adb` (Android Debug Bridge) is mandatory when providing Android devices. You can skip installing it if no Android devices will be provided.
 
-- Install `adb` in a valid way for the provider OS. It should be available in PATH so it can be directly accessed via terminal. <br>
-  Example installation on macOS - `brew install adb`
+- Install `adb` in a valid way for the provider OS. It should be available in PATH so it can be directly accessed via terminal.   
 
-<br>
+Example installation on macOS - `brew install adb`
+
+  
+
 
 ---
 
@@ -208,10 +213,10 @@ Fork is kept up to date with latest mainstream.
 
 - Download the code from the `main` branch of my fork of [WebDriverAgent](https://github.com/shamanec/WebDriverAgent).
 - Open `WebDriverAgent.xcodeproj` in Xcode.
-- Select signing profile for WebDriverAgentRunner. To do this go to: _Targets_, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
+- Select signing profile for WebDriverAgentRunner. To do this go to: *Targets*, select WebDriverAgentRunner. There should be a field for assigning teams certificates to the target.
 - Select `Build > Clean build folder` (just in case)
 - Next build the application by selecting the `WebDriverAgentRunner` target and build for `Generic iOS Device`. Select `Product => Build for testing`. This will create a `Products/Debug-iphoneos` folder in the specified project directory.  
-   `Example`: **/Users/<username>/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
+ `Example`: **/Users/****/Library/Developer/Xcode/DerivedData/WebDriverAgent-dzxbpamuepiwamhdbyvyfkbecyer/Build/Products/Debug-iphoneos**
 - Navigate to the folder above and create an empty directory with the name `Payload`.
 - Copy the `.app` bundle inside the `Payload` folder
 - Compress the `Payload` directory into an archive (.zip file) and give it a new name with `.ipa` appended to the end of the file name.
@@ -219,30 +224,26 @@ Fork is kept up to date with latest mainstream.
   - Open the `.app` bundle, navigate to `Frameworks` and delete the `XC*.framework` folders before moving it to `Payload`
   - IPA has to be re-signed after that once again uzing any applicable tool
 
-### iOS Audio Streaming - Optional
+### iOS Audio Streaming (Optional)
 
 GADS supports streaming audio (and H.264 video) from iOS devices to the hub UI so operators can hear the device's app audio while controlling it remotely. The pipeline uses a self-contained iOS host app called `GADSBroadcast` that embeds the `gads-broadcast-extension` (Broadcast Upload Extension). Media is captured via ReplayKit, written by the extension over TCP loopback on the device, forwarded through the go-ios USB tunnel to the GADS provider, encoded to Opus (audio) / muxed (video), and delivered to the browser via WebRTC.
 
 > ⚠️ **iOS 17.0+ device required.** iOS 26.x is the most-tested version.
 
-You have two paths to obtain a signed `GADSBroadcast.ipa`, mirroring how `WebDriverAgent.ipa` is distributed:
+A prebuilt `gads-broadcast.ipa` is bundled with this repository at `[resources/gads-broadcast.ipa](../resources/gads-broadcast.ipa)`. The Xcode project that produces it lives in a private repository accessible only to GADS contributors — external users obtain the IPA from `resources/` and re-sign it with their own Apple Developer certificate before uploading to the hub.
 
-| Path | OS support | Best for |
-|---|---|---|
-| Prebuilt + re-sign | macOS / Linux / Windows | Most users (no Xcode required) |
-| Build manually using Xcode | macOS only | Customizing the broadcast extension or developing locally |
+#### Re-sign the bundled IPA
 
-#### Prebuilt GADSBroadcast + Re-sign (any OS)
-
-This mirrors the WebDriverAgent prebuilt flow above and works on **macOS, Linux and Windows**.
-
-- Download the prebuilt `GADSBroadcast.ipa` from the `gads-broadcast-extension` repo's release page.
-- Re-sign it with your Apple Developer certificate + provisioning profile using any of the following tools:
+- Copy and rename to the filename the hub expects (case-sensitive):
+  ```bash
+  cp resources/gads-broadcast.ipa GADSBroadcast.ipa
+  ```
+- Re-sign `GADSBroadcast.ipa` with your Apple Developer certificate + provisioning profile using one of:
   - [zsign](https://github.com/zhlynn/zsign) (Linux / Windows / macOS — recommended for non-macOS hosts)
   - [fastlane sigh](https://docs.fastlane.tools/actions/sigh/) (any OS, requires Ruby)
   - [codesign](https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html) (macOS only)
 
-Important when re-signing the IPA: the embedded extension `GADSBroadcast.app/PlugIns/gads-broadcast-extension.appex` must be re-signed too. `zsign` and `fastlane sigh` handle nested binaries automatically; if you script `codesign` manually, sign the `.appex` first then the `.app`.
+Important: the embedded extension `GADSBroadcast.app/PlugIns/gads-broadcast-extension.appex` must be re-signed too. `zsign` and `fastlane sigh` handle nested binaries automatically; if you script `codesign` manually, sign the `.appex` first then the `.app`.
 
 Verify that both bundles inside the resulting IPA carry an `embedded.mobileprovision` for the same Team after re-signing:
 
@@ -251,33 +252,7 @@ Payload/GADSBroadcast.app/embedded.mobileprovision
 Payload/GADSBroadcast.app/PlugIns/gads-broadcast-extension.appex/embedded.mobileprovision
 ```
 
-#### Build GADSBroadcast manually using Xcode (macOS only)
-
-The `gads-broadcast-extension` repo ships an `h264-broadcast-extension.xcodeproj` containing the `h264-broadcast-extension` host app (product name `GADSBroadcast`) and the `gads-broadcast-extension` target. Build them as follows:
-
-- Open `h264-broadcast-extension.xcodeproj` in Xcode.
-- For each of the targets `h264-broadcast-extension`, `gads-broadcast-extension` and `gads-broadcast-extensionSetupUI`, configure signing (Targets → *target* → Signing & Capabilities). All must use the **same Team**.
-- Build the `h264-broadcast-extension` scheme for `Generic iOS Device` (or specify your device's UDID):
-  ```bash
-  xcodebuild \
-    -project h264-broadcast-extension.xcodeproj \
-    -scheme h264-broadcast-extension \
-    -sdk iphoneos \
-    -destination 'generic/platform=iOS' \
-    -derivedDataPath ./build \
-    -allowProvisioningUpdates \
-    build
-  ```
-- The output app will already include the broadcast extension at `GADSBroadcast.app/PlugIns/gads-broadcast-extension.appex`.
-- Repack as IPA:
-  ```bash
-  cd ./build/Build/Products/Debug-iphoneos
-  rm -f GADSBroadcast.ipa
-  rm -rf Payload && mkdir Payload && cp -R GADSBroadcast.app Payload/
-  zip -qry GADSBroadcast.ipa Payload
-  ```
-
-> ⚠️ **Provisioning profile validity**: Apple Development profiles last **7 days**. If you see `0xe8008015 / MIInstallerErrorDomain Code=13` errors at install time, the profile expired — rebuild with `-allowProvisioningUpdates` (or re-sign with a fresh profile if using the prebuilt flow) and re-upload. Apple Developer Enterprise certificates last 1 year and avoid this churn.
+> ⚠️ **Provisioning profile validity**: Apple Development profiles last **7 days**. If you see `0xe8008015 / MIInstallerErrorDomain Code=13` errors at install time, the profile expired — re-sign with a fresh profile and re-upload. Apple Developer Enterprise certificates last 1 year and avoid this churn.
 
 #### Upload GADSBroadcast.ipa to the hub
 
@@ -285,7 +260,7 @@ The GADS provider downloads `GADSBroadcast.ipa` from the hub on every iOS device
 
 - Log in to the hub UI as admin.
 - Navigate to `Admin > Files`.
-- Upload your built `GADSBroadcast.ipa`.
+- Upload the re-signed `GADSBroadcast.ipa`.
 
 > If you re-upload (e.g. after a provisioning renewal), the provider will pick up the new version on its next device setup.
 
@@ -293,10 +268,12 @@ The GADS provider downloads `GADSBroadcast.ipa` from the hub on every iOS device
 
 In the hub UI > `Admin > Devices`, edit the iOS device:
 
-| Field | Value |
-|---|---|
-| `audio_stream_enabled` | `true` |
-| `audio_input_type` | `app_audio` |
+
+| Field                  | Value       |
+| ---------------------- | ----------- |
+| `audio_stream_enabled` | `true`      |
+| `audio_input_type`     | `app_audio` |
+
 
 > Note: `audio_input_type` must be `app_audio` for iOS. The value `device` is for Android only.
 
@@ -309,8 +286,8 @@ Procedure (only required once per device, or after a fresh `GADSBroadcast` insta
 1. In the hub UI, open the iOS device with `Use`.
 2. Wait ~5 seconds — the iPhone shows the **"Screen Broadcast"** sheet.
 3. **On the physical iPhone** (not via remote control / synthetic taps):
-   - Tap the **`GADSBroadcast`** row in the list. The list is alphabetical; you may need to scroll if many broadcast extensions are installed.
-   - Tap **"Start Broadcast"** (label varies by locale: "Iniciar Transmissão" in pt-BR, "Iniciar grabación" in es, "Démarrer la diffusion" in fr-FR, etc.).
+  - Tap the `**GADSBroadcast`** row in the list. The list is alphabetical; you may need to scroll if many broadcast extensions are installed.
+  - Tap **"Start Broadcast"** (label varies by locale: "Iniciar Transmissão" in pt-BR, "Iniciar grabación" in es, "Démarrer la diffusion" in fr-FR, etc.).
 4. Wait the 3-second iOS countdown.
 5. The iPhone status bar shows a red **"Screen Recording"** pill — broadcast is active.
 6. Audio should now flow into the hub UI's audio player.
@@ -324,7 +301,7 @@ If audio doesn't flow after a fresh provider restart, releasing the device in th
 #### Troubleshooting
 
 - **Audio not playing after `Use`** — verify the initial setup was done; confirm `audio_stream_enabled=true` and `audio_input_type=app_audio` on the device document.
-- **`0xe8008015 / MIInstallerErrorDomain Code=13`** at install time — provisioning profile expired (7-day limit). Rebuild with `-allowProvisioningUpdates` and re-upload `GADSBroadcast.ipa`.
+- `**0xe8008015 / MIInstallerErrorDomain Code=13**` at install time — provisioning profile expired (7-day limit). Rebuild with `-allowProvisioningUpdates` and re-upload `GADSBroadcast.ipa`.
 - **Picker shows the wrong app pre-selected** (e.g. a previously used broadcast extension like Facebook, Photos, etc.) — the provider re-installs `GADSBroadcast` on each device setup, which can reset iOS's cached selection. Repeat the manual setup procedure once.
 - **No audio after iPhone reboot** — the picker selection generally survives reboots. If it doesn't, repeat the manual setup once.
 - **Edge case: race condition** — if the provider is restarted during an active broadcast, the next `Use` may show "Screen sharing ended" briefly. Release and re-Use to recover.
@@ -455,11 +432,9 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
   sdb connect <tv-ip-address>
   ```
 - Verify the connection by running:
-
   ```bash
   sdb devices
   ```
-
 - The TV should appear in the list of connected devices with status "device"
 - First connection will require accepting a pairing request on the TV
 - For app testing:
@@ -499,7 +474,7 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 ### Developer Mode - WebOS
 
 - Install the Developer Mode app from LG Content Store
-- Sign in with your LG Developer account (create one at https://webostv.developer.lge.com if needed)
+- Sign in with your LG Developer account (create one at [https://webostv.developer.lge.com](https://webostv.developer.lge.com) if needed)
 - Enable Developer Mode by clicking the Dev Mode Status button
 - The TV will reboot automatically
 
@@ -507,11 +482,9 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 
 - Ensure the TV and the provider host machine are on the same network
 - Add the TV as a device using the WebOS CLI:
-
   ```bash
   ares-setup-device --add target -i "host=10.123.45.67" -i "port=9922" -i "username=prisoner" -i "default=true"
   ```
-
   > **⚠️ IMPORTANT**: The device name (e.g., `target` in the example above) must be:
   >
   > - Descriptive and meaningful for your setup
@@ -520,7 +493,6 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
   - Default port is 9922
   - Default username is "prisoner"
   - Leave password empty
-
 - For first-time connections, you'll need to accept the pairing request on the TV
 - Verify the connection by running:
   ```bash
@@ -545,3 +517,4 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 - Remote control features are limited compared to mobile devices
 - Only web-based TV apps can be automated (native apps have limited support)
 - Developer Mode has a 1000-hour time limit and needs periodic renewal
+
