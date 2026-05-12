@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,9 +61,30 @@ func (d *IOSDevice) GetWDAStreamPort() string { return d.WDAStreamPort }
 func (d *IOSDevice) GetWDASessionID() string  { return d.WDASessionID }
 
 // Setup runs the full iOS device provisioning sequence.
-func (d *IOSDevice) Setup() error {
+func (d *IOSDevice) Setup() (retErr error) {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+
+	if time.Now().Before(d.setupBackoffUntil) {
+		return nil
+	}
+
+	defer func() {
+		switch {
+		case retErr == nil:
+			d.setupBackoffNext = 0
+			d.setupBackoffUntil = time.Time{}
+		case errors.Is(retErr, context.Canceled), errors.Is(retErr, context.DeadlineExceeded):
+			// external cancellation — do not apply backoff
+		default:
+			if d.setupBackoffNext == 0 {
+				d.setupBackoffNext = setupBackoffBase
+			} else {
+				d.setupBackoffNext = min(d.setupBackoffNext*2, setupBackoffMax)
+			}
+			d.setupBackoffUntil = time.Now().Add(d.setupBackoffNext)
+		}
+	}()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
