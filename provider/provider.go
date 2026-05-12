@@ -160,6 +160,12 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		if err != nil {
 			log.Fatalf("Could not provide WebDriverAgent.ipa file from MongoDB - %s", err)
 		}
+		// GADSBroadcast hosts the gads-broadcast-extension (iOS audio + H.264 video).
+		// Optional — only fail if the GridFS file is missing on iOS providers
+		// that opted into audio. For now, log a warning and continue if absent.
+		if err := config.SetupGADSBroadcastFile(); err != nil {
+			log.Printf("WARN: GADSBroadcast.ipa not found in MongoDB (%v) — iOS audio capture won't auto-install the broadcast host app", err)
+		}
 	}
 
 	err = extractProviderResourceFiles(config.ProviderConfig.ProviderFolder, resourceFiles)

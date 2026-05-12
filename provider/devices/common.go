@@ -93,6 +93,14 @@ func syncDevicesToDB() {
 			dbDevice.StreamType = updatedDevice.StreamType
 			devicesToReset = append(devicesToReset, udid)
 		}
+		if dbDevice.AudioStreamEnabled != updatedDevice.AudioStreamEnabled {
+			dbDevice.AudioStreamEnabled = updatedDevice.AudioStreamEnabled
+			devicesToReset = append(devicesToReset, udid)
+		}
+		if dbDevice.AudioInputType != updatedDevice.AudioInputType {
+			dbDevice.AudioInputType = updatedDevice.AudioInputType
+			devicesToReset = append(devicesToReset, udid)
+		}
 
 		// If the provider does not set up Appium servers, force usage to `control`
 		if !config.ProviderConfig.SetupAppiumServers {
