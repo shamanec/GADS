@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -380,7 +381,13 @@ func (d *IOSDevice) mountDeveloperImage() error {
 			return nil
 		}
 		if strings.Contains(err.Error(), "findIdentity") && d.SemVer.Major() >= 17 {
-			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Skipping DDI mount for device `%s` (iOS %s): chip not in go-ios identities, DDI not required on iOS 17+", d.GetUDID(), d.SemVer.Original()))
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Chip not in go-ios DDI identities for device `%s` (iOS %s), attempting PDI mount via CoreDevice", d.GetUDID(), d.SemVer.Original()))
+			out, xcrunErr := exec.Command("xcrun", "devicectl", "device", "info", "details", "--device", d.GetUDID()).CombinedOutput()
+			if xcrunErr != nil {
+				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("xcrun devicectl failed for device `%s` - %s: %s", d.GetUDID(), xcrunErr, strings.TrimSpace(string(out))))
+			} else {
+				logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("PDI mounted via CoreDevice for device `%s`", d.GetUDID()))
+			}
 			return nil
 		}
 		return fmt.Errorf("failed to mount DDI: %w", err)
