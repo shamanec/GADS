@@ -247,20 +247,12 @@ func (d *IOSDevice) allocateAndForwardPorts() error {
 }
 
 func (d *IOSDevice) startWebDriverAgent() error {
-	if d.SemVer.Major() < 17 || d.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
-		if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
-			d.Reset("Failed to install WebDriverAgent on device.")
-			return err
-		}
-		go d.runWDA()
-	} else {
-		if err := d.launchApp(config.ProviderConfig.WdaBundleID, true); err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not launch WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
-			d.Reset("Failed to launch WebDriverAgent on device.")
-			return err
-		}
+	if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
+		d.Reset("Failed to install WebDriverAgent on device.")
+		return err
 	}
+	go d.runWDA()
 	return nil
 }
 
