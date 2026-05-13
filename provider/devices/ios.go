@@ -521,7 +521,11 @@ func (d *IOSDevice) installApp(appPath string) error {
 		d.Reset("Failed to create zipconduit connection for app installation.")
 		return err
 	}
-	conn.SendFile(appPath)
+	if err := conn.SendFile(appPath); err != nil {
+		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to send app file when installing app `%s` on device `%s`", appPath, d.GetUDID()))
+		d.Reset("Failed to send app file for installation.")
+		return err
+	}
 	return nil
 }
 
