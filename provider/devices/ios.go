@@ -379,6 +379,10 @@ func (d *IOSDevice) mountDeveloperImage() error {
 		if strings.Contains(err.Error(), "already mounted") || strings.Contains(err.Error(), "AlreadyMounted") {
 			return nil
 		}
+		if strings.Contains(err.Error(), "findIdentity") && d.SemVer.Major() >= 17 {
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Skipping DDI mount for device `%s` (iOS %s): chip not in go-ios identities, DDI not required on iOS 17+", d.GetUDID(), d.SemVer.Original()))
+			return nil
+		}
 		return fmt.Errorf("failed to mount DDI: %w", err)
 	}
 	return nil
