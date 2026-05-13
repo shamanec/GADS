@@ -18,8 +18,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
+	"sync"
 	"strings"
 	"time"
 
@@ -366,33 +366,96 @@ func (d *IOSDevice) UpdateStreamSettingsOnDevice() error {
 	return nil
 }
 
+const (
+	doronz88PDIBaseURL  = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/"
+	doronz88PDICacheTTL = 24 * time.Hour
+)
+
+var doronz88PDIMu sync.Mutex
+
 func (d *IOSDevice) mountDeveloperImage() error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
-	path, err := imagemounter.DownloadImageFor(d.GoIOSDeviceEntry, basedir)
+	var imagePath string
+	var err error
+
+	if d.SemVer.Major() >= 17 {
+		imagePath, err = downloadDoronz88PDI(basedir)
+	} else {
+		imagePath, err = imagemounter.DownloadImageFor(d.GoIOSDeviceEntry, basedir)
+	}
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` to path `%s` - %s", d.GetUDID(), basedir, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` - %s", d.GetUDID(), err))
 		return fmt.Errorf("failed to download DDI: %w", err)
 	}
 
-	err = imagemounter.MountImage(d.GoIOSDeviceEntry, path)
+	err = imagemounter.MountImage(d.GoIOSDeviceEntry, imagePath)
 	if err != nil {
 		if strings.Contains(err.Error(), "already mounted") || strings.Contains(err.Error(), "AlreadyMounted") {
-			return nil
-		}
-		if strings.Contains(err.Error(), "findIdentity") && d.SemVer.Major() >= 17 {
-			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Chip not in go-ios DDI identities for device `%s` (iOS %s), attempting PDI mount via CoreDevice", d.GetUDID(), d.SemVer.Original()))
-			out, xcrunErr := exec.Command("xcrun", "devicectl", "device", "info", "details", "--device", d.GetUDID()).CombinedOutput()
-			if xcrunErr != nil {
-				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("xcrun devicectl failed for device `%s` - %s: %s", d.GetUDID(), xcrunErr, strings.TrimSpace(string(out))))
-			} else {
-				logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("PDI mounted via CoreDevice for device `%s`", d.GetUDID()))
-			}
 			return nil
 		}
 		return fmt.Errorf("failed to mount DDI: %w", err)
 	}
 	return nil
+}
+
+func downloadDoronz88PDI(basedir string) (string, error) {
+	doronz88PDIMu.Lock()
+	defer doronz88PDIMu.Unlock()
+
+	dir := fmt.Sprintf("%s/doronz88-pdi", basedir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("could not create PDI directory: %w", err)
+	}
+	for _, filename := range []string{"BuildManifest.plist", "Image.dmg", "Image.dmg.trustcache"} {
+		dest := fmt.Sprintf("%s/%s", dir, filename)
+		fi, statErr := os.Stat(dest)
+		fileExists := statErr == nil && fi.Size() > 0
+		isStale := fileExists && filename == "BuildManifest.plist" && time.Since(fi.ModTime()) > doronz88PDICacheTTL
+
+		if fileExists && !isStale {
+			continue
+		}
+
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading PDI file %s from doronz88/DeveloperDiskImage", filename))
+
+		if isStale {
+			tmp := dest + ".tmp"
+			if err := downloadFileToPath(doronz88PDIBaseURL+filename, tmp); err != nil {
+				os.Remove(tmp)
+				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to refresh %s, using cached version: %s", filename, err))
+				continue
+			}
+			if err := os.Rename(tmp, dest); err != nil {
+				os.Remove(tmp)
+				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to replace %s, using cached version: %s", filename, err))
+			}
+		} else {
+			if err := downloadFileToPath(doronz88PDIBaseURL+filename, dest); err != nil {
+				os.Remove(dest)
+				return "", fmt.Errorf("failed to download PDI file %s: %w", filename, err)
+			}
+		}
+	}
+	return dir, nil
+}
+
+func downloadFileToPath(url, dest string) error {
+	resp, err := netClient.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status %d for %s", resp.StatusCode, url)
+	}
+	f, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, resp.Body)
+	return err
 }
 
 func (d *IOSDevice) pair() (pairErr error) {
