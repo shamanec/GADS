@@ -41,6 +41,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"golang.org/x/sync/errgroup"
+	"howett.net/plist"
 )
 
 // IOSDevice holds iOS-specific runtime state alongside the shared RuntimeState.
@@ -373,6 +374,19 @@ const (
 
 var doronz88PDIMu sync.Mutex
 
+type pdiManifest struct {
+	BuildIdentities []struct {
+		Manifest struct {
+			PersonalizedDMG struct {
+				Info struct{ Path string }
+			} `plist:"PersonalizedDMG"`
+			LoadableTrustCache struct {
+				Info struct{ Path string }
+			}
+		}
+	}
+}
+
 func (d *IOSDevice) mountDeveloperImage() error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
@@ -407,34 +421,62 @@ func downloadDoronz88PDI(basedir string) (string, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("could not create PDI directory: %w", err)
 	}
-	for _, filename := range []string{"BuildManifest.plist", "Image.dmg", "Image.dmg.trustcache"} {
-		dest := fmt.Sprintf("%s/%s", dir, filename)
-		fi, statErr := os.Stat(dest)
-		fileExists := statErr == nil && fi.Size() > 0
-		isStale := fileExists && filename == "BuildManifest.plist" && time.Since(fi.ModTime()) > doronz88PDICacheTTL
 
-		if fileExists && !isStale {
+	// Download/refresh BuildManifest.plist with TTL-based staleness.
+	manifestDest := fmt.Sprintf("%s/BuildManifest.plist", dir)
+	fi, statErr := os.Stat(manifestDest)
+	manifestExists := statErr == nil && fi.Size() > 0
+	manifestStale := manifestExists && time.Since(fi.ModTime()) > doronz88PDICacheTTL
+
+	if !manifestExists || manifestStale {
+		logger.ProviderLogger.LogInfo("ios_device_setup", "Downloading BuildManifest.plist from doronz88/DeveloperDiskImage")
+		tmp := manifestDest + ".tmp"
+		if err := downloadFileToPath(doronz88PDIBaseURL+"BuildManifest.plist", tmp); err != nil {
+			os.Remove(tmp)
+			if !manifestExists {
+				return "", fmt.Errorf("failed to download BuildManifest.plist: %w", err)
+			}
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to refresh BuildManifest.plist, using cached version: %s", err))
+		} else if err := os.Rename(tmp, manifestDest); err != nil {
+			os.Remove(tmp)
+			if !manifestExists {
+				return "", fmt.Errorf("failed to save BuildManifest.plist: %w", err)
+			}
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to replace BuildManifest.plist, using cached version: %s", err))
+		}
+	}
+
+	// Parse manifest to get actual file names.
+	f, err := os.Open(manifestDest)
+	if err != nil {
+		return "", fmt.Errorf("failed to open BuildManifest.plist: %w", err)
+	}
+	defer f.Close()
+	var m pdiManifest
+	if err := plist.NewDecoder(f).Decode(&m); err != nil {
+		return "", fmt.Errorf("failed to parse BuildManifest.plist: %w", err)
+	}
+
+	// Collect unique file names referenced in the manifest.
+	seen := map[string]bool{}
+	for _, identity := range m.BuildIdentities {
+		seen[identity.Manifest.PersonalizedDMG.Info.Path] = true
+		seen[identity.Manifest.LoadableTrustCache.Info.Path] = true
+	}
+
+	for filename := range seen {
+		if filename == "" {
 			continue
 		}
-
+		dest := fmt.Sprintf("%s/%s", dir, filename)
+		fi, statErr := os.Stat(dest)
+		if statErr == nil && fi.Size() > 0 {
+			continue
+		}
 		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading PDI file %s from doronz88/DeveloperDiskImage", filename))
-
-		if isStale {
-			tmp := dest + ".tmp"
-			if err := downloadFileToPath(doronz88PDIBaseURL+filename, tmp); err != nil {
-				os.Remove(tmp)
-				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to refresh %s, using cached version: %s", filename, err))
-				continue
-			}
-			if err := os.Rename(tmp, dest); err != nil {
-				os.Remove(tmp)
-				logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to replace %s, using cached version: %s", filename, err))
-			}
-		} else {
-			if err := downloadFileToPath(doronz88PDIBaseURL+filename, dest); err != nil {
-				os.Remove(dest)
-				return "", fmt.Errorf("failed to download PDI file %s: %w", filename, err)
-			}
+		if err := downloadFileToPath(doronz88PDIBaseURL+filename, dest); err != nil {
+			os.Remove(dest)
+			return "", fmt.Errorf("failed to download PDI file %s: %w", filename, err)
 		}
 	}
 	return dir, nil
