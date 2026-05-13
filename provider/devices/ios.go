@@ -247,12 +247,13 @@ func (d *IOSDevice) allocateAndForwardPorts() error {
 }
 
 func (d *IOSDevice) startWebDriverAgent() error {
-	// iOS 17.0–17.3 cannot run WDA: DVTSecureSocketProxy was removed in the DDI shipped
+	// iOS 17.0-17.3 cannot run WDA: DVTSecureSocketProxy was removed in the DDI shipped
 	// with Xcode 15.4+, and testmanagerd (Xcode 15 path) requires an RSD tunnel that is
 	// only available from iOS 17.4. Upgrading the device to iOS 17.4+ resolves this.
 	if d.SemVer.Major() == 17 && d.SemVer.Compare(semver.MustParse("17.4.0")) < 0 {
-		d.Reset("iOS 17.0–17.3 is not supported. Please upgrade the device to iOS 17.4 or newer.")
-		return fmt.Errorf("iOS 17.0–17.3 is not supported on this provider version - upgrade the device to iOS 17.4+")
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Device `%s` runs iOS 17.0-17.3 which is not supported - upgrade to iOS 17.4+", d.GetUDID()))
+		d.Reset("iOS 17.0-17.3 is not supported. Please upgrade the device to iOS 17.4 or newer.")
+		return fmt.Errorf("iOS 17.0-17.3 is not supported - upgrade the device to iOS 17.4+")
 	}
 
 	if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
