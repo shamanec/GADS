@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"strings"
@@ -446,7 +447,7 @@ func downloadDoronz88PDI(basedir string) (string, error) {
 		}
 	}
 
-	// Parse manifest to get actual file names.
+	// Parse manifest to get the paths go-ios will look for.
 	f, err := os.Open(manifestDest)
 	if err != nil {
 		return "", fmt.Errorf("failed to open BuildManifest.plist: %w", err)
@@ -456,27 +457,35 @@ func downloadDoronz88PDI(basedir string) (string, error) {
 	if err := plist.NewDecoder(f).Decode(&m); err != nil {
 		return "", fmt.Errorf("failed to parse BuildManifest.plist: %w", err)
 	}
-
-	// Collect unique file names referenced in the manifest.
-	seen := map[string]bool{}
-	for _, identity := range m.BuildIdentities {
-		seen[identity.Manifest.PersonalizedDMG.Info.Path] = true
-		seen[identity.Manifest.LoadableTrustCache.Info.Path] = true
+	if len(m.BuildIdentities) == 0 {
+		return "", fmt.Errorf("BuildManifest.plist contains no BuildIdentities")
 	}
 
-	for filename := range seen {
-		if filename == "" {
+	// The repo ships Image.dmg / Image.dmg.trustcache but BuildManifest.plist
+	// references versioned names (e.g. 022-21627-023.dmg). Download the generic
+	// files and save them under the paths the manifest specifies so go-ios finds them.
+	dmgRelPath := m.BuildIdentities[0].Manifest.PersonalizedDMG.Info.Path
+	tcRelPath := m.BuildIdentities[0].Manifest.LoadableTrustCache.Info.Path
+
+	for _, entry := range []struct{ relPath, remoteFile string }{
+		{dmgRelPath, "Image.dmg"},
+		{tcRelPath, "Image.dmg.trustcache"},
+	} {
+		if entry.relPath == "" {
 			continue
 		}
-		dest := fmt.Sprintf("%s/%s", dir, filename)
+		dest := filepath.Join(dir, entry.relPath)
 		fi, statErr := os.Stat(dest)
 		if statErr == nil && fi.Size() > 0 {
 			continue
 		}
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading PDI file %s from doronz88/DeveloperDiskImage", filename))
-		if err := downloadFileToPath(doronz88PDIBaseURL+filename, dest); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+			return "", fmt.Errorf("could not create directory for %s: %w", entry.relPath, err)
+		}
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading %s as %s from doronz88/DeveloperDiskImage", entry.remoteFile, entry.relPath))
+		if err := downloadFileToPath(doronz88PDIBaseURL+entry.remoteFile, dest); err != nil {
 			os.Remove(dest)
-			return "", fmt.Errorf("failed to download PDI file %s: %w", filename, err)
+			return "", fmt.Errorf("failed to download %s: %w", entry.remoteFile, err)
 		}
 	}
 	return dir, nil
