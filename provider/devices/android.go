@@ -668,11 +668,11 @@ func (d *AndroidDevice) UpdateWebRTCTURNConfig() error {
 func (d *AndroidDevice) getStreamServiceName() string {
 	switch d.DBDevice.StreamType {
 	case models.MJPEGStreamTypeId:
-		return "com.gads.settings/.ScreenCaptureService"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureService"
 	case models.AndroidWebRTCGetStreamStreamTypeId:
-		return "com.gads.settings/.WebRTCScreenCaptureService"
+		return "com.gads.settings/com.shamanec.settings.webrtc.WebRTCScreenCaptureService"
 	default:
-		return "com.gads.settings/.ScreenCaptureService"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureService"
 	}
 }
 
