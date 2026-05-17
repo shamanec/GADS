@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Masterminds/semver"
 
@@ -20,6 +21,11 @@ import (
 	"GADS/common/models"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
+)
+
+const (
+	setupBackoffBase = 10 * time.Second
+	setupBackoffMax  = 60 * time.Second
 )
 
 // RuntimeState holds runtime fields shared across all platform device types.
@@ -57,6 +63,10 @@ type RuntimeState struct {
 	CurrentRotation      string
 	SupportedStreamTypes []models.StreamType
 	InstalledApps        []string
+
+	// Per-device setup backoff state, protected by SetupMutex
+	setupBackoffUntil time.Time
+	setupBackoffNext  time.Duration
 }
 
 // Common accessor implementations inherited by all platform types via embedding.

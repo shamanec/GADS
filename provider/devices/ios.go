@@ -13,11 +13,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 	"strings"
 	"time"
 
@@ -39,6 +42,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"golang.org/x/sync/errgroup"
+	"howett.net/plist"
 )
 
 // IOSDevice holds iOS-specific runtime state alongside the shared RuntimeState.
@@ -60,9 +64,30 @@ func (d *IOSDevice) GetWDAStreamPort() string { return d.WDAStreamPort }
 func (d *IOSDevice) GetWDASessionID() string  { return d.WDASessionID }
 
 // Setup runs the full iOS device provisioning sequence.
-func (d *IOSDevice) Setup() error {
+func (d *IOSDevice) Setup() (retErr error) {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+
+	if time.Now().Before(d.setupBackoffUntil) {
+		return nil
+	}
+
+	defer func() {
+		switch {
+		case retErr == nil:
+			d.setupBackoffNext = 0
+			d.setupBackoffUntil = time.Time{}
+		case errors.Is(retErr, context.Canceled), errors.Is(retErr, context.DeadlineExceeded):
+			// external cancellation — do not apply backoff
+		default:
+			if d.setupBackoffNext == 0 {
+				d.setupBackoffNext = setupBackoffBase
+			} else {
+				d.setupBackoffNext = min(d.setupBackoffNext*2, setupBackoffMax)
+			}
+			d.setupBackoffUntil = time.Now().Add(d.setupBackoffNext)
+		}
+	}()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
@@ -225,20 +250,21 @@ func (d *IOSDevice) allocateAndForwardPorts() error {
 }
 
 func (d *IOSDevice) startWebDriverAgent() error {
-	if d.SemVer.Major() < 17 || d.SemVer.Compare(semver.MustParse("17.4.0")) >= 0 {
-		if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
-			d.Reset("Failed to install WebDriverAgent on device.")
-			return err
-		}
-		go d.runWDA()
-	} else {
-		if err := d.launchApp(config.ProviderConfig.WdaBundleID, true); err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not launch WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
-			d.Reset("Failed to launch WebDriverAgent on device.")
-			return err
-		}
+	// iOS 17.0-17.3 cannot run WDA: DVTSecureSocketProxy was removed in the DDI shipped
+	// with Xcode 15.4+, and testmanagerd (Xcode 15 path) requires an RSD tunnel that is
+	// only available from iOS 17.4. Upgrading the device to iOS 17.4+ resolves this.
+	if d.SemVer.Major() == 17 && d.SemVer.Compare(semver.MustParse("17.4.0")) < 0 {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Device `%s` runs iOS 17.0-17.3 which is not supported - upgrade to iOS 17.4+", d.GetUDID()))
+		d.Reset("iOS 17.0-17.3 is not supported. Please upgrade the device to iOS 17.4 or newer.")
+		return fmt.Errorf("iOS 17.0-17.3 is not supported - upgrade the device to iOS 17.4+")
 	}
+
+	if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
+		d.Reset("Failed to install WebDriverAgent on device.")
+		return err
+	}
+	go d.runWDA()
 	return nil
 }
 
@@ -343,16 +369,43 @@ func (d *IOSDevice) UpdateStreamSettingsOnDevice() error {
 	return nil
 }
 
+const (
+	doronz88PDIBaseURL  = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/"
+	doronz88PDICacheTTL = 24 * time.Hour
+)
+
+var doronz88PDIMu sync.Mutex
+
+type pdiManifest struct {
+	BuildIdentities []struct {
+		Manifest struct {
+			PersonalizedDMG struct {
+				Info struct{ Path string }
+			} `plist:"PersonalizedDMG"`
+			LoadableTrustCache struct {
+				Info struct{ Path string }
+			}
+		}
+	}
+}
+
 func (d *IOSDevice) mountDeveloperImage() error {
 	basedir := fmt.Sprintf("%s/devimages", config.ProviderConfig.ProviderFolder)
 
-	path, err := imagemounter.DownloadImageFor(d.GoIOSDeviceEntry, basedir)
+	var imagePath string
+	var err error
+
+	if d.SemVer.Major() >= 17 {
+		imagePath, err = downloadDoronz88PDI(basedir)
+	} else {
+		imagePath, err = imagemounter.DownloadImageFor(d.GoIOSDeviceEntry, basedir)
+	}
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` to path `%s` - %s", d.GetUDID(), basedir, err))
+		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` - %s", d.GetUDID(), err))
 		return fmt.Errorf("failed to download DDI: %w", err)
 	}
 
-	err = imagemounter.MountImage(d.GoIOSDeviceEntry, path)
+	err = imagemounter.MountImage(d.GoIOSDeviceEntry, imagePath)
 	if err != nil {
 		if strings.Contains(err.Error(), "already mounted") || strings.Contains(err.Error(), "AlreadyMounted") {
 			return nil
@@ -360,6 +413,101 @@ func (d *IOSDevice) mountDeveloperImage() error {
 		return fmt.Errorf("failed to mount DDI: %w", err)
 	}
 	return nil
+}
+
+func downloadDoronz88PDI(basedir string) (string, error) {
+	doronz88PDIMu.Lock()
+	defer doronz88PDIMu.Unlock()
+
+	dir := fmt.Sprintf("%s/doronz88-pdi", basedir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("could not create PDI directory: %w", err)
+	}
+
+	// Download/refresh BuildManifest.plist with TTL-based staleness.
+	manifestDest := fmt.Sprintf("%s/BuildManifest.plist", dir)
+	fi, statErr := os.Stat(manifestDest)
+	manifestExists := statErr == nil && fi.Size() > 0
+	manifestStale := manifestExists && time.Since(fi.ModTime()) > doronz88PDICacheTTL
+
+	if !manifestExists || manifestStale {
+		logger.ProviderLogger.LogInfo("ios_device_setup", "Downloading BuildManifest.plist from doronz88/DeveloperDiskImage")
+		tmp := manifestDest + ".tmp"
+		if err := downloadFileToPath(doronz88PDIBaseURL+"BuildManifest.plist", tmp); err != nil {
+			os.Remove(tmp)
+			if !manifestExists {
+				return "", fmt.Errorf("failed to download BuildManifest.plist: %w", err)
+			}
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to refresh BuildManifest.plist, using cached version: %s", err))
+		} else if err := os.Rename(tmp, manifestDest); err != nil {
+			os.Remove(tmp)
+			if !manifestExists {
+				return "", fmt.Errorf("failed to save BuildManifest.plist: %w", err)
+			}
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to replace BuildManifest.plist, using cached version: %s", err))
+		}
+	}
+
+	// Parse manifest to get the paths go-ios will look for.
+	f, err := os.Open(manifestDest)
+	if err != nil {
+		return "", fmt.Errorf("failed to open BuildManifest.plist: %w", err)
+	}
+	defer f.Close()
+	var m pdiManifest
+	if err := plist.NewDecoder(f).Decode(&m); err != nil {
+		return "", fmt.Errorf("failed to parse BuildManifest.plist: %w", err)
+	}
+	if len(m.BuildIdentities) == 0 {
+		return "", fmt.Errorf("BuildManifest.plist contains no BuildIdentities")
+	}
+
+	// The repo ships Image.dmg / Image.dmg.trustcache but BuildManifest.plist
+	// references versioned names (e.g. 022-21627-023.dmg). Download the generic
+	// files and save them under the paths the manifest specifies so go-ios finds them.
+	dmgRelPath := m.BuildIdentities[0].Manifest.PersonalizedDMG.Info.Path
+	tcRelPath := m.BuildIdentities[0].Manifest.LoadableTrustCache.Info.Path
+
+	for _, entry := range []struct{ relPath, remoteFile string }{
+		{dmgRelPath, "Image.dmg"},
+		{tcRelPath, "Image.dmg.trustcache"},
+	} {
+		if entry.relPath == "" {
+			continue
+		}
+		dest := filepath.Join(dir, entry.relPath)
+		fi, statErr := os.Stat(dest)
+		if statErr == nil && fi.Size() > 0 {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+			return "", fmt.Errorf("could not create directory for %s: %w", entry.relPath, err)
+		}
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading %s as %s from doronz88/DeveloperDiskImage", entry.remoteFile, entry.relPath))
+		if err := downloadFileToPath(doronz88PDIBaseURL+entry.remoteFile, dest); err != nil {
+			os.Remove(dest)
+			return "", fmt.Errorf("failed to download %s: %w", entry.remoteFile, err)
+		}
+	}
+	return dir, nil
+}
+
+func downloadFileToPath(url, dest string) error {
+	resp, err := netClient.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status %d for %s", resp.StatusCode, url)
+	}
+	f, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, resp.Body)
+	return err
 }
 
 func (d *IOSDevice) pair() (pairErr error) {
@@ -507,7 +655,11 @@ func (d *IOSDevice) installApp(appPath string) error {
 		d.Reset("Failed to create zipconduit connection for app installation.")
 		return err
 	}
-	conn.SendFile(appPath)
+	if err := conn.SendFile(appPath); err != nil {
+		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to send app file when installing app `%s` on device `%s`", appPath, d.GetUDID()))
+		d.Reset("Failed to send app file for installation.")
+		return err
+	}
 	return nil
 }
 

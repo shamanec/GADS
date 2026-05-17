@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -59,9 +61,30 @@ func (d *AndroidDevice) GetAndroidRemoteServerPort() string { return d.AndroidRe
 func (d *AndroidDevice) GetADBPort() string                 { return d.ADBPort }
 
 // Setup runs the full Android device provisioning sequence.
-func (d *AndroidDevice) Setup() error {
+func (d *AndroidDevice) Setup() (retErr error) {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+
+	if time.Now().Before(d.setupBackoffUntil) {
+		return nil
+	}
+
+	defer func() {
+		switch {
+		case retErr == nil:
+			d.setupBackoffNext = 0
+			d.setupBackoffUntil = time.Time{}
+		case errors.Is(retErr, context.Canceled), errors.Is(retErr, context.DeadlineExceeded):
+			// external cancellation — do not apply backoff
+		default:
+			if d.setupBackoffNext == 0 {
+				d.setupBackoffNext = setupBackoffBase
+			} else {
+				d.setupBackoffNext = min(d.setupBackoffNext*2, setupBackoffMax)
+			}
+			d.setupBackoffUntil = time.Now().Add(d.setupBackoffNext)
+		}
+	}()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
@@ -343,7 +366,7 @@ func (d *AndroidDevice) startRemoteControlServer() {
 	time.Sleep(1 * time.Second)
 
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
-		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.RemoteControlServerKt 1994")
+		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.RemoteControlServerKt 1994")
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, d.GetUDID(), err))
@@ -362,7 +385,7 @@ func (d *AndroidDevice) startH264Stream() {
 	time.Sleep(1 * time.Second)
 
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
-		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.gads.settings.server.H264Server")
+		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.server.H264Server")
 
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, d.GetUDID(), err))
@@ -377,14 +400,14 @@ func (d *AndroidDevice) startH264Stream() {
 
 func (d *AndroidDevice) setupIME() error {
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Enabling GADS Android IME on device `%v`", d.GetUDID()))
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "enable", "com.gads.settings/.GADSKeyboardIME")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "enable", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("enableGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
 	}
 	time.Sleep(1 * time.Second)
 
 	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Setting GADS Android IME as active on device `%v`", d.GetUDID()))
-	cmd = exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "set", "com.gads.settings/.GADSKeyboardIME")
+	cmd = exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "set", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("setGadsAndroidIMEAsActive: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -667,11 +690,11 @@ func (d *AndroidDevice) UpdateWebRTCTURNConfig() error {
 func (d *AndroidDevice) getStreamServiceName() string {
 	switch d.DBDevice.StreamType {
 	case models.MJPEGStreamTypeId:
-		return "com.gads.settings/.ScreenCaptureService"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureService"
 	case models.AndroidWebRTCGetStreamStreamTypeId:
-		return "com.gads.settings/.WebRTCScreenCaptureService"
+		return "com.gads.settings/com.shamanec.settings.webrtc.WebRTCScreenCaptureService"
 	default:
-		return "com.gads.settings/.ScreenCaptureService"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureService"
 	}
 }
 
@@ -682,11 +705,11 @@ func (d *AndroidDevice) getStreamServicePackageName() string {
 func (d *AndroidDevice) getStreamServiceActivityName() string {
 	switch d.DBDevice.StreamType {
 	case models.MJPEGStreamTypeId:
-		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureActivity"
 	case models.AndroidWebRTCGetStreamStreamTypeId:
-		return "com.gads.settings/com.gads.settings.webrtc.WebRTCScreenCaptureActivity"
+		return "com.gads.settings/com.shamanec.settings.webrtc.WebRTCScreenCaptureActivity"
 	default:
-		return "com.gads.settings/com.gads.settings.streaming.MjpegScreenCaptureActivity"
+		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureActivity"
 	}
 }
 
@@ -752,6 +775,32 @@ func PullAndroidSharedStorageFile(device *models.DBDevice, filePath string, file
 	return tempFilePath, err
 }
 
+var (
+	androidOfflineReconnectMu sync.Mutex
+	androidOfflineReconnectAt = map[string]time.Time{}
+)
+
+// cooldown of 30s prevents reconnect spam on each 1-second polling tick
+func reconnectOfflineAndroid(udid string) {
+	const cooldown = 30 * time.Second
+
+	androidOfflineReconnectMu.Lock()
+	if last, ok := androidOfflineReconnectAt[udid]; ok && time.Since(last) < cooldown {
+		androidOfflineReconnectMu.Unlock()
+		return
+	}
+	androidOfflineReconnectAt[udid] = time.Now()
+	androidOfflineReconnectMu.Unlock()
+
+	logger.ProviderLogger.LogInfo("android_reconnect", fmt.Sprintf("Device %s is offline in ADB, attempting reconnect", udid))
+	cmd := exec.CommandContext(context.Background(), "adb", "-s", udid, "reconnect")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogError("android_reconnect", fmt.Sprintf("Failed to reconnect device %s: %v", udid, err))
+	} else {
+		logger.ProviderLogger.LogInfo("android_reconnect", fmt.Sprintf("Reconnect issued for device %s", udid))
+	}
+}
+
 // Gets the connected android devices using `adb`
 func getConnectedDevicesAndroid() []string {
 	var connectedDevices []string
@@ -775,8 +824,19 @@ func getConnectedDevicesAndroid() []string {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.Contains(line, "List of devices") && line != "" && strings.Contains(line, "device") {
-			connectedDevices = append(connectedDevices, strings.Fields(line)[0])
+		if line == "" || strings.Contains(line, "List of devices") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		udid, status := fields[0], fields[1]
+		switch status {
+		case "device":
+			connectedDevices = append(connectedDevices, udid)
+		case "offline":
+			go reconnectOfflineAndroid(udid)
 		}
 	}
 
