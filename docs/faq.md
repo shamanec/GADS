@@ -10,6 +10,9 @@
 - *When I start my provider WDA is in a install loop and I get the error: `Error accepting new connection accept tcp [::]:56505: use of closed network connection`*
     -   Make sure you've properly signed and created the uploaded [WebDriverAgent](./provider.md#prepare-webdriveragent-file---linux-windows) ipa
     -   In your provider config in GADS UI make sure you've provided proper bundle identifier for WebDriverAgent, e.g. `com.shamanec.WebDriverAgentRunner`
+- *[macOS] WebDriverAgent starts (I see "Automation Running" on the device) but immediately stops and the provider enters a loop, why?*
+    - The most common cause is the device **Auto-Lock** setting. When the screen locks, iOS drops the tunnel connection, which kills the WebDriverAgent process. Set `Settings > Display & Brightness > Auto-Lock` to **Never** on the test device.
+    - If Auto-Lock is already disabled, the IPA may have been packaged incorrectly. On macOS, the IPA **must** be created using `ditto` — using `cp`/`zip` breaks the code signature silently. See the [Build WebDriverAgent IPA](./provider.md#build-webdriveragent-ipa-file-manually-using-xcode) section.
 - *[macOS/Linux/Windows] I have a connected iOS device where WebDriverAgent installation/start up consistently fails, why?*
     - Make sure you've properly signed and created the uploaded [WebDriverAgent](./provider.md#prepare-webdriveragent-file---linux-windows) ipa
     - Observe the provider logs - if installation is failing, you will see the full `go-ios` command used by GADS to install the prepared WebDriverAgent ipa. Copy the command and try to run it from terminal without the provider. Observe and debug the output.
