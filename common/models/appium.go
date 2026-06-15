@@ -109,6 +109,12 @@ type WDAMjpegProperties struct {
 	MjpegServerScalingFactor     int `json:"mjpegScalingFactor,omitempty"`
 }
 
+type WDAMjpegSettingsNew struct {
+	Framerate         int `json:"fps,omitempty"`
+	ScreenshotQuality int `json:"quality,omitempty"`
+	ScalingFactor     int `json:"scaling,omitempty"`
+}
+
 type CommonCapabilities struct {
 	AutomationName    string `json:"appium:automationName"`
 	BundleID          string `json:"appium:bundleId"`
