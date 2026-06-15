@@ -20,8 +20,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"strings"
+	"sync"
 	"time"
 
 	"GADS/common"
@@ -347,18 +347,17 @@ func (d *IOSDevice) goIosForward(hostPort string, devicePort string) {
 
 // UpdateStreamSettingsOnDevice updates WebDriverAgent stream settings.
 func (d *IOSDevice) UpdateStreamSettingsOnDevice() error {
-	var mjpegProperties models.WDAMjpegProperties
-	mjpegProperties.MjpegServerFramerate = d.StreamTargetFPS
-	mjpegProperties.MjpegServerScreenshotQuality = d.StreamJpegQuality
-	mjpegProperties.MjpegServerScalingFactor = d.StreamScalingFactor
-
-	mjpegSettings := models.WDAMjpegSettings{Settings: mjpegProperties}
+	mjpegSettings := models.WDAMjpegSettingsNew{
+		Framerate:         d.StreamTargetFPS,
+		ScreenshotQuality: d.StreamJpegQuality,
+		ScalingFactor:     d.StreamScalingFactor,
+	}
 	requestBody, err := json.Marshal(mjpegSettings)
 	if err != nil {
 		return err
 	}
 
-	var url = fmt.Sprintf("http://localhost:%v/appium/settings", d.WDAPort)
+	var url = fmt.Sprintf("http://localhost:%v/gads-update-stream-settings", d.WDAPort)
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
 		return err
@@ -871,7 +870,7 @@ func (d *IOSDevice) GetRunningApps() ([]models.RunningApp, error) {
 }
 
 // KillApp kills a running app by bundle identifier.
-func (d *IOSDevice) KillApp(bundleIdentifier string) error {
+func (d *IOSDevice) KillAppOld(bundleIdentifier string) error {
 	var allApps []installationproxy.AppInfo
 	var processList []instruments.ProcessInfo
 
@@ -921,6 +920,24 @@ func (d *IOSDevice) KillApp(bundleIdentifier string) error {
 		}
 	}
 	return fmt.Errorf("app with bundle id `%s` is not running", bundleIdentifier)
+}
+
+func (d *IOSDevice) KillApp(bundleId string) error {
+	url := fmt.Sprintf("http://localhost:%v/wda/apps/terminate", d.GetWDAPort())
+	body := strings.NewReader(fmt.Sprintf(`{"bundleId":%q}`, bundleId))
+	client := &http.Client{Timeout: 20 * time.Second}
+
+	resp, err := client.Post(url, "application/json", body)
+	if err != nil {
+		return fmt.Errorf("KillAppWDA: POST %s failed - %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("KillAppWDA: POST %s returned %d: %s", url, resp.StatusCode, string(respBody))
+	}
+	return nil
 }
 
 // GetScreenSize returns the device screen dimensions.

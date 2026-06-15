@@ -93,15 +93,23 @@ func DeviceRecents(c *gin.Context) {
 		api.NotFound(c, fmt.Sprintf("Device with UDID %s not found", udid))
 		return
 	}
-	platDev.GetLogger().LogInfo("appium_interact", "Opening Recent Apps")
+	platDev.GetLogger().LogInfo("appium_interact", "Opening Recent Apps/App Switcher")
 
-	if err := deviceRecents(platDev); err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to open Recent Apps - %s", err))
-		api.InternalError(c, err.Error())
-		return
+	if platDev.GetOS() == "ios" {
+		_, err := iOSAppSwitcher(platDev)
+		if err != nil {
+			api.InternalError(c, "Failed to open App Switcher")
+			return
+		}
+	} else if platDev.GetOS() == "android" {
+		if err := androidRecents(platDev); err != nil {
+			platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to open Recent Apps/App Switcher - %s", err))
+			api.InternalError(c, err.Error())
+			return
+		}
 	}
 
-	api.OKMessage(c, "Recent Apps opened")
+	api.OKMessage(c, "Recent Apps/App Switcher opened")
 }
 
 func DeviceGetClipboard(c *gin.Context) {

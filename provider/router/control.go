@@ -289,12 +289,27 @@ func deviceHome(dev devices.PlatformDevice) (*http.Response, error) {
 	}
 }
 
-func deviceRecents(dev devices.PlatformDevice) error {
+func iOSAppSwitcher(dev devices.PlatformDevice) (*http.Response, error) {
 	if dev.GetOS() == "ios" {
-		return fmt.Errorf("App switcher not supported on iOS via WDA")
+		w, _ := strconv.ParseFloat(dev.GetDBDevice().ScreenWidth, 64)
+		h, _ := strconv.ParseFloat(dev.GetDBDevice().ScreenHeight, 64)
+		body := map[string]float64{"screenWidth": w, "screenHeight": h, "duration": 1}
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		reader := bytes.NewReader(data)
+		return wdaRequest(dev, http.MethodPost, "wda/appSwitcher", reader)
 	}
-	cmd := exec.CommandContext(dev.GetContext(), "adb", "-s", dev.GetUDID(), "shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
-	return cmd.Run()
+	return nil, fmt.Errorf("Device is not an iOS device")
+}
+
+func androidRecents(dev devices.PlatformDevice) error {
+	if dev.GetOS() == "android" {
+		cmd := exec.CommandContext(dev.GetContext(), "adb", "-s", dev.GetUDID(), "shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
+		return cmd.Run()
+	}
+	return fmt.Errorf("Device is not an Android device")
 }
 
 func activateApp(dev devices.PlatformDevice, appIdentifier string) (*http.Response, error) {
