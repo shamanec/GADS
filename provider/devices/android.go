@@ -42,10 +42,12 @@ import (
 // AndroidDevice holds Android-specific runtime state alongside the shared RuntimeState.
 type AndroidDevice struct {
 	RuntimeState
-	StreamPort              string // host port forwarded to device port 1991 (video stream)
-	AndroidIMEPort          string // host port forwarded to device port 1993 (IME keyboard)
-	AndroidRemoteServerPort string // host port forwarded to device port 1994 (remote control server)
-	ADBPort                 string // host port forwarded to device adbd port 5555 (ADB tunnel)
+	StreamPort              string                  // host port forwarded to device port 1991 (video stream)
+	AndroidIMEPort          string                  // host port forwarded to device port 1993 (IME keyboard)
+	AndroidRemoteServerPort string                  // host port forwarded to device port 1994 (remote control server)
+	ADBPort                 string                  // host port forwarded to device adbd port 5555 (ADB tunnel)
+	ActiveDisplayID         string                  // display ID used for screencap; empty = device default
+	AvailableDisplays       []models.AndroidDisplay // all physical displays detected on the device
 }
 
 const adbTCPPort = "5555"
@@ -741,6 +743,103 @@ func (d *AndroidDevice) getHardwareModel() {
 	}
 	model := outBuffer.String()
 	d.HardwareModel = fmt.Sprintf("%s %s", strings.TrimSpace(brand), strings.TrimSpace(model))
+}
+
+// fetchAndSetDisplays queries the device for available physical displays via
+// `dumpsys SurfaceFlinger --display-id` and stores them in AvailableDisplays.
+// ActiveDisplayID is set to the first display if it has not been set yet.
+// A failure is non-fatal — the device falls back to screencap without -d.
+func (d *AndroidDevice) fetchAndSetDisplays() {
+	displays, err := getAndroidDisplayIDs(d.GetUDID())
+	if err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup",
+			fmt.Sprintf("Could not detect displays for device `%s`: %s", d.GetUDID(), err))
+		return
+	}
+	d.AvailableDisplays = displays
+	ids := make([]string, len(displays))
+	for i, disp := range displays {
+		ids[i] = fmt.Sprintf("%s (%s)", disp.ID, disp.Name)
+	}
+	logger.ProviderLogger.LogInfo("android_device_setup",
+		fmt.Sprintf("Detected %d display(s) for device `%s`: %s", len(displays), d.GetUDID(), strings.Join(ids, ", ")))
+
+	if len(displays) > 0 && d.ActiveDisplayID == "" {
+		d.ActiveDisplayID = displays[0].ID
+		logger.ProviderLogger.LogInfo("android_device_setup",
+			fmt.Sprintf("Active display set to %s (%s) for device `%s`", displays[0].ID, displays[0].Name, d.GetUDID()))
+	}
+}
+
+// GetActiveDisplayID returns the currently selected display ID for screencap.
+func (d *AndroidDevice) GetActiveDisplayID() string { return d.ActiveDisplayID }
+
+// SetActiveDisplayID sets the display ID used for subsequent screenshots.
+func (d *AndroidDevice) SetActiveDisplayID(id string) {
+	prev := d.ActiveDisplayID
+	d.ActiveDisplayID = id
+	d.GetLogger().LogInfo("display",
+		fmt.Sprintf("Active display changed: %s -> %s", prev, id))
+}
+
+// GetAvailableDisplays returns all physical displays detected on the device.
+// Always returns a non-nil slice so callers receive "[]" rather than "null" in JSON.
+func (d *AndroidDevice) GetAvailableDisplays() []models.AndroidDisplay {
+	if d.AvailableDisplays == nil {
+		return []models.AndroidDisplay{}
+	}
+	return d.AvailableDisplays
+}
+
+// getAndroidDisplayIDs runs dumpsys SurfaceFlinger --display-id and returns parsed displays.
+func getAndroidDisplayIDs(udid string) ([]models.AndroidDisplay, error) {
+	var out bytes.Buffer
+	cmd := exec.Command("adb", "-s", udid, "shell", "dumpsys", "SurfaceFlinger", "--display-id")
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("dumpsys SurfaceFlinger --display-id: %w", err)
+	}
+	displays := parseAndroidDisplayIDs(out.String())
+	if len(displays) == 0 {
+		return nil, fmt.Errorf("no display IDs found in SurfaceFlinger output")
+	}
+	return displays, nil
+}
+
+// displayLineRe matches a physical display line from `dumpsys SurfaceFlinger --display-id`:
+//
+//	Display 4630947175568309891 (HWC display 0): port=131 ...
+//	Display 4630946481096930692 (HWC display 3): port=132 ...
+//
+// Group 1 = 64-bit display ID (passed to screencap -d).
+// Group 2 = display type string (e.g. "HWC display 0", "Virtual display").
+var displayLineRe = regexp.MustCompile(`(?m)^Display\s+(\d+)\s+\(([^)]+)\)`)
+
+// hwcNumberRe extracts the HWC index from "HWC display 3".
+var hwcNumberRe = regexp.MustCompile(`HWC display\s+(\d+)`)
+
+// parseAndroidDisplayIDs extracts physical display IDs from `dumpsys SurfaceFlinger --display-id`.
+// Virtual displays (e.g. screen capture sinks) are excluded.
+// Displays are named using their HWC index when available.
+func parseAndroidDisplayIDs(output string) []models.AndroidDisplay {
+	var displays []models.AndroidDisplay
+	for _, m := range displayLineRe.FindAllStringSubmatch(output, -1) {
+		id := m[1]
+		typeStr := m[2]
+
+		// Skip virtual displays — they are not physical screens.
+		if strings.Contains(strings.ToLower(typeStr), "virtual") {
+			continue
+		}
+
+		name := typeStr // fallback: use raw type string as name
+		if hwc := hwcNumberRe.FindStringSubmatch(typeStr); len(hwc) == 2 {
+			name = fmt.Sprintf("HWC display %s", hwc[1])
+		}
+
+		displays = append(displays, models.AndroidDisplay{ID: id, Name: name})
+	}
+	return displays
 }
 
 // LaunchApp is not supported for Android via this interface (use Appium).

@@ -232,6 +232,63 @@ func DeviceScreenshot(c *gin.Context) {
 	api.OKMessage(c, screenshotResp)
 }
 
+// DeviceGetDisplays returns the list of physical displays available on an Android device.
+// Returns 400 for non-Android devices.
+func DeviceGetDisplays(c *gin.Context) {
+	udid := c.Param("udid")
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with UDID %s not found", udid))
+		return
+	}
+	andDev, ok := platDev.(*devices.AndroidDevice)
+	if !ok {
+		api.BadRequest(c, "Multi-display support is only available for Android devices")
+		return
+	}
+	api.OK(c, "Displays retrieved successfully", andDev.GetAvailableDisplays())
+}
+
+// DeviceSetActiveDisplay sets the active display used for subsequent screenshots on an Android device.
+// Request body: {"display_id": "<id>"}
+func DeviceSetActiveDisplay(c *gin.Context) {
+	udid := c.Param("udid")
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Device with UDID %s not found", udid))
+		return
+	}
+	andDev, ok := platDev.(*devices.AndroidDevice)
+	if !ok {
+		api.BadRequest(c, "Multi-display support is only available for Android devices")
+		return
+	}
+
+	var body struct {
+		DisplayID string `json:"display_id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.DisplayID == "" {
+		api.BadRequest(c, "Missing or invalid display_id in request body")
+		return
+	}
+
+	// Validate that the requested display is actually available on this device.
+	found := false
+	for _, d := range andDev.GetAvailableDisplays() {
+		if d.ID == body.DisplayID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		api.BadRequest(c, fmt.Sprintf("Display ID %q is not available on this device", body.DisplayID))
+		return
+	}
+
+	andDev.SetActiveDisplayID(body.DisplayID)
+	api.OKMessage(c, fmt.Sprintf("Active display set to %s", body.DisplayID))
+}
+
 //======================================
 // Appium source
 
