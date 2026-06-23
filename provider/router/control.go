@@ -138,21 +138,35 @@ func deviceTouchAndHold(dev devices.PlatformDevice, x float64, y float64, durati
 	}
 }
 
+// androidScreenshot captures a screenshot from the given Android device.
+// displayID is the physical display ID to pass via `screencap -d`; pass empty string
+// to let screencap choose the default display (single-display devices).
+func androidScreenshot(udid, displayID string) ([]byte, error) {
+	args := []string{"-s", udid, "exec-out", "screencap", "-p"}
+	if displayID != "" {
+		args = append(args, "-d", displayID)
+	}
+
+	var out bytes.Buffer
+	cmd := exec.Command("adb", args...)
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
 func deviceScreenshot(dev devices.PlatformDevice) (string, error) {
 	if dev.GetOS() == "android" {
-		cmd := exec.Command("adb", "-s", dev.GetUDID(), "exec-out", "screencap", "-p")
-		var out bytes.Buffer
-		cmd.Stdout = &out
-
-		err := cmd.Run()
+		andDev, ok := dev.(*devices.AndroidDevice)
+		if !ok {
+			return "", fmt.Errorf("device %s is not an Android device", dev.GetUDID())
+		}
+		imageBytes, err := androidScreenshot(andDev.GetUDID(), andDev.GetActiveDisplayID())
 		if err != nil {
 			return "", err
 		}
-
-		// Encode PNG bytes to Base64
-		base64Screenshot := base64.StdEncoding.EncodeToString(out.Bytes())
-
-		return base64Screenshot, nil
+		return base64.StdEncoding.EncodeToString(imageBytes), nil
 	} else {
 		iosDev, ok := dev.(*devices.IOSDevice)
 		if !ok {

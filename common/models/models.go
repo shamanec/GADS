@@ -50,7 +50,13 @@ type DBDevice struct {
 	// This field will be removed in next major version release. Only kept for backward compatibility during migration.
 	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
 	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
-	StreamType StreamingType `json:"stream_type" bson:"stream_type"` // The type of video streaming for the device
+	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
+}
+
+// AndroidDisplay represents a physical display on an Android device (e.g. foldable inner/outer screen).
+type AndroidDisplay struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // Device stream type - mjpeg, webrtc, etc
