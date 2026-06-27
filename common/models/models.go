@@ -308,6 +308,13 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 		}
 	}
 
+	// Validate Android TV devices can only be used for automation
+	if normalizedOS == "androidtv" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("androidtv devices only support 'automation' usage. Current usage '%s' is not supported. Android TV devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
 	return nil
 }
 

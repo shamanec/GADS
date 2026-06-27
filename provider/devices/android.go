@@ -113,7 +113,7 @@ func (d *AndroidDevice) Setup() (retErr error) {
 	}
 	time.Sleep(1 * time.Second)
 	if err := d.pushGadsSettingsInTmpLocal(); err != nil {
-		return fmt.Errorf("push GADS Settings to /tmp/local", err)
+		return fmt.Errorf("push GADS Settings to /tmp/local: %w", err)
 	}
 	time.Sleep(2 * time.Second)
 	if err := d.startServicesAndStreaming(); err != nil {

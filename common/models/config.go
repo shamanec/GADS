@@ -15,6 +15,7 @@ type Provider struct {
 	HostAddress          string `json:"host_address" bson:"host_address"`
 	Port                 int    `json:"port" bson:"port"`
 	ProvideAndroid       bool   `json:"provide_android" bson:"provide_android"`
+	ProvideAndroidTv     bool   `json:"provide_androidtv" bson:"provide_androidtv"`
 	ProvideIOS           bool   `json:"provide_ios" bson:"provide_ios"`
 	ProvideTizen         bool   `json:"provide_tizen" bson:"provide_tizen"`
 	ProvideWebOS         bool   `json:"provide_webos" bson:"provide_webos"`
@@ -73,10 +74,11 @@ type TURNConfig struct {
 }
 
 // RegularizeProviderState applies business rules to ensure provider configuration is consistent
-// If SetupAppiumServers is false, ProvideTizen and ProvideWebOS must also be false since they require Appium servers
+// If SetupAppiumServers is false, ProvideTizen, ProvideWebOS and ProvideAndroidTv must also be false since they require Appium servers
 func (p *Provider) RegularizeProviderState() {
 	if !p.SetupAppiumServers {
 		p.ProvideTizen = false
 		p.ProvideWebOS = false
+		p.ProvideAndroidTv = false
 	}
 }

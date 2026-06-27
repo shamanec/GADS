@@ -289,6 +289,13 @@ func newPlatformDevice(dbDevice *models.DBDevice, deviceLogger models.CustomLogg
 		d.SemVer = sv
 		d.InitialSetupDone = true
 		return d
+	case "androidtv":
+		d := &AndroidTvDevice{}
+		d.DBDevice = *dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	default:
 		return nil
 	}
@@ -368,7 +375,9 @@ func GetConnectedDevicesCommon() []string {
 	var tizenDevices []string
 	var webosDevices []string
 
-	if config.ProviderConfig.ProvideAndroid {
+	// Android TV devices connect over ADB just like Android mobile devices, so the same
+	// `adb devices` listing is used; the concrete device type is resolved from the DB OS field.
+	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv {
 		androidDevices = getConnectedDevicesAndroid()
 	}
 

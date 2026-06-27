@@ -88,7 +88,7 @@ func (l CustomLogger) LogPanic(eventName string, message string) {
 func CreateCustomLogger(logFilePath, collection string) (*CustomLogger, error) {
 	// Create a new logger instance
 	logger := log.New()
-	ctx, _ := context.WithCancel(db.GlobalMongoStore.Ctx)
+	ctx := db.GlobalMongoStore.Ctx
 
 	// Configure the logger
 	logger.SetFormatter(&log.JSONFormatter{})
