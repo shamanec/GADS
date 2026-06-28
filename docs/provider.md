@@ -307,6 +307,8 @@ Note that it is possible that on some devices it might not work at all, in this 
   - `--mongo-db=` - optional, IP address and port of the MongoDB instance (default is `localhost:27017`)
   - `--provider-folder=` - optional, folder where provider should store logs and apps and other needed files. Can be relative path to the folder where provider binary is located or full path on the host - `./test`, `.`, `./test/test1`, `/Users/shamanec/Desktop/test` are all valid. Default is the folder where the binary is currently located - `.`
   - `--log-level=` - optional, how verbose should the provider logs be (default is `info`, use `debug` for more log output)
+  - `--log-max-size-mb=` - optional, maximum size in MB for each local provider/device log file before it is rotated (default is `10`, set `0` to disable cleanup)
+  - `--log-max-backups=` - optional, number of rotated local log file backups to keep for each provider/device log (default is `3`)
   - `--hub=` - mandatory, the address of the hub instance so the provider can push data to it automatically, e.g `http://192.168.68.109:10000`
   - `--use-ios-pair-cache` - optional, cache iOS pair records on disk to skip the Trust dialog on reconnect for unsupervised devices (default is `false`)
 
@@ -315,6 +317,7 @@ Note that it is possible that on some devices it might not work at all, in this 
 Provider logs both to local files and to MongoDB.
 Provider logs can be found in the `provider.log` file in the used provider folder - default or provided by the `--provider-folder` flag.  
 They will also be stored in MongoDB in DB `logs` and collection corresponding to the provider nickname.
+Local provider and device log files are automatically rotated when they reach `--log-max-size-mb`, keeping up to `--log-max-backups` older files next to the active log.
 
 ## Device logs
 
