@@ -24,6 +24,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const mongoTestTimeout = 2 * time.Second
+
 func setupTestRouter(secretStore *SecretStore) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -46,10 +48,25 @@ func setupTestRouter(secretStore *SecretStore) *gin.Engine {
 	return router
 }
 
-func setupTestDatabase() (*mongo.Database, *SecretStore, func()) {
+func setupTestDatabase(t *testing.T) (*mongo.Database, *SecretStore, func()) {
+	t.Helper()
+
 	// Setup test database
-	ctx := context.Background()
-	client, _ := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	ctx, cancel := context.WithTimeout(context.Background(), mongoTestTimeout)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().
+		ApplyURI("mongodb://localhost:27017").
+		SetServerSelectionTimeout(mongoTestTimeout).
+		SetConnectTimeout(mongoTestTimeout))
+	if err != nil {
+		t.Skipf("MongoDB is not available for integration test setup: %v", err)
+	}
+
+	if err := client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(context.Background())
+		t.Skipf("MongoDB is not available for integration test setup: %v", err)
+	}
 
 	// Use a separate test database
 	dbName := "gads_test_" + primitive.NewObjectID().Hex()
@@ -60,12 +77,17 @@ func setupTestDatabase() (*mongo.Database, *SecretStore, func()) {
 
 	// Create indexes for the audit collection
 	auditStore := secretStore.GetSecretKeyAuditStore()
-	auditStore.CreateMongoIndexes()
+	if err := auditStore.CreateMongoIndexes(); err != nil {
+		_ = client.Disconnect(context.Background())
+		t.Fatalf("Failed to create audit log indexes: %v", err)
+	}
 
 	// Cleanup function to be called at the end of the test
 	cleanup := func() {
-		db.Drop(ctx)
-		client.Disconnect(ctx)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), mongoTestTimeout)
+		defer cleanupCancel()
+		_ = db.Drop(cleanupCtx)
+		_ = client.Disconnect(cleanupCtx)
 	}
 
 	return db, secretStore, cleanup
@@ -73,7 +95,7 @@ func setupTestDatabase() (*mongo.Database, *SecretStore, func()) {
 
 func TestAdminSecretKeyHistoryHandler(t *testing.T) {
 	// Setup test
-	db, secretStore, cleanup := setupTestDatabase()
+	db, secretStore, cleanup := setupTestDatabase(t)
 	defer cleanup()
 
 	// Add some test records to the audit collection
@@ -164,7 +186,7 @@ func TestAdminSecretKeyHistoryHandler(t *testing.T) {
 
 func TestAdminSecretKeyHistoryByIDHandler(t *testing.T) {
 	// Setup test
-	db, secretStore, cleanup := setupTestDatabase()
+	db, secretStore, cleanup := setupTestDatabase(t)
 	defer cleanup()
 
 	// Create a known ID for testing

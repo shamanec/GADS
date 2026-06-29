@@ -94,7 +94,9 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			if appiumSessionBody.DesiredCapabilities.PlatformName != "" && appiumSessionBody.DesiredCapabilities.AutomationName != "" {
 				capsToUse = appiumSessionBody.DesiredCapabilities
-			} else if appiumSessionBody.Capabilities.FirstMatch[0].PlatformName != "" && appiumSessionBody.Capabilities.FirstMatch[0].AutomationName != "" {
+			} else if len(appiumSessionBody.Capabilities.FirstMatch) > 0 &&
+				appiumSessionBody.Capabilities.FirstMatch[0].PlatformName != "" &&
+				appiumSessionBody.Capabilities.FirstMatch[0].AutomationName != "" {
 				capsToUse = appiumSessionBody.Capabilities.FirstMatch[0]
 			} else if appiumSessionBody.Capabilities.AlwaysMatch.PlatformName != "" && appiumSessionBody.Capabilities.AlwaysMatch.AutomationName != "" {
 				capsToUse = appiumSessionBody.Capabilities.AlwaysMatch

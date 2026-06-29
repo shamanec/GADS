@@ -143,60 +143,66 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDeviceStore.Delete(udid)
 	})
 
-	t.Run("Missing Client Credentials - Should Return W3C Error Format", func(t *testing.T) {
-		// Setup a device
-		udid := "test-device-no-credentials"
-		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
-			Device: models.DBDevice{
-				UDID: udid,
-			},
-			Host:      "localhost:8080",
-			Available: true,
-		})
-
-		// Create request WITHOUT credentials
+	t.Run("Legacy Appium Endpoint - Should Return 410", func(t *testing.T) {
 		router := gin.New()
 		router.POST("/device/:udid/*path", DeviceProxyHandler)
 
-		sessionReq := map[string]interface{}{
-			"capabilities": map[string]interface{}{
-				"alwaysMatch": map[string]interface{}{
-					"platformName": "iOS",
-					// Note: NO client credentials provided
-				},
-			},
-		}
-		jsonData, _ := json.Marshal(sessionReq)
-
-		req, _ := http.NewRequest("POST", "/device/"+udid+"/session", bytes.NewBuffer(jsonData))
-		req.Header.Set("Content-Type", "application/json")
+		req, _ := http.NewRequest("POST", "/device/test-device/appium/session", nil)
 		w := httptest.NewRecorder()
 
-		// Execute request
 		router.ServeHTTP(w, req)
 
-		// Verify status code
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Equal(t, http.StatusGone, w.Code)
 
-		// Verify W3C error format
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
 
-		// Check W3C structure
 		assert.Contains(t, response, "value")
 		value, ok := response["value"].(map[string]interface{})
 		assert.True(t, ok, "value should be a map")
 
-		assert.Equal(t, "invalid argument", value["error"])
-		expectedMsg := fmt.Sprintf("Client credentials are required. Provide %[1]s:clientSecret in the capabilities.", capabilityPrefix)
-		assert.Equal(t, expectedMsg, value["message"])
+		assert.Equal(t, "unknown method", value["error"])
+		assert.Equal(t, "The legacy endpoint /device/{udid}/appium is deprecated. Please use /grid endpoint instead.", value["message"])
 		assert.Equal(t, "", value["stacktrace"])
-
-		// Cleanup
-		devices.HubDeviceStore.Delete(udid)
 	})
 
+}
+
+func TestAppiumGridMiddleware_MissingClientCredentials(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/grid/session", AppiumGridMiddleware())
+
+	sessionReq := map[string]interface{}{
+		"capabilities": map[string]interface{}{
+			"alwaysMatch": map[string]interface{}{
+				"platformName":          "iOS",
+				"appium:automationName": "XCUITest",
+			},
+		},
+	}
+	jsonData, _ := json.Marshal(sessionReq)
+
+	req, _ := http.NewRequest("POST", "/grid/session", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	value, ok := response["value"].(map[string]interface{})
+	assert.True(t, ok, "value should be a map")
+
+	assert.Equal(t, "session not created", value["error"])
+	expectedMsg := fmt.Sprintf("Client credentials are required. Provide %[1]s:clientSecret in the capabilities.", capabilityPrefix)
+	assert.Equal(t, expectedMsg, value["message"])
+	assert.Equal(t, "", value["stacktrace"])
 }
 
 func TestExtractClientSecretFromSession(t *testing.T) {

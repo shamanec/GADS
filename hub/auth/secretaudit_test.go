@@ -17,31 +17,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // TestSecretKeyAudit tests the secret key audit functionality
 func TestSecretKeyAudit(t *testing.T) {
-	// Setup test database
 	ctx := context.Background()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	if err != nil {
-		t.Fatalf("Failed to connect to MongoDB: %v", err)
-	}
-	defer client.Disconnect(ctx)
+	db, secretStore, cleanup := setupTestDatabase(t)
+	defer cleanup()
 
-	// Use a separate test database
-	dbName := "gads_test_" + primitive.NewObjectID().Hex()
-	db := client.Database(dbName)
-	defer db.Drop(ctx)
-
-	// Create stores
-	secretStore := NewSecretStore(db)
 	auditStore := secretStore.GetSecretKeyAuditStore()
 
 	// Create indexes for the audit collection
-	err = auditStore.CreateMongoIndexes()
+	err := auditStore.CreateMongoIndexes()
 	assert.NoError(t, err, "Failed to create audit log indexes")
 
 	// Test 1: Adding a Secret Key should create an audit log

@@ -40,10 +40,11 @@ func TestCreateClientCredential_Unauthorized(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 
-	var response models.OAuthErrorResponse
+	var response models.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Equal(t, "unauthorized", response.Error)
+	assert.False(t, response.Success)
+	assert.Equal(t, "unauthorized", response.Message)
 }
 
 func TestListClientCredentials_Unauthorized(t *testing.T) {
@@ -58,10 +59,11 @@ func TestListClientCredentials_Unauthorized(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 
-	var response models.OAuthErrorResponse
+	var response models.ErrorResponse
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Equal(t, "unauthorized", response.Error)
+	assert.False(t, response.Success)
+	assert.Equal(t, "unauthorized", response.Message)
 }
 
 func TestOAuth2TokenEndpoint_InvalidJSON(t *testing.T) {
