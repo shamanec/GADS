@@ -32,6 +32,8 @@ var targetAppiumPluginVersion = "0.0.11"
 
 func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	logLevel, _ := flags.GetString("log-level")
+	logMaxSizeMB, _ := flags.GetInt("log-max-size-mb")
+	logMaxBackups, _ := flags.GetInt("log-max-backups")
 	nickname, _ := flags.GetString("nickname")
 	mongoDb, _ := flags.GetString("mongo-db")
 	providerFolder, _ := flags.GetString("provider-folder")
@@ -69,7 +71,7 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	config.ProviderConfig.UseIOSPairCache = useIOSPairCache
 
 	// Setup logging for the provider itself
-	logger.SetupLogging(logLevel)
+	logger.SetupLogging(logLevel, logMaxSizeMB, logMaxBackups)
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
 
 	// Check if the default workspace exists

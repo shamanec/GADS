@@ -1,0 +1,11 @@
+{
+  "ts_utc": "2026-06-29T00:50:06Z",
+  "category": "technical-gotcha",
+  "text": "GADS has Mongo-backed auth tests that may run in developer or CI environments without MongoDB.\nUse bounded MongoDB reachability checks and explicit skips for integration-style tests so missing services do not consume the full Go test timeout.",
+  "issue": "#2",
+  "pointers": [
+    "hub/auth/secretaudit_http_test.go",
+    "hub/auth/secretaudit_test.go",
+    "go test -timeout=2m ./hub/auth"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "ts_utc": "2026-06-28T23:36:17Z",
+  "category": "architecture",
+  "text": "GADS no longer uses container logs for provider runtime diagnostics.\nCurrent local log files are owned by the Provider under the provider folder: provider.log plus per-device device_*/device.log.\nProvider-side log retention is the repo-aligned place to implement automatic log file cleanup.",
+  "issue": "https://github.com/shamanec/GADS/issues/2",
+  "pointers": [
+    "provider/logger/logger.go",
+    "provider/devices/common.go",
+    "docs/provider.md"
+  ]
+}

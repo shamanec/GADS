@@ -13,6 +13,7 @@ import (
 	"GADS/client/adb"
 	"GADS/hub"
 	"GADS/provider"
+	"GADS/provider/logger"
 	"embed"
 	"fmt"
 	"os"
@@ -57,6 +58,8 @@ func main() {
 	providerCmd.Flags().String("nickname", "", "Nickname of the provider")
 	providerCmd.Flags().String("provider-folder", ".", "The folder where logs and other data will be stored")
 	providerCmd.Flags().String("log-level", "info", "The verbosity of the logs of the provider instance")
+	providerCmd.Flags().Int("log-max-size-mb", logger.DefaultLogMaxSizeMB, "Maximum size in MB for each local provider/device log file before rotation; 0 disables cleanup")
+	providerCmd.Flags().Int("log-max-backups", logger.DefaultLogMaxBackups, "Number of rotated local log file backups to keep for each provider/device log")
 	providerCmd.Flags().String("hub", "", "The address of the GADS hub instance")
 	providerCmd.Flags().String("turn-username-suffix", "gads", "Suffix to append to TURN usernames (format: timestamp:suffix)")
 	providerCmd.Flags().Bool("use-ios-pair-cache", false, "Cache iOS pair records on disk to skip Trust dialog on reconnect (for unsupervised devices)")

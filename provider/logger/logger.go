@@ -37,11 +37,19 @@ var logLevelMapping = map[string]logrus.Level{
 
 var ProviderLogger *CustomLogger
 var logLevel string
+var logRetention = LogFileRetention{
+	MaxSizeBytes: int64(DefaultLogMaxSizeMB) * bytesPerMegabyte,
+	MaxBackups:   DefaultLogMaxBackups,
+}
 
-func SetupLogging(level string) {
+func SetupLogging(level string, maxSizeMB, maxBackups int) {
 	logLevel = level
+	retention, err := NewLogFileRetention(maxSizeMB, maxBackups)
+	if err != nil {
+		log.Fatalf("Failed to configure provider log cleanup - %s", err)
+	}
+	logRetention = retention
 
-	var err error
 	fmt.Println(fmt.Sprintf("Provider will be logging to `%s/provider.log`", config.ProviderConfig.ProviderFolder))
 	ProviderLogger, err = CreateCustomLogger(fmt.Sprintf("%s/provider.log", config.ProviderConfig.ProviderFolder), config.ProviderConfig.Nickname)
 	if err != nil {
@@ -88,14 +96,14 @@ func (l CustomLogger) LogPanic(eventName string, message string) {
 func CreateCustomLogger(logFilePath, collection string) (*CustomLogger, error) {
 	// Create a new logger instance
 	logger := log.New()
-	ctx, _ := context.WithCancel(db.GlobalMongoStore.Ctx)
+	ctx := db.GlobalMongoStore.Ctx
 
 	// Configure the logger
 	logger.SetFormatter(&log.JSONFormatter{})
 	logger.SetLevel(logLevelMapping[logLevel])
 
-	// Open the log file
-	logFile, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	// Open the local log file with automatic size-based cleanup.
+	logFile, err := newRotatingFileWriter(logFilePath, logRetention)
 	if err != nil {
 		return &CustomLogger{}, fmt.Errorf("Could not set log output - %v", err)
 	}
