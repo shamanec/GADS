@@ -320,6 +320,9 @@ func (d *AndroidDevice) androidRemoteServerRequest(method, endpoint string, requ
 	if err != nil {
 		return nil, err
 	}
+	if requestBody != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	return remoteServerNetClient.Do(req)
 }
 
@@ -599,32 +602,55 @@ func (d *AndroidDevice) disableAutoRotation() error {
 	return nil
 }
 
-// GetCurrentRotation returns "portrait" or "landscape".
+// GetCurrentRotation returns "portrait" or "landscape" based on the actual display
+// rotation reported by the remote control server.
 func (d *AndroidDevice) GetCurrentRotation() (string, error) {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "get", "system", "user_rotation")
-
-	var outBuffer bytes.Buffer
-	cmd.Stdout = &outBuffer
-	if err := cmd.Run(); err != nil {
+	resp, err := d.androidRemoteServerRequest(http.MethodGet, "rotation", nil)
+	if err != nil {
 		return "portrait", err
 	}
+	defer resp.Body.Close()
 
-	result := strings.TrimSpace(outBuffer.String())
-	if result == "1" {
-		return "landscape", nil
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "portrait", err
 	}
-	return "portrait", nil
+	if resp.StatusCode != http.StatusOK {
+		return "portrait", fmt.Errorf("remote control server returned status %d - %s", resp.StatusCode, string(body))
+	}
+
+	var rotationResp struct {
+		Rotation string `json:"rotation"`
+	}
+	if err := json.Unmarshal(body, &rotationResp); err != nil {
+		return "portrait", err
+	}
+	return rotationResp.Rotation, nil
 }
 
-// ChangeRotation changes the device rotation to "portrait" or "landscape".
+// ChangeRotation changes the device rotation to "portrait" or "landscape" via the
+// remote control server, which verifies the screen actually rotated and reverts
+// the pending user_rotation when it did not.
 func (d *AndroidDevice) ChangeRotation(rotation string) error {
-	var adbRotationValue = "0"
-	if rotation == "landscape" {
-		adbRotationValue = "1"
-	}
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "put", "system", "user_rotation", adbRotationValue)
-	if err := cmd.Run(); err != nil {
+	reqBody, err := json.Marshal(struct {
+		Rotation string `json:"rotation"`
+	}{Rotation: rotation})
+	if err != nil {
 		return err
+	}
+
+	resp, err := d.androidRemoteServerRequest(http.MethodPost, "rotation", bytes.NewReader(reqBody))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("remote control server returned status %d - %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
