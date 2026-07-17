@@ -27,7 +27,6 @@ func HandleRequests() *gin.Engine {
 	r.GET("/info", GetProviderData)
 	r.GET("/devices", DevicesInfo)
 	r.POST("/uploadFile", UploadAndInstallApp)
-	r.GET("/rtc", WebRTCSocket) // This endpoint is for easier testing and debugging of WebRTC instead of building on a device each time
 
 	pprofGroup := r.Group("/debug/pprof")
 	{
@@ -90,7 +89,6 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.POST("/reset", ResetDevice)
 	deviceGroup.POST("/killApp", KillApp)
 	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
-	deviceGroup.GET("/webrtc", DevicesWebRTCSocket)
 	deviceAppiumPluginGroup := deviceGroup.Group("/appium-plugin")
 	deviceAppiumPluginGroup.POST("/log", AppiumPluginLog)
 	deviceAppiumPluginGroup.POST("/register", AppiumPluginRegister)

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -111,18 +112,57 @@ func (d *IOSDevice) Setup() (retErr error) {
 		return err // already reset inside
 	}
 
-	time.Sleep(1 * time.Second)
-	d.disableBroadcastExtensionMemoryLimit()
-
 	if err := d.allocateAndForwardPorts(); err != nil {
 		return d.resetWithError("allocate or forward ports", err)
 	}
+
 	if err := d.startWebDriverAgent(); err != nil {
 		return err // already reset inside
 	}
 	if err := d.waitForWebDriverAgent(); err != nil {
 		return err // already reset inside
 	}
+
+	if d.DBDevice.StreamType == models.IOSWebRTCBroadcastExtensionId {
+		fmt.Println("BROADCAST SETUP")
+		broadcastRunning := false
+		if conn, err := net.DialTimeout("tcp", "localhost:"+d.StreamPort, 2*time.Second); err == nil {
+			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			buf := make([]byte, 1)
+			if _, err := conn.Read(buf); err == nil {
+				broadcastRunning = true
+			}
+			conn.Close()
+		}
+
+		if !broadcastRunning {
+			// TODO - Later add installing the broadcast extension automatically
+
+			// Start the broadcast extension via WebDriverAgent
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Starting broadcast extension on device `%s`", d.GetUDID()))
+			if err := d.startBroadcastViaWDA(); err != nil {
+				return fmt.Errorf("failed to start broadcast: %w", err)
+			}
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension started on device `%s`", d.GetUDID()))
+			// No fixed wait here — waitForBroadcastStream below polls until
+			// the extension actually streams data.
+		} else {
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension is already running on device `%s`", d.GetUDID()))
+		}
+
+		// Verify the broadcast extension is actually streaming
+		logger.ProviderLogger.LogInfo("Verifying broadcast extension is streaming on device `%s`", d.GetUDID())
+		if err := d.waitForBroadcastStream(); err != nil {
+			return fmt.Errorf("broadcast extension not streaming: %w", err)
+		}
+
+		// Disable memory limit for the broadcast extension
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Disabling broadcast extension memory limit on device `%s`", d.GetUDID()))
+		d.disableBroadcastExtensionMemoryLimit()
+
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension setup complete on device `%s", d.GetUDID()))
+	}
+
 	if err := d.applyStreamConfig(); err != nil {
 		return d.resetWithError("apply device stream settings", err)
 	}
@@ -142,6 +182,44 @@ func (d *IOSDevice) initGoIOSDevice() error {
 	}
 	d.GoIOSDeviceEntry = goIosDeviceEntry
 	return nil
+}
+
+// startBroadcastViaHFRunner triggers the broadcast extension start through HFRunner.
+func (d *IOSDevice) startBroadcastViaWDA() error {
+	url := fmt.Sprintf("http://localhost:%s/wda/startBroadcast", d.WDAPort)
+	body := strings.NewReader(`{"appName":"GADSBroadcast"}`)
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Post(url, "application/json", body)
+	if err != nil {
+		return fmt.Errorf("POST %s failed: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("POST %s returned %d: %s", url, resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// waitForBroadcastStream polls the broadcast extension TCP port until data
+// arrives, confirming it's actually streaming. Receiving a byte (not just a
+// successful connect) is the signal because the port forward accepts
+// connections even when nothing listens on the device. The window also
+// covers the extension's own startup, since the caller no longer sleeps
+// before invoking this.
+func (d *IOSDevice) waitForBroadcastStream() error {
+	return waitFor(d.Context, 15*time.Second, time.Second, "broadcast stream data", func() bool {
+		conn, err := net.DialTimeout("tcp", "localhost:"+d.StreamPort, 2*time.Second)
+		if err != nil {
+			return false
+		}
+		defer conn.Close()
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		buf := make([]byte, 1)
+		_, err = conn.Read(buf)
+		return err == nil
+	})
 }
 
 func (d *IOSDevice) checkDeveloperMode() error {
