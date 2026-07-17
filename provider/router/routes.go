@@ -352,6 +352,30 @@ func DeviceInstalledApps(c *gin.Context) {
 	api.OK(c, "Successfully retrieved device installed apps", installedApps)
 }
 
+func DeviceGetRotation(c *gin.Context) {
+	udid := c.Param("udid")
+
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+		return
+	}
+
+	rc, rcOk := platDev.(devices.RemoteControllable)
+	if !rcOk {
+		api.BadRequest(c, "Device does not support rotation")
+		return
+	}
+
+	rotation, err := rc.GetCurrentRotation()
+	if err != nil {
+		api.InternalError(c, err.Error())
+		return
+	}
+
+	api.OK(c, "Successfully retrieved device rotation", gin.H{"rotation": rotation})
+}
+
 func DeviceChangeRotation(c *gin.Context) {
 	udid := c.Param("udid")
 
@@ -363,7 +387,12 @@ func DeviceChangeRotation(c *gin.Context) {
 
 	var requestBody models.DeviceRotation
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		api.InternalError(c, err.Error())
+		api.BadRequest(c, err.Error())
+		return
+	}
+
+	if requestBody.Rotation != "portrait" && requestBody.Rotation != "landscape" {
+		api.BadRequest(c, fmt.Sprintf("Invalid rotation `%s`, expected `portrait` or `landscape`", requestBody.Rotation))
 		return
 	}
 
@@ -374,9 +403,14 @@ func DeviceChangeRotation(c *gin.Context) {
 	}
 
 	dev := platDev.GetDBDevice()
+	currentRotation := requestBody.Rotation
 	if dev.OS == "android" {
 		if err := rc.ChangeRotation(requestBody.Rotation); err != nil {
 			api.InternalError(c, err.Error())
+			return
+		}
+		if rotation, err := rc.GetCurrentRotation(); err == nil {
+			currentRotation = rotation
 		}
 	} else {
 		reqBody := struct {
@@ -392,8 +426,14 @@ func DeviceChangeRotation(c *gin.Context) {
 		_, err = wdaRequest(platDev, http.MethodPost, "orientation", bytes.NewReader(orientationJson))
 		if err != nil {
 			api.InternalError(c, err.Error())
+			return
 		}
 	}
+
+	api.OK(c, "Device rotation request processed", gin.H{
+		"rotation": currentRotation,
+		"applied":  currentRotation == requestBody.Rotation,
+	})
 }
 
 func DevicesInfo(c *gin.Context) {
