@@ -70,17 +70,19 @@ type StreamType struct {
 type StreamingType string
 
 const (
-	MJPEGStreamTypeId                  StreamingType = "mjpeg"
-	IOSWebRTCFFMpegStreamTypeId        StreamingType = "ios_webrtc_ffmpeg"
+	MJPEGStreamTypeId                 StreamingType = "mjpeg"
+	IOSWebRTCFFMpegStreamTypeId       StreamingType = "ios_webrtc_ffmpeg"
+	AndroidWebRTCGadsH264StreamTypeId StreamingType = "android_webrtc_gads_h264"
+	IOSWebRTCBroadcastExtensionId     StreamingType = "ios_webrtc_broadcast"
+
+	// Deprecated: the GetStream WebRTC integration was removed from the GADS Android app.
+	// Kept only to migrate devices with this stream type to AndroidWebRTCGadsH264StreamTypeId.
 	AndroidWebRTCGetStreamStreamTypeId StreamingType = "android_webrtc_getstream"
-	AndroidWebRTCGadsH264StreamTypeId  StreamingType = "android_webrtc_gads_h264"
-	IOSWebRTCBroadcastExtensionId      StreamingType = "ios_webrtc_broadcast"
 )
 
 // IsWebRTCStreamType checks if the given StreamType is a WebRTC-based stream
 func IsWebRTCStreamType(st StreamingType) bool {
-	return st == AndroidWebRTCGetStreamStreamTypeId ||
-		st == AndroidWebRTCGadsH264StreamTypeId ||
+	return st == AndroidWebRTCGadsH264StreamTypeId ||
 		st == IOSWebRTCFFMpegStreamTypeId ||
 		st == IOSWebRTCBroadcastExtensionId
 }
@@ -91,8 +93,6 @@ func (st StreamingType) Description() string {
 		return "MJPEG"
 	case IOSWebRTCFFMpegStreamTypeId:
 		return "WebRTC - FFMpeg"
-	case AndroidWebRTCGetStreamStreamTypeId:
-		return "Android WebRTC GetStream"
 	case AndroidWebRTCGadsH264StreamTypeId:
 		return "Android WebRTC GADS H264"
 	case IOSWebRTCBroadcastExtensionId:
@@ -112,12 +112,6 @@ var IOSWebRTCFFMpegStreamType = StreamType{
 	Name:     IOSWebRTCFFMpegStreamTypeId.Description(),
 	ID:       IOSWebRTCFFMpegStreamTypeId,
 	DeviceOS: "ios",
-}
-
-var AndroidWebRTCGetStreamStreamType = StreamType{
-	Name:     AndroidWebRTCGetStreamStreamTypeId.Description(),
-	ID:       AndroidWebRTCGetStreamStreamTypeId,
-	DeviceOS: "android",
 }
 
 var AndroidWebRTCGadsH264StreamType = StreamType{
@@ -140,7 +134,6 @@ var IOSStreamTypes = []StreamType{
 
 var AndroidStreamTypes = []StreamType{
 	MJPEGStreamType,
-	AndroidWebRTCGetStreamStreamType,
 	AndroidWebRTCGadsH264StreamType,
 }
 

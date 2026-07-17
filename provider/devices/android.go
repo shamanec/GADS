@@ -370,6 +370,7 @@ func (d *AndroidDevice) startRemoteControlServer() {
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
 		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.RemoteControlServerKt 1994")
 
+	fmt.Println(cmd.Args)
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, d.GetUDID(), err))
 		d.Reset("Failed to execute GADS Remote server.")
@@ -690,14 +691,7 @@ func (d *AndroidDevice) UpdateWebRTCTURNConfig() error {
 }
 
 func (d *AndroidDevice) getStreamServiceName() string {
-	switch d.DBDevice.StreamType {
-	case models.MJPEGStreamTypeId:
-		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureService"
-	case models.AndroidWebRTCGetStreamStreamTypeId:
-		return "com.gads.settings/com.shamanec.settings.webrtc.WebRTCScreenCaptureService"
-	default:
-		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureService"
-	}
+	return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureService"
 }
 
 func (d *AndroidDevice) getStreamServicePackageName() string {
@@ -705,14 +699,7 @@ func (d *AndroidDevice) getStreamServicePackageName() string {
 }
 
 func (d *AndroidDevice) getStreamServiceActivityName() string {
-	switch d.DBDevice.StreamType {
-	case models.MJPEGStreamTypeId:
-		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureActivity"
-	case models.AndroidWebRTCGetStreamStreamTypeId:
-		return "com.gads.settings/com.shamanec.settings.webrtc.WebRTCScreenCaptureActivity"
-	default:
-		return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureActivity"
-	}
+	return "com.gads.settings/com.shamanec.settings.streaming.MjpegScreenCaptureActivity"
 }
 
 // GetScreenSize is not needed for Android (screen size is retrieved via ADB during setup).
