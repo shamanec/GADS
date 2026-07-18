@@ -1028,14 +1028,58 @@ func (d *IOSDevice) GetHardwareModel() (string, error) {
 	return d.HardwareModel, nil
 }
 
-// GetCurrentRotation returns the current device rotation (iOS uses WDA for this, handled by router).
+// GetCurrentRotation returns "portrait" or "landscape" based on the interface
+// orientation of the foreground application reported by WebDriverAgent.
 func (d *IOSDevice) GetCurrentRotation() (string, error) {
-	return d.CurrentRotation, nil
+	url := fmt.Sprintf("http://localhost:%v/orientation", d.GetWDAPort())
+	client := &http.Client{Timeout: 20 * time.Second}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return "portrait", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "portrait", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "portrait", fmt.Errorf("WebDriverAgent returned status %d - %s", resp.StatusCode, string(body))
+	}
+
+	var orientationResp struct {
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(body, &orientationResp); err != nil {
+		return "portrait", err
+	}
+	if strings.EqualFold(orientationResp.Value, "landscape") {
+		return "landscape", nil
+	}
+	return "portrait", nil
 }
 
-// ChangeRotation is handled via WDA in the router for iOS.
+// ChangeRotation changes the device rotation to "portrait" or "landscape" via
+// WebDriverAgent, which waits for the interface to reach the requested
+// orientation and reverts the pending device orientation when the foreground
+// app does not support it. A non-OK status only means the rotation was not
+// applied - the caller reads the rotation back to report the effective one.
 func (d *IOSDevice) ChangeRotation(rotation string) error {
-	return fmt.Errorf("iOS rotation is handled via WebDriverAgent")
+	url := fmt.Sprintf("http://localhost:%v/orientation", d.GetWDAPort())
+	body := strings.NewReader(fmt.Sprintf(`{"orientation":%q}`, strings.ToUpper(rotation)))
+	client := &http.Client{Timeout: 20 * time.Second}
+
+	resp, err := client.Post(url, "application/json", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		d.Logger.LogDebug("ios_rotation", fmt.Sprintf("WebDriverAgent did not rotate device `%s` to `%s` - the foreground app may not support this orientation", d.GetUDID(), rotation))
+	}
+	return nil
 }
 
 // ApplyStreamSettings applies stream settings from DB to the device runtime state.
