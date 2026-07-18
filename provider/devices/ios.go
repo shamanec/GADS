@@ -491,8 +491,37 @@ func (d *IOSDevice) mountDeveloperImage() error {
 		if strings.Contains(err.Error(), "already mounted") || strings.Contains(err.Error(), "AlreadyMounted") {
 			return nil
 		}
+		if strings.Contains(err.Error(), "HangUp command failed") {
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("DDI mount succeeded but HangUp rejected by device `%s` (likely iOS 27+), verifying mount via ListImages", d.GetUDID()))
+			for attempt := 0; attempt < 3; attempt++ {
+				time.Sleep(time.Duration(2+attempt*2) * time.Second)
+				if verifyErr := d.verifyDDIMounted(); verifyErr != nil {
+					logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("DDI verification attempt %d failed for device `%s`: %s", attempt+1, d.GetUDID(), verifyErr))
+					continue
+				}
+				return nil
+			}
+			return fmt.Errorf("failed to mount DDI: %w", err)
+		}
 		return fmt.Errorf("failed to mount DDI: %w", err)
 	}
+	return nil
+}
+
+func (d *IOSDevice) verifyDDIMounted() error {
+	mounter, err := imagemounter.NewImageMounter(d.GoIOSDeviceEntry)
+	if err != nil {
+		return fmt.Errorf("verifyDDIMounted: failed to create image mounter: %w", err)
+	}
+	defer mounter.Close()
+	signatures, err := mounter.ListImages()
+	if err != nil {
+		return fmt.Errorf("verifyDDIMounted: ListImages failed: %w", err)
+	}
+	if len(signatures) == 0 {
+		return fmt.Errorf("verifyDDIMounted: no developer images found on device")
+	}
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("DDI verified mounted on device `%s` (%d image(s) found)", d.GetUDID(), len(signatures)))
 	return nil
 }
 
