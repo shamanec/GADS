@@ -160,19 +160,18 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		if err != nil {
 			log.Fatalf("Could not provide WebDriverAgent.ipa file from MongoDB - %s", err)
 		}
+
+		// The broadcast extension IPA is optional - only download it when the
+		// provider has one selected. Failure is non-fatal so a broadcast
+		// misconfiguration does not stop the provider from serving iOS devices.
+		if err = config.SetupBroadcastFile(); err != nil {
+			logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Could not provide Broadcast.ipa file from MongoDB - %s", err))
+		}
 	}
 
 	err = extractProviderResourceFiles(config.ProviderConfig.ProviderFolder, resourceFiles)
 	if err != nil {
 		log.Fatalf("Failed to extract embedded resource files - %s", err)
-	}
-
-	// Finalize grid configuration if Selenium Grid usage enabled
-	if config.ProviderConfig.UseSeleniumGrid {
-		err = config.SetupSeleniumJar()
-		if err != nil {
-			log.Fatalf("Selenium Grid connection is enabled but there is something wrong with providing the selenium jar file from MongoDB - %s", err)
-		}
 	}
 
 	// If we want to provide Android devices check if adb is available on PATH

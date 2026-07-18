@@ -26,6 +26,13 @@ func getDBProviderDevices() map[string]*models.DBDevice {
 	}
 
 	for _, dbDevice := range deviceData {
+		// The GetStream WebRTC integration was removed - fall back to GADS H264 WebRTC
+		if dbDevice.StreamType == models.AndroidWebRTCGetStreamStreamTypeId {
+			dbDevice.StreamType = models.AndroidWebRTCGadsH264StreamTypeId
+			if err := db.GlobalMongoStore.AddOrUpdateDevice(&dbDevice); err != nil {
+				log.Printf("Failed to update device %s from removed GetStream stream type to GADS H264 - %s", dbDevice.UDID, err)
+			}
+		}
 		// Ensure that devices are associated with the Default workspace if not specified
 		if dbDevice.WorkspaceID == "" {
 			if defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace(); err == nil {

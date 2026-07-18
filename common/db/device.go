@@ -57,9 +57,9 @@ func (m *MongoStore) EnsureDevicesHaveStreamType() error {
 		if dbDevice.StreamType == "" {
 			fmt.Printf("Updating stream type for device `%s`\n", dbDevice.UDID)
 			if dbDevice.OS == "android" {
-				// Check if the device was previously set to use webrtc and set it to the currently used GetStream sdk WebRTC, else use MJPEG
+				// Check if the device was previously set to use webrtc and set it to GADS H264 WebRTC, else use MJPEG
 				if dbDevice.UseWebRTCVideo {
-					dbDevices[index].StreamType = models.AndroidWebRTCGetStreamStreamType.ID
+					dbDevices[index].StreamType = models.AndroidWebRTCGadsH264StreamType.ID
 				} else {
 					dbDevices[index].StreamType = models.MJPEGStreamType.ID
 				}
@@ -67,6 +67,15 @@ func (m *MongoStore) EnsureDevicesHaveStreamType() error {
 				// For iOS set MJPEG
 				dbDevices[index].StreamType = models.MJPEGStreamType.ID
 			}
+
+			err = m.AddOrUpdateDevice(&dbDevices[index])
+			if err != nil {
+				fmt.Printf("Failed updating stream type for device `%s`\n", dbDevice.UDID)
+			}
+		} else if dbDevice.StreamType == models.AndroidWebRTCGetStreamStreamTypeId {
+			// The GetStream WebRTC integration was removed - migrate the device to GADS H264 WebRTC
+			fmt.Printf("Migrating device `%s` from removed GetStream WebRTC stream type to GADS H264\n", dbDevice.UDID)
+			dbDevices[index].StreamType = models.AndroidWebRTCGadsH264StreamType.ID
 
 			err = m.AddOrUpdateDevice(&dbDevices[index])
 			if err != nil {

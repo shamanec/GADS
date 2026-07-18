@@ -14,20 +14,27 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth"
+	"GADS/hub/config"
 	"GADS/hub/devices"
+	"GADS/hub/signing"
 	"GADS/provider/logger"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -346,10 +353,6 @@ func AddProvider(c *gin.Context) {
 		api.BadRequest(c, "Missing or invalid port")
 		return
 	}
-	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		api.BadRequest(c, "Missing or invalid Selenium Grid address")
-		return
-	}
 
 	provider.RegularizeProviderState()
 
@@ -404,10 +407,6 @@ func UpdateProvider(c *gin.Context) {
 	}
 	if provider.Port == 0 {
 		api.BadRequest(c, "missing `port` field")
-		return
-	}
-	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		api.BadRequest(c, "missing `selenium_grid` field")
 		return
 	}
 
@@ -649,45 +648,350 @@ func AvailableDevicesSSE(c *gin.Context) {
 	})
 }
 
-// UploadFile godoc
-// @Summary      Upload a file
-// @Description  Upload a file to MongoDB with custom filename
-// @Tags         Hub - Admin - Files
-// @Accept       multipart/form-data
-// @Produce      json
-// @Param        file      formData  file    true  "File to upload"
-// @Param        fileName  formData  string  true  "Custom filename for MongoDB"
-// @Success      200       {object}  models.SuccessResponse
-// @Failure      400       {object}  models.ErrorResponse
-// @Failure      500       {object}  models.ErrorResponse
-// @Security     BearerAuth
-// @Router       /admin/upload-file [post]
-func UploadFile(c *gin.Context) {
+// uploadIPAFile stores an uploaded .ipa in GridFS under a unique generated name
+// tagged with the given file type, so multiple builds coexist and each provider
+// references a specific one by its GridFS id. noun is used in user-facing messages.
+func uploadIPAFile(c *gin.Context, fileType, noun string) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
 		return
 	}
-	fileName := c.PostForm("fileName")
-	if fileName == "" {
-		api.BadRequest(c, "No fileName for MongoDB record was provided")
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".ipa") {
+		api.BadRequest(c, fmt.Sprintf("Only .ipa files are allowed for %s uploads", noun))
 		return
 	}
 
 	openedFile, err := file.Open()
-	defer openedFile.Close()
 	if err != nil {
-		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to open provided file - %s", err)))
+		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
 		return
 	}
+	defer openedFile.Close()
 
-	err = db.GlobalMongoStore.UploadFile(openedFile, fmt.Sprintf("%s", fileName), true)
+	metadata := bson.M{
+		"type":          fileType,
+		"description":   c.PostForm("description"),
+		"uploaded_by":   c.GetString("username"),
+		"original_name": file.Filename,
+	}
+
+	err = db.GlobalMongoStore.UploadFileWithMetadata(openedFile, uuid.NewString(), metadata, false)
 	if err != nil {
-		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err)))
+		api.InternalError(c, fmt.Sprintf("Failed to upload %s to MongoDB - %s", noun, err))
 		return
 	}
 
 	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
+}
+
+// UploadWebDriverAgentFile godoc
+// @Summary      Upload a WebDriverAgent IPA
+// @Description  Upload a WebDriverAgent IPA to MongoDB. Multiple IPAs can coexist; each is stored under a unique generated name with an optional description and the uploader recorded.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file         formData  file    true   "WebDriverAgent IPA file"
+// @Param        description  formData  string  false  "Optional description to tell builds apart"
+// @Success      200          {object}  models.SuccessResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/webdriveragent [post]
+func UploadWebDriverAgentFile(c *gin.Context) {
+	uploadIPAFile(c, "wda", "WebDriverAgent IPA")
+}
+
+// UploadBroadcastFile godoc
+// @Summary      Upload a broadcast extension IPA
+// @Description  Upload a GADS broadcast extension IPA to MongoDB. Multiple IPAs can coexist; each is stored under a unique generated name with an optional description and the uploader recorded.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file         formData  file    true   "Broadcast extension IPA file"
+// @Param        description  formData  string  false  "Optional description to tell builds apart"
+// @Success      200          {object}  models.SuccessResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/broadcast [post]
+func UploadBroadcastFile(c *gin.Context) {
+	uploadIPAFile(c, "broadcast", "broadcast extension IPA")
+}
+
+// tailString trims s and returns at most its last n characters, prefixing an
+// ellipsis when it was truncated. Used to surface the tail of zsign's output.
+func tailString(s string, n int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= n {
+		return s
+	}
+	return "..." + s[len(s)-n:]
+}
+
+// signAndUploadIPAFile resigns an unsigned .ipa with zsign using the provided
+// provisioning profile and signing material (a .p12 + password, or a certificate
+// + private key), then stores the signed result tagged with the given file type.
+// noun is used in user-facing messages.
+func signAndUploadIPAFile(c *gin.Context, fileType, noun string) {
+	ipaFile, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No IPA file provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(ipaFile.Filename), ".ipa") {
+		api.BadRequest(c, fmt.Sprintf("Only .ipa files are allowed for %s uploads", noun))
+		return
+	}
+
+	profileFile, err := c.FormFile("profile")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No provisioning profile provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(profileFile.Filename), ".mobileprovision") {
+		api.BadRequest(c, "Only .mobileprovision files are allowed for the provisioning profile")
+		return
+	}
+
+	method := c.PostForm("method")
+	if method == "" {
+		method = "p12"
+	}
+
+	// zsign works on files on disk. Stage every input in a temp dir that is
+	// always cleaned up, sign into it, then store the signed output.
+	tmpDir, err := os.MkdirTemp("", "gads-wda-sign-*")
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to create temp dir for signing - %s", err))
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	inputPath := filepath.Join(tmpDir, "input.ipa")
+	outputPath := filepath.Join(tmpDir, "signed.ipa")
+	profilePath := filepath.Join(tmpDir, "profile.mobileprovision")
+	if err := c.SaveUploadedFile(ipaFile, inputPath); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to store uploaded IPA - %s", err))
+		return
+	}
+	if err := c.SaveUploadedFile(profileFile, profilePath); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to store provisioning profile - %s", err))
+		return
+	}
+
+	binName, err := signing.BinaryName()
+	if err != nil {
+		api.InternalError(c, err.Error())
+		return
+	}
+	zsignPath := filepath.Join(config.GlobalHubConfig.FilesTempDir, "resources", binName)
+	if _, err := os.Stat(zsignPath); err != nil {
+		api.InternalError(c, "The zsign binary is not available on the hub - resource files were not unpacked on startup")
+		return
+	}
+
+	opts := signing.Options{
+		ZsignPath:   zsignPath,
+		InputIPA:    inputPath,
+		OutputIPA:   outputPath,
+		ProfilePath: profilePath,
+	}
+
+	switch method {
+	case "p12":
+		p12File, err := c.FormFile("p12")
+		if err != nil {
+			api.BadRequest(c, fmt.Sprintf("No .p12 signing identity provided in form data - %s", err))
+			return
+		}
+		if !strings.HasSuffix(strings.ToLower(p12File.Filename), ".p12") {
+			api.BadRequest(c, "Only .p12 files are allowed for the signing identity")
+			return
+		}
+		p12Path := filepath.Join(tmpDir, "identity.p12")
+		if err := c.SaveUploadedFile(p12File, p12Path); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to store .p12 identity - %s", err))
+			return
+		}
+		opts.P12Path = p12Path
+		opts.Password = c.PostForm("p12_password")
+	case "certkey":
+		certFile, err := c.FormFile("cert")
+		if err != nil {
+			api.BadRequest(c, fmt.Sprintf("No certificate provided in form data - %s", err))
+			return
+		}
+		keyFile, err := c.FormFile("key")
+		if err != nil {
+			api.BadRequest(c, fmt.Sprintf("No private key provided in form data - %s", err))
+			return
+		}
+		certPath := filepath.Join(tmpDir, "cert.pem")
+		keyPath := filepath.Join(tmpDir, "key.pem")
+		if err := c.SaveUploadedFile(certFile, certPath); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to store certificate - %s", err))
+			return
+		}
+		if err := c.SaveUploadedFile(keyFile, keyPath); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to store private key - %s", err))
+			return
+		}
+		opts.CertPath = certPath
+		opts.KeyPath = keyPath
+		opts.Password = c.PostForm("key_password")
+	default:
+		api.BadRequest(c, "Unknown signing method - use 'p12' or 'certkey'")
+		return
+	}
+
+	zsignLog, signErr := signing.Sign(opts)
+	if signErr != nil {
+		api.BadRequest(c, fmt.Sprintf("Signing failed - %s\n\nzsign output:\n%s", signErr, tailString(zsignLog, 1500)))
+		return
+	}
+	if fi, statErr := os.Stat(outputPath); statErr != nil || fi.Size() == 0 {
+		api.BadRequest(c, fmt.Sprintf("Signing did not produce an output IPA - check the signing material and provisioning profile.\n\nzsign output:\n%s", tailString(zsignLog, 1500)))
+		return
+	}
+
+	signedFile, err := os.Open(outputPath)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to open signed IPA - %s", err))
+		return
+	}
+	defer signedFile.Close()
+
+	metadata := bson.M{
+		"type":          fileType,
+		"description":   c.PostForm("description"),
+		"uploaded_by":   c.GetString("username"),
+		"original_name": ipaFile.Filename,
+	}
+	if err := db.GlobalMongoStore.UploadFileWithMetadata(signedFile, uuid.NewString(), metadata, false); err != nil {
+		api.InternalError(c, fmt.Sprintf("IPA signed but failed to store it - %s", err))
+		return
+	}
+
+	api.OKMessage(c, fmt.Sprintf("`%s` signed and uploaded successfully", ipaFile.Filename))
+}
+
+// SignAndUploadWebDriverAgentFile godoc
+// @Summary      Sign and upload a WebDriverAgent IPA
+// @Description  Resign an unsigned WebDriverAgent IPA with zsign using the provided provisioning profile and signing material (either a .p12 + password, or a certificate + private key), then store the signed result like a normal WebDriverAgent upload.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file          formData  file    true   "Unsigned WebDriverAgent IPA file"
+// @Param        profile       formData  file    true   "Provisioning profile (.mobileprovision)"
+// @Param        method        formData  string  false  "Signing method: 'p12' (default) or 'certkey'"
+// @Param        p12           formData  file    false  "Signing identity (.p12) - method p12"
+// @Param        p12_password  formData  string  false  "Password for the .p12 identity"
+// @Param        cert          formData  file    false  "Certificate (.cer/.pem) - method certkey"
+// @Param        key           formData  file    false  "Private key (.key/.pem) - method certkey"
+// @Param        key_password  formData  string  false  "Password for the private key, if encrypted"
+// @Param        description   formData  string  false  "Optional description to tell builds apart"
+// @Success      200           {object}  models.SuccessResponse
+// @Failure      400           {object}  models.ErrorResponse
+// @Failure      500           {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/webdriveragent/sign [post]
+func SignAndUploadWebDriverAgentFile(c *gin.Context) {
+	signAndUploadIPAFile(c, "wda", "WebDriverAgent IPA")
+}
+
+// SignAndUploadBroadcastFile godoc
+// @Summary      Sign and upload a broadcast extension IPA
+// @Description  Resign an unsigned GADS broadcast extension IPA with zsign using the provided provisioning profile and signing material (either a .p12 + password, or a certificate + private key), then store the signed result like a normal broadcast extension upload.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file          formData  file    true   "Unsigned broadcast extension IPA file"
+// @Param        profile       formData  file    true   "Provisioning profile (.mobileprovision)"
+// @Param        method        formData  string  false  "Signing method: 'p12' (default) or 'certkey'"
+// @Param        p12           formData  file    false  "Signing identity (.p12) - method p12"
+// @Param        p12_password  formData  string  false  "Password for the .p12 identity"
+// @Param        cert          formData  file    false  "Certificate (.cer/.pem) - method certkey"
+// @Param        key           formData  file    false  "Private key (.key/.pem) - method certkey"
+// @Param        key_password  formData  string  false  "Password for the private key, if encrypted"
+// @Param        description   formData  string  false  "Optional description to tell builds apart"
+// @Success      200           {object}  models.SuccessResponse
+// @Failure      400           {object}  models.ErrorResponse
+// @Failure      500           {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/broadcast/sign [post]
+func SignAndUploadBroadcastFile(c *gin.Context) {
+	signAndUploadIPAFile(c, "broadcast", "broadcast extension IPA")
+}
+
+// UploadSupervisionProfile godoc
+// @Summary      Upload the iOS supervision profile
+// @Description  Upload the supervision profile (.p12). This is a single file - re-uploading replaces the existing one.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file  formData  file  true  "Supervision profile .p12 file"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      400   {object}  models.ErrorResponse
+// @Failure      500   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/supervision [post]
+func UploadSupervisionProfile(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".p12") {
+		api.BadRequest(c, "Only .p12 files are allowed for the supervision profile")
+		return
+	}
+
+	openedFile, err := file.Open()
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
+		return
+	}
+	defer openedFile.Close()
+
+	metadata := bson.M{
+		"type":          "supervision",
+		"uploaded_by":   c.GetString("username"),
+		"original_name": file.Filename,
+	}
+
+	// The supervision profile is a single fixed-name file - force replace it.
+	err = db.GlobalMongoStore.UploadFileWithMetadata(openedFile, "supervision.p12", metadata, true)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to upload supervision profile to MongoDB - %s", err))
+		return
+	}
+
+	api.OKMessage(c, "Supervision profile uploaded successfully")
+}
+
+// DeleteFile godoc
+// @Summary      Delete a file
+// @Description  Delete a file stored in MongoDB GridFS by its id
+// @Tags         Hub - Admin - Files
+// @Produce      json
+// @Param        id   path      string  true  "File id"
+// @Success      200  {object}  models.SuccessResponse
+// @Failure      400  {object}  models.ErrorResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/{id} [delete]
+func DeleteFile(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		api.BadRequest(c, "No file id provided")
+		return
+	}
+	if err := db.GlobalMongoStore.DeleteFileByID(id); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to delete file - %s", err))
+		return
+	}
+	api.OKMessage(c, "File deleted successfully")
 }
 
 // AddDevice godoc
@@ -883,7 +1187,6 @@ func GetDevices(c *gin.Context) {
 			models.MJPEGStreamType,
 			models.IOSWebRTCFFMpegStreamType,
 			models.AndroidWebRTCGadsH264StreamType,
-			models.AndroidWebRTCGetStreamStreamType,
 			models.IOSWebRTCBroadcastExtensionStreamType,
 		},
 	}

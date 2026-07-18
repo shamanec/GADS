@@ -402,32 +402,14 @@ func DeviceChangeRotation(c *gin.Context) {
 		return
 	}
 
-	dev := platDev.GetDBDevice()
+	if err := rc.ChangeRotation(requestBody.Rotation); err != nil {
+		api.InternalError(c, err.Error())
+		return
+	}
+
 	currentRotation := requestBody.Rotation
-	if dev.OS == "android" {
-		if err := rc.ChangeRotation(requestBody.Rotation); err != nil {
-			api.InternalError(c, err.Error())
-			return
-		}
-		if rotation, err := rc.GetCurrentRotation(); err == nil {
-			currentRotation = rotation
-		}
-	} else {
-		reqBody := struct {
-			Orientation string `json:"orientation"`
-		}{
-			Orientation: strings.ToUpper(requestBody.Rotation),
-		}
-		orientationJson, err := json.MarshalIndent(reqBody, "", "  ")
-		if err != nil {
-			api.InternalError(c, err.Error())
-			return
-		}
-		_, err = wdaRequest(platDev, http.MethodPost, "orientation", bytes.NewReader(orientationJson))
-		if err != nil {
-			api.InternalError(c, err.Error())
-			return
-		}
+	if rotation, err := rc.GetCurrentRotation(); err == nil {
+		currentRotation = rotation
 	}
 
 	api.OK(c, "Device rotation request processed", gin.H{

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -111,18 +112,61 @@ func (d *IOSDevice) Setup() (retErr error) {
 		return err // already reset inside
 	}
 
-	time.Sleep(1 * time.Second)
-	d.disableBroadcastExtensionMemoryLimit()
-
 	if err := d.allocateAndForwardPorts(); err != nil {
 		return d.resetWithError("allocate or forward ports", err)
 	}
+
 	if err := d.startWebDriverAgent(); err != nil {
 		return err // already reset inside
 	}
 	if err := d.waitForWebDriverAgent(); err != nil {
 		return err // already reset inside
 	}
+
+	if d.DBDevice.StreamType == models.IOSWebRTCBroadcastExtensionId {
+		fmt.Println("BROADCAST SETUP")
+		broadcastRunning := false
+		if conn, err := net.DialTimeout("tcp", "localhost:"+d.StreamPort, 2*time.Second); err == nil {
+			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			buf := make([]byte, 1)
+			if _, err := conn.Read(buf); err == nil {
+				broadcastRunning = true
+			}
+			conn.Close()
+		}
+
+		if !broadcastRunning {
+			if err := d.installApp(fmt.Sprintf("%s/Broadcast.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install broadcast extension on device `%s` - %s", d.GetUDID(), err))
+				d.Reset("Failed to install broadcast extension on device.")
+				return err
+			}
+
+			// Start the broadcast extension via WebDriverAgent
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Starting broadcast extension on device `%s`", d.GetUDID()))
+			if err := d.startBroadcastViaWDA(); err != nil {
+				return fmt.Errorf("failed to start broadcast: %w", err)
+			}
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension started on device `%s`", d.GetUDID()))
+			// No fixed wait here — waitForBroadcastStream below polls until
+			// the extension actually streams data.
+		} else {
+			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension is already running on device `%s`", d.GetUDID()))
+		}
+
+		// Verify the broadcast extension is actually streaming
+		logger.ProviderLogger.LogInfo("Verifying broadcast extension is streaming on device `%s`", d.GetUDID())
+		if err := d.waitForBroadcastStream(); err != nil {
+			return fmt.Errorf("broadcast extension not streaming: %w", err)
+		}
+
+		// Disable memory limit for the broadcast extension
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Disabling broadcast extension memory limit on device `%s`", d.GetUDID()))
+		d.disableBroadcastExtensionMemoryLimit()
+
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension setup complete on device `%s", d.GetUDID()))
+	}
+
 	if err := d.applyStreamConfig(); err != nil {
 		return d.resetWithError("apply device stream settings", err)
 	}
@@ -142,6 +186,44 @@ func (d *IOSDevice) initGoIOSDevice() error {
 	}
 	d.GoIOSDeviceEntry = goIosDeviceEntry
 	return nil
+}
+
+// startBroadcastViaHFRunner triggers the broadcast extension start through HFRunner.
+func (d *IOSDevice) startBroadcastViaWDA() error {
+	url := fmt.Sprintf("http://localhost:%s/wda/startBroadcast", d.WDAPort)
+	body := strings.NewReader(`{"appName":"GADSBroadcast"}`)
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Post(url, "application/json", body)
+	if err != nil {
+		return fmt.Errorf("POST %s failed: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("POST %s returned %d: %s", url, resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// waitForBroadcastStream polls the broadcast extension TCP port until data
+// arrives, confirming it's actually streaming. Receiving a byte (not just a
+// successful connect) is the signal because the port forward accepts
+// connections even when nothing listens on the device. The window also
+// covers the extension's own startup, since the caller no longer sleeps
+// before invoking this.
+func (d *IOSDevice) waitForBroadcastStream() error {
+	return waitFor(d.Context, 15*time.Second, time.Second, "broadcast stream data", func() bool {
+		conn, err := net.DialTimeout("tcp", "localhost:"+d.StreamPort, 2*time.Second)
+		if err != nil {
+			return false
+		}
+		defer conn.Close()
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		buf := make([]byte, 1)
+		_, err = conn.Read(buf)
+		return err == nil
+	})
 }
 
 func (d *IOSDevice) checkDeveloperMode() error {
@@ -950,14 +1032,58 @@ func (d *IOSDevice) GetHardwareModel() (string, error) {
 	return d.HardwareModel, nil
 }
 
-// GetCurrentRotation returns the current device rotation (iOS uses WDA for this, handled by router).
+// GetCurrentRotation returns "portrait" or "landscape" based on the interface
+// orientation of the foreground application reported by WebDriverAgent.
 func (d *IOSDevice) GetCurrentRotation() (string, error) {
-	return d.CurrentRotation, nil
+	url := fmt.Sprintf("http://localhost:%v/orientation", d.GetWDAPort())
+	client := &http.Client{Timeout: 20 * time.Second}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return "portrait", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "portrait", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "portrait", fmt.Errorf("WebDriverAgent returned status %d - %s", resp.StatusCode, string(body))
+	}
+
+	var orientationResp struct {
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(body, &orientationResp); err != nil {
+		return "portrait", err
+	}
+	if strings.EqualFold(orientationResp.Value, "landscape") {
+		return "landscape", nil
+	}
+	return "portrait", nil
 }
 
-// ChangeRotation is handled via WDA in the router for iOS.
+// ChangeRotation changes the device rotation to "portrait" or "landscape" via
+// WebDriverAgent, which waits for the interface to reach the requested
+// orientation and reverts the pending device orientation when the foreground
+// app does not support it. A non-OK status only means the rotation was not
+// applied - the caller reads the rotation back to report the effective one.
 func (d *IOSDevice) ChangeRotation(rotation string) error {
-	return fmt.Errorf("iOS rotation is handled via WebDriverAgent")
+	url := fmt.Sprintf("http://localhost:%v/orientation", d.GetWDAPort())
+	body := strings.NewReader(fmt.Sprintf(`{"orientation":%q}`, strings.ToUpper(rotation)))
+	client := &http.Client{Timeout: 20 * time.Second}
+
+	resp, err := client.Post(url, "application/json", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		d.Logger.LogDebug("ios_rotation", fmt.Sprintf("WebDriverAgent did not rotate device `%s` to `%s` - the foreground app may not support this orientation", d.GetUDID(), rotation))
+	}
+	return nil
 }
 
 // ApplyStreamSettings applies stream settings from DB to the device runtime state.
