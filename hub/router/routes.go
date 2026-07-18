@@ -14,6 +14,7 @@ import (
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/auth"
+	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/hub/signing"
 	"GADS/provider/logger"
@@ -21,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -697,26 +697,30 @@ func UploadWebDriverAgentFile(c *gin.Context) {
 	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
 }
 
-// readMultipartFile reads an uploaded multipart file fully into memory.
-func readMultipartFile(fh *multipart.FileHeader) ([]byte, error) {
-	f, err := fh.Open()
-	if err != nil {
-		return nil, err
+// tailString trims s and returns at most its last n characters, prefixing an
+// ellipsis when it was truncated. Used to surface the tail of zsign's output.
+func tailString(s string, n int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= n {
+		return s
 	}
-	defer f.Close()
-	return io.ReadAll(f)
+	return "..." + s[len(s)-n:]
 }
 
 // SignAndUploadWebDriverAgentFile godoc
 // @Summary      Sign and upload a WebDriverAgent IPA
-// @Description  Resign an unsigned WebDriverAgent IPA with the provided provisioning profile and .p12 identity, then store the signed result like a normal WebDriverAgent upload.
+// @Description  Resign an unsigned WebDriverAgent IPA with zsign using the provided provisioning profile and signing material (either a .p12 + password, or a certificate + private key), then store the signed result like a normal WebDriverAgent upload.
 // @Tags         Hub - Admin - Files
 // @Accept       multipart/form-data
 // @Produce      json
 // @Param        file          formData  file    true   "Unsigned WebDriverAgent IPA file"
 // @Param        profile       formData  file    true   "Provisioning profile (.mobileprovision)"
-// @Param        p12           formData  file    true   "Signing identity (.p12)"
+// @Param        method        formData  string  false  "Signing method: 'p12' (default) or 'certkey'"
+// @Param        p12           formData  file    false  "Signing identity (.p12) - method p12"
 // @Param        p12_password  formData  string  false  "Password for the .p12 identity"
+// @Param        cert          formData  file    false  "Certificate (.cer/.pem) - method certkey"
+// @Param        key           formData  file    false  "Private key (.key/.pem) - method certkey"
+// @Param        key_password  formData  string  false  "Password for the private key, if encrypted"
 // @Param        description   formData  string  false  "Optional description to tell builds apart"
 // @Success      200           {object}  models.SuccessResponse
 // @Failure      400           {object}  models.ErrorResponse
@@ -744,18 +748,13 @@ func SignAndUploadWebDriverAgentFile(c *gin.Context) {
 		return
 	}
 
-	p12File, err := c.FormFile("p12")
-	if err != nil {
-		api.BadRequest(c, fmt.Sprintf("No .p12 signing identity provided in form data - %s", err))
-		return
-	}
-	if !strings.HasSuffix(strings.ToLower(p12File.Filename), ".p12") {
-		api.BadRequest(c, "Only .p12 files are allowed for the signing identity")
-		return
+	method := c.PostForm("method")
+	if method == "" {
+		method = "p12"
 	}
 
-	// Work inside a temp dir that is always cleaned up. The signing package needs
-	// the app as a file on disk; the profile and identity are passed as bytes.
+	// zsign works on files on disk. Stage every input in a temp dir that is
+	// always cleaned up, sign into it, then store the signed output.
 	tmpDir, err := os.MkdirTemp("", "gads-wda-sign-*")
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to create temp dir for signing - %s", err))
@@ -765,31 +764,88 @@ func SignAndUploadWebDriverAgentFile(c *gin.Context) {
 
 	inputPath := filepath.Join(tmpDir, "input.ipa")
 	outputPath := filepath.Join(tmpDir, "signed.ipa")
+	profilePath := filepath.Join(tmpDir, "profile.mobileprovision")
 	if err := c.SaveUploadedFile(ipaFile, inputPath); err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to store uploaded IPA - %s", err))
 		return
 	}
-
-	profileData, err := readMultipartFile(profileFile)
-	if err != nil {
-		api.InternalError(c, fmt.Sprintf("Failed to read provisioning profile - %s", err))
-		return
-	}
-	p12Data, err := readMultipartFile(p12File)
-	if err != nil {
-		api.InternalError(c, fmt.Sprintf("Failed to read .p12 identity - %s", err))
+	if err := c.SaveUploadedFile(profileFile, profilePath); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to store provisioning profile - %s", err))
 		return
 	}
 
-	_, err = signing.Sign(signing.SignOptions{
-		AppPath:     inputPath,
-		OutputPath:  outputPath,
-		P12Data:     p12Data,
-		P12Password: c.PostForm("p12_password"),
-		ProfileData: profileData,
-	})
+	binName, err := signing.BinaryName()
 	if err != nil {
-		api.BadRequest(c, fmt.Sprintf("Failed to sign WebDriverAgent IPA - %s", err))
+		api.InternalError(c, err.Error())
+		return
+	}
+	zsignPath := filepath.Join(config.GlobalHubConfig.FilesTempDir, "resources", binName)
+	if _, err := os.Stat(zsignPath); err != nil {
+		api.InternalError(c, "The zsign binary is not available on the hub - resource files were not unpacked on startup")
+		return
+	}
+
+	opts := signing.Options{
+		ZsignPath:   zsignPath,
+		InputIPA:    inputPath,
+		OutputIPA:   outputPath,
+		ProfilePath: profilePath,
+	}
+
+	switch method {
+	case "p12":
+		p12File, err := c.FormFile("p12")
+		if err != nil {
+			api.BadRequest(c, fmt.Sprintf("No .p12 signing identity provided in form data - %s", err))
+			return
+		}
+		if !strings.HasSuffix(strings.ToLower(p12File.Filename), ".p12") {
+			api.BadRequest(c, "Only .p12 files are allowed for the signing identity")
+			return
+		}
+		p12Path := filepath.Join(tmpDir, "identity.p12")
+		if err := c.SaveUploadedFile(p12File, p12Path); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to store .p12 identity - %s", err))
+			return
+		}
+		opts.P12Path = p12Path
+		opts.Password = c.PostForm("p12_password")
+	case "certkey":
+		certFile, err := c.FormFile("cert")
+		if err != nil {
+			api.BadRequest(c, fmt.Sprintf("No certificate provided in form data - %s", err))
+			return
+		}
+		keyFile, err := c.FormFile("key")
+		if err != nil {
+			api.BadRequest(c, fmt.Sprintf("No private key provided in form data - %s", err))
+			return
+		}
+		certPath := filepath.Join(tmpDir, "cert.pem")
+		keyPath := filepath.Join(tmpDir, "key.pem")
+		if err := c.SaveUploadedFile(certFile, certPath); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to store certificate - %s", err))
+			return
+		}
+		if err := c.SaveUploadedFile(keyFile, keyPath); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed to store private key - %s", err))
+			return
+		}
+		opts.CertPath = certPath
+		opts.KeyPath = keyPath
+		opts.Password = c.PostForm("key_password")
+	default:
+		api.BadRequest(c, "Unknown signing method - use 'p12' or 'certkey'")
+		return
+	}
+
+	zsignLog, signErr := signing.Sign(opts)
+	if signErr != nil {
+		api.BadRequest(c, fmt.Sprintf("Signing failed - %s\n\nzsign output:\n%s", signErr, tailString(zsignLog, 1500)))
+		return
+	}
+	if fi, statErr := os.Stat(outputPath); statErr != nil || fi.Size() == 0 {
+		api.BadRequest(c, fmt.Sprintf("Signing did not produce an output IPA - check the signing material and provisioning profile.\n\nzsign output:\n%s", tailString(zsignLog, 1500)))
 		return
 	}
 

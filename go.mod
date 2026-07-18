@@ -10,6 +10,8 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gobwas/ws v1.4.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/minio/minio-go/v7 v7.0.95
+	github.com/pion/webrtc/v3 v3.3.6
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
@@ -19,18 +21,16 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090
+	golang.org/x/sync v0.15.0
+	howett.net/plist v1.0.1
 )
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/aluedeke/go-codesign v0.0.6 // indirect
-	github.com/blacktop/go-dwarf v1.0.14 // indirect
-	github.com/blacktop/go-macho v1.1.258 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect
@@ -47,19 +47,16 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
 	github.com/grandcat/zeroconf v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/miekg/dns v1.1.61 // indirect
 	github.com/minio/crc64nvme v1.0.2 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/minio/minio-go/v7 v7.0.95 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/onsi/ginkgo/v2 v2.9.5 // indirect
@@ -80,7 +77,6 @@ require (
 	github.com/pion/stun v0.6.1 // indirect
 	github.com/pion/transport/v2 v2.2.10 // indirect
 	github.com/pion/turn/v2 v2.1.6 // indirect
-	github.com/pion/webrtc/v3 v3.3.6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qtls-go1-20 v0.4.1 // indirect
@@ -102,7 +98,6 @@ require (
 	go.uber.org/mock v0.3.0 // indirect
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
@@ -110,7 +105,6 @@ require (
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gvisor.dev/gvisor v0.0.0-20240405191320-0878b34101b5 // indirect
-	howett.net/plist v1.0.1 // indirect
 	software.sslmate.com/src/go-pkcs12 v0.7.0 // indirect
 )
 
@@ -124,7 +118,7 @@ require (
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/pelletier/go-toml/v2 v2.2.3
+	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	go.mongodb.org/mongo-driver v1.12.1
 	golang.org/x/arch v0.16.0 // indirect
