@@ -120,6 +120,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/admin/files/webdriveragent", UploadWebDriverAgentFile)
 	authGroup.POST("/admin/files/webdriveragent/sign", SignAndUploadWebDriverAgentFile)
 	authGroup.POST("/admin/files/supervision", UploadSupervisionProfile)
+	authGroup.POST("/admin/files/csr", GenerateCSR)
 	authGroup.DELETE("/admin/files/:id", DeleteFile)
 	authGroup.PUT("/admin/user", UpdateUser)
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
