@@ -168,8 +168,20 @@ type UpdateStreamSettings struct {
 }
 
 type DBFile struct {
+	ID         string             `json:"id" bson:"_id"`
 	FileName   string             `json:"name" bson:"filename"`
 	UploadDate primitive.DateTime `json:"upload_date" bson:"uploadDate"`
+	Metadata   DBFileMetadata     `json:"metadata" bson:"metadata"`
+}
+
+// DBFileMetadata holds the custom GridFS metadata attached to uploaded files.
+// WebDriverAgent IPAs carry a description and uploader so multiple builds can be
+// told apart; the supervision profile only records who last replaced it.
+type DBFileMetadata struct {
+	Type         string `json:"type" bson:"type"`
+	Description  string `json:"description" bson:"description"`
+	UploadedBy   string `json:"uploaded_by" bson:"uploaded_by"`
+	OriginalName string `json:"original_name" bson:"original_name"`
 }
 
 type GlobalSettings struct {

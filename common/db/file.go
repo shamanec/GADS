@@ -20,6 +20,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/gridfs"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func (m *MongoStore) GetFiles() ([]models.DBFile, error) {
@@ -28,9 +29,21 @@ func (m *MongoStore) GetFiles() ([]models.DBFile, error) {
 }
 
 func (m *MongoStore) UploadFile(file io.Reader, fileName string, force bool) error {
-	bucket, err := gridfs.NewBucket(m.GetDefaultDatabase(), nil)
-	filter := bson.D{{Key: "filename", Value: fileName}}
+	return m.UploadFileWithMetadata(file, fileName, nil, force)
+}
 
+// UploadFileWithMetadata stores a file in the default GridFS bucket, optionally
+// attaching custom metadata (used to record type/description/uploader for the
+// WebDriverAgent IPAs and supervision profile). When force is true every
+// existing file sharing the same filename is removed first so the upload
+// replaces it; when false an existing filename is rejected.
+func (m *MongoStore) UploadFileWithMetadata(file io.Reader, fileName string, metadata bson.M, force bool) error {
+	bucket, err := gridfs.NewBucket(m.GetDefaultDatabase(), nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create GridFS bucket - %s", err)
+	}
+
+	filter := bson.D{{Key: "filename", Value: fileName}}
 	cursor, err := bucket.Find(filter)
 	if err != nil {
 		return fmt.Errorf("Failed to get cursor from DB - %s", err)
@@ -47,37 +60,88 @@ func (m *MongoStore) UploadFile(file io.Reader, fileName string, force bool) err
 		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
 
-	// If there are found files fail upload
-	if len(foundFiles) == 1 {
-		if force {
-			// Get the ObjectID for the file in Mongo
-			id, err := primitive.ObjectIDFromHex(foundFiles[0].ID)
-			if err != nil {
-				return fmt.Errorf("Failed to get ObjectID from the Mongo file ID - %s", err)
-			}
-
-			// Delete the file in Mongo before attempting to upload
-			err = bucket.Delete(id)
-			if err != nil {
-				return fmt.Errorf("File is force upload but failed to delete it from Mongo before upload - %s", err)
-			}
-
-			// Upload the file to the bucket
-			_, err = bucket.UploadFromStream(fileName, file, nil)
-			if err != nil {
-				return fmt.Errorf("Failed to upload file `%s` to bucket - %s", fileName, err)
-			}
-			return nil
-		}
+	if len(foundFiles) > 0 && !force {
 		return fmt.Errorf("File with name `%s` is already present in MongoDB", fileName)
-	} else {
-		// File is not in bucket so upload it
-		_, err = bucket.UploadFromStream(fileName, file, nil)
-		if err != nil {
-			return fmt.Errorf("Failed to upload file `%s` to bucket - %s", fileName, err)
-		}
-		return nil
 	}
+
+	// Force replace - delete every existing file sharing this filename before upload
+	for _, found := range foundFiles {
+		id, err := primitive.ObjectIDFromHex(found.ID)
+		if err != nil {
+			return fmt.Errorf("Failed to get ObjectID from the Mongo file ID - %s", err)
+		}
+		if err := bucket.Delete(id); err != nil {
+			return fmt.Errorf("File is force upload but failed to delete it from Mongo before upload - %s", err)
+		}
+	}
+
+	uploadOpts := options.GridFSUpload()
+	if metadata != nil {
+		uploadOpts.SetMetadata(metadata)
+	}
+	if _, err := bucket.UploadFromStream(fileName, file, uploadOpts); err != nil {
+		return fmt.Errorf("Failed to upload file `%s` to bucket - %s", fileName, err)
+	}
+	return nil
+}
+
+// DownloadFileByID downloads a GridFS file identified by its hex ObjectID and
+// writes it to downloadPath under localName. Used by the provider to fetch the
+// specific WebDriverAgent IPA selected in its configuration while keeping the
+// on-disk filename constant.
+func (m *MongoStore) DownloadFileByID(fileID, downloadPath, localName string) error {
+	bucket, err := gridfs.NewBucket(m.GetDefaultDatabase(), nil)
+	if err != nil {
+		return err
+	}
+
+	id, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return fmt.Errorf("Failed to parse file id `%s` - %s", fileID, err)
+	}
+
+	downloadStream, err := bucket.OpenDownloadStream(id)
+	if err != nil {
+		return fmt.Errorf("Failed to open download stream from the GridFS bucket - %s", err)
+	}
+
+	// Remove any stale local copy before writing the fresh download
+	filePath := filepath.Join(downloadPath, localName)
+	if err := os.Remove(filePath); err != nil {
+		fmt.Printf("There is no %s file located at `%s`, nothing to remove\n", localName, filePath)
+	}
+
+	fileBuffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(fileBuffer, downloadStream); err != nil {
+		return fmt.Errorf("Failed to copy download stream to the bytes buffer - %s", err)
+	}
+
+	actualFile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("Failed to create file with path `%s` - %s", filePath, err)
+	}
+	defer actualFile.Close()
+
+	if _, err := actualFile.Write(fileBuffer.Bytes()); err != nil {
+		return fmt.Errorf("Failed to write byte to file with path `%s` - %s", filePath, err)
+	}
+	return nil
+}
+
+// DeleteFileByID removes a GridFS file identified by its hex ObjectID.
+func (m *MongoStore) DeleteFileByID(fileID string) error {
+	bucket, err := gridfs.NewBucket(m.GetDefaultDatabase(), nil)
+	if err != nil {
+		return err
+	}
+	id, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return fmt.Errorf("Failed to parse file id `%s` - %s", fileID, err)
+	}
+	if err := bucket.Delete(id); err != nil {
+		return fmt.Errorf("Failed to delete file `%s` from Mongo - %s", fileID, err)
+	}
+	return nil
 }
 
 func (m *MongoStore) DownloadFile(fileName, downloadPath string) error {
