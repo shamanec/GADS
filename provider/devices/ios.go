@@ -136,7 +136,11 @@ func (d *IOSDevice) Setup() (retErr error) {
 		}
 
 		if !broadcastRunning {
-			// TODO - Later add installing the broadcast extension automatically
+			if err := d.installApp(fmt.Sprintf("%s/Broadcast.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
+				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install broadcast extension on device `%s` - %s", d.GetUDID(), err))
+				d.Reset("Failed to install broadcast extension on device.")
+				return err
+			}
 
 			// Start the broadcast extension via WebDriverAgent
 			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Starting broadcast extension on device `%s`", d.GetUDID()))
