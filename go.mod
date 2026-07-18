@@ -23,6 +23,9 @@ require (
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
+	github.com/aluedeke/go-codesign v0.0.6 // indirect
+	github.com/blacktop/go-dwarf v1.0.14 // indirect
+	github.com/blacktop/go-macho v1.1.258 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
@@ -95,7 +98,7 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
+	go.mozilla.org/pkcs7 v0.9.0 // indirect
 	go.uber.org/mock v0.3.0 // indirect
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/net v0.41.0 // indirect
@@ -108,7 +111,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gvisor.dev/gvisor v0.0.0-20240405191320-0878b34101b5 // indirect
 	howett.net/plist v1.0.1 // indirect
-	software.sslmate.com/src/go-pkcs12 v0.4.0 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.0 // indirect
 )
 
 require (
