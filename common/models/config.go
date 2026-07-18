@@ -20,6 +20,7 @@ type Provider struct {
 	ProvideWebOS         bool   `json:"provide_webos" bson:"provide_webos"`
 	WdaBundleID          string `json:"wda_bundle_id" bson:"wda_bundle_id"`
 	WebDriverAgentIPA    string `json:"web_driver_agent_ipa" bson:"web_driver_agent_ipa"`
+	BroadcastIPA         string `json:"broadcast_ipa" bson:"broadcast_ipa"`
 	SupervisionPassword  string `json:"supervision_password" bson:"supervision_password"`
 	ProviderFolder       string `json:"-" bson:"-"`
 	LastUpdatedTimestamp int64  `json:"last_updated" bson:"last_updated"`

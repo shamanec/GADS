@@ -160,6 +160,13 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		if err != nil {
 			log.Fatalf("Could not provide WebDriverAgent.ipa file from MongoDB - %s", err)
 		}
+
+		// The broadcast extension IPA is optional - only download it when the
+		// provider has one selected. Failure is non-fatal so a broadcast
+		// misconfiguration does not stop the provider from serving iOS devices.
+		if err = config.SetupBroadcastFile(); err != nil {
+			logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Could not provide Broadcast.ipa file from MongoDB - %s", err))
+		}
 	}
 
 	err = extractProviderResourceFiles(config.ProviderConfig.ProviderFolder, resourceFiles)

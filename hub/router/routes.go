@@ -648,6 +648,43 @@ func AvailableDevicesSSE(c *gin.Context) {
 	})
 }
 
+// uploadIPAFile stores an uploaded .ipa in GridFS under a unique generated name
+// tagged with the given file type, so multiple builds coexist and each provider
+// references a specific one by its GridFS id. noun is used in user-facing messages.
+func uploadIPAFile(c *gin.Context, fileType, noun string) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".ipa") {
+		api.BadRequest(c, fmt.Sprintf("Only .ipa files are allowed for %s uploads", noun))
+		return
+	}
+
+	openedFile, err := file.Open()
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
+		return
+	}
+	defer openedFile.Close()
+
+	metadata := bson.M{
+		"type":          fileType,
+		"description":   c.PostForm("description"),
+		"uploaded_by":   c.GetString("username"),
+		"original_name": file.Filename,
+	}
+
+	err = db.GlobalMongoStore.UploadFileWithMetadata(openedFile, uuid.NewString(), metadata, false)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to upload %s to MongoDB - %s", noun, err))
+		return
+	}
+
+	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
+}
+
 // UploadWebDriverAgentFile godoc
 // @Summary      Upload a WebDriverAgent IPA
 // @Description  Upload a WebDriverAgent IPA to MongoDB. Multiple IPAs can coexist; each is stored under a unique generated name with an optional description and the uploader recorded.
@@ -662,39 +699,24 @@ func AvailableDevicesSSE(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /admin/files/webdriveragent [post]
 func UploadWebDriverAgentFile(c *gin.Context) {
-	file, err := c.FormFile("file")
-	if err != nil {
-		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
-		return
-	}
-	if !strings.HasSuffix(strings.ToLower(file.Filename), ".ipa") {
-		api.BadRequest(c, "Only .ipa files are allowed for WebDriverAgent uploads")
-		return
-	}
+	uploadIPAFile(c, "wda", "WebDriverAgent IPA")
+}
 
-	openedFile, err := file.Open()
-	if err != nil {
-		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
-		return
-	}
-	defer openedFile.Close()
-
-	metadata := bson.M{
-		"type":          "wda",
-		"description":   c.PostForm("description"),
-		"uploaded_by":   c.GetString("username"),
-		"original_name": file.Filename,
-	}
-
-	// Store each WebDriverAgent IPA under a unique generated name so multiple
-	// builds coexist; providers reference a specific one by its GridFS id.
-	err = db.GlobalMongoStore.UploadFileWithMetadata(openedFile, uuid.NewString(), metadata, false)
-	if err != nil {
-		api.InternalError(c, fmt.Sprintf("Failed to upload WebDriverAgent IPA to MongoDB - %s", err))
-		return
-	}
-
-	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
+// UploadBroadcastFile godoc
+// @Summary      Upload a broadcast extension IPA
+// @Description  Upload a GADS broadcast extension IPA to MongoDB. Multiple IPAs can coexist; each is stored under a unique generated name with an optional description and the uploader recorded.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file         formData  file    true   "Broadcast extension IPA file"
+// @Param        description  formData  string  false  "Optional description to tell builds apart"
+// @Success      200          {object}  models.SuccessResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/broadcast [post]
+func UploadBroadcastFile(c *gin.Context) {
+	uploadIPAFile(c, "broadcast", "broadcast extension IPA")
 }
 
 // tailString trims s and returns at most its last n characters, prefixing an
@@ -707,34 +729,18 @@ func tailString(s string, n int) string {
 	return "..." + s[len(s)-n:]
 }
 
-// SignAndUploadWebDriverAgentFile godoc
-// @Summary      Sign and upload a WebDriverAgent IPA
-// @Description  Resign an unsigned WebDriverAgent IPA with zsign using the provided provisioning profile and signing material (either a .p12 + password, or a certificate + private key), then store the signed result like a normal WebDriverAgent upload.
-// @Tags         Hub - Admin - Files
-// @Accept       multipart/form-data
-// @Produce      json
-// @Param        file          formData  file    true   "Unsigned WebDriverAgent IPA file"
-// @Param        profile       formData  file    true   "Provisioning profile (.mobileprovision)"
-// @Param        method        formData  string  false  "Signing method: 'p12' (default) or 'certkey'"
-// @Param        p12           formData  file    false  "Signing identity (.p12) - method p12"
-// @Param        p12_password  formData  string  false  "Password for the .p12 identity"
-// @Param        cert          formData  file    false  "Certificate (.cer/.pem) - method certkey"
-// @Param        key           formData  file    false  "Private key (.key/.pem) - method certkey"
-// @Param        key_password  formData  string  false  "Password for the private key, if encrypted"
-// @Param        description   formData  string  false  "Optional description to tell builds apart"
-// @Success      200           {object}  models.SuccessResponse
-// @Failure      400           {object}  models.ErrorResponse
-// @Failure      500           {object}  models.ErrorResponse
-// @Security     BearerAuth
-// @Router       /admin/files/webdriveragent/sign [post]
-func SignAndUploadWebDriverAgentFile(c *gin.Context) {
+// signAndUploadIPAFile resigns an unsigned .ipa with zsign using the provided
+// provisioning profile and signing material (a .p12 + password, or a certificate
+// + private key), then stores the signed result tagged with the given file type.
+// noun is used in user-facing messages.
+func signAndUploadIPAFile(c *gin.Context, fileType, noun string) {
 	ipaFile, err := c.FormFile("file")
 	if err != nil {
 		api.BadRequest(c, fmt.Sprintf("No IPA file provided in form data - %s", err))
 		return
 	}
 	if !strings.HasSuffix(strings.ToLower(ipaFile.Filename), ".ipa") {
-		api.BadRequest(c, "Only .ipa files are allowed for WebDriverAgent uploads")
+		api.BadRequest(c, fmt.Sprintf("Only .ipa files are allowed for %s uploads", noun))
 		return
 	}
 
@@ -857,7 +863,7 @@ func SignAndUploadWebDriverAgentFile(c *gin.Context) {
 	defer signedFile.Close()
 
 	metadata := bson.M{
-		"type":          "wda",
+		"type":          fileType,
 		"description":   c.PostForm("description"),
 		"uploaded_by":   c.GetString("username"),
 		"original_name": ipaFile.Filename,
@@ -868,6 +874,54 @@ func SignAndUploadWebDriverAgentFile(c *gin.Context) {
 	}
 
 	api.OKMessage(c, fmt.Sprintf("`%s` signed and uploaded successfully", ipaFile.Filename))
+}
+
+// SignAndUploadWebDriverAgentFile godoc
+// @Summary      Sign and upload a WebDriverAgent IPA
+// @Description  Resign an unsigned WebDriverAgent IPA with zsign using the provided provisioning profile and signing material (either a .p12 + password, or a certificate + private key), then store the signed result like a normal WebDriverAgent upload.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file          formData  file    true   "Unsigned WebDriverAgent IPA file"
+// @Param        profile       formData  file    true   "Provisioning profile (.mobileprovision)"
+// @Param        method        formData  string  false  "Signing method: 'p12' (default) or 'certkey'"
+// @Param        p12           formData  file    false  "Signing identity (.p12) - method p12"
+// @Param        p12_password  formData  string  false  "Password for the .p12 identity"
+// @Param        cert          formData  file    false  "Certificate (.cer/.pem) - method certkey"
+// @Param        key           formData  file    false  "Private key (.key/.pem) - method certkey"
+// @Param        key_password  formData  string  false  "Password for the private key, if encrypted"
+// @Param        description   formData  string  false  "Optional description to tell builds apart"
+// @Success      200           {object}  models.SuccessResponse
+// @Failure      400           {object}  models.ErrorResponse
+// @Failure      500           {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/webdriveragent/sign [post]
+func SignAndUploadWebDriverAgentFile(c *gin.Context) {
+	signAndUploadIPAFile(c, "wda", "WebDriverAgent IPA")
+}
+
+// SignAndUploadBroadcastFile godoc
+// @Summary      Sign and upload a broadcast extension IPA
+// @Description  Resign an unsigned GADS broadcast extension IPA with zsign using the provided provisioning profile and signing material (either a .p12 + password, or a certificate + private key), then store the signed result like a normal broadcast extension upload.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file          formData  file    true   "Unsigned broadcast extension IPA file"
+// @Param        profile       formData  file    true   "Provisioning profile (.mobileprovision)"
+// @Param        method        formData  string  false  "Signing method: 'p12' (default) or 'certkey'"
+// @Param        p12           formData  file    false  "Signing identity (.p12) - method p12"
+// @Param        p12_password  formData  string  false  "Password for the .p12 identity"
+// @Param        cert          formData  file    false  "Certificate (.cer/.pem) - method certkey"
+// @Param        key           formData  file    false  "Private key (.key/.pem) - method certkey"
+// @Param        key_password  formData  string  false  "Password for the private key, if encrypted"
+// @Param        description   formData  string  false  "Optional description to tell builds apart"
+// @Success      200           {object}  models.SuccessResponse
+// @Failure      400           {object}  models.ErrorResponse
+// @Failure      500           {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/broadcast/sign [post]
+func SignAndUploadBroadcastFile(c *gin.Context) {
+	signAndUploadIPAFile(c, "broadcast", "broadcast extension IPA")
 }
 
 // UploadSupervisionProfile godoc

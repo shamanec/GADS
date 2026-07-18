@@ -50,3 +50,13 @@ func SetupWebDriverAgentFile() error {
 	}
 	return db.GlobalMongoStore.DownloadFile("WebDriverAgent.ipa", ProviderConfig.ProviderFolder)
 }
+
+func SetupBroadcastFile() error {
+	// A provider optionally references a specific uploaded broadcast extension IPA
+	// by its MongoDB id. When one is selected, download it under the fixed local
+	// name the install step expects. Nothing to do when none is selected.
+	if ProviderConfig.BroadcastIPA == "" {
+		return nil
+	}
+	return db.GlobalMongoStore.DownloadFileByID(ProviderConfig.BroadcastIPA, ProviderConfig.ProviderFolder, "Broadcast.ipa")
+}
