@@ -10,17 +10,10 @@
 package devices
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"os/exec"
-	"strconv"
-	"strings"
 	"time"
-
-	"github.com/pelletier/go-toml/v2"
 
 	"GADS/common/cli"
 	"GADS/common/models"
@@ -69,16 +62,6 @@ AppiumLoop:
 		}
 	}
 
-	if config.ProviderConfig.UseSeleniumGrid {
-		device := d.GetDBDevice()
-		if err := createGridTOML(device, caps.AutomationName); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Selenium Grid use is enabled but couldn't create TOML for device `%s` - %s", udid, err))
-			d.Reset("Failed to create TOML for device.")
-			return err
-		}
-		go startGridNode(d)
-	}
-
 	return nil
 }
 
@@ -123,96 +106,5 @@ func startAppium(d PlatformDevice, capabilities models.AppiumServerCapabilities)
 			cmd.Args, udid, err))
 
 		d.Reset("Appium command errored out or device was disconnected.")
-	}
-}
-
-// createGridTOML creates a Selenium Grid TOML configuration file for the device.
-func createGridTOML(device *models.DBDevice, automationName string) error {
-	url := fmt.Sprintf("http://%s:%v/device/%s/appium", config.ProviderConfig.HostAddress, config.ProviderConfig.Port, device.UDID)
-	configs := fmt.Sprintf(`{"appium:deviceName": "%s", "platformName": "%s", "appium:platformVersion": "%s", "appium:automationName": "%s", "appium:udid": "%s"}`, device.Name, device.OS, device.OSVersion, automationName, device.UDID)
-
-	port, _ := providerutil.GetFreePort()
-	portInt, _ := strconv.Atoi(port)
-	conf := models.AppiumTomlConfig{
-		Server: models.AppiumTomlServer{
-			Port: portInt,
-		},
-		Node: models.AppiumTomlNode{
-			DetectDrivers: false,
-		},
-		Relay: models.AppiumTomlRelay{
-			URL:            url,
-			StatusEndpoint: "/status",
-			Configs: []string{
-				"1",
-				configs,
-			},
-		},
-	}
-
-	res, err := toml.Marshal(conf)
-	if err != nil {
-		return fmt.Errorf("Failed marshalling TOML Appium config - %s", err)
-	}
-
-	file, err := os.Create(fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, device.UDID))
-	if err != nil {
-		return fmt.Errorf("Failed creating TOML Appium config file - %s", err)
-	}
-	defer file.Close()
-
-	_, err = io.WriteString(file, string(res))
-	if err != nil {
-		return fmt.Errorf("Failed writing to TOML Appium config file - %s", err)
-	}
-
-	return nil
-}
-
-// startGridNode starts a Selenium Grid node for the device.
-// It runs as a goroutine and blocks until the process exits.
-func startGridNode(d PlatformDevice) {
-	udid := d.GetUDID()
-	deviceLogger := d.GetLogger()
-
-	time.Sleep(5 * time.Second)
-	cmd := exec.CommandContext(d.GetContext(),
-		"java",
-		"-jar",
-		fmt.Sprintf("%s/selenium.jar", config.ProviderConfig.ProviderFolder),
-		"node",
-		"--host",
-		config.ProviderConfig.HostAddress,
-		"--config",
-		fmt.Sprintf("%s/%s.toml", config.ProviderConfig.ProviderFolder, udid),
-		"--grid-url",
-		config.ProviderConfig.SeleniumGrid,
-	)
-
-	logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Starting Selenium grid node for device `%s` with command `%s`", udid, cmd.Args))
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error creating stdoutpipe while starting Selenium Grid node for device `%v` - %v", udid, err))
-		d.Reset("Failed to create stdoutpipe while starting Selenium Grid node.")
-		return
-	}
-
-	if err := cmd.Start(); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Could not start Selenium Grid node for device `%v` - %v", udid, err))
-		d.Reset("Failed to start Selenium Grid node.")
-		return
-	}
-
-	scanner := bufio.NewScanner(stdout)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		deviceLogger.LogDebug("grid-node", strings.TrimSpace(line))
-	}
-
-	if err := cmd.Wait(); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error waiting for Selenium Grid node command to finish, it errored out or device `%v` was disconnected - %v", udid, err))
-		d.Reset("Failed to wait for Selenium Grid node command to finish.")
 	}
 }

@@ -22,12 +22,15 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -346,10 +349,6 @@ func AddProvider(c *gin.Context) {
 		api.BadRequest(c, "Missing or invalid port")
 		return
 	}
-	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		api.BadRequest(c, "Missing or invalid Selenium Grid address")
-		return
-	}
 
 	provider.RegularizeProviderState()
 
@@ -404,10 +403,6 @@ func UpdateProvider(c *gin.Context) {
 	}
 	if provider.Port == 0 {
 		api.BadRequest(c, "missing `port` field")
-		return
-	}
-	if provider.UseSeleniumGrid && provider.SeleniumGrid == "" {
-		api.BadRequest(c, "missing `selenium_grid` field")
 		return
 	}
 
@@ -649,45 +644,123 @@ func AvailableDevicesSSE(c *gin.Context) {
 	})
 }
 
-// UploadFile godoc
-// @Summary      Upload a file
-// @Description  Upload a file to MongoDB with custom filename
+// UploadWebDriverAgentFile godoc
+// @Summary      Upload a WebDriverAgent IPA
+// @Description  Upload a WebDriverAgent IPA to MongoDB. Multiple IPAs can coexist; each is stored under a unique generated name with an optional description and the uploader recorded.
 // @Tags         Hub - Admin - Files
 // @Accept       multipart/form-data
 // @Produce      json
-// @Param        file      formData  file    true  "File to upload"
-// @Param        fileName  formData  string  true  "Custom filename for MongoDB"
-// @Success      200       {object}  models.SuccessResponse
-// @Failure      400       {object}  models.ErrorResponse
-// @Failure      500       {object}  models.ErrorResponse
+// @Param        file         formData  file    true   "WebDriverAgent IPA file"
+// @Param        description  formData  string  false  "Optional description to tell builds apart"
+// @Success      200          {object}  models.SuccessResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
 // @Security     BearerAuth
-// @Router       /admin/upload-file [post]
-func UploadFile(c *gin.Context) {
+// @Router       /admin/files/webdriveragent [post]
+func UploadWebDriverAgentFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
 		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
 		return
 	}
-	fileName := c.PostForm("fileName")
-	if fileName == "" {
-		api.BadRequest(c, "No fileName for MongoDB record was provided")
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".ipa") {
+		api.BadRequest(c, "Only .ipa files are allowed for WebDriverAgent uploads")
 		return
 	}
 
 	openedFile, err := file.Open()
-	defer openedFile.Close()
 	if err != nil {
-		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to open provided file - %s", err)))
+		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
 		return
 	}
+	defer openedFile.Close()
 
-	err = db.GlobalMongoStore.UploadFile(openedFile, fmt.Sprintf("%s", fileName), true)
+	metadata := bson.M{
+		"type":          "wda",
+		"description":   c.PostForm("description"),
+		"uploaded_by":   c.GetString("username"),
+		"original_name": file.Filename,
+	}
+
+	// Store each WebDriverAgent IPA under a unique generated name so multiple
+	// builds coexist; providers reference a specific one by its GridFS id.
+	err = db.GlobalMongoStore.UploadFileWithMetadata(openedFile, uuid.NewString(), metadata, false)
 	if err != nil {
-		api.InternalError(c, fmt.Sprintf(fmt.Sprintf("Failed to upload file to MongoDB - %s", err)))
+		api.InternalError(c, fmt.Sprintf("Failed to upload WebDriverAgent IPA to MongoDB - %s", err))
 		return
 	}
 
 	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
+}
+
+// UploadSupervisionProfile godoc
+// @Summary      Upload the iOS supervision profile
+// @Description  Upload the supervision profile (.p12). This is a single file - re-uploading replaces the existing one.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file  formData  file  true  "Supervision profile .p12 file"
+// @Success      200   {object}  models.SuccessResponse
+// @Failure      400   {object}  models.ErrorResponse
+// @Failure      500   {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/supervision [post]
+func UploadSupervisionProfile(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".p12") {
+		api.BadRequest(c, "Only .p12 files are allowed for the supervision profile")
+		return
+	}
+
+	openedFile, err := file.Open()
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
+		return
+	}
+	defer openedFile.Close()
+
+	metadata := bson.M{
+		"type":          "supervision",
+		"uploaded_by":   c.GetString("username"),
+		"original_name": file.Filename,
+	}
+
+	// The supervision profile is a single fixed-name file - force replace it.
+	err = db.GlobalMongoStore.UploadFileWithMetadata(openedFile, "supervision.p12", metadata, true)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to upload supervision profile to MongoDB - %s", err))
+		return
+	}
+
+	api.OKMessage(c, "Supervision profile uploaded successfully")
+}
+
+// DeleteFile godoc
+// @Summary      Delete a file
+// @Description  Delete a file stored in MongoDB GridFS by its id
+// @Tags         Hub - Admin - Files
+// @Produce      json
+// @Param        id   path      string  true  "File id"
+// @Success      200  {object}  models.SuccessResponse
+// @Failure      400  {object}  models.ErrorResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/{id} [delete]
+func DeleteFile(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		api.BadRequest(c, "No file id provided")
+		return
+	}
+	if err := db.GlobalMongoStore.DeleteFileByID(id); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to delete file - %s", err))
+		return
+	}
+	api.OKMessage(c, "File deleted successfully")
 }
 
 // AddDevice godoc

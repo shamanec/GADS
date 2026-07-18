@@ -36,14 +36,17 @@ func SetupConfig(nickname, folder, hubAddress string) {
 	ProviderConfig = &provider
 }
 
-func SetupSeleniumJar() error {
-	return db.GlobalMongoStore.DownloadFile("selenium.jar", ProviderConfig.ProviderFolder)
-}
-
 func SetupIOSSupervisionProfileFile() error {
 	return db.GlobalMongoStore.DownloadFile("supervision.p12", ProviderConfig.ProviderFolder)
 }
 
 func SetupWebDriverAgentFile() error {
+	// A provider now references a specific uploaded WebDriverAgent IPA by its
+	// MongoDB id. Download that one, but always write it under the fixed local
+	// name the install step expects. Fall back to the legacy fixed-filename
+	// lookup for providers configured before the per-provider selection existed.
+	if ProviderConfig.WebDriverAgentIPA != "" {
+		return db.GlobalMongoStore.DownloadFileByID(ProviderConfig.WebDriverAgentIPA, ProviderConfig.ProviderFolder, "WebDriverAgent.ipa")
+	}
 	return db.GlobalMongoStore.DownloadFile("WebDriverAgent.ipa", ProviderConfig.ProviderFolder)
 }

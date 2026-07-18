@@ -167,14 +167,6 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		log.Fatalf("Failed to extract embedded resource files - %s", err)
 	}
 
-	// Finalize grid configuration if Selenium Grid usage enabled
-	if config.ProviderConfig.UseSeleniumGrid {
-		err = config.SetupSeleniumJar()
-		if err != nil {
-			log.Fatalf("Selenium Grid connection is enabled but there is something wrong with providing the selenium jar file from MongoDB - %s", err)
-		}
-	}
-
 	// If we want to provide Android devices check if adb is available on PATH
 	if config.ProviderConfig.ProvideAndroid {
 		if !providerutil.AdbAvailable() {
