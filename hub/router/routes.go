@@ -15,12 +15,16 @@ import (
 	"GADS/common/models"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
+	"GADS/hub/signing"
 	"GADS/provider/logger"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -691,6 +695,123 @@ func UploadWebDriverAgentFile(c *gin.Context) {
 	}
 
 	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
+}
+
+// readMultipartFile reads an uploaded multipart file fully into memory.
+func readMultipartFile(fh *multipart.FileHeader) ([]byte, error) {
+	f, err := fh.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
+}
+
+// SignAndUploadWebDriverAgentFile godoc
+// @Summary      Sign and upload a WebDriverAgent IPA
+// @Description  Resign an unsigned WebDriverAgent IPA with the provided provisioning profile and .p12 identity, then store the signed result like a normal WebDriverAgent upload.
+// @Tags         Hub - Admin - Files
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file          formData  file    true   "Unsigned WebDriverAgent IPA file"
+// @Param        profile       formData  file    true   "Provisioning profile (.mobileprovision)"
+// @Param        p12           formData  file    true   "Signing identity (.p12)"
+// @Param        p12_password  formData  string  false  "Password for the .p12 identity"
+// @Param        description   formData  string  false  "Optional description to tell builds apart"
+// @Success      200           {object}  models.SuccessResponse
+// @Failure      400           {object}  models.ErrorResponse
+// @Failure      500           {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/files/webdriveragent/sign [post]
+func SignAndUploadWebDriverAgentFile(c *gin.Context) {
+	ipaFile, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No IPA file provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(ipaFile.Filename), ".ipa") {
+		api.BadRequest(c, "Only .ipa files are allowed for WebDriverAgent uploads")
+		return
+	}
+
+	profileFile, err := c.FormFile("profile")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No provisioning profile provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(profileFile.Filename), ".mobileprovision") {
+		api.BadRequest(c, "Only .mobileprovision files are allowed for the provisioning profile")
+		return
+	}
+
+	p12File, err := c.FormFile("p12")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No .p12 signing identity provided in form data - %s", err))
+		return
+	}
+	if !strings.HasSuffix(strings.ToLower(p12File.Filename), ".p12") {
+		api.BadRequest(c, "Only .p12 files are allowed for the signing identity")
+		return
+	}
+
+	// Work inside a temp dir that is always cleaned up. The signing package needs
+	// the app as a file on disk; the profile and identity are passed as bytes.
+	tmpDir, err := os.MkdirTemp("", "gads-wda-sign-*")
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to create temp dir for signing - %s", err))
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	inputPath := filepath.Join(tmpDir, "input.ipa")
+	outputPath := filepath.Join(tmpDir, "signed.ipa")
+	if err := c.SaveUploadedFile(ipaFile, inputPath); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to store uploaded IPA - %s", err))
+		return
+	}
+
+	profileData, err := readMultipartFile(profileFile)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to read provisioning profile - %s", err))
+		return
+	}
+	p12Data, err := readMultipartFile(p12File)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to read .p12 identity - %s", err))
+		return
+	}
+
+	_, err = signing.Sign(signing.SignOptions{
+		AppPath:     inputPath,
+		OutputPath:  outputPath,
+		P12Data:     p12Data,
+		P12Password: c.PostForm("p12_password"),
+		ProfileData: profileData,
+	})
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("Failed to sign WebDriverAgent IPA - %s", err))
+		return
+	}
+
+	signedFile, err := os.Open(outputPath)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to open signed IPA - %s", err))
+		return
+	}
+	defer signedFile.Close()
+
+	metadata := bson.M{
+		"type":          "wda",
+		"description":   c.PostForm("description"),
+		"uploaded_by":   c.GetString("username"),
+		"original_name": ipaFile.Filename,
+	}
+	if err := db.GlobalMongoStore.UploadFileWithMetadata(signedFile, uuid.NewString(), metadata, false); err != nil {
+		api.InternalError(c, fmt.Sprintf("IPA signed but failed to store it - %s", err))
+		return
+	}
+
+	api.OKMessage(c, fmt.Sprintf("`%s` signed and uploaded successfully", ipaFile.Filename))
 }
 
 // UploadSupervisionProfile godoc
