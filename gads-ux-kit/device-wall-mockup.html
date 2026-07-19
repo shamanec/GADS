@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GADS Fleet — interactive device wall</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.30.0/tabler-icons.min.css">
+<style>
+:root{--bg-page:#161618;--bg-surface:#212123;--bg-info:#15324f;--tx:#ededee;--tx2:#a6a6ac;--tx3:#73737a;--ok:#56c98c;--info:#5aa0ed;--warn:#e0a83a;--danger:#e2706f;--bd:rgba(255,255,255,.12);--bd2:rgba(255,255,255,.22);--bd-info:#3a7bd5;--r-lg:12px;--r-md:8px;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-page);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:26px;line-height:1.5}
+.bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.spacer{flex:1}
+.chip{font-size:12px;padding:6px 12px;border-radius:var(--r-md);border:.5px solid var(--bd);color:var(--tx2)}
+.chip.on{background:var(--bg-info);border-color:var(--bd-info);color:#bcd8fb}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(162px,1fr));gap:13px;margin-top:16px}
+.tile{background:var(--bg-surface);border:.5px solid var(--bd);border-radius:var(--r-lg);padding:9px;position:relative}
+.tile.sel{border:2px solid var(--bd-info);padding:8px}
+.tile.off{opacity:.5}
+.th{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.nm{font-size:12px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bat{font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:3px;flex-shrink:0}
+.bat.low{color:var(--danger)}
+.dots{font-size:17px;color:var(--tx2);flex-shrink:0;cursor:pointer}
+.screen{aspect-ratio:9/15;background:#000;border-radius:13px;padding:4px;position:relative}
+.scr{height:100%;background:#fff;border-radius:9px;padding:7px;display:flex;flex-direction:column;gap:5px;overflow:hidden;position:relative;cursor:grab}
+.notch{position:absolute;top:5px;left:50%;transform:translateX(-50%);width:28px;height:4px;border-radius:3px;background:#000;z-index:2}
+.sbt{position:absolute;right:3px;top:24%;width:3px;height:34%;border-radius:3px;background:#cfcfcf;z-index:2}
+.ahead{height:15px;border-radius:4px;background:var(--ac);margin-top:7px}
+.ln{height:6px;border-radius:3px;background:#ececec}
+.ln.s{width:55%}
+.cardb{flex:1;border-radius:6px;background:#f3f3f3}
+.nav{height:8px;border-radius:3px;background:var(--ac);opacity:.25}
+.scr.offs{background:#16161a;align-items:center;justify-content:center;color:#5a5a63}
+.live{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:#e2706f;z-index:2}
+.drop{position:absolute;inset:4px;border-radius:9px;border:2px dashed #5aa0ed;background:rgba(10,20,38,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#cfe2fb;font-size:11px;font-weight:500;text-align:center;padding:0 6px;z-index:4}
+.ctrl{display:flex;gap:4px;margin-top:8px}
+.cbtn{flex:1;height:26px;border-radius:6px;border:.5px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--tx2);cursor:pointer}
+.cbtn.up{color:#bcd8fb;border-color:var(--bd-info)}
+.tf{display:flex;align-items:center;gap:7px;margin-top:8px}
+.os{font-size:15px;color:var(--tx2)}
+.pv{font-size:11px;color:var(--tx3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chk{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;flex-shrink:0}
+.chk.on{background:var(--bg-info);border-color:var(--bd-info);color:#bcd8fb}
+.legend{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:15px;font-size:12px;color:var(--tx3)}
+.legend i{margin-right:5px}
+.bbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:18px;padding:12px 15px;background:var(--bg-info);border:.5px solid var(--bd-info);border-radius:var(--r-lg)}
+.btitle{font-size:13px;font-weight:500;color:#bcd8fb}
+.bbtn{font-size:12px;padding:7px 12px;border-radius:var(--r-md);background:var(--bg-surface);border:.5px solid var(--bd2);color:var(--tx);display:inline-flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+<div class="bar">
+  <i class="ti ti-device-mobile" style="font-size:21px"></i>
+  <span style="font-size:17px;font-weight:500">GADS Fleet</span>
+  <span style="font-size:13px;color:var(--tx3)">· 12 devices · 10 online</span>
+  <span class="spacer"></span>
+  <span class="chip on">All</span><span class="chip">iOS</span><span class="chip">Android</span><span class="chip">Free</span>
+</div>
+<div class="grid" id="grid"></div>
+<div class="legend">
+  <span><i class="ti ti-hand-finger"></i>tap + scroll on the screen</span>
+  <span><i class="ti ti-upload"></i>drag a file onto a phone to install</span>
+  <span><i class="ti ti-dots-vertical"></i>full GADS settings for that phone</span>
+</div>
+<div class="bbar">
+  <i class="ti ti-broadcast" style="font-size:18px;color:#bcd8fb"></i>
+  <span class="btitle">Acting on 4 devices</span>
+  <span class="spacer"></span>
+  <span class="bbtn"><i class="ti ti-hand-finger" style="font-size:14px"></i>Tap</span>
+  <span class="bbtn"><i class="ti ti-keyboard" style="font-size:14px"></i>Type</span>
+  <span class="bbtn"><i class="ti ti-home" style="font-size:14px"></i>Home</span>
+  <span class="bbtn"><i class="ti ti-upload" style="font-size:14px"></i>Install app</span>
+</div>
+<script>
+const D=[
+ {n:"iPhone 14",os:"a",st:"ok",b:"82",bi:3,pv:"mac-1",ac:"#378ADD",sel:1},
+ {n:"Pixel 7",os:"n",st:"info",b:"45",bi:2,pv:"lin-1",ac:"#1D9E75",live:1},
+ {n:"Galaxy S23",os:"n",st:"ok",b:"91",bi:4,pv:"lin-1",ac:"#D4537E",sel:1},
+ {n:"iPhone 13",os:"a",st:"warn",b:"67",bi:2,pv:"mac-1",ac:"#BA7517"},
+ {n:"Pixel 6a",os:"n",st:"ok",b:"73",bi:3,pv:"lin-2",ac:"#7F77DD",sel:1},
+ {n:"iPhone 15 Pro",os:"a",st:"info",b:"30",bi:1,low:1,pv:"mac-2",ac:"#D85A30",live:1},
+ {n:"Pixel 8",os:"n",st:"ok",b:"54",bi:2,pv:"lin-1",ac:"#378ADD",drop:1},
+ {n:"iPhone SE",os:"a",st:"ok",b:"88",bi:4,pv:"mac-1",ac:"#639922",sel:1},
+ {n:"OnePlus 11",os:"n",st:"warn",b:"77",bi:3,pv:"lin-2",ac:"#1D9E75"},
+ {n:"Galaxy A54",os:"n",st:"off",pv:"lin-2",off:1},
+ {n:"iPhone 12",os:"a",st:"ok",b:"95",bi:4,pv:"mac-2",ac:"#7F77DD"},
+ {n:"Galaxy S22",os:"n",st:"off",pv:"lin-1",off:1},
+];
+const SC={ok:"var(--ok)",info:"var(--info)",warn:"var(--warn)",off:"var(--tx3)"};
+const ctrls=`<div class="ctrl"><span class="cbtn"><i class="ti ti-arrow-left"></i></span><span class="cbtn"><i class="ti ti-home"></i></span><span class="cbtn"><i class="ti ti-volume-2"></i></span><span class="cbtn"><i class="ti ti-volume"></i></span><span class="cbtn up"><i class="ti ti-upload"></i></span></div>`;
+document.getElementById("grid").innerHTML=D.map(d=>{
+ const osI=d.os==="a"?"ti-brand-apple":"ti-brand-android";
+ const scr=d.off
+   ?`<div class="screen"><div class="scr offs"><i class="ti ti-plug-connected-x" style="font-size:21px"></i></div></div>`
+   :`<div class="screen"><div class="notch"></div>${d.live?'<div class="live"></div>':''}${d.drop?'':'<div class="sbt"></div>'}<div class="scr" style="--ac:${d.ac}"><div class="ahead"></div><div class="ln"></div><div class="ln s"></div><div class="cardb"></div><div class="nav"></div></div>${d.drop?'<div class="drop"><i class="ti ti-upload" style="font-size:20px"></i>Drop .apk to install</div>':''}</div>`;
+ const bat=d.off?'<span class="bat"><i class="ti ti-battery-off" style="font-size:14px"></i></span>':`<span class="bat ${d.low?'low':''}"><i class="ti ti-battery-${d.bi}" style="font-size:14px"></i>${d.b}%</span>`;
+ return `<div class="tile ${d.sel?'sel':''} ${d.off?'off':''}">
+   <div class="th"><span class="dot" style="background:${SC[d.st]}"></span><span class="nm">${d.n}</span>${bat}<i class="ti ti-dots-vertical dots"></i></div>
+   ${scr}${ctrls}
+   <div class="tf"><i class="ti ${osI} os"></i><span class="pv">${d.pv}</span><span class="chk ${d.sel?'on':''}"><i class="ti ti-check"></i></span></div>
+ </div>`;
+}).join("");
+</script>
+</body>
+</html>

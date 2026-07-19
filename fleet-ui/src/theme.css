@@ -1,0 +1,16 @@
+:root {
+  --bg: #f6f7f8;
+  --panel: #ffffff;
+  --tx: #17181a;
+  --tx2: #5c6066;
+  --tx3: #9a9fa6;
+  --bd: #e4e6e9;
+  --bd2: #d0d3d8;
+  --acc: #2563eb;
+  --acc-soft: #eef3fe;
+  --acc-bd: #bcd0f7;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --danger: #dc2626;
+  --r: 10px;
+}

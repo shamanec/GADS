@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GADS Fleet — interactive prototype</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.30.0/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#f6f7f8;--panel:#ffffff;--tx:#17181a;--tx2:#5c6066;--tx3:#9a9fa6;
+  --bd:#e4e6e9;--bd2:#d0d3d8;--acc:#2563eb;--acc-soft:#eef3fe;--acc-bd:#bcd0f7;
+  --ok:#16a34a;--warn:#d97706;--danger:#dc2626;--r:10px;
+}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;height:100vh;overflow:hidden;display:flex}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+.side{width:56px;background:var(--panel);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:6px;flex-shrink:0;z-index:30}
+.side .logo{width:32px;height:32px;border-radius:8px;background:var(--tx);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:14px}
+.snav{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--tx3)}
+.snav:hover{background:var(--bg);color:var(--tx2)}
+.snav.on{background:var(--acc-soft);color:var(--acc)}
+
+.main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+.top{display:flex;align-items:center;gap:12px;padding:13px 20px;background:var(--panel);border-bottom:1px solid var(--bd)}
+.top h1{font-size:15px;font-weight:600}
+.count{font-size:13px;color:var(--tx3)}
+.search{display:flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;width:220px}
+.search i{color:var(--tx3);font-size:15px}
+.search input{border:none;background:none;outline:none;font:inherit;width:100%;color:var(--tx)}
+.chips{display:flex;gap:6px;margin-left:auto}
+.chip{font-size:12.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--bd);color:var(--tx2);background:var(--panel);transition:all .12s}
+.chip:hover{border-color:var(--bd2)}
+.chip.on{background:var(--tx);border-color:var(--tx);color:#fff}
+
+.wall{flex:1;overflow-y:auto;padding:18px 20px 90px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:14px}
+.tile{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:10px;transition:box-shadow .15s,border-color .15s;position:relative}
+.tile:hover{border-color:var(--bd2);box-shadow:0 2px 10px rgba(20,24,34,.07)}
+.tile.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.tile.offline{opacity:.55}
+.th{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.nm{font-size:12.5px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.bat{font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:2px}
+.bat.low{color:var(--danger)}
+.menu{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--tx3)}
+.menu:hover{background:var(--bg);color:var(--tx)}
+.screen{aspect-ratio:9/16;background:#101114;border-radius:12px;padding:4px;cursor:pointer;position:relative;overflow:hidden}
+.scr{height:100%;background:#fff;border-radius:9px;overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-width:none}
+.scr::-webkit-scrollbar{display:none}
+.appbar{height:38px;background:var(--dc);display:flex;align-items:flex-end;padding:5px 8px;color:#fff;font-size:9px;font-weight:600;position:sticky;top:0}
+.rowl{margin:7px 8px 0;display:flex;gap:6px;align-items:center}
+.avat{width:18px;height:18px;border-radius:50%;background:#e8e9eb;flex-shrink:0}
+.bars{flex:1}
+.b1{height:5px;border-radius:3px;background:#e8e9eb;margin-bottom:3px}
+.b2{height:4px;border-radius:3px;background:#f1f2f3;width:60%}
+.scr-off{height:100%;border-radius:9px;background:#1a1b1e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#6a6d72;font-size:11px}
+.ripple{position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(37,99,235,.4);transform:translate(-50%,-50%) scale(.3);pointer-events:none;animation:rip .45s ease-out forwards;z-index:5}
+@keyframes rip{to{transform:translate(-50%,-50%) scale(1.6);opacity:0}}
+.dropov{position:absolute;inset:4px;border-radius:9px;background:rgba(18,24,38,.86);border:2px dashed #7aa5f5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#dbe7fd;font-size:11.5px;font-weight:600;z-index:6;pointer-events:none}
+.ctrl{display:flex;gap:4px;margin-top:8px}
+.cb{flex:1;height:27px;border-radius:7px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--tx2);transition:all .1s}
+.cb:hover{background:var(--bg);color:var(--tx)}
+.cb:active{transform:scale(.92);background:var(--acc-soft);color:var(--acc)}
+.tf{display:flex;align-items:center;gap:6px;margin-top:8px}
+.osi{font-size:14px;color:var(--tx3)}
+.pv{font-size:11px;color:var(--tx3);flex:1}
+.chk{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;transition:all .1s;padding:0}
+.chk:hover{border-color:var(--acc)}
+.chk.on{background:var(--acc);border-color:var(--acc);color:#fff}
+
+.bcast{position:absolute;left:20px;right:20px;bottom:16px;background:var(--tx);color:#fff;border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(20,24,34,.25);transform:translateY(calc(100% + 32px));transition:transform .22s ease;z-index:20}
+.bcast.show{transform:none}
+.bcast .n{font-size:13px;font-weight:600}
+.bb{font-size:12.5px;padding:7px 12px;border-radius:8px;background:rgba(255,255,255,.13);display:inline-flex;align-items:center;gap:6px;transition:background .1s}
+.bb:hover{background:rgba(255,255,255,.24)}
+.bb:active{transform:scale(.95)}
+.bclear{margin-left:auto;color:#b9bcc2;font-size:12.5px}
+.bclear:hover{color:#fff}
+
+.detail{position:absolute;inset:0;background:var(--bg);z-index:25;display:flex;flex-direction:column;transform:translateX(24px);opacity:0;pointer-events:none;transition:all .2s ease}
+.detail.open{transform:none;opacity:1;pointer-events:auto}
+.dtop{display:flex;align-items:center;gap:12px;padding:13px 20px;background:var(--panel);border-bottom:1px solid var(--bd)}
+.backb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx2);border:1px solid var(--bd);border-radius:8px;padding:6px 11px}
+.backb:hover{background:var(--bg);color:var(--tx)}
+.dtop h2{font-size:15px;font-weight:600}
+.pill{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px}
+.dbody{flex:1;display:flex;gap:24px;padding:22px 26px;overflow:hidden;min-height:0}
+.dleft{width:298px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
+.bigscreen{width:100%;aspect-ratio:9/16;background:#101114;border-radius:22px;padding:6px;cursor:pointer;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(20,24,34,.18)}
+.bigscr{height:100%;background:#fff;border-radius:17px;overflow-y:auto;scrollbar-width:none;position:relative}
+.bigscr::-webkit-scrollbar{display:none}
+.hw{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px;width:100%}
+.hb{height:34px;border-radius:8px;border:1px solid var(--bd);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--tx2)}
+.hb:hover{background:var(--bg);color:var(--tx)}
+.hb:active{transform:scale(.92);background:var(--acc-soft);color:var(--acc)}
+.dact{display:flex;gap:8px;margin-top:9px;width:100%}
+.ab{flex:1;font-size:12.5px;padding:8px 0;border-radius:8px;border:1px solid var(--bd);background:var(--panel);color:var(--tx);display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.ab:hover{background:var(--bg)}
+.ab:active{transform:scale(.97)}
+.dright{flex:1;overflow-y:auto;min-width:0;padding-right:6px}
+.card{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.card h3{font-size:12px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.card h3 i{font-size:15px}
+.krow{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bg);font-size:13px}
+.krow:last-child{border:none}
+.k{color:var(--tx2)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.tog{width:38px;height:21px;border-radius:11px;background:var(--bd2);position:relative;transition:background .15s;padding:0}
+.tog::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.tog.on{background:var(--acc)}
+.tog.on::after{left:19.5px}
+.dz{border:1.5px dashed var(--bd2);border-radius:10px;padding:16px;text-align:center;font-size:12.5px;color:var(--tx3);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:all .15s}
+.dz:hover,.dz.over{border-color:var(--acc);background:var(--acc-soft);color:var(--acc)}
+.aprow{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;border-bottom:1px solid var(--bg)}
+.aprow:last-child{border:none}
+.api{width:26px;height:26px;border-radius:7px;background:var(--acc-soft);color:var(--acc);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.tb{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:15px}
+.tb:hover{background:#fdeaea;color:var(--danger)}
+.seg{display:inline-flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden;font-size:12.5px}
+.seg button{padding:6px 14px;color:var(--tx2)}
+.seg button.on{background:var(--acc-soft);color:var(--acc);font-weight:600}
+.sab{font-size:12.5px;padding:8px 13px;border-radius:8px;border:1px solid var(--bd);background:var(--panel);display:inline-flex;align-items:center;gap:6px}
+.sab:hover{background:var(--bg)}
+.sab:active{transform:scale(.97)}
+.sab.warn{color:var(--danger);border-color:#f3c5c5}
+.sab.warn:hover{background:#fdeaea}
+
+.login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+.lcard{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:34px 34px 26px;width:340px;box-shadow:0 12px 40px rgba(20,24,34,.08)}
+.llogo{width:44px;height:44px;border-radius:11px;background:var(--tx);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 14px}
+.lcard h1{font-size:17px;font-weight:600;text-align:center}
+.lcard .sub2{font-size:12.5px;color:var(--tx3);text-align:center;margin:4px 0 18px}
+.fi{width:100%;border:1px solid var(--bd);border-radius:9px;padding:9px 12px;font:inherit;margin-bottom:10px;outline:none;background:var(--bg);color:var(--tx)}
+.fi:focus{border-color:var(--acc);background:#fff}
+.lbtn{width:100%;background:var(--tx);color:#fff;border-radius:9px;padding:10px 0;font-weight:600;font-size:13.5px}
+.lbtn:active{transform:scale(.98)}
+.lhint{font-size:11.5px;color:var(--tx3);text-align:center;margin-top:12px}
+.adminv{position:absolute;inset:0;background:var(--bg);z-index:24;display:none;flex-direction:column}
+.adminv.open{display:flex}
+.atabs{display:flex;gap:2px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--bd)}
+.atab{font-size:13px;padding:12px 14px;color:var(--tx2);border-bottom:2px solid transparent}
+.atab:hover{color:var(--tx)}
+.atab.on{color:var(--tx);border-color:var(--tx);font-weight:600}
+.abody{flex:1;overflow-y:auto;padding:20px}
+.tbl{width:100%;background:var(--panel);border:1px solid var(--bd);border-radius:12px;border-collapse:separate;border-spacing:0;overflow:hidden;font-size:13px}
+.tbl th{text-align:left;font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;padding:10px 14px;border-bottom:1px solid var(--bd);font-weight:600;background:var(--bg)}
+.tbl td{padding:9px 14px;border-bottom:1px solid var(--bg)}
+.tbl tr:last-child td{border:none}
+.addb{font-size:12.5px;padding:8px 14px;border-radius:8px;background:var(--tx);color:#fff;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px}
+.addb:active{transform:scale(.97)}
+.sfi{border:1px solid var(--bd);border-radius:7px;padding:4px 8px;font:inherit;font-size:12.5px;background:var(--panel);color:var(--tx)}
+.stat{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px}
+.stat.ok{background:#e7f6ec;color:var(--ok)}
+.stat.bad{background:#eef0f2;color:var(--tx2)}
+.ib{width:26px;height:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:var(--tx3);font-size:15px}
+.ib:hover{background:var(--bg);color:var(--tx)}
+.ib.del:hover{background:#fdeaea;color:var(--danger)}
+.fmodal{position:fixed;inset:0;background:rgba(23,24,26,.45);display:none;align-items:center;justify-content:center;z-index:96}
+.fmodal.open{display:flex}
+.fcard{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:22px 24px;width:440px;max-height:84vh;overflow-y:auto;box-shadow:0 12px 40px rgba(20,24,34,.18)}
+.fcard h2{font-size:15px;font-weight:600;margin-bottom:14px}
+.fl{font-size:11.5px;color:var(--tx3);display:block;margin-bottom:3px}
+.frow{margin-bottom:10px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.fi2{width:100%;border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;outline:none;background:var(--bg);color:var(--tx)}
+.fi2:focus{border-color:var(--acc);background:var(--panel)}
+.fnote{font-size:11.5px;color:var(--tx3);margin:10px 0 0;line-height:1.45}
+.fbtns{display:flex;gap:8px;margin-top:14px}
+.fsub{flex:1;background:var(--tx);color:#fff;border-radius:8px;padding:9px 0;font-weight:600;font-size:13px}
+.fsub:active{transform:scale(.98)}
+.fcan{padding:9px 14px;border:1px solid var(--bd);border-radius:8px;color:var(--tx2);font-size:13px}
+.upwrap{display:flex;gap:14px;flex-wrap:wrap}
+.upc{border:1px solid var(--bd);border-radius:12px;padding:16px;background:var(--panel);width:232px}
+.upc h4{font-size:13px;font-weight:600;margin-bottom:6px}
+.upc p{font-size:11.5px;color:var(--tx3);margin-bottom:10px;line-height:1.45}
+.upst{font-size:11.5px;margin-top:8px;color:var(--tx3)}
+.upst.ok{color:var(--ok)}
+.infob{background:var(--acc-soft);border:1px solid var(--acc-bd);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#1d4fa8;line-height:1.5;margin-bottom:14px;max-width:760px}
+.abar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.abar .search{width:240px}
+.star{color:var(--tx3);font-size:16px}
+.star.on{color:var(--warn)}
+.toasts{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:60;pointer-events:none}
+.toast{background:var(--tx);color:#fff;font-size:13px;padding:9px 16px;border-radius:9px;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(20,24,34,.3);animation:tin .18s ease}
+.toast i{font-size:15px;color:#8fd6a8}
+@keyframes tin{from{transform:translateY(8px);opacity:0}}
+.empty{color:var(--tx3);font-size:13.5px;padding:60px 0;text-align:center;width:100%}
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="logo"><i class="ti ti-device-mobile"></i></div>
+  <button class="snav on" id="nav-devices" title="Devices" onclick="showWall()"><i class="ti ti-layout-grid"></i></button>
+  <button class="snav" id="nav-providers" title="Providers" onclick="adminGate('providers')"><i class="ti ti-server"></i></button>
+  <button class="snav" id="nav-admin" title="Admin" onclick="adminGate('users')"><i class="ti ti-users"></i></button>
+  <div style="flex:1"></div>
+  <button class="snav" id="nav-settings" title="Settings" onclick="adminGate('settings')"><i class="ti ti-settings"></i></button>
+  <button class="snav" title="Sign out" onclick="logout()"><i class="ti ti-logout"></i></button>
+</aside>
+
+<div class="main" id="main">
+  <header class="top">
+    <h1>Devices</h1><span class="count" id="count"></span>
+    <div class="search"><i class="ti ti-search"></i><input id="q" placeholder="Search devices…"></div>
+    <nav class="chips" id="chips">
+      <button class="chip on" data-f="all">All</button>
+      <button class="chip" data-f="ios">iOS</button>
+      <button class="chip" data-f="android">Android</button>
+      <button class="chip" data-f="free">Free</button>
+      <button class="chip" data-f="inuse">In use</button>
+      <button class="chip" data-f="offline">Offline</button>
+    </nav>
+    <select class="sfi" id="wsSel" onchange="wsFilter=this.value;render()" title="Workspace"></select>
+  </header>
+  <section class="wall"><div class="grid" id="grid"></div></section>
+
+  <div class="bcast" id="bcast">
+    <i class="ti ti-broadcast" style="font-size:17px"></i><span class="n" id="bn"></span>
+    <span style="flex:0 0 10px"></span>
+    <button class="bb" onclick="bact('Tap')"><i class="ti ti-hand-finger"></i>Tap</button>
+    <button class="bb" onclick="bact('Type')"><i class="ti ti-keyboard"></i>Type</button>
+    <button class="bb" onclick="bact('Home')"><i class="ti ti-home"></i>Home</button>
+    <button class="bb" onclick="bact('Install app')"><i class="ti ti-upload"></i>Install app</button>
+    <button class="bclear" onclick="clearSel()">Clear</button>
+  </div>
+
+  <div class="detail" id="detail">
+    <div class="dtop">
+      <button class="backb" onclick="closeDetail()"><i class="ti ti-arrow-left"></i>Fleet</button>
+      <h2 id="dname"></h2><span class="pill" id="dpill"></span>
+      <span style="flex:1"></span>
+      <span style="font-size:12.5px;color:var(--tx3)" id="dprov"></span>
+    </div>
+    <div class="dbody">
+      <div class="dleft">
+        <div class="bigscreen" id="bigscreen"><div class="bigscr" id="bigscr"></div></div>
+        <div class="hw">
+          <button class="hb" title="Back" onclick="dact('Back')"><i class="ti ti-arrow-left"></i></button>
+          <button class="hb" title="Home" onclick="dact('Home')"><i class="ti ti-home"></i></button>
+          <button class="hb" title="Recents" onclick="dact('Recents')"><i class="ti ti-square"></i></button>
+          <button class="hb" title="Volume down" onclick="dact('Volume −')"><i class="ti ti-volume-2"></i></button>
+          <button class="hb" title="Volume up" onclick="dact('Volume +')"><i class="ti ti-volume"></i></button>
+          <button class="hb" title="Power" onclick="dact('Power')"><i class="ti ti-power"></i></button>
+        </div>
+        <div class="dact">
+          <button class="ab" onclick="dact('Screenshot saved')"><i class="ti ti-camera"></i>Screenshot</button>
+          <button class="ab" onclick="dact('Rotated')"><i class="ti ti-rotate"></i>Rotate</button>
+        </div>
+      </div>
+      <div class="dright" id="dright"></div>
+    </div>
+  </div>
+
+  <div class="adminv" id="adminv">
+    <div class="dtop">
+      <button class="backb" onclick="showWall()"><i class="ti ti-arrow-left"></i>Fleet</button>
+      <h2 id="atitle">Administration</h2>
+      <span style="flex:1"></span>
+      <span style="font-size:12.5px;color:var(--tx3)">signed in as <b id="whoami">admin</b></span>
+    </div>
+    <nav class="atabs" id="atabs">
+      <button class="atab on" data-t="providers" onclick="openAdmin('providers')">Providers</button>
+      <button class="atab" data-t="devices" onclick="openAdmin('devices')">Devices</button>
+      <button class="atab" data-t="users" onclick="openAdmin('users')">Users</button>
+      <button class="atab" data-t="files" onclick="openAdmin('files')">Files</button>
+      <button class="atab" data-t="settings" onclick="openAdmin('settings')">Global settings</button>
+      <button class="atab" data-t="workspaces" onclick="openAdmin('workspaces')">Workspaces</button>
+      <button class="atab" data-t="keys" onclick="openAdmin('keys')">Secret keys</button>
+      <button class="atab" data-t="creds" onclick="openAdmin('creds')">Client credentials</button>
+      <button class="atab" data-t="actions" onclick="openAdmin('actions')">Custom actions</button>
+    </nav>
+    <div class="abody" id="abody"></div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+</div>
+
+<div class="fmodal" id="fmodal">
+  <form class="fcard" id="fmForm" onsubmit="return fmSubmit(event)">
+    <h2 id="fmTitle"></h2>
+    <div id="fmBody"></div>
+    <div class="fbtns"><button class="fsub" id="fmOk" type="submit">Save</button><button type="button" class="fcan" onclick="fmClose()">Cancel</button></div>
+    <div class="fnote" id="fmNote"></div>
+  </form>
+</div>
+
+<div class="login" id="pwgate" style="display:none;background:rgba(23,24,26,.45);z-index:95">
+  <form class="lcard" style="width:320px;padding:26px 26px 20px" onsubmit="return gateSubmit(event)">
+    <div class="llogo" style="background:var(--acc)"><i class="ti ti-shield-lock"></i></div>
+    <h1>Admin access</h1>
+    <p class="sub2">Enter the admin password — asked every time</p>
+    <input class="fi" id="gpw" type="password" placeholder="Admin password" autocomplete="off">
+    <button class="lbtn" type="submit">Unlock</button>
+    <button type="button" style="width:100%;margin-top:8px;font-size:12.5px;color:var(--tx3)" onclick="gateCancel()">Cancel</button>
+    <div class="lhint">demo: any password works</div>
+  </form>
+</div>
+
+<div class="login" id="login">
+  <form class="lcard" onsubmit="return doLogin(event)">
+    <div class="llogo"><i class="ti ti-device-mobile"></i></div>
+    <h1>GADS Fleet</h1>
+    <p class="sub2">Sign in to your hub</p>
+    <input class="fi" id="lu" placeholder="Username" autocomplete="username">
+    <input class="fi" id="lp" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="lbtn" type="submit">Sign in</button>
+    <div class="lhint">Auth is GADS's own login (JWT) · demo: any credentials work</div>
+  </form>
+</div>
+
+<script>
+const DEVICES=[
+ {id:1,n:"iPhone 14",os:"ios",ver:"iOS 17.5",vern:"17.5",st:"free",b:82,prov:"mac-1",ws:"Default",dc:"#3b82f6",udid:"00008110-000A2D3E0C",res:false,apps:["com.instagram.ios","com.apple.mobilesafari"]},
+ {id:2,n:"Pixel 7",os:"android",ver:"Android 14",vern:"14",st:"inuse",b:45,prov:"lin-1",ws:"Farm A",dc:"#0f9d6a",udid:"2B061FDH3000ND",res:true,apps:["com.instagram.android","com.android.chrome"]},
+ {id:3,n:"Galaxy S23",os:"android",ver:"Android 14",vern:"14",st:"free",b:91,prov:"lin-1",ws:"Farm A",dc:"#c2497c",udid:"R5CX20FDXHB",res:false,apps:["com.instagram.android"]},
+ {id:4,n:"iPhone 13",os:"ios",ver:"iOS 17.4",vern:"17.4",st:"reserved",b:67,prov:"mac-1",ws:"Default",dc:"#b07a1a",udid:"00008101-001E30E20A",res:true,apps:["com.apple.mobilesafari"]},
+ {id:5,n:"Pixel 6a",os:"android",ver:"Android 13",vern:"13",st:"free",b:73,prov:"lin-2",ws:"Farm A",dc:"#6d64d8",udid:"19281FDF6003K2",res:false,apps:["com.android.chrome"]},
+ {id:6,n:"iPhone 15 Pro",os:"ios",ver:"iOS 18.1",vern:"18.1",st:"inuse",b:30,low:1,prov:"mac-2",ws:"Default",dc:"#cf5028",udid:"00008130-000D45C10E",res:true,apps:["com.instagram.ios"]},
+ {id:7,n:"Pixel 8",os:"android",ver:"Android 15",vern:"15",st:"free",b:54,prov:"lin-1",ws:"Farm A",dc:"#3b82f6",udid:"2C111FDH4000XA",res:false,apps:["com.android.chrome","com.reddit.frontpage"]},
+ {id:8,n:"iPhone SE",os:"ios",ver:"iOS 17.5",vern:"17.5",st:"free",b:88,prov:"mac-1",ws:"Default",dc:"#568a1f",udid:"00008030-000C15A40B",res:false,apps:[]},
+ {id:9,n:"OnePlus 11",os:"android",ver:"Android 14",vern:"14",st:"reserved",b:77,prov:"lin-2",ws:"Farm A",dc:"#0f9d6a",udid:"OP110BLK8842",res:true,apps:["com.android.chrome"]},
+ {id:10,n:"Galaxy A54",os:"android",ver:"Android 14",vern:"14",st:"offline",b:0,prov:"lin-2",ws:"Farm A",udid:"R5CW90KKXAE",res:false,apps:[]},
+ {id:11,n:"iPhone 12",os:"ios",ver:"iOS 17.3",vern:"17.3",st:"free",b:95,prov:"mac-2",ws:"Default",dc:"#6d64d8",udid:"00008101-000B22D80C",res:false,apps:["com.apple.mobilesafari"]},
+ {id:12,n:"Galaxy S22",os:"android",ver:"Android 13",vern:"13",st:"offline",b:0,prov:"lin-1",ws:"Default",udid:"R5CT30WWXHK",res:false,apps:[]},
+];
+let wsFilter="All workspaces";
+const SC={free:"var(--ok)",inuse:"var(--acc)",reserved:"var(--warn)",offline:"var(--tx3)"};
+const SL={free:"free",inuse:"in use",reserved:"reserved",offline:"offline"};
+let filter="all",query="",sel=new Set(),cur=null;
+
+function screenHTML(d,big){
+  if(d.st==="offline")return `<div class="scr-off"><i class="ti ti-plug-connected-x" style="font-size:${big?26:18}px"></i>offline</div>`;
+  let rows="";for(let i=0;i<(big?14:8);i++)rows+=`<div class="rowl"><div class="avat"></div><div class="bars"><div class="b1" style="width:${55+((i*17)%40)}%"></div><div class="b2"></div></div></div>`;
+  return `<div class="appbar" style="--dc:${d.dc}">9:41</div>${rows}<div style="height:10px"></div>`;
+}
+function batIcon(b){return b>75?"ti-battery-4":b>50?"ti-battery-3":b>25?"ti-battery-2":"ti-battery-1"}
+
+function render(){
+  const g=document.getElementById("grid");
+  const wsSel=document.getElementById("wsSel");
+  if(wsSel)wsSel.innerHTML=["All workspaces",...WORKSPACES.map(w=>w.n)].map(o=>`<option ${o===wsFilter?"selected":""}>${o}</option>`).join("");
+  const list=DEVICES.filter(d=>{
+    if(filter==="ios"&&d.os!=="ios")return false;
+    if(filter==="android"&&d.os!=="android")return false;
+    if(filter==="free"&&d.st!=="free")return false;
+    if(filter==="inuse"&&d.st!=="inuse")return false;
+    if(filter==="offline"&&d.st!=="offline")return false;
+    if(wsFilter!=="All workspaces"&&(d.ws||"Default")!==wsFilter)return false;
+    if(query&&!d.n.toLowerCase().includes(query))return false;
+    return true;
+  });
+  document.getElementById("count").textContent=`${DEVICES.length} devices · ${DEVICES.filter(d=>d.st!=="offline").length} online`;
+  g.innerHTML=list.length?list.map(d=>`
+   <div class="tile ${sel.has(d.id)?"sel":""} ${d.st==="offline"?"offline":""}" data-id="${d.id}">
+     <div class="th">
+       <span class="dot" style="background:${SC[d.st]}"></span>
+       <button class="nm" onclick="openDetail(${d.id})">${d.n}</button>
+       ${d.st==="offline"?"":`<span class="bat ${d.low?"low":""}"><i class="ti ${batIcon(d.b)}"></i>${d.b}%</span>`}
+       <button class="menu" title="Device settings" onclick="openDetail(${d.id})"><i class="ti ti-dots-vertical"></i></button>
+     </div>
+     <div class="screen" data-scr="${d.id}" title="Click to tap · scroll to scroll · double-click to open"><div class="scr">${screenHTML(d)}</div></div>
+     <div class="ctrl">
+       <button class="cb" title="Back" onclick="act('Back','${d.n}')"><i class="ti ti-arrow-left"></i></button>
+       <button class="cb" title="Home" onclick="act('Home','${d.n}')"><i class="ti ti-home"></i></button>
+       <button class="cb" title="Volume down" onclick="act('Volume −','${d.n}')"><i class="ti ti-volume-2"></i></button>
+       <button class="cb" title="Volume up" onclick="act('Volume +','${d.n}')"><i class="ti ti-volume"></i></button>
+       <button class="cb" title="Install app" onclick="act('Install → file picker','${d.n}')"><i class="ti ti-upload"></i></button>
+     </div>
+     <div class="tf">
+       <i class="ti ${d.os==="ios"?"ti-brand-apple":"ti-brand-android"} osi"></i>
+       <span class="pv">${d.prov}</span>
+       <button class="chk ${sel.has(d.id)?"on":""}" title="Select for broadcast" onclick="tsel(${d.id})"><i class="ti ti-check"></i></button>
+     </div>
+   </div>`).join(""):`<div class="empty">No devices match.</div>`;
+  updateBcast();
+}
+
+function ripple(el,e){
+  const r=el.getBoundingClientRect(),s=document.createElement("span");
+  s.className="ripple";s.style.left=(e.clientX-r.left)+"px";s.style.top=(e.clientY-r.top)+"px";
+  el.appendChild(s);setTimeout(()=>s.remove(),480);
+}
+document.addEventListener("click",e=>{
+  const scr=e.target.closest(".screen");
+  if(scr&&!e.target.closest(".dropov")){const d=DEVICES.find(x=>x.id==scr.dataset.scr);
+    if(d.st==="offline"){toast(`${d.n} is offline`);return}
+    ripple(scr,e);toast(`Tap → ${d.n}`,"ti-hand-finger");}
+});
+document.addEventListener("dblclick",e=>{
+  const scr=e.target.closest(".screen");if(scr)openDetail(+scr.dataset.scr);
+});
+document.addEventListener("dragover",e=>{
+  e.preventDefault();const scr=e.target.closest(".screen");
+  document.querySelectorAll(".dropov").forEach(x=>x.remove());
+  if(scr&&!scr.querySelector(".dropov")){const d=DEVICES.find(x=>x.id==scr.dataset.scr);
+    if(d.st==="offline")return;
+    const o=document.createElement("div");o.className="dropov";
+    o.innerHTML=`<i class="ti ti-upload" style="font-size:20px"></i>Drop to install on ${d.n}`;scr.appendChild(o);}
+});
+document.addEventListener("dragleave",e=>{if(!e.relatedTarget)document.querySelectorAll(".dropov").forEach(x=>x.remove())});
+document.addEventListener("drop",e=>{
+  e.preventDefault();document.querySelectorAll(".dropov").forEach(x=>x.remove());
+  const scr=e.target.closest(".screen");
+  if(scr){const d=DEVICES.find(x=>x.id==scr.dataset.scr);
+    const f=e.dataTransfer.files[0];toast(`Installing ${f?f.name:"app"} → ${d.n}`,"ti-upload");}
+});
+
+function tsel(id){sel.has(id)?sel.delete(id):sel.add(id);render()}
+function clearSel(){sel.clear();render()}
+function updateBcast(){
+  const b=document.getElementById("bcast");
+  document.getElementById("bn").textContent=`Acting on ${sel.size} device${sel.size===1?"":"s"}`;
+  b.classList.toggle("show",sel.size>0);
+}
+function bact(a){toast(`${a} → ${sel.size} devices`,"ti-broadcast")}
+function act(a,n){toast(`${a} → ${n}`)}
+
+document.getElementById("chips").addEventListener("click",e=>{
+  const c=e.target.closest(".chip");if(!c)return;
+  document.querySelectorAll(".chip").forEach(x=>x.classList.remove("on"));
+  c.classList.add("on");filter=c.dataset.f;render();
+});
+document.getElementById("q").addEventListener("input",e=>{query=e.target.value.toLowerCase();render()});
+
+function openDetail(id){
+  cur=DEVICES.find(d=>d.id===id);
+  document.getElementById("dname").textContent=cur.n;
+  document.getElementById("dprov").textContent=`provider ${cur.prov} · ${cur.ver}`;
+  const p=document.getElementById("dpill");p.textContent=SL[cur.st];
+  p.style.background=cur.st==="free"?"#e7f6ec":cur.st==="inuse"?"var(--acc-soft)":cur.st==="reserved"?"#fdf3e4":"#eef0f2";
+  p.style.color=cur.st==="free"?"var(--ok)":cur.st==="inuse"?"var(--acc)":cur.st==="reserved"?"var(--warn)":"var(--tx2)";
+  document.getElementById("bigscr").innerHTML=screenHTML(cur,true);
+  renderPanel();
+  document.getElementById("detail").classList.add("open");
+}
+function closeDetail(){document.getElementById("detail").classList.remove("open");cur=null}
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  if(document.getElementById("fmodal").classList.contains("open")){fmClose();return}
+  if(document.getElementById("pwgate").style.display==="flex"){gateCancel();return}
+  closeDetail();
+});
+document.getElementById("bigscreen").addEventListener("click",e=>{
+  if(!cur)return;if(cur.st==="offline"){toast(`${cur.n} is offline`);return}
+  ripple(e.currentTarget,e);toast(`Tap → ${cur.n}`,"ti-hand-finger");
+});
+
+function renderPanel(){
+  const d=cur;
+  document.getElementById("dright").innerHTML=`
+  <div class="card"><h3><i class="ti ti-info-circle"></i>Device</h3>
+    <div class="krow"><span class="k">Model</span><span>${d.n} · ${d.ver}</span></div>
+    <div class="krow"><span class="k">UDID</span><span class="mono">${d.udid}</span></div>
+    <div class="krow"><span class="k">Screen</span><span>${d.sw||1080} × ${d.sh||2400}</span></div>
+    <div class="krow"><span class="k">Appium port</span><span class="mono">${4720+d.id}</span></div>
+    <div class="krow"><span class="k">Workspace</span><span>${d.ws||"Default"}</span></div>
+    <div class="krow"><span class="k">Appium configuration</span><button style="color:var(--acc);font-size:13px" onclick="toast('Appium capabilities copied')">Copy <i class="ti ti-copy" style="font-size:12px"></i></button></div>
+    <div class="krow"><span class="k">Reserved by you</span><button class="tog ${d.res?"on":""}" onclick="tres(this)"></button></div>
+  </div>
+  <div class="card"><h3><i class="ti ti-apps"></i>Apps</h3>
+    <div class="dz" id="dz" onclick="toast('File picker — choose .apk / .ipa','ti-upload')"><i class="ti ti-upload" style="font-size:20px"></i>Drag ${d.os==="ios"?".ipa":".apk"} here, or click to browse</div>
+    <div id="apps">${d.apps.map((a,i)=>appRow(a,i)).join("")||'<div style="font-size:12.5px;color:var(--tx3);padding:8px 0">No user apps installed.</div>'}</div>
+  </div>
+  <div class="card"><h3><i class="ti ti-video"></i>Streaming</h3>
+    <div class="krow"><span class="k">Protocol</span><span class="seg"><button class="on" onclick="seg(this,'WebRTC')">WebRTC</button><button onclick="seg(this,'MJPEG')">MJPEG</button></span></div>
+    <div class="krow"><span class="k">Quality</span><span class="seg"><button onclick="seg(this,'Low quality')">Low</button><button class="on" onclick="seg(this,'High quality')">High</button></span></div>
+  </div>
+  <div class="card"><h3><i class="ti ti-settings"></i>Session &amp; actions</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="sab" onclick="dact('Clipboard synced')"><i class="ti ti-clipboard"></i>Clipboard</button>
+      <button class="sab" onclick="dact('Appium session started')"><i class="ti ti-player-play"></i>Appium session</button>
+      <button class="sab" onclick="dact('Restarting…')"><i class="ti ti-refresh"></i>Restart</button>
+      <button class="sab warn" onclick="dact('Reset requested')"><i class="ti ti-eraser"></i>Reset</button>
+    </div>
+  </div>
+  <div class="card"><h3><i class="ti ti-grid-dots"></i>Selenium grid &amp; logs</h3>
+    <div class="krow"><span class="k">Register as grid node</span><button class="tog" onclick="tgrid(this)"></button></div>
+    <div class="krow"><span class="k">Device &amp; Appium logs</span><button style="color:var(--acc);font-size:13px" onclick="dact('Opening logs')">Open <i class="ti ti-external-link" style="font-size:12px"></i></button></div>
+  </div>`;
+  const dz=document.getElementById("dz");
+  dz.addEventListener("dragover",e=>{e.preventDefault();e.stopPropagation();dz.classList.add("over")});
+  dz.addEventListener("dragleave",()=>dz.classList.remove("over"));
+  dz.addEventListener("drop",e=>{e.preventDefault();e.stopPropagation();dz.classList.remove("over");
+    const f=e.dataTransfer.files[0];toast(`Installing ${f?f.name:"app"} → ${cur.n}`,"ti-upload")});
+}
+function appRow(a,i){
+  const ic=a.includes("instagram")?"ti-brand-instagram":a.includes("chrome")||a.includes("safari")?"ti-browser":"ti-package";
+  return `<div class="aprow"><span class="api"><i class="ti ${ic}"></i></span><span class="mono" style="flex:1">${a}</span><button class="tb" title="Uninstall" onclick="unin(this,'${a}')"><i class="ti ti-trash"></i></button></div>`;
+}
+function unin(btn,a){btn.closest(".aprow").remove();toast(`Uninstalled ${a} from ${cur.n}`)}
+function tres(t){t.classList.toggle("on");cur.res=t.classList.contains("on");toast(cur.res?`${cur.n} reserved`:`${cur.n} released`)}
+function tgrid(t){t.classList.toggle("on");toast(t.classList.contains("on")?"Registered as grid node":"Removed from grid")}
+function seg(btn,label){[...btn.parentElement.children].forEach(b=>b.classList.remove("on"));btn.classList.add("on");toast(`${label} → ${cur.n}`)}
+function dact(a){toast(`${a} → ${cur.n}`)}
+
+let USERS=[
+ {u:"admin",role:"Admin",ws:"All",pw:"••••"},
+ {u:"alex",role:"Admin",ws:"Farm A",pw:"••••"},
+ {u:"tester-1",role:"User",ws:"Farm A",pw:"••••"},
+];
+let PROVIDERS=[
+ {n:"mac-1",os:"macOS",host:"192.168.1.11",port:10001,up:true,ios:"Yes",android:"No",tizen:"No",webos:"No",appium:"No",wda:"com.reemkolm.wda.runner",sup:""},
+ {n:"mac-2",os:"macOS",host:"192.168.1.12",port:10001,up:true,ios:"Yes",android:"No",tizen:"No",webos:"No",appium:"No",wda:"com.reemkolm.wda.runner",sup:""},
+ {n:"lin-1",os:"Linux",host:"192.168.1.21",port:10001,up:true,ios:"No",android:"Yes",tizen:"No",webos:"No",appium:"Yes",wda:"",sup:""},
+ {n:"lin-2",os:"Linux",host:"192.168.1.22",port:10001,up:false,ios:"No",android:"Yes",tizen:"No",webos:"No",appium:"No",wda:"",sup:""},
+];
+let WORKSPACES=[
+ {n:"Default",desc:"This is the default workspace.",type:"Default",tenant:"00UK5htvU="},
+ {n:"Farm A",desc:"Phone farm workspace.",type:"Custom",tenant:"7GH2kkpQz="},
+];
+let FILES={selenium:false,supervision:false,wda:true};
+let KEYS=[{origin:"default",claim:"username",tclaim:"-",status:"Default",created:"28/05/2026 20:39",updated:"28/05/2026 20:39",enabled:true}];
+let CREDS=[];
+let ACTIONS=[];
+let curTab="providers";
+let fmHandler=null;
+
+function openForm(title,body,note,ok,handler){
+  document.getElementById("fmTitle").textContent=title;
+  document.getElementById("fmBody").innerHTML=body;
+  document.getElementById("fmNote").textContent=note||"";
+  document.getElementById("fmOk").textContent=ok||"Save";
+  fmHandler=handler;
+  document.getElementById("fmodal").classList.add("open");
+  setTimeout(()=>{const f=document.querySelector("#fmBody input,#fmBody select");if(f)f.focus()},50);
+}
+function fmClose(){document.getElementById("fmodal").classList.remove("open");fmHandler=null}
+function fmSubmit(e){e.preventDefault();if(fmHandler)fmHandler();return false}
+function fv(id){const el=document.getElementById(id);return el?el.value.trim():""}
+function inp(id,label,val,type){return `<div class="frow"><label class="fl" for="${id}">${label}</label><input class="fi2" id="${id}" type="${type||"text"}" value="${val??""}"></div>`}
+function selF(id,label,opts,val){return `<div class="frow"><label class="fl" for="${id}">${label}</label><select class="fi2" id="${id}">${opts.map(o=>`<option ${o===val?"selected":""}>${o}</option>`).join("")}</select></div>`}
+const YN=["No","Yes"];
+
+function deviceForm(i){
+  const d=i==null?{}:DEVICES[i];
+  openForm(i==null?"Add device":"Update device",
+    selF("f_os","Device OS *",["iOS","Android","Tizen","WebOS"],d.os==="android"?"Android":"iOS")+
+    selF("f_type","Device type *",["Real device","Emulator/Simulator"],d.type||"Real device")+
+    inp("f_udid","UDID *",d.udid)+
+    inp("f_name","Name *",d.n)+
+    inp("f_ver","OS version *",d.vern||"")+
+    `<div class="fgrid">`+inp("f_sw","Screen width",d.sw||1080)+inp("f_sh","Screen height",d.sh||2400)+`</div>`+
+    selF("f_usage","Device usage *",["Enabled","Disabled"],d.usage||"Enabled")+
+    selF("f_prov","Provider *",PROVIDERS.map(p=>p.n),d.prov||(PROVIDERS[0]&&PROVIDERS[0].n))+
+    selF("f_stream","Video stream type *",["WebRTC - Broadcast Extension","WebRTC - FFMpeg","MJPEG"],d.stream||"WebRTC - FFMpeg")+
+    selF("f_ws","Workspace *",WORKSPACES.map(w=>w.n),d.ws||"Default"),
+    "All updates to existing devices require respective provider restart.",
+    i==null?"Add device":"Update device",
+    ()=>{
+      if(!fv("f_udid")||!fv("f_name")||!fv("f_ver")){toast("UDID, name and OS version are required");return}
+      const os=fv("f_os"),colors=["#378ADD","#1D9E75","#D4537E","#BA7517","#7F77DD","#D85A30","#639922"];
+      const base=i==null?{id:Math.max(0,...DEVICES.map(x=>x.id))+1,st:"offline",b:0,res:false,apps:[],dc:colors[DEVICES.length%colors.length]}:DEVICES[i];
+      Object.assign(base,{os:os==="Android"?"android":"ios",type:fv("f_type"),udid:fv("f_udid"),n:fv("f_name"),vern:fv("f_ver"),ver:`${os} ${fv("f_ver")}`,sw:fv("f_sw"),sh:fv("f_sh"),usage:fv("f_usage"),prov:fv("f_prov"),stream:fv("f_stream"),ws:fv("f_ws")});
+      if(i==null)DEVICES.push(base);
+      fmClose();render();renderAdmin();
+      toast(i==null?`${base.n} added — plug it into ${base.prov}`:`${base.n} updated — restart ${base.prov} to apply`);
+    });
+}
+function providerForm(i){
+  const p=i==null?{}:PROVIDERS[i];
+  openForm(i==null?"Add provider":"Update provider",
+    selF("f_pos","OS *",["macOS","Linux","Windows"],p.os||"macOS")+
+    inp("f_nick","Nickname *",p.n)+
+    inp("f_host","Host address *",p.host)+
+    inp("f_port","Port *",p.port||10001)+
+    `<div class="fgrid">`+selF("f_ios","Provide iOS? *",YN,p.ios||"No")+selF("f_android","Provide Android? *",YN,p.android||"No")+selF("f_tizen","Provide Tizen? *",YN,p.tizen||"No")+selF("f_webos","Provide WebOS? *",YN,p.webos||"No")+`</div>`+
+    selF("f_appium","Setup Appium servers? *",YN,p.appium||"No")+
+    inp("f_wda","WDA bundle ID",p.wda)+
+    inp("f_sup","iOS supervision profile password",p.sup,"password"),
+    "All updates to existing provider config require provider instance restart.",
+    i==null?"Add provider":"Update provider",
+    ()=>{
+      if(!fv("f_nick")||!fv("f_host")||!fv("f_port")){toast("Nickname, host and port are required");return}
+      const base=i==null?{up:false}:PROVIDERS[i];
+      Object.assign(base,{n:fv("f_nick"),os:fv("f_pos"),host:fv("f_host"),port:fv("f_port"),ios:fv("f_ios"),android:fv("f_android"),tizen:fv("f_tizen"),webos:fv("f_webos"),appium:fv("f_appium"),wda:fv("f_wda"),sup:fv("f_sup")});
+      if(i==null)PROVIDERS.push(base);
+      fmClose();renderAdmin();
+      toast(i==null?`${base.n} added — waiting for first heartbeat`:`${base.n} updated — restart the provider instance`);
+    });
+}
+function userForm(i){
+  const u=i==null?{}:USERS[i];
+  openForm(i==null?"Add user":"Update user",
+    inp("f_un","Username *",u.u)+
+    inp("f_pw",i==null?"Password *":"Password (leave empty to keep)","", "password")+
+    selF("f_role","User role *",["User","Admin"],u.role||"User")+
+    selF("f_uws","Workspaces *",["All",...WORKSPACES.map(w=>w.n)],u.ws||"Default"),
+    "",
+    i==null?"Add user":"Update user",
+    ()=>{
+      if(!fv("f_un")||(i==null&&!fv("f_pw"))){toast("Username and password are required");return}
+      const base=i==null?{pw:"••••"}:USERS[i];
+      Object.assign(base,{u:fv("f_un"),role:fv("f_role"),ws:fv("f_uws")});
+      if(i==null)USERS.push(base);
+      fmClose();renderAdmin();toast(`${base.u} ${i==null?"added":"updated"}`);
+    });
+}
+function workspaceForm(i){
+  const w=i==null?{}:WORKSPACES[i];
+  openForm(i==null?"Add workspace":"Edit workspace",
+    inp("f_wn","Workspace name *",w.n)+
+    inp("f_wd","Description",w.desc),
+    "",
+    i==null?"Add workspace":"Save",
+    ()=>{
+      if(!fv("f_wn")){toast("Name is required");return}
+      const base=i==null?{type:"Custom",tenant:Math.random().toString(36).slice(2,10)+"="}:WORKSPACES[i];
+      Object.assign(base,{n:fv("f_wn"),desc:fv("f_wd")});
+      if(i==null)WORKSPACES.push(base);
+      fmClose();renderAdmin();render();toast(`Workspace ${base.n} saved`);
+    });
+}
+function keyForm(i){
+  const k=i==null?{}:KEYS[i];
+  openForm(i==null?"Add secret key":"Edit secret key",
+    inp("f_ko","Origin *",k.origin)+
+    inp("f_kc","User identifier claim *",k.claim||"username")+
+    inp("f_kt","Tenant identifier claim",k.tclaim==="-"?"":k.tclaim),
+    "Secret keys let external JWT issuers authenticate against the hub.",
+    "Save",
+    ()=>{
+      if(!fv("f_ko")||!fv("f_kc")){toast("Origin and user claim are required");return}
+      const base=i==null?{status:"Custom",created:"18/07/2026",updated:"18/07/2026",enabled:true}:KEYS[i];
+      Object.assign(base,{origin:fv("f_ko"),claim:fv("f_kc"),tclaim:fv("f_kt")||"-",updated:"18/07/2026"});
+      if(i==null)KEYS.push(base);
+      fmClose();renderAdmin();toast(`Secret key ${base.origin} saved`);
+    });
+}
+function credForm(){
+  openForm("Create new credential",
+    inp("f_cn","Name *")+
+    inp("f_cd","Description")+
+    selF("f_cw","Workspace *",WORKSPACES.map(w=>w.n),"Default"),
+    "The client ID and secret are generated once — copy them after creation.",
+    "Create",
+    ()=>{
+      if(!fv("f_cn")){toast("Name is required");return}
+      CREDS.push({n:fv("f_cn"),d:fv("f_cd"),ws:fv("f_cw"),cid:"cc_"+Math.random().toString(36).slice(2,12),created:"18/07/2026"});
+      fmClose();renderAdmin();toast("Credential created — secret shown once, copy it");
+    });
+}
+function actionForm(i){
+  const a=i==null?{}:ACTIONS[i];
+  openForm(i==null?"New action":"Edit action",
+    inp("f_an","Name *",a.n)+
+    inp("f_ad","Description",a.d)+
+    selF("f_at","Action type *",["Tap","Swipe","Text input","Key press"],a.t||"Tap")+
+    inp("f_av","Value (coordinates / text / key)",a.v),
+    "Up to 5 actions can be favorites — favorites appear as buttons in the device panel.",
+    "Save",
+    ()=>{
+      if(!fv("f_an")){toast("Name is required");return}
+      const base=i==null?{fav:false}:ACTIONS[i];
+      Object.assign(base,{n:fv("f_an"),d:fv("f_ad"),t:fv("f_at"),v:fv("f_av")});
+      if(i==null)ACTIONS.push(base);
+      fmClose();renderAdmin();toast(`Action ${base.n} saved`);
+    });
+}
+function capsExample(){
+  openForm("Capabilities example",
+    `<pre style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:12px;font-size:12px;overflow-x:auto">{
+  "platformName": "iOS",
+  "appium:automationName": "XCUITest",
+  "appium:platformVersion": "17.6.1",
+  "appium:udid": "auto",
+  "gads:credentialId": "cc_xxxxx"
+}</pre>`,"","Close",()=>fmClose());
+}
+
+let gateTab=null;
+function adminGate(tab){
+  if(document.getElementById("adminv").classList.contains("open")){openAdmin(tab);return}
+  gateTab=tab;
+  document.getElementById("gpw").value="";
+  document.getElementById("pwgate").style.display="flex";
+  setTimeout(()=>document.getElementById("gpw").focus(),50);
+}
+function gateSubmit(e){
+  e.preventDefault();
+  if(!document.getElementById("gpw").value.trim()){toast("Admin password required","ti-shield-lock");return false}
+  document.getElementById("pwgate").style.display="none";
+  toast("Admin unlocked — will ask again next time","ti-shield-check");
+  openAdmin(gateTab||"users");
+  return false;
+}
+function gateCancel(){document.getElementById("pwgate").style.display="none";gateTab=null}
+function setNav(id){document.querySelectorAll(".snav").forEach(x=>x.classList.remove("on"));const el=document.getElementById(id);if(el)el.classList.add("on")}
+function showWall(){document.getElementById("adminv").classList.remove("open");closeDetail();setNav("nav-devices")}
+function openAdmin(tab){
+  curTab=tab;closeDetail();
+  document.getElementById("adminv").classList.add("open");
+  setNav(tab==="providers"?"nav-providers":tab==="settings"?"nav-settings":"nav-admin");
+  document.querySelectorAll(".atab").forEach(x=>x.classList.toggle("on",x.dataset.t===tab));
+  renderAdmin();
+}
+function doLogin(e){
+  e.preventDefault();
+  const u=document.getElementById("lu").value.trim()||"admin";
+  document.getElementById("whoami").textContent=u;
+  document.getElementById("login").style.display="none";
+  toast(`Signed in as ${u}`,"ti-lock-open");
+  return false;
+}
+function logout(){document.getElementById("login").style.display="flex";document.getElementById("lp").value="";showWall();toast("Signed out","ti-logout")}
+
+function renderAdmin(){
+  const b=document.getElementById("abody");
+  if(curTab==="providers"){
+    b.innerHTML=`<div class="abar"><button class="addb" style="margin:0" onclick="providerForm(null)"><i class="ti ti-plus"></i>Add provider</button></div>
+    <table class="tbl"><tr><th>Provider</th><th>OS</th><th>Host</th><th>Provides</th><th>WDA bundle</th><th>Devices</th><th>Status</th><th style="width:120px"></th></tr>
+    ${PROVIDERS.map((p,i)=>`<tr><td style="font-weight:600">${p.n}</td><td>${p.os}</td><td class="mono">${p.host}:${p.port}</td>
+      <td>${[p.ios==="Yes"?"iOS":"",p.android==="Yes"?"Android":"",p.tizen==="Yes"?"Tizen":"",p.webos==="Yes"?"WebOS":""].filter(Boolean).join(", ")||"—"}</td>
+      <td class="mono" style="font-size:11px">${p.wda||"—"}</td>
+      <td>${DEVICES.filter(d=>d.prov===p.n).length}</td>
+      <td><span class="stat ${p.up?"ok":"bad"}">${p.up?"live":"down"}</span></td>
+      <td style="text-align:right"><button class="ib" title="Show logs" onclick="toast('Showing logs for ${p.n}')"><i class="ti ti-file-text"></i></button>
+      <button class="ib" title="Restart" onclick="toast('Restarting ${p.n}…')"><i class="ti ti-refresh"></i></button>
+      <button class="ib" title="Update provider" onclick="providerForm(${i})"><i class="ti ti-edit"></i></button>
+      <button class="ib del" title="Delete provider" onclick="PROVIDERS.splice(${i},1);renderAdmin();toast('Removed ${p.n}')"><i class="ti ti-trash"></i></button></td></tr>`).join("")}</table>
+    <div class="fnote">All updates to existing provider config require provider instance restart.</div>`;
+  }else if(curTab==="devices"){
+    b.innerHTML=`<div class="abar"><button class="addb" style="margin:0" onclick="deviceForm(null)"><i class="ti ti-plus"></i>Add device</button></div>
+    <table class="tbl"><tr><th>Device</th><th>OS</th><th>UDID</th><th>Usage</th><th>Stream</th><th>Provider</th><th>Workspace</th><th>Status</th><th style="width:90px"></th></tr>
+    ${DEVICES.map((d,i)=>`<tr><td style="font-weight:600">${d.n}</td><td>${d.ver}</td><td class="mono" style="font-size:11px">${d.udid}</td>
+      <td>${d.usage||"Enabled"}</td><td style="font-size:12px">${(d.stream||"WebRTC - FFMpeg").replace("WebRTC - ","WebRTC·")}</td>
+      <td>${d.prov}</td><td>${d.ws||"Default"}</td>
+      <td><span class="stat ${d.st!=="offline"?"ok":"bad"}">${d.st==="offline"?"offline":"online"}</span></td>
+      <td style="text-align:right"><button class="ib" title="Re-provision device" onclick="toast('Re-provisioning ${d.n}…')"><i class="ti ti-rotate-clockwise"></i></button>
+      <button class="ib" title="Update device" onclick="deviceForm(${i})"><i class="ti ti-edit"></i></button>
+      <button class="ib del" title="Delete device" onclick="DEVICES.splice(${i},1);render();renderAdmin();toast('Removed ${d.n}')"><i class="ti ti-trash"></i></button></td></tr>`).join("")}</table>
+    <div class="fnote">All updates to existing devices require respective provider restart.</div>`;
+  }else if(curTab==="users"){
+    b.innerHTML=`<div class="abar"><button class="addb" style="margin:0" onclick="userForm(null)"><i class="ti ti-plus"></i>Add user</button></div>
+    <table class="tbl"><tr><th>Username</th><th>Role</th><th>Workspaces</th><th style="width:120px"></th></tr>
+    ${USERS.map((u,i)=>`<tr><td style="font-weight:600">${u.u}</td><td>${u.role}</td><td>${u.ws}</td>
+      <td style="text-align:right"><button class="ib" title="Update user" onclick="userForm(${i})"><i class="ti ti-edit"></i></button>
+      <button class="ib" title="Reset password" onclick="toast('Password reset for ${u.u}')"><i class="ti ti-key"></i></button>
+      ${u.u==="admin"?"":`<button class="ib del" title="Delete user" onclick="USERS.splice(${i},1);renderAdmin();toast('Deleted ${u.u}')"><i class="ti ti-trash"></i></button>`}</td></tr>`).join("")}</table>
+    <div class="fnote">The default admin user cannot be deleted — only its password can change.</div>`;
+  }else if(curTab==="files"){
+    b.innerHTML=`<div class="upwrap">
+      <div class="upc"><h4>Upload Selenium jar</h4><p>To connect provider Appium nodes to a Selenium Grid instance upload a valid Selenium jar. Version 4.13 is recommended.</p>
+        <button class="ab" style="flex:none;padding:8px 13px" onclick="document.getElementById('fu_sel').click()"><i class="ti ti-upload"></i>Select and upload</button>
+        <input type="file" id="fu_sel" accept=".jar" style="display:none" onchange="FILES.selenium=true;renderAdmin();toast('Selenium jar uploaded')">
+        <div class="upst ${FILES.selenium?"ok":""}">${FILES.selenium?"File exists.":"No uploaded file."}</div></div>
+      <div class="upc"><h4>Upload supervision profile</h4><p>Upload the supervision profile if you are using supervised iOS devices.</p>
+        <button class="ab" style="flex:none;padding:8px 13px" onclick="document.getElementById('fu_sup').click()"><i class="ti ti-upload"></i>Select and upload</button>
+        <input type="file" id="fu_sup" accept=".p12,.mobileconfig" style="display:none" onchange="FILES.supervision=true;renderAdmin();toast('Supervision profile uploaded')">
+        <div class="upst ${FILES.supervision?"ok":""}">${FILES.supervision?"File exists.":"No uploaded file."}</div></div>
+      <div class="upc"><h4>Upload WebDriverAgent IPA</h4><p>Upload a signed WebDriverAgent IPA file for iOS provisioning.</p>
+        <button class="ab" style="flex:none;padding:8px 13px" onclick="document.getElementById('fu_wda').click()"><i class="ti ti-upload"></i>Select and upload</button>
+        <input type="file" id="fu_wda" accept=".ipa" style="display:none" onchange="FILES.wda=true;renderAdmin();toast('WebDriverAgent IPA uploaded')">
+        <div class="upst ${FILES.wda?"ok":""}">${FILES.wda?"File exists.":"No uploaded file."}</div></div></div>`;
+  }else if(curTab==="settings"){
+    b.innerHTML=`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+    <div class="card" style="width:320px;margin:0"><h3><i class="ti ti-video"></i>Stream settings</h3>
+      ${selF("g_fps","Target FPS",["5 FPS","10 FPS","15 FPS","30 FPS"],"15 FPS")}
+      ${selF("g_jpeg","JPEG quality",["50","75","90"],"75")}
+      ${selF("g_sca","Scaling factor (Android)",["25%","50%","75%","100%"],"50%")}
+      ${selF("g_sci","Scaling factor (iOS)",["25%","50%","75%","100%"],"50%")}
+      <button class="fsub" style="width:100%" onclick="toast('Stream settings saved')" type="button">Save settings</button></div>
+    <div class="card" style="width:360px;margin:0"><h3><i class="ti ti-shield-cog"></i>TURN server configuration</h3>
+      <div class="infob" style="margin-bottom:10px">Required for WebRTC behind NAT/firewalls. Uses secure auto-expiring credentials.</div>
+      <div class="krow"><span class="k">Enable TURN server</span><button class="tog" onclick="this.classList.toggle('on');toast('TURN '+(this.classList.contains('on')?'enabled':'disabled'))"></button></div>
+      ${inp("g_turn","TURN server (hostname or IP)","")}
+      ${inp("g_tport","Port","3478")}
+      ${inp("g_tsec","Shared secret","","password")}
+      ${inp("g_ttl","TTL (seconds)","3600")}
+      <button class="fsub" style="width:100%" onclick="toast('TURN config saved — applies to new WebRTC connections')" type="button">Save TURN config</button></div>
+    <div class="card" style="width:280px;margin:0"><h3><i class="ti ti-server-2"></i>Hub</h3>
+      <div class="krow"><span class="k">Hub address</span><span class="mono">localhost:10000</span></div>
+      <div class="krow"><span class="k">MongoDB</span><span class="stat ok">connected</span></div>
+      <div class="krow"><span class="k">Appium grid</span><button style="color:var(--acc);font-size:13px" onclick="toast('Opening /grid')">Open <i class="ti ti-external-link" style="font-size:12px"></i></button></div></div></div>`;
+  }else if(curTab==="workspaces"){
+    b.innerHTML=`<div class="abar"><button class="addb" style="margin:0" onclick="workspaceForm(null)"><i class="ti ti-plus"></i>Add workspace</button></div>
+    <table class="tbl"><tr><th>Workspace name</th><th>Description</th><th>Tenant</th><th>Type</th><th>Users</th><th>Devices</th><th style="width:90px"></th></tr>
+    ${WORKSPACES.map((w,i)=>`<tr><td style="font-weight:600">${w.n}</td><td>${w.desc||""}</td>
+      <td class="mono" style="font-size:11px">${w.tenant} <button class="ib" style="width:20px;height:20px" title="Copy tenant" onclick="toast('Tenant ID copied')"><i class="ti ti-copy" style="font-size:12px"></i></button></td>
+      <td>${w.type}</td><td>${USERS.filter(u=>u.ws===w.n||u.ws==="All").length}</td><td>${DEVICES.filter(d=>(d.ws||"Default")===w.n).length}</td>
+      <td style="text-align:right"><button class="ib" title="Edit" onclick="workspaceForm(${i})"><i class="ti ti-edit"></i></button>
+      ${w.type==="Default"?"":`<button class="ib del" title="Delete" onclick="WORKSPACES.splice(${i},1);renderAdmin();render();toast('Deleted workspace ${w.n}')"><i class="ti ti-trash"></i></button>`}</td></tr>`).join("")}</table>`;
+  }else if(curTab==="keys"){
+    b.innerHTML=`<div class="abar"><button class="addb" style="margin:0" onclick="keyForm(null)"><i class="ti ti-plus"></i>Add secret key</button>
+      <button class="ab" style="flex:none;padding:8px 13px" onclick="toast('Key history — empty')"><i class="ti ti-history"></i>View history</button></div>
+    <table class="tbl"><tr><th>Origin</th><th>User identifier claim</th><th>Tenant identifier claim</th><th>Status</th><th>Created at</th><th>Updated at</th><th style="width:110px"></th></tr>
+    ${KEYS.map((k,i)=>`<tr><td style="font-weight:600">${k.origin}</td><td>${k.claim}</td><td>${k.tclaim}</td>
+      <td><span class="stat ${k.enabled?"ok":"bad"}">${k.status}</span></td><td>${k.created}</td><td>${k.updated}</td>
+      <td style="text-align:right"><button class="ib" title="Edit" onclick="keyForm(${i})"><i class="ti ti-edit"></i></button>
+      <button class="ab" style="flex:none;padding:4px 10px;font-size:11.5px;color:var(--warn);border-color:#f0d9b0" onclick="KEYS[${i}].enabled=!KEYS[${i}].enabled;renderAdmin();toast('${k.origin} '+(KEYS[${i}].enabled?'enabled':'disabled'))">${k.enabled?"Disable":"Enable"}</button></td></tr>`).join("")}</table>`;
+  }else if(curTab==="creds"){
+    b.innerHTML=`<div class="abar"><button class="addb" style="margin:0" onclick="credForm()"><i class="ti ti-plus"></i>Create new credential</button>
+      <button class="ab" style="flex:none;padding:8px 13px" onclick="capsExample()"><i class="ti ti-info-circle"></i>View capabilities example</button></div>
+    ${CREDS.length?`<table class="tbl"><tr><th>Name</th><th>Description</th><th>Client ID</th><th>Workspace</th><th>Created</th><th style="width:60px"></th></tr>
+    ${CREDS.map((c,i)=>`<tr><td style="font-weight:600">${c.n}</td><td>${c.d||""}</td>
+      <td class="mono">${c.cid} <button class="ib" style="width:20px;height:20px" title="Copy" onclick="toast('Client ID copied')"><i class="ti ti-copy" style="font-size:12px"></i></button></td>
+      <td>${c.ws}</td><td>${c.created}</td>
+      <td style="text-align:right"><button class="ib del" title="Delete" onclick="CREDS.splice(${i},1);renderAdmin();toast('Credential deleted')"><i class="ti ti-trash"></i></button></td></tr>`).join("")}</table>`
+    :`<div class="empty" style="border:1px solid var(--bd);border-radius:12px;background:var(--panel)">No client credentials found. Add your first credential using the button above.</div>`}`;
+  }else if(curTab==="actions"){
+    b.innerHTML=`<div class="infob">Custom actions are reusable automation tasks (tap, swipe, text input…) executed from the device panel. Up to 5 favorites appear as buttons in the panel; the rest via dropdown. Only admins can create, edit and delete.</div>
+    <div class="abar"><button class="addb" style="margin:0" onclick="actionForm(null)"><i class="ti ti-plus"></i>New action</button></div>
+    ${ACTIONS.length?`<table class="tbl"><tr><th style="width:36px"></th><th>Name</th><th>Description</th><th>Type</th><th>Value</th><th style="width:90px"></th></tr>
+    ${ACTIONS.map((a,i)=>`<tr><td><button class="ib" title="Favorite" onclick="if(!ACTIONS[${i}].fav&&ACTIONS.filter(x=>x.fav).length>=5){toast('Max 5 favorites')}else{ACTIONS[${i}].fav=!ACTIONS[${i}].fav;renderAdmin()}"><i class="ti ti-star star ${a.fav?"on":""}"></i></button></td>
+      <td style="font-weight:600">${a.n}</td><td>${a.d||""}</td><td>${a.t}</td><td class="mono" style="font-size:11px">${a.v||"—"}</td>
+      <td style="text-align:right"><button class="ib" title="Edit" onclick="actionForm(${i})"><i class="ti ti-edit"></i></button>
+      <button class="ib del" title="Delete" onclick="ACTIONS.splice(${i},1);renderAdmin();toast('Action deleted')"><i class="ti ti-trash"></i></button></td></tr>`).join("")}</table>`
+    :`<div class="empty" style="border:1px solid var(--bd);border-radius:12px;background:var(--panel)">No actions available. Click "New action" to create one.</div>`}`;
+  }
+}
+
+let tmr;
+function toast(msg,icon){
+  const t=document.getElementById("toasts");
+  const el=document.createElement("div");el.className="toast";
+  el.innerHTML=`<i class="ti ${icon||"ti-check"}"></i>${msg}`;
+  t.appendChild(el);
+  while(t.children.length>3)t.firstChild.remove();
+  setTimeout(()=>el.remove(),2200);
+}
+render();
+</script>
+</body>
+</html>

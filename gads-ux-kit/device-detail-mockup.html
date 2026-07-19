@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GADS Fleet — single device (3-dots view)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.30.0/tabler-icons.min.css">
+<style>
+:root{--bg-page:#161618;--bg-surface:#212123;--bg-info:#15324f;--tx:#ededee;--tx2:#a6a6ac;--tx3:#73737a;--info:#5aa0ed;--danger:#e2706f;--bd:rgba(255,255,255,.12);--bd2:rgba(255,255,255,.22);--bd-info:#3a7bd5;--r-md:8px;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-page);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:26px;line-height:1.5}
+.top{display:flex;align-items:center;gap:11px;margin-bottom:18px;flex-wrap:wrap}
+.back{font-size:13px;color:var(--tx2);display:inline-flex;align-items:center;gap:6px;border:.5px solid var(--bd);padding:7px 11px;border-radius:var(--r-md);cursor:pointer}
+.pill{font-size:12px;padding:3px 10px;border-radius:var(--r-md);background:var(--bg-info);color:#bcd8fb}
+.spacer{flex:1}
+.cols{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px}
+.pscreen{aspect-ratio:9/16;background:#000;border-radius:20px;padding:5px;position:relative}
+.notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:38px;height:5px;border-radius:3px;background:#000;z-index:2}
+.ps{height:100%;background:#fff;border-radius:15px;padding:11px;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.pah{height:28px;border-radius:6px;background:#1D9E75}
+.pln{height:9px;border-radius:4px;background:#ececec}.pln.s{width:55%}
+.pcard{flex:1;border-radius:9px;background:#f3f3f3}
+.pnav{height:13px;border-radius:5px;background:#1D9E75;opacity:.25}
+.hw{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:11px}
+.hb{height:32px;border-radius:8px;border:.5px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--tx2);cursor:pointer}
+.sec{margin-bottom:18px}
+.sh{font-size:13px;font-weight:500;color:var(--tx2);margin-bottom:9px;display:flex;align-items:center;gap:7px}
+.row{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:.5px solid var(--bd)}
+.k{color:var(--tx3)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.drop{border:1.5px dashed var(--bd2);border-radius:var(--r-md);padding:16px;text-align:center;font-size:12px;color:var(--tx3);display:flex;flex-direction:column;align-items:center;gap:7px}
+.app{display:flex;align-items:center;gap:10px;font-size:13px;padding:7px 0}
+.appi{width:26px;height:26px;border-radius:6px;background:var(--bg-info);display:flex;align-items:center;justify-content:center;font-size:14px;color:#bcd8fb;flex-shrink:0}
+.tog{width:40px;height:21px;border-radius:11px;background:var(--bg-info);position:relative;flex-shrink:0;cursor:pointer}
+.tog::after{content:"";position:absolute;top:2px;right:2px;width:17px;height:17px;border-radius:50%;background:var(--info)}
+.tog.off{background:var(--bg-surface);border:.5px solid var(--bd)}
+.tog.off::after{left:2px;right:auto;background:var(--tx3)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.ab{font-size:12px;padding:8px 12px;border-radius:var(--r-md);border:.5px solid var(--bd2);color:var(--tx);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.ab.warn{color:var(--danger);border-color:rgba(226,112,111,.5)}
+.seg{display:inline-flex;border:.5px solid var(--bd);border-radius:var(--r-md);overflow:hidden;font-size:12px}
+.seg span{padding:6px 13px;color:var(--tx2);cursor:pointer}
+.seg span.on{background:var(--bg-info);color:#bcd8fb}
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="back"><i class="ti ti-arrow-left"></i> Fleet</span>
+  <span style="font-size:18px;font-weight:500">Pixel 7</span>
+  <span class="pill">in use</span>
+  <span class="spacer"></span>
+  <span style="font-size:13px;color:var(--tx3)">provider lin-1</span>
+</div>
+<div class="cols">
+  <div>
+    <div class="pscreen"><div class="notch"></div><div class="ps"><div class="pah"></div><div class="pln"></div><div class="pln s"></div><div class="pcard"></div><div class="pnav"></div></div></div>
+    <div class="hw">
+      <span class="hb"><i class="ti ti-arrow-left"></i></span>
+      <span class="hb"><i class="ti ti-home"></i></span>
+      <span class="hb"><i class="ti ti-square"></i></span>
+      <span class="hb"><i class="ti ti-volume-2"></i></span>
+      <span class="hb"><i class="ti ti-volume"></i></span>
+      <span class="hb"><i class="ti ti-power"></i></span>
+    </div>
+    <div class="acts" style="margin-top:9px">
+      <span class="ab"><i class="ti ti-camera" style="font-size:14px"></i>Screenshot</span>
+      <span class="ab"><i class="ti ti-rotate" style="font-size:14px"></i>Rotate</span>
+    </div>
+  </div>
+  <div>
+    <div class="sec">
+      <div class="sh"><i class="ti ti-info-circle"></i>Device</div>
+      <div class="row"><span class="k">Model</span><span>Pixel 7 · Android 14</span></div>
+      <div class="row"><span class="k">UDID</span><span class="mono">2B061FDH3000ND</span></div>
+      <div class="row"><span class="k">Screen</span><span>1080 × 2400</span></div>
+      <div class="row"><span class="k">Appium port</span><span class="mono">4724</span></div>
+      <div class="row" style="border:none"><span class="k">Reserved by you</span><span class="tog"></span></div>
+    </div>
+    <div class="sec">
+      <div class="sh"><i class="ti ti-apps"></i>Apps</div>
+      <div class="drop"><i class="ti ti-upload" style="font-size:21px;color:var(--tx2)"></i>Drag .apk / .ipa here, or browse</div>
+      <div style="margin-top:8px">
+        <div class="app"><span class="appi"><i class="ti ti-brand-instagram"></i></span><span style="flex:1">com.instagram.android</span><i class="ti ti-trash" style="color:var(--danger);font-size:16px;cursor:pointer"></i></div>
+        <div class="app"><span class="appi"><i class="ti ti-browser"></i></span><span style="flex:1">com.android.chrome</span><i class="ti ti-trash" style="color:var(--danger);font-size:16px;cursor:pointer"></i></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sh"><i class="ti ti-video"></i>Streaming</div>
+      <div class="row"><span class="k">Protocol</span><span class="seg"><span class="on">WebRTC</span><span>MJPEG</span></span></div>
+      <div class="row" style="border:none"><span class="k">Quality / FPS</span><span>High · 30 fps</span></div>
+    </div>
+    <div class="sec">
+      <div class="sh"><i class="ti ti-settings"></i>Session &amp; actions</div>
+      <div class="acts">
+        <span class="ab"><i class="ti ti-clipboard" style="font-size:14px"></i>Clipboard</span>
+        <span class="ab"><i class="ti ti-player-play" style="font-size:14px"></i>Appium session</span>
+        <span class="ab"><i class="ti ti-refresh" style="font-size:14px"></i>Restart</span>
+        <span class="ab warn"><i class="ti ti-eraser" style="font-size:14px"></i>Reset</span>
+      </div>
+    </div>
+    <div class="sec" style="margin-bottom:0">
+      <div class="sh"><i class="ti ti-grid-dots"></i>Selenium grid &amp; logs</div>
+      <div class="row"><span class="k">Register as grid node</span><span class="tog off"></span></div>
+      <div class="row" style="border:none"><span class="k">Device &amp; Appium logs</span><span style="color:var(--info);cursor:pointer">Open <i class="ti ti-external-link" style="font-size:13px"></i></span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
