@@ -55,15 +55,23 @@ func (m *MongoStore) UploadFile(file io.Reader, fileName string, force bool) err
 // existing file sharing the same filename is removed first so the upload
 // replaces it; when false an existing filename is rejected.
 func (m *MongoStore) UploadFileWithMetadata(file io.Reader, fileName string, metadata bson.M, force bool) error {
+	_, err := m.UploadFileWithMetadataReturningID(file, fileName, metadata, force)
+	return err
+}
+
+// UploadFileWithMetadataReturningID behaves like UploadFileWithMetadata but also
+// returns the hex ObjectID of the stored GridFS file (used when the caller needs
+// to reference the freshly uploaded file, e.g. to install it right after upload).
+func (m *MongoStore) UploadFileWithMetadataReturningID(file io.Reader, fileName string, metadata bson.M, force bool) (string, error) {
 	bucket, err := gridfs.NewBucket(m.GetDefaultDatabase(), nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create GridFS bucket - %s", err)
+		return "", fmt.Errorf("Failed to create GridFS bucket - %s", err)
 	}
 
 	filter := bson.D{{Key: "filename", Value: fileName}}
 	cursor, err := bucket.Find(filter)
 	if err != nil {
-		return fmt.Errorf("Failed to get cursor from DB - %s", err)
+		return "", fmt.Errorf("Failed to get cursor from DB - %s", err)
 	}
 
 	type gridfsFile struct {
@@ -74,21 +82,21 @@ func (m *MongoStore) UploadFileWithMetadata(file io.Reader, fileName string, met
 	var foundFiles []gridfsFile
 	err = cursor.All(m.Ctx, &foundFiles)
 	if err != nil {
-		return fmt.Errorf("Failed to get files from DB cursor - %s", err)
+		return "", fmt.Errorf("Failed to get files from DB cursor - %s", err)
 	}
 
 	if len(foundFiles) > 0 && !force {
-		return fmt.Errorf("File with name `%s` is already present in MongoDB", fileName)
+		return "", fmt.Errorf("File with name `%s` is already present in MongoDB", fileName)
 	}
 
 	// Force replace - delete every existing file sharing this filename before upload
 	for _, found := range foundFiles {
 		id, err := primitive.ObjectIDFromHex(found.ID)
 		if err != nil {
-			return fmt.Errorf("Failed to get ObjectID from the Mongo file ID - %s", err)
+			return "", fmt.Errorf("Failed to get ObjectID from the Mongo file ID - %s", err)
 		}
 		if err := bucket.Delete(id); err != nil {
-			return fmt.Errorf("File is force upload but failed to delete it from Mongo before upload - %s", err)
+			return "", fmt.Errorf("File is force upload but failed to delete it from Mongo before upload - %s", err)
 		}
 	}
 
@@ -96,10 +104,11 @@ func (m *MongoStore) UploadFileWithMetadata(file io.Reader, fileName string, met
 	if metadata != nil {
 		uploadOpts.SetMetadata(metadata)
 	}
-	if _, err := bucket.UploadFromStream(fileName, file, uploadOpts); err != nil {
-		return fmt.Errorf("Failed to upload file `%s` to bucket - %s", fileName, err)
+	fileID, err := bucket.UploadFromStream(fileName, file, uploadOpts)
+	if err != nil {
+		return "", fmt.Errorf("Failed to upload file `%s` to bucket - %s", fileName, err)
 	}
-	return nil
+	return fileID.Hex(), nil
 }
 
 // DownloadFileByID downloads a GridFS file identified by its hex ObjectID and

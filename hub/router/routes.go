@@ -1014,11 +1014,11 @@ func GetApps(c *gin.Context) {
 
 // UploadApp godoc
 // @Summary      Upload a device app
-// @Description  Upload an .apk/.ipa/.zip to MongoDB GridFS. Multiple builds can coexist; each is stored under a unique generated name with an optional description and the uploader recorded, to be installed on devices later.
+// @Description  Upload an .apk/.ipa/.zip/.wgt/.ipk to MongoDB GridFS. Multiple builds can coexist; each is stored under a unique generated name with an optional description and the uploader recorded, to be installed on devices later. The response result contains the new file's id.
 // @Tags         Hub - Apps
 // @Accept       multipart/form-data
 // @Produce      json
-// @Param        file         formData  file    true   "App file (.apk/.ipa/.zip)"
+// @Param        file         formData  file    true   "App file (.apk/.ipa/.zip/.wgt/.ipk)"
 // @Param        description  formData  string  false  "Optional description to tell builds apart"
 // @Success      200          {object}  models.SuccessResponse
 // @Failure      400          {object}  models.ErrorResponse
@@ -1059,12 +1059,13 @@ func UploadApp(c *gin.Context) {
 		"original_name": file.Filename,
 	}
 
-	if err := db.GlobalMongoStore.UploadFileWithMetadata(openedFile, uuid.NewString(), metadata, false); err != nil {
+	fileID, err := db.GlobalMongoStore.UploadFileWithMetadataReturningID(openedFile, uuid.NewString(), metadata, false)
+	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to upload app to MongoDB - %s", err))
 		return
 	}
 
-	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
+	api.OK(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename), gin.H{"id": fileID})
 }
 
 // DeleteApp godoc

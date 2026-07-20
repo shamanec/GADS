@@ -144,50 +144,6 @@ func installAppFromDisk(platDev devices.PlatformDevice, uploadDir, fileName stri
 	return fmt.Errorf("Zip archive does not contain a supported .apk/.ipa/.app entry")
 }
 
-func UploadAndInstallApp(c *gin.Context) {
-	// Specify the upload directory
-	uploadDir := fmt.Sprintf("%s/", config.ProviderConfig.ProviderFolder)
-
-	// Read the file from the form data
-	file, err := c.FormFile("file")
-	if err != nil {
-		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
-		return
-	}
-
-	// Check file extension
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if !slices.Contains(allowedAppExtensions, ext) {
-		api.BadRequest(c, fmt.Sprintf("Files with extension `%s` are not allowed", ext))
-		return
-	}
-
-	udid := c.Param("udid")
-	platDev, ok := devices.DevManager.Get(udid)
-	if !ok {
-		api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
-		return
-	}
-
-	// Save the uploaded file to the provider folder
-	dst := uploadDir + file.Filename
-	// First try to remove the file if it already exists
-	os.Remove(dst)
-	if err := c.SaveUploadedFile(file, dst); err != nil {
-		api.InternalError(c, fmt.Sprintf("Failed to save file to `%s` - %s", dst, err))
-		return
-	}
-	// Always clean up the saved file when done
-	defer os.Remove(dst)
-
-	if err := installAppFromDisk(platDev, uploadDir, file.Filename); err != nil {
-		api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
-		return
-	}
-
-	api.OKMessage(c, "App uploaded and installed successfully")
-}
-
 // InstallStoredApp installs an app that was previously uploaded to the hub and
 // stored in MongoDB GridFS, identified by its file id. The app is downloaded to
 // the provider folder and installed on the device, then cleaned up.
