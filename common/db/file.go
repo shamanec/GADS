@@ -28,6 +28,23 @@ func (m *MongoStore) GetFiles() ([]models.DBFile, error) {
 	return GetDocuments[models.DBFile](m.Ctx, coll, bson.D{{}})
 }
 
+// GetFilesByType returns only the GridFS files whose metadata.type matches the
+// given discriminator (e.g. "app" for uploaded device apps).
+func (m *MongoStore) GetFilesByType(fileType string) ([]models.DBFile, error) {
+	coll := m.GetCollection("fs.files")
+	return GetDocuments[models.DBFile](m.Ctx, coll, bson.D{{Key: "metadata.type", Value: fileType}})
+}
+
+// GetFileByID returns a single GridFS file document by its hex ObjectID.
+func (m *MongoStore) GetFileByID(fileID string) (models.DBFile, error) {
+	id, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return models.DBFile{}, fmt.Errorf("Failed to parse file id `%s` - %s", fileID, err)
+	}
+	coll := m.GetCollection("fs.files")
+	return GetDocument[models.DBFile](m.Ctx, coll, bson.D{{Key: "_id", Value: id}})
+}
+
 func (m *MongoStore) UploadFile(file io.Reader, fileName string, force bool) error {
 	return m.UploadFileWithMetadata(file, fileName, nil, force)
 }

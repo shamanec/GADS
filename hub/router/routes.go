@@ -994,6 +994,120 @@ func DeleteFile(c *gin.Context) {
 	api.OKMessage(c, "File deleted successfully")
 }
 
+// GetApps godoc
+// @Summary      List uploaded device apps
+// @Description  Retrieve the uploaded app files (apk/ipa/zip) stored in MongoDB GridFS for installing on devices
+// @Tags         Hub - Apps
+// @Produce      json
+// @Success      200  {object}  models.FileListResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /apps [get]
+func GetApps(c *gin.Context) {
+	files, err := db.GlobalMongoStore.GetFilesByType("app")
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to retrieve apps - %s", err))
+		return
+	}
+	api.OK(c, "Successfully retrieved apps", files)
+}
+
+// UploadApp godoc
+// @Summary      Upload a device app
+// @Description  Upload an .apk/.ipa/.zip to MongoDB GridFS. Multiple builds can coexist; each is stored under a unique generated name with an optional description and the uploader recorded, to be installed on devices later.
+// @Tags         Hub - Apps
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file         formData  file    true   "App file (.apk/.ipa/.zip)"
+// @Param        description  formData  string  false  "Optional description to tell builds apart"
+// @Success      200          {object}  models.SuccessResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /apps [post]
+func UploadApp(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
+		return
+	}
+
+	name := strings.ToLower(file.Filename)
+	allowed := false
+	for _, ext := range []string{".apk", ".ipa", ".zip", ".wgt", ".ipk"} {
+		if strings.HasSuffix(name, ext) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		api.BadRequest(c, "Only .apk, .ipa, .zip, .wgt or .ipk files are allowed for app uploads")
+		return
+	}
+
+	openedFile, err := file.Open()
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
+		return
+	}
+	defer openedFile.Close()
+
+	metadata := bson.M{
+		"type":          "app",
+		"description":   c.PostForm("description"),
+		"uploaded_by":   c.GetString("username"),
+		"original_name": file.Filename,
+	}
+
+	if err := db.GlobalMongoStore.UploadFileWithMetadata(openedFile, uuid.NewString(), metadata, false); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to upload app to MongoDB - %s", err))
+		return
+	}
+
+	api.OKMessage(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename))
+}
+
+// DeleteApp godoc
+// @Summary      Delete an uploaded device app
+// @Description  Delete an uploaded app file from MongoDB GridFS by its id. Only files tagged as apps can be deleted. Admins may delete any app; regular users may only delete apps they uploaded.
+// @Tags         Hub - Apps
+// @Produce      json
+// @Param        id   path      string  true  "App file id"
+// @Success      200  {object}  models.SuccessResponse
+// @Failure      400  {object}  models.ErrorResponse
+// @Failure      403  {object}  models.ErrorResponse
+// @Failure      404  {object}  models.ErrorResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /apps/{id} [delete]
+func DeleteApp(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		api.BadRequest(c, "No file id provided")
+		return
+	}
+
+	// Guard against deleting non-app files (e.g. signing/supervision) through this
+	// all-user endpoint.
+	file, err := db.GlobalMongoStore.GetFileByID(id)
+	if err != nil || file.Metadata.Type != "app" {
+		api.NotFound(c, fmt.Sprintf("No app found with id `%s`", id))
+		return
+	}
+
+	// Admins can delete any uploaded app; regular users only their own uploads.
+	if c.GetString("role") != "admin" && file.Metadata.UploadedBy != c.GetString("username") {
+		api.Forbidden(c, "You can only delete apps you uploaded")
+		return
+	}
+
+	if err := db.GlobalMongoStore.DeleteFileByID(id); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to delete app - %s", err))
+		return
+	}
+	api.OKMessage(c, "App deleted successfully")
+}
+
 // AddDevice godoc
 // @Summary      Add a new device
 // @Description  Create a new device in the system

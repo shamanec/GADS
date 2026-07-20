@@ -17,7 +17,6 @@ import (
 	"GADS/provider/config"
 	"GADS/provider/devices"
 	"GADS/provider/logger"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -82,6 +81,69 @@ func newAppiumProxy(target string, path string) *httputil.ReverseProxy {
 	}
 }
 
+// allowedAppExtensions are the app file extensions that can be uploaded/installed
+// on a device. Tizen .wgt / webOS .ipk are included for installs driven via API
+// even though those platforms can't be remotely controlled from the UI.
+var allowedAppExtensions = []string{".ipa", ".zip", ".apk", ".wgt", ".ipk"}
+
+// installAppFromDisk installs an app file that is already saved on disk at
+// uploadDir/fileName. Plain .apk/.ipa files are installed directly; a .zip is
+// read back and unzipped in memory to extract an .apk/.ipa file or an iOS .app
+// directory, which is then installed and the extracted artifact cleaned up. The
+// caller owns the lifecycle of the uploadDir/fileName file itself.
+func installAppFromDisk(platDev devices.PlatformDevice, uploadDir, fileName string) error {
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if ext != ".zip" {
+		return platDev.InstallApp(fileName)
+	}
+
+	// Read the zip back from disk so we can unzip it in memory
+	zipBytes, err := os.ReadFile(filepath.Join(uploadDir, fileName))
+	if err != nil {
+		return fmt.Errorf("Failed to read provided zip file - %s", err)
+	}
+
+	// Get a list of the files in the zip
+	fileNames, err := utils.ListFilesInZip(zipBytes)
+	if err != nil {
+		return fmt.Errorf("Failed to get file list from provided zip file - %s", err)
+	}
+	if len(fileNames) < 1 {
+		return fmt.Errorf("Provided zip file is empty")
+	}
+
+	innerName := fileNames[0]
+	// If we got an apk or ipa file - directly extract and install it
+	if strings.HasSuffix(innerName, ".apk") || strings.HasSuffix(innerName, ".ipa") {
+		if err := utils.UnzipInMemory(zipBytes, uploadDir); err != nil {
+			return fmt.Errorf("Failed to unzip the file - %s", err)
+		}
+		defer func() {
+			if err := utils.DeleteFile(filepath.Join(uploadDir, innerName)); err != nil {
+				logger.ProviderLogger.LogError("install_app", fmt.Sprintf("Failed to delete app file - %s", err))
+			}
+		}()
+		return platDev.InstallApp(innerName)
+	} else if idx := strings.Index(innerName, ".app"); idx != -1 {
+		// iOS .app bundle (a directory). Derive the .app root folder from the entry
+		// path so both the install and the cleanup target the whole bundle,
+		// regardless of which entry the archive happens to list first (some zips
+		// omit the explicit directory entry, so fileNames[0] may be a file inside).
+		appRoot := innerName[:idx+len(".app")]
+		if err := utils.UnzipInMemory(zipBytes, uploadDir); err != nil {
+			return fmt.Errorf("Failed to unzip .app directory - %s", err)
+		}
+		defer func() {
+			if err := utils.DeleteFolder(filepath.Join(uploadDir, appRoot)); err != nil {
+				logger.ProviderLogger.LogError("install_app", fmt.Sprintf("Failed to delete unzipped .app directory - %s", err))
+			}
+		}()
+		return platDev.InstallApp(appRoot)
+	}
+
+	return fmt.Errorf("Zip archive does not contain a supported .apk/.ipa/.app entry")
+}
+
 func UploadAndInstallApp(c *gin.Context) {
 	// Specify the upload directory
 	uploadDir := fmt.Sprintf("%s/", config.ProviderConfig.ProviderFolder)
@@ -93,143 +155,87 @@ func UploadAndInstallApp(c *gin.Context) {
 		return
 	}
 
-	allowedExtensions := []string{"ipa", "zip", "apk", "wgt", "ipk"}
 	// Check file extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	isAllowed := false
-	for _, allowedExt := range allowedExtensions {
-		if ext == "."+allowedExt {
-			isAllowed = true
-			break
-		}
-	}
-
-	if !isAllowed {
+	if !slices.Contains(allowedAppExtensions, ext) {
 		api.BadRequest(c, fmt.Sprintf("Files with extension `%s` are not allowed", ext))
 		return
 	}
 
 	udid := c.Param("udid")
 	platDev, ok := devices.DevManager.Get(udid)
-
-	if ok {
-		// If the uploaded file is not a zip archive
-		if ext != ".zip" {
-			// Create file destination based on the provider dir and file name
-			dst := uploadDir + file.Filename
-			// First try to remove file if it already exists
-			err = os.Remove(dst)
-			// TODO handle error if it makes sense at all
-
-			// Save the file to the target destination
-			if err := c.SaveUploadedFile(file, dst); err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed to save file to `%s` - %s", dst, err))
-				return
-			}
-
-			// Add a remove for the file in a defer func just in case
-			defer func() {
-				os.Remove(dst)
-			}()
-
-			// Try to install the app after saving the file
-			err = platDev.InstallApp(file.Filename)
-			if err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
-				return
-			}
-
-			// Try to remove the file after installing it
-			err = os.Remove(dst)
-			if err != nil {
-				api.InternalError(c, "App uploaded and installed successfully but failed to delete it")
-				return
-			}
-
-			api.OKMessage(c, "App uploaded and installed successfully")
-			return
-		} else {
-			// If the uploaded file is a zip archive
-			// Open the zip to read it before extracting
-			file, err := file.Open()
-			if err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed to open provided zip file - %s", err))
-				return
-			}
-			defer file.Close()
-
-			// Read the file content into a byte slice
-			var buf bytes.Buffer
-			if _, err := io.Copy(&buf, file); err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed to read provided zip file - %s", err))
-				return
-			}
-
-			// Get a list of the files in the zip
-			fileNames, err := utils.ListFilesInZip(buf.Bytes())
-			if err != nil {
-				api.InternalError(c, fmt.Sprintf("Failed to get file list from provided zip file - %s", err))
-				return
-			}
-
-			// Validate there are files inside the zip
-			if len(fileNames) < 1 {
-				api.BadRequest(c, "Provided zip file is empty")
-				return
-			}
-
-			// If we got an apk or ipa file - directly extract it
-			if strings.HasSuffix(fileNames[0], ".apk") || strings.HasSuffix(fileNames[0], ".ipa") {
-				// We use the file content we read above to unzip from memory without storing the zip file at all
-				err = utils.UnzipInMemory(buf.Bytes(), uploadDir)
-				if err != nil {
-					api.InternalError(c, fmt.Sprintf("Failed to unzip the file - %s", err))
-					return
-				}
-
-				// Attempt to install the unzipped app file
-				err = platDev.InstallApp(fileNames[0])
-				if err != nil {
-					api.InternalError(c, fmt.Sprintf("Failed to install app - %s", err))
-					return
-				}
-
-				// Delete the unzipped file when the function ends
-				defer func() {
-					err := utils.DeleteFile(uploadDir + "/" + fileNames[0])
-					if err != nil {
-						logger.ProviderLogger.LogError("upload_and_install_app", fmt.Sprintf("Failed to delete app file - %s", err))
-					}
-				}()
-			} else if strings.Contains(fileNames[0], ".app") {
-				// If the file name ends with .app, then its an iOS .app directory
-				// We use the file content we read above to unzip from memory without storing the zip file at all
-				err = utils.UnzipInMemory(buf.Bytes(), uploadDir)
-				if err != nil {
-					api.InternalError(c, fmt.Sprintf("Failed to unzip .app directory - %s", err))
-					return
-				}
-
-				// Attempt to install the unzipped .app directory
-				err = platDev.InstallApp(fileNames[0])
-				if err != nil {
-					api.InternalError(c, fmt.Sprintf("Failed to install unzipped .app directory - %s", err))
-					return
-				}
-
-				// Delete the unzipped .app directory when the function ends
-				defer func() {
-					err := utils.DeleteFolder(uploadDir + "/" + fileNames[0])
-					if err != nil {
-						logger.ProviderLogger.LogError("upload_and_install_app", "Failed to delete unzipped .app directory")
-					}
-				}()
-			}
-			api.OKMessage(c, "App uploaded and installed successfully")
-			return
-		}
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+		return
 	}
-	api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+
+	// Save the uploaded file to the provider folder
+	dst := uploadDir + file.Filename
+	// First try to remove the file if it already exists
+	os.Remove(dst)
+	if err := c.SaveUploadedFile(file, dst); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to save file to `%s` - %s", dst, err))
+		return
+	}
+	// Always clean up the saved file when done
+	defer os.Remove(dst)
+
+	if err := installAppFromDisk(platDev, uploadDir, file.Filename); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
+		return
+	}
+
+	api.OKMessage(c, "App uploaded and installed successfully")
+}
+
+// InstallStoredApp installs an app that was previously uploaded to the hub and
+// stored in MongoDB GridFS, identified by its file id. The app is downloaded to
+// the provider folder and installed on the device, then cleaned up.
+func InstallStoredApp(c *gin.Context) {
+	udid := c.Param("udid")
+	platDev, ok := devices.DevManager.Get(udid)
+	if !ok {
+		api.NotFound(c, fmt.Sprintf("Did not find device with udid `%s`", udid))
+		return
+	}
+
+	var payload struct {
+		FileID   string `json:"file_id"`
+		Filename string `json:"filename"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		api.BadRequest(c, fmt.Sprintf("Invalid request body - %s", err))
+		return
+	}
+	if payload.FileID == "" {
+		api.BadRequest(c, "No file_id provided")
+		return
+	}
+
+	// The original filename is used only to preserve the correct extension
+	ext := strings.ToLower(filepath.Ext(payload.Filename))
+	if !slices.Contains(allowedAppExtensions, ext) {
+		api.BadRequest(c, fmt.Sprintf("Files with extension `%s` are not allowed", ext))
+		return
+	}
+
+	uploadDir := fmt.Sprintf("%s/", config.ProviderConfig.ProviderFolder)
+	// Download under a unique local name that preserves the extension so the
+	// install/zip handling works and concurrent installs don't collide
+	localName := payload.FileID + ext
+	if err := db.GlobalMongoStore.DownloadFileByID(payload.FileID, config.ProviderConfig.ProviderFolder, localName); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to download app from MongoDB - %s", err))
+		return
+	}
+	// Always clean up the downloaded file when done
+	defer os.Remove(uploadDir + localName)
+
+	if err := installAppFromDisk(platDev, uploadDir, localName); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
+		return
+	}
+
+	api.OKMessage(c, "App installed successfully")
 }
 
 func GetProviderData(c *gin.Context) {

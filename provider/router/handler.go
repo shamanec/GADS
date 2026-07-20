@@ -89,6 +89,7 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.POST("/reset", ResetDevice)
 	deviceGroup.POST("/killApp", KillApp)
 	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
+	deviceGroup.POST("/installStoredApp", InstallStoredApp)
 	deviceAppiumPluginGroup := deviceGroup.Group("/appium-plugin")
 	deviceAppiumPluginGroup.POST("/log", AppiumPluginLog)
 	deviceAppiumPluginGroup.POST("/register", AppiumPluginRegister)
