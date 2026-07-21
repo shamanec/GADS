@@ -599,6 +599,13 @@ func (d *IOSDevice) pair() (pairErr error) {
 		}
 	}
 
+	// Skip when a pairing record already exists - re-pairing is unnecessary and
+	// go-ios Pair() can panic mid-flow depending on the device lockdown state.
+	if _, err := ios.ReadPairRecord(d.GetUDID()); err == nil {
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Device `%s` already paired, skipping pair flow", d.GetUDID()))
+		return nil
+	}
+
 	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", d.GetUDID()))
 
 	defer func() {
