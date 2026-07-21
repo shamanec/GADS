@@ -19,6 +19,7 @@ type Provider struct {
 	ProvideIOS           bool   `json:"provide_ios" bson:"provide_ios"`
 	ProvideTizen         bool   `json:"provide_tizen" bson:"provide_tizen"`
 	ProvideWebOS         bool   `json:"provide_webos" bson:"provide_webos"`
+	ProvideRoku          bool   `json:"provide_roku" bson:"provide_roku"`
 	WdaBundleID          string `json:"wda_bundle_id" bson:"wda_bundle_id"`
 	WebDriverAgentIPA    string `json:"web_driver_agent_ipa" bson:"web_driver_agent_ipa"`
 	BroadcastIPA         string `json:"broadcast_ipa" bson:"broadcast_ipa"`
@@ -74,11 +75,12 @@ type TURNConfig struct {
 }
 
 // RegularizeProviderState applies business rules to ensure provider configuration is consistent
-// If SetupAppiumServers is false, ProvideTizen, ProvideWebOS and ProvideAndroidTv must also be false since they require Appium servers
+// If SetupAppiumServers is false, ProvideTizen, ProvideWebOS, ProvideAndroidTv and ProvideRoku must also be false since they require Appium servers
 func (p *Provider) RegularizeProviderState() {
 	if !p.SetupAppiumServers {
 		p.ProvideTizen = false
 		p.ProvideWebOS = false
 		p.ProvideAndroidTv = false
+		p.ProvideRoku = false
 	}
 }

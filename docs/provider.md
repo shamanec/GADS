@@ -17,6 +17,7 @@ The provider component is responsible for setting up the Appium servers and mana
   - [Android TV](#android-tv)
   - [Tizen TV](#tizen-tv)
   - [WebOS TV](#webos-tv)
+  - [Roku TV](#roku-tv)
 - [Starting Provider Instance](#starting-a-provider-instance)
 - [Logging](#logging)
 
@@ -501,3 +502,51 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 - Remote control features are limited compared to mobile devices
 - Only web-based TV apps can be automated (native apps have limited support)
 - Developer Mode has a 1000-hour time limit and needs periodic renewal
+
+## Roku TV
+
+Roku devices are standalone network devices controlled over the External Control Protocol (ECP)
+and automated through the [`@headspinio/appium-roku-driver`](https://github.com/headspinio/appium-roku-driver).
+Unlike Tizen/WebOS, Roku does not require an SDK CLI on the host — only a working Appium server
+with the Roku driver installed.
+
+### Requirements
+
+- Enable `Setup Appium servers` on the provider (Roku only supports automation via Appium).
+- Install the Roku driver on the Appium server:
+
+  ```bash
+  appium driver install --source=npm @headspinio/appium-roku-driver
+  ```
+
+- The provider host must be able to reach the TV over TCP on ports `8060` (ECP) and `80` (dev web installer).
+
+### Developer Mode - Roku
+
+- On the Roku remote press: **Home** ×3 → **Up** ×2 → **Right** → **Left** → **Right** → **Left** → **Right**
+- Accept the SDK agreement and **set a developer password** (the username is always `rokudev`).
+- The TV reboots and exposes the Development Application Installer at `http://<TV_IP>`.
+
+### Device Connection
+
+- Ensure the TV and the provider host machine are on the same network.
+- Add the device in GADS using the **TV IP address** as the UDID (e.g. `10.30.50.112`). The ECP port
+  (`8060`) is fixed and does not need to be included.
+- A Roku device is considered connected when its ECP endpoint (`http://<TV_IP>:8060/query/device-info`)
+  responds.
+
+### Developer Credentials
+
+- Sideloading/removing the dev channel (`InstallApp`/`UninstallApp`) uses the developer web installer,
+  which requires HTTP digest authentication.
+- The developer-mode **username is always `rokudev`** (fixed by Roku), so only the **password** is needed.
+- Set the password **per device in the UI**: open the device in `Admin` → `Devices` and fill in the
+  `Roku dev password` field (the password you chose when enabling Developer Mode on that TV).
+- The password is only required to sideload/remove dev channels; launching apps, listing apps and
+  automation over ECP do not need it.
+
+### Known Limitations
+
+- Video streaming and remote control are not available for Roku devices (automation only).
+- `KillApp` has no per-app equivalent on Roku; the Home key is sent to exit the active channel.
+- Only the sideloaded dev channel (app id `dev`) can be uninstalled via the web installer.

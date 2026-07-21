@@ -1223,6 +1223,10 @@ func UpdateDevice(c *gin.Context) {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
 			}
 
+			if reqDevice.RokuDevPassword != dbDevice.RokuDevPassword {
+				dbDevice.RokuDevPassword = reqDevice.RokuDevPassword
+			}
+
 			// Validate device configuration before saving to DB
 			err = models.ValidateDevice(&dbDevice)
 			if err != nil {
