@@ -289,6 +289,13 @@ func newPlatformDevice(dbDevice *models.DBDevice, deviceLogger models.CustomLogg
 		d.SemVer = sv
 		d.InitialSetupDone = true
 		return d
+	case "androidtv":
+		d := &AndroidTvDevice{}
+		d.DBDevice = *dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	default:
 		return nil
 	}
@@ -305,6 +312,15 @@ func updateDevices() {
 		tizenTicker = time.NewTicker(30 * time.Second)
 		tizenChan = tizenTicker.C
 		defer tizenTicker.Stop()
+	}
+
+	var androidTvTicker *time.Ticker
+	var androidTvChan <-chan time.Time
+
+	if config.ProviderConfig.ProvideAndroidTv {
+		androidTvTicker = time.NewTicker(30 * time.Second)
+		androidTvChan = androidTvTicker.C
+		defer androidTvTicker.Stop()
 	}
 
 	for {
@@ -346,6 +362,11 @@ func updateDevices() {
 			if tizenChan != nil {
 				handleTizenAutoConnection(GetConnectedDevicesCommon())
 			}
+
+		case <-androidTvChan:
+			if androidTvChan != nil {
+				handleAndroidTvAutoConnection(GetConnectedDevicesCommon())
+			}
 		}
 	}
 }
@@ -368,7 +389,9 @@ func GetConnectedDevicesCommon() []string {
 	var tizenDevices []string
 	var webosDevices []string
 
-	if config.ProviderConfig.ProvideAndroid {
+	// Android TV devices connect over ADB just like Android mobile devices, so the same
+	// `adb devices` listing is used; the concrete device type is resolved from the DB OS field.
+	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv {
 		androidDevices = getConnectedDevicesAndroid()
 	}
 

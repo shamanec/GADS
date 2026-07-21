@@ -14,6 +14,7 @@ The provider component is responsible for setting up the Appium servers and mana
 - [Device Notes](#device-notes)
   - [iOS Phones](#ios-phones)
   - [Android](#android-phone)
+  - [Android TV](#android-tv)
   - [Tizen TV](#tizen-tv)
   - [WebOS TV](#webos-tv)
 - [Starting Provider Instance](#starting-a-provider-instance)
@@ -50,6 +51,11 @@ To specify a folder, create it on your machine and provide it at startup using t
 - **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android devices.
 - **Enable** [USB Debugging](#usb-debugging) on each Android device.
 
+#### Android TV
+
+- **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android TV devices.
+- **Enable** [Developer Mode and network ADB debugging](#android-tv) on each Android TV.
+
 #### iOS
 
 - **Prepare** [WebDriverAgent](#build-webdriveragent-ipa-file-manually-using-xcode).
@@ -79,6 +85,11 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 - **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android devices.
 - **Enable** [USB Debugging](#usb-debugging) on each Android device.
+
+#### Android TV
+
+- **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android TV devices.
+- **Enable** [Developer Mode and network ADB debugging](#android-tv) on each Android TV.
 
 #### iOS
 
@@ -115,6 +126,11 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 - **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android devices.
 - **Enable** [USB Debugging](#usb-debugging) on each Android device.
+
+#### Android TV
+
+- **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android TV devices.
+- **Enable** [Developer Mode and network ADB debugging](#android-tv) on each Android TV.
 
 #### iOS
 
@@ -299,6 +315,42 @@ Note that it is possible that on some devices it might not work at all, in this 
 
 **NB** It is complex to handle both device encoder and browser decoder limitations, I would suggest using Chrome/Safari, but I assume that most of the time also Firefox should manage.  
 **NB** WebRTC video has some initial delay/latency while calculating the bitrate and connection capabilities when you access the device control.
+
+### Android TV
+
+Android TV devices are provided over a network ADB connection and support **automated Appium testing only** - there is no remote control or video streaming, similar to Tizen and WebOS. They reuse the same `adb` dependency as Android phones, so no additional tooling is required.
+
+#### Developer Mode and network ADB debugging
+
+- On the Android TV open `Settings` and navigate to the `About`/`Device` section
+- Select the build/version entry repeatedly until `Developer options` are unlocked
+- Open `Developer options` and enable `USB debugging` and `Network debugging`/`ADB debugging` (the exact naming varies by manufacturer)
+
+#### Device Connection
+
+- Ensure the Android TV and the provider host machine are on the same local network
+- Connect to the TV using ADB over the network:
+  ```bash
+  adb connect <tv-ip-address>:<port>
+  ```
+  - The default ADB port is `5555`
+- The first connection will prompt an authorization dialog on the TV - accept it
+- Verify the connection by running:
+  ```bash
+  adb devices
+  ```
+- The TV should appear in the list with status `device`
+
+#### Device UDID Format
+
+- Android TV devices use the format `IP:PORT` as their UDID (e.g., `192.168.1.100:5555`)
+- This UDID must be registered in the GADS database before the device can be used and must match the address used with `adb connect`
+
+#### Known Limitations
+
+- Video streaming is not available for Android TV devices
+- Remote control is not available - Android TV devices can only be used for automated Appium testing
+- Android TV devices only support the `automation` usage type
 
 ## Starting a provider instance
 
