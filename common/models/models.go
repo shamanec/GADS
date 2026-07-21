@@ -12,6 +12,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -318,6 +319,9 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 	return nil
 }
 
+// androidTvUDIDPattern matches an explicit IP:PORT address (e.g. 10.30.50.107:5555).
+var androidTvUDIDPattern = regexp.MustCompile(`^([0-9]{1,3}\.){3}[0-9]{1,3}:\d+$`)
+
 // ValidateDevice performs comprehensive validation on a device struct
 func ValidateDevice(device *DBDevice) error {
 	if device == nil {
@@ -327,6 +331,14 @@ func ValidateDevice(device *DBDevice) error {
 	// Validate OS and Usage combination
 	if err := ValidateDeviceUsageForOS(device.OS, device.Usage); err != nil {
 		return err
+	}
+
+	// Android TV connects over ADB TCP/IP, so the UDID must be an explicit IP:PORT.
+	// The port is required (not assumed) since it must match what the TV exposes.
+	if strings.ToLower(strings.TrimSpace(device.OS)) == "androidtv" {
+		if !androidTvUDIDPattern.MatchString(device.UDID) {
+			return fmt.Errorf("androidtv devices require the UDID in IP:PORT format (e.g. 10.30.50.107:5555)")
+		}
 	}
 
 	return nil

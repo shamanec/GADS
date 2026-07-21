@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 
 	"GADS/common/models"
@@ -63,6 +64,28 @@ func connectAndroidTvDevice(deviceUDID string) error {
 		return fmt.Errorf("failed to connect to Android TV device %s. Output: %s", deviceUDID, string(output))
 	}
 	return nil
+}
+
+// handleAndroidTvAutoConnection issues `adb connect` for configured Android TV devices
+// that aren't connected yet. TVs connect over the network (IP:PORT) and won't show up in
+// `adb devices` until connected, so without this the device never reaches Setup. The first
+// connect for an unauthorized TV triggers the on-device authorization prompt; the periodic
+// retry picks the device up once it's authorized. `adb connect` is idempotent.
+func handleAndroidTvAutoConnection(connectedDevices []string) {
+	for _, dev := range DevManager.All() {
+		if dev.GetOS() != "androidtv" || dev.GetDBDevice().Usage == "disabled" {
+			continue
+		}
+
+		udid := dev.GetUDID()
+		if slices.Contains(connectedDevices, udid) {
+			continue
+		}
+
+		if err := connectAndroidTvDevice(udid); err != nil {
+			logger.ProviderLogger.LogDebug("androidtv_autoconnect", fmt.Sprintf("Auto-connect attempt for Android TV %s failed: %v", udid, err))
+		}
+	}
 }
 
 func (d *AndroidTvDevice) getTVInfo() {

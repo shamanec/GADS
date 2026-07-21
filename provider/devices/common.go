@@ -314,6 +314,15 @@ func updateDevices() {
 		defer tizenTicker.Stop()
 	}
 
+	var androidTvTicker *time.Ticker
+	var androidTvChan <-chan time.Time
+
+	if config.ProviderConfig.ProvideAndroidTv {
+		androidTvTicker = time.NewTicker(30 * time.Second)
+		androidTvChan = androidTvTicker.C
+		defer androidTvTicker.Stop()
+	}
+
 	for {
 		select {
 		case <-ticker.C:
@@ -352,6 +361,11 @@ func updateDevices() {
 		case <-tizenChan:
 			if tizenChan != nil {
 				handleTizenAutoConnection(GetConnectedDevicesCommon())
+			}
+
+		case <-androidTvChan:
+			if androidTvChan != nil {
+				handleAndroidTvAutoConnection(GetConnectedDevicesCommon())
 			}
 		}
 	}
