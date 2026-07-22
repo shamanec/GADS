@@ -65,3 +65,15 @@ func (m *MongoStore) UpdateUserWorkspaces(username string, workspaceIDs []string
 	}
 	return PartialDocumentUpdate(m.Ctx, coll, filter, updates)
 }
+
+// UpdateUserPassword updates only the password field for the given user, leaving
+// role and workspaces untouched (a full upsert of a partial User struct would
+// clobber those fields).
+func (m *MongoStore) UpdateUserPassword(username, newPassword string) error {
+	coll := m.GetCollection("users")
+	filter := bson.M{"username": username}
+	updates := bson.M{
+		"password": newPassword,
+	}
+	return PartialDocumentUpdate(m.Ctx, coll, filter, updates)
+}
