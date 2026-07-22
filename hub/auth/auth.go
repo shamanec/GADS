@@ -29,6 +29,11 @@ type AuthCreds struct {
 	Password string `json:"password"`
 }
 
+type ChangePasswordCreds struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 // GetOriginFromRequest extracts the origin from request headers
 func GetOriginFromRequest(c *gin.Context) string {
 	// Try to get from Origin header first (standard for CORS)
@@ -182,6 +187,81 @@ func LogoutHandler(c *gin.Context) {
 	}
 
 	api.InternalError(c, "session does not exist")
+}
+
+// ChangePasswordHandler godoc
+// @Summary      Change own password
+// @Description  Allows an authenticated user to change their own password. The
+// @Description  target user is always derived from the JWT, so a user can never
+// @Description  change another user's password.
+// @Tags         Hub - Authentication
+// @Accept       json
+// @Produce      json
+// @Param        credentials  body      ChangePasswordCreds  true  "Current and new password"
+// @Success      200          {object}  models.SuccessResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      401          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /change-password [post]
+func ChangePasswordHandler(c *gin.Context) {
+	// Always resolve the acting user from the token/context - never from the
+	// request body - so a user can only ever change their own password.
+	username := c.GetString("username")
+	if username == "" {
+		claims, err := GetClaimsFromRequest(c)
+		if err != nil || claims.Username == "" {
+			api.Unauthorized(c, "unauthorized")
+			return
+		}
+		username = claims.Username
+	}
+
+	var creds ChangePasswordCreds
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		api.InternalError(c, "Internal server error")
+		return
+	}
+
+	if err = json.Unmarshal(body, &creds); err != nil {
+		api.BadRequest(c, "Invalid request body")
+		return
+	}
+
+	if creds.CurrentPassword == "" || creds.NewPassword == "" {
+		api.BadRequest(c, "Current and new password are required")
+		return
+	}
+
+	if creds.NewPassword == creds.CurrentPassword {
+		api.BadRequest(c, "New password must be different from the current password")
+		return
+	}
+
+	// A failure fetching the user for a valid token is a server-side problem,
+	// not an auth failure - avoid returning 401 so a transient DB error does
+	// not trip the UI interceptor and log the user out.
+	user, err := db.GlobalMongoStore.GetUser(username)
+	if err != nil {
+		api.InternalError(c, "Failed to load user")
+		return
+	}
+
+	// A wrong current password is a bad request, NOT a 401 - the user is
+	// authenticated. Returning 401 here would trip the UI's global response
+	// interceptor and log the user out instead of showing the error.
+	if user.Password != creds.CurrentPassword {
+		api.BadRequest(c, "Current password is incorrect")
+		return
+	}
+
+	if err = db.GlobalMongoStore.UpdateUserPassword(username, creds.NewPassword); err != nil {
+		api.InternalError(c, "Failed to update password")
+		return
+	}
+
+	api.OKMessage(c, "Password updated successfully")
 }
 
 // GetUserInfoHandler godoc
