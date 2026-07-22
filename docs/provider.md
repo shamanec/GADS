@@ -537,11 +537,12 @@ with the Roku driver installed.
 
 ### Developer Credentials
 
-- Sideloading/removing the dev channel (`InstallApp`/`UninstallApp`) uses the developer web installer,
-  which requires HTTP digest authentication.
 - The developer-mode **username is always `rokudev`** (fixed by Roku), so only the **password** is needed.
-- Set the password **per device in the UI**: open the device in `Admin` → `Devices` and fill in the
-  `Roku dev password` field (the password you chose when enabling Developer Mode on that TV).
+- **Automation:** provide the password via the `appium:rokuPass` capability when creating the Appium
+  session (the password you chose when enabling Developer Mode on that TV).
+- **Install/uninstall:** the install and uninstall endpoints accept a `roku_dev_password` field; the
+  provider uses it to sideload/remove the dev channel through the developer web installer (HTTP digest
+  authentication on port `80`).
 - The password is only required to sideload/remove dev channels; launching apps, listing apps and
   automation over ECP do not need it.
 
@@ -549,4 +550,4 @@ with the Roku driver installed.
 
 - Video streaming and remote control are not available for Roku devices (automation only).
 - `KillApp` has no per-app equivalent on Roku; the Home key is sent to exit the active channel.
-- Only the sideloaded dev channel (app id `dev`) can be uninstalled via the web installer.
+- Only the sideloaded dev channel (app id `dev`) can be uninstalled, through the dev web installer.

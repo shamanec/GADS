@@ -52,8 +52,6 @@ type DBDevice struct {
 	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
 	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
 	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
-	// Roku developer-mode password
-	RokuDevPassword string `json:"roku_dev_password,omitempty" bson:"roku_dev_password,omitempty"`
 }
 
 // AndroidDisplay represents a physical display on an Android device (e.g. foldable inner/outer screen).

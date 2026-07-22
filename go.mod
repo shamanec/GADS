@@ -10,6 +10,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gobwas/ws v1.4.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/icholy/digest v1.1.0
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/pion/webrtc/v3 v3.3.6
 	github.com/shirou/gopsutil v3.21.11+incompatible
