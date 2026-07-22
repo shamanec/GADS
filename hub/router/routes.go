@@ -1309,19 +1309,20 @@ func GetDevices(c *gin.Context) {
 	api.OK(c, "Successfully retrieved devices data", adminDeviceData)
 }
 
-// ReleaseUsedDevice godoc
+// ReleaseDevice godoc
 // @Summary      Release a device in use
-// @Description  Force release a device that is currently in use
-// @Tags         Hub - Admin - Devices
-// @Tags         Hub - Devices selection
-// @Accept       json
+// @Description  Release a device that is currently in use. Permission rules: any user may release a device running automation; the current holder may release their own session; admins may release any session; a non-admin cannot release a remote-control session held by another user. Authenticate via Authorization header (Bearer token) or ?token= query param.
+// @Tags         Hub - Devices
 // @Produce      json
-// @Param        udid  path      string  true  "Device UDID"
+// @Param        udid   path   string  true   "Device UDID"
+// @Param        token  query  string  false  "Raw JWT token (alternative to Authorization header)"
 // @Success      200   {object}  models.SuccessResponse
-// @Failure      500   {object}  models.ErrorResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      403   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
 // @Security     BearerAuth
-// @Router       /admin/device/{udid}/release [post]
-func ReleaseUsedDevice(c *gin.Context) {
+// @Router       /devices/control/{udid}/release [post]
+func ReleaseDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
 	releaseDevice, ok := devices.HubDeviceStore.Get(udid)
@@ -1333,10 +1334,38 @@ func ReleaseUsedDevice(c *gin.Context) {
 	releaseDevice.Mu.Lock()
 	defer releaseDevice.Mu.Unlock()
 
-	if releaseDevice.InUseWSConnection != nil {
-		ws.WriteFrame(releaseDevice.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "released by admin"))) //nolint:errcheck
+	// When authentication is enabled, enforce the release permission rules.
+	// With auth disabled there are no user claims, so releasing is unrestricted.
+	if config.GlobalHubConfig.AuthEnabled {
+		claims, err := auth.GetClaimsFromRequest(c)
+		if err != nil || claims.Username == "" {
+			c.Status(http.StatusUnauthorized)
+			return
+		}
+
+		isAdmin := claims.Role == "admin"
+		isHolder := releaseDevice.InUseBy != "" &&
+			releaseDevice.InUseBy == claims.Username &&
+			releaseDevice.InUseByTenant == claims.Tenant
+
+		// A device running automation may be released by anyone (the UI confirms first).
+		// Otherwise only an admin or the current holder may release an in-use device.
+		if !releaseDevice.IsRunningAutomation && !isAdmin && !isHolder {
+			api.Forbidden(c, "You are not allowed to release a device that is in use by another user")
+			return
+		}
 	}
 
+	// Kick any active remote-control session.
+	if releaseDevice.InUseWSConnection != nil {
+		ws.WriteFrame(releaseDevice.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "device released"))) //nolint:errcheck
+	}
+
+	// Fully reset any (possibly stuck) automation session so the device becomes
+	// available again immediately instead of waiting for the grid session janitor.
+	releaseDevice.IsRunningAutomation = false
+	releaseDevice.IsAvailableForAutomation = true
+	releaseDevice.SessionID = ""
 	releaseDevice.ReleaseLock()
 
 	api.OKMessage(c, "Device was successfully released")
