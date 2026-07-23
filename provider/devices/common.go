@@ -296,6 +296,13 @@ func newPlatformDevice(dbDevice *models.DBDevice, deviceLogger models.CustomLogg
 		d.SemVer = sv
 		d.InitialSetupDone = true
 		return d
+	case "roku":
+		d := &RokuDevice{}
+		d.DBDevice = *dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	default:
 		return nil
 	}
@@ -388,6 +395,7 @@ func GetConnectedDevicesCommon() []string {
 	var iosDevices []string
 	var tizenDevices []string
 	var webosDevices []string
+	var rokuDevices []string
 
 	// Android TV devices connect over ADB just like Android mobile devices, so the same
 	// `adb devices` listing is used; the concrete device type is resolved from the DB OS field.
@@ -407,10 +415,15 @@ func GetConnectedDevicesCommon() []string {
 		webosDevices = getConnectedDevicesWebOS()
 	}
 
+	if config.ProviderConfig.ProvideRoku {
+		rokuDevices = getConnectedDevicesRoku()
+	}
+
 	connectedDevices = append(connectedDevices, iosDevices...)
 	connectedDevices = append(connectedDevices, androidDevices...)
 	connectedDevices = append(connectedDevices, tizenDevices...)
 	connectedDevices = append(connectedDevices, webosDevices...)
+	connectedDevices = append(connectedDevices, rokuDevices...)
 
 	return connectedDevices
 }

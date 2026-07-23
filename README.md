@@ -1,6 +1,6 @@
 <!--
   Title: GADS - Open Source Device Farm
-  Description: Self-hosted device farm and test automation platform for iOS, Android, and Smart TVs (Samsung Tizen OS, LG WebOS, Android TV). Open source alternative to AWS Device Farm and Firebase Test Lab with Appium integration.
+  Description: Self-hosted device farm and test automation platform for iOS, Android, and Smart TVs (Samsung Tizen OS, LG WebOS, Android TV, Roku). Open source alternative to AWS Device Farm and Firebase Test Lab with Appium integration.
   Author: shamanec
   Tags: device-farm, mobile-testing, ios-testing, android-testing, appium, test-automation, qa-tools, continuous-testing, mobile-device-management, selenium-grid
   -->
@@ -25,7 +25,7 @@
 
 ## 🎯 What is GADS?
 
-**GADS** is a free, open-source device farm platform that enables **remote device control** and **Appium test execution** on mobile devices (iOS/Android) and smart TVs (currently supporting Samsung Tizen OS, LG WebOS and Android TV). Perfect for QA teams, mobile developers, and organizations looking for a self-hosted alternative to expensive cloud testing services like AWS Device Farm and Firebase Test Lab.
+**GADS** is a free, open-source device farm platform that enables **remote device control** and **Appium test execution** on mobile devices (iOS/Android) and smart TVs (currently supporting Samsung Tizen OS, LG WebOS, Android TV and Roku). Perfect for QA teams, mobile developers, and organizations looking for a self-hosted alternative to expensive cloud testing services like AWS Device Farm and Firebase Test Lab.
 
 The platform architecture consists of two main components:
 
@@ -35,7 +35,7 @@ The platform architecture consists of two main components:
 ### Why Choose GADS?
 
 - 💰 **Free**: Self-hosted alternative to AWS Device Farm and Firebase Test Lab
-- 📱 **Cross-Platform**: Full support for iOS and Android devices, plus automated testing for Smart TVs (Samsung Tizen OS, LG WebOS, Android TV)
+- 📱 **Cross-Platform**: Full support for iOS and Android devices, plus automated testing for Smart TVs (Samsung Tizen OS, LG WebOS, Android TV, Roku)
 - 🎮 **Remote Control**: Real-time device control and testing capabilities
 - 🎮 **Local debugging - Android only**: [Connect](./docs/adb-tunnel.md) remotely controlled Android device to your local `adb` instance for development and debugging
 - 🔌 **Appium Compatible**: Works with industry-standard Appium testing framework
@@ -88,17 +88,17 @@ The platform architecture consists of two main components:
 - 🧪 **Testing Integration**
   - Individual Appium server endpoints (optional)
   - Optional Selenium Grid 4 node registration
-  - Automated testing for Smart TVs - currently supports Samsung Tizen OS, LG WebOS and Android TV (no remote control, testing only)
+  - Automated testing for Smart TVs - currently supports Samsung Tizen OS, LG WebOS, Android TV and Roku (no remote control, testing only)
 
 ## 💻 Platform Support
 
 | OS          | Android Support | iOS Support | Smart TV Support     | Notes                                                                         |
 | ----------- | --------------- | ----------- | -------------------- | ----------------------------------------------------------------------------- |
 | **macOS**   | ✅              | ✅          | ✅ (automation only) | Full support for mobile, Smart TVs support only automated testing             |
-| **Linux**   | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS & Android TV |
-| **Windows** | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS & Android TV |
+| **Linux**   | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS, Android TV & Roku |
+| **Windows** | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS, Android TV & Roku |
 
-**Important**: Smart TV support (Tizen OS and WebOS) is focused on **automated testing only**. Manual interaction and real-time device control available for mobile devices are not supported for smart TVs.
+**Important**: Smart TV support (Tizen OS, WebOS, Android TV and Roku) is focused on **automated testing only**. Manual interaction and real-time device control available for mobile devices are not supported for smart TVs.
 
 ## License
 
@@ -264,7 +264,7 @@ https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 ### Smart TV Testing 📺
 
 - **Smart TV App Testing**: Automated testing for TV applications
-- **Currently Supported**: Samsung Tizen OS, LG WebOS and Android TV
+- **Currently Supported**: Samsung Tizen OS, LG WebOS, Android TV and Roku
 - **TV-Specific Testing**: Validate TV app functionality, performance, and compatibility
 - **Remote-First Testing**: Test TV apps without physical access to devices
 
@@ -275,4 +275,4 @@ https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
 
 ## 🔍 Keywords
 
-`device-farm`, `mobile-testing`, `ios-testing`, `android-testing`, `appium`, `test-automation`, `qa-tools`, `continuous-testing`, `mobile-device-management`, `selenium-grid`, `remote-device-control`, `mobile-qa`, `tizen-testing`, `smart-tv-testing`, `webos-testing`, `lg-tv-testing`, `android-tv-testing`
+`device-farm`, `mobile-testing`, `ios-testing`, `android-testing`, `appium`, `test-automation`, `qa-tools`, `continuous-testing`, `mobile-device-management`, `selenium-grid`, `remote-device-control`, `mobile-qa`, `tizen-testing`, `smart-tv-testing`, `webos-testing`, `lg-tv-testing`, `android-tv-testing`, `roku-testing`

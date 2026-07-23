@@ -540,6 +540,11 @@ func getTargetOSFromCaps(caps models.CommonCapabilities) string {
 		return "webos"
 	}
 
+	if strings.EqualFold(caps.PlatformName, "Roku") ||
+		strings.EqualFold(caps.AutomationName, "roku") {
+		return "roku"
+	}
+
 	return ""
 }
 

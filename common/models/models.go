@@ -316,11 +316,22 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 		}
 	}
 
+	// Validate Roku devices can only be used for automation
+	if normalizedOS == "roku" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("roku devices only support 'automation' usage. Current usage '%s' is not supported. Roku devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
 	return nil
 }
 
 // androidTvUDIDPattern matches an explicit IP:PORT address (e.g. 10.30.50.107:5555).
 var androidTvUDIDPattern = regexp.MustCompile(`^([0-9]{1,3}\.){3}[0-9]{1,3}:\d+$`)
+
+// rokuUDIDPattern matches a Roku IP address, optionally with a port (e.g. 10.30.50.112 or 10.30.50.112:8060).
+// Roku is reached over ECP (fixed port 8060), so only the IP is required.
+var rokuUDIDPattern = regexp.MustCompile(`^([0-9]{1,3}\.){3}[0-9]{1,3}(:\d+)?$`)
 
 // ValidateDevice performs comprehensive validation on a device struct
 func ValidateDevice(device *DBDevice) error {
@@ -338,6 +349,13 @@ func ValidateDevice(device *DBDevice) error {
 	if strings.ToLower(strings.TrimSpace(device.OS)) == "androidtv" {
 		if !androidTvUDIDPattern.MatchString(device.UDID) {
 			return fmt.Errorf("androidtv devices require the UDID in IP:PORT format (e.g. 10.30.50.107:5555)")
+		}
+	}
+
+	// Roku connects over ECP (fixed port 8060), so the UDID must be the TV IP address.
+	if strings.ToLower(strings.TrimSpace(device.OS)) == "roku" {
+		if !rokuUDIDPattern.MatchString(device.UDID) {
+			return fmt.Errorf("roku devices require the UDID to be the TV IP address (e.g. 10.30.50.112)")
 		}
 	}
 

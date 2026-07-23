@@ -156,8 +156,9 @@ func InstallStoredApp(c *gin.Context) {
 	}
 
 	var payload struct {
-		FileID   string `json:"file_id"`
-		Filename string `json:"filename"`
+		FileID          string `json:"file_id"`
+		Filename        string `json:"filename"`
+		RokuDevPassword string `json:"roku_dev_password"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		api.BadRequest(c, fmt.Sprintf("Invalid request body - %s", err))
@@ -185,6 +186,15 @@ func InstallStoredApp(c *gin.Context) {
 	}
 	// Always clean up the downloaded file when done
 	defer os.Remove(uploadDir + localName)
+
+	if roku, ok := platDev.(*devices.RokuDevice); ok {
+		if err := roku.InstallDevChannel(uploadDir+localName, payload.RokuDevPassword); err != nil {
+			api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
+			return
+		}
+		api.OKMessage(c, "App installed successfully")
+		return
+	}
 
 	if err := installAppFromDisk(platDev, uploadDir, localName); err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed installing app - %s", err))
@@ -391,7 +401,8 @@ func DevicesInfo(c *gin.Context) {
 }
 
 type ProcessApp struct {
-	App string `json:"app"`
+	App             string `json:"app"`
+	RokuDevPassword string `json:"roku_dev_password,omitempty"`
 }
 
 func UninstallApp(c *gin.Context) {
@@ -419,9 +430,13 @@ func UninstallApp(c *gin.Context) {
 	installedApps := platDev.GetInstalledAppBundleIDs()
 
 	if slices.Contains(installedApps, payloadJson.App) {
-		err = platDev.UninstallApp(payloadJson.App)
+		if roku, ok := platDev.(*devices.RokuDevice); ok {
+			err = roku.UninstallDevChannel(payloadJson.RokuDevPassword)
+		} else {
+			err = platDev.UninstallApp(payloadJson.App)
+		}
 		if err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App))
+			api.InternalError(c, fmt.Sprintf("Failed to uninstall app `%s` - %s", payloadJson.App, err))
 			return
 		}
 		deletedAppIndex := slices.Index(installedApps, payloadJson.App)
