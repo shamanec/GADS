@@ -41,6 +41,7 @@ type rokuApps struct {
 
 type rokuApp struct {
 	ID   string `xml:"id,attr"`
+	Type string `xml:"type,attr"` // "appl" (channel/app), "tvin" (TV input), "menu"
 	Name string `xml:",chardata"`
 }
 
@@ -152,6 +153,9 @@ func (d *RokuDevice) queryApps() []rokuApp {
 func (d *RokuDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 	var result []models.DeviceApp
 	for _, app := range d.queryApps() {
+		if app.Type != "appl" { // skip TV inputs and menu items — only real channels are apps
+			continue
+		}
 		result = append(result, models.DeviceApp{
 			AppName:          strings.TrimSpace(app.Name),
 			BundleIdentifier: app.ID,
@@ -165,6 +169,9 @@ func (d *RokuDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 func (d *RokuDevice) GetInstalledAppBundleIDs() []string {
 	var ids []string
 	for _, app := range d.queryApps() {
+		if app.Type != "appl" { // skip TV inputs and menu items — only real channels are apps
+			continue
+		}
 		ids = append(ids, app.ID)
 	}
 	return ids
