@@ -436,7 +436,7 @@ func UninstallApp(c *gin.Context) {
 			err = platDev.UninstallApp(payloadJson.App)
 		}
 		if err != nil {
-			api.InternalError(c, fmt.Sprintf("Failed to uninstall app `%s`", payloadJson.App))
+			api.InternalError(c, fmt.Sprintf("Failed to uninstall app `%s` - %s", payloadJson.App, err))
 			return
 		}
 		deletedAppIndex := slices.Index(installedApps, payloadJson.App)

@@ -236,25 +236,37 @@ func (d *RokuDevice) rokuWebInstaller(submit, zipPath, password string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", contentType)
+	// Hold the body until the installer answers its 401 digest challenge, so large
+	// .zip uploads don't break the pipe mid-stream.
+	req.Header.Set("Expect", "100-continue")
 
 	client := &http.Client{
-		Transport: &digest.Transport{Username: "rokudev", Password: password},
-		Timeout:   30 * time.Second,
+		Transport: &digest.Transport{
+			Username:  "rokudev",
+			Password:  password,
+			Transport: &http.Transport{ExpectContinueTimeout: 5 * time.Second},
+		},
+		Timeout: 60 * time.Second,
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to reach Roku web installer: %w", err)
+		// Also how the device presents when busy relaunching a channel after a sideload.
+		return fmt.Errorf("could not reach Roku web installer at %s (device off/unreachable, or busy right after a channel install/launch — retry in a few seconds): %w", rokuHost(d.GetUDID()), err)
 	}
 	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	snippet := strings.Join(strings.Fields(string(respBody)), " ")
+	if len(snippet) > 200 {
+		snippet = snippet[:200]
+	}
 	if resp.StatusCode == http.StatusUnauthorized {
-		return fmt.Errorf("roku web installer rejected the developer password")
+		return fmt.Errorf("roku web installer rejected the developer password (device %s)", rokuHost(d.GetUDID()))
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("roku web installer returned status %d", resp.StatusCode)
+		return fmt.Errorf("roku web installer returned status %d — the device may be busy right after a channel install/launch, retry in a few seconds; response: %s", resp.StatusCode, snippet)
 	}
-	respBody, _ := io.ReadAll(resp.Body)
 	if strings.Contains(strings.ToLower(string(respBody)), "failed") {
-		return fmt.Errorf("roku web installer reported a failure (check the developer password and the channel package)")
+		return fmt.Errorf("roku web installer reported a failure (check the developer password and the channel package); response: %s", snippet)
 	}
 	return nil
 }
