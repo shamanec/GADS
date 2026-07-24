@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -661,7 +662,20 @@ func (d *AndroidDevice) ChangeRotation(rotation string) error {
 // UpdateStreamSettingsOnDevice sends stream settings to the device via WebSocket.
 func (d *AndroidDevice) UpdateStreamSettingsOnDevice() error {
 	u := url.URL{Scheme: "ws", Host: "localhost:" + d.StreamPort, Path: ""}
-	destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
+	// The H264 server needs a few seconds to bind its port after (re)start — retry the dial.
+	var destConn net.Conn
+	var err error
+	for attempt := 0; attempt < 30; attempt++ {
+		destConn, _, _, err = ws.DefaultDialer.Dial(context.Background(), u.String())
+		if err == nil {
+			break
+		}
+		select {
+		case <-d.Context.Done():
+			return fmt.Errorf("cancelled while waiting for device `%s` stream port - %w", d.GetUDID(), d.Context.Err())
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("failed connecting to device `%s` stream port - %s", d.GetUDID(), err)
 	}
