@@ -370,5 +370,7 @@ type RunningApp struct {
 type DeviceApp struct {
 	AppName          string `json:"app_name" bson:"-"`
 	BundleIdentifier string `json:"bundle_identifier" bson:"-"`
+	Version          string `json:"version" bson:"-"`
 	CanUninstall     bool   `json:"can_uninstall" bson:"-"`
+	IsDevApp         bool   `json:"is_dev_app" bson:"-"`
 }

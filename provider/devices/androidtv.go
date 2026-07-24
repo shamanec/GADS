@@ -129,20 +129,29 @@ func (d *AndroidTvDevice) UninstallApp(packageName string) error {
 // GetInstalledApps returns installed apps info (returns as []models.DeviceApp for the interface).
 func (d *AndroidTvDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 	var result []models.DeviceApp
-	for _, packageName := range d.getInstalledAppsAndroidTv() {
+	versions := d.getAppVersionsAndroidTv()
+	for _, app := range d.getInstalledAppsAndroidTv() {
 		result = append(result, models.DeviceApp{
-			AppName:          packageName,
-			BundleIdentifier: packageName,
+			AppName:          app.packageName,
+			BundleIdentifier: app.packageName,
+			Version:          versions[app.packageName],
 			CanUninstall:     true,
+			// null/shell = adb sideload, packageinstaller = manual APK install; store installs report the store package
+			IsDevApp: app.installer == "null" || app.installer == "com.android.shell" || app.installer == "com.google.android.packageinstaller",
 		})
 	}
 	return result, nil
 }
 
-func (d *AndroidTvDevice) getInstalledAppsAndroidTv() []string {
-	installedApps := make([]string, 0)
+type androidTvPackage struct {
+	packageName string
+	installer   string
+}
 
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "cmd", "package", "list", "packages", "-3")
+func (d *AndroidTvDevice) getInstalledAppsAndroidTv() []androidTvPackage {
+	installedApps := make([]androidTvPackage, 0)
+
+	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "cmd", "package", "list", "packages", "-3", "-i")
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
@@ -153,17 +162,48 @@ func (d *AndroidTvDevice) getInstalledAppsAndroidTv() []string {
 	result := strings.TrimSpace(outBuffer.String())
 	lines := regexp.MustCompile("\r?\n").Split(result, -1)
 	for _, line := range lines {
-		lineSplit := strings.Split(line, ":")
-		if len(lineSplit) > 1 {
-			installedApps = append(installedApps, lineSplit[1])
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "package:") {
+			continue
 		}
+		packageName, installer, _ := strings.Cut(strings.TrimPrefix(line, "package:"), "installer=")
+		installedApps = append(installedApps, androidTvPackage{
+			packageName: strings.TrimSpace(packageName),
+			installer:   strings.TrimSpace(installer),
+		})
 	}
 	return installedApps
 }
 
+// versionName isn't exposed by `list packages`, so fetch it per package in a single adb roundtrip.
+func (d *AndroidTvDevice) getAppVersionsAndroidTv() map[string]string {
+	versions := map[string]string{}
+
+	script := `for p in $(pm list packages -3); do p=${p#package:}; v=$(dumpsys package $p | grep -m1 versionName); echo "$p ${v#*=}"; done`
+	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", script)
+	var outBuffer bytes.Buffer
+	cmd.Stdout = &outBuffer
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogError("androidtv_list_apps", fmt.Sprintf("Failed to get app versions for device %s: %v", d.GetUDID(), err))
+		return versions
+	}
+
+	for _, line := range regexp.MustCompile("\r?\n").Split(strings.TrimSpace(outBuffer.String()), -1) {
+		packageName, version, _ := strings.Cut(strings.TrimSpace(line), " ")
+		if version != "" && version != "null" {
+			versions[packageName] = version
+		}
+	}
+	return versions
+}
+
 // GetInstalledAppBundleIDs returns bundle identifiers (package names) of installed apps.
 func (d *AndroidTvDevice) GetInstalledAppBundleIDs() []string {
-	return d.getInstalledAppsAndroidTv()
+	var ids []string
+	for _, app := range d.getInstalledAppsAndroidTv() {
+		ids = append(ids, app.packageName)
+	}
+	return ids
 }
 
 // LaunchApp launches an app on the Android TV device.
