@@ -52,6 +52,12 @@ type DBDevice struct {
 	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
 	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
 	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
+	// Enable audio streaming alongside the WebRTC video stream.
+	AudioStreamEnabled bool `json:"audio_stream_enabled" bson:"audio_stream_enabled"`
+	// Audio input source. Android: "internal" (AudioPlaybackCapture, API 29+, default) or "microphone" (TRRS).
+	AudioInputType string `json:"audio_input_type" bson:"audio_input_type"`
+	// AudioPort is the provider-only host port forwarded to the device audio stream. Runtime state, not persisted.
+	AudioPort string `json:"-" bson:"-"`
 }
 
 // AndroidDisplay represents a physical display on an Android device (e.g. foldable inner/outer screen).

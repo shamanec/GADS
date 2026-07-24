@@ -169,6 +169,16 @@ func (d *AndroidDevice) allocatePorts() error {
 		return fmt.Errorf("could not allocate free host port for ADB tunnel - %w", err)
 	}
 	d.ADBPort = adbPort
+
+	if d.DBDevice.AudioStreamEnabled && d.DBDevice.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
+		audioPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not allocate audio port for device `%v` - disabling audio stream: %v", d.GetUDID(), err))
+			d.DBDevice.AudioStreamEnabled = false
+		} else {
+			d.DBDevice.AudioPort = audioPort
+		}
+	}
 	return nil
 }
 
@@ -234,6 +244,10 @@ func (d *AndroidDevice) startServicesAndStreaming() error {
 			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not send TURN config to device `%s` - %v (WebRTC will use STUN only)", d.GetUDID(), err))
 		}
 	}
+
+	// Audio streaming setup (non-fatal): a dedicated AudioService streams PCM over
+	// WebSocket (device port 1992), independent of the video pipeline.
+	d.setupAudioStreaming()
 	return nil
 }
 
@@ -472,6 +486,108 @@ func (d *AndroidDevice) forwardIME() error {
 
 func (d *AndroidDevice) forwardRemoteServer() error {
 	return d.forwardPort("1994", d.AndroidRemoteServerPort)
+}
+
+// forwardAudioStream forwards the device audio stream (device port 1992) to the
+// host audio port allocated in allocatePorts().
+func (d *AndroidDevice) forwardAudioStream() error {
+	return d.forwardPort("1992", d.DBDevice.AudioPort)
+}
+
+// setupAudioStreaming provisions the device-side audio pipeline (a foreground AudioService
+// streaming PCM over WS:1992) when enabled. All failures are non-fatal.
+func (d *AndroidDevice) setupAudioStreaming() {
+	if !d.DBDevice.AudioStreamEnabled {
+		return
+	}
+	// Audio is only wired for the GADS H264 WebRTC stream.
+	if d.DBDevice.StreamType != models.AndroidWebRTCGadsH264StreamTypeId {
+		return
+	}
+	// Internal AudioPlaybackCapture requires Android 10+ (API 29).
+	if d.DBDevice.AudioInputType == "internal" && d.SemVer != nil && d.SemVer.Major() < 10 {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Internal audio capture requires Android 10+ but device `%s` is on Android %s — disabling audio stream", d.GetUDID(), d.SemVer.String()))
+		d.DBDevice.AudioStreamEnabled = false
+		return
+	}
+
+	if err := d.forwardAudioStream(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not forward audio stream port for device `%s` - %v", d.GetUDID(), err))
+	}
+
+	if d.DBDevice.AudioInputType == "microphone" {
+		d.grantRecordAudioPermission()
+		d.startAudioService()
+		return
+	}
+
+	// Internal device audio (default): needs a MediaProjection token.
+	if d.SemVer != nil && d.SemVer.Major() >= 15 {
+		// On Android 15 (API 35) QPR1 the keyguard stops MediaProjection; disabling it
+		// keeps internal audio capture alive on device farms.
+		d.disableKeyguard()
+	}
+	if err := d.addStreamRecordingPermissions(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not grant PROJECT_MEDIA for audio capture on device `%s` - %v", d.GetUDID(), err))
+	}
+	d.startAudioService()
+	d.startAudioProjectionActivity()
+}
+
+// audioServiceComponent returns the fully-qualified AudioService component: the applicationId
+// is per-flavor (com.gads.settings) but the code namespace is com.shamanec.settings.
+func (d *AndroidDevice) audioServiceComponent() string {
+	return d.getStreamServicePackageName() + "/com.shamanec.settings.audio.AudioService"
+}
+
+// grantRecordAudioPermission grants RECORD_AUDIO to the GADS settings app. Required
+// whenever a foreground service declares a foregroundServiceType containing "microphone".
+func (d *AndroidDevice) grantRecordAudioPermission() {
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"pm", "grant", d.getStreamServicePackageName(), "android.permission.RECORD_AUDIO")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not grant RECORD_AUDIO to %s for device `%v` - %v", d.getStreamServicePackageName(), d.GetUDID(), err))
+	}
+}
+
+// startAudioService starts the foreground AudioService, where AudioRecord works correctly
+// (not possible in the app_process shell context used for the video H264Server).
+func (d *AndroidDevice) startAudioService() {
+	d.grantRecordAudioPermission()
+
+	stopCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"am", "stopservice", "-n", d.audioServiceComponent())
+	_ = stopCmd.Run()
+
+	audioInputType := d.DBDevice.AudioInputType
+	if audioInputType == "" {
+		audioInputType = "internal"
+	}
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"am", "start-foreground-service", "-n", d.audioServiceComponent(),
+		"--es", "audio_input_type", audioInputType)
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not start audio service for device `%v` - %v", d.GetUDID(), err))
+	}
+}
+
+// startAudioProjectionActivity shows the system MediaProjection dialog; on approval the token
+// is stored in MediaProjectionHolder for AudioService's internal AudioPlaybackCapture.
+func (d *AndroidDevice) startAudioProjectionActivity() {
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+		"am", "start", "-n", d.getStreamServicePackageName()+"/com.shamanec.settings.audio.AudioProjectionActivity")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not start AudioProjectionActivity for device `%v` - %v", d.GetUDID(), err))
+	}
+}
+
+// disableKeyguard disables the device lock screen via adb locksettings.
+func (d *AndroidDevice) disableKeyguard() {
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Disabling keyguard on Android 15+ device `%v` to keep audio capture alive on lock", d.GetUDID()))
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "locksettings", "set-disabled", "true")
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not disable keyguard for device `%v` - %v", d.GetUDID(), err))
+	}
 }
 
 func (d *AndroidDevice) enableADBTCPMode() error {

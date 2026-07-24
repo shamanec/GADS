@@ -43,6 +43,8 @@ type AndroidWebRTCSession struct {
 	streamTargetFPS int
 	peerConnection  *webrtc.PeerConnection
 	videoTrack      *webrtc.TrackLocalStaticSample
+	audioTrack      *webrtc.TrackLocalStaticSample
+	audioExtractor  *PCMAudioExtractor
 	wsConn          io.ReadWriteCloser
 	frameChannel    chan AndroidH264Frame
 	ctx             context.Context
@@ -102,7 +104,7 @@ func NewAndroidWebRTCSession(device *models.DBDevice, streamPort string, streamT
 		return nil, fmt.Errorf("failed to add track: %w", err)
 	}
 
-	// Handle RTCP packets
+	// Handle RTCP packets for video
 	go func() {
 		rtcpBuf := make([]byte, 1500)
 		for {
@@ -111,6 +113,40 @@ func NewAndroidWebRTCSession(device *models.DBDevice, streamPort string, streamT
 			}
 		}
 	}()
+
+	// Create audio track if enabled
+	if device.AudioStreamEnabled {
+		logger.ProviderLogger.LogInfo("webrtc_session", "Audio track enabled, creating Opus track")
+
+		audioTrack, err := webrtc.NewTrackLocalStaticSample(
+			webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus},
+			"audio",
+			"gads-stream",
+		)
+		if err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio track: %v", err))
+			device.AudioStreamEnabled = false
+		} else {
+			session.audioTrack = audioTrack
+
+			audioRtpSender, err := pc.AddTrack(audioTrack)
+			if err != nil {
+				logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to add audio track: %v", err))
+				device.AudioStreamEnabled = false
+			} else {
+				// Handle RTCP packets for audio track
+				go func() {
+					rtcpBuf := make([]byte, 1500)
+					for {
+						if _, _, rtcpErr := audioRtpSender.Read(rtcpBuf); rtcpErr != nil {
+							return
+						}
+					}
+				}()
+				logger.ProviderLogger.LogInfo("webrtc_session", "Audio track successfully added to peer connection")
+			}
+		}
+	}
 
 	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Created Android WebRTC session for device %s", device.UDID))
 
@@ -137,6 +173,22 @@ func (s *AndroidWebRTCSession) Start() error {
 	// Start writing frames to WebRTC track
 	go s.writeFrames()
 
+	// Start audio extractor if enabled
+	if s.device.AudioStreamEnabled && s.audioTrack != nil {
+		audioExtractor, err := NewPCMAudioExtractorAndroid(s.device)
+		if err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Failed to create audio extractor: %v", err))
+		} else {
+			s.audioExtractor = audioExtractor
+
+			// Start writing audio frames to track
+			go s.writeAudioToTrack()
+
+			logger.ProviderLogger.LogInfo("webrtc_session", "Audio extractor started successfully")
+		}
+	}
+
+	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Started Android streaming pipeline for device %s", s.device.UDID))
 	return nil
 }
 
@@ -267,6 +319,41 @@ func (s *AndroidWebRTCSession) writeFrames() {
 	}
 }
 
+// writeAudioToTrack reads Opus frames from the audio extractor and writes them to the WebRTC track
+func (s *AndroidWebRTCSession) writeAudioToTrack() {
+	if s.audioExtractor == nil || s.audioTrack == nil {
+		return
+	}
+
+	frameCount := 0
+	// Fixed duration: 960 samples @ 48kHz = exactly 20ms per Opus frame.
+	// Using a constant ensures uniform RTP timestamps, preventing jitter on the receiver.
+	const frameDuration = 20 * time.Millisecond
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Starting audio streaming for device "+s.device.UDID)
+
+	for audioFrame := range s.audioExtractor.GetAudioChannel() {
+		frameCount++
+
+		if err := s.audioTrack.WriteSample(media.Sample{
+			Data:     audioFrame.Data,
+			Duration: frameDuration,
+		}); err != nil {
+			logger.ProviderLogger.LogError("webrtc_session", fmt.Sprintf("Error writing audio sample: %v", err))
+			return
+		}
+
+		if frameCount == 1 {
+			logger.ProviderLogger.LogInfo("webrtc_session", fmt.Sprintf("First audio frame written to WebRTC track for device %s (size: %d bytes)", s.device.UDID, len(audioFrame.Data)))
+		}
+		if frameCount%100 == 0 {
+			logger.ProviderLogger.LogDebug("webrtc_session", fmt.Sprintf("Sent audio frame #%d for device %s", frameCount, s.device.UDID))
+		}
+	}
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Audio track writing stopped")
+}
+
 // HandleOffer processes SDP offer from client
 func (s *AndroidWebRTCSession) HandleOffer(offer webrtc.SessionDescription) (*webrtc.SessionDescription, error) {
 	s.mu.Lock()
@@ -328,6 +415,10 @@ func (s *AndroidWebRTCSession) Close() {
 
 	if s.wsConn != nil {
 		s.wsConn.Close()
+	}
+
+	if s.audioExtractor != nil {
+		s.audioExtractor.Close()
 	}
 
 	if s.peerConnection != nil {

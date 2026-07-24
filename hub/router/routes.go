@@ -1219,6 +1219,14 @@ func UpdateDevice(c *gin.Context) {
 				dbDevice.StreamType = reqDevice.StreamType
 			}
 
+			if reqDevice.AudioStreamEnabled != dbDevice.AudioStreamEnabled {
+				dbDevice.AudioStreamEnabled = reqDevice.AudioStreamEnabled
+			}
+
+			if reqDevice.AudioInputType != dbDevice.AudioInputType {
+				dbDevice.AudioInputType = reqDevice.AudioInputType
+			}
+
 			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
 			}
