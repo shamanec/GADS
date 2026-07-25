@@ -341,7 +341,9 @@ func (d *TizenDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 		result = append(result, models.DeviceApp{
 			AppName:          app.Title,
 			BundleIdentifier: app.AppID,
+			Version:          app.Version,
 			CanUninstall:     app.IsDevApp,
+			IsDevApp:         app.IsDevApp,
 		})
 	}
 	return result, nil

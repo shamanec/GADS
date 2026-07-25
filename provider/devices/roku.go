@@ -40,9 +40,10 @@ type rokuApps struct {
 }
 
 type rokuApp struct {
-	ID   string `xml:"id,attr"`
-	Type string `xml:"type,attr"` // "appl" (channel/app), "tvin" (TV input), "menu"
-	Name string `xml:",chardata"`
+	ID      string `xml:"id,attr"`
+	Type    string `xml:"type,attr"` // "appl" (channel/app), "tvin" (TV input), "menu"
+	Version string `xml:"version,attr"`
+	Name    string `xml:",chardata"`
 }
 
 // rokuHost returns the TV IP from the UDID, stripping the optional ECP port.
@@ -159,7 +160,9 @@ func (d *RokuDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 		result = append(result, models.DeviceApp{
 			AppName:          strings.TrimSpace(app.Name),
 			BundleIdentifier: app.ID,
+			Version:          app.Version,
 			CanUninstall:     app.ID == "dev",
+			IsDevApp:         app.ID == "dev",
 		})
 	}
 	return result, nil
