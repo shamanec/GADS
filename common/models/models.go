@@ -183,6 +183,7 @@ type DBFileMetadata struct {
 	Description  string `json:"description" bson:"description"`
 	UploadedBy   string `json:"uploaded_by" bson:"uploaded_by"`
 	OriginalName string `json:"original_name" bson:"original_name"`
+	Tenant       string `json:"tenant" bson:"tenant,omitempty"`
 }
 
 type GlobalSettings struct {
