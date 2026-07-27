@@ -126,3 +126,5 @@ require (
 	golang.org/x/crypto v0.39.0
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+replace github.com/icholy/digest => github.com/gifflet/digest v1.2.0-preflight
