@@ -204,6 +204,12 @@ func (d *AndroidDevice) startServicesAndStreaming() error {
 	go d.startRemoteControlServer()
 	time.Sleep(2 * time.Second)
 
+	// Android 15 (API 35) QPR1 stops MediaProjection when the keyguard shows; disabling it
+	// keeps capture-based streams (video and internal audio) alive on device farms.
+	if d.SemVer != nil && d.SemVer.Major() >= 15 {
+		d.disableKeyguard()
+	}
+
 	// Start the respective video stream
 	if d.DBDevice.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
 		go d.startH264Stream()
@@ -523,11 +529,6 @@ func (d *AndroidDevice) setupAudioStreaming() {
 	}
 
 	// Internal device audio (default): needs a MediaProjection token.
-	if d.SemVer != nil && d.SemVer.Major() >= 15 {
-		// On Android 15 (API 35) QPR1 the keyguard stops MediaProjection; disabling it
-		// keeps internal audio capture alive on device farms.
-		d.disableKeyguard()
-	}
 	if err := d.addStreamRecordingPermissions(); err != nil {
 		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not grant PROJECT_MEDIA for audio capture on device `%s` - %v", d.GetUDID(), err))
 	}
@@ -584,7 +585,7 @@ func (d *AndroidDevice) startAudioProjectionActivity() {
 
 // disableKeyguard disables the device lock screen via adb locksettings.
 func (d *AndroidDevice) disableKeyguard() {
-	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Disabling keyguard on Android 15+ device `%v` to keep audio capture alive on lock", d.GetUDID()))
+	logger.ProviderLogger.LogInfo("android_device_setup", fmt.Sprintf("Disabling keyguard on Android 15+ device `%v` to keep MediaProjection capture alive on lock", d.GetUDID()))
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "locksettings", "set-disabled", "true")
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not disable keyguard for device `%v` - %v", d.GetUDID(), err))
