@@ -30,8 +30,6 @@ github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHk
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/gabriel-vasile/mimetype v1.4.8 h1:FfZ3gj38NjllZIeJAmMhr+qKL8Wu+nOoI3GqacKw1NM=
 github.com/gabriel-vasile/mimetype v1.4.8/go.mod h1:ByKUIKGjh1ODkGM1asKUbQZOLGrPjydw3hYPU2YU9t8=
-github.com/gifflet/digest v1.2.0-preflight h1:fBq2mjHsB0n2L5IFEMuMZN1MgT+eloWuBbJLj7mUc54=
-github.com/gifflet/digest v1.2.0-preflight/go.mod h1:1P1+LzUv48ybX7bu8tVpZ2QWdd+xRuePNuGawHjwRUE=
 github.com/gin-contrib/cors v1.4.0 h1:oJ6gwtUl3lqV0WEIwM/LxPF1QZ5qe2lGWdY2+bz7y0g=
 github.com/gin-contrib/cors v1.4.0/go.mod h1:bs9pNM0x/UsmHPBWT2xZz9ROh8xYjYkiURUfmBoMlcs=
 github.com/gin-contrib/gzip v0.0.6 h1:NjcunTcGAj5CO1gn4N8jHOSIeRFHIbn51z6K+xaN4d4=
@@ -104,8 +102,8 @@ github.com/grandcat/zeroconf v1.0.0/go.mod h1:lTKmG1zh86XyCoUeIHSA4FJMBwCJiQmGfc
 github.com/hraban/opus v0.0.0-20251117090126-c76ea7e21bf3 h1:0Cfb13Z/8Hdt9TSqgAQbQDAHgXyeq242y2lZ2JzFjNw=
 github.com/hraban/opus v0.0.0-20251117090126-c76ea7e21bf3/go.mod h1:12ayqqPQ1IxPiV4oWRgHfcDGhNQkx12X5k2hAayezW0=
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
-github.com/icholy/digest v1.1.0 h1:HfGg9Irj7i+IX1o1QAmPfIBNu/Q5A5Tu3n/MED9k9H4=
-github.com/icholy/digest v1.1.0/go.mod h1:QNrsSGQ5v7v9cReDI0+eyjsXGUoRSUZQHeQ5C4XLa0Y=
+github.com/icholy/digest v1.2.0 h1:oTbG4IsNOmidJ+421ehG7Ty93yt1yotq13kFMG569yw=
+github.com/icholy/digest v1.2.0/go.mod h1:1P1+LzUv48ybX7bu8tVpZ2QWdd+xRuePNuGawHjwRUE=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
