@@ -235,33 +235,33 @@ func (d *RokuDevice) UninstallDevChannel(password string) error {
 }
 
 func (d *RokuDevice) rokuWebInstaller(submit, zipPath, password string) error {
+	host := rokuHost(d.GetUDID())
+	url := fmt.Sprintf("http://%s/plugin_install", host)
+
 	body, contentType, err := buildRokuInstallerBody(submit, zipPath)
 	if err != nil {
 		return err
 	}
-
-	url := fmt.Sprintf("http://%s/plugin_install", rokuHost(d.GetUDID()))
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", contentType)
-	// Hold the body until the installer answers its 401 digest challenge, so large
-	// .zip uploads don't break the pipe mid-stream.
-	req.Header.Set("Expect", "100-continue")
 
+	// Preflight fetches the challenge with a bodyless request so the package streams
+	// only once authenticated; DisableKeepAlives avoids reusing the 401'd socket.
 	client := &http.Client{
 		Transport: &digest.Transport{
 			Username:  "rokudev",
 			Password:  password,
-			Transport: &http.Transport{ExpectContinueTimeout: 5 * time.Second},
+			Preflight: true,
+			Transport: &http.Transport{DisableKeepAlives: true},
 		},
 		Timeout: 60 * time.Second,
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		// Also how the device presents when busy relaunching a channel after a sideload.
-		return fmt.Errorf("could not reach Roku web installer at %s (device off/unreachable, or busy right after a channel install/launch — retry in a few seconds): %w", rokuHost(d.GetUDID()), err)
+		return fmt.Errorf("could not reach Roku web installer at %s (device off/unreachable, or busy right after a channel install/launch — retry in a few seconds): %w", host, err)
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
@@ -270,7 +270,7 @@ func (d *RokuDevice) rokuWebInstaller(submit, zipPath, password string) error {
 		snippet = snippet[:200]
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
-		return fmt.Errorf("roku web installer rejected the developer password (device %s)", rokuHost(d.GetUDID()))
+		return fmt.Errorf("roku web installer rejected the developer password (device %s)", host)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("roku web installer returned status %d — the device may be busy right after a channel install/launch, retry in a few seconds; response: %s", resp.StatusCode, snippet)
