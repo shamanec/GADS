@@ -1009,6 +1009,17 @@ func GetApps(c *gin.Context) {
 		api.InternalError(c, fmt.Sprintf("Failed to retrieve apps - %s", err))
 		return
 	}
+	// The app library is tenant-scoped: users see only their tenant's uploads, admins see all.
+	if c.GetString("role") != "admin" {
+		tenant := c.GetString("tenant")
+		scoped := make([]models.DBFile, 0, len(files))
+		for _, f := range files {
+			if f.Metadata.Tenant != "" && f.Metadata.Tenant == tenant {
+				scoped = append(scoped, f)
+			}
+		}
+		files = scoped
+	}
 	api.OK(c, "Successfully retrieved apps", files)
 }
 
@@ -1057,6 +1068,7 @@ func UploadApp(c *gin.Context) {
 		"description":   c.PostForm("description"),
 		"uploaded_by":   c.GetString("username"),
 		"original_name": file.Filename,
+		"tenant":        c.GetString("tenant"),
 	}
 
 	fileID, err := db.GlobalMongoStore.UploadFileWithMetadataReturningID(openedFile, uuid.NewString(), metadata, false)
