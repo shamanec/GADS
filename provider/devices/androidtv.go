@@ -206,14 +206,22 @@ func (d *AndroidTvDevice) GetInstalledAppBundleIDs() []string {
 	return ids
 }
 
-// LaunchApp launches an app on the Android TV device.
+// LaunchApp launches an app on the Android TV device, preferring the leanback entry point.
+// One category per monkey call: a single call with both picks randomly among resolved activities.
 func (d *AndroidTvDevice) LaunchApp(packageName string) error {
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "monkey", "-p", packageName, "-c", "android.intent.category.LAUNCHER", "1")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to launch app %s: %s. Output: %s", packageName, err, string(output))
+	var lastErr error
+	var lastOutput []byte
+
+	for _, category := range []string{"android.intent.category.LEANBACK_LAUNCHER", "android.intent.category.LAUNCHER"} {
+		cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "monkey", "-p", packageName, "-c", category, "1")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			return nil
+		}
+		lastErr, lastOutput = err, output
 	}
-	return nil
+
+	return fmt.Errorf("failed to launch app %s: %s. Output: %s", packageName, lastErr, string(lastOutput))
 }
 
 // KillApp force-stops an app on the Android TV device.
