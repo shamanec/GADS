@@ -11,7 +11,6 @@ package devices
 
 import (
 	"GADS/common"
-	"GADS/common/auth"
 	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/provider/config"
@@ -243,13 +242,6 @@ func (d *AndroidDevice) startServicesAndStreaming() error {
 		logger.ProviderLogger.LogError("android_device_setup", fmt.Sprintf("Could not forward GADS streaming port to host port %v for Android device `%v` - %v", d.StreamPort, d.GetUDID(), err))
 		d.Reset("Failed to forward GADS-stream port to host port.")
 		return err
-	}
-
-	// Send TURN configuration to WebRTC service (non-fatal)
-	if models.IsWebRTCStreamType(d.DBDevice.StreamType) {
-		if err := d.UpdateWebRTCTURNConfig(); err != nil {
-			logger.ProviderLogger.LogWarn("android_device_setup", fmt.Sprintf("Could not send TURN config to device `%s` - %v (WebRTC will use STUN only)", d.GetUDID(), err))
-		}
 	}
 
 	// Audio streaming setup (non-fatal): a dedicated AudioService streams PCM over
@@ -808,41 +800,6 @@ func (d *AndroidDevice) UpdateStreamSettingsOnDevice() error {
 
 	if err := wsutil.WriteServerMessage(destConn, ws.OpText, []byte(socketMsg)); err != nil {
 		return fmt.Errorf("failed sending stream settings to stream websocket - %s", err)
-	}
-	return nil
-}
-
-// UpdateWebRTCTURNConfig sends TURN configuration to the WebRTC service on the device.
-func (d *AndroidDevice) UpdateWebRTCTURNConfig() error {
-	turnConfig, err := db.GlobalMongoStore.GetTURNConfig()
-	if err != nil {
-		return fmt.Errorf("failed to get TURN config from DB - %s", err)
-	}
-	if !turnConfig.Enabled {
-		return nil
-	}
-	if turnConfig.Server == "" || turnConfig.SharedSecret == "" {
-		return fmt.Errorf("TURN config incomplete: server=%s, shared_secret configured=%t", turnConfig.Server, turnConfig.SharedSecret != "")
-	}
-
-	ttl := turnConfig.TTL
-	if ttl == 0 {
-		ttl = 3600
-	}
-	username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl, config.ProviderConfig.TURNUsernameSuffix)
-
-	u := url.URL{Scheme: "ws", Host: "localhost:" + d.StreamPort, Path: ""}
-	destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
-	if err != nil {
-		return fmt.Errorf("failed connecting to WebRTC service WebSocket - %s", err)
-	}
-	defer destConn.Close()
-
-	turnMsg := fmt.Sprintf(`{"type":"turn","server":"%s","port":%d,"username":"%s","password":"%s"}`,
-		turnConfig.Server, turnConfig.Port, username, password)
-
-	if err := wsutil.WriteServerMessage(destConn, ws.OpText, []byte(turnMsg)); err != nil {
-		return fmt.Errorf("failed sending TURN config to WebSocket - %s", err)
 	}
 	return nil
 }
