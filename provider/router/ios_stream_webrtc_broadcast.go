@@ -105,7 +105,7 @@ func NewIOSWebRTCSession(device *models.DBDevice, streamPort string, streamTarge
 		}
 	}()
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Created iOS WebRTC session for device %s", device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Created iOS WebRTC session for device %s", device.UDID)
 
 	return session, nil
 }
@@ -121,7 +121,7 @@ func (s *IOSWebRTCSession) Start() error {
 	}
 	s.tcpConn = conn
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to iOS broadcast H.264 stream for device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Connected to iOS broadcast H.264 stream for device %s", s.device.UDID)
 
 	// Start reading and processing frames
 	go s.readAndStreamFrames()
@@ -139,14 +139,14 @@ func (s *IOSWebRTCSession) readAndStreamFrames() {
 		fallbackDuration = time.Second / time.Duration(s.streamTargetFPS)
 	}
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting H.264 streaming for device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Starting H.264 streaming for device %s", s.device.UDID)
 
 	readBuf := make([]byte, 65536)
 	for {
 		// Check for cancellation
 		select {
 		case <-s.ctx.Done():
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping H.264 streaming for device %s", s.device.UDID))
+			logger.ProviderLogger.LogInfof("stream_webrtc", "Stopping H.264 streaming for device %s", s.device.UDID)
 			return
 		default:
 		}
@@ -155,7 +155,7 @@ func (s *IOSWebRTCSession) readAndStreamFrames() {
 		n, err := s.tcpConn.Read(readBuf)
 		if err != nil {
 			if err != io.EOF {
-				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading from TCP for device %s: %s", s.device.UDID, err))
+				logger.ProviderLogger.LogErrorf("stream_webrtc", "Error reading from TCP for device %s: %s", s.device.UDID, err)
 			}
 			return
 		}
@@ -236,7 +236,7 @@ func (s *IOSWebRTCSession) processFrame(payload []byte, timestamp uint64, fallba
 			Data:     payload,
 			Duration: duration,
 		}); err != nil {
-			logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write sample for device %s: %s", s.device.UDID, err))
+			logger.ProviderLogger.LogErrorf("stream_webrtc", "Failed to write sample for device %s: %s", s.device.UDID, err)
 		}
 	}
 }
@@ -263,12 +263,12 @@ func (s *IOSWebRTCSession) HandleOffer(offer webrtc.SessionDescription) (*webrtc
 	// Add any pending ICE candidates
 	for _, candidate := range s.iceCandidates {
 		if err := s.peerConnection.AddICECandidate(candidate); err != nil {
-			logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Failed to add ICE candidate for device %s: %s", s.device.UDID, err))
+			logger.ProviderLogger.LogWarnf("stream_webrtc", "Failed to add ICE candidate for device %s: %s", s.device.UDID, err)
 		}
 	}
 	s.iceCandidates = nil
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Created answer for iOS device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Created answer for iOS device %s", s.device.UDID)
 	return &answer, nil
 }
 
@@ -308,7 +308,7 @@ func (s *IOSWebRTCSession) Close() {
 		s.peerConnection.Close()
 	}
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Closed iOS WebRTC session for device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Closed iOS WebRTC session for device %s", s.device.UDID)
 }
 
 // IOSBroadcastWebRTCSocket handles WebRTC signaling for iOS broadcast extension streaming
@@ -317,13 +317,13 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 
 	platDev, deviceFound := devices.DevManager.Get(udid)
 	if !deviceFound {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("ios_webrtc", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
 	if !isRcDevice {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Device `%s` does not support streaming", udid))
+		logger.ProviderLogger.LogErrorf("ios_webrtc", "Device `%s` does not support streaming", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -331,7 +331,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	// Upgrade to WebSocket
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to upgrade connection to websocket for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to upgrade connection to websocket for device `%s` - %s", udid, err)
 		return
 	}
 	defer conn.Close()
@@ -339,7 +339,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 	// Create WebRTC session
 	session, err := NewIOSWebRTCSession(rcDev.GetDBDevice(), rcDev.GetStreamPort(), rcDev.GetStreamTargetFPS())
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to create WebRTC session for device `%s` - %s", udid, err)
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))
 		return
 	}
@@ -347,7 +347,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 
 	// Start streaming pipeline
 	if err := session.Start(); err != nil {
-		logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to start streaming pipeline for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to start streaming pipeline for device `%s` - %s", udid, err)
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to start streaming"}`))
 		return
 	}
@@ -369,31 +369,31 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 
 		data, err := json.Marshal(msg)
 		if err != nil {
-			logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to marshal ICE candidate for device %s: %s", udid, err))
+			logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to marshal ICE candidate for device %s: %s", udid, err)
 			return
 		}
 
 		if err := wsutil.WriteServerText(conn, data); err != nil {
-			logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to send ICE candidate for device %s: %s", udid, err))
+			logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to send ICE candidate for device %s: %s", udid, err)
 		}
 	})
 
 	// Handle connection state changes
 	session.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
-		logger.ProviderLogger.LogInfo("ios_webrtc", fmt.Sprintf("WebRTC connection state for device %s: %s", udid, state.String()))
+		logger.ProviderLogger.LogInfof("ios_webrtc", "WebRTC connection state for device %s: %s", udid, state.String())
 
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
 			conn.Close()
 		}
 	})
 
-	logger.ProviderLogger.LogInfo("ios_webrtc", fmt.Sprintf("WebRTC signaling established for device `%s`", udid))
+	logger.ProviderLogger.LogInfof("ios_webrtc", "WebRTC signaling established for device `%s`", udid)
 
 	// Handle signaling messages
 	for {
 		msg, _, err := wsutil.ReadClientData(conn)
 		if err != nil {
-			logger.ProviderLogger.LogDebug("ios_webrtc", fmt.Sprintf("Client WebRTC websocket connection for device `%s` closed - %s", udid, err))
+			logger.ProviderLogger.LogDebugf("ios_webrtc", "Client WebRTC websocket connection for device `%s` closed - %s", udid, err)
 			return
 		}
 
@@ -403,7 +403,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 			Candidate *webrtc.ICECandidateInit `json:"candidate,omitempty"`
 		}
 		if err := json.Unmarshal(msg, &signalingMsg); err != nil {
-			logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to unmarshal signaling message for device `%s` - %s", udid, err))
+			logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to unmarshal signaling message for device `%s` - %s", udid, err)
 			continue
 		}
 
@@ -416,7 +416,7 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 
 			answer, err := session.HandleOffer(offer)
 			if err != nil {
-				logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to handle offer for device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to handle offer for device `%s` - %s", udid, err)
 				wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to handle offer"}`))
 				return
 			}
@@ -431,30 +431,30 @@ func IOSBroadcastWebRTCSocket(c *gin.Context) {
 
 			data, err := json.Marshal(response)
 			if err != nil {
-				logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to marshal answer for device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to marshal answer for device `%s` - %s", udid, err)
 				return
 			}
 
 			if err := wsutil.WriteServerText(conn, data); err != nil {
-				logger.ProviderLogger.LogError("ios_webrtc", fmt.Sprintf("Failed to send answer for device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("ios_webrtc", "Failed to send answer for device `%s` - %s", udid, err)
 				return
 			}
 
-			logger.ProviderLogger.LogInfo("ios_webrtc", fmt.Sprintf("Sent answer to client for device %s", udid))
+			logger.ProviderLogger.LogInfof("ios_webrtc", "Sent answer to client for device %s", udid)
 
 		case "candidate":
 			if signalingMsg.Candidate != nil {
 				if err := session.AddICECandidate(*signalingMsg.Candidate); err != nil {
-					logger.ProviderLogger.LogWarn("ios_webrtc", fmt.Sprintf("Failed to add ICE candidate for device `%s` - %s", udid, err))
+					logger.ProviderLogger.LogWarnf("ios_webrtc", "Failed to add ICE candidate for device `%s` - %s", udid, err)
 				}
 			}
 
 		case "hangup":
-			logger.ProviderLogger.LogInfo("ios_webrtc", fmt.Sprintf("Received hangup for device `%s`", udid))
+			logger.ProviderLogger.LogInfof("ios_webrtc", "Received hangup for device `%s`", udid)
 			return
 
 		default:
-			logger.ProviderLogger.LogWarn("ios_webrtc", fmt.Sprintf("Unknown signaling message type `%s` for device `%s`", signalingMsg.Type, udid))
+			logger.ProviderLogger.LogWarnf("ios_webrtc", "Unknown signaling message type `%s` for device `%s`", signalingMsg.Type, udid)
 		}
 	}
 }

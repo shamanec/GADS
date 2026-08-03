@@ -129,7 +129,7 @@ func (r *RuntimeState) ResetBase(reason string) bool {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	if !r.IsResetting && r.ProviderState != "init" {
-		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", r.DBDevice.UDID, reason))
+		logger.ProviderLogger.LogInfof("provider", "Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", r.DBDevice.UDID, reason)
 
 		r.IsResetting = true
 		if r.CtxCancel != nil {
@@ -154,11 +154,11 @@ func (r *RuntimeState) Reset(reason string) {
 
 // resetWithError logs an error, resets the device, and returns the error — used by Setup() step methods.
 func (r *RuntimeState) resetWithError(step string, err error) error {
-	logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to %s for device `%s` - %v", step, r.GetUDID(), err))
+	logger.ProviderLogger.LogErrorf("device_setup", "Failed to %s for device `%s` - %v", step, r.GetUDID(), err)
 	// For iOS devices attach recent go-ios output to the device logs for diagnostics
 	if r.DBDevice.OS == "ios" && r.Logger != nil {
 		if tail := logger.GoIOSLogs.Tail(r.GetUDID(), 150); tail != "" {
-			r.Logger.LogError("go_ios_logs", fmt.Sprintf("Recent go-ios logs for device `%s`:\n%s", r.GetUDID(), tail))
+			r.Logger.LogErrorf("go_ios_logs", "Recent go-ios logs for device `%s`:\n%s", r.GetUDID(), tail)
 		}
 	}
 	r.Reset(fmt.Sprintf("Failed to %s", step))

@@ -28,7 +28,7 @@ func androidRemoteServerRequest(dev devices.PlatformDevice, method, endpoint str
 		return nil, fmt.Errorf("device %s is not an Android device", dev.GetUDID())
 	}
 	url := fmt.Sprintf("http://localhost:%s/%s", andDev.GetAndroidRemoteServerPort(), endpoint)
-	dev.GetLogger().LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("androidRemoteServerRequest", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func androidRemoteServerRequestJson(dev devices.PlatformDevice, method, endpoint
 		return nil, fmt.Errorf("device %s is not an Android device", dev.GetUDID())
 	}
 	url := fmt.Sprintf("http://localhost:%s/%s", andDev.GetAndroidRemoteServerPort(), endpoint)
-	dev.GetLogger().LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("androidRemoteServerRequest", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func androidRemoteServerRequestJson(dev devices.PlatformDevice, method, endpoint
 
 func appiumRequest(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", dev.GetAppiumPort(), dev.GetAppiumSessionID(), endpoint)
-	dev.GetLogger().LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("appium_interact", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func appiumRequest(dev devices.PlatformDevice, method, endpoint string, requestB
 
 func appiumRequestNoSession(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/%s", dev.GetAppiumPort(), endpoint)
-	dev.GetLogger().LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("appium_interact", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func wdaRequest(dev devices.PlatformDevice, method, endpoint string, requestBody
 		return nil, fmt.Errorf("device %s is not an iOS device", dev.GetUDID())
 	}
 	url := fmt.Sprintf("http://localhost:%v/%s", iosDev.GetWDAPort(), endpoint)
-	dev.GetLogger().LogDebug("wda_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("wda_interact", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err

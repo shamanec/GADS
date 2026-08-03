@@ -118,9 +118,9 @@ func syncDevicesToDB() {
 	// Add new devices from DB
 	for udid, updatedDevice := range updatedDevices {
 		if _, exists := DevManager.Get(udid); !exists {
-			logger.ProviderLogger.LogInfo("device_sync", fmt.Sprintf("New device `%s` detected in DB, adding to provider", udid))
+			logger.ProviderLogger.LogInfof("device_sync", "New device `%s` detected in DB, adding to provider", udid)
 			if err := initializeDevice(updatedDevice); err != nil {
-				logger.ProviderLogger.LogError("device_sync", fmt.Sprintf("Failed to initialize new device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("device_sync", "Failed to initialize new device `%s` - %s", udid, err)
 			}
 		}
 	}
@@ -150,26 +150,26 @@ func updateProviderHub() {
 		jsonData, err := json.Marshal(syncPayload)
 		if err != nil {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", "Failed marshaling provider data to json - "+err.Error())
+			logger.ProviderLogger.LogErrorf("hub_sync", "Failed marshaling provider data to json - %s", err)
 			continue
 		}
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
 		if err != nil {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", "Failed to create request to update provider data in hub - "+err.Error())
+			logger.ProviderLogger.LogErrorf("hub_sync", "Failed to create request to update provider data in hub - %s", err)
 			continue
 		}
 
 		resp, err := client.Do(req)
 		if err != nil {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", fmt.Sprintf("Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", failureCounter, err))
+			logger.ProviderLogger.LogErrorf("hub_sync", "Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", failureCounter, err)
 			continue
 		}
 
 		if resp.StatusCode != 200 {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", fmt.Sprintf("Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", failureCounter, err))
+			logger.ProviderLogger.LogErrorf("hub_sync", "Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", failureCounter, err)
 			continue
 		}
 		failureCounter = 1
@@ -188,7 +188,7 @@ func initializeDevice(dbDevice *models.DBDevice) error {
 		// Check if a capped Appium logs collection already exists for the current device
 		exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs_new", dbDevice.UDID)
 		if err != nil {
-			logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err))
+			logger.ProviderLogger.LogWarnf("device_setup", "Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err)
 		}
 
 		// If it doesn't exist - attempt to create it
@@ -251,7 +251,7 @@ func setupDevices() {
 	dbDevices := getDBProviderDevices()
 	for _, dbDevice := range dbDevices {
 		if err := initializeDevice(dbDevice); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: device `%s` - %s", dbDevice.UDID, err))
+			logger.ProviderLogger.LogErrorf("device_setup", "setupDevices: device `%s` - %s", dbDevice.UDID, err)
 		}
 	}
 }
@@ -352,7 +352,7 @@ func updateDevices() {
 						// Validate device configuration before setup
 						err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
 						if err != nil {
-							logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", udid, err.Error()))
+							logger.ProviderLogger.LogWarnf("device_setup_validation", "Device %s has invalid configuration: %s. Skipping setup.", udid, err.Error())
 							continue
 						}
 
@@ -464,7 +464,7 @@ func applyDeviceStreamSettings(rcDev RemoteControllable) error {
 		// If there's an error (including not found), update the device with global settings
 		err = updateDeviceWithGlobalSettings(rcDev)
 		if err != nil {
-			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", udid, err))
+			logger.ProviderLogger.LogErrorf("setupDevices", "Failed to update device `%s` with global settings: %v", udid, err)
 			return err
 		}
 	} else {

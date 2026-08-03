@@ -51,11 +51,9 @@ func cachePairRecord(udid string) {
 		return
 	}
 	if err := savePairRecordToFile(udid, record); err != nil {
-		logger.ProviderLogger.LogWarn("ios_device_setup",
-			fmt.Sprintf("Failed to cache pair record for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogWarnf("ios_device_setup", "Failed to cache pair record for device `%s` - %s", udid, err)
 	} else {
-		logger.ProviderLogger.LogInfo("ios_device_setup",
-			fmt.Sprintf("Cached pair record for device `%s`", udid))
+		logger.ProviderLogger.LogInfof("ios_device_setup", "Cached pair record for device `%s`", udid)
 	}
 }
 

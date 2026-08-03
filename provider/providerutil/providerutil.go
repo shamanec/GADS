@@ -48,7 +48,7 @@ func GetFreePort() (string, error) {
 
 		a, err := net.ResolveTCPAddr("tcp", "localhost:0")
 		if err != nil {
-			logger.ProviderLogger.LogError("port_allocation", fmt.Sprintf("Failed to resolve tcp address trying to get new port - %s", err))
+			logger.ProviderLogger.LogErrorf("port_allocation", "Failed to resolve tcp address trying to get new port - %s", err)
 			return "", fmt.Errorf("Failed to resolve tcp address trying to get new port - %s", err)
 		}
 		logger.ProviderLogger.LogDebug("port_allocation", "Resolved TCP address successfully")
@@ -56,7 +56,7 @@ func GetFreePort() (string, error) {
 		logger.ProviderLogger.LogDebug("port_allocation", "Attempting to listen on the resolved TCP address")
 		l, err := net.ListenTCP("tcp", a)
 		if err != nil {
-			logger.ProviderLogger.LogError("port_allocation", fmt.Sprintf("Failed to listen tcp trying to get new port - %s", err))
+			logger.ProviderLogger.LogErrorf("port_allocation", "Failed to listen tcp trying to get new port - %s", err)
 			return "", fmt.Errorf("Failed to listen tcp trying to get new port - %s", err)
 		}
 		logger.ProviderLogger.LogDebug("port_allocation", "Listening on TCP address successfully")
@@ -64,20 +64,20 @@ func GetFreePort() (string, error) {
 		portInt := l.Addr().(*net.TCPAddr).Port
 		portString := strconv.Itoa(portInt)
 
-		logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Acquired free port: %s", portString))
+		logger.ProviderLogger.LogDebugf("port_allocation", "Acquired free port: %s", portString)
 
 		logger.ProviderLogger.LogDebug("port_allocation", "Attempting to acquire lock for used ports")
 		common.MutexManager.LocalDevicePorts.Lock()
 		logger.ProviderLogger.LogDebug("port_allocation", "Successfully acquired lock for used ports")
 		if _, exists := UsedPorts[portString]; !exists {
 			UsedPorts[portString] = true
-			logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Port %s is free and has been allocated", portString))
+			logger.ProviderLogger.LogDebugf("port_allocation", "Port %s is free and has been allocated", portString)
 			logger.ProviderLogger.LogDebug("port_allocation", "Releasing lock for used ports")
 			common.MutexManager.LocalDevicePorts.Unlock()
 			l.Close()
 			return portString, nil
 		}
-		logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Port %s is already in use, trying again", portString))
+		logger.ProviderLogger.LogDebugf("port_allocation", "Port %s is already in use, trying again", portString)
 		logger.ProviderLogger.LogDebug("port_allocation", "Releasing lock for used ports")
 		common.MutexManager.LocalDevicePorts.Unlock()
 		l.Close()
@@ -95,7 +95,7 @@ func AdbAvailable() bool {
 	cmd := exec.Command("adb", "start-server")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("adbAvailable: Error executing `adb start-server`, `adb` is not available on host or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "adbAvailable: Error executing `adb start-server`, `adb` is not available on host or command failed - %s", err)
 		return false
 	}
 
@@ -109,7 +109,7 @@ func AppiumAvailable() bool {
 	cmd := exec.Command("appium", "--version")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("AppiumAvailable: Appium is not available or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "AppiumAvailable: Appium is not available or command failed - %s", err)
 		return false
 	}
 	return true
@@ -191,7 +191,7 @@ func InstallAppiumPlugin(targetVersion string) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to install GADS Appium plugin - %s", string(out)))
+		logger.ProviderLogger.LogErrorf("provider_setup", "Failed to install GADS Appium plugin - %s", string(out))
 		return err
 	}
 	return nil
@@ -203,7 +203,7 @@ func UninstallAppiumPlugin() error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to uninstall GADS Appium plugin - %s", string(out)))
+		logger.ProviderLogger.LogErrorf("provider_setup", "Failed to uninstall GADS Appium plugin - %s", string(out))
 		return err
 	}
 	return nil
@@ -216,7 +216,7 @@ func RemoveAdbForwardedPorts() {
 	cmd := exec.Command("adb", "forward", "--remove-all")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("removeAdbForwardedPorts: Could not remove `adb` forwarded ports, there was an error or no devices are connected - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "removeAdbForwardedPorts: Could not remove `adb` forwarded ports, there was an error or no devices are connected - %s", err)
 	}
 }
 
@@ -263,7 +263,7 @@ func SdbAvailable() bool {
 	cmd := exec.Command("sdb", "version")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("sdbAvailable: sdb is not available or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "sdbAvailable: sdb is not available or command failed - %s", err)
 		return false
 	}
 	return true
@@ -276,7 +276,7 @@ func AresAvailable() bool {
 	cmd := exec.Command("ares", "-V")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("aresAvailable: ares-setup-device is not available or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "aresAvailable: ares-setup-device is not available or command failed - %s", err)
 		return false
 	}
 	return true

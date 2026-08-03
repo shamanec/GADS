@@ -64,7 +64,7 @@ func (d *RokuDevice) Setup() error {
 	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
-	logger.ProviderLogger.LogInfo("roku_device_setup", fmt.Sprintf("Running setup for Roku device `%v`", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("roku_device_setup", "Running setup for Roku device `%v`", d.GetUDID())
 
 	d.DBDevice.IPAddress = rokuHost(d.GetUDID())
 	d.getTVInfo()
@@ -95,14 +95,14 @@ func (d *RokuDevice) AppiumCapabilities() models.AppiumServerCapabilities {
 func (d *RokuDevice) getTVInfo() {
 	resp, err := rokuHTTPClient.Get(rokuECPURL(d.GetUDID(), "/query/device-info"))
 	if err != nil {
-		logger.ProviderLogger.LogError("roku_device_setup", fmt.Sprintf("Failed to get device info for Roku device %s: %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("roku_device_setup", "Failed to get device info for Roku device %s: %v", d.GetUDID(), err)
 		return
 	}
 	defer resp.Body.Close()
 
 	var info rokuDeviceInfo
 	if err := xml.NewDecoder(resp.Body).Decode(&info); err != nil {
-		logger.ProviderLogger.LogError("roku_device_setup", fmt.Sprintf("Failed to decode device info for Roku device %s: %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("roku_device_setup", "Failed to decode device info for Roku device %s: %v", d.GetUDID(), err)
 		return
 	}
 
@@ -137,14 +137,14 @@ func getConnectedDevicesRoku() []string {
 func (d *RokuDevice) queryApps() []rokuApp {
 	resp, err := rokuHTTPClient.Get(rokuECPURL(d.GetUDID(), "/query/apps"))
 	if err != nil {
-		logger.ProviderLogger.LogError("roku_list_apps", fmt.Sprintf("Failed to list apps for Roku device %s: %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("roku_list_apps", "Failed to list apps for Roku device %s: %v", d.GetUDID(), err)
 		return nil
 	}
 	defer resp.Body.Close()
 
 	var apps rokuApps
 	if err := xml.NewDecoder(resp.Body).Decode(&apps); err != nil {
-		logger.ProviderLogger.LogError("roku_list_apps", fmt.Sprintf("Failed to decode apps for Roku device %s: %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("roku_list_apps", "Failed to decode apps for Roku device %s: %v", d.GetUDID(), err)
 		return nil
 	}
 	return apps.Apps

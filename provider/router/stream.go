@@ -34,20 +34,20 @@ func AndroidStreamProxy(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, deviceFound := devices.DevManager.Get(udid)
 	if !deviceFound {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
 	if !isRcDevice {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Device `%s` does not support streaming", udid))
+		logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Device `%s` does not support streaming", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed upgrading http to ws for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Failed upgrading http to ws for device `%s` - %s", udid, err)
 		return
 	}
 	defer conn.Close()
@@ -55,7 +55,7 @@ func AndroidStreamProxy(c *gin.Context) {
 	u := url.URL{Scheme: "ws", Host: "localhost:" + rcDev.GetStreamPort(), Path: ""}
 	destConn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed connecting to device `%s` stream port - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Failed connecting to device `%s` stream port - %s", udid, err)
 		return
 	}
 	defer destConn.Close()
@@ -65,13 +65,13 @@ func AndroidStreamProxy(c *gin.Context) {
 	for {
 		data, code, err := wsutil.ReadServerData(destConn)
 		if err != nil {
-			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed reading data from device `%s` ws conn - %s", udid, err))
+			logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Failed reading data from device `%s` ws conn - %s", udid, err)
 			return
 		}
 
 		err = wsutil.WriteServerMessage(conn, code, data)
 		if err != nil {
-			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed writing data to provider ws connection for device `%s` - %s", udid, err))
+			logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Failed writing data to provider ws connection for device `%s` - %s", udid, err)
 			return
 		}
 	}
@@ -85,13 +85,13 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, deviceFound := devices.DevManager.Get(udid)
 	if !deviceFound {
-		logger.ProviderLogger.LogError("AndroidStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("AndroidStreamMJPEG", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
 	if !isRcDevice {
-		logger.ProviderLogger.LogError("AndroidStreamMJPEG", fmt.Sprintf("Device `%s` does not support streaming", udid))
+		logger.ProviderLogger.LogErrorf("AndroidStreamMJPEG", "Device `%s` does not support streaming", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -99,7 +99,7 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	u := url.URL{Scheme: "ws", Host: "localhost:" + rcDev.GetStreamPort(), Path: ""}
 	conn, _, _, err := ws.DefaultDialer.Dial(context.Background(), u.String())
 	if err != nil {
-		logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed connecting to device `%s` stream port - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Failed connecting to device `%s` stream port - %s", udid, err)
 		return
 	}
 	defer conn.Close()
@@ -109,7 +109,7 @@ func AndroidStreamMJPEG(c *gin.Context) {
 	for {
 		data, _, err := wsutil.ReadServerData(conn)
 		if err != nil {
-			logger.ProviderLogger.LogError("AndroidStreamProxy", fmt.Sprintf("Failed reading data from device `%s` ws conn - %s", udid, err))
+			logger.ProviderLogger.LogErrorf("AndroidStreamProxy", "Failed reading data from device `%s` ws conn - %s", udid, err)
 			return
 		}
 
@@ -146,13 +146,13 @@ func IOSStreamMJPEG(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, deviceFound := devices.DevManager.Get(udid)
 	if !deviceFound {
-		logger.ProviderLogger.LogError("IOSStreamMJPEG", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("IOSStreamMJPEG", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
 	if !isRcDevice {
-		logger.ProviderLogger.LogError("IOSStreamMJPEG", fmt.Sprintf("Device `%s` does not support streaming", udid))
+		logger.ProviderLogger.LogErrorf("IOSStreamMJPEG", "Device `%s` does not support streaming", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -212,14 +212,14 @@ func IOSStreamMJPEGWda(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, ok := devices.DevManager.Get(udid)
 	if !ok {
-		logger.ProviderLogger.LogError("IOSStreamMJPEGWda", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("IOSStreamMJPEGWda", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	iosDev, ok2 := platDev.(*devices.IOSDevice)
 	if !ok2 {
-		logger.ProviderLogger.LogError("IOSStreamMJPEGWda", fmt.Sprintf("Device `%s` is not an iOS device", udid))
+		logger.ProviderLogger.LogErrorf("IOSStreamMJPEGWda", "Device `%s` is not an iOS device", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -296,13 +296,13 @@ func IosStreamProxyGADS(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, deviceFound := devices.DevManager.Get(udid)
 	if !deviceFound {
-		logger.ProviderLogger.LogError("IosStreamProxyGADS", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("IosStreamProxyGADS", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
 	if !isRcDevice {
-		logger.ProviderLogger.LogError("IosStreamProxyGADS", fmt.Sprintf("Device `%s` does not support streaming", udid))
+		logger.ProviderLogger.LogErrorf("IosStreamProxyGADS", "Device `%s` does not support streaming", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -314,7 +314,7 @@ func IosStreamProxyGADS(c *gin.Context) {
 	// Create the new conn
 	wsConn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_stream", fmt.Sprintf("Failed to upgrade http conn to ws when starting streaming for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("ios_stream", "Failed to upgrade http conn to ws when starting streaming for device `%s` - %s", udid, err)
 		return
 	}
 
@@ -330,11 +330,11 @@ func IosStreamProxyGADS(c *gin.Context) {
 	defer func() {
 		err := wsConn.Close()
 		if err != nil {
-			logger.ProviderLogger.LogError("ios_stream", fmt.Sprintf("Failed to close websocket connection when finishing streaming for device `%s` - %s", udid, err))
+			logger.ProviderLogger.LogErrorf("ios_stream", "Failed to close websocket connection when finishing streaming for device `%s` - %s", udid, err)
 		}
 		err = conn.Close()
 		if err != nil {
-			logger.ProviderLogger.LogError("ios_stream", fmt.Sprintf("Failed to close broadcast TCP connection when finishing streaming for device `%s` - %s", udid, err))
+			logger.ProviderLogger.LogErrorf("ios_stream", "Failed to close broadcast TCP connection when finishing streaming for device `%s` - %s", udid, err)
 		}
 		close(jpegChannel)
 	}()
@@ -395,7 +395,7 @@ func IosStreamProxyWDA(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, ok := devices.DevManager.Get(udid)
 	if !ok {
-		logger.ProviderLogger.LogError("IosStreamProxyWDA", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("IosStreamProxyWDA", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -408,7 +408,7 @@ func IosStreamProxyWDA(c *gin.Context) {
 
 	iosDev, ok2 := platDev.(*devices.IOSDevice)
 	if !ok2 {
-		logger.ProviderLogger.LogError("IosStreamProxyWDA", fmt.Sprintf("Device `%s` is not an iOS device", udid))
+		logger.ProviderLogger.LogErrorf("IosStreamProxyWDA", "Device `%s` is not an iOS device", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
