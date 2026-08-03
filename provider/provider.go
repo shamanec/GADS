@@ -243,7 +243,7 @@ func updateProviderInDB() {
 }
 
 func extractProviderResourceFiles(destination string, resourceFiles embed.FS) error {
-	files := []string{"gads-settings.apk"}
+	files := []string{"gads-settings.apk", "ios-ddi/BuildManifest.plist", "ios-ddi/022-22070-046.dmg", "ios-ddi/Firmware/022-22070-046.dmg.trustcache"}
 	for _, file := range files {
 		data, err := resourceFiles.ReadFile("resources/" + file)
 		if err != nil {

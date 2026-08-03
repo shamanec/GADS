@@ -43,7 +43,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"golang.org/x/sync/errgroup"
-	"howett.net/plist"
 )
 
 // IOSDevice holds iOS-specific runtime state alongside the shared RuntimeState.
@@ -124,7 +123,6 @@ func (d *IOSDevice) Setup() (retErr error) {
 	}
 
 	if d.DBDevice.StreamType == models.IOSWebRTCBroadcastExtensionId {
-		fmt.Println("BROADCAST SETUP")
 		broadcastRunning := false
 		if conn, err := net.DialTimeout("tcp", "localhost:"+d.StreamPort, 2*time.Second); err == nil {
 			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
@@ -451,23 +449,129 @@ func (d *IOSDevice) UpdateStreamSettingsOnDevice() error {
 }
 
 const (
-	doronz88PDIBaseURL  = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/"
-	doronz88PDICacheTTL = 24 * time.Hour
+	ddiDownloadBaseURL = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/DeveloperDiskImages"
+	ddiImageFile       = "DeveloperDiskImage.dmg"
+	ddiSignatureFile   = "DeveloperDiskImage.dmg.signature"
 )
 
-var doronz88PDIMu sync.Mutex
+// DDI versions available in doronz88/DeveloperDiskImage under DeveloperDiskImages/.
+var ddiAvailableVersions = []string{
+	"11.4",
+	"12.0", "12.1", "12.2", "12.3", "12.4",
+	"13.0", "13.1", "13.2", "13.3", "13.4", "13.5", "13.6", "13.7",
+	"14.0", "14.1", "14.2", "14.3", "14.4", "14.5", "14.6", "14.7", "14.8",
+	"15.0", "15.1", "15.2", "15.3", "15.4", "15.5", "15.6", "15.7", "15.8",
+	"16.0", "16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "16.7",
+}
 
-type pdiManifest struct {
-	BuildIdentities []struct {
-		Manifest struct {
-			PersonalizedDMG struct {
-				Info struct{ Path string }
-			} `plist:"PersonalizedDMG"`
-			LoadableTrustCache struct {
-				Info struct{ Path string }
-			}
+// Serializes DDI downloads so concurrent setups of same-version devices
+// don't race on the same files.
+var ddiDownloadMu sync.Mutex
+
+// matchAvailableDDIVersion returns the closest available DDI version that is
+// not newer than the device version (e.g. 16.7.8 -> 16.7, 15.7.2 -> 15.7).
+func matchAvailableDDIVersion(deviceVersion *semver.Version) (string, error) {
+	var best *semver.Version
+	var bestString string
+	for _, available := range ddiAvailableVersions {
+		parsed := semver.MustParse(available)
+		if parsed.GreaterThan(deviceVersion) {
+			continue
+		}
+		if best == nil || parsed.GreaterThan(best) {
+			best = parsed
+			bestString = available
 		}
 	}
+	if bestString == "" {
+		return "", fmt.Errorf("no Developer Disk Image available for iOS %s, oldest available is %s", deviceVersion, ddiAvailableVersions[0])
+	}
+	return bestString, nil
+}
+
+// downloadDeveloperImage downloads the DDI for the device version from
+// doronz88/DeveloperDiskImage, keeping the same on-disk layout as go-ios
+// (<baseDir>/<version>/DeveloperDiskImage.dmg + .signature) so previously
+// downloaded images keep being reused. Returns the path to the .dmg.
+// The version is read live from the device - the DB
+// OSVersion (d.SemVer) can be stale or truncated (e.g. `15` for a 15.8.x
+// device) which would resolve to a wrong image.
+func (d *IOSDevice) downloadDeveloperImage(baseDir string) (string, error) {
+	allValues, err := ios.GetValues(d.GoIOSDeviceEntry)
+	if err != nil {
+		return "", fmt.Errorf("could not get device values to determine iOS version - %w", err)
+	}
+	deviceVersion, err := semver.NewVersion(allValues.Value.ProductVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed parsing device ProductVersion `%s` - %w", allValues.Value.ProductVersion, err)
+	}
+
+	version, err := matchAvailableDDIVersion(deviceVersion)
+	if err != nil {
+		return "", err
+	}
+
+	ddiDownloadMu.Lock()
+	defer ddiDownloadMu.Unlock()
+
+	versionDir := filepath.Join(baseDir, version)
+	imagePath := filepath.Join(versionDir, ddiImageFile)
+	signaturePath := filepath.Join(versionDir, ddiSignatureFile)
+
+	if fileExistsNonEmpty(imagePath) && fileExistsNonEmpty(signaturePath) {
+		return imagePath, nil
+	}
+
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		return "", fmt.Errorf("could not create DDI directory `%s` - %w", versionDir, err)
+	}
+
+	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading iOS %s DDI from doronz88/DeveloperDiskImage for device `%s`", version, d.GetUDID()))
+	for _, file := range []struct{ url, dest string }{
+		{fmt.Sprintf("%s/%s/%s", ddiDownloadBaseURL, version, ddiImageFile), imagePath},
+		{fmt.Sprintf("%s/%s/%s", ddiDownloadBaseURL, version, ddiSignatureFile), signaturePath},
+	} {
+		if err := downloadFileToPath(file.url, file.dest); err != nil {
+			return "", fmt.Errorf("failed to download `%s` - %w", file.url, err)
+		}
+	}
+
+	return imagePath, nil
+}
+
+func fileExistsNonEmpty(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.Size() > 0
+}
+
+// downloadFileToPath streams a URL to a file, writing to a temp file first so
+// a failed download never leaves a partial file at the destination.
+func downloadFileToPath(url string, dest string) error {
+	client := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("GET %s returned status %d", url, resp.StatusCode)
+	}
+
+	tmp := dest + ".tmp"
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		out.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, dest)
 }
 
 func (d *IOSDevice) mountDeveloperImage() error {
@@ -475,11 +579,10 @@ func (d *IOSDevice) mountDeveloperImage() error {
 
 	var imagePath string
 	var err error
-
 	if d.SemVer.Major() >= 17 {
-		imagePath, err = downloadDoronz88PDI(basedir)
+		imagePath = filepath.Join(config.ProviderConfig.ProviderFolder, "ios-ddi")
 	} else {
-		imagePath, err = imagemounter.DownloadImageFor(d.GoIOSDeviceEntry, basedir)
+		imagePath, err = d.downloadDeveloperImage(basedir)
 	}
 	if err != nil {
 		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` - %s", d.GetUDID(), err))
@@ -494,101 +597,6 @@ func (d *IOSDevice) mountDeveloperImage() error {
 		return fmt.Errorf("failed to mount DDI: %w", err)
 	}
 	return nil
-}
-
-func downloadDoronz88PDI(basedir string) (string, error) {
-	doronz88PDIMu.Lock()
-	defer doronz88PDIMu.Unlock()
-
-	dir := fmt.Sprintf("%s/doronz88-pdi", basedir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("could not create PDI directory: %w", err)
-	}
-
-	// Download/refresh BuildManifest.plist with TTL-based staleness.
-	manifestDest := fmt.Sprintf("%s/BuildManifest.plist", dir)
-	fi, statErr := os.Stat(manifestDest)
-	manifestExists := statErr == nil && fi.Size() > 0
-	manifestStale := manifestExists && time.Since(fi.ModTime()) > doronz88PDICacheTTL
-
-	if !manifestExists || manifestStale {
-		logger.ProviderLogger.LogInfo("ios_device_setup", "Downloading BuildManifest.plist from doronz88/DeveloperDiskImage")
-		tmp := manifestDest + ".tmp"
-		if err := downloadFileToPath(doronz88PDIBaseURL+"BuildManifest.plist", tmp); err != nil {
-			os.Remove(tmp)
-			if !manifestExists {
-				return "", fmt.Errorf("failed to download BuildManifest.plist: %w", err)
-			}
-			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to refresh BuildManifest.plist, using cached version: %s", err))
-		} else if err := os.Rename(tmp, manifestDest); err != nil {
-			os.Remove(tmp)
-			if !manifestExists {
-				return "", fmt.Errorf("failed to save BuildManifest.plist: %w", err)
-			}
-			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to replace BuildManifest.plist, using cached version: %s", err))
-		}
-	}
-
-	// Parse manifest to get the paths go-ios will look for.
-	f, err := os.Open(manifestDest)
-	if err != nil {
-		return "", fmt.Errorf("failed to open BuildManifest.plist: %w", err)
-	}
-	defer f.Close()
-	var m pdiManifest
-	if err := plist.NewDecoder(f).Decode(&m); err != nil {
-		return "", fmt.Errorf("failed to parse BuildManifest.plist: %w", err)
-	}
-	if len(m.BuildIdentities) == 0 {
-		return "", fmt.Errorf("BuildManifest.plist contains no BuildIdentities")
-	}
-
-	// The repo ships Image.dmg / Image.dmg.trustcache but BuildManifest.plist
-	// references versioned names (e.g. 022-21627-023.dmg). Download the generic
-	// files and save them under the paths the manifest specifies so go-ios finds them.
-	dmgRelPath := m.BuildIdentities[0].Manifest.PersonalizedDMG.Info.Path
-	tcRelPath := m.BuildIdentities[0].Manifest.LoadableTrustCache.Info.Path
-
-	for _, entry := range []struct{ relPath, remoteFile string }{
-		{dmgRelPath, "Image.dmg"},
-		{tcRelPath, "Image.dmg.trustcache"},
-	} {
-		if entry.relPath == "" {
-			continue
-		}
-		dest := filepath.Join(dir, entry.relPath)
-		fi, statErr := os.Stat(dest)
-		if statErr == nil && fi.Size() > 0 {
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-			return "", fmt.Errorf("could not create directory for %s: %w", entry.relPath, err)
-		}
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading %s as %s from doronz88/DeveloperDiskImage", entry.remoteFile, entry.relPath))
-		if err := downloadFileToPath(doronz88PDIBaseURL+entry.remoteFile, dest); err != nil {
-			os.Remove(dest)
-			return "", fmt.Errorf("failed to download %s: %w", entry.remoteFile, err)
-		}
-	}
-	return dir, nil
-}
-
-func downloadFileToPath(url, dest string) error {
-	resp, err := netClient.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected HTTP status %d for %s", resp.StatusCode, url)
-	}
-	f, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = io.Copy(f, resp.Body)
-	return err
 }
 
 func (d *IOSDevice) pair() (pairErr error) {
