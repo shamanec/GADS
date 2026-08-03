@@ -8,8 +8,8 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gobwas/ws v1.4.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
-	github.com/hraban/opus v0.0.0-20251117090126-c76ea7e21bf3
 	github.com/icholy/digest v1.2.0
+	github.com/jj11hh/opus v1.0.1
 	github.com/minio/minio-go/v7 v7.0.95
 	github.com/pion/webrtc/v3 v3.3.6
 	github.com/shirou/gopsutil v3.21.11+incompatible
@@ -82,6 +82,7 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8 // indirect
 	github.com/tadglines/go-pkgs v0.0.0-20210623144937-b983b20f54f9 // indirect
+	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/tinylib/msgp v1.3.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect

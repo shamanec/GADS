@@ -393,7 +393,6 @@ func (d *AndroidDevice) startRemoteControlServer() {
 	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
 		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.RemoteControlServerKt 1994")
 
-	fmt.Println(cmd.Args)
 	if err := cmd.Start(); err != nil {
 		logger.ProviderLogger.LogErrorf("device_setup", "Error executing `%s` for device `%v` - %v", cmd.Args, d.GetUDID(), err)
 		d.Reset("Failed to execute GADS Remote server.")
