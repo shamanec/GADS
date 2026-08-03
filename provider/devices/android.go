@@ -327,6 +327,13 @@ func (d *AndroidDevice) AppiumCapabilities() models.AppiumServerCapabilities {
 // Reset overrides RuntimeState.Reset to free Android-specific ports.
 func (d *AndroidDevice) Reset(reason string) {
 	if d.ResetBase(reason) {
+		// Remove the actual 'adb forward' rules, otherwise they linger on the host
+		// forever (until provider restart) everi time the device gets re-setup
+		d.removeForwardedPort(d.StreamPort)
+		d.removeForwardedPort(d.AndroidIMEPort)
+		d.removeForwardedPort(d.AndroidRemoteServerPort)
+		d.removeForwardedPort(d.ADBPort)
+
 		common.MutexManager.LocalDevicePorts.Lock()
 		delete(providerutil.UsedPorts, d.StreamPort)
 		delete(providerutil.UsedPorts, d.AndroidIMEPort)
@@ -481,6 +488,17 @@ func (d *AndroidDevice) forwardPort(devicePort, hostPort string) error {
 		return fmt.Errorf("forwardPort: Error forwarding device port %s to host port %s - %s", devicePort, hostPort, err)
 	}
 	return nil
+}
+
+func (d *AndroidDevice) removeForwardedPort(hostPort string) {
+	if hostPort == "" {
+		return
+	}
+	// Use context.Background - d.Context may already be cancelled during Reset.
+	cmd := exec.CommandContext(context.Background(), "adb", "-s", d.GetUDID(), "forward", "--remove", "tcp:"+hostPort)
+	if err := cmd.Run(); err != nil {
+		logger.ProviderLogger.LogDebug("android_device_setup", fmt.Sprintf("removeForwardedPort: Could not remove `adb` forward for host port %s, device `%v`, - %s", hostPort, d.GetUDID(), err))
+	}
 }
 
 func (d *AndroidDevice) forwardStream() error {
