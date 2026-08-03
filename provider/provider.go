@@ -70,6 +70,8 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
+	// Route go-ios internal logging to per-device capture instead of the terminal
+	logger.SetupGoIOSLogging()
 	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
 
 	// Check if the default workspace exists

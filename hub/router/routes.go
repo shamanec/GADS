@@ -17,11 +17,11 @@ import (
 	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/hub/signing"
-	"GADS/provider/logger"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -528,7 +528,7 @@ func DeviceInUseWS(c *gin.Context) {
 		device.ReleaseLock()
 		device.Mu.Unlock()
 
-		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
+		slog.Error(fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
 		return
 	}
 

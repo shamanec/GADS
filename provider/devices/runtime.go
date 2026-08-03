@@ -155,6 +155,12 @@ func (r *RuntimeState) Reset(reason string) {
 // resetWithError logs an error, resets the device, and returns the error — used by Setup() step methods.
 func (r *RuntimeState) resetWithError(step string, err error) error {
 	logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to %s for device `%s` - %v", step, r.GetUDID(), err))
+	// For iOS devices attach recent go-ios output to the device logs for diagnostics
+	if r.DBDevice.OS == "ios" && r.Logger != nil {
+		if tail := logger.GoIOSLogs.Tail(r.GetUDID(), 150); tail != "" {
+			r.Logger.LogError("go_ios_logs", fmt.Sprintf("Recent go-ios logs for device `%s`:\n%s", r.GetUDID(), tail))
+		}
+	}
 	r.Reset(fmt.Sprintf("Failed to %s", step))
 	return fmt.Errorf("%s: %w", step, err)
 }

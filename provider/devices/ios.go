@@ -153,7 +153,7 @@ func (d *IOSDevice) Setup() (retErr error) {
 		}
 
 		// Verify the broadcast extension is actually streaming
-		logger.ProviderLogger.LogInfo("Verifying broadcast extension is streaming on device `%s`", d.GetUDID())
+		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Verifying broadcast extension is streaming on device `%s`", d.GetUDID()))
 		if err := d.waitForBroadcastStream(); err != nil {
 			return fmt.Errorf("broadcast extension not streaming: %w", err)
 		}

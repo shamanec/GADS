@@ -31,7 +31,8 @@ import (
 	"runtime"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"log/slog"
+
 	"github.com/spf13/pflag"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -40,7 +41,8 @@ import (
 func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFiles embed.FS) {
 	port, _ := flags.GetString("port")
 	if port == "" {
-		log.Fatalf("Please provide a port on which the hub instance should run through the --port flag, e.g. --port=10000")
+		slog.Error("Please provide a port on which the hub instance should run through the --port flag, e.g. --port=10000")
+		os.Exit(1)
 	}
 	hostAddress, _ := flags.GetString("host-address")
 	fmt.Printf("Running hub version `%s`\n", appVersion)
@@ -66,9 +68,11 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		_, err := os.Stat(filesDir)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Fatalf("The provided files-dir `%s` does not exist - %s", filesDir, err)
+				slog.Error(fmt.Sprintf("The provided files-dir `%s` does not exist - %s", filesDir, err))
+				os.Exit(1)
 			}
-			log.Fatalf("Could not check if the provided files-dir `%s` exists - %s", filesDir, err)
+			slog.Error(fmt.Sprintf("Could not check if the provided files-dir `%s` exists - %s", filesDir, err))
+			os.Exit(1)
 		}
 		filesTempDir = filesDir
 	} else {
@@ -103,7 +107,8 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	secretStore := auth.NewSecretStore(db.GlobalMongoStore.GetDefaultDatabase())
 	err = auth.InitSecretCache(secretStore, 5*time.Minute)
 	if err != nil {
-		log.Fatalf("Failed to initialize secret key cache: %v", err)
+		slog.Error(fmt.Sprintf("Failed to initialize secret key cache: %v", err))
+		os.Exit(1)
 	}
 
 	devices.InitHubDevicesData()
@@ -114,30 +119,33 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 
 	err = db.GlobalMongoStore.AddAdminUserIfMissing()
 	if err != nil {
-		log.Fatalf("Failed adding admin user on start - %s", err)
+		slog.Error(fmt.Sprintf("Failed adding admin user on start - %s", err))
+		os.Exit(1)
 	}
 
 	// Create database indexes for client credentials
 	err = db.GlobalMongoStore.CreateClientCredentialIndexes()
 	if err != nil {
-		log.Warnf("Failed to create client credential indexes - %s", err)
+		slog.Warn(fmt.Sprintf("Failed to create client credential indexes - %s", err))
 	}
 
 	// Create database indexes for user favorite actions
 	err = db.GlobalMongoStore.CreateUserFavoriteActionIndexes()
 	if err != nil {
-		log.Warnf("Failed to create user favorite action indexes - %s", err)
+		slog.Warn(fmt.Sprintf("Failed to create user favorite action indexes - %s", err))
 	}
 
 	_, err = db.GlobalMongoStore.GetGlobalStreamSettings()
 	if err != nil {
-		log.Fatalf("Failed to get/update global stream settings - %s", err)
+		slog.Error(fmt.Sprintf("Failed to get/update global stream settings - %s", err))
+		os.Exit(1)
 	}
 
 	// Get the default tenant
 	defaultTenant, err := db.GlobalMongoStore.GetOrCreateDefaultTenant()
 	if err != nil {
-		log.Fatalf("Failed to get default tenant - %s", err)
+		slog.Error(fmt.Sprintf("Failed to get default tenant - %s", err))
+		os.Exit(1)
 	}
 
 	// Check if the default workspace exists
@@ -152,14 +160,15 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		}
 		err := db.GlobalMongoStore.AddWorkspace(&defaultWorkspace)
 		if err != nil {
-			log.Fatalf("Failed to create default workspace - %s", err)
+			slog.Error(fmt.Sprintf("Failed to create default workspace - %s", err))
+			os.Exit(1)
 		}
 	} else if defaultWorkspace.Tenant == "" {
 		// Update existing default workspace to have tenant if missing
 		defaultWorkspace.Tenant = defaultTenant
 		err := db.GlobalMongoStore.UpdateWorkspace(&defaultWorkspace)
 		if err != nil {
-			log.Printf("Failed to update default workspace with tenant - %s", err)
+			slog.Info(fmt.Sprintf("Failed to update default workspace with tenant - %s", err))
 		}
 	}
 
@@ -175,7 +184,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		if len(user.WorkspaceIDs) == 0 {
 			err := db.GlobalMongoStore.UpdateUserWorkspaces(user.Username, []string{defaultWorkspace.ID})
 			if err != nil {
-				log.Printf("Failed to associate user %s with default workspace - %s", user.Username, err)
+				slog.Info(fmt.Sprintf("Failed to associate user %s with default workspace - %s", user.Username, err))
 				continue
 			}
 		}
@@ -189,7 +198,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 			device.WorkspaceID = defaultWorkspace.ID
 			err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
 			if err != nil {
-				log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
+				slog.Info(fmt.Sprintf("Failed to associate device %s with default workspace - %s", device.UDID, err))
 				continue
 			}
 		} else {
@@ -200,7 +209,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 				device.WorkspaceID = defaultWorkspace.ID
 				err := db.GlobalMongoStore.AddOrUpdateDevice(&device)
 				if err != nil {
-					log.Printf("Failed to associate device %s with default workspace - %s", device.UDID, err)
+					slog.Info(fmt.Sprintf("Failed to associate device %s with default workspace - %s", device.UDID, err))
 					continue
 				}
 			}
@@ -214,7 +223,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 			workspace.Tenant = defaultTenant
 			err := db.GlobalMongoStore.UpdateWorkspace(&workspace)
 			if err != nil {
-				log.Printf("Failed to update workspace %s with default tenant - %s", workspace.Name, err)
+				slog.Info(fmt.Sprintf("Failed to update workspace %s with default tenant - %s", workspace.Name, err))
 				continue
 			}
 		}
@@ -222,15 +231,16 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 
 	err = setupResources(resourceFiles)
 	if err != nil {
-		log.Fatalf("Failed to unpack resource files in folder `%s` - %s", filesTempDir, err)
+		slog.Error(fmt.Sprintf("Failed to unpack resource files in folder `%s` - %s", filesTempDir, err))
+		os.Exit(1)
 	}
 
 	modifiedCount, err := db.GlobalMongoStore.InitializeProviderSetupAppiumServers()
 	if err != nil {
-		log.Warnf("Failed to update provider configurations to include the new `setup_appium_servers` property, make sure to update them by hand through Admin UI - %s", err.Error())
+		slog.Warn(fmt.Sprintf("Failed to update provider configurations to include the new `setup_appium_servers` property, make sure to update them by hand through Admin UI - %s", err.Error()))
 	}
 	if modifiedCount > 0 {
-		log.Printf("Updated %d provider documents to include `setup_appium_servers: true` property\n", modifiedCount)
+		slog.Info(fmt.Sprintf("Updated %d provider documents to include `setup_appium_servers: true` property", modifiedCount))
 	}
 
 	// Configure Swagger documentation
@@ -248,7 +258,8 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	//err = r.RunTLS(address, "./server.crt", "./server.key")
 	err = r.Run(address)
 	if err != nil {
-		log.Fatalf("Gin Run failed - %s", err)
+		slog.Error(fmt.Sprintf("Gin Run failed - %s", err))
+		os.Exit(1)
 	}
 }
 
