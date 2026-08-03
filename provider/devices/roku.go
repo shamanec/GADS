@@ -248,13 +248,13 @@ func (d *RokuDevice) rokuWebInstaller(submit, zipPath, password string) error {
 	}
 	req.Header.Set("Content-Type", contentType)
 
-	// Preflight fetches the challenge with a bodyless request so the package streams
+	// Probe fetches the challenge with a bodyless request so the package streams
 	// only once authenticated; DisableKeepAlives avoids reusing the 401'd socket.
 	client := &http.Client{
 		Transport: &digest.Transport{
 			Username:  "rokudev",
 			Password:  password,
-			Preflight: true,
+			Probe:     true,
 			Transport: &http.Transport{DisableKeepAlives: true},
 		},
 		Timeout: 60 * time.Second,
