@@ -4,6 +4,7 @@ import (
 	"GADS/common/auth"
 	"GADS/common/db"
 	"GADS/provider/config"
+	"GADS/provider/logger"
 	"fmt"
 
 	"github.com/pion/webrtc/v3"
@@ -15,7 +16,14 @@ func GenerateWebRTCConfig() webrtc.Configuration {
 	}
 
 	turnConfig, err := db.GlobalMongoStore.GetTURNConfig()
-	if err == nil && turnConfig.Enabled && turnConfig.Server != "" && turnConfig.SharedSecret != "" {
+	switch {
+	case err != nil:
+		logger.ProviderLogger.LogWarn("webrtc_config", fmt.Sprintf("TURN config unavailable, WebRTC will use STUN only - %v", err))
+	case !turnConfig.Enabled:
+		logger.ProviderLogger.LogWarn("webrtc_config", "TURN disabled in config, WebRTC will use STUN only")
+	case turnConfig.Server == "" || turnConfig.SharedSecret == "":
+		logger.ProviderLogger.LogWarn("webrtc_config", "TURN enabled but server/shared secret missing, WebRTC will use STUN only")
+	default:
 		ttl := turnConfig.TTL
 		if ttl == 0 {
 			ttl = 3600
@@ -30,6 +38,7 @@ func GenerateWebRTCConfig() webrtc.Configuration {
 			Credential: password,
 		}
 		iceServers = append(iceServers, turnIceServer)
+		logger.ProviderLogger.LogInfo("webrtc_config", fmt.Sprintf("Applying TURN relay: server=%s:%d suffix=%s", turnConfig.Server, turnConfig.Port, config.ProviderConfig.TURNUsernameSuffix))
 	}
 
 	return webrtc.Configuration{
