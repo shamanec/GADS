@@ -10,7 +10,6 @@
 package router
 
 import (
-	"GADS/common/db"
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"bytes"
@@ -82,33 +81,22 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 			defer c.Request.Body.Close()
 
-			// Unmarshal the request sessionRequestBody []byte to <AppiumSession>
-			var appiumSessionBody models.AppiumSession
-			err = json.Unmarshal(sessionRequestBody, &appiumSessionBody)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal session request sessionRequestBody", "session not created", err.Error()))
+			// Parse the request body per the W3C capabilities processing rules
+			parsedReq, w3cErr := parseSessionRequest(sessionRequestBody, capabilityPrefix)
+			if w3cErr != nil {
+				writeW3CError(c, w3cErr)
 				return
 			}
 
-			var capsToUse models.CommonCapabilities
-
-			if appiumSessionBody.DesiredCapabilities.PlatformName != "" && appiumSessionBody.DesiredCapabilities.AutomationName != "" {
-				capsToUse = appiumSessionBody.DesiredCapabilities
-			} else if appiumSessionBody.Capabilities.FirstMatch[0].PlatformName != "" && appiumSessionBody.Capabilities.FirstMatch[0].AutomationName != "" {
-				capsToUse = appiumSessionBody.Capabilities.FirstMatch[0]
-			} else if appiumSessionBody.Capabilities.AlwaysMatch.PlatformName != "" && appiumSessionBody.Capabilities.AlwaysMatch.AutomationName != "" {
-				capsToUse = appiumSessionBody.Capabilities.AlwaysMatch
-			} else {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS did not find any suitable capabilities object in the session request, check your setup or open an issues on the project Github page", "session not created", ""))
+			candidate, matched := selectGridCandidate(parsedReq.Candidates)
+			if !matched {
+				writeW3CError(c, w3cSessionNotCreated("GADS could not determine a target device platform from any capabilities candidate in the session request"))
 				return
 			}
 
 			// Extract client secret from capabilities and get allowed workspaces
 			var allowedWorkspaceIDs []string
-			var sessionReq map[string]interface{}
-			json.Unmarshal(sessionRequestBody, &sessionReq)
-			capabilityPrefix := getEnvOrDefault("GADS_CAPABILITY_PREFIX", "gads")
-			clientSecret := models.ExtractClientSecretFromSession(sessionReq, capabilityPrefix)
+			clientSecret := models.ExtractClientSecretFromSession(parsedReq.Raw, capabilityPrefix)
 
 			if clientSecret == "" {
 				c.JSON(http.StatusUnauthorized, createErrorResponse(
@@ -118,19 +106,19 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			credential, err := db.GlobalMongoStore.GetClientCredentialBySecret(clientSecret)
+			credential, err := gridDB.GetClientCredentialBySecret(clientSecret)
 			if err != nil || !credential.IsActive {
 				c.JSON(http.StatusUnauthorized, createErrorResponse("Invalid client credentials", "session not created", ""))
 				return
 			}
 
 			if credential.Tenant != "" {
-				defaultTenant, _ := db.GlobalMongoStore.GetOrCreateDefaultTenant()
+				defaultTenant, _ := gridDB.GetOrCreateDefaultTenant()
 				useAllTenantWorkspaces := true
 
 				// Check if we need to filter by user workspaces
 				if credential.Tenant == defaultTenant && credential.UserID != "" {
-					user, err := db.GlobalMongoStore.GetUser(credential.UserID)
+					user, err := gridDB.GetUser(credential.UserID)
 					if err != nil {
 						c.JSON(http.StatusUnauthorized, createErrorResponse("User not found", "session not created", ""))
 						return
@@ -139,7 +127,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 					if user.Role != "admin" {
 						// Regular user: only assigned workspaces
 						useAllTenantWorkspaces = false
-						userWorkspaces := db.GlobalMongoStore.GetUserWorkspaces(credential.UserID)
+						userWorkspaces := gridDB.GetUserWorkspaces(credential.UserID)
 						for _, ws := range userWorkspaces {
 							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
 						}
@@ -148,7 +136,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 				// Admin users or non-default tenant: all workspaces of the tenant
 				if useAllTenantWorkspaces {
-					allWorkspaces, _ := db.GlobalMongoStore.GetWorkspaces()
+					allWorkspaces, _ := gridDB.GetWorkspaces()
 					for _, ws := range allWorkspaces {
 						if ws.Tenant == credential.Tenant {
 							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
@@ -161,7 +149,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			var foundDevice *devices.LocalHubDevice
 			var deviceErr error
 
-			foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+			foundDevice, deviceErr = findAvailableDevice(candidate, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 
 			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
 				c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
@@ -178,7 +166,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				for {
 					select {
 					case <-ticker.C:
-						foundDevice, deviceErr = findAvailableDevice(capsToUse, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
+						foundDevice, deviceErr = findAvailableDevice(candidate, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
 						if foundDevice != nil {
 							break FOR_LOOP
 						}
@@ -214,14 +202,17 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			foundDevice.IsAvailableForAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
 			// Update the session timeout values if none were provided
-			if capsToUse.NewCommandTimeout != 0 {
-				foundDevice.AppiumNewCommandTimeout = capsToUse.NewCommandTimeout * 1000
+			// NOTE: explicit `appium:newCommandTimeout: 0` currently falls back to the default like "absent" does - Phase 2 gives it disable semantics
+			if candidate.NewCommandTimeout != nil && *candidate.NewCommandTimeout != 0 {
+				foundDevice.AppiumNewCommandTimeout = *candidate.NewCommandTimeout * 1000
 			} else {
 				foundDevice.AppiumNewCommandTimeout = 60000
 			}
 			foundDevice.Mu.Unlock()
 
-			updatedSessionBody, _ := json.Marshal(sessionReq)
+			// Remove grid-internal `gads:*` capabilities so the client secret never reaches Appium (and its logs)
+			stripGadsCaps(parsedReq.Raw, capabilityPrefix)
+			updatedSessionBody, _ := json.Marshal(parsedReq.Raw)
 			// Create a new request to the device target URL
 			foundDevice.Mu.RLock()
 			deviceHost := foundDevice.Host
@@ -360,7 +351,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				}
 
 				if startIndex == -1 || endIndex == -1 {
-					c.JSON(http.StatusInternalServerError, createErrorResponse(fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path), "", ""))
+					writeW3CError(c, w3cInvalidSessionID(fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path)))
 					return
 				}
 
@@ -369,7 +360,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 
 			// If no session ID could be parsed from the request
 			if sessionID == "" {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("No session ID could be extracted from the request", "", ""))
+				writeW3CError(c, w3cInvalidSessionID("No session ID could be extracted from the request"))
 				return
 			}
 
@@ -384,7 +375,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			// Check if there is a device in the local session map for that session ID
 			foundDevice, err := getDeviceBySessionID(sessionID)
 			if err != nil {
-				c.JSON(http.StatusNotFound, createErrorResponse(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID), "", ""))
+				writeW3CError(c, w3cInvalidSessionID(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID)))
 				return
 			}
 
@@ -519,42 +510,10 @@ func getDeviceByUDID(udid string) (*devices.LocalHubDevice, error) {
 	return nil, fmt.Errorf("No device with udid `%s` was found", udid)
 }
 
-func getTargetOSFromCaps(caps models.CommonCapabilities) string {
-	if strings.EqualFold(caps.PlatformName, "iOS") ||
-		strings.EqualFold(caps.AutomationName, "XCUITest") {
-		return "ios"
-	}
-
-	if strings.EqualFold(caps.PlatformName, "Android") ||
-		strings.EqualFold(caps.AutomationName, "UiAutomator2") {
-		return "android"
-	}
-
-	if strings.EqualFold(caps.PlatformName, "TizenTV") ||
-		strings.EqualFold(caps.AutomationName, "TizenTV") {
-		return "tizen"
-	}
-
-	if strings.EqualFold(caps.PlatformName, "lgtv") ||
-		strings.EqualFold(caps.AutomationName, "webos") {
-		return "webos"
-	}
-
-	if strings.EqualFold(caps.PlatformName, "Roku") ||
-		strings.EqualFold(caps.AutomationName, "roku") {
-		return "roku"
-	}
-
-	return ""
-}
-
-func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []string, userID string, userTenant string) (*devices.LocalHubDevice, error) {
+func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, userID string, userTenant string) (*devices.LocalHubDevice, error) {
 	var foundDevice *devices.LocalHubDevice
 
-	var deviceUDID = ""
-	if caps.DeviceUDID != "" {
-		deviceUDID = caps.DeviceUDID
-	}
+	deviceUDID := candidate.DeviceUDID
 
 	if len(allowedWorkspaceIDs) == 0 {
 		return nil, fmt.Errorf("No device with udid `%s` was found in allowed workspaces", deviceUDID)
@@ -594,7 +553,7 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 
 	var availableDevices []*devices.LocalHubDevice
 
-	targetOS := getTargetOSFromCaps(caps)
+	targetOS := candidateTargetOS(candidate)
 	if targetOS != "" {
 		for _, localDevice := range devices.HubDeviceStore.All() {
 			localDevice.Mu.RLock()
@@ -637,14 +596,14 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 		}
 	}
 
-	if caps.PlatformVersion != "" {
+	if candidate.PlatformVersion != "" {
 		// First try exact version match
 		for _, device := range availableDevices {
 			device.Mu.RLock()
 			osVersion := device.Device.OSVersion
 			device.Mu.RUnlock()
 
-			if osVersion == caps.PlatformVersion {
+			if osVersion == candidate.PlatformVersion {
 				device.Mu.Lock()
 				if device.IsAvailableForAutomation {
 					device.IsAvailableForAutomation = false
@@ -658,7 +617,7 @@ func findAvailableDevice(caps models.CommonCapabilities, allowedWorkspaceIDs []s
 
 		// Fall back to major version match
 		if foundDevice == nil {
-			v, _ := semver.NewVersion(caps.PlatformVersion)
+			v, _ := semver.NewVersion(candidate.PlatformVersion)
 			requestedMajorVersion := fmt.Sprintf("%d", v.Major())
 			constraint, _ := semver.NewConstraint(fmt.Sprintf("^%s.0.0", requestedMajorVersion))
 
