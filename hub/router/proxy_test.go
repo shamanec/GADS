@@ -142,7 +142,7 @@ func TestDeviceProxyHandler(t *testing.T) {
 	})
 
 	// NOTE: client-credential enforcement for session creation lives on the /grid
-	// surface (AppiumGridMiddleware) and is covered by gridcapabilities_test.go -
+	// surface (GridCreateSession) and is covered by gridcapabilities_test.go -
 	// DeviceProxyHandler itself performs no credential checks
 }
 

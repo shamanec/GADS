@@ -38,6 +38,10 @@ func w3cSessionNotCreated(msg string) *W3CError {
 	return &W3CError{HTTPStatus: 500, Code: "session not created", Message: msg}
 }
 
+func w3cUnknownCommand(msg string) *W3CError {
+	return &W3CError{HTTPStatus: 404, Code: "unknown command", Message: msg}
+}
+
 func writeW3CError(c *gin.Context, e *W3CError) {
 	c.JSON(e.HTTPStatus, createErrorResponse(e.Message, e.Code, ""))
 }

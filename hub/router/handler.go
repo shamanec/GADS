@@ -12,6 +12,7 @@ package router
 import (
 	"GADS/hub/auth"
 	"GADS/hub/config"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -38,11 +39,13 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	r.Use(cors.New(ginConfig))
 
 	// Handle UI serving only if we have UI files embedded
+	var uiFS fs.FS
 	if uiFiles != nil {
-		uiFS, err := fs.Sub(uiFiles, "hub-ui/build")
+		subFS, err := fs.Sub(uiFiles, "hub-ui/build")
 		if err != nil {
 			log.Fatalf("Failed to get UI files filesystem: %v", err)
 		}
+		uiFS = subFS
 
 		r.Use(func(c *gin.Context) {
 			path := c.Request.URL.Path
@@ -63,24 +66,35 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 			fileServer.ServeHTTP(c.Writer, c.Request)
 			c.Abort()
 		})
-
-		r.NoRoute(func(c *gin.Context) {
-			indexFile, err := uiFS.Open("index.html")
-			if err != nil {
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-			defer indexFile.Close()
-
-			stat, err := indexFile.Stat()
-			if err != nil {
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-
-			http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile.(io.ReadSeeker))
-		})
 	}
+
+	r.NoRoute(func(c *gin.Context) {
+		// Unmatched /grid/* paths must get a W3C error response, not the UI fallback page
+		if strings.HasPrefix(c.Request.URL.Path, "/grid/") {
+			writeW3CError(c, w3cUnknownCommand(fmt.Sprintf("Unknown grid endpoint `%s`", c.Request.URL.Path)))
+			return
+		}
+
+		if uiFS == nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		indexFile, err := uiFS.Open("index.html")
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		defer indexFile.Close()
+
+		stat, err := indexFile.Stat()
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile.(io.ReadSeeker))
+	})
 
 	authGroup := r.Group("/")
 	// Unauthenticated endpoints
@@ -167,9 +181,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/custom-actions/favorites/:id", AddUserFavorite)
 	authGroup.DELETE("/custom-actions/favorites/:id", RemoveUserFavorite)
 
-	appiumGroup := r.Group("/grid")
-	appiumGroup.Use(AppiumGridMiddleware())
-	appiumGroup.Any("/*path")
+	registerGridRoutes(r.Group("/grid"))
 
 	return r
 }

@@ -329,13 +329,11 @@ func (f *fakeGridStore) GetOrCreateDefaultTenant() (string, error) {
 
 func newGridTestRouter() *gin.Engine {
 	router := gin.New()
-	appiumGroup := router.Group("/grid")
-	appiumGroup.Use(AppiumGridMiddleware())
-	appiumGroup.Any("/*path")
+	registerGridRoutes(router.Group("/grid"))
 	return router
 }
 
-func TestAppiumGridMiddlewareSessionCreate(t *testing.T) {
+func TestGridCreateSessionHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	prevGridDB := gridDB

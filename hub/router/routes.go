@@ -1383,9 +1383,7 @@ func ReleaseDevice(c *gin.Context) {
 
 	// Fully reset any (possibly stuck) automation session so the device becomes
 	// available again immediately instead of waiting for the grid session janitor.
-	releaseDevice.IsRunningAutomation = false
-	releaseDevice.IsAvailableForAutomation = true
-	releaseDevice.SessionID = ""
+	releaseDevice.ReleaseFromAutomation()
 	releaseDevice.ReleaseLock()
 
 	api.OKMessage(c, "Device was successfully released")
@@ -1556,10 +1554,10 @@ func ProviderUpdate(c *gin.Context) {
 			hubDevice.Connected = false
 			hubDevice.ProviderState = providerDevice.ProviderState
 			hubDevice.Host = providerDevice.Host
+			hubDevice.ReleaseFromAutomation()
+			// A disconnected device must not be handed out for automation even though
+			// ReleaseFromAutomation marks devices available by default
 			hubDevice.IsAvailableForAutomation = false
-			hubDevice.IsRunningAutomation = false
-			hubDevice.ReleaseLockIfNotHeld()
-			hubDevice.SessionID = ""
 			hubDevice.Mu.Unlock()
 			continue
 		}

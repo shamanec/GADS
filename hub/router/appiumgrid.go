@@ -13,11 +13,14 @@ import (
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,14 +28,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Timeout for proxied session commands - generous because calls like screen
+// recordings and source dumps can be slow
+const gridCommandTimeout = 90 * time.Second
+
 // Shared HTTP clients for proxying grid traffic to providers, reusing the same
 // connection pool as the device proxy (proxyTransport). Session creation gets a
-// generous timeout because driver/WDA startup can take minutes; ordinary session
-// commands are bounded lower but still allow slow calls like screen recordings
-// and source dumps
+// generous timeout because driver/WDA startup can take minutes
 var (
 	gridSessionClient = &http.Client{Transport: proxyTransport, Timeout: 240 * time.Second}
-	gridCommandClient = &http.Client{Transport: proxyTransport, Timeout: 90 * time.Second}
+	gridCommandClient = &http.Client{Transport: proxyTransport, Timeout: gridCommandTimeout}
 )
 
 type AppiumSessionValue struct {
@@ -51,6 +56,27 @@ type SeleniumSessionErrorResponseValue struct {
 	Error      string `json:"error"`
 	Message    string `json:"message"`
 	StackTrace string `json:"stacktrace"`
+}
+
+// registerGridRoutes mounts the Appium grid endpoints on the `/grid` group. The URL
+// surface is identical to the old catch-all middleware. Shared between the hub
+// router and handler-level tests
+func registerGridRoutes(grid *gin.RouterGroup) {
+	grid.GET("/status", GridStatus)
+	grid.POST("/session", GridCreateSession)
+	grid.DELETE("/session/:sessionId", GridDeleteSession)
+	// A bare `/session/{id}` with any other method (e.g. `GET /session/{id}`) is an
+	// ordinary WebDriver command - only the exact DELETE above ends the session
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodHead, http.MethodOptions} {
+		grid.Handle(method, "/session/:sessionId", GridSessionCommand)
+	}
+	grid.Any("/session/:sessionId/*path", GridSessionCommand)
+}
+
+// GridStatus is the W3C status endpoint (`GET /grid/status`). Currently a static
+// readiness stub - Phase 4 of the grid rework fills in real device information
+func GridStatus(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"value": gin.H{"ready": true, "message": "GADS grid ready"}})
 }
 
 // Every second sweep the devices and clean up automation sessions
@@ -86,10 +112,7 @@ func sweepExpiredGridSessions() {
 			if hubDevice.SessionID != "" && hubDevice.Connected && hubDevice.ProviderState == "live" {
 				go killProviderAppiumSession(hubDevice.Host, hubDevice.Device.UDID, hubDevice.SessionID)
 			}
-			hubDevice.IsRunningAutomation = false
-			hubDevice.IsAvailableForAutomation = true
-			hubDevice.SessionID = ""
-			hubDevice.ReleaseLockIfNotHeld()
+			hubDevice.ReleaseFromAutomation()
 		}
 		hubDevice.Mu.Unlock()
 	}
@@ -114,407 +137,406 @@ func killProviderAppiumSession(deviceHost string, deviceUDID string, sessionID s
 	io.Copy(io.Discard, resp.Body)
 }
 
-func AppiumGridMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if strings.HasSuffix(c.Request.URL.Path, "/session") {
-			// Read the request sessionRequestBody
-			sessionRequestBody, err := readBody(c.Request.Body)
+// gridUser is the automation client identity resolved from its `gads:clientSecret`,
+// with the workspaces its sessions are allowed to claim devices from
+type gridUser struct {
+	UserID              string
+	Tenant              string
+	AllowedWorkspaceIDs []string
+}
+
+// resolveGridUser validates the client secret extracted from the session capabilities
+// and resolves the workspaces the client may use devices from
+func resolveGridUser(clientSecret string) (gridUser, *W3CError) {
+	if clientSecret == "" {
+		return gridUser{}, &W3CError{
+			HTTPStatus: http.StatusUnauthorized,
+			Code:       "session not created",
+			Message:    fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix),
+		}
+	}
+
+	credential, err := gridDB.GetClientCredentialBySecret(clientSecret)
+	if err != nil || !credential.IsActive {
+		return gridUser{}, &W3CError{HTTPStatus: http.StatusUnauthorized, Code: "session not created", Message: "Invalid client credentials"}
+	}
+
+	user := gridUser{UserID: credential.UserID, Tenant: credential.Tenant}
+
+	if credential.Tenant != "" {
+		defaultTenant, _ := gridDB.GetOrCreateDefaultTenant()
+		useAllTenantWorkspaces := true
+
+		// Check if we need to filter by user workspaces
+		if credential.Tenant == defaultTenant && credential.UserID != "" {
+			dbUser, err := gridDB.GetUser(credential.UserID)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read session request sessionRequestBody", "session not created", err.Error()))
-				return
-			}
-			defer c.Request.Body.Close()
-
-			// Parse the request body per the W3C capabilities processing rules
-			parsedReq, w3cErr := parseSessionRequest(sessionRequestBody, capabilityPrefix)
-			if w3cErr != nil {
-				writeW3CError(c, w3cErr)
-				return
+				return gridUser{}, &W3CError{HTTPStatus: http.StatusUnauthorized, Code: "session not created", Message: "User not found"}
 			}
 
-			candidate, matched := selectGridCandidate(parsedReq.Candidates)
-			if !matched {
-				writeW3CError(c, w3cSessionNotCreated("GADS could not determine a target device platform from any capabilities candidate in the session request"))
-				return
-			}
-
-			// Extract client secret from capabilities and get allowed workspaces
-			var allowedWorkspaceIDs []string
-			clientSecret := models.ExtractClientSecretFromSession(parsedReq.Raw, capabilityPrefix)
-
-			if clientSecret == "" {
-				c.JSON(http.StatusUnauthorized, createErrorResponse(
-					fmt.Sprintf("Client credentials are required. Provide %s:clientSecret in the capabilities.", capabilityPrefix),
-					"session not created",
-					""))
-				return
-			}
-
-			credential, err := gridDB.GetClientCredentialBySecret(clientSecret)
-			if err != nil || !credential.IsActive {
-				c.JSON(http.StatusUnauthorized, createErrorResponse("Invalid client credentials", "session not created", ""))
-				return
-			}
-
-			if credential.Tenant != "" {
-				defaultTenant, _ := gridDB.GetOrCreateDefaultTenant()
-				useAllTenantWorkspaces := true
-
-				// Check if we need to filter by user workspaces
-				if credential.Tenant == defaultTenant && credential.UserID != "" {
-					user, err := gridDB.GetUser(credential.UserID)
-					if err != nil {
-						c.JSON(http.StatusUnauthorized, createErrorResponse("User not found", "session not created", ""))
-						return
-					}
-
-					if user.Role != "admin" {
-						// Regular user: only assigned workspaces
-						useAllTenantWorkspaces = false
-						userWorkspaces := gridDB.GetUserWorkspaces(credential.UserID)
-						for _, ws := range userWorkspaces {
-							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
-						}
-					}
-				}
-
-				// Admin users or non-default tenant: all workspaces of the tenant
-				if useAllTenantWorkspaces {
-					allWorkspaces, _ := gridDB.GetWorkspaces()
-					for _, ws := range allWorkspaces {
-						if ws.Tenant == credential.Tenant {
-							allowedWorkspaceIDs = append(allowedWorkspaceIDs, ws.ID)
-						}
-					}
+			if dbUser.Role != "admin" {
+				// Regular user: only assigned workspaces
+				useAllTenantWorkspaces = false
+				userWorkspaces := gridDB.GetUserWorkspaces(credential.UserID)
+				for _, ws := range userWorkspaces {
+					user.AllowedWorkspaceIDs = append(user.AllowedWorkspaceIDs, ws.ID)
 				}
 			}
+		}
 
-			// Check for available device
-			var foundDevice *devices.LocalHubDevice
-			var deviceErr error
-
-			foundDevice, deviceErr = findAvailableDevice(candidate, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
-
-			if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
-				c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
-				return
-			}
-
-			// Usage misconfiguration cannot resolve by waiting - fail immediately
-			// with the reason instead of entering the retry loop
-			if deviceErr != nil && strings.Contains(deviceErr.Error(), "is not enabled for automation") {
-				writeW3CError(c, w3cSessionNotCreated(deviceErr.Error()))
-				return
-			}
-
-			// If no device is available start checking each second for 10 seconds
-			// If no device is available after 10 seconds - return error
-			if foundDevice == nil {
-				ticker := time.NewTicker(100 * time.Millisecond)
-				timeout := time.After(10 * time.Second)
-				notify := c.Writer.CloseNotify()
-			FOR_LOOP:
-				for {
-					select {
-					case <-ticker.C:
-						foundDevice, deviceErr = findAvailableDevice(candidate, allowedWorkspaceIDs, credential.UserID, credential.Tenant)
-						if foundDevice != nil {
-							break FOR_LOOP
-						}
-					case <-timeout:
-						ticker.Stop()
-						if deviceErr != nil {
-							c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
-						} else {
-							c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
-						}
-						return
-					case <-notify:
-						ticker.Stop()
-						return
-					}
+		// Admin users or non-default tenant: all workspaces of the tenant
+		if useAllTenantWorkspaces {
+			allWorkspaces, _ := gridDB.GetWorkspaces()
+			for _, ws := range allWorkspaces {
+				if ws.Tenant == credential.Tenant {
+					user.AllowedWorkspaceIDs = append(user.AllowedWorkspaceIDs, ws.ID)
 				}
 			}
+		}
+	}
 
-			if foundDevice == nil {
+	return user, nil
+}
+
+// abortAutomationClaim undoes a pre-session device claim after a failed session
+// create. The lock fields are left untouched on purpose - no session was
+// established, so there is nothing to release beyond the availability flags
+func abortAutomationClaim(foundDevice *devices.LocalHubDevice) {
+	foundDevice.Mu.Lock()
+	foundDevice.IsAvailableForAutomation = true
+	foundDevice.IsRunningAutomation = false
+	foundDevice.Mu.Unlock()
+}
+
+// GridCreateSession handles `POST /grid/session` - authenticates the client via its
+// `gads:clientSecret` capability, finds and claims a matching device, forwards the
+// session request to the device's provider Appium endpoint and records the created
+// session in the session registry
+func GridCreateSession(c *gin.Context) {
+	sessionRequestBody, err := readBody(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read session request sessionRequestBody", "session not created", err.Error()))
+		return
+	}
+	defer c.Request.Body.Close()
+
+	// Parse the request body per the W3C capabilities processing rules
+	parsedReq, w3cErr := parseSessionRequest(sessionRequestBody, capabilityPrefix)
+	if w3cErr != nil {
+		writeW3CError(c, w3cErr)
+		return
+	}
+
+	candidate, matched := selectGridCandidate(parsedReq.Candidates)
+	if !matched {
+		writeW3CError(c, w3cSessionNotCreated("GADS could not determine a target device platform from any capabilities candidate in the session request"))
+		return
+	}
+
+	// Extract client secret from capabilities and resolve the allowed workspaces
+	clientSecret := models.ExtractClientSecretFromSession(parsedReq.Raw, capabilityPrefix)
+	user, w3cErr := resolveGridUser(clientSecret)
+	if w3cErr != nil {
+		writeW3CError(c, w3cErr)
+		return
+	}
+
+	// Check for available device
+	foundDevice, deviceErr := findAvailableDevice(candidate, user.AllowedWorkspaceIDs, user.UserID, user.Tenant)
+
+	if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
+		c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
+		return
+	}
+
+	// Usage misconfiguration cannot resolve by waiting - fail immediately
+	// with the reason instead of entering the retry loop
+	if deviceErr != nil && strings.Contains(deviceErr.Error(), "is not enabled for automation") {
+		writeW3CError(c, w3cSessionNotCreated(deviceErr.Error()))
+		return
+	}
+
+	// If no device is available start checking each second for 10 seconds
+	// If no device is available after 10 seconds - return error
+	if foundDevice == nil {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		timeout := time.After(10 * time.Second)
+		notify := c.Writer.CloseNotify()
+	FOR_LOOP:
+		for {
+			select {
+			case <-ticker.C:
+				foundDevice, deviceErr = findAvailableDevice(candidate, user.AllowedWorkspaceIDs, user.UserID, user.Tenant)
+				if foundDevice != nil {
+					break FOR_LOOP
+				}
+			case <-timeout:
+				ticker.Stop()
 				if deviceErr != nil {
 					c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
 				} else {
 					c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
 				}
 				return
-			}
-
-			foundDevice.Mu.Lock()
-			// Set device found as running automation and is not available for automation
-			// Before even starting the Appium session creation request
-			// Also set an automation action timestamp so that the goroutine does not reset it while session is being created
-			foundDevice.IsRunningAutomation = true
-			foundDevice.IsAvailableForAutomation = false
-			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			// `appium:newCommandTimeout` semantics: absent -> 60s default; explicit 0 ->
-			// idle timeout disabled on the hub too (0 makes the janitor skip the idle
-			// check, matching Appium disabling its own timer); anything else -> as given
-			if candidate.NewCommandTimeout != nil {
-				foundDevice.AppiumNewCommandTimeout = *candidate.NewCommandTimeout * 1000
-			} else {
-				foundDevice.AppiumNewCommandTimeout = 60000
-			}
-			foundDevice.Mu.Unlock()
-
-			// Remove grid-internal `gads:*` capabilities so the client secret never reaches Appium (and its logs)
-			stripGadsCaps(parsedReq.Raw, capabilityPrefix)
-			updatedSessionBody, _ := json.Marshal(parsedReq.Raw)
-			// Create a new request to the device target URL
-			foundDevice.Mu.RLock()
-			deviceHost := foundDevice.Host
-			deviceUDID := foundDevice.Device.UDID
-			foundDevice.Mu.RUnlock()
-
-			proxyReq, err := http.NewRequest(c.Request.Method, fmt.Sprintf("http://%s/device/%s/appium%s", deviceHost, deviceUDID, strings.Replace(c.Request.URL.Path, "/grid", "", -1)), bytes.NewBuffer(updatedSessionBody))
-			if err != nil {
-				foundDevice.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				foundDevice.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "session not created", err.Error()))
+			case <-notify:
+				ticker.Stop()
 				return
 			}
-
-			// Copy headers from the original request to the new request
-			for k, v := range c.Request.Header {
-				proxyReq.Header[k] = v
-			}
-
-			// Send the request
-			resp, err := gridSessionClient.Do(proxyReq)
-			if err != nil {
-				foundDevice.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				foundDevice.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium session endpoint", "session not created", err.Error()))
-				return
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode >= 400 {
-				// Release device for any error status
-				foundDevice.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				if resp.StatusCode != http.StatusInternalServerError {
-					foundDevice.ReleaseLockIfNotHeld()
-				}
-				foundDevice.Mu.Unlock()
-
-				// For 500 errors, keep the existing behavior with goroutine
-				if resp.StatusCode == http.StatusInternalServerError {
-					go func() {
-						time.Sleep(10 * time.Second)
-						foundDevice.Mu.Lock()
-						if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 5000) {
-							foundDevice.IsAvailableForAutomation = true
-							foundDevice.SessionID = ""
-							foundDevice.IsRunningAutomation = false
-							foundDevice.ReleaseLockIfNotHeld()
-						}
-						foundDevice.Mu.Unlock()
-					}()
-				}
-
-				// Read and pass the error response
-				proxiedResponseBody, _ := readBody(resp.Body)
-				for k, v := range resp.Header {
-					c.Writer.Header()[k] = v
-				}
-				c.Writer.WriteHeader(resp.StatusCode)
-				c.Writer.Write(proxiedResponseBody)
-				return
-			}
-
-			// Read the response sessionRequestBody from the proxied request
-			proxiedSessionResponseBody, err := readBody(resp.Body)
-			if err != nil {
-				foundDevice.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				foundDevice.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
-				return
-			}
-
-			// Unmarshal the response sessionRequestBody to AppiumSessionResponse
-			var proxySessionResponse AppiumSessionResponse
-			err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
-			if err != nil {
-				foundDevice.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.IsRunningAutomation = false
-				foundDevice.Mu.Unlock()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
-				return
-			}
-
-			foundDevice.Mu.Lock()
-			foundDevice.SessionID = proxySessionResponse.Value.SessionID
-			foundDevice.Mu.Unlock()
-
-			// Copy the response back to the original client
-			for k, v := range resp.Header {
-				c.Writer.Header()[k] = v
-			}
-			c.Writer.WriteHeader(resp.StatusCode)
-			c.Writer.Write(proxiedSessionResponseBody)
-
-			foundDevice.Mu.Lock()
-			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			// Set InUseBy with user ID and tenant for tracking
-			automationUser := credential.UserID
-			if automationUser == "" {
-				automationUser = "unknown"
-			}
-			// Only update InUseBy if no UI or API session is active
-			if !foundDevice.HasUISession() && !foundDevice.HasActiveLease() {
-				foundDevice.InUseBy = automationUser
-				foundDevice.InUseByTenant = credential.Tenant
-				foundDevice.InUseTS = time.Now().UnixMilli()
-			}
-			foundDevice.Mu.Unlock()
-		} else {
-			// If this is not a request for a new session
-			var sessionID = ""
-			// Whether this request ends the session - only an exact `DELETE /session/{id}` does.
-			// A DELETE on a subpath (/window, /cookie, /cookie/{name}, /actions) is an
-			// ordinary WebDriver command and must not release the device
-			var isSessionEndRequest = false
-
-			// The session ID is the path segment right after `/session/`, regardless of method
-			if strings.Contains(c.Request.URL.Path, "/session/") {
-				sessionIDStart := strings.Index(c.Request.URL.Path, "/session/") + len("/session/")
-				sessionIDAndRest := c.Request.URL.Path[sessionIDStart:]
-				if slashIndex := strings.Index(sessionIDAndRest, "/"); slashIndex != -1 {
-					sessionID = sessionIDAndRest[:slashIndex]
-				} else {
-					sessionID = sessionIDAndRest
-					isSessionEndRequest = c.Request.Method == http.MethodDelete
-				}
-			}
-
-			// If no session ID could be parsed from the request
-			if sessionID == "" {
-				writeW3CError(c, w3cInvalidSessionID("No session ID could be extracted from the request"))
-				return
-			}
-
-			// Read the request origRequestBody
-			origRequestBody, err := readBody(c.Request.Body)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the proxied Appium request origRequestBody", "", err.Error()))
-				return
-			}
-			defer c.Request.Body.Close()
-
-			// Check if there is a device in the local session map for that session ID
-			foundDevice, err := getDeviceBySessionID(sessionID)
-			if err != nil {
-				writeW3CError(c, w3cInvalidSessionID(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID)))
-				return
-			}
-
-			// Set the device last automation action timestamp when call returns
-			defer func() {
-				foundDevice.Mu.Lock()
-				foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-				foundDevice.Mu.Unlock()
-			}()
-
-			foundDevice.Mu.RLock()
-			deviceHost := foundDevice.Host
-			deviceUDID := foundDevice.Device.UDID
-			foundDevice.Mu.RUnlock()
-
-			// Create a new request to the device target URL on its provider instance
-			proxyReq, err := http.NewRequest(
-				c.Request.Method,
-				fmt.Sprintf("http://%s/device/%s/appium%s",
-					deviceHost,
-					deviceUDID,
-					strings.Replace(c.Request.URL.Path, "/grid", "", -1)),
-				bytes.NewBuffer(origRequestBody),
-			)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create proxy request for this call", "", err.Error()))
-				return
-			}
-
-			// Copy headers
-			for k, v := range c.Request.Header {
-				proxyReq.Header[k] = v
-			}
-
-			// Send the request
-			resp, err := gridCommandClient.Do(proxyReq)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium endpoint", "", err.Error()))
-				return
-			}
-			defer resp.Body.Close()
-
-			// Release the device when the session itself was deleted
-			if isSessionEndRequest {
-				foundDevice.Mu.Lock()
-				foundDevice.IsAvailableForAutomation = true
-				foundDevice.Mu.Unlock()
-				// Start a goroutine that will release the device after 1 second if no other actions were taken
-				go func() {
-					time.Sleep(1 * time.Second)
-					foundDevice.Mu.Lock()
-					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
-						foundDevice.SessionID = ""
-						foundDevice.IsRunningAutomation = false
-						foundDevice.ReleaseLockIfNotHeld()
-					}
-					foundDevice.Mu.Unlock()
-				}()
-			}
-
-			if resp.StatusCode == http.StatusInternalServerError {
-				// Start a goroutine that will release the device after 10 seconds if no other actions were taken
-				go func() {
-					time.Sleep(10 * time.Second)
-					foundDevice.Mu.Lock()
-					if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
-						foundDevice.SessionID = ""
-						foundDevice.IsAvailableForAutomation = true
-						foundDevice.IsRunningAutomation = false
-						foundDevice.ReleaseLockIfNotHeld()
-					}
-					foundDevice.Mu.Unlock()
-				}()
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS got an internal server error from the proxy request to the device respective provider Appium endpoint", "", ""))
-				return
-			}
-
-			// Read the response origRequestBody of the proxied request
-			proxiedRequestBody, err := readBody(resp.Body)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response origRequestBody of the proxied Appium request", "", err.Error()))
-				return
-			}
-
-			// Copy the response back to the original client
-			for k, v := range resp.Header {
-				c.Writer.Header()[k] = v
-			}
-			c.Writer.WriteHeader(resp.StatusCode)
-			c.Writer.Write(proxiedRequestBody)
-
-			foundDevice.Mu.Lock()
-			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			foundDevice.Mu.Unlock()
 		}
 	}
+
+	if foundDevice == nil {
+		if deviceErr != nil {
+			c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
+		}
+		return
+	}
+
+	// `appium:newCommandTimeout` semantics: absent -> 60s default; explicit 0 ->
+	// idle timeout disabled on the hub too (0 makes the janitor skip the idle
+	// check, matching Appium disabling its own timer); anything else -> as given
+	newCommandTimeoutMS := int64(60000)
+	if candidate.NewCommandTimeout != nil {
+		newCommandTimeoutMS = *candidate.NewCommandTimeout * 1000
+	}
+	foundDevice.Mu.Lock()
+	foundDevice.ClaimForAutomation(newCommandTimeoutMS)
+	foundDevice.Mu.Unlock()
+
+	// Remove grid-internal `gads:*` capabilities so the client secret never reaches Appium (and its logs)
+	stripGadsCaps(parsedReq.Raw, capabilityPrefix)
+	updatedSessionBody, _ := json.Marshal(parsedReq.Raw)
+
+	foundDevice.Mu.RLock()
+	deviceHost := foundDevice.Host
+	deviceUDID := foundDevice.Device.UDID
+	foundDevice.Mu.RUnlock()
+
+	// Create a new request to the device target URL
+	proxyReq, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/device/%s/appium/session", deviceHost, deviceUDID), bytes.NewBuffer(updatedSessionBody))
+	if err != nil {
+		abortAutomationClaim(foundDevice)
+		c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to create http request to proxy the call to the device respective provider Appium session endpoint", "session not created", err.Error()))
+		return
+	}
+
+	// Copy headers from the original request to the new request
+	for k, v := range c.Request.Header {
+		proxyReq.Header[k] = v
+	}
+
+	// Send the request
+	resp, err := gridSessionClient.Do(proxyReq)
+	if err != nil {
+		abortAutomationClaim(foundDevice)
+		c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium session endpoint", "session not created", err.Error()))
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		// Release the claim for any error status. On a 500 the lock fields are kept
+		// for a grace period (the delayed goroutine below) so a quick retry by the
+		// same client is not raced; any other error releases the lock right away
+		if resp.StatusCode == http.StatusInternalServerError {
+			abortAutomationClaim(foundDevice)
+			go func() {
+				time.Sleep(10 * time.Second)
+				foundDevice.Mu.Lock()
+				if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 5000) {
+					foundDevice.ReleaseFromAutomation()
+				}
+				foundDevice.Mu.Unlock()
+			}()
+		} else {
+			foundDevice.Mu.Lock()
+			foundDevice.ReleaseFromAutomation()
+			foundDevice.Mu.Unlock()
+		}
+
+		// Read and pass the error response
+		proxiedResponseBody, _ := readBody(resp.Body)
+		for k, v := range resp.Header {
+			c.Writer.Header()[k] = v
+		}
+		c.Writer.WriteHeader(resp.StatusCode)
+		c.Writer.Write(proxiedResponseBody)
+		return
+	}
+
+	// Read the response sessionRequestBody from the proxied request
+	proxiedSessionResponseBody, err := readBody(resp.Body)
+	if err != nil {
+		abortAutomationClaim(foundDevice)
+		c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to read the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
+		return
+	}
+
+	// Unmarshal the response sessionRequestBody to AppiumSessionResponse
+	var proxySessionResponse AppiumSessionResponse
+	err = json.Unmarshal(proxiedSessionResponseBody, &proxySessionResponse)
+	if err != nil {
+		abortAutomationClaim(foundDevice)
+		c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to unmarshal the response sessionRequestBody of the proxied Appium session request", "session not created", err.Error()))
+		return
+	}
+
+	foundDevice.Mu.Lock()
+	// A leftover session ID from a just-ended session must leave the registry
+	// before the new one is indexed
+	if foundDevice.SessionID != "" && foundDevice.SessionID != proxySessionResponse.Value.SessionID {
+		devices.UnregisterSession(foundDevice.SessionID)
+	}
+	foundDevice.SessionID = proxySessionResponse.Value.SessionID
+	devices.RegisterSession(foundDevice.SessionID, foundDevice)
+	foundDevice.Mu.Unlock()
+
+	// Copy the response back to the original client
+	for k, v := range resp.Header {
+		c.Writer.Header()[k] = v
+	}
+	c.Writer.WriteHeader(resp.StatusCode)
+	c.Writer.Write(proxiedSessionResponseBody)
+
+	foundDevice.Mu.Lock()
+	foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+	// Set InUseBy with user ID and tenant for tracking
+	automationUser := user.UserID
+	if automationUser == "" {
+		automationUser = "unknown"
+	}
+	// Only update InUseBy if no UI or API session is active
+	if !foundDevice.HasUISession() && !foundDevice.HasActiveLease() {
+		foundDevice.InUseBy = automationUser
+		foundDevice.InUseByTenant = user.Tenant
+		foundDevice.InUseTS = time.Now().UnixMilli()
+	}
+	foundDevice.Mu.Unlock()
+}
+
+// GridSessionCommand proxies an ordinary WebDriver command (anything under
+// `/grid/session/{id}` that is not the exact session DELETE) to the device's
+// provider Appium endpoint via a streaming reverse proxy
+func GridSessionCommand(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	// Empty on the bare `/session/{id}` route (e.g. `GET /session/{id}`)
+	commandPath := c.Param("path")
+
+	foundDevice, ok := devices.DeviceBySession(sessionID)
+	if !ok {
+		writeW3CError(c, w3cInvalidSessionID(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID)))
+		return
+	}
+
+	proxyGridSessionRequest(c, foundDevice, sessionID, commandPath, func(statusCode int) {
+		if statusCode == http.StatusInternalServerError {
+			releaseAfterProviderError(foundDevice)
+		}
+	})
+}
+
+// GridDeleteSession handles the exact `DELETE /grid/session/{id}` - the only request
+// that ends a session and releases its device
+func GridDeleteSession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+
+	foundDevice, ok := devices.DeviceBySession(sessionID)
+	if !ok {
+		writeW3CError(c, w3cInvalidSessionID(fmt.Sprintf("No session ID `%s` is available to GADS, it timed out or something unexpected occurred", sessionID)))
+		return
+	}
+
+	proxyGridSessionRequest(c, foundDevice, sessionID, "", func(statusCode int) {
+		// The session was deleted - mark the device available right away and fully
+		// release it after a second if no new session claims it in the meantime
+		foundDevice.Mu.Lock()
+		foundDevice.IsAvailableForAutomation = true
+		foundDevice.Mu.Unlock()
+		go func() {
+			time.Sleep(1 * time.Second)
+			foundDevice.Mu.Lock()
+			if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
+				foundDevice.ReleaseFromAutomation()
+			}
+			foundDevice.Mu.Unlock()
+		}()
+		if statusCode == http.StatusInternalServerError {
+			releaseAfterProviderError(foundDevice)
+		}
+	})
+}
+
+// releaseAfterProviderError starts the delayed device release used when the provider
+// answers a session request with a 500 - if no further automation activity happens
+// within 10 seconds the session is considered dead and the device is freed
+func releaseAfterProviderError(foundDevice *devices.LocalHubDevice) {
+	go func() {
+		time.Sleep(10 * time.Second)
+		foundDevice.Mu.Lock()
+		if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
+			foundDevice.ReleaseFromAutomation()
+		}
+		foundDevice.Mu.Unlock()
+	}()
+}
+
+// proxyGridSessionRequest forwards a session-scoped request to the Appium endpoint of
+// the device's provider through a streaming reverse proxy, bounded by the same command
+// timeout the old shared client enforced. onResponse runs on the provider's response
+// status before the response is written back to the client
+func proxyGridSessionRequest(c *gin.Context, foundDevice *devices.LocalHubDevice, sessionID string, commandPath string, onResponse func(statusCode int)) {
+	foundDevice.Mu.RLock()
+	deviceHost := foundDevice.Host
+	deviceUDID := foundDevice.Device.UDID
+	foundDevice.Mu.RUnlock()
+
+	proxy := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.URL.Scheme = "http"
+			req.URL.Host = deviceHost
+			req.URL.Path = fmt.Sprintf("/device/%s/appium/session/%s%s", deviceUDID, sessionID, commandPath)
+		},
+		Transport: proxyTransport,
+		ModifyResponse: func(resp *http.Response) error {
+			if onResponse != nil {
+				onResponse(resp.StatusCode)
+			}
+			resp.Header.Del("Access-Control-Allow-Origin")
+			// Long-standing behavior: a provider 500 is masked with a GADS error body
+			if resp.StatusCode == http.StatusInternalServerError {
+				replaceResponseBody(resp, createErrorResponse("GADS got an internal server error from the proxy request to the device respective provider Appium endpoint", "", ""))
+			}
+			return nil
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, proxyErr error) {
+			c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium endpoint", "", proxyErr.Error()))
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), gridCommandTimeout)
+	defer cancel()
+	proxy.ServeHTTP(c.Writer, c.Request.WithContext(ctx))
+
+	// Record the automation activity so the janitor's idle expiry starts counting
+	// from the end of this command
+	foundDevice.Mu.Lock()
+	foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
+	foundDevice.Mu.Unlock()
+}
+
+// replaceResponseBody swaps a proxied response's body for a GADS error body,
+// draining the original so the upstream connection can be reused
+func replaceResponseBody(resp *http.Response, errorResponse SeleniumSessionErrorResponse) {
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	newBody, _ := json.Marshal(errorResponse)
+	resp.Body = io.NopCloser(bytes.NewReader(newBody))
+	resp.ContentLength = int64(len(newBody))
+	resp.Header.Set("Content-Length", strconv.Itoa(len(newBody)))
+	resp.Header.Set("Content-Type", "application/json; charset=utf-8")
 }
 
 func readBody(r io.Reader) ([]byte, error) {
@@ -524,18 +546,6 @@ func readBody(r io.Reader) ([]byte, error) {
 	}
 
 	return body, nil
-}
-
-func getDeviceBySessionID(sessionID string) (*devices.LocalHubDevice, error) {
-	for _, localDevice := range devices.HubDeviceStore.All() {
-		localDevice.Mu.RLock()
-		sid := localDevice.SessionID
-		localDevice.Mu.RUnlock()
-		if sid == sessionID {
-			return localDevice, nil
-		}
-	}
-	return nil, fmt.Errorf("No device with session ID `%s` was found", sessionID)
 }
 
 func getDeviceByUDID(udid string) (*devices.LocalHubDevice, error) {

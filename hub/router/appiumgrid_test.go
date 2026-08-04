@@ -24,8 +24,8 @@ import (
 )
 
 // newGridSessionDevice returns a connected, live device fixture with an active
-// Appium session, registered in the hub device store. Callers must defer the
-// returned cleanup func
+// Appium session, registered in the hub device store and the session registry.
+// Callers must defer the returned cleanup func
 func newGridSessionDevice(udid string, sessionID string, providerHost string) (*devices.LocalHubDevice, func()) {
 	device := &devices.LocalHubDevice{
 		Device: models.DBDevice{
@@ -45,7 +45,11 @@ func newGridSessionDevice(udid string, sessionID string, providerHost string) (*
 		AppiumNewCommandTimeout:  60000,
 	}
 	devices.HubDeviceStore.Set(udid, device)
-	return device, func() { devices.HubDeviceStore.Delete(udid) }
+	devices.RegisterSession(sessionID, device)
+	return device, func() {
+		devices.UnregisterSession(sessionID)
+		devices.HubDeviceStore.Delete(udid)
+	}
 }
 
 func TestGridSessionDeleteRouting(t *testing.T) {
@@ -251,5 +255,110 @@ func TestSweepExpiredGridSessions(t *testing.T) {
 		assert.False(t, device.IsRunningAutomation)
 		assert.True(t, device.IsAvailableForAutomation)
 		assert.Equal(t, "", device.SessionID)
+
+		_, stillRegistered := devices.DeviceBySession("orphan-session")
+		assert.False(t, stillRegistered)
 	})
+}
+
+func TestGridStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := newGridTestRouter()
+	req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"ready":true`)
+	assert.Contains(t, w.Body.String(), `"message"`)
+}
+
+func TestGridSessionLifecycleFlow(t *testing.T) {
+	// Full create -> command -> delete flow through the real routes, asserting the
+	// session registry entry appears and disappears with the session
+	gin.SetMode(gin.TestMode)
+
+	prevGridDB := gridDB
+	defer func() { gridDB = prevGridDB }()
+	gridDB = &fakeGridStore{
+		credential: models.ClientCredentials{UserID: "test-user", Tenant: "tenant1", IsActive: true},
+		workspaces: []models.Workspace{{ID: "ws1", Tenant: "tenant1"}},
+	}
+
+	var proxiedRequests []string
+	fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxiedRequests = append(proxiedRequests, r.Method+" "+r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/appium/session") {
+			w.Write([]byte(`{"value":{"sessionId":"flow-session","capabilities":{"platformName":"Android"}}}`))
+			return
+		}
+		w.Write([]byte(`{"value":null}`))
+	}))
+	defer fakeProvider.Close()
+
+	udid := "lifecycle-flow-device"
+	device := &devices.LocalHubDevice{
+		Device: models.DBDevice{
+			UDID:        udid,
+			OS:          "android",
+			OSVersion:   "14.0.0",
+			WorkspaceID: "ws1",
+		},
+		Host:                     strings.TrimPrefix(fakeProvider.URL, "http://"),
+		Connected:                true,
+		ProviderState:            "live",
+		LastUpdatedTimestamp:     time.Now().UnixMilli(),
+		IsAvailableForAutomation: true,
+	}
+	devices.HubDeviceStore.Set(udid, device)
+	defer devices.HubDeviceStore.Delete(udid)
+	defer devices.UnregisterSession("flow-session")
+
+	router := newGridTestRouter()
+
+	sessionBody := `{"capabilities":{"alwaysMatch":{"platformName":"Android","gads:clientSecret":"test-secret"}}}`
+	req, _ := http.NewRequest("POST", "/grid/session", bytes.NewBufferString(sessionBody))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	registeredDevice, ok := devices.DeviceBySession("flow-session")
+	if assert.True(t, ok, "the created session must be indexed in the session registry") {
+		assert.Same(t, device, registeredDevice)
+	}
+
+	req, _ = http.NewRequest("POST", "/grid/session/flow-session/url", bytes.NewBufferString(`{"url":"https://example.com"}`))
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, proxiedRequests, "POST /device/lifecycle-flow-device/appium/session/flow-session/url")
+
+	// A bare `GET /session/{id}` is an ordinary command, not a session end
+	req, _ = http.NewRequest("GET", "/grid/session/flow-session", bytes.NewBufferString(""))
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, proxiedRequests, "GET /device/lifecycle-flow-device/appium/session/flow-session")
+	_, ok = devices.DeviceBySession("flow-session")
+	assert.True(t, ok)
+
+	req, _ = http.NewRequest("DELETE", "/grid/session/flow-session", bytes.NewBufferString(""))
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, proxiedRequests, "DELETE /device/lifecycle-flow-device/appium/session/flow-session")
+
+	device.Mu.RLock()
+	assert.True(t, device.IsAvailableForAutomation)
+	device.Mu.RUnlock()
+
+	// The full release (session cleared, registry entry removed) happens on a 1 second delay
+	assert.Eventually(t, func() bool {
+		_, stillRegistered := devices.DeviceBySession("flow-session")
+		device.Mu.RLock()
+		defer device.Mu.RUnlock()
+		return !stillRegistered && !device.IsRunningAutomation && device.SessionID == ""
+	}, 3*time.Second, 100*time.Millisecond)
 }

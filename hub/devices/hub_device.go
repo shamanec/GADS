@@ -121,6 +121,30 @@ func (d *LocalHubDevice) HasActiveLease() bool {
 	return d.LockSource == LockSourceAPI && d.LeaseExpiresAt > time.Now().UnixMilli()
 }
 
+// ClaimForAutomation marks the device as running an automation session, before the
+// Appium session request is even forwarded, so no other automation request can grab it.
+// The action timestamp is stamped so the janitor does not reset the device while the
+// session is still being created. A newCommandTimeoutMS of 0 means the client
+// explicitly disabled the idle expiry for this session.
+func (d *LocalHubDevice) ClaimForAutomation(newCommandTimeoutMS int64) {
+	d.IsRunningAutomation = true
+	d.IsAvailableForAutomation = false
+	d.LastAutomationActionTS = time.Now().UnixMilli()
+	d.AppiumNewCommandTimeout = newCommandTimeoutMS
+}
+
+// ReleaseFromAutomation clears the device's automation session state, including its
+// session registry entry, and releases the lock unless a UI or API session holds it.
+func (d *LocalHubDevice) ReleaseFromAutomation() {
+	if d.SessionID != "" {
+		UnregisterSession(d.SessionID)
+	}
+	d.SessionID = ""
+	d.IsRunningAutomation = false
+	d.IsAvailableForAutomation = true
+	d.ReleaseLockIfNotHeld()
+}
+
 // RefreshLock updates InUseTS to now, keeping the lock alive.
 func (d *LocalHubDevice) RefreshLock() {
 	d.InUseTS = time.Now().UnixMilli()
