@@ -619,6 +619,92 @@ func TestEnrichSessionResponse(t *testing.T) {
 	})
 }
 
+func TestGridCreateSessionStampsIdentityAtClaimTime(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prevGridDB := gridDB
+	defer func() { gridDB = prevGridDB }()
+	gridDB = &fakeGridStore{
+		credential: models.ClientCredentials{UserID: "claim-user", Tenant: "tenant1", IsActive: true},
+		workspaces: []models.Workspace{{ID: "ws1", Tenant: "tenant1"}},
+	}
+
+	newClaimDevice := func(udid string, providerHost string) (*devices.LocalHubDevice, func()) {
+		device := &devices.LocalHubDevice{
+			Device: models.DBDevice{
+				UDID:        udid,
+				OS:          "android",
+				OSVersion:   "14.0.0",
+				WorkspaceID: "ws1",
+			},
+			Host:                     providerHost,
+			Connected:                true,
+			ProviderState:            "live",
+			LastUpdatedTimestamp:     time.Now().UnixMilli(),
+			IsAvailableForAutomation: true,
+		}
+		devices.HubDeviceStore.Set(udid, device)
+		return device, func() { devices.HubDeviceStore.Delete(udid) }
+	}
+
+	createSession := func(udid string) *httptest.ResponseRecorder {
+		router := newGridTestRouter()
+		sessionBody := `{"capabilities":{"alwaysMatch":{"platformName":"Android","gads:clientSecret":"test-secret","appium:udid":"` + udid + `"}}}`
+		req, _ := http.NewRequest("POST", "/grid/session", bytes.NewBufferString(sessionBody))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		return w
+	}
+
+	t.Run("the automation user is visible on the device before the provider responds", func(t *testing.T) {
+		udid := "claim-stamp-device"
+		// Capture what the device selection UI would show while the provider is
+		// still busy creating the session
+		var inUseByDuringCreate, inUseByTenantDuringCreate string
+		fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claimedDevice, _ := devices.HubDeviceStore.Get(udid)
+			claimedDevice.Mu.RLock()
+			inUseByDuringCreate = claimedDevice.InUseBy
+			inUseByTenantDuringCreate = claimedDevice.InUseByTenant
+			claimedDevice.Mu.RUnlock()
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"value":{"sessionId":"claim-stamp-session","capabilities":{"platformName":"Android"}}}`))
+		}))
+		defer fakeProvider.Close()
+
+		_, cleanup := newClaimDevice(udid, strings.TrimPrefix(fakeProvider.URL, "http://"))
+		defer cleanup()
+		defer devices.UnregisterSession("claim-stamp-session")
+
+		w := createSession(udid)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "claim-user", inUseByDuringCreate)
+		assert.Equal(t, "tenant1", inUseByTenantDuringCreate)
+	})
+
+	t.Run("a failed session create clears the stamped identity", func(t *testing.T) {
+		// A non-JSON provider response aborts the claim after the identity stamp
+		fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`not json`))
+		}))
+		defer fakeProvider.Close()
+
+		device, cleanup := newClaimDevice("claim-abort-device", strings.TrimPrefix(fakeProvider.URL, "http://"))
+		defer cleanup()
+
+		w := createSession("claim-abort-device")
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		device.Mu.RLock()
+		defer device.Mu.RUnlock()
+		assert.Equal(t, "", device.InUseBy)
+		assert.Equal(t, "", device.InUseByTenant)
+		assert.False(t, device.IsRunningAutomation)
+		assert.True(t, device.IsAvailableForAutomation)
+	})
+}
+
 func TestGridSessionLifecycleFlow(t *testing.T) {
 	// Full create -> command -> delete flow through the real routes, asserting the
 	// session registry entry appears and disappears with the session
@@ -699,11 +785,12 @@ func TestGridSessionLifecycleFlow(t *testing.T) {
 	assert.True(t, device.IsAvailableForAutomation)
 	device.Mu.RUnlock()
 
-	// The full release (session cleared, registry entry removed) happens on a 1 second delay
+	// The full release (session cleared, registry entry removed) happens only after
+	// the post-session cool-down
 	assert.Eventually(t, func() bool {
 		_, stillRegistered := devices.DeviceBySession("flow-session")
 		device.Mu.RLock()
 		defer device.Mu.RUnlock()
 		return !stillRegistered && !device.IsRunningAutomation && device.SessionID == ""
-	}, 3*time.Second, 100*time.Millisecond)
+	}, postSessionReleaseCooldown+3*time.Second, 100*time.Millisecond)
 }

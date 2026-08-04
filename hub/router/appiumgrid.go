@@ -34,6 +34,12 @@ import (
 // recordings and source dumps can be slow
 const gridCommandTimeout = 90 * time.Second
 
+// After a session DELETE the device stays visibly busy (running automation, lock
+// held) for this cool-down so it cannot be grabbed for remote control between
+// back-to-back tests of a suite. Automation is not delayed by it - the device is
+// claimable for a new session right away, which also cancels the cool-down
+const postSessionReleaseCooldown = 5 * time.Second
+
 // Shared HTTP clients for proxying grid traffic to providers, reusing the same
 // connection pool as the device proxy (proxyTransport). Session creation gets a
 // generous timeout because driver/WDA startup can take minutes
@@ -298,12 +304,13 @@ func resolveGridUser(clientSecret string) (gridUser, *W3CError) {
 }
 
 // abortAutomationClaim undoes a pre-session device claim after a failed session
-// create. The lock fields are left untouched on purpose - no session was
-// established, so there is nothing to release beyond the availability flags
+// create, including the identity stamped at claim time - unless the device is
+// still held via a UI WebSocket or an API lease, whose lock must survive
 func abortAutomationClaim(foundDevice *devices.LocalHubDevice) {
 	foundDevice.Mu.Lock()
 	foundDevice.IsAvailableForAutomation = true
 	foundDevice.IsRunningAutomation = false
+	foundDevice.ReleaseLockIfNotHeld()
 	foundDevice.Mu.Unlock()
 	devices.NotifyDeviceFreed()
 }
@@ -377,8 +384,21 @@ func GridCreateSession(c *gin.Context) {
 	if candidate.NewCommandTimeout != nil {
 		newCommandTimeoutMS = *candidate.NewCommandTimeout * 1000
 	}
+	// Stamp who claimed the device together with the claim itself - the session
+	// create below can take several seconds and the device must not show as busy
+	// without a user for that window. When the same user already holds the device
+	// via a UI or API lock, that lock's identity is kept untouched
+	automationUser := user.UserID
+	if automationUser == "" {
+		automationUser = "unknown"
+	}
 	foundDevice.Mu.Lock()
 	foundDevice.ClaimForAutomation(newCommandTimeoutMS)
+	if !foundDevice.HasUISession() && !foundDevice.HasActiveLease() {
+		foundDevice.InUseBy = automationUser
+		foundDevice.InUseByTenant = user.Tenant
+		foundDevice.InUseTS = time.Now().UnixMilli()
+	}
 	foundDevice.Mu.Unlock()
 
 	// Remove grid-internal `gads:*` capabilities so the client secret never reaches Appium (and its logs)
@@ -417,7 +437,11 @@ func GridCreateSession(c *gin.Context) {
 		// for a grace period (the delayed goroutine below) so a quick retry by the
 		// same client is not raced; any other error releases the lock right away
 		if resp.StatusCode == http.StatusInternalServerError {
-			abortAutomationClaim(foundDevice)
+			foundDevice.Mu.Lock()
+			foundDevice.IsAvailableForAutomation = true
+			foundDevice.IsRunningAutomation = false
+			foundDevice.Mu.Unlock()
+			devices.NotifyDeviceFreed()
 			go func() {
 				time.Sleep(10 * time.Second)
 				foundDevice.Mu.Lock()
@@ -485,15 +509,9 @@ func GridCreateSession(c *gin.Context) {
 
 	foundDevice.Mu.Lock()
 	foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-	// Set InUseBy with user ID and tenant for tracking
-	automationUser := user.UserID
-	if automationUser == "" {
-		automationUser = "unknown"
-	}
-	// Only update InUseBy if no UI or API session is active
+	// Identity was stamped at claim time - only refresh the in-use timestamp now
+	// that the session is established
 	if !foundDevice.HasUISession() && !foundDevice.HasActiveLease() {
-		foundDevice.InUseBy = automationUser
-		foundDevice.InUseByTenant = user.Tenant
 		foundDevice.InUseTS = time.Now().UnixMilli()
 	}
 	foundDevice.Mu.Unlock()
@@ -593,16 +611,17 @@ func GridDeleteSession(c *gin.Context) {
 	}
 
 	proxyGridSessionRequest(c, foundDevice, sessionID, "", func(statusCode int) {
-		// The session was deleted - mark the device available right away and fully
-		// release it after a second if no new session claims it in the meantime
+		// The session was deleted - mark the device claimable for automation right
+		// away, but keep it visibly busy for the cool-down and fully release it
+		// only if no new session claims it in the meantime
 		foundDevice.Mu.Lock()
 		foundDevice.IsAvailableForAutomation = true
 		foundDevice.Mu.Unlock()
 		devices.NotifyDeviceFreed()
 		go func() {
-			time.Sleep(1 * time.Second)
+			time.Sleep(postSessionReleaseCooldown)
 			foundDevice.Mu.Lock()
-			if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 1000) {
+			if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - postSessionReleaseCooldown.Milliseconds()) {
 				foundDevice.ReleaseFromAutomation()
 			}
 			foundDevice.Mu.Unlock()
