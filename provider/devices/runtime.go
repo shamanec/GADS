@@ -57,7 +57,9 @@ type RuntimeState struct {
 	StreamJpegQuality    int
 	StreamScalingFactor  int
 	AppiumLastPingTS     int64
+	AppiumLastCommandTS  int64
 	AppiumSessionID      string
+	AppiumSessionCaps    map[string]interface{}
 	IsAppiumUp           bool
 	HasAppiumSession     bool
 	CurrentRotation      string
@@ -88,7 +90,12 @@ func (r *RuntimeState) GetAppiumSessionID() string                   { return r.
 func (r *RuntimeState) SetAppiumSessionID(id string)                 { r.AppiumSessionID = id }
 func (r *RuntimeState) SetAppiumUp(up bool)                          { r.IsAppiumUp = up }
 func (r *RuntimeState) SetAppiumLastPingTS(ts int64)                 { r.AppiumLastPingTS = ts }
+func (r *RuntimeState) SetAppiumLastCommandTS(ts int64)              { r.AppiumLastCommandTS = ts }
 func (r *RuntimeState) SetHasAppiumSession(has bool)                 { r.HasAppiumSession = has }
+func (r *RuntimeState) SetAppiumSessionCaps(caps map[string]interface{}) {
+	r.AppiumSessionCaps = caps
+}
+func (r *RuntimeState) GetAppiumSessionCaps() map[string]interface{} { return r.AppiumSessionCaps }
 func (r *RuntimeState) GetIsResetting() bool                         { return r.IsResetting }
 func (r *RuntimeState) SetIsResetting(v bool)                        { r.IsResetting = v }
 func (r *RuntimeState) GetIsAppiumUp() bool                          { return r.IsAppiumUp }
@@ -116,10 +123,14 @@ func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelF
 // ToSyncUpdate builds the lightweight struct sent to the hub each second.
 func (r *RuntimeState) ToSyncUpdate() models.ProviderDeviceSync {
 	return models.ProviderDeviceSync{
-		UDID:          r.DBDevice.UDID,
-		Host:          r.Host,
-		Connected:     r.Connected,
-		ProviderState: r.ProviderState,
+		UDID:                      r.DBDevice.UDID,
+		Host:                      r.Host,
+		Connected:                 r.Connected,
+		ProviderState:             r.ProviderState,
+		ReportsAppiumSessionState: true,
+		HasAppiumSession:          r.HasAppiumSession,
+		AppiumSessionID:           r.AppiumSessionID,
+		AppiumLastCommandTS:       r.AppiumLastCommandTS,
 	}
 }
 

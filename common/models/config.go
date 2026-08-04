@@ -40,6 +40,14 @@ type ProviderDeviceSync struct {
 	Host          string `json:"host"`
 	Connected     bool   `json:"connected"`
 	ProviderState string `json:"provider_state"`
+	// Appium session truth as reported by the device's appium-plugin. The marker
+	// field distinguishes a provider that reports these from an older one whose
+	// zero values would be indistinguishable from "no session" - the hub must not
+	// act on the session fields unless the marker is true
+	ReportsAppiumSessionState bool   `json:"reports_appium_session_state"`
+	HasAppiumSession          bool   `json:"has_appium_session"`
+	AppiumSessionID           string `json:"appium_session_id"`
+	AppiumLastCommandTS       int64  `json:"appium_last_command_ts"`
 }
 
 type ProviderData struct {

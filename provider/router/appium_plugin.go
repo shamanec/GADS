@@ -56,6 +56,16 @@ func AppiumPluginAddSession(c *gin.Context) {
 		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
 		dev.SetHasAppiumSession(true)
 		dev.SetAppiumSessionID(sessionID)
+		// Newer plugins also send the resolved session capabilities in the body -
+		// optional, older plugins post with no body at all
+		body, err := io.ReadAll(c.Request.Body)
+		defer c.Request.Body.Close()
+		if err == nil && len(body) > 0 {
+			var sessionCaps map[string]interface{}
+			if json.Unmarshal(body, &sessionCaps) == nil && len(sessionCaps) > 0 {
+				dev.SetAppiumSessionCaps(sessionCaps)
+			}
+		}
 		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Session added")
 		return
@@ -70,6 +80,7 @@ func AppiumPluginRemoveSession(c *gin.Context) {
 		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
 		dev.SetHasAppiumSession(false)
 		dev.SetAppiumSessionID("")
+		dev.SetAppiumSessionCaps(nil)
 		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Session cleared")
 		return
@@ -84,6 +95,22 @@ func AppiumPluginPing(c *gin.Context) {
 		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
 		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Ping for Appium server availability successful")
+		return
+	}
+	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))
+}
+
+// AppiumPluginCommand The plugin reports driver command activity (throttled on its
+// side) so the provider knows a test is actively driving the device even when the
+// commands do not pass through the hub proxy
+func AppiumPluginCommand(c *gin.Context) {
+	udid := c.Param("udid")
+	if dev, ok := devices.DevManager.Get(udid); ok {
+		now := time.Now().UnixMilli()
+		dev.SetAppiumLastPingTS(now)
+		dev.SetAppiumLastCommandTS(now)
+		dev.SetAppiumUp(true)
+		api.OKMessage(c, "Command activity recorded")
 		return
 	}
 	api.NotFound(c, fmt.Sprintf("Device with udid `%s` not found", udid))

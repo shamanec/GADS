@@ -1517,6 +1517,26 @@ func syncDeviceFields(target *devices.LocalHubDevice, source *models.ProviderDev
 	if target.Host != source.Host {
 		target.Host = source.Host
 	}
+
+	// Appium session truth from the provider - older providers do not report it
+	// (marker false), in which case the hub keeps its own tracking only
+	target.ProviderReportsSessionState = source.ReportsAppiumSessionState
+	if source.ReportsAppiumSessionState {
+		target.ProviderHasSession = source.HasAppiumSession
+		target.ProviderSessionID = source.AppiumSessionID
+		target.ProviderLastCommandTS = source.AppiumLastCommandTS
+		// Track since when the provider stopped reporting a session the hub still
+		// considers live - the janitor releases the device once this persists
+		if target.IsRunningAutomation && target.SessionID != "" && !source.HasAppiumSession {
+			if target.ProviderSessionMissingSinceTS == 0 {
+				target.ProviderSessionMissingSinceTS = time.Now().UnixMilli()
+			}
+		} else {
+			target.ProviderSessionMissingSinceTS = 0
+		}
+	} else {
+		target.ProviderSessionMissingSinceTS = 0
+	}
 }
 
 // ProviderUpdate godoc

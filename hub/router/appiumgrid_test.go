@@ -260,6 +260,154 @@ func TestSweepExpiredGridSessions(t *testing.T) {
 		_, stillRegistered := devices.DeviceBySession("orphan-session")
 		assert.False(t, stillRegistered)
 	})
+
+	t.Run("provider-reported command activity keeps a hub-quiet session alive", func(t *testing.T) {
+		device, cleanup := newGridSessionDevice("janitor-provider-active-device", "provider-active-session", "fake-host")
+		defer cleanup()
+		// Idle-expired by hub-side traffic alone, but the plugin saw a command just now
+		device.AppiumNewCommandTimeout = 100
+		device.LastAutomationActionTS = time.Now().UnixMilli() - 5000
+		device.ProviderReportsSessionState = true
+		device.ProviderHasSession = true
+		device.ProviderLastCommandTS = time.Now().UnixMilli()
+
+		sweepExpiredGridSessions()
+
+		device.Mu.RLock()
+		defer device.Mu.RUnlock()
+		assert.True(t, device.IsRunningAutomation)
+		assert.Equal(t, "provider-active-session", device.SessionID)
+	})
+
+	t.Run("provider command activity is ignored for old providers without session truth", func(t *testing.T) {
+		device, cleanup := newGridSessionDevice("janitor-old-provider-device", "old-provider-session", "fake-host")
+		defer cleanup()
+		device.AppiumNewCommandTimeout = 100
+		device.LastAutomationActionTS = time.Now().UnixMilli() - 5000
+		device.ProviderReportsSessionState = false
+		device.ProviderLastCommandTS = time.Now().UnixMilli()
+
+		sweepExpiredGridSessions()
+
+		device.Mu.RLock()
+		defer device.Mu.RUnlock()
+		assert.False(t, device.IsRunningAutomation)
+		assert.True(t, device.IsAvailableForAutomation)
+	})
+
+	t.Run("session the provider has reported gone for over 10s is released without a provider DELETE", func(t *testing.T) {
+		providerRequests := make(chan string, 1)
+		fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodDelete {
+				providerRequests <- r.URL.Path
+			}
+			w.Write([]byte(`{"value":null}`))
+		}))
+		defer fakeProvider.Close()
+
+		device, cleanup := newGridSessionDevice("janitor-gone-session-device", "gone-session", strings.TrimPrefix(fakeProvider.URL, "http://"))
+		defer cleanup()
+		device.ProviderReportsSessionState = true
+		device.ProviderHasSession = false
+		device.ProviderSessionMissingSinceTS = time.Now().UnixMilli() - 11000
+
+		sweepExpiredGridSessions()
+
+		device.Mu.RLock()
+		assert.False(t, device.IsRunningAutomation)
+		assert.True(t, device.IsAvailableForAutomation)
+		assert.Equal(t, "", device.SessionID)
+		device.Mu.RUnlock()
+
+		// The provider already reported the session gone - deleting it there is pointless
+		select {
+		case path := <-providerRequests:
+			t.Fatalf("the janitor sent an unnecessary session DELETE to the provider - %s", path)
+		case <-time.After(500 * time.Millisecond):
+		}
+	})
+
+	t.Run("session missing on the provider for under 10s survives the grace period", func(t *testing.T) {
+		device, cleanup := newGridSessionDevice("janitor-grace-device", "grace-session", "fake-host")
+		defer cleanup()
+		device.ProviderReportsSessionState = true
+		device.ProviderHasSession = false
+		device.ProviderSessionMissingSinceTS = time.Now().UnixMilli() - 3000
+
+		sweepExpiredGridSessions()
+
+		device.Mu.RLock()
+		defer device.Mu.RUnlock()
+		assert.True(t, device.IsRunningAutomation)
+		assert.Equal(t, "grace-session", device.SessionID)
+	})
+}
+
+func TestSyncDeviceFieldsProviderTruth(t *testing.T) {
+	t.Run("session truth fields are copied and missing-session tracking starts", func(t *testing.T) {
+		device := &devices.LocalHubDevice{
+			SessionID:           "hub-session",
+			IsRunningAutomation: true,
+		}
+		syncDeviceFields(device, &models.ProviderDeviceSync{
+			Connected:                 true,
+			ProviderState:             "live",
+			ReportsAppiumSessionState: true,
+			HasAppiumSession:          false,
+			AppiumLastCommandTS:       1234,
+		})
+
+		assert.True(t, device.ProviderReportsSessionState)
+		assert.False(t, device.ProviderHasSession)
+		assert.Equal(t, int64(1234), device.ProviderLastCommandTS)
+		assert.NotZero(t, device.ProviderSessionMissingSinceTS)
+
+		// The missing-since timestamp must hold its first value across pushes, not
+		// restart the grace period every second
+		firstMissingTS := device.ProviderSessionMissingSinceTS
+		syncDeviceFields(device, &models.ProviderDeviceSync{
+			Connected:                 true,
+			ProviderState:             "live",
+			ReportsAppiumSessionState: true,
+			HasAppiumSession:          false,
+		})
+		assert.Equal(t, firstMissingTS, device.ProviderSessionMissingSinceTS)
+
+		// The provider reporting the session again clears the tracking
+		syncDeviceFields(device, &models.ProviderDeviceSync{
+			Connected:                 true,
+			ProviderState:             "live",
+			ReportsAppiumSessionState: true,
+			HasAppiumSession:          true,
+			AppiumSessionID:           "hub-session",
+		})
+		assert.True(t, device.ProviderHasSession)
+		assert.Equal(t, "hub-session", device.ProviderSessionID)
+		assert.Zero(t, device.ProviderSessionMissingSinceTS)
+	})
+
+	t.Run("no tracking starts without a hub-side session", func(t *testing.T) {
+		device := &devices.LocalHubDevice{}
+		syncDeviceFields(device, &models.ProviderDeviceSync{
+			Connected:                 true,
+			ProviderState:             "live",
+			ReportsAppiumSessionState: true,
+			HasAppiumSession:          false,
+		})
+		assert.Zero(t, device.ProviderSessionMissingSinceTS)
+	})
+
+	t.Run("old provider without the marker clears any tracking", func(t *testing.T) {
+		device := &devices.LocalHubDevice{
+			SessionID:                     "hub-session",
+			IsRunningAutomation:           true,
+			ProviderSessionMissingSinceTS: 1234,
+		}
+		syncDeviceFields(device, &models.ProviderDeviceSync{Connected: true, ProviderState: "live"})
+
+		assert.False(t, device.ProviderReportsSessionState)
+		assert.Zero(t, device.ProviderSessionMissingSinceTS)
+	})
 }
 
 func TestGridStatus(t *testing.T) {

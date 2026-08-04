@@ -182,17 +182,33 @@ func sweepExpiredGridSessions() {
 		if hubDevice.LockSource == devices.LockSourceAPI && hubDevice.LeaseExpiresAt > 0 && hubDevice.LeaseExpiresAt < now {
 			hubDevice.ReleaseLock()
 		}
+		// The idle check prefers the freshest activity signal: hub-side proxy traffic
+		// or, when the provider reports Appium session truth, command activity seen
+		// by the appium-plugin (covers clients whose commands keep the driver busy
+		// while the hub-side connection is quiet, e.g. long implicit waits)
+		lastActivityTS := hubDevice.LastAutomationActionTS
+		if hubDevice.ProviderReportsSessionState && hubDevice.ProviderLastCommandTS > lastActivityTS {
+			lastActivityTS = hubDevice.ProviderLastCommandTS
+		}
 		// A new-command timeout of 0 means the client explicitly disabled the idle
 		// timer (`appium:newCommandTimeout: 0`) - such sessions live until they are
 		// deleted or the device disconnects
 		idleExpired := hubDevice.IsRunningAutomation &&
 			hubDevice.AppiumNewCommandTimeout > 0 &&
-			hubDevice.LastAutomationActionTS <= (now-hubDevice.AppiumNewCommandTimeout)
-		if !hubDevice.Connected || hubDevice.ProviderState != "live" || idleExpired {
+			lastActivityTS <= (now-hubDevice.AppiumNewCommandTimeout)
+		// The provider is the ground truth for whether an Appium session actually
+		// exists - if it has reported the session gone for over 10 seconds the hub
+		// entry is stale (crashed driver, externally killed session)
+		providerSaysSessionGone := hubDevice.IsRunningAutomation &&
+			hubDevice.SessionID != "" &&
+			hubDevice.ProviderSessionMissingSinceTS > 0 &&
+			hubDevice.ProviderSessionMissingSinceTS <= (now-10000)
+		if !hubDevice.Connected || hubDevice.ProviderState != "live" || idleExpired || providerSaysSessionGone {
 			// Ask the provider to actually close the expired Appium session (best
 			// effort, in the background) - otherwise the app under test keeps running
-			// on the device until the next session overrides it
-			if hubDevice.SessionID != "" && hubDevice.Connected && hubDevice.ProviderState == "live" {
+			// on the device until the next session overrides it. Pointless when the
+			// provider itself reported the session gone
+			if hubDevice.SessionID != "" && hubDevice.Connected && hubDevice.ProviderState == "live" && !providerSaysSessionGone {
 				go killProviderAppiumSession(hubDevice.Host, hubDevice.Device.UDID, hubDevice.SessionID)
 			}
 			hubDevice.ReleaseFromAutomation()
