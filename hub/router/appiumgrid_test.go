@@ -594,6 +594,29 @@ func TestEnrichSessionResponse(t *testing.T) {
 
 		assert.Contains(t, body, `"gads:controlUrl":"https://gads.example.com/devices/control/enrichment-url-device"`)
 	})
+
+	t.Run("webSocketUrl is stripped - BiDi is not supported", func(t *testing.T) {
+		fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"value":{"sessionId":"enrich-bidi-session","capabilities":{"platformName":"Android","webSocketUrl":"ws://localhost:4723/bidi/enrich-bidi-session","appium:automationName":"UiAutomator2"}}}`))
+		}))
+		defer fakeProvider.Close()
+
+		udid := "enrichment-bidi-device"
+		_, cleanup := newEnrichmentDevice(udid, strings.TrimPrefix(fakeProvider.URL, "http://"))
+		defer cleanup()
+		defer devices.UnregisterSession("enrich-bidi-session")
+
+		body := createSession(t, udid)
+
+		// The provider-localhost WS URL must never reach the client
+		assert.NotContains(t, body, "webSocketUrl")
+		assert.NotContains(t, body, "ws://")
+		// The session is otherwise normal - other caps and the enrichment survive
+		assert.Contains(t, body, `"sessionId":"enrich-bidi-session"`)
+		assert.Contains(t, body, `"appium:automationName":"UiAutomator2"`)
+		assert.Contains(t, body, `"gads:deviceUdid":"enrichment-bidi-device"`)
+	})
 }
 
 func TestGridSessionLifecycleFlow(t *testing.T) {

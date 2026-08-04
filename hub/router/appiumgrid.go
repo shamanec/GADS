@@ -546,6 +546,13 @@ func enrichSessionResponse(responseBody []byte, foundDevice *devices.LocalHubDev
 		caps[capabilityPrefix+":controlUrl"] = fmt.Sprintf("%s/devices/control/%s", hubURL, deviceUDID)
 	}
 
+	// GADS does not support BiDi - Appium's webSocketUrl points at the provider's
+	// localhost, so returning it would leave clients hanging on a dead WS connect
+	if _, hasWebSocketURL := caps["webSocketUrl"]; hasWebSocketURL {
+		slog.Warn(fmt.Sprintf("BiDi is not supported by the GADS grid; webSocketUrl stripped from the session response for device `%s`", deviceUDID))
+		delete(caps, "webSocketUrl")
+	}
+
 	enriched, err := json.Marshal(response)
 	if err != nil {
 		return responseBody
