@@ -43,12 +43,10 @@ func TestParseSessionRequest(t *testing.T) {
 			},
 		},
 		{
-			name:           "firstMatch empty list does not panic and falls back to alwaysMatch",
-			body:           `{"capabilities":{"alwaysMatch":{"platformName":"Android"},"firstMatch":[]}}`,
-			wantCandidates: 1,
-			check: func(t *testing.T, req *GridSessionRequest) {
-				assert.Equal(t, "Android", req.Candidates[0].PlatformName)
-			},
+			name:          "firstMatch present but empty is an error (used to panic)",
+			body:          `{"capabilities":{"alwaysMatch":{"platformName":"Android"},"firstMatch":[]}}`,
+			wantErrCode:   "invalid argument",
+			wantErrStatus: 400,
 		},
 		{
 			name:           "firstMatch single empty object",
@@ -84,12 +82,17 @@ func TestParseSessionRequest(t *testing.T) {
 			},
 		},
 		{
-			name:           "legacy desiredCapabilities fallback",
-			body:           `{"desiredCapabilities":{"platformName":"Android","appium:automationName":"UiAutomator2"}}`,
+			name:          "legacy desiredCapabilities-only body is rejected",
+			body:          `{"desiredCapabilities":{"platformName":"Android","appium:automationName":"UiAutomator2"}}`,
+			wantErrCode:   "invalid argument",
+			wantErrStatus: 400,
+		},
+		{
+			name:           "desiredCapabilities alongside a W3C capabilities object is ignored",
+			body:           `{"capabilities":{"alwaysMatch":{"platformName":"Android"}},"desiredCapabilities":{"platformName":"iOS"}}`,
 			wantCandidates: 1,
 			check: func(t *testing.T, req *GridSessionRequest) {
 				assert.Equal(t, "Android", req.Candidates[0].PlatformName)
-				assert.Equal(t, "UiAutomator2", req.Candidates[0].AutomationName)
 			},
 		},
 		{
@@ -404,18 +407,17 @@ func TestAppiumGridMiddlewareSessionCreate(t *testing.T) {
 		assert.Equal(t, "invalid argument", response.Value.Error)
 	})
 
-	t.Run("firstMatch empty list does not panic", func(t *testing.T) {
+	t.Run("firstMatch empty list returns 400 without panicking", func(t *testing.T) {
 		router := newGridTestRouter()
 		body := `{"capabilities":{"alwaysMatch":{"gads:clientSecret":"test-secret"},"firstMatch":[]}}`
 		req, _ := http.NewRequest("POST", "/grid/session", bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// No candidate targets a known OS - session not created, but no panic
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var response SeleniumSessionErrorResponse
 		assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
-		assert.Equal(t, "session not created", response.Value.Error)
+		assert.Equal(t, "invalid argument", response.Value.Error)
 	})
 
 	t.Run("unknown session ID returns 404 invalid session id", func(t *testing.T) {

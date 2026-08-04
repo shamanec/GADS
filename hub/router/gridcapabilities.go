@@ -82,8 +82,9 @@ type GridSessionRequest struct {
 }
 
 // parseSessionRequest parses a new-session request body per the W3C capabilities
-// processing rules (https://www.w3.org/TR/webdriver2/#processing-capabilities), with a
-// legacy fallback to `desiredCapabilities` when no W3C `capabilities` object is present
+// processing rules (https://www.w3.org/TR/webdriver2/#processing-capabilities).
+// A W3C `capabilities` object is required - legacy JSONWP `desiredCapabilities`-only
+// bodies are rejected, same as Appium >= 2 itself does
 func parseSessionRequest(body []byte, prefix string) (*GridSessionRequest, *W3CError) {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(body, &raw); err != nil {
@@ -93,74 +94,67 @@ func parseSessionRequest(body []byte, prefix string) (*GridSessionRequest, *W3CE
 	req := &GridSessionRequest{Raw: raw}
 
 	capsValue, hasCaps := raw["capabilities"]
-	if hasCaps {
-		caps, ok := capsValue.(map[string]interface{})
-		if !ok {
-			return nil, w3cInvalidArgument("`capabilities` in the session request is not a JSON object")
-		}
-
-		alwaysMatch := map[string]interface{}{}
-		if amValue, ok := caps["alwaysMatch"]; ok {
-			am, ok := amValue.(map[string]interface{})
-			if !ok {
-				return nil, w3cInvalidArgument("`capabilities.alwaysMatch` is not a JSON object")
-			}
-			alwaysMatch = am
-		}
-
-		firstMatch := []interface{}{map[string]interface{}{}}
-		if fmValue, ok := caps["firstMatch"]; ok {
-			fm, ok := fmValue.([]interface{})
-			if !ok {
-				return nil, w3cInvalidArgument("`capabilities.firstMatch` is not a JSON list")
-			}
-			if len(fm) > 0 {
-				firstMatch = fm
-			}
-		}
-
-		for i, entryValue := range firstMatch {
-			entry, ok := entryValue.(map[string]interface{})
-			if !ok {
-				return nil, w3cInvalidArgument(fmt.Sprintf("`capabilities.firstMatch[%d]` is not a JSON object", i))
-			}
-
-			merged := make(map[string]interface{}, len(alwaysMatch)+len(entry))
-			for k, v := range alwaysMatch {
-				merged[k] = v
-			}
-			for k, v := range entry {
-				if _, exists := merged[k]; exists {
-					return nil, w3cInvalidArgument(fmt.Sprintf("Capability `%s` is present in both alwaysMatch and firstMatch[%d]", k, i))
-				}
-				merged[k] = v
-			}
-
-			candidate, w3cErr := extractCandidate(merged, prefix)
-			if w3cErr != nil {
-				return nil, w3cErr
-			}
-			req.Candidates = append(req.Candidates, candidate)
-		}
-
-		return req, nil
+	if !hasCaps {
+		return nil, w3cInvalidArgument("The session request contains no `capabilities` object - W3C capabilities are required, legacy `desiredCapabilities`-only bodies are not supported")
+	}
+	caps, ok := capsValue.(map[string]interface{})
+	if !ok {
+		return nil, w3cInvalidArgument("`capabilities` in the session request is not a JSON object")
 	}
 
-	// Legacy fallback - no W3C `capabilities` object at all, use `desiredCapabilities` as a single candidate
-	if desiredValue, ok := raw["desiredCapabilities"]; ok {
-		desired, ok := desiredValue.(map[string]interface{})
+	// alwaysMatch is optional - default to an empty capabilities object
+	alwaysMatch := map[string]interface{}{}
+	if rawAlwaysMatch, present := caps["alwaysMatch"]; present {
+		alwaysMatchCaps, ok := rawAlwaysMatch.(map[string]interface{})
 		if !ok {
-			return nil, w3cInvalidArgument("`desiredCapabilities` in the session request is not a JSON object")
+			return nil, w3cInvalidArgument("`capabilities.alwaysMatch` is not a JSON object")
 		}
-		candidate, w3cErr := extractCandidate(desired, prefix)
+		alwaysMatch = alwaysMatchCaps
+	}
+
+	// firstMatch absent -> treat as a single empty entry `[{}]` (spec), so alwaysMatch
+	// alone still produces one candidate
+	firstMatch := []interface{}{map[string]interface{}{}}
+	if rawFirstMatch, present := caps["firstMatch"]; present {
+		firstMatchEntries, ok := rawFirstMatch.([]interface{})
+		if !ok {
+			return nil, w3cInvalidArgument("`capabilities.firstMatch` is not a JSON list")
+		}
+		// Present-but-empty is an error per spec - Appium rejects the body the same way
+		if len(firstMatchEntries) == 0 {
+			return nil, w3cInvalidArgument("`capabilities.firstMatch` must contain at least one entry when present")
+		}
+		firstMatch = firstMatchEntries
+	}
+
+	// Build one merged candidate per firstMatch entry (spec `#dfn-merging-capabilities`):
+	// start from the alwaysMatch capabilities, then add the entry's own. The same
+	// capability appearing in both places is an error per spec, not an overwrite
+	for entryIndex, rawEntry := range firstMatch {
+		firstMatchCaps, ok := rawEntry.(map[string]interface{})
+		if !ok {
+			return nil, w3cInvalidArgument(fmt.Sprintf("`capabilities.firstMatch[%d]` is not a JSON object", entryIndex))
+		}
+
+		mergedCaps := make(map[string]interface{}, len(alwaysMatch)+len(firstMatchCaps))
+		for capName, capValue := range alwaysMatch {
+			mergedCaps[capName] = capValue
+		}
+		for capName, capValue := range firstMatchCaps {
+			if _, alsoInAlwaysMatch := mergedCaps[capName]; alsoInAlwaysMatch {
+				return nil, w3cInvalidArgument(fmt.Sprintf("Capability `%s` is present in both alwaysMatch and firstMatch[%d]", capName, entryIndex))
+			}
+			mergedCaps[capName] = capValue
+		}
+
+		candidate, w3cErr := extractCandidate(mergedCaps, prefix)
 		if w3cErr != nil {
 			return nil, w3cErr
 		}
 		req.Candidates = append(req.Candidates, candidate)
-		return req, nil
 	}
 
-	return nil, w3cInvalidArgument("The session request contains neither a `capabilities` nor a `desiredCapabilities` object")
+	return req, nil
 }
 
 func extractCandidate(caps map[string]interface{}, prefix string) (gridCandidate, *W3CError) {
@@ -265,25 +259,28 @@ func selectGridCandidate(candidates []gridCandidate) (gridCandidate, bool) {
 // from every capabilities location in the session request before it is forwarded to
 // Appium - they are grid-internal and the secret must never reach provider Appium logs
 func stripGadsCaps(sessionReq map[string]interface{}, prefix string) {
-	keyPrefix := prefix + ":"
+	gadsKeyPrefix := prefix + ":"
 
-	stripFromMap := func(value interface{}) {
-		if m, ok := value.(map[string]interface{}); ok {
-			for k := range m {
-				if strings.HasPrefix(k, keyPrefix) {
-					delete(m, k)
+	// Deletes every `<prefix>:*` key if the value is a capabilities object, no-op otherwise
+	stripFromCapsObject := func(rawCapsObject interface{}) {
+		if capsObject, ok := rawCapsObject.(map[string]interface{}); ok {
+			for capName := range capsObject {
+				if strings.HasPrefix(capName, gadsKeyPrefix) {
+					delete(capsObject, capName)
 				}
 			}
 		}
 	}
 
 	if caps, ok := sessionReq["capabilities"].(map[string]interface{}); ok {
-		stripFromMap(caps["alwaysMatch"])
-		if firstMatch, ok := caps["firstMatch"].([]interface{}); ok {
-			for _, entry := range firstMatch {
-				stripFromMap(entry)
+		stripFromCapsObject(caps["alwaysMatch"])
+		if firstMatchEntries, ok := caps["firstMatch"].([]interface{}); ok {
+			for _, firstMatchEntry := range firstMatchEntries {
+				stripFromCapsObject(firstMatchEntry)
 			}
 		}
 	}
-	stripFromMap(sessionReq["desiredCapabilities"])
+	// Old java-clients send a legacy `desiredCapabilities` object alongside the W3C one -
+	// the secret must be stripped from there too before the body is forwarded
+	stripFromCapsObject(sessionReq["desiredCapabilities"])
 }
