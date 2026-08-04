@@ -43,7 +43,6 @@ import (
 	"github.com/danielpaulus/go-ios/ios/tunnel"
 	"github.com/danielpaulus/go-ios/ios/zipconduit"
 	"golang.org/x/sync/errgroup"
-	"howett.net/plist"
 )
 
 // IOSDevice holds iOS-specific runtime state alongside the shared RuntimeState.
@@ -91,7 +90,7 @@ func (d *IOSDevice) Setup() (retErr error) {
 	}()
 
 	d.SetProviderState("preparing")
-	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Running setup for device `%v`", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("ios_device_setup", "Running setup for device `%v`", d.GetUDID())
 
 	if err := d.initGoIOSDevice(); err != nil {
 		return d.resetWithError("get go-ios DeviceEntry", err)
@@ -124,7 +123,6 @@ func (d *IOSDevice) Setup() (retErr error) {
 	}
 
 	if d.DBDevice.StreamType == models.IOSWebRTCBroadcastExtensionId {
-		fmt.Println("BROADCAST SETUP")
 		broadcastRunning := false
 		if conn, err := net.DialTimeout("tcp", "localhost:"+d.StreamPort, 2*time.Second); err == nil {
 			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
@@ -137,34 +135,34 @@ func (d *IOSDevice) Setup() (retErr error) {
 
 		if !broadcastRunning {
 			if err := d.installApp(fmt.Sprintf("%s/Broadcast.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
-				logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install broadcast extension on device `%s` - %s", d.GetUDID(), err))
+				logger.ProviderLogger.LogErrorf("ios_device_setup", "Could not install broadcast extension on device `%s` - %s", d.GetUDID(), err)
 				d.Reset("Failed to install broadcast extension on device.")
 				return err
 			}
 
 			// Start the broadcast extension via WebDriverAgent
-			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Starting broadcast extension on device `%s`", d.GetUDID()))
+			logger.ProviderLogger.LogInfof("ios_device_setup", "Starting broadcast extension on device `%s`", d.GetUDID())
 			if err := d.startBroadcastViaWDA(); err != nil {
 				return fmt.Errorf("failed to start broadcast: %w", err)
 			}
-			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension started on device `%s`", d.GetUDID()))
+			logger.ProviderLogger.LogInfof("ios_device_setup", "Broadcast extension started on device `%s`", d.GetUDID())
 			// No fixed wait here — waitForBroadcastStream below polls until
 			// the extension actually streams data.
 		} else {
-			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension is already running on device `%s`", d.GetUDID()))
+			logger.ProviderLogger.LogInfof("ios_device_setup", "Broadcast extension is already running on device `%s`", d.GetUDID())
 		}
 
 		// Verify the broadcast extension is actually streaming
-		logger.ProviderLogger.LogInfo("Verifying broadcast extension is streaming on device `%s`", d.GetUDID())
+		logger.ProviderLogger.LogInfof("ios_device_setup", "Verifying broadcast extension is streaming on device `%s`", d.GetUDID())
 		if err := d.waitForBroadcastStream(); err != nil {
 			return fmt.Errorf("broadcast extension not streaming: %w", err)
 		}
 
 		// Disable memory limit for the broadcast extension
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Disabling broadcast extension memory limit on device `%s`", d.GetUDID()))
+		logger.ProviderLogger.LogInfof("ios_device_setup", "Disabling broadcast extension memory limit on device `%s`", d.GetUDID())
 		d.disableBroadcastExtensionMemoryLimit()
 
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Broadcast extension setup complete on device `%s", d.GetUDID()))
+		logger.ProviderLogger.LogInfof("ios_device_setup", "Broadcast extension setup complete on device `%s", d.GetUDID())
 	}
 
 	if err := d.applyStreamConfig(); err != nil {
@@ -243,7 +241,7 @@ func (d *IOSDevice) checkDeveloperMode() error {
 func (d *IOSDevice) getDeviceInfoAndScreenSize() error {
 	plistValues, err := ios.GetValuesPlist(d.GoIOSDeviceEntry)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not get info plist values with go-ios for device `%v` - %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Could not get info plist values with go-ios for device `%v` - %v", d.GetUDID(), err)
 		d.Reset("Failed to get info plist values with go-ios.")
 		return err
 	}
@@ -251,7 +249,7 @@ func (d *IOSDevice) getDeviceInfoAndScreenSize() error {
 
 	if d.DBDevice.ScreenHeight == "" || d.DBDevice.ScreenWidth == "" {
 		if err := d.updateScreenSize(plistValues["ProductType"].(string)); err != nil {
-			logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to update screen dimensions for device `%s` - %s", d.GetUDID(), err))
+			logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to update screen dimensions for device `%s` - %s", d.GetUDID(), err)
 			d.Reset("Failed to update screen dimensions for device.")
 			return err
 		}
@@ -262,7 +260,7 @@ func (d *IOSDevice) getDeviceInfoAndScreenSize() error {
 func (d *IOSDevice) setupTunnelIfNeeded() error {
 	tunnelPort, err := providerutil.GetFreePort()
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not allocate free tunnel port for device `%v` - %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Could not allocate free tunnel port for device `%v` - %v", d.GetUDID(), err)
 		d.Reset("Failed to allocate free tunnel port for device.")
 		return err
 	}
@@ -275,7 +273,7 @@ func (d *IOSDevice) setupTunnelIfNeeded() error {
 
 	deviceTunnel, err := d.createTunnel()
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create userspace tunnel for device `%s` - %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to create userspace tunnel for device `%s` - %v", d.GetUDID(), err)
 		d.Reset("Failed to create userspace tunnel for device.")
 		return err
 	}
@@ -285,7 +283,7 @@ func (d *IOSDevice) setupTunnelIfNeeded() error {
 	d.GoIOSDeviceEntry.UserspaceTUN = d.GoIOSTunnel.UserspaceTUN
 
 	if err := d.deviceWithRsdProvider(); err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to create go-ios device entry with rsd provider for device `%s` - %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to create go-ios device entry with rsd provider for device `%s` - %v", d.GetUDID(), err)
 		d.Reset("Failed to create go-ios device entry with rsd provider for device.")
 		return err
 	}
@@ -298,11 +296,11 @@ func (d *IOSDevice) disableBroadcastExtensionMemoryLimit() {
 	}
 	pid, err := d.getProcessPid("gads-broadcast-extension")
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to get pid for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to get pid for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err)
 		return
 	}
 	if err := d.disableProcessMemoryLimit(pid); err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to disable memory limit for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to disable memory limit for GADS broadcast extension process on device `%s` - %s", d.GetUDID(), err)
 	}
 }
 
@@ -336,13 +334,13 @@ func (d *IOSDevice) startWebDriverAgent() error {
 	// with Xcode 15.4+, and testmanagerd (Xcode 15 path) requires an RSD tunnel that is
 	// only available from iOS 17.4. Upgrading the device to iOS 17.4+ resolves this.
 	if d.SemVer.Major() == 17 && d.SemVer.Compare(semver.MustParse("17.4.0")) < 0 {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Device `%s` runs iOS 17.0-17.3 which is not supported - upgrade to iOS 17.4+", d.GetUDID()))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Device `%s` runs iOS 17.0-17.3 which is not supported - upgrade to iOS 17.4+", d.GetUDID())
 		d.Reset("iOS 17.0-17.3 is not supported. Please upgrade the device to iOS 17.4 or newer.")
 		return fmt.Errorf("iOS 17.0-17.3 is not supported - upgrade the device to iOS 17.4+")
 	}
 
 	if err := d.installApp(fmt.Sprintf("%s/WebDriverAgent.ipa", config.ProviderConfig.ProviderFolder)); err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Could not install WebDriverAgent on device `%s` - %s", d.GetUDID(), err)
 		d.Reset("Failed to install WebDriverAgent on device.")
 		return err
 	}
@@ -355,10 +353,10 @@ func (d *IOSDevice) waitForWebDriverAgent() error {
 
 	select {
 	case <-d.WdaReadyChan:
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Successfully started WebDriverAgent for device `%v` forwarded on port %v", d.GetUDID(), d.WDAPort))
+		logger.ProviderLogger.LogInfof("ios_device_setup", "Successfully started WebDriverAgent for device `%v` forwarded on port %v", d.GetUDID(), d.WDAPort)
 		return nil
 	case <-time.After(60 * time.Second):
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Did not successfully start WebDriverAgent on device `%v` in 60 seconds", d.GetUDID()))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Did not successfully start WebDriverAgent on device `%v` in 60 seconds", d.GetUDID())
 		d.Reset("Failed to start WebDriverAgent on device.")
 		return fmt.Errorf("WDA did not start in time")
 	}
@@ -418,7 +416,7 @@ func (d *IOSDevice) goIosForward(hostPort string, devicePort string) {
 
 	cl, err := forward.Forward(d.GoIOSDeviceEntry, uint16(hostPortInt), uint16(devicePortInt))
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to forward device port %s to host port %s for device `%s` - %s", devicePort, hostPort, d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to forward device port %s to host port %s for device `%s` - %s", devicePort, hostPort, d.GetUDID(), err)
 		d.Reset("Failed to forward device port to host port due to an error.")
 		return
 	}
@@ -451,23 +449,129 @@ func (d *IOSDevice) UpdateStreamSettingsOnDevice() error {
 }
 
 const (
-	doronz88PDIBaseURL  = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/"
-	doronz88PDICacheTTL = 24 * time.Hour
+	ddiDownloadBaseURL = "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/DeveloperDiskImages"
+	ddiImageFile       = "DeveloperDiskImage.dmg"
+	ddiSignatureFile   = "DeveloperDiskImage.dmg.signature"
 )
 
-var doronz88PDIMu sync.Mutex
+// DDI versions available in doronz88/DeveloperDiskImage under DeveloperDiskImages/.
+var ddiAvailableVersions = []string{
+	"11.4",
+	"12.0", "12.1", "12.2", "12.3", "12.4",
+	"13.0", "13.1", "13.2", "13.3", "13.4", "13.5", "13.6", "13.7",
+	"14.0", "14.1", "14.2", "14.3", "14.4", "14.5", "14.6", "14.7", "14.8",
+	"15.0", "15.1", "15.2", "15.3", "15.4", "15.5", "15.6", "15.7", "15.8",
+	"16.0", "16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "16.7",
+}
 
-type pdiManifest struct {
-	BuildIdentities []struct {
-		Manifest struct {
-			PersonalizedDMG struct {
-				Info struct{ Path string }
-			} `plist:"PersonalizedDMG"`
-			LoadableTrustCache struct {
-				Info struct{ Path string }
-			}
+// Serializes DDI downloads so concurrent setups of same-version devices
+// don't race on the same files.
+var ddiDownloadMu sync.Mutex
+
+// matchAvailableDDIVersion returns the closest available DDI version that is
+// not newer than the device version (e.g. 16.7.8 -> 16.7, 15.7.2 -> 15.7).
+func matchAvailableDDIVersion(deviceVersion *semver.Version) (string, error) {
+	var best *semver.Version
+	var bestString string
+	for _, available := range ddiAvailableVersions {
+		parsed := semver.MustParse(available)
+		if parsed.GreaterThan(deviceVersion) {
+			continue
+		}
+		if best == nil || parsed.GreaterThan(best) {
+			best = parsed
+			bestString = available
 		}
 	}
+	if bestString == "" {
+		return "", fmt.Errorf("no Developer Disk Image available for iOS %s, oldest available is %s", deviceVersion, ddiAvailableVersions[0])
+	}
+	return bestString, nil
+}
+
+// downloadDeveloperImage downloads the DDI for the device version from
+// doronz88/DeveloperDiskImage, keeping the same on-disk layout as go-ios
+// (<baseDir>/<version>/DeveloperDiskImage.dmg + .signature) so previously
+// downloaded images keep being reused. Returns the path to the .dmg.
+// The version is read live from the device - the DB
+// OSVersion (d.SemVer) can be stale or truncated (e.g. `15` for a 15.8.x
+// device) which would resolve to a wrong image.
+func (d *IOSDevice) downloadDeveloperImage(baseDir string) (string, error) {
+	allValues, err := ios.GetValues(d.GoIOSDeviceEntry)
+	if err != nil {
+		return "", fmt.Errorf("could not get device values to determine iOS version - %w", err)
+	}
+	deviceVersion, err := semver.NewVersion(allValues.Value.ProductVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed parsing device ProductVersion `%s` - %w", allValues.Value.ProductVersion, err)
+	}
+
+	version, err := matchAvailableDDIVersion(deviceVersion)
+	if err != nil {
+		return "", err
+	}
+
+	ddiDownloadMu.Lock()
+	defer ddiDownloadMu.Unlock()
+
+	versionDir := filepath.Join(baseDir, version)
+	imagePath := filepath.Join(versionDir, ddiImageFile)
+	signaturePath := filepath.Join(versionDir, ddiSignatureFile)
+
+	if fileExistsNonEmpty(imagePath) && fileExistsNonEmpty(signaturePath) {
+		return imagePath, nil
+	}
+
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		return "", fmt.Errorf("could not create DDI directory `%s` - %w", versionDir, err)
+	}
+
+	logger.ProviderLogger.LogInfof("ios_device_setup", "Downloading iOS %s DDI from doronz88/DeveloperDiskImage for device `%s`", version, d.GetUDID())
+	for _, file := range []struct{ url, dest string }{
+		{fmt.Sprintf("%s/%s/%s", ddiDownloadBaseURL, version, ddiImageFile), imagePath},
+		{fmt.Sprintf("%s/%s/%s", ddiDownloadBaseURL, version, ddiSignatureFile), signaturePath},
+	} {
+		if err := downloadFileToPath(file.url, file.dest); err != nil {
+			return "", fmt.Errorf("failed to download `%s` - %w", file.url, err)
+		}
+	}
+
+	return imagePath, nil
+}
+
+func fileExistsNonEmpty(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.Size() > 0
+}
+
+// downloadFileToPath streams a URL to a file, writing to a temp file first so
+// a failed download never leaves a partial file at the destination.
+func downloadFileToPath(url string, dest string) error {
+	client := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("GET %s returned status %d", url, resp.StatusCode)
+	}
+
+	tmp := dest + ".tmp"
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		out.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, dest)
 }
 
 func (d *IOSDevice) mountDeveloperImage() error {
@@ -475,14 +579,13 @@ func (d *IOSDevice) mountDeveloperImage() error {
 
 	var imagePath string
 	var err error
-
 	if d.SemVer.Major() >= 17 {
-		imagePath, err = downloadDoronz88PDI(basedir)
+		imagePath = filepath.Join(config.ProviderConfig.ProviderFolder, "ios-ddi")
 	} else {
-		imagePath, err = imagemounter.DownloadImageFor(d.GoIOSDeviceEntry, basedir)
+		imagePath, err = d.downloadDeveloperImage(basedir)
 	}
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to download DDI for device `%s` - %s", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to download DDI for device `%s` - %s", d.GetUDID(), err)
 		return fmt.Errorf("failed to download DDI: %w", err)
 	}
 
@@ -496,105 +599,10 @@ func (d *IOSDevice) mountDeveloperImage() error {
 	return nil
 }
 
-func downloadDoronz88PDI(basedir string) (string, error) {
-	doronz88PDIMu.Lock()
-	defer doronz88PDIMu.Unlock()
-
-	dir := fmt.Sprintf("%s/doronz88-pdi", basedir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("could not create PDI directory: %w", err)
-	}
-
-	// Download/refresh BuildManifest.plist with TTL-based staleness.
-	manifestDest := fmt.Sprintf("%s/BuildManifest.plist", dir)
-	fi, statErr := os.Stat(manifestDest)
-	manifestExists := statErr == nil && fi.Size() > 0
-	manifestStale := manifestExists && time.Since(fi.ModTime()) > doronz88PDICacheTTL
-
-	if !manifestExists || manifestStale {
-		logger.ProviderLogger.LogInfo("ios_device_setup", "Downloading BuildManifest.plist from doronz88/DeveloperDiskImage")
-		tmp := manifestDest + ".tmp"
-		if err := downloadFileToPath(doronz88PDIBaseURL+"BuildManifest.plist", tmp); err != nil {
-			os.Remove(tmp)
-			if !manifestExists {
-				return "", fmt.Errorf("failed to download BuildManifest.plist: %w", err)
-			}
-			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to refresh BuildManifest.plist, using cached version: %s", err))
-		} else if err := os.Rename(tmp, manifestDest); err != nil {
-			os.Remove(tmp)
-			if !manifestExists {
-				return "", fmt.Errorf("failed to save BuildManifest.plist: %w", err)
-			}
-			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to replace BuildManifest.plist, using cached version: %s", err))
-		}
-	}
-
-	// Parse manifest to get the paths go-ios will look for.
-	f, err := os.Open(manifestDest)
-	if err != nil {
-		return "", fmt.Errorf("failed to open BuildManifest.plist: %w", err)
-	}
-	defer f.Close()
-	var m pdiManifest
-	if err := plist.NewDecoder(f).Decode(&m); err != nil {
-		return "", fmt.Errorf("failed to parse BuildManifest.plist: %w", err)
-	}
-	if len(m.BuildIdentities) == 0 {
-		return "", fmt.Errorf("BuildManifest.plist contains no BuildIdentities")
-	}
-
-	// The repo ships Image.dmg / Image.dmg.trustcache but BuildManifest.plist
-	// references versioned names (e.g. 022-21627-023.dmg). Download the generic
-	// files and save them under the paths the manifest specifies so go-ios finds them.
-	dmgRelPath := m.BuildIdentities[0].Manifest.PersonalizedDMG.Info.Path
-	tcRelPath := m.BuildIdentities[0].Manifest.LoadableTrustCache.Info.Path
-
-	for _, entry := range []struct{ relPath, remoteFile string }{
-		{dmgRelPath, "Image.dmg"},
-		{tcRelPath, "Image.dmg.trustcache"},
-	} {
-		if entry.relPath == "" {
-			continue
-		}
-		dest := filepath.Join(dir, entry.relPath)
-		fi, statErr := os.Stat(dest)
-		if statErr == nil && fi.Size() > 0 {
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-			return "", fmt.Errorf("could not create directory for %s: %w", entry.relPath, err)
-		}
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Downloading %s as %s from doronz88/DeveloperDiskImage", entry.remoteFile, entry.relPath))
-		if err := downloadFileToPath(doronz88PDIBaseURL+entry.remoteFile, dest); err != nil {
-			os.Remove(dest)
-			return "", fmt.Errorf("failed to download %s: %w", entry.remoteFile, err)
-		}
-	}
-	return dir, nil
-}
-
-func downloadFileToPath(url, dest string) error {
-	resp, err := netClient.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected HTTP status %d for %s", resp.StatusCode, url)
-	}
-	f, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = io.Copy(f, resp.Body)
-	return err
-}
-
 func (d *IOSDevice) pair() (pairErr error) {
 	if config.ProviderConfig.UseIOSPairCache {
 		if err := restorePairRecordToUsbmuxd(d.GetUDID()); err == nil {
-			logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Restored cached pairing record for device `%s`, skipping pairing", d.GetUDID()))
+			logger.ProviderLogger.LogInfof("ios_device_setup", "Restored cached pairing record for device `%s`, skipping pairing", d.GetUDID())
 			return nil
 		}
 	}
@@ -602,11 +610,11 @@ func (d *IOSDevice) pair() (pairErr error) {
 	// Skip when a pairing record already exists - re-pairing is unnecessary and
 	// go-ios Pair() can panic mid-flow depending on the device lockdown state.
 	if _, err := ios.ReadPairRecord(d.GetUDID()); err == nil {
-		logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Device `%s` already paired, skipping pair flow", d.GetUDID()))
+		logger.ProviderLogger.LogInfof("ios_device_setup", "Device `%s` already paired, skipping pair flow", d.GetUDID())
 		return nil
 	}
 
-	logger.ProviderLogger.LogInfo("ios_device_setup", fmt.Sprintf("Pairing device `%s`", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("ios_device_setup", "Pairing device `%s`", d.GetUDID())
 
 	defer func() {
 		if pairErr == nil && config.ProviderConfig.UseIOSPairCache {
@@ -616,7 +624,7 @@ func (d *IOSDevice) pair() (pairErr error) {
 
 	p12, err := os.ReadFile(fmt.Sprintf("%s/supervision.p12", config.ProviderConfig.ProviderFolder))
 	if err != nil {
-		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not read supervision.p12 file when pairing device with UDID: %s, falling back to unsupervised pairing - %s", d.GetUDID(), err))
+		logger.ProviderLogger.LogWarnf("ios_device_setup", "Could not read supervision.p12 file when pairing device with UDID: %s, falling back to unsupervised pairing - %s", d.GetUDID(), err)
 		err = ios.Pair(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
@@ -633,7 +641,7 @@ func (d *IOSDevice) pair() (pairErr error) {
 	}
 	err = ios.PairSupervised(d.GoIOSDeviceEntry, p12, config.ProviderConfig.SupervisionPassword)
 	if err != nil {
-		logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Failed to perform supervised pairing on device `%s`, falling back to unsupervised - %s", d.GetUDID(), err))
+		logger.ProviderLogger.LogWarnf("ios_device_setup", "Failed to perform supervised pairing on device `%s`, falling back to unsupervised - %s", d.GetUDID(), err)
 		err = ios.Pair(d.GoIOSDeviceEntry)
 		if err != nil {
 			return fmt.Errorf("Could not perform unsupervised pairing successfully - %s", err)
@@ -736,15 +744,15 @@ func (d *IOSDevice) installApp(appPath string) error {
 		appPath = strings.TrimPrefix(appPath, "./")
 	}
 
-	logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Attempting to install app `%s` on device `%s`", appPath, d.GetUDID()))
+	logger.ProviderLogger.LogInfof("install_app_ios", "Attempting to install app `%s` on device `%s`", appPath, d.GetUDID())
 	conn, err := zipconduit.New(d.GoIOSDeviceEntry)
 	if err != nil {
-		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to create zipconduit connection when installing app `%s` on device `%s`", appPath, d.GetUDID()))
+		logger.ProviderLogger.LogInfof("install_app_ios", "Failed to create zipconduit connection when installing app `%s` on device `%s`", appPath, d.GetUDID())
 		d.Reset("Failed to create zipconduit connection for app installation.")
 		return err
 	}
 	if err := conn.SendFile(appPath); err != nil {
-		logger.ProviderLogger.LogInfo("install_app_ios", fmt.Sprintf("Failed to send app file when installing app `%s` on device `%s`", appPath, d.GetUDID()))
+		logger.ProviderLogger.LogInfof("install_app_ios", "Failed to send app file when installing app `%s` on device `%s`", appPath, d.GetUDID())
 		d.Reset("Failed to send app file for installation.")
 		return err
 	}
@@ -835,7 +843,7 @@ func (d *IOSDevice) runWDA() {
 	}
 	_, err := testmanagerd.RunTestWithConfig(d.Context, testConfig)
 	if err != nil {
-		logger.ProviderLogger.LogError("ios_device_setup", fmt.Sprintf("Failed to run WebDriverAgent via testmanagerd on device `%s` - %s", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("ios_device_setup", "Failed to run WebDriverAgent via testmanagerd on device `%s` - %s", d.GetUDID(), err)
 		d.Reset("Failed to run WebDriverAgent due to an error.")
 	}
 }
@@ -1088,7 +1096,7 @@ func (d *IOSDevice) ChangeRotation(rotation string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		d.Logger.LogDebug("ios_rotation", fmt.Sprintf("WebDriverAgent did not rotate device `%s` to `%s` - the foreground app may not support this orientation", d.GetUDID(), rotation))
+		d.Logger.LogDebugf("ios_rotation", "WebDriverAgent did not rotate device `%s` to `%s` - the foreground app may not support this orientation", d.GetUDID(), rotation)
 	}
 	return nil
 }

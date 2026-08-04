@@ -63,7 +63,7 @@ func NewPCMAudioExtractorAndroid(device *models.DBDevice) (*PCMAudioExtractor, e
 	}
 	extractor.conn = conn
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to audio stream for device %s", device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Connected to audio stream for device %s", device.UDID)
 
 	go extractor.extractAudioFrames()
 
@@ -75,20 +75,20 @@ func (e *PCMAudioExtractor) extractAudioFrames() {
 	defer close(e.audioChannel)
 	defer e.conn.Close()
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting audio frame extraction from WebSocket for device %s", e.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Starting audio frame extraction from WebSocket for device %s", e.device.UDID)
 
 	frameCount := 0
 
 	for {
 		select {
 		case <-e.ctx.Done():
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping audio extraction for device %s", e.device.UDID))
+			logger.ProviderLogger.LogInfof("stream_webrtc", "Stopping audio extraction for device %s", e.device.UDID)
 			return
 		default:
 			msg, _, err := wsutil.ReadServerData(e.conn)
 			if err != nil {
 				if err != io.EOF {
-					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading audio frame: %v", err))
+					logger.ProviderLogger.LogErrorf("stream_webrtc", "Error reading audio frame: %v", err)
 				}
 				return
 			}
@@ -106,7 +106,7 @@ func (e *PCMAudioExtractor) extractAudioFrames() {
 			opusData := make([]byte, 4000) // Max Opus frame size
 			n, err := e.encoder.Encode(pcmSamples, opusData)
 			if err != nil {
-				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Opus encoding failed: %v", err))
+				logger.ProviderLogger.LogErrorf("stream_webrtc", "Opus encoding failed: %v", err)
 				continue
 			}
 
@@ -120,12 +120,12 @@ func (e *PCMAudioExtractor) extractAudioFrames() {
 			select {
 			case e.audioChannel <- audioFrame:
 				if frameCount%100 == 0 {
-					logger.ProviderLogger.LogDebug("stream_webrtc", fmt.Sprintf("Processed audio frame #%d for device %s", frameCount, e.device.UDID))
+					logger.ProviderLogger.LogDebugf("stream_webrtc", "Processed audio frame #%d for device %s", frameCount, e.device.UDID)
 				}
 			case <-e.ctx.Done():
 				return
 			default:
-				logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropped audio frame #%d for device %s (channel full)", frameCount, e.device.UDID))
+				logger.ProviderLogger.LogWarnf("stream_webrtc", "Dropped audio frame #%d for device %s (channel full)", frameCount, e.device.UDID)
 			}
 		}
 	}

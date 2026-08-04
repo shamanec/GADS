@@ -26,6 +26,12 @@ type CustomLogger interface {
 	LogWarn(eventName string, message string)
 	LogFatal(eventName string, message string)
 	LogPanic(eventName string, message string)
+	LogDebugf(eventName string, format string, args ...any)
+	LogInfof(eventName string, format string, args ...any)
+	LogErrorf(eventName string, format string, args ...any)
+	LogWarnf(eventName string, format string, args ...any)
+	LogFatalf(eventName string, format string, args ...any)
+	LogPanicf(eventName string, format string, args ...any)
 }
 
 type User struct {

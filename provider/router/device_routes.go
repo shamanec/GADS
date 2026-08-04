@@ -69,7 +69,7 @@ func DeviceHome(c *gin.Context) {
 	// Send the request
 	homeResponse, err := deviceHome(platDev)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to navigate to Home/Springboard - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to navigate to Home/Springboard - %s", err)
 		api.InternalError(c, "Failed to navigate to Home/Springboard")
 		return
 	}
@@ -78,7 +78,7 @@ func DeviceHome(c *gin.Context) {
 	// Read the response body
 	homeResponseBody, err := io.ReadAll(homeResponse.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to navigate to Home/Springboard - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to navigate to Home/Springboard - %s", err)
 		api.InternalError(c, "Failed to navigate to Home/Springboard")
 		return
 	}
@@ -103,7 +103,7 @@ func DeviceRecents(c *gin.Context) {
 		}
 	} else if platDev.GetOS() == "android" {
 		if err := androidRecents(platDev); err != nil {
-			platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to open Recent Apps/App Switcher - %s", err))
+			platDev.GetLogger().LogErrorf("appium_interact", "Failed to open Recent Apps/App Switcher - %s", err)
 			api.InternalError(c, err.Error())
 			return
 		}
@@ -124,7 +124,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	// Send the request
 	clipboardResponse, err := deviceGetClipboard(platDev)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to get device clipboard value - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to get device clipboard value - %s", err)
 		api.InternalError(c, fmt.Sprintf("Failed to get device clipboard value - %s", err))
 		return
 	}
@@ -133,7 +133,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	// Read the response body
 	clipboardResponseBody, err := io.ReadAll(clipboardResponse.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to read clipboard response body while getting clipboard value - %s", err)
 		api.InternalError(c, fmt.Sprintf("Failed to read clipboard response body while getting clipboard value - %s", err))
 		return
 	}
@@ -144,7 +144,7 @@ func DeviceGetClipboard(c *gin.Context) {
 	}{}
 	err = json.Unmarshal(clipboardResponseBody, &valueResp)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to unmarshal clipboard response body - %s", err)
 		api.InternalError(c, fmt.Sprintf("Failed to unmarshal clipboard response body - %s", err))
 		return
 	}
@@ -166,7 +166,7 @@ func DeviceLock(c *gin.Context) {
 
 	lockResponse, err := deviceLock(platDev, "lock")
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to lock device - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to lock device - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -175,7 +175,7 @@ func DeviceLock(c *gin.Context) {
 	// Read the response body
 	lockResponseBody, err := io.ReadAll(lockResponse.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to lock device - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to lock device - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -195,7 +195,7 @@ func DeviceUnlock(c *gin.Context) {
 
 	lockResponse, err := deviceLock(platDev, "unlock")
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to unlock device - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to unlock device - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -204,7 +204,7 @@ func DeviceUnlock(c *gin.Context) {
 	// Read the response body
 	lockResponseBody, err := io.ReadAll(lockResponse.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to unlock device - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to unlock device - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -224,7 +224,7 @@ func DeviceScreenshot(c *gin.Context) {
 
 	screenshotResp, err := deviceScreenshot(platDev)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to get screenshot from device - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to get screenshot from device - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -303,7 +303,7 @@ func DeviceAppiumSource(c *gin.Context) {
 
 	sourceResp, err := appiumSource(platDev)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to get Appium source from device - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to get Appium source from device - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -311,7 +311,7 @@ func DeviceAppiumSource(c *gin.Context) {
 	// Read the response body
 	body, err := io.ReadAll(sourceResp.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to get Appium source from device - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to get Appium source from device - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -332,12 +332,12 @@ func DeviceTypeText(c *gin.Context) {
 	}
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to type text to active element - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to type text to active element - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
 
-	platDev.GetLogger().LogInfo("appium_interact", fmt.Sprintf("Typing `%s` to active element", requestBody.TextToType))
+	platDev.GetLogger().LogInfof("appium_interact", "Typing `%s` to active element", requestBody.TextToType)
 
 	typeResp, err := executeTypeText(platDev, requestBody.TextToType)
 	if err != nil {
@@ -364,11 +364,11 @@ func DeviceTap(c *gin.Context) {
 		return
 	}
 
-	platDev.GetLogger().LogInfo("appium_interact", fmt.Sprintf("Tapping at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y)))
+	platDev.GetLogger().LogInfof("appium_interact", "Tapping at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y))
 
 	tapResp, err := deviceTap(platDev, requestBody.X, requestBody.Y)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to tap at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to tap at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -377,7 +377,7 @@ func DeviceTap(c *gin.Context) {
 	// Read the response body
 	body, err := io.ReadAll(tapResp.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to tap at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to tap at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -398,11 +398,11 @@ func DeviceTouchAndHold(c *gin.Context) {
 		return
 	}
 
-	platDev.GetLogger().LogInfo("appium_interact", fmt.Sprintf("Touch and hold at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y)))
+	platDev.GetLogger().LogInfof("appium_interact", "Touch and hold at coordinates X:%v Y:%v", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y))
 
 	touchAndHoldResp, err := deviceTouchAndHold(platDev, requestBody.X, requestBody.Y, requestBody.Duration)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to touch and hold at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to touch and hold at coordinates X:%v Y:%v - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -411,7 +411,7 @@ func DeviceTouchAndHold(c *gin.Context) {
 	// Read the response body
 	body, err := io.ReadAll(touchAndHoldResp.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to touch and hold at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to touch and hold at coordinates X:%v Y:%v` - %s", fmt.Sprintf("%.2f", requestBody.X), fmt.Sprintf("%.2f", requestBody.Y), err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -428,16 +428,16 @@ func DeviceSwipe(c *gin.Context) {
 	}
 	var requestBody models.ActionData
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to decode request body when performing swipe - %s", err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to decode request body when performing swipe - %s", err)
 		api.InternalError(c, err.Error())
 		return
 	}
 
-	platDev.GetLogger().LogInfo("appium_interact", fmt.Sprintf("Swiping from X:%v Y:%v to X:%v Y:%v", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY)))
+	platDev.GetLogger().LogInfof("appium_interact", "Swiping from X:%v Y:%v to X:%v Y:%v", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY))
 
 	swipeResp, err := deviceSwipe(platDev, requestBody.X, requestBody.Y, requestBody.EndX, requestBody.EndY)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -446,7 +446,7 @@ func DeviceSwipe(c *gin.Context) {
 	// Read the response body
 	body, err := io.ReadAll(swipeResp.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("appium_interact", fmt.Sprintf("Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err))
+		platDev.GetLogger().LogErrorf("appium_interact", "Failed to swipe from X:%v Y:%v to X:%v Y:%v - %s", fmt.Sprintf("%.3f", requestBody.X), fmt.Sprintf("%.3f", requestBody.Y), fmt.Sprintf("%.3f", requestBody.EndX), fmt.Sprintf("%.3f", requestBody.EndY), err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -463,7 +463,7 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 	}
 	var requestBody models.ExecuteCustomActionRequest
 	if err := json.NewDecoder(c.Request.Body).Decode(&requestBody); err != nil {
-		platDev.GetLogger().LogError("device_control", fmt.Sprintf("Failed to decode request body when executing custom action - %s", err))
+		platDev.GetLogger().LogErrorf("device_control", "Failed to decode request body when executing custom action - %s", err)
 		api.BadRequest(c, err.Error())
 		return
 	}
@@ -474,11 +474,11 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 		return
 	}
 
-	platDev.GetLogger().LogInfo("device_control", fmt.Sprintf("Executing custom action '%s' with parameters: %+v", requestBody.ActionType, requestBody.Parameters))
+	platDev.GetLogger().LogInfof("device_control", "Executing custom action '%s' with parameters: %+v", requestBody.ActionType, requestBody.Parameters)
 
 	actionResp, err := executeCustomAction(platDev, requestBody.ActionType, requestBody.Parameters)
 	if err != nil {
-		platDev.GetLogger().LogError("device_control", fmt.Sprintf("Failed to execute custom action '%s' - %s", requestBody.ActionType, err))
+		platDev.GetLogger().LogErrorf("device_control", "Failed to execute custom action '%s' - %s", requestBody.ActionType, err)
 		api.InternalError(c, err.Error())
 		return
 	}
@@ -486,7 +486,7 @@ func DeviceExecuteCustomAction(c *gin.Context) {
 
 	body, err := io.ReadAll(actionResp.Body)
 	if err != nil {
-		platDev.GetLogger().LogError("device_control", fmt.Sprintf("Failed to read response for custom action '%s' - %s", requestBody.ActionType, err))
+		platDev.GetLogger().LogErrorf("device_control", "Failed to read response for custom action '%s' - %s", requestBody.ActionType, err)
 		api.InternalError(c, err.Error())
 		return
 	}

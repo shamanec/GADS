@@ -28,14 +28,14 @@ func setupAppiumForDevice(d PlatformDevice) error {
 	udid := d.GetUDID()
 
 	if err := cli.KillDeviceAppiumProcess(udid); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed attempt to kill existing Appium processes for device `%s` - %v", udid, err))
+		logger.ProviderLogger.LogErrorf("device_setup", "Failed attempt to kill existing Appium processes for device `%s` - %v", udid, err)
 		d.Reset("Failed to kill existing Appium processes.")
 		return err
 	}
 
 	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Could not allocate free Appium port for device `%v` - %v", udid, err))
+		logger.ProviderLogger.LogErrorf("device_setup", "Could not allocate free Appium port for device `%v` - %v", udid, err)
 		d.Reset("Failed to allocate free Appium port for device.")
 		return err
 	}
@@ -51,12 +51,12 @@ AppiumLoop:
 	for {
 		select {
 		case <-timeout:
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Did not successfully start Appium for device `%v` in 30 seconds", udid))
+			logger.ProviderLogger.LogErrorf("device_setup", "Did not successfully start Appium for device `%v` in 30 seconds", udid)
 			d.Reset("Failed to start Appium for device.")
 			return fmt.Errorf("appium did not start in time")
 		case <-ticker.C:
 			if d.GetIsAppiumUp() {
-				logger.ProviderLogger.LogInfo("device_setup", fmt.Sprintf("Successfully started Appium for device `%v` on port %v", udid, appiumPort))
+				logger.ProviderLogger.LogInfof("device_setup", "Successfully started Appium for device `%v` on port %v", udid, appiumPort)
 				break AppiumLoop
 			}
 		}
@@ -92,18 +92,16 @@ func startAppium(d PlatformDevice, capabilities models.AppiumServerCapabilities)
 		"--relaxed-security",
 		"--default-capabilities", string(capabilitiesJson))
 
-	logger.ProviderLogger.LogDebug("device_setup", fmt.Sprintf("Starting Appium on device `%s` with command `%s`", udid, cmd.Args))
+	logger.ProviderLogger.LogDebugf("device_setup", "Starting Appium on device `%s` with command `%s`", udid, cmd.Args)
 
 	if err := cmd.Start(); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Error executing `%s` for device `%v` - %v", cmd.Args, udid, err))
+		logger.ProviderLogger.LogErrorf("device_setup", "Error executing `%s` for device `%v` - %v", cmd.Args, udid, err)
 		d.Reset("Failed to execute Appium command.")
 		return
 	}
 
 	if err := cmd.Wait(); err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf(
-			"startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v",
-			cmd.Args, udid, err))
+		logger.ProviderLogger.LogErrorf("device_setup", "startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, udid, err)
 
 		d.Reset("Appium command errored out or device was disconnected.")
 	}

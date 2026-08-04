@@ -120,7 +120,7 @@ func installAppFromDisk(platDev devices.PlatformDevice, uploadDir, fileName stri
 		}
 		defer func() {
 			if err := utils.DeleteFile(filepath.Join(uploadDir, innerName)); err != nil {
-				logger.ProviderLogger.LogError("install_app", fmt.Sprintf("Failed to delete app file - %s", err))
+				logger.ProviderLogger.LogErrorf("install_app", "Failed to delete app file - %s", err)
 			}
 		}()
 		return platDev.InstallApp(innerName)
@@ -135,7 +135,7 @@ func installAppFromDisk(platDev devices.PlatformDevice, uploadDir, fileName stri
 		}
 		defer func() {
 			if err := utils.DeleteFolder(filepath.Join(uploadDir, appRoot)); err != nil {
-				logger.ProviderLogger.LogError("install_app", fmt.Sprintf("Failed to delete unzipped .app directory - %s", err))
+				logger.ProviderLogger.LogErrorf("install_app", "Failed to delete unzipped .app directory - %s", err)
 			}
 		}()
 		return platDev.InstallApp(appRoot)

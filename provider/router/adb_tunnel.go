@@ -12,7 +12,6 @@ package router
 import (
 	"GADS/provider/devices"
 	"GADS/provider/logger"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -25,21 +24,21 @@ func ADBTunnelProxy(c *gin.Context) {
 	udid := c.Param("udid")
 	platDev, ok := devices.DevManager.Get(udid)
 	if !ok {
-		logger.ProviderLogger.LogError("ADBTunnelProxy", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("ADBTunnelProxy", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	androidDev, ok := platDev.(*devices.AndroidDevice)
 	if !ok {
-		logger.ProviderLogger.LogError("ADBTunnelProxy", fmt.Sprintf("Device `%s` is not an Android device", udid))
+		logger.ProviderLogger.LogErrorf("ADBTunnelProxy", "Device `%s` is not an Android device", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
 	adbPort := androidDev.GetADBPort()
 	if adbPort == "" {
-		logger.ProviderLogger.LogError("ADBTunnelProxy", fmt.Sprintf("ADB port not allocated for device `%s`", udid))
+		logger.ProviderLogger.LogErrorf("ADBTunnelProxy", "ADB port not allocated for device `%s`", udid)
 		c.AbortWithStatus(http.StatusServiceUnavailable)
 		return
 	}
@@ -47,7 +46,7 @@ func ADBTunnelProxy(c *gin.Context) {
 	// Connect to the local ADB forwarded port
 	adbConn, err := net.Dial("tcp", "localhost:"+adbPort)
 	if err != nil {
-		logger.ProviderLogger.LogError("ADBTunnelProxy", fmt.Sprintf("Failed to connect to ADB port for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("ADBTunnelProxy", "Failed to connect to ADB port for device `%s` - %s", udid, err)
 		c.AbortWithStatus(http.StatusServiceUnavailable)
 		return
 	}
@@ -55,12 +54,12 @@ func ADBTunnelProxy(c *gin.Context) {
 	// Upgrade the HTTP connection to WebSocket
 	wsConn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		logger.ProviderLogger.LogError("ADBTunnelProxy", fmt.Sprintf("Failed to upgrade to WebSocket for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("ADBTunnelProxy", "Failed to upgrade to WebSocket for device `%s` - %s", udid, err)
 		adbConn.Close()
 		return
 	}
 
-	logger.ProviderLogger.LogInfo("ADBTunnelProxy", fmt.Sprintf("ADB tunnel established for device `%s`", udid))
+	logger.ProviderLogger.LogInfof("ADBTunnelProxy", "ADB tunnel established for device `%s`", udid)
 
 	// Bidirectional relay: WebSocket <-> ADB TCP
 	done := make(chan struct{})
@@ -82,5 +81,5 @@ func ADBTunnelProxy(c *gin.Context) {
 	// Wait for the other goroutine to finish
 	<-done
 
-	logger.ProviderLogger.LogInfo("ADBTunnelProxy", fmt.Sprintf("ADB tunnel closed for device `%s`", udid))
+	logger.ProviderLogger.LogInfof("ADBTunnelProxy", "ADB tunnel closed for device `%s`", udid)
 }

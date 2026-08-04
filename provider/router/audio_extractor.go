@@ -21,7 +21,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/hraban/opus"
+	"github.com/jj11hh/opus"
 )
 
 // AudioFrame represents an audio frame with its presentation timestamp

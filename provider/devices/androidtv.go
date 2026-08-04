@@ -25,10 +25,10 @@ func (d *AndroidTvDevice) Setup() error {
 	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
-	logger.ProviderLogger.LogInfo("androidtv_device_setup", fmt.Sprintf("Running setup for Android TV device `%v`", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("androidtv_device_setup", "Running setup for Android TV device `%v`", d.GetUDID())
 
 	if err := connectAndroidTvDevice(d.GetUDID()); err != nil {
-		logger.ProviderLogger.LogError("androidtv_device_setup", fmt.Sprintf("Failed to connect to Android TV device `%v` - %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("androidtv_device_setup", "Failed to connect to Android TV device `%v` - %v", d.GetUDID(), err)
 		d.Reset("Failed to connect to Android TV.")
 		return err
 	}
@@ -83,7 +83,7 @@ func handleAndroidTvAutoConnection(connectedDevices []string) {
 		}
 
 		if err := connectAndroidTvDevice(udid); err != nil {
-			logger.ProviderLogger.LogDebug("androidtv_autoconnect", fmt.Sprintf("Auto-connect attempt for Android TV %s failed: %v", udid, err))
+			logger.ProviderLogger.LogDebugf("androidtv_autoconnect", "Auto-connect attempt for Android TV %s failed: %v", udid, err)
 		}
 	}
 }
@@ -99,7 +99,7 @@ func (d *AndroidTvDevice) getProp(prop string) string {
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
-		logger.ProviderLogger.LogError("androidtv_device_setup", fmt.Sprintf("Failed to get prop %s for device %s: %v", prop, d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("androidtv_device_setup", "Failed to get prop %s for device %s: %v", prop, d.GetUDID(), err)
 		return ""
 	}
 	return strings.TrimSpace(outBuffer.String())
@@ -155,7 +155,7 @@ func (d *AndroidTvDevice) getInstalledAppsAndroidTv() []androidTvPackage {
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
-		logger.ProviderLogger.LogError("androidtv_list_apps", fmt.Sprintf("Failed to list apps for device %s: %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("androidtv_list_apps", "Failed to list apps for device %s: %v", d.GetUDID(), err)
 		return installedApps
 	}
 
@@ -184,7 +184,7 @@ func (d *AndroidTvDevice) getAppVersionsAndroidTv() map[string]string {
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
-		logger.ProviderLogger.LogError("androidtv_list_apps", fmt.Sprintf("Failed to get app versions for device %s: %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("androidtv_list_apps", "Failed to get app versions for device %s: %v", d.GetUDID(), err)
 		return versions
 	}
 
