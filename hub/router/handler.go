@@ -114,6 +114,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	}
 	authGroup.GET("/user-info", auth.GetUserInfoHandler)
 	authGroup.GET("/appium-logs", GetAppiumLogs)
+	authGroup.GET("/automation-sessions", GetAutomationSessions)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/logout", auth.LogoutHandler)
 	authGroup.POST("/change-password", auth.ChangePasswordHandler)

@@ -11,6 +11,7 @@ package router
 
 import (
 	"GADS/common/models"
+	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"bytes"
 	"net/http"
@@ -264,14 +265,187 @@ func TestSweepExpiredGridSessions(t *testing.T) {
 func TestGridStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	router := newGridTestRouter()
-	req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	t.Run("no devices means not ready", func(t *testing.T) {
+		router := newGridTestRouter()
+		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), `"ready":true`)
-	assert.Contains(t, w.Body.String(), `"message"`)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"ready":false`)
+		assert.Contains(t, w.Body.String(), "no devices available")
+	})
+
+	t.Run("live device makes the grid ready and is listed", func(t *testing.T) {
+		device, cleanup := newGridSessionDevice("status-live-device", "", "fake-host")
+		defer cleanup()
+		device.Device.Name = "Status Phone"
+		device.Device.Provider = "provider1"
+		device.SessionID = ""
+		device.IsRunningAutomation = false
+		device.IsAvailableForAutomation = true
+
+		router := newGridTestRouter()
+		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"ready":true`)
+		assert.Contains(t, w.Body.String(), "GADS grid ready")
+		assert.Contains(t, w.Body.String(), `"udid":"status-live-device"`)
+		assert.Contains(t, w.Body.String(), `"name":"Status Phone"`)
+		assert.Contains(t, w.Body.String(), `"provider":"provider1"`)
+		assert.Contains(t, w.Body.String(), `"available":true`)
+		assert.Contains(t, w.Body.String(), `"in_use_by_automation":false`)
+	})
+
+	t.Run("device running automation is ready but not available", func(t *testing.T) {
+		_, cleanup := newGridSessionDevice("status-busy-device", "status-busy-session", "fake-host")
+		defer cleanup()
+
+		router := newGridTestRouter()
+		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"ready":true`)
+		assert.Contains(t, w.Body.String(), `"available":false`)
+		assert.Contains(t, w.Body.String(), `"in_use_by_automation":true`)
+	})
+}
+
+func TestGetAutomationSessions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("lists active sessions with device and user info", func(t *testing.T) {
+		device, cleanup := newGridSessionDevice("sessions-list-device", "sessions-list-session", "fake-host")
+		defer cleanup()
+		device.Device.Name = "Sessions Phone"
+		device.InUseBy = "session-user"
+		device.InUseByTenant = "tenant1"
+		device.AutomationSessionStartTS = time.Now().UnixMilli()
+
+		router := gin.New()
+		router.GET("/automation-sessions", GetAutomationSessions)
+		req, _ := http.NewRequest("GET", "/automation-sessions", bytes.NewBufferString(""))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"session_id":"sessions-list-session"`)
+		assert.Contains(t, w.Body.String(), `"device_udid":"sessions-list-device"`)
+		assert.Contains(t, w.Body.String(), `"device_name":"Sessions Phone"`)
+		assert.Contains(t, w.Body.String(), `"in_use_by":"session-user"`)
+		assert.Contains(t, w.Body.String(), `"started_ts"`)
+		assert.Contains(t, w.Body.String(), `"last_command_ts"`)
+	})
+
+	t.Run("requires authentication", func(t *testing.T) {
+		router := gin.New()
+		router.Use(auth.AuthMiddleware())
+		router.GET("/automation-sessions", GetAutomationSessions)
+		req, _ := http.NewRequest("GET", "/automation-sessions", bytes.NewBufferString(""))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func TestEnrichSessionResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	prevGridDB := gridDB
+	defer func() { gridDB = prevGridDB }()
+	gridDB = &fakeGridStore{
+		credential: models.ClientCredentials{UserID: "test-user", Tenant: "tenant1", IsActive: true},
+		workspaces: []models.Workspace{{ID: "ws1", Tenant: "tenant1"}},
+	}
+
+	newEnrichmentDevice := func(udid string, providerHost string) (*devices.LocalHubDevice, func()) {
+		device := &devices.LocalHubDevice{
+			Device: models.DBDevice{
+				UDID:        udid,
+				OS:          "android",
+				OSVersion:   "14.0.0",
+				WorkspaceID: "ws1",
+				Name:        "Enrichment Phone",
+				Provider:    "provider1",
+			},
+			Host:                     providerHost,
+			Connected:                true,
+			ProviderState:            "live",
+			LastUpdatedTimestamp:     time.Now().UnixMilli(),
+			IsAvailableForAutomation: true,
+		}
+		devices.HubDeviceStore.Set(udid, device)
+		return device, func() { devices.HubDeviceStore.Delete(udid) }
+	}
+
+	createSession := func(t *testing.T, udid string, requestMutators ...func(req *http.Request)) string {
+		t.Helper()
+		router := newGridTestRouter()
+		sessionBody := `{"capabilities":{"alwaysMatch":{"platformName":"Android","gads:clientSecret":"test-secret","appium:udid":"` + udid + `"}}}`
+		req, _ := http.NewRequest("POST", "/grid/session", bytes.NewBufferString(sessionBody))
+		req.Host = "hub.example.com:10000"
+		for _, mutate := range requestMutators {
+			mutate(req)
+		}
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		return w.Body.String()
+	}
+
+	t.Run("device info caps are injected and Appium caps survive", func(t *testing.T) {
+		fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"value":{"sessionId":"enrich-session","capabilities":{"platformName":"Android","appium:automationName":"UiAutomator2","appium:deviceApiLevel":34}}}`))
+		}))
+		defer fakeProvider.Close()
+
+		udid := "enrichment-device"
+		_, cleanup := newEnrichmentDevice(udid, strings.TrimPrefix(fakeProvider.URL, "http://"))
+		defer cleanup()
+		defer devices.UnregisterSession("enrich-session")
+
+		body := createSession(t, udid)
+
+		// Everything Appium returned must survive the enrichment untouched
+		assert.Contains(t, body, `"sessionId":"enrich-session"`)
+		assert.Contains(t, body, `"appium:automationName":"UiAutomator2"`)
+		assert.Contains(t, body, `"appium:deviceApiLevel":34`)
+		// The grid's own capabilities are added
+		assert.Contains(t, body, `"gads:deviceUdid":"enrichment-device"`)
+		assert.Contains(t, body, `"gads:deviceName":"Enrichment Phone"`)
+		assert.Contains(t, body, `"gads:provider":"provider1"`)
+		// The control link is built from the address the client reached the hub on
+		assert.Contains(t, body, `"gads:controlUrl":"http://hub.example.com:10000/devices/control/enrichment-device"`)
+		// The client secret must never be echoed back
+		assert.NotContains(t, body, "test-secret")
+	})
+
+	t.Run("control URL respects X-Forwarded-Proto from a TLS-terminating proxy", func(t *testing.T) {
+		fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"value":{"sessionId":"enrich-url-session","capabilities":{"platformName":"Android"}}}`))
+		}))
+		defer fakeProvider.Close()
+
+		udid := "enrichment-url-device"
+		_, cleanup := newEnrichmentDevice(udid, strings.TrimPrefix(fakeProvider.URL, "http://"))
+		defer cleanup()
+		defer devices.UnregisterSession("enrich-url-session")
+
+		body := createSession(t, udid, func(req *http.Request) {
+			req.Host = "gads.example.com"
+			req.Header.Set("X-Forwarded-Proto", "https")
+		})
+
+		assert.Contains(t, body, `"gads:controlUrl":"https://gads.example.com/devices/control/enrichment-url-device"`)
+	})
 }
 
 func TestGridSessionLifecycleFlow(t *testing.T) {

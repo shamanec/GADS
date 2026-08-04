@@ -52,3 +52,14 @@ func DeviceBySession(sessionID string) (*LocalHubDevice, bool) {
 	gridSessionsMu.RUnlock()
 	return device, ok
 }
+
+// AllSessions returns a snapshot of the active session index
+func AllSessions() map[string]*LocalHubDevice {
+	gridSessionsMu.RLock()
+	defer gridSessionsMu.RUnlock()
+	snapshot := make(map[string]*LocalHubDevice, len(gridSessions))
+	for sessionID, device := range gridSessions {
+		snapshot[sessionID] = device
+	}
+	return snapshot
+}

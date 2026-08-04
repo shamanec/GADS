@@ -10,6 +10,7 @@
 package router
 
 import (
+	"GADS/common/api"
 	"GADS/common/models"
 	"GADS/hub/devices"
 	"bytes"
@@ -20,6 +21,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -73,10 +75,91 @@ func registerGridRoutes(grid *gin.RouterGroup) {
 	grid.Any("/session/:sessionId/*path", GridSessionCommand)
 }
 
-// GridStatus is the W3C status endpoint (`GET /grid/status`). Currently a static
-// readiness stub - Phase 4 of the grid rework fills in real device information
+// GridStatus is the W3C status endpoint (`GET /grid/status`) - reports whether the
+// grid can serve sessions plus a per-device readiness list. Like the rest of /grid
+// it is unauthenticated, so it deliberately exposes no workspace, tenant or user
+// information
 func GridStatus(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"value": gin.H{"ready": true, "message": "GADS grid ready"}})
+	type gridStatusDevice struct {
+		UDID              string `json:"udid"`
+		Name              string `json:"name"`
+		OS                string `json:"os"`
+		OSVersion         string `json:"os_version"`
+		Provider          string `json:"provider"`
+		Available         bool   `json:"available"`
+		InUseByAutomation bool   `json:"in_use_by_automation"`
+	}
+
+	ready := false
+	statusDevices := []gridStatusDevice{}
+	for _, hubDevice := range devices.HubDeviceStore.AllSorted() {
+		hubDevice.Mu.RLock()
+		connectedAndLive := hubDevice.Connected && hubDevice.ProviderState == "live"
+		usageAllowsAutomation := hubDevice.Device.Usage != "control" && hubDevice.Device.Usage != "disabled"
+		statusDevices = append(statusDevices, gridStatusDevice{
+			UDID:              hubDevice.Device.UDID,
+			Name:              hubDevice.Device.Name,
+			OS:                hubDevice.Device.OS,
+			OSVersion:         hubDevice.Device.OSVersion,
+			Provider:          hubDevice.Device.Provider,
+			Available:         connectedAndLive && usageAllowsAutomation && hubDevice.IsAvailableForAutomation,
+			InUseByAutomation: hubDevice.IsRunningAutomation,
+		})
+		if connectedAndLive {
+			ready = true
+		}
+		hubDevice.Mu.RUnlock()
+	}
+
+	message := "GADS grid ready"
+	if !ready {
+		message = "no devices available"
+	}
+	c.JSON(http.StatusOK, gin.H{"value": gin.H{"ready": ready, "message": message, "devices": statusDevices}})
+}
+
+type automationSession struct {
+	SessionID     string `json:"session_id"`
+	DeviceUDID    string `json:"device_udid"`
+	DeviceName    string `json:"device_name"`
+	InUseBy       string `json:"in_use_by"`
+	InUseByTenant string `json:"in_use_by_tenant"`
+	StartedTS     int64  `json:"started_ts"`
+	LastCommandTS int64  `json:"last_command_ts"`
+}
+
+// GetAutomationSessions godoc
+// @Summary      List active automation sessions
+// @Description  Retrieve the currently active Appium grid sessions and the devices serving them
+// @Tags         Hub - Devices
+// @Produce      json
+// @Success      200  {object}  models.APIResponse
+// @Failure      401  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /automation-sessions [get]
+func GetAutomationSessions(c *gin.Context) {
+	sessions := []automationSession{}
+	for sessionID, sessionDevice := range devices.AllSessions() {
+		sessionDevice.Mu.RLock()
+		sessions = append(sessions, automationSession{
+			SessionID:     sessionID,
+			DeviceUDID:    sessionDevice.Device.UDID,
+			DeviceName:    sessionDevice.Device.Name,
+			InUseBy:       sessionDevice.InUseBy,
+			InUseByTenant: sessionDevice.InUseByTenant,
+			StartedTS:     sessionDevice.AutomationSessionStartTS,
+			LastCommandTS: sessionDevice.LastAutomationActionTS,
+		})
+		sessionDevice.Mu.RUnlock()
+	}
+	// Map iteration order is random - keep the output stable for consumers
+	sort.Slice(sessions, func(i, j int) bool {
+		if sessions[i].StartedTS != sessions[j].StartedTS {
+			return sessions[i].StartedTS < sessions[j].StartedTS
+		}
+		return sessions[i].SessionID < sessions[j].SessionID
+	})
+	api.OK(c, "Active automation sessions", sessions)
 }
 
 // Every second sweep the devices and clean up automation sessions
@@ -390,15 +473,22 @@ func GridCreateSession(c *gin.Context) {
 		devices.UnregisterSession(foundDevice.SessionID)
 	}
 	foundDevice.SessionID = proxySessionResponse.Value.SessionID
+	foundDevice.AutomationSessionStartTS = time.Now().UnixMilli()
 	devices.RegisterSession(foundDevice.SessionID, foundDevice)
 	foundDevice.Mu.Unlock()
+
+	// Enrich the returned capabilities with grid-level `gads:*` entries (spec-legal
+	// for intermediary nodes) so the client knows which device it actually got
+	responseBody := enrichSessionResponse(proxiedSessionResponseBody, foundDevice, hubBaseURL(c))
 
 	// Copy the response back to the original client
 	for k, v := range resp.Header {
 		c.Writer.Header()[k] = v
 	}
+	// The body may have grown past the provider's Content-Length
+	c.Writer.Header().Set("Content-Length", strconv.Itoa(len(responseBody)))
 	c.Writer.WriteHeader(resp.StatusCode)
-	c.Writer.Write(proxiedSessionResponseBody)
+	c.Writer.Write(responseBody)
 
 	foundDevice.Mu.Lock()
 	foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
@@ -414,6 +504,60 @@ func GridCreateSession(c *gin.Context) {
 		foundDevice.InUseTS = time.Now().UnixMilli()
 	}
 	foundDevice.Mu.Unlock()
+}
+
+// hubBaseURL derives the hub's base URL from the incoming request - the address the
+// client used to reach the hub is by definition reachable for whoever ran the test.
+// The hub itself only serves plain HTTP; a TLS-terminating reverse proxy announces
+// itself via X-Forwarded-Proto
+func hubBaseURL(c *gin.Context) string {
+	if c.Request.Host == "" {
+		return ""
+	}
+	scheme := "http"
+	if forwardedProto := c.Request.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
+		scheme = forwardedProto
+	}
+	return fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+}
+
+// enrichSessionResponse injects grid-level `<prefix>:*` capabilities into a successful
+// session-create response: the served device's UDID, name and provider, plus a link to
+// the hub's device control UI for the device. The response is parsed as a generic map
+// so every capability Appium returned survives untouched; on any unexpected shape the
+// original body is returned as-is
+func enrichSessionResponse(responseBody []byte, foundDevice *devices.LocalHubDevice, hubURL string) []byte {
+	var response map[string]interface{}
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return responseBody
+	}
+	value, ok := response["value"].(map[string]interface{})
+	if !ok {
+		return responseBody
+	}
+	caps, ok := value["capabilities"].(map[string]interface{})
+	if !ok {
+		return responseBody
+	}
+
+	foundDevice.Mu.RLock()
+	deviceUDID := foundDevice.Device.UDID
+	deviceName := foundDevice.Device.Name
+	deviceProvider := foundDevice.Device.Provider
+	foundDevice.Mu.RUnlock()
+
+	caps[capabilityPrefix+":deviceUdid"] = deviceUDID
+	caps[capabilityPrefix+":deviceName"] = deviceName
+	caps[capabilityPrefix+":provider"] = deviceProvider
+	if hubURL != "" {
+		caps[capabilityPrefix+":controlUrl"] = fmt.Sprintf("%s/devices/control/%s", hubURL, deviceUDID)
+	}
+
+	enriched, err := json.Marshal(response)
+	if err != nil {
+		return responseBody
+	}
+	return enriched
 }
 
 // GridSessionCommand proxies an ordinary WebDriver command (anything under

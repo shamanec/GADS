@@ -42,6 +42,7 @@ type LocalHubDevice struct {
 	LockSource               string        `json:"lock_source" bson:"-"` // "ui", "api", or ""
 	LeaseExpiresAt           int64         `json:"-" bson:"-"`           // Unix ms, 0 = no active lease
 	AppiumNewCommandTimeout  int64         `json:"appium_new_command_timeout"`
+	AutomationSessionStartTS int64         `json:"-" bson:"-"` // Unix ms when the current Appium grid session was created, 0 = no session
 	IsAvailableForAutomation bool          `json:"is_available_for_automation"`
 	Available                bool          `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
 	InUseWSConnection        net.Conn      `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
@@ -140,6 +141,7 @@ func (d *LocalHubDevice) ReleaseFromAutomation() {
 		UnregisterSession(d.SessionID)
 	}
 	d.SessionID = ""
+	d.AutomationSessionStartTS = 0
 	d.IsRunningAutomation = false
 	d.IsAvailableForAutomation = true
 	d.ReleaseLockIfNotHeld()
