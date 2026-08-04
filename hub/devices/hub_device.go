@@ -136,6 +136,7 @@ func (d *LocalHubDevice) ClaimForAutomation(newCommandTimeoutMS int64) {
 
 // ReleaseFromAutomation clears the device's automation session state, including its
 // session registry entry, and releases the lock unless a UI or API session holds it.
+// The grid session queue is poked so a queued session request can grab the device.
 func (d *LocalHubDevice) ReleaseFromAutomation() {
 	if d.SessionID != "" {
 		UnregisterSession(d.SessionID)
@@ -145,6 +146,7 @@ func (d *LocalHubDevice) ReleaseFromAutomation() {
 	d.IsRunningAutomation = false
 	d.IsAvailableForAutomation = true
 	d.ReleaseLockIfNotHeld()
+	NotifyDeviceFreed()
 }
 
 // RefreshLock updates InUseTS to now, keeping the lock alive.

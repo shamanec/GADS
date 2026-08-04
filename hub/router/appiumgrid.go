@@ -289,6 +289,7 @@ func abortAutomationClaim(foundDevice *devices.LocalHubDevice) {
 	foundDevice.IsAvailableForAutomation = true
 	foundDevice.IsRunningAutomation = false
 	foundDevice.Mu.Unlock()
+	devices.NotifyDeviceFreed()
 }
 
 // GridCreateSession handles `POST /grid/session` - authenticates the client via its
@@ -324,51 +325,27 @@ func GridCreateSession(c *gin.Context) {
 		return
 	}
 
-	// Check for available device
-	foundDevice, deviceErr := findAvailableDevice(candidate, user.AllowedWorkspaceIDs, user.UserID, user.Tenant)
-
-	if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
-		c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
+	// Find and claim a matching device, waiting in FIFO order behind earlier
+	// requests when none is free - `gads:queueTimeout` controls how long
+	foundDevice, deviceErr, clientGone := gridQueue.Acquire(candidate, user, queueWaitDuration(candidate), c.Request.Context().Done())
+	if clientGone {
+		// The client went away while queued - nobody is left to answer
 		return
 	}
 
-	// Usage misconfiguration cannot resolve by waiting - fail immediately
-	// with the reason instead of entering the retry loop
-	if deviceErr != nil && strings.Contains(deviceErr.Error(), "is not enabled for automation") {
-		writeW3CError(c, w3cSessionNotCreated(deviceErr.Error()))
-		return
-	}
-
-	// If no device is available start checking each second for 10 seconds
-	// If no device is available after 10 seconds - return error
 	if foundDevice == nil {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		timeout := time.After(10 * time.Second)
-		notify := c.Writer.CloseNotify()
-	FOR_LOOP:
-		for {
-			select {
-			case <-ticker.C:
-				foundDevice, deviceErr = findAvailableDevice(candidate, user.AllowedWorkspaceIDs, user.UserID, user.Tenant)
-				if foundDevice != nil {
-					break FOR_LOOP
-				}
-			case <-timeout:
-				ticker.Stop()
-				if deviceErr != nil {
-					c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
-				} else {
-					c.JSON(http.StatusInternalServerError, createErrorResponse("No available device found", "session not created", ""))
-				}
-				return
-			case <-notify:
-				ticker.Stop()
-				return
-			}
+		if deviceErr != nil && strings.Contains(deviceErr.Error(), "No device with udid") {
+			c.JSON(http.StatusNotFound, createErrorResponse("No available device found", "session not created", ""))
+			return
 		}
-	}
 
-	if foundDevice == nil {
+		// Usage misconfiguration cannot resolve by waiting - the queue fails fast
+		// and the reason goes to the client
+		if deviceErr != nil && strings.Contains(deviceErr.Error(), "is not enabled for automation") {
+			writeW3CError(c, w3cSessionNotCreated(deviceErr.Error()))
+			return
+		}
+
 		if deviceErr != nil {
 			c.JSON(http.StatusInternalServerError, createErrorResponse(deviceErr.Error(), "session not created", ""))
 		} else {
@@ -598,6 +575,7 @@ func GridDeleteSession(c *gin.Context) {
 		foundDevice.Mu.Lock()
 		foundDevice.IsAvailableForAutomation = true
 		foundDevice.Mu.Unlock()
+		devices.NotifyDeviceFreed()
 		go func() {
 			time.Sleep(1 * time.Second)
 			foundDevice.Mu.Lock()

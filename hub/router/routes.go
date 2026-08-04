@@ -1564,8 +1564,14 @@ func ProviderUpdate(c *gin.Context) {
 		// Stamp when we last heard from the provider about this device
 		hubDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
+		wasLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		syncDeviceFields(hubDevice, providerDevice)
+		nowLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		hubDevice.Mu.Unlock()
+		// A device that just (re)connected live may satisfy a queued session request
+		if !wasLive && nowLive {
+			devices.NotifyDeviceFreed()
+		}
 	}
 
 	api.OKMessage(c, "Provider data updated in hub")
