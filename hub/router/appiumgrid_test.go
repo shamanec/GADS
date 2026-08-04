@@ -106,15 +106,18 @@ func TestFindAvailableDeviceByUDIDEligibility(t *testing.T) {
 	// search - a pinned device that is disconnected, controlled or locked by
 	// another user must not be handed out
 	tests := []struct {
-		name   string
-		mutate func(d *devices.LocalHubDevice)
+		name string
+		// Usage-based rejections carry the reason (static config, middleware fails
+		// fast on them); runtime rejections use the generic non-leaking message
+		wantErrContains string
+		mutate          func(d *devices.LocalHubDevice)
 	}{
-		{"disconnected device", func(d *devices.LocalHubDevice) { d.Connected = false }},
-		{"provider state not live", func(d *devices.LocalHubDevice) { d.ProviderState = "init" }},
-		{"stale provider update", func(d *devices.LocalHubDevice) { d.LastUpdatedTimestamp = time.Now().UnixMilli() - 10000 }},
-		{"usage control", func(d *devices.LocalHubDevice) { d.Device.Usage = "control" }},
-		{"usage disabled", func(d *devices.LocalHubDevice) { d.Device.Usage = "disabled" }},
-		{"locked by another user", func(d *devices.LocalHubDevice) {
+		{"disconnected device", "not available", func(d *devices.LocalHubDevice) { d.Connected = false }},
+		{"provider state not live", "not available", func(d *devices.LocalHubDevice) { d.ProviderState = "init" }},
+		{"stale provider update", "not available", func(d *devices.LocalHubDevice) { d.LastUpdatedTimestamp = time.Now().UnixMilli() - 10000 }},
+		{"usage control", "is not enabled for automation", func(d *devices.LocalHubDevice) { d.Device.Usage = "control" }},
+		{"usage disabled", "is not enabled for automation", func(d *devices.LocalHubDevice) { d.Device.Usage = "disabled" }},
+		{"locked by another user", "not available", func(d *devices.LocalHubDevice) {
 			d.InUseBy = "other-user"
 			d.InUseByTenant = "tenant1"
 			d.InUseTS = time.Now().UnixMilli()
@@ -134,10 +137,41 @@ func TestFindAvailableDeviceByUDIDEligibility(t *testing.T) {
 			found, err := findAvailableDevice(gridCandidate{DeviceUDID: udid}, []string{"ws1"}, "test-user", "tenant1")
 			assert.Nil(t, found)
 			if assert.Error(t, err) {
-				assert.Equal(t, "Device is currently not available for automation", err.Error())
+				assert.Contains(t, err.Error(), tt.wantErrContains)
 			}
 		})
 	}
+
+	t.Run("usage misconfiguration fails the session request fast with the reason", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		prevGridDB := gridDB
+		defer func() { gridDB = prevGridDB }()
+		gridDB = &fakeGridStore{
+			credential: models.ClientCredentials{UserID: "test-user", Tenant: "tenant1", IsActive: true},
+			workspaces: []models.Workspace{{ID: "ws1", Tenant: "tenant1"}},
+		}
+
+		udid := "udid-control-usage-device"
+		device, cleanup := newGridSessionDevice(udid, "", "fake-host")
+		defer cleanup()
+		device.SessionID = ""
+		device.IsRunningAutomation = false
+		device.IsAvailableForAutomation = true
+		device.Device.Usage = "control"
+
+		sessionBody := `{"capabilities":{"alwaysMatch":{"platformName":"Android","gads:clientSecret":"test-secret","appium:udid":"` + udid + `"}}}`
+		router := newGridTestRouter()
+		req, _ := http.NewRequest("POST", "/grid/session", bytes.NewBufferString(sessionBody))
+		start := time.Now()
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		// Must not sit in the 10-second no-device retry loop - usage cannot change by waiting
+		assert.Less(t, time.Since(start), 2*time.Second)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Contains(t, w.Body.String(), "is not enabled for automation")
+		assert.Contains(t, w.Body.String(), "session not created")
+	})
 
 	t.Run("eligible pinned device is claimed", func(t *testing.T) {
 		udid := "udid-eligible-device"

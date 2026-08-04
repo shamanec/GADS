@@ -49,7 +49,7 @@ type DBDevice struct {
 	OSVersion    string `json:"os_version" bson:"os_version"`       // OS version of the device
 	IPAddress    string `json:"ip_address" bson:"ip_address"`       // IP address of the device
 	Provider     string `json:"provider" bson:"provider"`           // nickname of the device host(provider)
-	Usage        string `json:"usage" bson:"usage"`                 // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
+	Usage        string `json:"usage" bson:"usage"`                 // what is the device used for: enabled(automation and remote control), automation(only Appium testing), control(only remote control), disabled
 	ScreenWidth  string `json:"screen_width" bson:"screen_width"`   // screen width of device
 	ScreenHeight string `json:"screen_height" bson:"screen_height"` // screen height of device
 	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`

@@ -200,6 +200,13 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 				return
 			}
 
+			// Usage misconfiguration cannot resolve by waiting - fail immediately
+			// with the reason instead of entering the retry loop
+			if deviceErr != nil && strings.Contains(deviceErr.Error(), "is not enabled for automation") {
+				writeW3CError(c, w3cSessionNotCreated(deviceErr.Error()))
+				return
+			}
+
 			// If no device is available start checking each second for 10 seconds
 			// If no device is available after 10 seconds - return error
 			if foundDevice == nil {
@@ -581,15 +588,20 @@ func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, 
 			return nil, fmt.Errorf("No device with udid `%s` was found", deviceUDID)
 		}
 
-		// A UDID-pinned device must pass the same eligibility checks as the generic
-		// search below - without them a client could start automation on a device
-		// another user is actively controlling. The exact reason is deliberately
-		// not exposed to the client
+		// Usage is static configuration - a device set to remote-control-only or
+		// disabled can never serve automation, so tell the client the reason and
+		// let the middleware fail fast instead of retrying
+		if usage == "control" || usage == "disabled" {
+			return nil, fmt.Errorf("Device with udid `%s` is not enabled for automation, its usage is set to `%s`", deviceUDID, usage)
+		}
+
+		// A UDID-pinned device must pass the same runtime eligibility checks as the
+		// generic search below - without them a client could start automation on a
+		// device another user is actively controlling. The exact reason is
+		// deliberately not exposed to the client
 		if !connected ||
 			state != "live" ||
 			lastUpdated < (time.Now().UnixMilli()-3000) ||
-			usage == "control" ||
-			usage == "disabled" ||
 			isLockedByOther {
 			return nil, fmt.Errorf("Device is currently not available for automation")
 		}
