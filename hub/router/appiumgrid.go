@@ -16,12 +16,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/gin-gonic/gin"
+)
+
+// Shared HTTP clients for proxying grid traffic to providers, reusing the same
+// connection pool as the device proxy (proxyTransport). Session creation gets a
+// generous timeout because driver/WDA startup can take minutes; ordinary session
+// commands are bounded lower but still allow slow calls like screen recordings
+// and source dumps
+var (
+	gridSessionClient = &http.Client{Transport: proxyTransport, Timeout: 240 * time.Second}
+	gridCommandClient = &http.Client{Transport: proxyTransport, Timeout: 90 * time.Second}
 )
 
 type AppiumSessionValue struct {
@@ -42,32 +53,65 @@ type SeleniumSessionErrorResponseValue struct {
 	StackTrace string `json:"stacktrace"`
 }
 
-// Every 3 seconds check the devices
-// And clean the automation session if no action was taken in the timeout limit
+// Every second sweep the devices and clean up automation sessions
+// that expired or whose device is gone
 func UpdateExpiredGridSessions() {
 	for {
-		now := time.Now().UnixMilli()
-		for _, hubDevice := range devices.HubDeviceStore.All() {
-			hubDevice.Mu.Lock()
-			// Release expired API leases
-			if hubDevice.LockSource == devices.LockSourceAPI && hubDevice.LeaseExpiresAt > 0 && hubDevice.LeaseExpiresAt < now {
-				hubDevice.ReleaseLock()
-			}
-			// Reset device if its not connected
-			// Or it hasn't received any Appium requests in the command timeout and is running automation
-			// Or if its provider state is not "live" - device was re-provisioned for example
-			if !hubDevice.Connected ||
-				(hubDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-hubDevice.AppiumNewCommandTimeout) && hubDevice.IsRunningAutomation) ||
-				hubDevice.ProviderState != "live" {
-				hubDevice.IsRunningAutomation = false
-				hubDevice.IsAvailableForAutomation = true
-				hubDevice.SessionID = ""
-				hubDevice.ReleaseLockIfNotHeld()
-			}
-			hubDevice.Mu.Unlock()
-		}
+		sweepExpiredGridSessions()
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// sweepExpiredGridSessions does one janitor pass over all hub devices:
+// releases expired API leases and resets devices that disconnected, went
+// non-live (re-provisioned for example) or idled past their Appium new-command timeout
+func sweepExpiredGridSessions() {
+	now := time.Now().UnixMilli()
+	for _, hubDevice := range devices.HubDeviceStore.All() {
+		hubDevice.Mu.Lock()
+		// Release expired API leases
+		if hubDevice.LockSource == devices.LockSourceAPI && hubDevice.LeaseExpiresAt > 0 && hubDevice.LeaseExpiresAt < now {
+			hubDevice.ReleaseLock()
+		}
+		// A new-command timeout of 0 means the client explicitly disabled the idle
+		// timer (`appium:newCommandTimeout: 0`) - such sessions live until they are
+		// deleted or the device disconnects
+		idleExpired := hubDevice.IsRunningAutomation &&
+			hubDevice.AppiumNewCommandTimeout > 0 &&
+			hubDevice.LastAutomationActionTS <= (now-hubDevice.AppiumNewCommandTimeout)
+		if !hubDevice.Connected || hubDevice.ProviderState != "live" || idleExpired {
+			// Ask the provider to actually close the expired Appium session (best
+			// effort, in the background) - otherwise the app under test keeps running
+			// on the device until the next session overrides it
+			if hubDevice.SessionID != "" && hubDevice.Connected && hubDevice.ProviderState == "live" {
+				go killProviderAppiumSession(hubDevice.Host, hubDevice.Device.UDID, hubDevice.SessionID)
+			}
+			hubDevice.IsRunningAutomation = false
+			hubDevice.IsAvailableForAutomation = true
+			hubDevice.SessionID = ""
+			hubDevice.ReleaseLockIfNotHeld()
+		}
+		hubDevice.Mu.Unlock()
+	}
+}
+
+// killProviderAppiumSession sends a session DELETE to the device's provider,
+// used when the hub expires a session on its side. Best effort - failures are
+// only logged, the janitor keeps running either way
+func killProviderAppiumSession(deviceHost string, deviceUDID string, sessionID string) {
+	deleteURL := fmt.Sprintf("http://%s/device/%s/appium/session/%s", deviceHost, deviceUDID, sessionID)
+	deleteReq, err := http.NewRequest(http.MethodDelete, deleteURL, nil)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to create cleanup request for expired Appium session `%s` on device `%s` - %s", sessionID, deviceUDID, err))
+		return
+	}
+	resp, err := gridCommandClient.Do(deleteReq)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to delete expired Appium session `%s` on device `%s` - %s", sessionID, deviceUDID, err))
+		return
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 }
 
 func AppiumGridMiddleware() gin.HandlerFunc {
@@ -201,9 +245,10 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			foundDevice.IsRunningAutomation = true
 			foundDevice.IsAvailableForAutomation = false
 			foundDevice.LastAutomationActionTS = time.Now().UnixMilli()
-			// Update the session timeout values if none were provided
-			// NOTE: explicit `appium:newCommandTimeout: 0` currently falls back to the default like "absent" does - Phase 2 gives it disable semantics
-			if candidate.NewCommandTimeout != nil && *candidate.NewCommandTimeout != 0 {
+			// `appium:newCommandTimeout` semantics: absent -> 60s default; explicit 0 ->
+			// idle timeout disabled on the hub too (0 makes the janitor skip the idle
+			// check, matching Appium disabling its own timer); anything else -> as given
+			if candidate.NewCommandTimeout != nil {
 				foundDevice.AppiumNewCommandTimeout = *candidate.NewCommandTimeout * 1000
 			} else {
 				foundDevice.AppiumNewCommandTimeout = 60000
@@ -235,8 +280,7 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			// Send the request
-			client := &http.Client{}
-			resp, err := client.Do(proxyReq)
+			resp, err := gridSessionClient.Do(proxyReq)
 			if err != nil {
 				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
@@ -333,29 +377,21 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 		} else {
 			// If this is not a request for a new session
 			var sessionID = ""
+			// Whether this request ends the session - only an exact `DELETE /session/{id}` does.
+			// A DELETE on a subpath (/window, /cookie, /cookie/{name}, /actions) is an
+			// ordinary WebDriver command and must not release the device
+			var isSessionEndRequest = false
 
-			// Check if the call uses session ID
+			// The session ID is the path segment right after `/session/`, regardless of method
 			if strings.Contains(c.Request.URL.Path, "/session/") {
-				var startIndex int
-				var endIndex int
-
-				// Extract the session ID from the call URL path
-				if c.Request.Method == http.MethodDelete {
-					// Find the start and end of the session ID
-					startIndex = strings.Index(c.Request.URL.Path, "/session/") + len("/session/")
-					endIndex = len(c.Request.URL.Path)
+				sessionIDStart := strings.Index(c.Request.URL.Path, "/session/") + len("/session/")
+				sessionIDAndRest := c.Request.URL.Path[sessionIDStart:]
+				if slashIndex := strings.Index(sessionIDAndRest, "/"); slashIndex != -1 {
+					sessionID = sessionIDAndRest[:slashIndex]
 				} else {
-					// Find the start and end of the session ID
-					startIndex = strings.Index(c.Request.URL.Path, "/session/") + len("/session/")
-					endIndex = strings.Index(c.Request.URL.Path[startIndex:], "/") + startIndex
+					sessionID = sessionIDAndRest
+					isSessionEndRequest = c.Request.Method == http.MethodDelete
 				}
-
-				if startIndex == -1 || endIndex == -1 {
-					writeW3CError(c, w3cInvalidSessionID(fmt.Sprintf("No session ID could be extracted from the request - %s", c.Request.URL.Path)))
-					return
-				}
-
-				sessionID = c.Request.URL.Path[startIndex:endIndex]
 			}
 
 			// If no session ID could be parsed from the request
@@ -411,16 +447,15 @@ func AppiumGridMiddleware() gin.HandlerFunc {
 			}
 
 			// Send the request
-			client := &http.Client{}
-			resp, err := client.Do(proxyReq)
+			resp, err := gridCommandClient.Do(proxyReq)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to failed to execute the proxy request to the device respective provider Appium endpoint", "", err.Error()))
+				c.JSON(http.StatusInternalServerError, createErrorResponse("GADS failed to execute the proxy request to the device respective provider Appium endpoint", "", err.Error()))
 				return
 			}
 			defer resp.Body.Close()
 
-			// If the request succeeded and was a delete request, remove the session ID from the map
-			if c.Request.Method == http.MethodDelete {
+			// Release the device when the session itself was deleted
+			if isSessionEndRequest {
 				foundDevice.Mu.Lock()
 				foundDevice.IsAvailableForAutomation = true
 				foundDevice.Mu.Unlock()
@@ -525,11 +560,16 @@ func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, 
 			return nil, err
 		}
 
-		// Check if device is in allowed workspaces
 		d.Mu.RLock()
 		wsID := d.Device.WorkspaceID
+		connected := d.Connected
+		state := d.ProviderState
+		lastUpdated := d.LastUpdatedTimestamp
+		usage := d.Device.Usage
+		isLockedByOther := d.IsLockedByOther(userID, userTenant)
 		d.Mu.RUnlock()
 
+		// Check if device is in allowed workspaces
 		deviceAllowed := false
 		for _, allowedWsID := range allowedWorkspaceIDs {
 			if wsID == allowedWsID {
@@ -539,6 +579,19 @@ func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, 
 		}
 		if !deviceAllowed {
 			return nil, fmt.Errorf("No device with udid `%s` was found", deviceUDID)
+		}
+
+		// A UDID-pinned device must pass the same eligibility checks as the generic
+		// search below - without them a client could start automation on a device
+		// another user is actively controlling. The exact reason is deliberately
+		// not exposed to the client
+		if !connected ||
+			state != "live" ||
+			lastUpdated < (time.Now().UnixMilli()-3000) ||
+			usage == "control" ||
+			usage == "disabled" ||
+			isLockedByOther {
+			return nil, fmt.Errorf("Device is currently not available for automation")
 		}
 
 		d.Mu.Lock()
