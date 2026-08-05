@@ -100,6 +100,12 @@ func GridStatus(c *gin.Context) {
 	statusDevices := []gridStatusDevice{}
 	for _, hubDevice := range devices.HubDeviceStore.AllSorted() {
 		hubDevice.Mu.RLock()
+		// Devices on a provider without Appium servers can never serve a session -
+		// they are not part of the grid's world at all
+		if !hubDevice.AppiumEnabled {
+			hubDevice.Mu.RUnlock()
+			continue
+		}
 		connectedAndLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		usageAllowsAutomation := hubDevice.Device.Usage != "control" && hubDevice.Device.Usage != "disabled"
 		statusDevices = append(statusDevices, gridStatusDevice{
@@ -747,6 +753,7 @@ func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, 
 		state := d.ProviderState
 		lastUpdated := d.LastUpdatedTimestamp
 		usage := d.Device.Usage
+		appiumEnabled := d.AppiumEnabled
 		isLockedByOther := d.IsLockedByOther(userID, userTenant)
 		d.Mu.RUnlock()
 
@@ -767,6 +774,13 @@ func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, 
 		// let the middleware fail fast instead of retrying
 		if usage == "control" || usage == "disabled" {
 			return nil, fmt.Errorf("Device with udid `%s` is not enabled for automation, its usage is set to `%s`", deviceUDID, usage)
+		}
+
+		// Same static-configuration reasoning: a provider that does not run Appium
+		// servers can never serve a session for this device. The error phrasing must
+		// keep "is not enabled for automation" so the queue fails fast on it
+		if !appiumEnabled {
+			return nil, fmt.Errorf("Device with udid `%s` is not enabled for automation, its provider does not run Appium servers", deviceUDID)
 		}
 
 		// A UDID-pinned device must pass the same runtime eligibility checks as the
@@ -802,6 +816,7 @@ func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, 
 			lastUpdated := localDevice.LastUpdatedTimestamp
 			available := localDevice.IsAvailableForAutomation
 			usage := localDevice.Device.Usage
+			appiumEnabled := localDevice.AppiumEnabled
 			wsID := localDevice.Device.WorkspaceID
 			isLockedByOther := localDevice.IsLockedByOther(userID, userTenant)
 			localDevice.Mu.RUnlock()
@@ -811,6 +826,7 @@ func findAvailableDevice(candidate gridCandidate, allowedWorkspaceIDs []string, 
 				state != "live" ||
 				lastUpdated < (time.Now().UnixMilli()-3000) ||
 				!available ||
+				!appiumEnabled ||
 				usage == "control" ||
 				usage == "disabled" {
 				continue

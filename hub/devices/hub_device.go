@@ -52,6 +52,7 @@ type LocalHubDevice struct {
 	ProviderLastCommandTS        int64  `json:"provider_last_command_ts" bson:"-"`
 	ProviderSessionMissingSinceTS int64 `json:"-" bson:"-"` // Unix ms since the provider stopped reporting a session the hub still tracks, 0 = not missing
 	IsAvailableForAutomation bool          `json:"is_available_for_automation"`
+	AppiumEnabled            bool          `json:"appium_enabled" bson:"-"` // whether the device's provider runs Appium servers - devices without one can never serve automation
 	Available                bool          `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
 	InUseWSConnection        net.Conn      `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
 	LastActionTS             int64         `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider

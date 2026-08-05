@@ -365,6 +365,7 @@ func TestGridCreateSessionHandler(t *testing.T) {
 			ProviderState:            "live",
 			LastUpdatedTimestamp:     time.Now().UnixMilli(),
 			IsAvailableForAutomation: true,
+			AppiumEnabled:            true,
 		}
 		devices.HubDeviceStore.Set(udid, device)
 		defer devices.HubDeviceStore.Delete(udid)

@@ -61,6 +61,7 @@ For this reason the hub embeds its own grid implementation - no Selenium Grid re
 - By UDID via `appium:udid`
 - By `platformName` (iOS or Android) or `appium:automationName` (XCUITest or UiAutomator2)
   - Additionally the grid allows filtering by `appium:platformVersion` capability which supports exact version e.g. `17.5.1` or a major version e.g. `17`, `11` etc
+- Devices whose usage is set to `Control` or `Disabled`, and devices on a provider configured without Appium servers, are never dispatched - requests pinned to one by UDID fail immediately with the reason instead of queueing
 
 **Queueing**
 - When no matching device is free the request waits in a FIFO queue - first come, first served
@@ -73,7 +74,7 @@ For this reason the hub embeds its own grid implementation - no Selenium Grid re
 
 **Response enrichment** - a successful session response includes extra `gads:*` capabilities telling you which device you actually got:
 - `gads:deviceUdid`, `gads:deviceName`, `gads:provider`
-- `gads:controlUrl` - a direct link to the hub's remote control UI for the device serving your test; the session owner can also attach from the device list via the `Debug your test` button and watch the test live
+- `gads:controlUrl` - a direct link to the hub's remote control UI for the device serving your test; the session owner can also attach from the device list via the `Use` button (after confirming) and watch the test live
 
 **Observability**
 - `GET /grid/status` (unauthenticated) reports overall grid readiness and per-device availability

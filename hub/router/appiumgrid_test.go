@@ -42,6 +42,7 @@ func newGridSessionDevice(udid string, sessionID string, providerHost string) (*
 		SessionID:                sessionID,
 		IsRunningAutomation:      true,
 		IsAvailableForAutomation: false,
+		AppiumEnabled:            true,
 		LastAutomationActionTS:   time.Now().UnixMilli(),
 		AppiumNewCommandTimeout:  60000,
 	}
@@ -122,6 +123,7 @@ func TestFindAvailableDeviceByUDIDEligibility(t *testing.T) {
 		{"stale provider update", "not available", func(d *devices.LocalHubDevice) { d.LastUpdatedTimestamp = time.Now().UnixMilli() - 10000 }},
 		{"usage control", "is not enabled for automation", func(d *devices.LocalHubDevice) { d.Device.Usage = "control" }},
 		{"usage disabled", "is not enabled for automation", func(d *devices.LocalHubDevice) { d.Device.Usage = "disabled" }},
+		{"provider without Appium servers", "is not enabled for automation", func(d *devices.LocalHubDevice) { d.AppiumEnabled = false }},
 		{"locked by another user", "not available", func(d *devices.LocalHubDevice) {
 			d.InUseBy = "other-user"
 			d.InUseByTenant = "tenant1"
@@ -176,6 +178,20 @@ func TestFindAvailableDeviceByUDIDEligibility(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Contains(t, w.Body.String(), "is not enabled for automation")
 		assert.Contains(t, w.Body.String(), "session not created")
+	})
+
+	t.Run("generic search skips devices whose provider has no Appium servers", func(t *testing.T) {
+		udid := "generic-no-appium-device"
+		device, cleanup := newGridSessionDevice(udid, "", "fake-host")
+		defer cleanup()
+		device.SessionID = ""
+		device.IsRunningAutomation = false
+		device.IsAvailableForAutomation = true
+		device.AppiumEnabled = false
+
+		found, err := findAvailableDevice(gridCandidate{PlatformName: "Android"}, []string{"ws1"}, "test-user", "tenant1")
+		assert.Nil(t, found)
+		assert.Error(t, err)
 	})
 
 	t.Run("eligible pinned device is claimed", func(t *testing.T) {
@@ -462,6 +478,25 @@ func TestGridStatus(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"available":false`)
 		assert.Contains(t, w.Body.String(), `"in_use_by_automation":true`)
 	})
+
+	t.Run("device on a provider without Appium servers is not listed at all", func(t *testing.T) {
+		device, cleanup := newGridSessionDevice("status-no-appium-device", "", "fake-host")
+		defer cleanup()
+		device.SessionID = ""
+		device.IsRunningAutomation = false
+		device.IsAvailableForAutomation = true
+		device.AppiumEnabled = false
+
+		router := newGridTestRouter()
+		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NotContains(t, w.Body.String(), "status-no-appium-device")
+		// A grid whose only device cannot serve automation is not ready either
+		assert.Contains(t, w.Body.String(), `"ready":false`)
+	})
 }
 
 func TestGetAutomationSessions(t *testing.T) {
@@ -527,6 +562,7 @@ func TestEnrichSessionResponse(t *testing.T) {
 			ProviderState:            "live",
 			LastUpdatedTimestamp:     time.Now().UnixMilli(),
 			IsAvailableForAutomation: true,
+			AppiumEnabled:            true,
 		}
 		devices.HubDeviceStore.Set(udid, device)
 		return device, func() { devices.HubDeviceStore.Delete(udid) }
@@ -642,6 +678,7 @@ func TestGridCreateSessionStampsIdentityAtClaimTime(t *testing.T) {
 			ProviderState:            "live",
 			LastUpdatedTimestamp:     time.Now().UnixMilli(),
 			IsAvailableForAutomation: true,
+			AppiumEnabled:            true,
 		}
 		devices.HubDeviceStore.Set(udid, device)
 		return device, func() { devices.HubDeviceStore.Delete(udid) }
@@ -742,6 +779,7 @@ func TestGridSessionLifecycleFlow(t *testing.T) {
 		ProviderState:            "live",
 		LastUpdatedTimestamp:     time.Now().UnixMilli(),
 		IsAvailableForAutomation: true,
+		AppiumEnabled:            true,
 	}
 	devices.HubDeviceStore.Set(udid, device)
 	defer devices.HubDeviceStore.Delete(udid)
