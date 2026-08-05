@@ -164,14 +164,21 @@ func GridStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"value": value})
 }
 
+// All device OS values GADS can serve automation on - keep in sync with the
+// OS-specific validation in models.ValidateDeviceUsageForOS
+var automationDeviceOSes = []string{"android", "ios", "tizen", "webos", "androidtv", "roku"}
+
 type automationSession struct {
-	SessionID     string `json:"session_id"`
-	DeviceUDID    string `json:"device_udid"`
-	DeviceName    string `json:"device_name"`
-	InUseBy       string `json:"in_use_by"`
-	InUseByTenant string `json:"in_use_by_tenant"`
-	StartedTS     int64  `json:"started_ts"`
-	LastCommandTS int64  `json:"last_command_ts"`
+	SessionID       string `json:"session_id"`
+	DeviceUDID      string `json:"device_udid"`
+	DeviceName      string `json:"device_name"`
+	DeviceOS        string `json:"device_os"`
+	DeviceOSVersion string `json:"device_os_version"`
+	Provider        string `json:"provider"`
+	InUseBy         string `json:"in_use_by"`
+	InUseByTenant   string `json:"in_use_by_tenant"`
+	StartedTS       int64  `json:"started_ts"`
+	LastCommandTS   int64  `json:"last_command_ts"`
 }
 
 // GetAutomationSessions godoc
@@ -188,13 +195,16 @@ func GetAutomationSessions(c *gin.Context) {
 	for sessionID, sessionDevice := range devices.AllSessions() {
 		sessionDevice.Mu.RLock()
 		sessions = append(sessions, automationSession{
-			SessionID:     sessionID,
-			DeviceUDID:    sessionDevice.Device.UDID,
-			DeviceName:    sessionDevice.Device.Name,
-			InUseBy:       sessionDevice.InUseBy,
-			InUseByTenant: sessionDevice.InUseByTenant,
-			StartedTS:     sessionDevice.AutomationSessionStartTS,
-			LastCommandTS: sessionDevice.LastAutomationActionTS,
+			SessionID:       sessionID,
+			DeviceUDID:      sessionDevice.Device.UDID,
+			DeviceName:      sessionDevice.Device.Name,
+			DeviceOS:        sessionDevice.Device.OS,
+			DeviceOSVersion: sessionDevice.Device.OSVersion,
+			Provider:        sessionDevice.Device.Provider,
+			InUseBy:         sessionDevice.InUseBy,
+			InUseByTenant:   sessionDevice.InUseByTenant,
+			StartedTS:       sessionDevice.AutomationSessionStartTS,
+			LastCommandTS:   sessionDevice.LastAutomationActionTS,
 		})
 		sessionDevice.Mu.RUnlock()
 	}
@@ -206,24 +216,34 @@ func GetAutomationSessions(c *gin.Context) {
 		return sessions[i].SessionID < sessions[j].SessionID
 	})
 
-	// Same overall-readiness notion as /grid/status: any connected, live device
-	// whose provider runs Appium servers
-	ready := false
+	// Devices that could take a new automation session this instant - same
+	// eligibility the grid's own dispatch applies - broken down per OS. Every
+	// supported OS is present in the map, so platforms with no devices at all
+	// still report an explicit zero
+	availableDevicesByOS := map[string]int{}
+	for _, deviceOS := range automationDeviceOSes {
+		availableDevicesByOS[deviceOS] = 0
+	}
 	for _, hubDevice := range devices.HubDeviceStore.All() {
 		hubDevice.Mu.RLock()
-		if hubDevice.AppiumEnabled && hubDevice.Connected && hubDevice.ProviderState == "live" {
-			ready = true
+		if hubDevice.AppiumEnabled &&
+			hubDevice.Device.Usage != "control" &&
+			hubDevice.Device.Usage != "disabled" {
+			deviceOS := strings.ToLower(hubDevice.Device.OS)
+			availableDevicesByOS[deviceOS] += 0
+			if hubDevice.Connected &&
+				hubDevice.ProviderState == "live" &&
+				hubDevice.IsAvailableForAutomation {
+				availableDevicesByOS[deviceOS]++
+			}
 		}
 		hubDevice.Mu.RUnlock()
-		if ready {
-			break
-		}
 	}
 
 	api.OK(c, "Automation sessions overview", gin.H{
-		"ready":    ready,
-		"queued":   gridQueue.depth(),
-		"sessions": sessions,
+		"available_devices_by_os": availableDevicesByOS,
+		"queued":                  gridQueue.depth(),
+		"sessions":                sessions,
 	})
 }
 

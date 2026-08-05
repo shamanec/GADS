@@ -549,13 +549,26 @@ func TestGridStatus(t *testing.T) {
 func TestGetAutomationSessions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("lists active sessions with device and user info plus readiness and queue depth", func(t *testing.T) {
+	t.Run("lists active sessions with device and user info plus availability and queue depth", func(t *testing.T) {
 		device, cleanup := newGridSessionDevice("sessions-list-device", "sessions-list-session", "fake-host")
 		defer cleanup()
 		device.Device.Name = "Sessions Phone"
 		device.InUseBy = "session-user"
 		device.InUseByTenant = "tenant1"
 		device.AutomationSessionStartTS = time.Now().UnixMilli()
+
+		// A second, idle device - the only one counting as available since the
+		// session device is claimed
+		freeDevice, freeCleanup := newGridSessionDevice("sessions-free-device", "", "fake-host")
+		defer freeCleanup()
+		freeDevice.SessionID = ""
+		freeDevice.IsRunningAutomation = false
+		freeDevice.IsAvailableForAutomation = true
+
+		// An iOS device with no free capacity - its OS must still appear with a zero
+		busyIOSDevice, busyIOSCleanup := newGridSessionDevice("sessions-busy-ios-device", "sessions-busy-ios-session", "fake-host")
+		defer busyIOSCleanup()
+		busyIOSDevice.Device.OS = "ios"
 
 		router := gin.New()
 		router.GET("/automation-sessions", GetAutomationSessions)
@@ -567,11 +580,13 @@ func TestGetAutomationSessions(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"session_id":"sessions-list-session"`)
 		assert.Contains(t, w.Body.String(), `"device_udid":"sessions-list-device"`)
 		assert.Contains(t, w.Body.String(), `"device_name":"Sessions Phone"`)
+		assert.Contains(t, w.Body.String(), `"device_os":"android"`)
+		assert.Contains(t, w.Body.String(), `"device_os_version":"14.0.0"`)
 		assert.Contains(t, w.Body.String(), `"in_use_by":"session-user"`)
 		assert.Contains(t, w.Body.String(), `"started_ts"`)
 		assert.Contains(t, w.Body.String(), `"last_command_ts"`)
-		// The fixture device is connected and live, so the grid reports ready
-		assert.Contains(t, w.Body.String(), `"ready":true`)
+		// Every supported OS is present - the ones without devices as explicit zeroes
+		assert.Contains(t, w.Body.String(), `"available_devices_by_os":{"android":1,"androidtv":0,"ios":0,"roku":0,"tizen":0,"webos":0}`)
 		assert.Contains(t, w.Body.String(), `"queued":0`)
 	})
 
