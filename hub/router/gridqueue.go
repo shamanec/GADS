@@ -181,8 +181,8 @@ func (q *sessionQueue) dispatch() {
 	q.waiters = remaining
 }
 
-// depth reports the number of queued waiters. Used by tests to synchronize on
-// enqueue order
+// depth reports the number of queued waiters - surfaced on /grid/status and used
+// by tests to synchronize on enqueue order
 func (q *sessionQueue) depth() int {
 	q.mu.Lock()
 	defer q.mu.Unlock()

@@ -155,7 +155,9 @@ func GridStatus(c *gin.Context) {
 	if !ready {
 		message = "no devices available"
 	}
-	value := gin.H{"ready": ready, "message": message}
+	// The queue depth is a global count - it reveals nothing tenant-specific,
+	// so it is reported to anonymous callers too
+	value := gin.H{"ready": ready, "message": message, "queued": gridQueue.depth()}
 	if scopedUser != nil {
 		value["devices"] = statusDevices
 	}
@@ -173,8 +175,8 @@ type automationSession struct {
 }
 
 // GetAutomationSessions godoc
-// @Summary      List active automation sessions
-// @Description  Retrieve the currently active Appium grid sessions and the devices serving them
+// @Summary      Automation sessions overview
+// @Description  Retrieve grid readiness, the queued session request count and the currently active Appium grid sessions
 // @Tags         Hub - Devices
 // @Produce      json
 // @Success      200  {object}  models.APIResponse
@@ -203,7 +205,26 @@ func GetAutomationSessions(c *gin.Context) {
 		}
 		return sessions[i].SessionID < sessions[j].SessionID
 	})
-	api.OK(c, "Active automation sessions", sessions)
+
+	// Same overall-readiness notion as /grid/status: any connected, live device
+	// whose provider runs Appium servers
+	ready := false
+	for _, hubDevice := range devices.HubDeviceStore.All() {
+		hubDevice.Mu.RLock()
+		if hubDevice.AppiumEnabled && hubDevice.Connected && hubDevice.ProviderState == "live" {
+			ready = true
+		}
+		hubDevice.Mu.RUnlock()
+		if ready {
+			break
+		}
+	}
+
+	api.OK(c, "Automation sessions overview", gin.H{
+		"ready":    ready,
+		"queued":   gridQueue.depth(),
+		"sessions": sessions,
+	})
 }
 
 // Every second sweep the devices and clean up automation sessions

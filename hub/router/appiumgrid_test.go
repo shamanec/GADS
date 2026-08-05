@@ -465,6 +465,7 @@ func TestGridStatus(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), `"ready":true`)
+		assert.Contains(t, w.Body.String(), `"queued":0`)
 		assert.NotContains(t, w.Body.String(), "devices")
 		assert.NotContains(t, w.Body.String(), "status-anon-device")
 	})
@@ -548,7 +549,7 @@ func TestGridStatus(t *testing.T) {
 func TestGetAutomationSessions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("lists active sessions with device and user info", func(t *testing.T) {
+	t.Run("lists active sessions with device and user info plus readiness and queue depth", func(t *testing.T) {
 		device, cleanup := newGridSessionDevice("sessions-list-device", "sessions-list-session", "fake-host")
 		defer cleanup()
 		device.Device.Name = "Sessions Phone"
@@ -569,6 +570,9 @@ func TestGetAutomationSessions(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"in_use_by":"session-user"`)
 		assert.Contains(t, w.Body.String(), `"started_ts"`)
 		assert.Contains(t, w.Body.String(), `"last_command_ts"`)
+		// The fixture device is connected and live, so the grid reports ready
+		assert.Contains(t, w.Body.String(), `"ready":true`)
+		assert.Contains(t, w.Body.String(), `"queued":0`)
 	})
 
 	t.Run("requires authentication", func(t *testing.T) {
