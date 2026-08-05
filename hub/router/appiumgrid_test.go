@@ -14,6 +14,7 @@ import (
 	"GADS/hub/auth"
 	"GADS/hub/devices"
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -429,18 +430,57 @@ func TestSyncDeviceFieldsProviderTruth(t *testing.T) {
 func TestGridStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("no devices means not ready", func(t *testing.T) {
+	prevGridDB := gridDB
+	defer func() { gridDB = prevGridDB }()
+	gridDB = &fakeGridStore{
+		credential: models.ClientCredentials{UserID: "status-user", Tenant: "tenant1", IsActive: true},
+		workspaces: []models.Workspace{{ID: "ws1", Tenant: "tenant1"}},
+	}
+
+	// statusRequest hits /grid/status, with the client secret header when given
+	statusRequest := func(secret string) *httptest.ResponseRecorder {
 		router := newGridTestRouter()
 		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
+		if secret != "" {
+			req.Header.Set("Authorization", "Bearer "+secret)
+		}
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
+		return w
+	}
+
+	t.Run("no devices means not ready", func(t *testing.T) {
+		w := statusRequest("")
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), `"ready":false`)
 		assert.Contains(t, w.Body.String(), "no devices available")
 	})
 
-	t.Run("live device makes the grid ready and is listed", func(t *testing.T) {
+	t.Run("without credentials only readiness is reported, never the device list", func(t *testing.T) {
+		_, cleanup := newGridSessionDevice("status-anon-device", "", "fake-host")
+		defer cleanup()
+
+		w := statusRequest("")
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `"ready":true`)
+		assert.NotContains(t, w.Body.String(), "devices")
+		assert.NotContains(t, w.Body.String(), "status-anon-device")
+	})
+
+	t.Run("an invalid client secret is rejected", func(t *testing.T) {
+		prevStore := gridDB
+		defer func() { gridDB = prevStore }()
+		gridDB = &fakeGridStore{credentialErr: fmt.Errorf("not found")}
+
+		w := statusRequest("wrong-secret")
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Contains(t, w.Body.String(), "Invalid client credentials")
+	})
+
+	t.Run("live device makes the grid ready and is listed with credentials", func(t *testing.T) {
 		device, cleanup := newGridSessionDevice("status-live-device", "", "fake-host")
 		defer cleanup()
 		device.Device.Name = "Status Phone"
@@ -449,10 +489,7 @@ func TestGridStatus(t *testing.T) {
 		device.IsRunningAutomation = false
 		device.IsAvailableForAutomation = true
 
-		router := newGridTestRouter()
-		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+		w := statusRequest("status-secret")
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), `"ready":true`)
@@ -464,14 +501,26 @@ func TestGridStatus(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"in_use_by_automation":false`)
 	})
 
+	t.Run("devices outside the credential's workspaces are not listed and do not count as ready", func(t *testing.T) {
+		device, cleanup := newGridSessionDevice("status-foreign-device", "", "fake-host")
+		defer cleanup()
+		device.SessionID = ""
+		device.IsRunningAutomation = false
+		device.IsAvailableForAutomation = true
+		device.Device.WorkspaceID = "other-tenant-ws"
+
+		w := statusRequest("status-secret")
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NotContains(t, w.Body.String(), "status-foreign-device")
+		assert.Contains(t, w.Body.String(), `"ready":false`)
+	})
+
 	t.Run("device running automation is ready but not available", func(t *testing.T) {
 		_, cleanup := newGridSessionDevice("status-busy-device", "status-busy-session", "fake-host")
 		defer cleanup()
 
-		router := newGridTestRouter()
-		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+		w := statusRequest("status-secret")
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), `"ready":true`)
@@ -487,10 +536,7 @@ func TestGridStatus(t *testing.T) {
 		device.IsAvailableForAutomation = true
 		device.AppiumEnabled = false
 
-		router := newGridTestRouter()
-		req, _ := http.NewRequest("GET", "/grid/status", bytes.NewBufferString(""))
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+		w := statusRequest("status-secret")
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.NotContains(t, w.Body.String(), "status-no-appium-device")

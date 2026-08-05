@@ -82,9 +82,11 @@ func registerGridRoutes(grid *gin.RouterGroup) {
 }
 
 // GridStatus is the W3C status endpoint (`GET /grid/status`) - reports whether the
-// grid can serve sessions plus a per-device readiness list. Like the rest of /grid
-// it is unauthenticated, so it deliberately exposes no workspace, tenant or user
-// information
+// grid can serve sessions. Without credentials only the readiness flag is returned,
+// keeping healthchecks credential-free. With a valid client secret sent as
+// `Authorization: Bearer <secret>` (the same credential used for session creation)
+// the response also carries the per-device list plus a readiness flag scoped to
+// that credential's workspaces - other tenants' devices are never revealed
 func GridStatus(c *gin.Context) {
 	type gridStatusDevice struct {
 		UDID              string `json:"udid"`
@@ -94,6 +96,26 @@ func GridStatus(c *gin.Context) {
 		Provider          string `json:"provider"`
 		Available         bool   `json:"available"`
 		InUseByAutomation bool   `json:"in_use_by_automation"`
+	}
+
+	secret := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(c.GetHeader("Authorization")), "Bearer"))
+	var scopedUser *gridUser
+	if secret != "" {
+		user, w3cErr := resolveGridUser(secret)
+		if w3cErr != nil {
+			writeW3CError(c, &W3CError{HTTPStatus: http.StatusUnauthorized, Code: "invalid argument", Message: w3cErr.Message})
+			return
+		}
+		scopedUser = &user
+	}
+
+	inAllowedWorkspace := func(workspaceID string) bool {
+		for _, allowedID := range scopedUser.AllowedWorkspaceIDs {
+			if workspaceID == allowedID {
+				return true
+			}
+		}
+		return false
 	}
 
 	ready := false
@@ -106,17 +128,23 @@ func GridStatus(c *gin.Context) {
 			hubDevice.Mu.RUnlock()
 			continue
 		}
+		if scopedUser != nil && !inAllowedWorkspace(hubDevice.Device.WorkspaceID) {
+			hubDevice.Mu.RUnlock()
+			continue
+		}
 		connectedAndLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		usageAllowsAutomation := hubDevice.Device.Usage != "control" && hubDevice.Device.Usage != "disabled"
-		statusDevices = append(statusDevices, gridStatusDevice{
-			UDID:              hubDevice.Device.UDID,
-			Name:              hubDevice.Device.Name,
-			OS:                hubDevice.Device.OS,
-			OSVersion:         hubDevice.Device.OSVersion,
-			Provider:          hubDevice.Device.Provider,
-			Available:         connectedAndLive && usageAllowsAutomation && hubDevice.IsAvailableForAutomation,
-			InUseByAutomation: hubDevice.IsRunningAutomation,
-		})
+		if scopedUser != nil {
+			statusDevices = append(statusDevices, gridStatusDevice{
+				UDID:              hubDevice.Device.UDID,
+				Name:              hubDevice.Device.Name,
+				OS:                hubDevice.Device.OS,
+				OSVersion:         hubDevice.Device.OSVersion,
+				Provider:          hubDevice.Device.Provider,
+				Available:         connectedAndLive && usageAllowsAutomation && hubDevice.IsAvailableForAutomation,
+				InUseByAutomation: hubDevice.IsRunningAutomation,
+			})
+		}
 		if connectedAndLive {
 			ready = true
 		}
@@ -127,7 +155,11 @@ func GridStatus(c *gin.Context) {
 	if !ready {
 		message = "no devices available"
 	}
-	c.JSON(http.StatusOK, gin.H{"value": gin.H{"ready": ready, "message": message, "devices": statusDevices}})
+	value := gin.H{"ready": ready, "message": message}
+	if scopedUser != nil {
+		value["devices"] = statusDevices
+	}
+	c.JSON(http.StatusOK, gin.H{"value": value})
 }
 
 type automationSession struct {

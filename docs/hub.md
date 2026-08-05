@@ -77,7 +77,7 @@ For this reason the hub embeds its own grid implementation - no Selenium Grid re
 - `gads:controlUrl` - a direct link to the hub's remote control UI for the device serving your test; the session owner can also attach from the device list via the `Use` button (after confirming) and watch the test live
 
 **Observability**
-- `GET /grid/status` (unauthenticated) reports overall grid readiness and per-device availability
+- `GET /grid/status` reports overall grid readiness; without credentials that is all it reports. Send your client secret as `Authorization: Bearer <secret>` to also get the per-device availability list and a readiness flag scoped to your tenant's workspaces
 - `GET /automation-sessions` (authenticated) lists the currently active automation sessions
 
 ### Android devices remote control debugging
