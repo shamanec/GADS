@@ -216,8 +216,9 @@ func GetAutomationSessions(c *gin.Context) {
 		return sessions[i].SessionID < sessions[j].SessionID
 	})
 
-	// Devices that could take a new automation session this instant - same
-	// eligibility the grid's own dispatch applies - broken down per OS. Every
+	// Automation-capable devices the grid can currently reach (connected and
+	// live), broken down per OS - a device busy with a test still counts, the
+	// Active sessions number tells how many of these are occupied. Every
 	// supported OS is present in the map, so platforms with no devices at all
 	// still report an explicit zero
 	availableDevicesByOS := map[string]int{}
@@ -228,14 +229,10 @@ func GetAutomationSessions(c *gin.Context) {
 		hubDevice.Mu.RLock()
 		if hubDevice.AppiumEnabled &&
 			hubDevice.Device.Usage != "control" &&
-			hubDevice.Device.Usage != "disabled" {
-			deviceOS := strings.ToLower(hubDevice.Device.OS)
-			availableDevicesByOS[deviceOS] += 0
-			if hubDevice.Connected &&
-				hubDevice.ProviderState == "live" &&
-				hubDevice.IsAvailableForAutomation {
-				availableDevicesByOS[deviceOS]++
-			}
+			hubDevice.Device.Usage != "disabled" &&
+			hubDevice.Connected &&
+			hubDevice.ProviderState == "live" {
+			availableDevicesByOS[strings.ToLower(hubDevice.Device.OS)]++
 		}
 		hubDevice.Mu.RUnlock()
 	}

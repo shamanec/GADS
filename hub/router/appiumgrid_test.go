@@ -557,18 +557,21 @@ func TestGetAutomationSessions(t *testing.T) {
 		device.InUseByTenant = "tenant1"
 		device.AutomationSessionStartTS = time.Now().UnixMilli()
 
-		// A second, idle device - the only one counting as available since the
-		// session device is claimed
+		// A second, idle device - available counts the whole reachable pool, so
+		// both this and the busy session device above are included
 		freeDevice, freeCleanup := newGridSessionDevice("sessions-free-device", "", "fake-host")
 		defer freeCleanup()
 		freeDevice.SessionID = ""
 		freeDevice.IsRunningAutomation = false
 		freeDevice.IsAvailableForAutomation = true
 
-		// An iOS device with no free capacity - its OS must still appear with a zero
-		busyIOSDevice, busyIOSCleanup := newGridSessionDevice("sessions-busy-ios-device", "sessions-busy-ios-session", "fake-host")
-		defer busyIOSCleanup()
-		busyIOSDevice.Device.OS = "ios"
+		// A disconnected iOS device - not reachable, so its OS reports zero
+		offlineIOSDevice, offlineIOSCleanup := newGridSessionDevice("sessions-offline-ios-device", "", "fake-host")
+		defer offlineIOSCleanup()
+		offlineIOSDevice.SessionID = ""
+		offlineIOSDevice.IsRunningAutomation = false
+		offlineIOSDevice.Device.OS = "ios"
+		offlineIOSDevice.Connected = false
 
 		router := gin.New()
 		router.GET("/automation-sessions", GetAutomationSessions)
@@ -585,8 +588,9 @@ func TestGetAutomationSessions(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"in_use_by":"session-user"`)
 		assert.Contains(t, w.Body.String(), `"started_ts"`)
 		assert.Contains(t, w.Body.String(), `"last_command_ts"`)
-		// Every supported OS is present - the ones without devices as explicit zeroes
-		assert.Contains(t, w.Body.String(), `"available_devices_by_os":{"android":1,"androidtv":0,"ios":0,"roku":0,"tizen":0,"webos":0}`)
+		// Every supported OS is present - the ones without reachable devices as
+		// explicit zeroes; the busy session device still counts for android
+		assert.Contains(t, w.Body.String(), `"available_devices_by_os":{"android":2,"androidtv":0,"ios":0,"roku":0,"tizen":0,"webos":0}`)
 		assert.Contains(t, w.Body.String(), `"queued":0`)
 	})
 

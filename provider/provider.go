@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var targetAppiumPluginVersion = "0.0.11"
+var targetAppiumPluginVersion = "0.0.12"
 
 func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	logLevel, _ := flags.GetString("log-level")
