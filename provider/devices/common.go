@@ -62,6 +62,11 @@ func syncDevicesToDB() {
 
 	allDevs := DevManager.All()
 	for _, platDev := range allDevs {
+		// Ephemeral devices have no DB record to reconcile against - their
+		// lifecycle is driven purely by discovery (reconcileAndroidEmulators)
+		if platDev.IsEphemeral() {
+			continue
+		}
 		udid := platDev.GetUDID()
 		dbDevice := platDev.GetDBDevice()
 		updatedDevice, ok := updatedDevices[udid]
@@ -179,9 +184,24 @@ func updateProviderHub() {
 // initializeDevice initializes a single device: sets up DB-level fields, creates a
 // PlatformDevice with Logger/SemVer on RuntimeState, and stores it in DevManager.
 func initializeDevice(dbDevice *models.DBDevice) error {
+	platDev, err := createPlatformDevice(dbDevice)
+	if err != nil {
+		return err
+	}
+
+	DevManager.Set(dbDevice.UDID, platDev)
+
+	return nil
+}
+
+// createPlatformDevice builds a fully initialized PlatformDevice without registering
+// it in DevManager. Split from initializeDevice so callers that need to adjust runtime
+// state first (e.g. mark discovered emulators ephemeral) can do so before the device
+// becomes visible to the other device loops.
+func createPlatformDevice(dbDevice *models.DBDevice) (PlatformDevice, error) {
 	sv, err := semver.NewVersion(dbDevice.OSVersion)
 	if err != nil {
-		return fmt.Errorf("failed to get semver for device `%s` - %s", dbDevice.UDID, err)
+		return nil, fmt.Errorf("failed to get semver for device `%s` - %s", dbDevice.UDID, err)
 	}
 
 	if config.ProviderConfig.SetupAppiumServers {
@@ -195,7 +215,7 @@ func initializeDevice(dbDevice *models.DBDevice) error {
 		if !exists {
 			err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs_new", dbDevice.UDID, 30000, 30)
 			if err != nil {
-				return fmt.Errorf("failed to create capped Appium logs collection for device `%s` - %s", dbDevice.UDID, err)
+				return nil, fmt.Errorf("failed to create capped Appium logs collection for device `%s` - %s", dbDevice.UDID, err)
 			}
 		}
 
@@ -220,20 +240,20 @@ func initializeDevice(dbDevice *models.DBDevice) error {
 	if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
 		err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID), os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("could not create logs folder for device `%s` - %s", dbDevice.UDID, err)
+			return nil, fmt.Errorf("could not create logs folder for device `%s` - %s", dbDevice.UDID, err)
 		}
 	}
 
 	// Create a custom logger
 	deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
 	if err != nil {
-		return fmt.Errorf("could not create custom logger for device `%s` - %s", dbDevice.UDID, err)
+		return nil, fmt.Errorf("could not create custom logger for device `%s` - %s", dbDevice.UDID, err)
 	}
 
 	// Create PlatformDevice with runtime fields on RuntimeState
 	platDev := newPlatformDevice(dbDevice, *deviceLogger, sv)
 	if platDev == nil {
-		return fmt.Errorf("unsupported OS `%s` for device `%s`", dbDevice.OS, dbDevice.UDID)
+		return nil, fmt.Errorf("unsupported OS `%s` for device `%s`", dbDevice.OS, dbDevice.UDID)
 	}
 
 	// Initialize runtime state
@@ -241,9 +261,7 @@ func initializeDevice(dbDevice *models.DBDevice) error {
 	platDev.SetConnected(false)
 	platDev.SetHost(fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port))
 
-	DevManager.Set(dbDevice.UDID, platDev)
-
-	return nil
+	return platDev, nil
 }
 
 // When provider is started and respective devices are taken from the DB, we do the initial device data setup here
@@ -335,6 +353,9 @@ func updateDevices() {
 		case <-ticker.C:
 			syncDevicesToDB()
 			connectedDevices := GetConnectedDevicesCommon()
+			if config.ProviderConfig.ProvideAndroidEmulators {
+				connectedDevices = reconcileAndroidEmulators(connectedDevices)
+			}
 
 			// Create a snapshot of devices to iterate over
 			allDevices := DevManager.All()
@@ -399,7 +420,8 @@ func GetConnectedDevicesCommon() []string {
 
 	// Android TV devices connect over ADB just like Android mobile devices, so the same
 	// `adb devices` listing is used; the concrete device type is resolved from the DB OS field.
-	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv {
+	// Emulators also appear in that listing, so providing only emulators needs it too.
+	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv || config.ProviderConfig.ProvideAndroidEmulators {
 		androidDevices = getConnectedDevicesAndroid()
 	}
 

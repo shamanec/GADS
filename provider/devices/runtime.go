@@ -57,6 +57,12 @@ type RuntimeState struct {
 	// the UDID is synthesized from the AVD name but adb needs `emulator-5554`).
 	Serial string
 
+	// Ephemeral marks a device that exists only in memory (provider DevManager +
+	// hub device store) and must never be persisted to the DB. Set once at
+	// creation for discovered Android emulators, before the device is visible in
+	// DevManager, and read-only afterwards.
+	Ephemeral bool
+
 	// Provider-only runtime fields
 	HardwareModel        string
 	IsResetting          bool
@@ -87,6 +93,7 @@ func (r *RuntimeState) GetSerial() string {
 	}
 	return r.DBDevice.UDID
 }
+func (r *RuntimeState) IsEphemeral() bool               { return r.Ephemeral }
 func (r *RuntimeState) GetOS() string                   { return r.DBDevice.OS }
 func (r *RuntimeState) GetDBDevice() *models.DBDevice   { return &r.DBDevice }
 func (r *RuntimeState) GetProviderState() string        { return r.ProviderState }

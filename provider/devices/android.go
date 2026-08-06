@@ -652,6 +652,12 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 		d.DBDevice.ScreenHeight = strings.TrimSpace(screenDimensions[1])
 	}
 
+	// Ephemeral devices are never persisted - the detected dimensions live on the
+	// in-memory DBDevice only
+	if d.IsEphemeral() {
+		return nil
+	}
+
 	if err := db.GlobalMongoStore.AddOrUpdateDevice(&d.DBDevice); err != nil {
 		return fmt.Errorf("Failed to upsert new device screen dimensions to DB - %s", err)
 	}
