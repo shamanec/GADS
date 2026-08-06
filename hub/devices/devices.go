@@ -45,6 +45,17 @@ func GetLatestDBDevices() {
 	for {
 		latestDBDevices, _ = db.GlobalMongoStore.GetDevices()
 
+		// Whether each provider runs Appium servers, by nickname. When the lookup
+		// fails the previous per-device values are kept rather than flipped
+		appiumByProvider := map[string]bool{}
+		providersKnown := false
+		if dbProviders, err := db.GlobalMongoStore.GetAllProviders(); err == nil {
+			providersKnown = true
+			for _, dbProvider := range dbProviders {
+				appiumByProvider[dbProvider.Nickname] = dbProvider.SetupAppiumServers
+			}
+		}
+
 		// Remove devices from the store that are no longer in the DB
 		var toDelete []string
 		for _, hubDevice := range HubDeviceStore.All() {
@@ -89,6 +100,9 @@ func GetLatestDBDevices() {
 				if hubDevice.Device.WorkspaceID != dbDevice.WorkspaceID {
 					hubDevice.Device.WorkspaceID = dbDevice.WorkspaceID
 				}
+				if providersKnown {
+					hubDevice.AppiumEnabled = providerAppiumEnabled(appiumByProvider, dbDevice.Provider)
+				}
 				hubDevice.Mu.Unlock()
 			} else {
 				HubDeviceStore.Set(dbDevice.UDID, &LocalHubDevice{
@@ -96,11 +110,23 @@ func GetLatestDBDevices() {
 					IsRunningAutomation:      false,
 					IsAvailableForAutomation: true,
 					LastAutomationActionTS:   0,
+					AppiumEnabled:            providerAppiumEnabled(appiumByProvider, dbDevice.Provider),
 				})
 			}
 		}
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// providerAppiumEnabled resolves whether a device's provider runs Appium servers.
+// An unknown nickname (deleted provider, failed lookup) defaults to true so a
+// transient gap never hides working devices from the grid or the UI
+func providerAppiumEnabled(appiumByProvider map[string]bool, nickname string) bool {
+	enabled, ok := appiumByProvider[nickname]
+	if !ok {
+		return true
+	}
+	return enabled
 }
 
 func GetHubDeviceByUDID(udid string) *LocalHubDevice {

@@ -48,17 +48,37 @@ You have to provide all the required information and assign each device to a pro
 Changes to the device configuration require the respective provider instance restarted.  
 All fields have tooltips to help you with the required information.
 
-### Experimental Appium grid
+### Appium grid
 
 Using Selenium Grid 4 is a bit of a hassle and some versions do not work properly with Appium relay nodes.  
-For this reason I created an experimental grid implementation into the hub itself.  
-I haven't even read the Selenium Grid implementation and made up something myself - it might not work properly but could be the better alternative if it does work properly.  
-The experimental grid was tested only using latest Appium and Selenium Java client versions and with TestNG. Tests can be executed sequentially or in parallel using TestNG with `methods` or `classes` with multiple threads. I assume it should support any type of session creation with any Appium language client
+For this reason the hub embeds its own grid implementation - no Selenium Grid required. Point your Appium/Selenium driver URL at the hub, e.g. `http://192.168.1.6:10000/grid`, and create sessions as you usually would with any Appium language client.
 
-- The grid is accessible on your hub instance e.g. `http://192.168.1.6:10000/grid` and should be used as Appium/Selenium driver URL target. You just try to start a session as you usually do with Selenium Grid
-- The grid allows targeting devices by UDID
-- The grid allows targeting devices by `platformName`(iOS or Android) or `appium:automationName`(XCUITest or UiAutomator2) capabilities during session creation
+**Session requests**
+- Requests must use the W3C `capabilities` format (`alwaysMatch`/`firstMatch`). Legacy `desiredCapabilities`-only requests are rejected with `400 invalid argument` - Appium 2+ does not accept them either
+- Every session request must carry the `gads:clientSecret` capability for authentication - see [Appium client credentials](./appium-credentials.md). All `gads:*` capabilities are stripped before the request is forwarded, so the secret never appears in Appium logs
+
+**Device targeting**
+- By UDID via `appium:udid`
+- By `platformName` (iOS or Android) or `appium:automationName` (XCUITest or UiAutomator2)
   - Additionally the grid allows filtering by `appium:platformVersion` capability which supports exact version e.g. `17.5.1` or a major version e.g. `17`, `11` etc
+- Devices whose usage is set to `Control` or `Disabled`, and devices on a provider configured without Appium servers, are never dispatched - requests pinned to one by UDID fail immediately with the reason instead of queueing
+
+**Queueing**
+- When no matching device is free the request waits in a FIFO queue - first come, first served
+- The default wait is 10 seconds; the `gads:queueTimeout` capability (seconds, clamped to 300) sets it per request, and `0` means fail immediately when nothing is free
+
+**Session behavior**
+- `appium:newCommandTimeout` is honored by the hub as well (default 60 seconds); an explicit `0` disables idle expiry entirely
+- Only the exact `DELETE /grid/session/{id}` ends a session - DELETEs on subpaths (`/window`, `/cookie`, `/actions`) are proxied as ordinary commands
+- BiDi is not supported: sessions requesting `webSocketUrl: true` still create fine, but the `webSocketUrl` capability is always removed from the response
+
+**Response enrichment** - a successful session response includes extra `gads:*` capabilities telling you which device you actually got:
+- `gads:deviceUdid`, `gads:deviceName`, `gads:provider`
+- `gads:controlUrl` - a direct link to the hub's remote control UI for the device serving your test; the session owner can also attach from the device list via the `Use` button (after confirming) and watch the test live
+
+**Observability**
+- `GET /grid/status` reports overall grid readiness; without credentials that is all it reports. Send your client secret as `Authorization: Bearer <secret>` to also get the per-device availability list and a readiness flag scoped to your tenant's workspaces
+- `GET /automation-sessions` (authenticated) lists the currently active automation sessions
 
 ### Android devices remote control debugging
 

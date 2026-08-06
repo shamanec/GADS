@@ -12,9 +12,7 @@ package router
 import (
 	"GADS/common/models"
 	"GADS/hub/devices"
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -143,60 +141,9 @@ func TestDeviceProxyHandler(t *testing.T) {
 		devices.HubDeviceStore.Delete(udid)
 	})
 
-	t.Run("Missing Client Credentials - Should Return W3C Error Format", func(t *testing.T) {
-		// Setup a device
-		udid := "test-device-no-credentials"
-		devices.HubDeviceStore.Set(udid, &devices.LocalHubDevice{
-			Device: models.DBDevice{
-				UDID: udid,
-			},
-			Host:      "localhost:8080",
-			Available: true,
-		})
-
-		// Create request WITHOUT credentials
-		router := gin.New()
-		router.POST("/device/:udid/*path", DeviceProxyHandler)
-
-		sessionReq := map[string]interface{}{
-			"capabilities": map[string]interface{}{
-				"alwaysMatch": map[string]interface{}{
-					"platformName": "iOS",
-					// Note: NO client credentials provided
-				},
-			},
-		}
-		jsonData, _ := json.Marshal(sessionReq)
-
-		req, _ := http.NewRequest("POST", "/device/"+udid+"/session", bytes.NewBuffer(jsonData))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		// Execute request
-		router.ServeHTTP(w, req)
-
-		// Verify status code
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-
-		// Verify W3C error format
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		assert.NoError(t, err)
-
-		// Check W3C structure
-		assert.Contains(t, response, "value")
-		value, ok := response["value"].(map[string]interface{})
-		assert.True(t, ok, "value should be a map")
-
-		assert.Equal(t, "invalid argument", value["error"])
-		expectedMsg := fmt.Sprintf("Client credentials are required. Provide %[1]s:clientSecret in the capabilities.", capabilityPrefix)
-		assert.Equal(t, expectedMsg, value["message"])
-		assert.Equal(t, "", value["stacktrace"])
-
-		// Cleanup
-		devices.HubDeviceStore.Delete(udid)
-	})
-
+	// NOTE: client-credential enforcement for session creation lives on the /grid
+	// surface (GridCreateSession) and is covered by gridcapabilities_test.go -
+	// DeviceProxyHandler itself performs no credential checks
 }
 
 func TestExtractClientSecretFromSession(t *testing.T) {

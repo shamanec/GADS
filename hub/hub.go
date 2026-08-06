@@ -96,6 +96,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 
 	db.InitMongo(mongoDB, "gads")
 	defer db.GlobalMongoStore.Close()
+	router.InitGridStore(db.GlobalMongoStore)
 
 	// Update existing devices with new stream type property
 	err := db.GlobalMongoStore.EnsureDevicesHaveStreamType()

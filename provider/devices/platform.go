@@ -60,7 +60,10 @@ type PlatformDevice interface {
 	SetAppiumSessionID(id string)
 	SetAppiumUp(up bool)
 	SetAppiumLastPingTS(ts int64)
+	SetAppiumLastCommandTS(ts int64)
 	SetHasAppiumSession(has bool)
+	SetAppiumSessionCaps(caps map[string]interface{})
+	GetAppiumSessionCaps() map[string]interface{}
 	GetIsAppiumUp() bool
 
 	// Runtime state accessors (provider-only fields on RuntimeState)

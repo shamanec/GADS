@@ -33,10 +33,11 @@ export class GadsApiClient {
         }
     }
 
-    // Notify provider about the currently live session
-    async addSession(sessionId) {
+    // Notify provider about the currently live session, including the resolved
+    // session capabilities when available (older providers ignore the body)
+    async addSession(sessionId, capabilities) {
         try {
-            await this.api.post(`/session/add/${sessionId}`);
+            await this.api.post(`/session/add/${sessionId}`, capabilities ?? {});
         } catch (e) {
             throw new Error(`GADS - Add session failed, provider down - ${e.message}`);
         }
@@ -57,6 +58,16 @@ export class GadsApiClient {
             await this.api.post('/log', logData)
         } catch (e) {
             // Silent fail for logs to avoid disrupting main flow
+        }
+    }
+
+    // Report driver command activity to the provider (older providers 404 this
+    // endpoint, which the silent fail also covers)
+    async sendCommand(commandData) {
+        try {
+            await this.api.post('/command', commandData)
+        } catch (e) {
+            // Silent fail - activity reporting must never disrupt the command flow
         }
     }
 

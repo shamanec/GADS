@@ -1383,9 +1383,7 @@ func ReleaseDevice(c *gin.Context) {
 
 	// Fully reset any (possibly stuck) automation session so the device becomes
 	// available again immediately instead of waiting for the grid session janitor.
-	releaseDevice.IsRunningAutomation = false
-	releaseDevice.IsAvailableForAutomation = true
-	releaseDevice.SessionID = ""
+	releaseDevice.ReleaseFromAutomation()
 	releaseDevice.ReleaseLock()
 
 	api.OKMessage(c, "Device was successfully released")
@@ -1519,6 +1517,26 @@ func syncDeviceFields(target *devices.LocalHubDevice, source *models.ProviderDev
 	if target.Host != source.Host {
 		target.Host = source.Host
 	}
+
+	// Appium session truth from the provider - older providers do not report it
+	// (marker false), in which case the hub keeps its own tracking only
+	target.ProviderReportsSessionState = source.ReportsAppiumSessionState
+	if source.ReportsAppiumSessionState {
+		target.ProviderHasSession = source.HasAppiumSession
+		target.ProviderSessionID = source.AppiumSessionID
+		target.ProviderLastCommandTS = source.AppiumLastCommandTS
+		// Track since when the provider stopped reporting a session the hub still
+		// considers live - the janitor releases the device once this persists
+		if target.IsRunningAutomation && target.SessionID != "" && !source.HasAppiumSession {
+			if target.ProviderSessionMissingSinceTS == 0 {
+				target.ProviderSessionMissingSinceTS = time.Now().UnixMilli()
+			}
+		} else {
+			target.ProviderSessionMissingSinceTS = 0
+		}
+	} else {
+		target.ProviderSessionMissingSinceTS = 0
+	}
 }
 
 // ProviderUpdate godoc
@@ -1556,18 +1574,24 @@ func ProviderUpdate(c *gin.Context) {
 			hubDevice.Connected = false
 			hubDevice.ProviderState = providerDevice.ProviderState
 			hubDevice.Host = providerDevice.Host
+			hubDevice.ReleaseFromAutomation()
+			// A disconnected device must not be handed out for automation even though
+			// ReleaseFromAutomation marks devices available by default
 			hubDevice.IsAvailableForAutomation = false
-			hubDevice.IsRunningAutomation = false
-			hubDevice.ReleaseLockIfNotHeld()
-			hubDevice.SessionID = ""
 			hubDevice.Mu.Unlock()
 			continue
 		}
 		// Stamp when we last heard from the provider about this device
 		hubDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
+		wasLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		syncDeviceFields(hubDevice, providerDevice)
+		nowLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		hubDevice.Mu.Unlock()
+		// A device that just (re)connected live may satisfy a queued session request
+		if !wasLive && nowLive {
+			devices.NotifyDeviceFreed()
+		}
 	}
 
 	api.OKMessage(c, "Provider data updated in hub")

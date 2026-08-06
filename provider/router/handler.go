@@ -94,6 +94,7 @@ func HandleRequests() *gin.Engine {
 	deviceAppiumPluginGroup.POST("/session/add/:session_id", AppiumPluginAddSession)
 	deviceAppiumPluginGroup.POST("/session/remove", AppiumPluginRemoveSession)
 	deviceAppiumPluginGroup.POST("/ping", AppiumPluginPing)
+	deviceAppiumPluginGroup.POST("/command", AppiumPluginCommand)
 
 	return r
 }

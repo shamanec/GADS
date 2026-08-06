@@ -135,27 +135,61 @@ func GetAppiumPluginNPMVersion() (string, error) {
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "appium-gads@") {
-			parts := strings.Split(line, "@")
-			if len(parts) == 2 {
-				return strings.TrimSpace(parts[1]), nil
+			_, versionPart, _ := strings.Cut(line, "appium-gads@")
+			// A local folder install prints `appium-gads@0.0.12 -> /path/to/folder` -
+			// the version is only the first whitespace-separated token
+			versionFields := strings.Fields(versionPart)
+			if len(versionFields) > 0 {
+				return versionFields[0], nil
 			}
 		}
 	}
 	return "", fmt.Errorf("Could not get GADS Appium plugin version on NPM")
 }
 
+// IsAppiumPluginLocalInstallNPM reports whether the globally installed appium-gads
+// package is a local folder install (npm prints those as `appium-gads@x.y.z -> /path`)
+func IsAppiumPluginLocalInstallNPM() bool {
+	cmd := exec.Command("npm", "list", "-g", "appium-gads", "--depth=0")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, "appium-gads@") && strings.Contains(line, "->") {
+			return true
+		}
+	}
+	return false
+}
+
 // Check if the currently installed Appium GADS plugin version corresponds to the expected one for the current GADS binary
 func ShouldUpdateAppiumPluginNPM(targetVersion string) bool {
+	// A developer testing an unpublished plugin installs it from a local folder -
+	// never overwrite that with a release from NPM
+	if IsAppiumPluginLocalInstallNPM() {
+		logger.ProviderLogger.LogInfo("provider_setup", "GADS Appium plugin on NPM is a local folder install, leaving it as is")
+		return false
+	}
+
 	currentVersion, err := GetAppiumPluginNPMVersion()
 	if err != nil {
 		return false
 	}
 
-	targetSemver := semver.MustParse(targetVersion)
-	currentSemver := semver.MustParse(currentVersion)
-	versionCompareResult := targetSemver.Compare(currentSemver)
+	targetSemver, err := semver.NewVersion(targetVersion)
+	if err != nil {
+		return false
+	}
+	currentSemver, err := semver.NewVersion(currentVersion)
+	if err != nil {
+		// npm reported something that is not a release version - do not fight
+		// whatever the developer set up, and above all do not crash the provider
+		logger.ProviderLogger.LogWarnf("provider_setup", "Could not parse the installed GADS Appium plugin version `%s`, leaving it as is", currentVersion)
+		return false
+	}
 
-	return versionCompareResult != 0
+	return targetSemver.Compare(currentSemver) != 0
 }
 
 // Install the GADS Appium plugin on NPM
