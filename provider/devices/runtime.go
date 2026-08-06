@@ -142,7 +142,7 @@ func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelF
 
 // ToSyncUpdate builds the lightweight struct sent to the hub each second.
 func (r *RuntimeState) ToSyncUpdate() models.ProviderDeviceSync {
-	return models.ProviderDeviceSync{
+	syncUpdate := models.ProviderDeviceSync{
 		UDID:                      r.DBDevice.UDID,
 		Host:                      r.Host,
 		Connected:                 r.Connected,
@@ -152,6 +152,16 @@ func (r *RuntimeState) ToSyncUpdate() models.ProviderDeviceSync {
 		AppiumSessionID:           r.AppiumSessionID,
 		AppiumLastCommandTS:       r.AppiumLastCommandTS,
 	}
+
+	// Ephemeral devices have no DB record the hub could build its store entry
+	// from, so the full device descriptor rides along with every update
+	if r.Ephemeral {
+		deviceCopy := r.DBDevice
+		syncUpdate.Ephemeral = true
+		syncUpdate.EphemeralDevice = &deviceCopy
+	}
+
+	return syncUpdate
 }
 
 // ResetBase cancels the device context, frees the Appium port, and resets state to "init".

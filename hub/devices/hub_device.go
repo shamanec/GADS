@@ -25,37 +25,42 @@ const (
 // LocalHubDevice represents a device as tracked by the hub at runtime.
 // All field access must be protected by Mu.
 type LocalHubDevice struct {
-	Mu                       sync.RWMutex  `json:"-" bson:"-"` // protects this device's fields
-	Device                   models.DBDevice `json:"info"`
+	Mu     sync.RWMutex    `json:"-" bson:"-"` // protects this device's fields
+	Device models.DBDevice `json:"info"`
 	// Runtime fields synced from provider
-	Host                     string        `json:"host"`
-	Connected                bool          `json:"connected"`
-	ProviderState            string        `json:"provider_state"`
-	LastUpdatedTimestamp      int64         `json:"last_updated_timestamp"`
-	SessionID                string        `json:"-"`
-	IsRunningAutomation      bool          `json:"is_running_automation"`
-	LastAutomationActionTS   int64         `json:"last_automation_action_ts"`
-	InUse                    bool          `json:"in_use"`
-	InUseBy                  string        `json:"in_use_by"`
-	InUseByTenant            string        `json:"in_use_by_tenant"`
-	InUseTS                  int64         `json:"in_use_ts"`
-	LockSource               string        `json:"lock_source" bson:"-"` // "ui", "api", or ""
-	LeaseExpiresAt           int64         `json:"-" bson:"-"`           // Unix ms, 0 = no active lease
-	AppiumNewCommandTimeout  int64         `json:"appium_new_command_timeout"`
-	AutomationSessionStartTS int64         `json:"-" bson:"-"` // Unix ms when the current Appium grid session was created, 0 = no session
+	Host                     string `json:"host"`
+	Connected                bool   `json:"connected"`
+	ProviderState            string `json:"provider_state"`
+	LastUpdatedTimestamp     int64  `json:"last_updated_timestamp"`
+	SessionID                string `json:"-"`
+	IsRunningAutomation      bool   `json:"is_running_automation"`
+	LastAutomationActionTS   int64  `json:"last_automation_action_ts"`
+	InUse                    bool   `json:"in_use"`
+	InUseBy                  string `json:"in_use_by"`
+	InUseByTenant            string `json:"in_use_by_tenant"`
+	InUseTS                  int64  `json:"in_use_ts"`
+	LockSource               string `json:"lock_source" bson:"-"` // "ui", "api", or ""
+	LeaseExpiresAt           int64  `json:"-" bson:"-"`           // Unix ms, 0 = no active lease
+	AppiumNewCommandTimeout  int64  `json:"appium_new_command_timeout"`
+	AutomationSessionStartTS int64  `json:"-" bson:"-"` // Unix ms when the current Appium grid session was created, 0 = no session
 	// Appium session truth reported by the provider (via the appium-plugin) - only
 	// meaningful while ProviderReportsSessionState is true (older providers do not
 	// send these fields)
-	ProviderReportsSessionState  bool   `json:"-" bson:"-"`
-	ProviderHasSession           bool   `json:"provider_has_session" bson:"-"`
-	ProviderSessionID            string `json:"-" bson:"-"`
-	ProviderLastCommandTS        int64  `json:"provider_last_command_ts" bson:"-"`
-	ProviderSessionMissingSinceTS int64 `json:"-" bson:"-"` // Unix ms since the provider stopped reporting a session the hub still tracks, 0 = not missing
-	IsAvailableForAutomation bool          `json:"is_available_for_automation"`
-	AppiumEnabled            bool          `json:"appium_enabled" bson:"-"` // whether the device's provider runs Appium servers - devices without one can never serve automation
-	Available                bool          `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
-	InUseWSConnection        net.Conn      `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
-	LastActionTS             int64         `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
+	ProviderReportsSessionState   bool   `json:"-" bson:"-"`
+	ProviderHasSession            bool   `json:"provider_has_session" bson:"-"`
+	ProviderSessionID             string `json:"-" bson:"-"`
+	ProviderLastCommandTS         int64  `json:"provider_last_command_ts" bson:"-"`
+	ProviderSessionMissingSinceTS int64  `json:"-" bson:"-"` // Unix ms since the provider stopped reporting a session the hub still tracks, 0 = not missing
+	IsAvailableForAutomation      bool   `json:"is_available_for_automation"`
+	AppiumEnabled                 bool   `json:"appium_enabled" bson:"-"` // whether the device's provider runs Appium servers - devices without one can never serve automation
+	// Ephemeral marks a device with no DB record (e.g. an Android emulator) - its
+	// store entry is created and refreshed purely from provider updates and expires
+	// when the provider stops reporting it
+	Ephemeral             bool     `json:"ephemeral" bson:"-"`
+	LastEphemeralReportTS int64    `json:"-" bson:"-"`         // Unix ms of the last provider update that included this ephemeral device
+	Available             bool     `json:"available" bson:"-"` // if device is currently available - not only connected, but setup completed
+	InUseWSConnection     net.Conn `json:"-" bson:"-"`         // stores the ws connection made when device is in use to send data from different sources
+	LastActionTS          int64    `json:"-" bson:"-"`         // Timestamp of when was the last time an action was performed via the UI through the proxy to the provider
 }
 
 // All methods below assume the caller holds device.Mu.

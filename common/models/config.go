@@ -51,6 +51,12 @@ type ProviderDeviceSync struct {
 	HasAppiumSession          bool   `json:"has_appium_session"`
 	AppiumSessionID           string `json:"appium_session_id"`
 	AppiumLastCommandTS       int64  `json:"appium_last_command_ts"`
+	// Ephemeral device descriptor - set only for devices that exist solely in
+	// provider memory (e.g. Android emulators) and have no DB record. The hub
+	// upserts its device store entry from EphemeralDevice instead of the DB.
+	// Both fields are omitted for regular devices so their payload is unchanged.
+	Ephemeral       bool      `json:"ephemeral,omitempty"`
+	EphemeralDevice *DBDevice `json:"ephemeral_device,omitempty"`
 }
 
 type ProviderData struct {
