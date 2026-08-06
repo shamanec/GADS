@@ -50,6 +50,13 @@ type RuntimeState struct {
 	Connected     bool
 	ProviderState string
 
+	// Serial is the transport-level identifier used for local device commands
+	// (e.g. `adb -s`). Left empty for devices whose UDID is the transport id —
+	// GetSerial falls back to the UDID then. Only set when the GADS identity
+	// deliberately differs from the transport id (e.g. Android emulators, where
+	// the UDID is synthesized from the AVD name but adb needs `emulator-5554`).
+	Serial string
+
 	// Provider-only runtime fields
 	HardwareModel        string
 	IsResetting          bool
@@ -73,25 +80,31 @@ type RuntimeState struct {
 
 // Common accessor implementations inherited by all platform types via embedding.
 
-func (r *RuntimeState) GetUDID() string                              { return r.DBDevice.UDID }
-func (r *RuntimeState) GetOS() string                                { return r.DBDevice.OS }
-func (r *RuntimeState) GetDBDevice() *models.DBDevice                { return &r.DBDevice }
-func (r *RuntimeState) GetProviderState() string                     { return r.ProviderState }
-func (r *RuntimeState) SetProviderState(state string)                { r.ProviderState = state }
-func (r *RuntimeState) IsConnected() bool                            { return r.Connected }
-func (r *RuntimeState) SetConnected(connected bool)                  { r.Connected = connected }
-func (r *RuntimeState) GetHost() string                              { return r.Host }
-func (r *RuntimeState) SetHost(host string)                          { r.Host = host }
-func (r *RuntimeState) GetLogger() models.CustomLogger               { return r.Logger }
-func (r *RuntimeState) GetContext() context.Context                  { return r.Context }
-func (r *RuntimeState) GetAppiumPort() string                        { return r.AppiumPort }
-func (r *RuntimeState) SetAppiumPort(port string)                    { r.AppiumPort = port }
-func (r *RuntimeState) GetAppiumSessionID() string                   { return r.AppiumSessionID }
-func (r *RuntimeState) SetAppiumSessionID(id string)                 { r.AppiumSessionID = id }
-func (r *RuntimeState) SetAppiumUp(up bool)                          { r.IsAppiumUp = up }
-func (r *RuntimeState) SetAppiumLastPingTS(ts int64)                 { r.AppiumLastPingTS = ts }
-func (r *RuntimeState) SetAppiumLastCommandTS(ts int64)              { r.AppiumLastCommandTS = ts }
-func (r *RuntimeState) SetHasAppiumSession(has bool)                 { r.HasAppiumSession = has }
+func (r *RuntimeState) GetUDID() string { return r.DBDevice.UDID }
+func (r *RuntimeState) GetSerial() string {
+	if r.Serial != "" {
+		return r.Serial
+	}
+	return r.DBDevice.UDID
+}
+func (r *RuntimeState) GetOS() string                   { return r.DBDevice.OS }
+func (r *RuntimeState) GetDBDevice() *models.DBDevice   { return &r.DBDevice }
+func (r *RuntimeState) GetProviderState() string        { return r.ProviderState }
+func (r *RuntimeState) SetProviderState(state string)   { r.ProviderState = state }
+func (r *RuntimeState) IsConnected() bool               { return r.Connected }
+func (r *RuntimeState) SetConnected(connected bool)     { r.Connected = connected }
+func (r *RuntimeState) GetHost() string                 { return r.Host }
+func (r *RuntimeState) SetHost(host string)             { r.Host = host }
+func (r *RuntimeState) GetLogger() models.CustomLogger  { return r.Logger }
+func (r *RuntimeState) GetContext() context.Context     { return r.Context }
+func (r *RuntimeState) GetAppiumPort() string           { return r.AppiumPort }
+func (r *RuntimeState) SetAppiumPort(port string)       { r.AppiumPort = port }
+func (r *RuntimeState) GetAppiumSessionID() string      { return r.AppiumSessionID }
+func (r *RuntimeState) SetAppiumSessionID(id string)    { r.AppiumSessionID = id }
+func (r *RuntimeState) SetAppiumUp(up bool)             { r.IsAppiumUp = up }
+func (r *RuntimeState) SetAppiumLastPingTS(ts int64)    { r.AppiumLastPingTS = ts }
+func (r *RuntimeState) SetAppiumLastCommandTS(ts int64) { r.AppiumLastCommandTS = ts }
+func (r *RuntimeState) SetHasAppiumSession(has bool)    { r.HasAppiumSession = has }
 func (r *RuntimeState) SetAppiumSessionCaps(caps map[string]interface{}) {
 	r.AppiumSessionCaps = caps
 }

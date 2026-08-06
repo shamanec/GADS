@@ -33,6 +33,9 @@ type PlatformDevice interface {
 
 	// State accessors
 	GetUDID() string
+	// GetSerial returns the transport-level identifier for local device commands
+	// (adb -s etc.). Equal to the UDID unless the device identity is synthesized.
+	GetSerial() string
 	GetOS() string
 	GetDBDevice() *models.DBDevice
 	GetProviderState() string

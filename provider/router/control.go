@@ -141,8 +141,8 @@ func deviceTouchAndHold(dev devices.PlatformDevice, x float64, y float64, durati
 // androidScreenshot captures a screenshot from the given Android device.
 // displayID is the physical display ID to pass via `screencap -d`; pass empty string
 // to let screencap choose the default display (single-display devices).
-func androidScreenshot(udid, displayID string) ([]byte, error) {
-	args := []string{"-s", udid, "exec-out", "screencap", "-p"}
+func androidScreenshot(serial, displayID string) ([]byte, error) {
+	args := []string{"-s", serial, "exec-out", "screencap", "-p"}
 	if displayID != "" {
 		args = append(args, "-d", displayID)
 	}
@@ -162,7 +162,7 @@ func deviceScreenshot(dev devices.PlatformDevice) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("device %s is not an Android device", dev.GetUDID())
 		}
-		imageBytes, err := androidScreenshot(andDev.GetUDID(), andDev.GetActiveDisplayID())
+		imageBytes, err := androidScreenshot(andDev.GetSerial(), andDev.GetActiveDisplayID())
 		if err != nil {
 			return "", err
 		}
@@ -320,7 +320,7 @@ func iOSAppSwitcher(dev devices.PlatformDevice) (*http.Response, error) {
 
 func androidRecents(dev devices.PlatformDevice) error {
 	if dev.GetOS() == "android" {
-		cmd := exec.CommandContext(dev.GetContext(), "adb", "-s", dev.GetUDID(), "shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
+		cmd := exec.CommandContext(dev.GetContext(), "adb", "-s", dev.GetSerial(), "shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
 		return cmd.Run()
 	}
 	return fmt.Errorf("Device is not an Android device")
