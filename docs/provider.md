@@ -14,6 +14,7 @@ The provider component is responsible for setting up the Appium servers and mana
 - [Device Notes](#device-notes)
   - [iOS Phones](#ios-phones)
   - [Android](#android-phone)
+  - [Android Emulators](#android-emulators)
   - [Android TV](#android-tv)
   - [Tizen TV](#tizen-tv)
   - [WebOS TV](#webos-tv)
@@ -316,6 +317,18 @@ Note that it is possible that on some devices it might not work at all, in this 
 
 **NB** It is complex to handle both device encoder and browser decoder limitations, I would suggest using Chrome/Safari, but I assume that most of the time also Firefox should manage.  
 **NB** WebRTC video has some initial delay/latency while calculating the bitrate and connection capabilities when you access the device control.
+
+### Android Emulators
+
+GADS can provide running Android emulators as **ephemeral devices** - enable the `Provide Android emulators?` option in the provider configuration. The only dependency is `adb`, same as regular Android phones.
+
+- Emulators are discovered automatically from `adb devices` - **they are never registered in the database** and need no setup in `Admin > Devices`.
+- GADS adopts emulators, it does not manage them - boot and stop AVDs with Android Studio or the `emulator` command line as usual. A booted emulator appears in the device list shortly after boot, a stopped one disappears within ~15 seconds. The same applies when the provider itself stops - its emulators leave the device list within ~15 seconds.
+- Device identity is derived from the AVD name (`emu_<provider nickname>_<AVD name>`), not from the `emulator-5554` console serial - the same AVD keeps the same identity across reboots and port changes, on any number of ports.
+- Emulator devices always live in the **default workspace**, are named after their AVD and are shown with an emulator badge in the device list.
+- Because there is no database record, they cannot be edited in `Admin > Devices`. Usage is `enabled` (or `control` when the provider does not run Appium servers) and video streaming uses MJPEG.
+- Only one running instance of a given AVD is provided - a second instance of the same AVD (possible with `emulator -read-only`) is ignored with a warning in the provider log.
+- An emulator that was manually registered in the database under its raw `emulator-XXXX` serial (from before ephemeral support existed) keeps the regular database-device flow - delete the record to switch it to the ephemeral flow.
 
 ### Android TV
 

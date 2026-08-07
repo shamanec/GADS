@@ -23,10 +23,8 @@ import (
 	"GADS/provider/logger"
 )
 
-// Emulators default to the H264 WebRTC stream as the most capable path. If live
-// testing shows the app_process H264 capture does not work on emulators, flip this
-// to models.MJPEGStreamTypeId (MJPEG through the GADS-Settings service).
-const emulatorDefaultStreamType = models.AndroidWebRTCGadsH264StreamTypeId
+// Emulators stream MJPEG through the GADS-Settings service
+const emulatorDefaultStreamType = models.MJPEGStreamTypeId
 
 // emulatorSerialRegex matches adb console-port serials like `emulator-5554`.
 var emulatorSerialRegex = regexp.MustCompile(`^emulator-\d+$`)
