@@ -699,7 +699,7 @@ func PushFileToSharedStorage(c *gin.Context) {
 	}
 
 	// Push the file via adb to from the temporary folder to the target shared storage path
-	adbCmd := exec.Command("adb", "-s", platDev.GetUDID(), "push", tempPath, destPath)
+	adbCmd := exec.Command("adb", "-s", platDev.GetSerial(), "push", tempPath, destPath)
 	_, err = adbCmd.CombinedOutput()
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to push file `%s` to `%s` - %s", file.Filename, destPath, err))
@@ -728,8 +728,7 @@ func DeleteFileFromSharedStorage(c *gin.Context) {
 		return
 	}
 
-	device := platDev.GetDBDevice()
-	err := devices.DeleteAndroidSharedStorageFile(device, filePath)
+	err := devices.DeleteAndroidSharedStorageFile(platDev.GetSerial(), filePath)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to delete file on path `%s`", filePath))
 		return
@@ -769,8 +768,7 @@ func PullFileFromSharedStorage(c *gin.Context) {
 		return
 	}
 
-	device := platDev.GetDBDevice()
-	tempFilePath, err := devices.PullAndroidSharedStorageFile(device, filePath, fileName)
+	tempFilePath, err := devices.PullAndroidSharedStorageFile(platDev.GetSerial(), filePath, fileName)
 	defer os.Remove(tempFilePath)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed to pull file from path `%s` to a temporary directory", filePath))

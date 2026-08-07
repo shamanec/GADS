@@ -176,8 +176,8 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		log.Fatalf("Failed to extract embedded resource files - %s", err)
 	}
 
-	// If we want to provide Android or Android TV devices check if adb is available on PATH
-	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv {
+	// If we want to provide Android, Android TV or Android emulator devices check if adb is available on PATH
+	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv || config.ProviderConfig.ProvideAndroidEmulators {
 		if !providerutil.AdbAvailable() {
 			logger.ProviderLogger.LogError("provider", "adb is not available, you need to set up the host as explained in the readme")
 			fmt.Println("adb is not available, you need to set up the host as explained in the readme")

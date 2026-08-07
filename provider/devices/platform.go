@@ -33,6 +33,12 @@ type PlatformDevice interface {
 
 	// State accessors
 	GetUDID() string
+	// GetSerial returns the transport-level identifier for local device commands
+	// (adb -s etc.). Equal to the UDID unless the device identity is synthesized.
+	GetSerial() string
+	// IsEphemeral reports whether the device exists only in memory and must
+	// never be persisted to the DB (e.g. discovered Android emulators).
+	IsEphemeral() bool
 	GetOS() string
 	GetDBDevice() *models.DBDevice
 	GetProviderState() string

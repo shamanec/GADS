@@ -95,7 +95,7 @@ func (d *AndroidTvDevice) getTVInfo() {
 }
 
 func (d *AndroidTvDevice) getProp(prop string) string {
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "getprop", prop)
+	cmd := exec.Command("adb", "-s", d.GetSerial(), "shell", "getprop", prop)
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
@@ -108,7 +108,7 @@ func (d *AndroidTvDevice) getProp(prop string) string {
 // InstallApp installs an app on the Android TV device.
 func (d *AndroidTvDevice) InstallApp(appName string) error {
 	appPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName)
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "install", "-r", appPath)
+	cmd := exec.Command("adb", "-s", d.GetSerial(), "install", "-r", appPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to install app %s: %s. Output: %s", appName, err, string(output))
@@ -118,7 +118,7 @@ func (d *AndroidTvDevice) InstallApp(appName string) error {
 
 // UninstallApp uninstalls an app from the Android TV device.
 func (d *AndroidTvDevice) UninstallApp(packageName string) error {
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "uninstall", packageName)
+	cmd := exec.Command("adb", "-s", d.GetSerial(), "uninstall", packageName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to uninstall app %s: %s. Output: %s", packageName, err, string(output))
@@ -151,7 +151,7 @@ type androidTvPackage struct {
 func (d *AndroidTvDevice) getInstalledAppsAndroidTv() []androidTvPackage {
 	installedApps := make([]androidTvPackage, 0)
 
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "cmd", "package", "list", "packages", "-3", "-i")
+	cmd := exec.Command("adb", "-s", d.GetSerial(), "shell", "cmd", "package", "list", "packages", "-3", "-i")
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
@@ -180,7 +180,7 @@ func (d *AndroidTvDevice) getAppVersionsAndroidTv() map[string]string {
 	versions := map[string]string{}
 
 	script := `for p in $(pm list packages -3); do p=${p#package:}; v=$(dumpsys package $p | grep -m1 versionName); echo "$p ${v#*=}"; done`
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", script)
+	cmd := exec.Command("adb", "-s", d.GetSerial(), "shell", script)
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
@@ -213,7 +213,7 @@ func (d *AndroidTvDevice) LaunchApp(packageName string) error {
 	var lastOutput []byte
 
 	for _, category := range []string{"android.intent.category.LEANBACK_LAUNCHER", "android.intent.category.LAUNCHER"} {
-		cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "monkey", "-p", packageName, "-c", category, "1")
+		cmd := exec.Command("adb", "-s", d.GetSerial(), "shell", "monkey", "-p", packageName, "-c", category, "1")
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			return nil
@@ -226,7 +226,7 @@ func (d *AndroidTvDevice) LaunchApp(packageName string) error {
 
 // KillApp force-stops an app on the Android TV device.
 func (d *AndroidTvDevice) KillApp(packageName string) error {
-	cmd := exec.Command("adb", "-s", d.GetUDID(), "shell", "am", "force-stop", packageName)
+	cmd := exec.Command("adb", "-s", d.GetSerial(), "shell", "am", "force-stop", packageName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to kill app %s: %s. Output: %s", packageName, err, string(output))

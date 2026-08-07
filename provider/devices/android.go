@@ -309,7 +309,7 @@ func (d *AndroidDevice) setupAppiumIfNeeded() error {
 // AppiumCapabilities returns the Android-specific Appium server capabilities.
 func (d *AndroidDevice) AppiumCapabilities() models.AppiumServerCapabilities {
 	return models.AppiumServerCapabilities{
-		UDID:           d.GetUDID(),
+		UDID:           d.GetSerial(),
 		AutomationName: "UiAutomator2",
 		PlatformName:   "Android",
 		DeviceName:     d.DBDevice.Name,
@@ -349,7 +349,7 @@ func (d *AndroidDevice) androidRemoteServerRequest(method, endpoint string, requ
 }
 
 func (d *AndroidDevice) isStreamServiceRunning() (bool, error) {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "dumpsys", "activity", "services", d.getStreamServiceName())
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "dumpsys", "activity", "services", d.getStreamServiceName())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, fmt.Errorf("isStreamServiceRunning: Error executing `%s` with combined output - %s", cmd.Args, err)
@@ -361,7 +361,7 @@ func (d *AndroidDevice) isStreamServiceRunning() (bool, error) {
 }
 
 func (d *AndroidDevice) stopStreamService() {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "am", "stopservice", d.getStreamServiceName())
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "am", "stopservice", d.getStreamServiceName())
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogWarnf("android_device_setup", "Failed to stop GADS-stream service properly - %s", err)
 	}
@@ -369,7 +369,7 @@ func (d *AndroidDevice) stopStreamService() {
 
 func (d *AndroidDevice) installGadsSettingsApp() error {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Installing GADS Settings apk on device `%v`", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "install", "-r", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder))
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "install", "-r", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("installGadsSettingsApp: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -378,7 +378,7 @@ func (d *AndroidDevice) installGadsSettingsApp() error {
 
 func (d *AndroidDevice) pushGadsSettingsInTmpLocal() error {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Pushing GADS Settings apk to /tmp/local on device `%v`", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "push", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder), "/data/local/tmp/gads-settings")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "push", fmt.Sprintf("%s/gads-settings.apk", config.ProviderConfig.ProviderFolder), "/data/local/tmp/gads-settings")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("pushGadsSettingsInTmpLocal: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -386,11 +386,11 @@ func (d *AndroidDevice) pushGadsSettingsInTmpLocal() error {
 }
 
 func (d *AndroidDevice) startRemoteControlServer() {
-	killCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "pkill -f RemoteControlServerKt")
+	killCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "pkill -f RemoteControlServerKt")
 	_ = killCmd.Run()
 	time.Sleep(1 * time.Second)
 
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell",
 		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.RemoteControlServerKt 1994")
 
 	if err := cmd.Start(); err != nil {
@@ -405,11 +405,11 @@ func (d *AndroidDevice) startRemoteControlServer() {
 }
 
 func (d *AndroidDevice) startH264Stream() {
-	killCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "pkill -f H264Server")
+	killCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "pkill -f H264Server")
 	_ = killCmd.Run()
 	time.Sleep(1 * time.Second)
 
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell",
 		"CLASSPATH=/data/local/tmp/gads-settings app_process / com.shamanec.settings.server.H264Server")
 
 	if err := cmd.Start(); err != nil {
@@ -425,14 +425,14 @@ func (d *AndroidDevice) startH264Stream() {
 
 func (d *AndroidDevice) setupIME() error {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Enabling GADS Android IME on device `%v`", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "enable", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "ime", "enable", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("enableGadsAndroidIME: Error executing `%s` - %s", cmd.Args, err)
 	}
 	time.Sleep(1 * time.Second)
 
 	logger.ProviderLogger.LogInfof("android_device_setup", "Setting GADS Android IME as active on device `%v`", d.GetUDID())
-	cmd = exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "ime", "set", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
+	cmd = exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "ime", "set", "com.gads.settings/com.shamanec.settings.RemoteKeyboardIME")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("setGadsAndroidIMEAsActive: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -441,7 +441,7 @@ func (d *AndroidDevice) setupIME() error {
 
 func (d *AndroidDevice) addStreamRecordingPermissions() error {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Adding GADS-stream recording permissions on device `%v`", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "appops", "set", d.getStreamServicePackageName(), "PROJECT_MEDIA", "allow")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "appops", "set", d.getStreamServicePackageName(), "PROJECT_MEDIA", "allow")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("addStreamRecordingPermissions: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -450,7 +450,7 @@ func (d *AndroidDevice) addStreamRecordingPermissions() error {
 
 func (d *AndroidDevice) addStreamPostNotificationsPermission() error {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Adding GADS app post notification permissions on device `%v`", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "pm", "grant", d.getStreamServicePackageName(), "android.permission.POST_NOTIFICATIONS")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "pm", "grant", d.getStreamServicePackageName(), "android.permission.POST_NOTIFICATIONS")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("addStreamPostNotificationsPermission: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -459,7 +459,7 @@ func (d *AndroidDevice) addStreamPostNotificationsPermission() error {
 
 func (d *AndroidDevice) startStreaming() error {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Starting GADS-stream app on `%s`", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "am", "start", "-n", d.getStreamServiceActivityName())
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "am", "start", "-n", d.getStreamServiceActivityName())
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("startStreaming: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -467,14 +467,14 @@ func (d *AndroidDevice) startStreaming() error {
 }
 
 func (d *AndroidDevice) pressHomeButton() {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "input", "keyevent", "KEYCODE_HOME")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "input", "keyevent", "KEYCODE_HOME")
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogErrorf("android_device_setup", "pressHomeButton: Could not 'press' Home button - %v", err)
 	}
 }
 
 func (d *AndroidDevice) forwardPort(devicePort, hostPort string) error {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "forward", "tcp:"+hostPort, "tcp:"+devicePort)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "forward", "tcp:"+hostPort, "tcp:"+devicePort)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("forwardPort: Error forwarding device port %s to host port %s - %s", devicePort, hostPort, err)
 	}
@@ -486,7 +486,7 @@ func (d *AndroidDevice) removeForwardedPort(hostPort string) {
 		return
 	}
 	// Use context.Background - d.Context may already be cancelled during Reset.
-	cmd := exec.CommandContext(context.Background(), "adb", "-s", d.GetUDID(), "forward", "--remove", "tcp:"+hostPort)
+	cmd := exec.CommandContext(context.Background(), "adb", "-s", d.GetSerial(), "forward", "--remove", "tcp:"+hostPort)
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogDebugf("android_device_setup", "removeForwardedPort: Could not remove `adb` forward for host port %s, device `%v`, - %s", hostPort, d.GetUDID(), err)
 	}
@@ -554,7 +554,7 @@ func (d *AndroidDevice) audioServiceComponent() string {
 // grantRecordAudioPermission grants RECORD_AUDIO to the GADS settings app. Required
 // whenever a foreground service declares a foregroundServiceType containing "microphone".
 func (d *AndroidDevice) grantRecordAudioPermission() {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell",
 		"pm", "grant", d.getStreamServicePackageName(), "android.permission.RECORD_AUDIO")
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogWarnf("android_device_setup", "Could not grant RECORD_AUDIO to %s for device `%v` - %v", d.getStreamServicePackageName(), d.GetUDID(), err)
@@ -566,7 +566,7 @@ func (d *AndroidDevice) grantRecordAudioPermission() {
 func (d *AndroidDevice) startAudioService() {
 	d.grantRecordAudioPermission()
 
-	stopCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+	stopCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell",
 		"am", "stopservice", "-n", d.audioServiceComponent())
 	_ = stopCmd.Run()
 
@@ -574,7 +574,7 @@ func (d *AndroidDevice) startAudioService() {
 	if audioInputType == "" {
 		audioInputType = "internal"
 	}
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell",
 		"am", "start-foreground-service", "-n", d.audioServiceComponent(),
 		"--es", "audio_input_type", audioInputType)
 	if err := cmd.Run(); err != nil {
@@ -585,7 +585,7 @@ func (d *AndroidDevice) startAudioService() {
 // startAudioProjectionActivity shows the system MediaProjection dialog; on approval the token
 // is stored in MediaProjectionHolder for AudioService's internal AudioPlaybackCapture.
 func (d *AndroidDevice) startAudioProjectionActivity() {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell",
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell",
 		"am", "start", "-n", d.getStreamServicePackageName()+"/com.shamanec.settings.audio.AudioProjectionActivity")
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogWarnf("android_device_setup", "Could not start AudioProjectionActivity for device `%v` - %v", d.GetUDID(), err)
@@ -595,7 +595,7 @@ func (d *AndroidDevice) startAudioProjectionActivity() {
 // disableKeyguard disables the device lock screen via adb locksettings.
 func (d *AndroidDevice) disableKeyguard() {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Disabling keyguard on Android 15+ device `%v` to keep MediaProjection capture alive on lock", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "locksettings", "set-disabled", "true")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "locksettings", "set-disabled", "true")
 	if err := cmd.Run(); err != nil {
 		logger.ProviderLogger.LogWarnf("android_device_setup", "Could not disable keyguard for device `%v` - %v", d.GetUDID(), err)
 	}
@@ -603,7 +603,7 @@ func (d *AndroidDevice) disableKeyguard() {
 
 func (d *AndroidDevice) enableADBTCPMode() error {
 	// Check if tcpip mode is already enabled to avoid restarting adbd unnecessarily
-	checkCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "service.adb.tcp.port")
+	checkCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "getprop", "service.adb.tcp.port")
 	var outBuffer bytes.Buffer
 	checkCmd.Stdout = &outBuffer
 	if err := checkCmd.Run(); err == nil {
@@ -614,7 +614,7 @@ func (d *AndroidDevice) enableADBTCPMode() error {
 	}
 
 	logger.ProviderLogger.LogInfof("android_device_setup", "Enabling ADB TCP mode on device `%v`", d.GetUDID())
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "tcpip", adbTCPPort)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "tcpip", adbTCPPort)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("enableADBTCPMode: Error executing `%s` - %s", cmd.Args, err)
 	}
@@ -631,7 +631,7 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 	logger.ProviderLogger.LogInfof("android_device_setup", "Attempting to automatically update the screen size for device `%v`", d.GetUDID())
 
 	var outBuffer bytes.Buffer
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "wm", "size")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "wm", "size")
 	cmd.Stdout = &outBuffer
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("updateScreenSizeADB: Error executing `%s` - %s", cmd.Args, err)
@@ -652,6 +652,12 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 		d.DBDevice.ScreenHeight = strings.TrimSpace(screenDimensions[1])
 	}
 
+	// Ephemeral devices are never persisted - the detected dimensions live on the
+	// in-memory DBDevice only
+	if d.IsEphemeral() {
+		return nil
+	}
+
 	if err := db.GlobalMongoStore.AddOrUpdateDevice(&d.DBDevice); err != nil {
 		return fmt.Errorf("Failed to upsert new device screen dimensions to DB - %s", err)
 	}
@@ -661,7 +667,7 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 // GetInstalledAppBundleIDs returns the bundle identifiers (package names) of third-party installed apps.
 func (d *AndroidDevice) GetInstalledAppBundleIDs() []string {
 	installedApps := make([]string, 0)
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "cmd", "package", "list", "packages", "-3")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "cmd", "package", "list", "packages", "-3")
 
 	var outBuffer bytes.Buffer
 	cmd.Stdout = &outBuffer
@@ -706,7 +712,7 @@ func (d *AndroidDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 
 // UninstallApp uninstalls an app by package name.
 func (d *AndroidDevice) UninstallApp(packageName string) error {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "uninstall", packageName)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "uninstall", packageName)
 	if err := cmd.Run(); err != nil {
 		d.Logger.LogErrorf("uninstall_app", "Error uninstalling app `%s` - %v", packageName, err)
 		return err
@@ -716,7 +722,7 @@ func (d *AndroidDevice) UninstallApp(packageName string) error {
 
 // InstallApp installs an app from a file in the provider folder.
 func (d *AndroidDevice) InstallApp(appName string) error {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "install", "-r", fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName))
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "install", "-r", fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName))
 	if err := cmd.Run(); err != nil {
 		d.Logger.LogErrorf("install_app", "Error installing app `%s` - %v", appName, err)
 		return err
@@ -725,7 +731,7 @@ func (d *AndroidDevice) InstallApp(appName string) error {
 }
 
 func (d *AndroidDevice) disableAutoRotation() error {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "settings", "put", "system", "accelerometer_rotation", "0")
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "settings", "put", "system", "accelerometer_rotation", "0")
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -844,7 +850,7 @@ func (d *AndroidDevice) GetHardwareModel() (string, error) {
 }
 
 func (d *AndroidDevice) getHardwareModel() {
-	brandCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "ro.product.brand")
+	brandCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "getprop", "ro.product.brand")
 	var outBuffer bytes.Buffer
 	brandCmd.Stdout = &outBuffer
 	if err := brandCmd.Run(); err != nil {
@@ -853,7 +859,7 @@ func (d *AndroidDevice) getHardwareModel() {
 	brand := outBuffer.String()
 	outBuffer.Reset()
 
-	modelCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "getprop", "ro.product.model")
+	modelCmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "getprop", "ro.product.model")
 	modelCmd.Stdout = &outBuffer
 	if err := modelCmd.Run(); err != nil {
 		d.HardwareModel = "Unknown"
@@ -868,7 +874,7 @@ func (d *AndroidDevice) getHardwareModel() {
 // ActiveDisplayID is set to the first display if it has not been set yet.
 // A failure is non-fatal — the device falls back to screencap without -d.
 func (d *AndroidDevice) fetchAndSetDisplays() {
-	displays, err := getAndroidDisplayIDs(d.GetUDID())
+	displays, err := getAndroidDisplayIDs(d.GetSerial())
 	if err != nil {
 		logger.ProviderLogger.LogWarnf("android_device_setup", "Could not detect displays for device `%s`: %s", d.GetUDID(), err)
 		return
@@ -906,9 +912,9 @@ func (d *AndroidDevice) GetAvailableDisplays() []models.AndroidDisplay {
 }
 
 // getAndroidDisplayIDs runs dumpsys SurfaceFlinger --display-id and returns parsed displays.
-func getAndroidDisplayIDs(udid string) ([]models.AndroidDisplay, error) {
+func getAndroidDisplayIDs(serial string) ([]models.AndroidDisplay, error) {
 	var out bytes.Buffer
-	cmd := exec.Command("adb", "-s", udid, "shell", "dumpsys", "SurfaceFlinger", "--display-id")
+	cmd := exec.Command("adb", "-s", serial, "shell", "dumpsys", "SurfaceFlinger", "--display-id")
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("dumpsys SurfaceFlinger --display-id: %w", err)
@@ -963,7 +969,7 @@ func (d *AndroidDevice) LaunchApp(bundleID string) error {
 
 // KillApp force-stops an Android app by package name.
 func (d *AndroidDevice) KillApp(bundleIdentifier string) error {
-	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetUDID(), "shell", "am", "force-stop", bundleIdentifier)
+	cmd := exec.CommandContext(d.Context, "adb", "-s", d.GetSerial(), "shell", "am", "force-stop", bundleIdentifier)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("KillApp: Failed killing app with package name `%s` via adb shell", bundleIdentifier)
 	}
@@ -975,15 +981,15 @@ func (d *AndroidDevice) ApplyStreamSettings() error {
 	return applyDeviceStreamSettings(d)
 }
 
-func DeleteAndroidSharedStorageFile(device *models.DBDevice, filePath string) error {
-	deleteFileCmd := exec.Command("adb", "-s", device.UDID, "shell", "rm", fmt.Sprintf("\"%s\"", filePath))
+func DeleteAndroidSharedStorageFile(serial string, filePath string) error {
+	deleteFileCmd := exec.Command("adb", "-s", serial, "shell", "rm", fmt.Sprintf("\"%s\"", filePath))
 	_, err := deleteFileCmd.Output()
 	return err
 }
 
-func PullAndroidSharedStorageFile(device *models.DBDevice, filePath string, fileName string) (string, error) {
+func PullAndroidSharedStorageFile(serial string, filePath string, fileName string) (string, error) {
 	var tempFilePath = filepath.Join(os.TempDir(), fileName)
-	pullFileCmd := exec.Command("adb", "-s", device.UDID, "pull", filePath, tempFilePath)
+	pullFileCmd := exec.Command("adb", "-s", serial, "pull", filePath, tempFilePath)
 	_, err := pullFileCmd.Output()
 	return tempFilePath, err
 }
@@ -994,23 +1000,23 @@ var (
 )
 
 // cooldown of 30s prevents reconnect spam on each 1-second polling tick
-func reconnectOfflineAndroid(udid string) {
+func reconnectOfflineAndroid(serial string) {
 	const cooldown = 30 * time.Second
 
 	androidOfflineReconnectMu.Lock()
-	if last, ok := androidOfflineReconnectAt[udid]; ok && time.Since(last) < cooldown {
+	if last, ok := androidOfflineReconnectAt[serial]; ok && time.Since(last) < cooldown {
 		androidOfflineReconnectMu.Unlock()
 		return
 	}
-	androidOfflineReconnectAt[udid] = time.Now()
+	androidOfflineReconnectAt[serial] = time.Now()
 	androidOfflineReconnectMu.Unlock()
 
-	logger.ProviderLogger.LogInfof("android_reconnect", "Device %s is offline in ADB, attempting reconnect", udid)
-	cmd := exec.CommandContext(context.Background(), "adb", "-s", udid, "reconnect")
+	logger.ProviderLogger.LogInfof("android_reconnect", "Device %s is offline in ADB, attempting reconnect", serial)
+	cmd := exec.CommandContext(context.Background(), "adb", "-s", serial, "reconnect")
 	if err := cmd.Run(); err != nil {
-		logger.ProviderLogger.LogErrorf("android_reconnect", "Failed to reconnect device %s: %v", udid, err)
+		logger.ProviderLogger.LogErrorf("android_reconnect", "Failed to reconnect device %s: %v", serial, err)
 	} else {
-		logger.ProviderLogger.LogInfof("android_reconnect", "Reconnect issued for device %s", udid)
+		logger.ProviderLogger.LogInfof("android_reconnect", "Reconnect issued for device %s", serial)
 	}
 }
 

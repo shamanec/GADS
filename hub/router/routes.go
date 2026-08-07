@@ -1566,7 +1566,15 @@ func ProviderUpdate(c *gin.Context) {
 		providerDevice := &providerDeviceData.DeviceData[i]
 		hubDevice, ok := devices.HubDeviceStore.Get(providerDevice.UDID)
 		if !ok {
-			continue
+			// Ephemeral devices have no DB record, so the store entry is created
+			// from the provider payload instead of the DB reconciliation loop
+			if providerDevice.Ephemeral && providerDevice.EphemeralDevice != nil {
+				hubDevice = devices.RegisterEphemeralDevice(providerDevice, providerDeviceData.ProviderData.SetupAppiumServers)
+			} else {
+				continue
+			}
+		} else if providerDevice.Ephemeral {
+			devices.RefreshEphemeralDevice(hubDevice, providerDevice, providerDeviceData.ProviderData.SetupAppiumServers)
 		}
 		hubDevice.Mu.Lock()
 		// If device is not connected reset all fields that might allow it to get stuck in Running automation state

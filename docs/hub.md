@@ -48,6 +48,8 @@ You have to provide all the required information and assign each device to a pro
 Changes to the device configuration require the respective provider instance restarted.  
 All fields have tooltips to help you with the required information.
 
+**Android emulators** are the exception - providers with `Provide Android emulators?` enabled discover and report running emulators automatically as ephemeral devices. They never appear in `Admin > Devices` (there is nothing to configure), show up in the device selection list with an emulator badge while running, and are removed within ~15 seconds after the emulator or its provider stops. See the [provider documentation](./provider.md#android-emulators) for details.
+
 ### Appium grid
 
 Using Selenium Grid 4 is a bit of a hassle and some versions do not work properly with Appium relay nodes.  
