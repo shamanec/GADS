@@ -17,6 +17,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func ListFilesInZip(zipData []byte) ([]string, error) {
@@ -38,6 +39,8 @@ func UnzipInMemory(zipData []byte, dest string) error {
 		return err
 	}
 
+	cleanDest := filepath.Clean(dest)
+
 	firstFile := r.File[0]
 	if !firstFile.FileInfo().IsDir() {
 		fmt.Printf("Unzipping %s:\n", firstFile.Name)
@@ -48,7 +51,10 @@ func UnzipInMemory(zipData []byte, dest string) error {
 		defer rc.Close()
 
 		// define the new file path
-		newFilePath := fmt.Sprintf("%s/%s", dest, firstFile.Name)
+		newFilePath := filepath.Join(dest, firstFile.Name)
+		if !strings.HasPrefix(filepath.Clean(newFilePath), cleanDest+string(os.PathSeparator)) {
+			return fmt.Errorf("zip entry %q would escape destination directory", firstFile.Name)
+		}
 
 		uncompressedFile, err := os.Create(newFilePath)
 		if err != nil {
@@ -67,12 +73,15 @@ func UnzipInMemory(zipData []byte, dest string) error {
 			}
 			defer rc.Close()
 			// define the new file path
-			newFilePath := fmt.Sprintf("%s/%s", dest, f.Name)
+			newFilePath := filepath.Join(dest, f.Name)
+			if !strings.HasPrefix(filepath.Clean(newFilePath), cleanDest+string(os.PathSeparator)) {
+				return fmt.Errorf("zip entry %q would escape destination directory", f.Name)
+			}
 
 			// CASE 1 : we have a directory
 			if f.FileInfo().IsDir() {
 				// if we have a directory we have to create it
-				err = os.MkdirAll(newFilePath, 0777)
+				err = os.MkdirAll(newFilePath, 0755)
 				if err != nil {
 					return err
 				}
@@ -104,6 +113,8 @@ func Unzip(src string, dest string) error {
 
 	os.MkdirAll(dest, 0755)
 
+	cleanDest := filepath.Clean(dest)
+
 	for _, f := range r.File {
 		rc, err := f.Open()
 		if err != nil {
@@ -112,6 +123,10 @@ func Unzip(src string, dest string) error {
 		defer rc.Close()
 
 		fpath := filepath.Join(dest, f.Name)
+		if !strings.HasPrefix(filepath.Clean(fpath), cleanDest+string(os.PathSeparator)) {
+			return fmt.Errorf("zip entry %q would escape destination directory", f.Name)
+		}
+
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(fpath, f.Mode())
 		} else {
@@ -139,8 +154,13 @@ func ExtractZipToDir(zipPath, destDir string) error {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
 
+	cleanDest := filepath.Clean(destDir)
+
 	for _, file := range zipReader.File {
 		filePath := filepath.Join(destDir, file.Name)
+		if !strings.HasPrefix(filepath.Clean(filePath), cleanDest+string(os.PathSeparator)) {
+			return fmt.Errorf("zip entry %q would escape destination directory", file.Name)
+		}
 
 		if file.FileInfo().IsDir() {
 			if err := os.MkdirAll(filePath, 0755); err != nil {
