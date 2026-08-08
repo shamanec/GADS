@@ -33,6 +33,12 @@ type PlatformDevice interface {
 
 	// State accessors
 	GetUDID() string
+	// GetSerial returns the transport-level identifier for local device commands
+	// (adb -s etc.). Equal to the UDID unless the device identity is synthesized.
+	GetSerial() string
+	// IsEphemeral reports whether the device exists only in memory and must
+	// never be persisted to the DB (e.g. discovered Android emulators).
+	IsEphemeral() bool
 	GetOS() string
 	GetDBDevice() *models.DBDevice
 	GetProviderState() string
@@ -60,7 +66,10 @@ type PlatformDevice interface {
 	SetAppiumSessionID(id string)
 	SetAppiumUp(up bool)
 	SetAppiumLastPingTS(ts int64)
+	SetAppiumLastCommandTS(ts int64)
 	SetHasAppiumSession(has bool)
+	SetAppiumSessionCaps(caps map[string]interface{})
+	GetAppiumSessionCaps() map[string]interface{}
 	GetIsAppiumUp() bool
 
 	// Runtime state accessors (provider-only fields on RuntimeState)

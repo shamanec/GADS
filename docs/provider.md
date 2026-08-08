@@ -14,8 +14,11 @@ The provider component is responsible for setting up the Appium servers and mana
 - [Device Notes](#device-notes)
   - [iOS Phones](#ios-phones)
   - [Android](#android-phone)
+  - [Android Emulators](#android-emulators)
+  - [Android TV](#android-tv)
   - [Tizen TV](#tizen-tv)
   - [WebOS TV](#webos-tv)
+  - [Roku TV](#roku-tv)
 - [Starting Provider Instance](#starting-a-provider-instance)
 - [Logging](#logging)
 
@@ -50,6 +53,11 @@ To specify a folder, create it on your machine and provide it at startup using t
 - **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android devices.
 - **Enable** [USB Debugging](#usb-debugging) on each Android device.
 
+#### Android TV
+
+- **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android TV devices.
+- **Enable** [Developer Mode and network ADB debugging](#android-tv) on each Android TV.
+
 #### iOS
 
 - **Prepare** [WebDriverAgent](#build-webdriveragent-ipa-file-manually-using-xcode).
@@ -79,6 +87,11 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 - **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android devices.
 - **Enable** [USB Debugging](#usb-debugging) on each Android device.
+
+#### Android TV
+
+- **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android TV devices.
+- **Enable** [Developer Mode and network ADB debugging](#android-tv) on each Android TV.
 
 #### iOS
 
@@ -115,6 +128,11 @@ To specify a folder, create it on your machine and provide it at startup using t
 
 - **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android devices.
 - **Enable** [USB Debugging](#usb-debugging) on each Android device.
+
+#### Android TV
+
+- **Install** [ADB (Android Debug Bridge)](#adb---android-debug-bridge) if providing Android TV devices.
+- **Enable** [Developer Mode and network ADB debugging](#android-tv) on each Android TV.
 
 #### iOS
 
@@ -300,6 +318,54 @@ Note that it is possible that on some devices it might not work at all, in this 
 **NB** It is complex to handle both device encoder and browser decoder limitations, I would suggest using Chrome/Safari, but I assume that most of the time also Firefox should manage.  
 **NB** WebRTC video has some initial delay/latency while calculating the bitrate and connection capabilities when you access the device control.
 
+### Android Emulators
+
+GADS can provide running Android emulators as **ephemeral devices** - enable the `Provide Android emulators?` option in the provider configuration. The only dependency is `adb`, same as regular Android phones.
+
+- Emulators are discovered automatically from `adb devices` - **they are never registered in the database** and need no setup in `Admin > Devices`.
+- GADS adopts emulators, it does not manage them - boot and stop AVDs with Android Studio or the `emulator` command line as usual. A booted emulator appears in the device list shortly after boot, a stopped one disappears within ~15 seconds. The same applies when the provider itself stops - its emulators leave the device list within ~15 seconds.
+- Device identity is derived from the AVD name (`emu_<provider nickname>_<AVD name>`), not from the `emulator-5554` console serial - the same AVD keeps the same identity across reboots and port changes, on any number of ports.
+- Emulator devices always live in the **default workspace**, are named after their AVD and are shown with an emulator badge in the device list.
+- Because there is no database record, they cannot be edited in `Admin > Devices`. Usage is `enabled` (or `control` when the provider does not run Appium servers) and video streaming uses MJPEG.
+- Only one running instance of a given AVD is provided - a second instance of the same AVD (possible with `emulator -read-only`) is ignored with a warning in the provider log.
+- An emulator that was manually registered in the database under its raw `emulator-XXXX` serial (from before ephemeral support existed) keeps the regular database-device flow - delete the record to switch it to the ephemeral flow.
+
+### Android TV
+
+Android TV devices are provided over a network ADB connection and support **automated Appium testing only** - there is no remote control or video streaming, similar to Tizen and WebOS. They reuse the same `adb` dependency as Android phones, so no additional tooling is required.
+
+#### Developer Mode and network ADB debugging
+
+- On the Android TV open `Settings` and navigate to the `About`/`Device` section
+- Select the build/version entry repeatedly until `Developer options` are unlocked
+- Open `Developer options` and enable `USB debugging` and `Network debugging`/`ADB debugging` (the exact naming varies by manufacturer)
+
+#### Device Connection
+
+- Ensure the Android TV and the provider host machine are on the same local network
+- Connect to the TV using ADB over the network:
+  ```bash
+  adb connect <tv-ip-address>:<port>
+  ```
+  - The default ADB port is `5555`
+- The first connection will prompt an authorization dialog on the TV - accept it
+- Verify the connection by running:
+  ```bash
+  adb devices
+  ```
+- The TV should appear in the list with status `device`
+
+#### Device UDID Format
+
+- Android TV devices use the format `IP:PORT` as their UDID (e.g., `192.168.1.100:5555`)
+- This UDID must be registered in the GADS database before the device can be used and must match the address used with `adb connect`
+
+#### Known Limitations
+
+- Video streaming is not available for Android TV devices
+- Remote control is not available - Android TV devices can only be used for automated Appium testing
+- Android TV devices only support the `automation` usage type
+
 ## Starting a provider instance
 
 - Execute `./GADS provider` providing the following flags:
@@ -449,3 +515,52 @@ They will also be stored in MongoDB in DB `logs` and collection corresponding to
 - Remote control features are limited compared to mobile devices
 - Only web-based TV apps can be automated (native apps have limited support)
 - Developer Mode has a 1000-hour time limit and needs periodic renewal
+
+## Roku TV
+
+Roku devices are standalone network devices controlled over the External Control Protocol (ECP)
+and automated through the [`@headspinio/appium-roku-driver`](https://github.com/headspinio/appium-roku-driver).
+Unlike Tizen/WebOS, Roku does not require an SDK CLI on the host — only a working Appium server
+with the Roku driver installed.
+
+### Requirements
+
+- Enable `Setup Appium servers` on the provider (Roku only supports automation via Appium).
+- Install the Roku driver on the Appium server:
+
+  ```bash
+  appium driver install --source=npm @headspinio/appium-roku-driver
+  ```
+
+- The provider host must be able to reach the TV over TCP on ports `8060` (ECP) and `80` (dev web installer).
+
+### Developer Mode - Roku
+
+- On the Roku remote press: **Home** ×3 → **Up** ×2 → **Right** → **Left** → **Right** → **Left** → **Right**
+- Accept the SDK agreement and **set a developer password** (the username is always `rokudev`).
+- The TV reboots and exposes the Development Application Installer at `http://<TV_IP>`.
+
+### Device Connection
+
+- Ensure the TV and the provider host machine are on the same network.
+- Add the device in GADS using the **TV IP address** as the UDID (e.g. `10.30.50.112`). The ECP port
+  (`8060`) is fixed and does not need to be included.
+- A Roku device is considered connected when its ECP endpoint (`http://<TV_IP>:8060/query/device-info`)
+  responds.
+
+### Developer Credentials
+
+- The developer-mode **username is always `rokudev`** (fixed by Roku), so only the **password** is needed.
+- **Automation:** provide the password via the `appium:rokuPass` capability when creating the Appium
+  session (the password you chose when enabling Developer Mode on that TV).
+- **Install/uninstall:** the install and uninstall endpoints accept a `roku_dev_password` field; the
+  provider uses it to sideload/remove the dev channel through the developer web installer (HTTP digest
+  authentication on port `80`).
+- The password is only required to sideload/remove dev channels; launching apps, listing apps and
+  automation over ECP do not need it.
+
+### Known Limitations
+
+- Video streaming and remote control are not available for Roku devices (automation only).
+- `KillApp` has no per-app equivalent on Roku; the Home key is sent to exit the active channel.
+- Only the sideloaded dev channel (app id `dev`) can be uninstalled, through the dev web installer.

@@ -44,6 +44,10 @@ The configurable prefix provides valuable flexibility for:
 
 ## 📱 Using Credentials with Appium
 
+### Appium Grid Endpoint
+
+The same `gads:clientSecret` capability authenticates session requests against the hub's Appium grid at `http://gads-hub:10000/grid`, where the device is selected by capabilities (`appium:udid`, `platformName`/`appium:automationName`, optional `appium:platformVersion`) instead of the URL. The grid also understands `gads:queueTimeout` (seconds to wait for a free device, default 10, max 300) and returns `gads:deviceUdid`, `gads:deviceName`, `gads:provider` and `gads:controlUrl` in the session response. All `gads:*` capabilities are stripped before the request reaches Appium, so the secret never appears in Appium logs. See the [hub documentation](./hub.md#appium-grid) for the full grid behavior.
+
 ### Device-Specific Appium Endpoints
 
 In GADS, each device has its own dedicated Appium server endpoint. This means you connect directly to a specific device using its unique ID in the URL:

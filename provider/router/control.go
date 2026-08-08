@@ -28,7 +28,7 @@ func androidRemoteServerRequest(dev devices.PlatformDevice, method, endpoint str
 		return nil, fmt.Errorf("device %s is not an Android device", dev.GetUDID())
 	}
 	url := fmt.Sprintf("http://localhost:%s/%s", andDev.GetAndroidRemoteServerPort(), endpoint)
-	dev.GetLogger().LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("androidRemoteServerRequest", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func androidRemoteServerRequestJson(dev devices.PlatformDevice, method, endpoint
 		return nil, fmt.Errorf("device %s is not an Android device", dev.GetUDID())
 	}
 	url := fmt.Sprintf("http://localhost:%s/%s", andDev.GetAndroidRemoteServerPort(), endpoint)
-	dev.GetLogger().LogDebug("androidRemoteServerRequest", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("androidRemoteServerRequest", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func androidRemoteServerRequestJson(dev devices.PlatformDevice, method, endpoint
 
 func appiumRequest(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/session/%s/%s", dev.GetAppiumPort(), dev.GetAppiumSessionID(), endpoint)
-	dev.GetLogger().LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("appium_interact", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func appiumRequest(dev devices.PlatformDevice, method, endpoint string, requestB
 
 func appiumRequestNoSession(dev devices.PlatformDevice, method, endpoint string, requestBody io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://localhost:%s/%s", dev.GetAppiumPort(), endpoint)
-	dev.GetLogger().LogDebug("appium_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("appium_interact", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func wdaRequest(dev devices.PlatformDevice, method, endpoint string, requestBody
 		return nil, fmt.Errorf("device %s is not an iOS device", dev.GetUDID())
 	}
 	url := fmt.Sprintf("http://localhost:%v/%s", iosDev.GetWDAPort(), endpoint)
-	dev.GetLogger().LogDebug("wda_interact", fmt.Sprintf("Calling `%s` for device `%s`", url, dev.GetUDID()))
+	dev.GetLogger().LogDebugf("wda_interact", "Calling `%s` for device `%s`", url, dev.GetUDID())
 	req, err := http.NewRequest(method, url, requestBody)
 	if err != nil {
 		return nil, err
@@ -141,8 +141,8 @@ func deviceTouchAndHold(dev devices.PlatformDevice, x float64, y float64, durati
 // androidScreenshot captures a screenshot from the given Android device.
 // displayID is the physical display ID to pass via `screencap -d`; pass empty string
 // to let screencap choose the default display (single-display devices).
-func androidScreenshot(udid, displayID string) ([]byte, error) {
-	args := []string{"-s", udid, "exec-out", "screencap", "-p"}
+func androidScreenshot(serial, displayID string) ([]byte, error) {
+	args := []string{"-s", serial, "exec-out", "screencap", "-p"}
 	if displayID != "" {
 		args = append(args, "-d", displayID)
 	}
@@ -162,7 +162,7 @@ func deviceScreenshot(dev devices.PlatformDevice) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("device %s is not an Android device", dev.GetUDID())
 		}
-		imageBytes, err := androidScreenshot(andDev.GetUDID(), andDev.GetActiveDisplayID())
+		imageBytes, err := androidScreenshot(andDev.GetSerial(), andDev.GetActiveDisplayID())
 		if err != nil {
 			return "", err
 		}
@@ -320,7 +320,7 @@ func iOSAppSwitcher(dev devices.PlatformDevice) (*http.Response, error) {
 
 func androidRecents(dev devices.PlatformDevice) error {
 	if dev.GetOS() == "android" {
-		cmd := exec.CommandContext(dev.GetContext(), "adb", "-s", dev.GetUDID(), "shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
+		cmd := exec.CommandContext(dev.GetContext(), "adb", "-s", dev.GetSerial(), "shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
 		return cmd.Run()
 	}
 	return fmt.Errorf("Device is not an Android device")

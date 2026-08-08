@@ -13,7 +13,10 @@ import (
 	"GADS/common/db"
 	"GADS/hub/auth"
 	"GADS/hub/devices"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -69,6 +72,15 @@ func DeviceProxyHandler(c *gin.Context) {
 	if claims, err := auth.GetClaimsFromRequest(c); err == nil {
 		username = claims.Username
 		tenant = claims.Tenant
+	}
+
+	// Tenant-scope stored app installs before any device-state checks: only files
+	// from the caller's tenant can be installed (admins bypass).
+	if c.Request.Method == http.MethodPost && strings.HasSuffix(path, "/installStoredApp") {
+		if err := authorizeStoredAppInstall(c); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	device, ok := devices.HubDeviceStore.Get(udid)
@@ -136,6 +148,38 @@ func DeviceProxyHandler(c *gin.Context) {
 
 	// Forward the request which in this case accepts the Gin ResponseWriter and Request objects
 	proxy.ServeHTTP(c.Writer, c.Request)
+}
+
+// authorizeStoredAppInstall inspects the installStoredApp body (restoring it for the proxy)
+// and verifies the referenced file belongs to the caller's tenant.
+func authorizeStoredAppInstall(c *gin.Context) error {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read request body")
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+
+	var payload struct {
+		FileID string `json:"file_id"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil || payload.FileID == "" {
+		return fmt.Errorf("a file_id referencing an uploaded app is required")
+	}
+
+	file, err := db.GlobalMongoStore.GetFileByID(payload.FileID)
+	if err != nil {
+		return fmt.Errorf("no app found with id `%s`", payload.FileID)
+	}
+
+	claims, err := auth.GetClaimsFromRequest(c)
+	if err != nil {
+		return fmt.Errorf("unauthorized")
+	}
+	// Files without a tenant association (legacy uploads) are admin-only, matching GetApps.
+	if claims.Role != "admin" && (file.Metadata.Tenant == "" || file.Metadata.Tenant != claims.Tenant) {
+		return fmt.Errorf("you can only install apps uploaded by your tenant")
+	}
+	return nil
 }
 
 func ProviderProxyHandler(c *gin.Context) {

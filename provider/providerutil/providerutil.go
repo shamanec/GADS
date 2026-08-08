@@ -48,7 +48,7 @@ func GetFreePort() (string, error) {
 
 		a, err := net.ResolveTCPAddr("tcp", "localhost:0")
 		if err != nil {
-			logger.ProviderLogger.LogError("port_allocation", fmt.Sprintf("Failed to resolve tcp address trying to get new port - %s", err))
+			logger.ProviderLogger.LogErrorf("port_allocation", "Failed to resolve tcp address trying to get new port - %s", err)
 			return "", fmt.Errorf("Failed to resolve tcp address trying to get new port - %s", err)
 		}
 		logger.ProviderLogger.LogDebug("port_allocation", "Resolved TCP address successfully")
@@ -56,7 +56,7 @@ func GetFreePort() (string, error) {
 		logger.ProviderLogger.LogDebug("port_allocation", "Attempting to listen on the resolved TCP address")
 		l, err := net.ListenTCP("tcp", a)
 		if err != nil {
-			logger.ProviderLogger.LogError("port_allocation", fmt.Sprintf("Failed to listen tcp trying to get new port - %s", err))
+			logger.ProviderLogger.LogErrorf("port_allocation", "Failed to listen tcp trying to get new port - %s", err)
 			return "", fmt.Errorf("Failed to listen tcp trying to get new port - %s", err)
 		}
 		logger.ProviderLogger.LogDebug("port_allocation", "Listening on TCP address successfully")
@@ -64,20 +64,20 @@ func GetFreePort() (string, error) {
 		portInt := l.Addr().(*net.TCPAddr).Port
 		portString := strconv.Itoa(portInt)
 
-		logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Acquired free port: %s", portString))
+		logger.ProviderLogger.LogDebugf("port_allocation", "Acquired free port: %s", portString)
 
 		logger.ProviderLogger.LogDebug("port_allocation", "Attempting to acquire lock for used ports")
 		common.MutexManager.LocalDevicePorts.Lock()
 		logger.ProviderLogger.LogDebug("port_allocation", "Successfully acquired lock for used ports")
 		if _, exists := UsedPorts[portString]; !exists {
 			UsedPorts[portString] = true
-			logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Port %s is free and has been allocated", portString))
+			logger.ProviderLogger.LogDebugf("port_allocation", "Port %s is free and has been allocated", portString)
 			logger.ProviderLogger.LogDebug("port_allocation", "Releasing lock for used ports")
 			common.MutexManager.LocalDevicePorts.Unlock()
 			l.Close()
 			return portString, nil
 		}
-		logger.ProviderLogger.LogDebug("port_allocation", fmt.Sprintf("Port %s is already in use, trying again", portString))
+		logger.ProviderLogger.LogDebugf("port_allocation", "Port %s is already in use, trying again", portString)
 		logger.ProviderLogger.LogDebug("port_allocation", "Releasing lock for used ports")
 		common.MutexManager.LocalDevicePorts.Unlock()
 		l.Close()
@@ -95,7 +95,7 @@ func AdbAvailable() bool {
 	cmd := exec.Command("adb", "start-server")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("adbAvailable: Error executing `adb start-server`, `adb` is not available on host or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "adbAvailable: Error executing `adb start-server`, `adb` is not available on host or command failed - %s", err)
 		return false
 	}
 
@@ -109,7 +109,7 @@ func AppiumAvailable() bool {
 	cmd := exec.Command("appium", "--version")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("AppiumAvailable: Appium is not available or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "AppiumAvailable: Appium is not available or command failed - %s", err)
 		return false
 	}
 	return true
@@ -135,27 +135,61 @@ func GetAppiumPluginNPMVersion() (string, error) {
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "appium-gads@") {
-			parts := strings.Split(line, "@")
-			if len(parts) == 2 {
-				return strings.TrimSpace(parts[1]), nil
+			_, versionPart, _ := strings.Cut(line, "appium-gads@")
+			// A local folder install prints `appium-gads@0.0.12 -> /path/to/folder` -
+			// the version is only the first whitespace-separated token
+			versionFields := strings.Fields(versionPart)
+			if len(versionFields) > 0 {
+				return versionFields[0], nil
 			}
 		}
 	}
 	return "", fmt.Errorf("Could not get GADS Appium plugin version on NPM")
 }
 
+// IsAppiumPluginLocalInstallNPM reports whether the globally installed appium-gads
+// package is a local folder install (npm prints those as `appium-gads@x.y.z -> /path`)
+func IsAppiumPluginLocalInstallNPM() bool {
+	cmd := exec.Command("npm", "list", "-g", "appium-gads", "--depth=0")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, "appium-gads@") && strings.Contains(line, "->") {
+			return true
+		}
+	}
+	return false
+}
+
 // Check if the currently installed Appium GADS plugin version corresponds to the expected one for the current GADS binary
 func ShouldUpdateAppiumPluginNPM(targetVersion string) bool {
+	// A developer testing an unpublished plugin installs it from a local folder -
+	// never overwrite that with a release from NPM
+	if IsAppiumPluginLocalInstallNPM() {
+		logger.ProviderLogger.LogInfo("provider_setup", "GADS Appium plugin on NPM is a local folder install, leaving it as is")
+		return false
+	}
+
 	currentVersion, err := GetAppiumPluginNPMVersion()
 	if err != nil {
 		return false
 	}
 
-	targetSemver := semver.MustParse(targetVersion)
-	currentSemver := semver.MustParse(currentVersion)
-	versionCompareResult := targetSemver.Compare(currentSemver)
+	targetSemver, err := semver.NewVersion(targetVersion)
+	if err != nil {
+		return false
+	}
+	currentSemver, err := semver.NewVersion(currentVersion)
+	if err != nil {
+		// npm reported something that is not a release version - do not fight
+		// whatever the developer set up, and above all do not crash the provider
+		logger.ProviderLogger.LogWarnf("provider_setup", "Could not parse the installed GADS Appium plugin version `%s`, leaving it as is", currentVersion)
+		return false
+	}
 
-	return versionCompareResult != 0
+	return targetSemver.Compare(currentSemver) != 0
 }
 
 // Install the GADS Appium plugin on NPM
@@ -191,7 +225,7 @@ func InstallAppiumPlugin(targetVersion string) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to install GADS Appium plugin - %s", string(out)))
+		logger.ProviderLogger.LogErrorf("provider_setup", "Failed to install GADS Appium plugin - %s", string(out))
 		return err
 	}
 	return nil
@@ -203,7 +237,7 @@ func UninstallAppiumPlugin() error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Failed to uninstall GADS Appium plugin - %s", string(out)))
+		logger.ProviderLogger.LogErrorf("provider_setup", "Failed to uninstall GADS Appium plugin - %s", string(out))
 		return err
 	}
 	return nil
@@ -216,7 +250,7 @@ func RemoveAdbForwardedPorts() {
 	cmd := exec.Command("adb", "forward", "--remove-all")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("removeAdbForwardedPorts: Could not remove `adb` forwarded ports, there was an error or no devices are connected - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "removeAdbForwardedPorts: Could not remove `adb` forwarded ports, there was an error or no devices are connected - %s", err)
 	}
 }
 
@@ -263,7 +297,7 @@ func SdbAvailable() bool {
 	cmd := exec.Command("sdb", "version")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("sdbAvailable: sdb is not available or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "sdbAvailable: sdb is not available or command failed - %s", err)
 		return false
 	}
 	return true
@@ -276,7 +310,7 @@ func AresAvailable() bool {
 	cmd := exec.Command("ares", "-V")
 	err := cmd.Run()
 	if err != nil {
-		logger.ProviderLogger.LogDebug("provider_setup", fmt.Sprintf("aresAvailable: ares-setup-device is not available or command failed - %s", err))
+		logger.ProviderLogger.LogDebugf("provider_setup", "aresAvailable: ares-setup-device is not available or command failed - %s", err)
 		return false
 	}
 	return true

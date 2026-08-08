@@ -77,6 +77,13 @@ type AppiumServerCapabilities struct {
 	DeviceAddress          string `json:"appium:deviceAddress,omitempty"`
 	DeviceHost             string `json:"appium:deviceHost,omitempty"`
 	ChromeDriverExecutable string `json:"appium:chromedriverExecutable,omitempty"`
+	// Roku-specific capabilities consumed
+	RokuHost       string `json:"appium:rokuHost,omitempty"`
+	RokuEcpPort    int    `json:"appium:rokuEcpPort,omitempty"`
+	RokuWebPort    int    `json:"appium:rokuWebPort,omitempty"`
+	RokuUser       string `json:"appium:rokuUser,omitempty"`
+	RokuPass       string `json:"appium:rokuPass,omitempty"`
+	RokuHeaderHost string `json:"appium:rokuHeaderHost,omitempty"`
 }
 
 type AppiumTomlNode struct {

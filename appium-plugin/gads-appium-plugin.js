@@ -18,13 +18,8 @@ class GadsAppium extends BasePlugin {
     static apiClient = null;
     // Static property to hold the current Appium session ID
     static currentSessionId = "";
-
-    // New endpoints on the Appium server from the plugin itself
-    static newMethodMap = {
-        '/gads/source': {
-            GET: { command: 'getSourceNoSession', neverProxy: true }, // never proxy → Appium handles it
-        },
-    };
+    // Timestamp of the last throttled command-activity report to the provider
+    static lastCommandReportTs = 0;
 
     /**
      * updateServer
@@ -37,9 +32,11 @@ class GadsAppium extends BasePlugin {
      * @param {object} cliArgs      Parsed CLI arguments
    */
     static async updateServer(_app, _httpServer, cliArgs) {
-        // Load config from --plugin-gads-config or legacy --plugin.gads.config
+        // Load config from --plugin-gads-config, which Appium's CLI parser exposes
+        // as the nested plugin.gads.config; the flat camelCase key is kept as a
+        // fallback for safety
         const cfg = loadConfig(
-            cliArgs.pluginGadsConfig ?? cliArgs.plugin?.gads?.config
+            cliArgs.plugin?.gads?.config ?? cliArgs.pluginGadsConfig
         )
 
         // Create API client
@@ -92,28 +89,29 @@ class GadsAppium extends BasePlugin {
     /**
      * createSession
      *
-     * Wraps the driver.createSession call to capture the generated sessionId and notify the provider
-     * That sessionId is used to tag subsequent log messages.
+     * Wraps session creation to capture the generated sessionId and notify the provider.
+     * That sessionId is used to tag subsequent log messages. The resolved session
+     * capabilities are sent along so GADS knows what the driver actually started with.
      *
-     * @param {Function} next            The next handler in the chain
-     * @param {object} driver            The underlying driver instance
-     * @param {object} jsonwpCaps        JSONWP-style capabilities
-     * @param {object} reqCaps           W3C requested capabilities
-     * @param {object} w3cCapabilities   W3C capabilities object
-     * @returns {object}                 The result of driver.createSession
+     * Calls through via next() (canonical plugin chaining) - the capability arguments
+     * differ between Appium 2 and 3, but the result shape {value: [sessionId, caps,
+     * protocol]} is identical across both majors.
+     *
+     * @param {Function} next   The next handler in the chain
+     * @param {object} driver   The underlying driver instance
+     * @returns {object}        The session creation result
    */
-    async createSession(next, driver, jsonwpCaps, reqCaps, w3cCapabilities) {
+    async createSession(next, driver) {
         // Make sure instance has access to the loaded config
         this.cfg = GadsAppium.cfg
 
-        // Call through to the driver’s createSession
-        const createSessionResult = await driver.createSession?.(jsonwpCaps, reqCaps, w3cCapabilities)
+        const createSessionResult = await next()
 
-        // Extract the sessionId
+        // Extract the sessionId and the resolved capabilities
         const sessionId = createSessionResult?.value?.[0]
         if (sessionId) {
             GadsAppium.currentSessionId = sessionId;
-            await GadsAppium.apiClient.addSession(GadsAppium.currentSessionId)
+            await GadsAppium.apiClient.addSession(sessionId, createSessionResult?.value?.[1])
         }
 
         return createSessionResult
@@ -144,14 +142,26 @@ class GadsAppium extends BasePlugin {
     }
 
     /**
-     * Wraps the handle function for driver commands so we can get data for session logging
-     * @param {*} next 
-     * @param {*} driver 
-     * @param {*} commandName 
-     * @param  {...any} args 
-     * @returns 
+     * Wraps every driver command (including proxied ones, since a generic handle()
+     * disables Appium's direct proxying) and reports activity to the provider,
+     * throttled to at most one report per 2 seconds. The report is fire-and-forget -
+     * awaiting it would add provider round-trip latency to every command.
+     * @param {*} next
+     * @param {*} driver
+     * @param {*} commandName
+     * @param  {...any} args
+     * @returns
      */
     async handle(next, driver, commandName, ...args) {
+        const now = Date.now()
+        if (now - GadsAppium.lastCommandReportTs > 2000) {
+            GadsAppium.lastCommandReportTs = now
+            GadsAppium.apiClient.sendCommand({
+                command: commandName,
+                session_id: GadsAppium.currentSessionId,
+                timestamp: now,
+            })
+        }
         return await next()
     }
 

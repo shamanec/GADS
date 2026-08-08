@@ -52,10 +52,10 @@ func (d *TizenDevice) Setup() error {
 	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
-	logger.ProviderLogger.LogInfo("tizen_device_setup", fmt.Sprintf("Running setup for Tizen device `%v`", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("tizen_device_setup", "Running setup for Tizen device `%v`", d.GetUDID())
 
 	if err := d.getTVInfo(); err != nil {
-		logger.ProviderLogger.LogError("tizen_device_setup", fmt.Sprintf("Failed to get TV info for device `%v` - %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("tizen_device_setup", "Failed to get TV info for device `%v` - %v", d.GetUDID(), err)
 		d.Reset("Failed to retrieve TV information.")
 		return err
 	}
@@ -341,7 +341,9 @@ func (d *TizenDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 		result = append(result, models.DeviceApp{
 			AppName:          app.Title,
 			BundleIdentifier: app.AppID,
+			Version:          app.Version,
 			CanUninstall:     app.IsDevApp,
+			IsDevApp:         app.IsDevApp,
 		})
 	}
 	return result, nil
@@ -353,7 +355,7 @@ func (d *TizenDevice) getInstalledAppsTizen() []TizenApp {
 	cmd := exec.Command("sdb", "-s", d.GetUDID(), "shell", "0", "vd_applist")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("tizen_list_apps", fmt.Sprintf("Failed to list apps for device %s: %v", d.GetUDID(), err))
+		logger.ProviderLogger.LogErrorf("tizen_list_apps", "Failed to list apps for device %s: %v", d.GetUDID(), err)
 		return apps
 	}
 
@@ -448,7 +450,7 @@ func getConnectedDevicesTizen() []string {
 	cmd := exec.Command("sdb", "devices")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to get connected Tizen devices - %s", err))
+		logger.ProviderLogger.LogErrorf("device_setup", "Failed to get connected Tizen devices - %s", err)
 		return devices
 	}
 

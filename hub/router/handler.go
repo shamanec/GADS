@@ -12,6 +12,7 @@ package router
 import (
 	"GADS/hub/auth"
 	"GADS/hub/config"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -38,11 +39,13 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	r.Use(cors.New(ginConfig))
 
 	// Handle UI serving only if we have UI files embedded
+	var uiFS fs.FS
 	if uiFiles != nil {
-		uiFS, err := fs.Sub(uiFiles, "hub-ui/build")
+		subFS, err := fs.Sub(uiFiles, "hub-ui/build")
 		if err != nil {
 			log.Fatalf("Failed to get UI files filesystem: %v", err)
 		}
+		uiFS = subFS
 
 		r.Use(func(c *gin.Context) {
 			path := c.Request.URL.Path
@@ -63,24 +66,35 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 			fileServer.ServeHTTP(c.Writer, c.Request)
 			c.Abort()
 		})
-
-		r.NoRoute(func(c *gin.Context) {
-			indexFile, err := uiFS.Open("index.html")
-			if err != nil {
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-			defer indexFile.Close()
-
-			stat, err := indexFile.Stat()
-			if err != nil {
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return
-			}
-
-			http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile.(io.ReadSeeker))
-		})
 	}
+
+	r.NoRoute(func(c *gin.Context) {
+		// Unmatched /grid/* paths must get a W3C error response, not the UI fallback page
+		if strings.HasPrefix(c.Request.URL.Path, "/grid/") {
+			writeW3CError(c, w3cUnknownCommand(fmt.Sprintf("Unknown grid endpoint `%s`", c.Request.URL.Path)))
+			return
+		}
+
+		if uiFS == nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		indexFile, err := uiFS.Open("index.html")
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		defer indexFile.Close()
+
+		stat, err := indexFile.Stat()
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile.(io.ReadSeeker))
+	})
 
 	authGroup := r.Group("/")
 	// Unauthenticated endpoints
@@ -90,6 +104,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.GET("/devices/control/:udid/in-use", DeviceInUseWS)
 	authGroup.POST("/devices/control/:udid/lock", LockDevice)
 	authGroup.POST("/devices/control/:udid/unlock", UnlockDevice)
+	authGroup.POST("/devices/control/:udid/release", ReleaseDevice)
 	authGroup.POST("/provider-update", ProviderUpdate)
 	// OAuth2 endpoints (unauthenticated)
 	authGroup.POST("/oauth/token", OAuth2TokenEndpoint)
@@ -99,8 +114,10 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	}
 	authGroup.GET("/user-info", auth.GetUserInfoHandler)
 	authGroup.GET("/appium-logs", GetAppiumLogs)
+	authGroup.GET("/automation-sessions", GetAutomationSessions)
 	authGroup.GET("/health", HealthCheck)
 	authGroup.POST("/logout", auth.LogoutHandler)
+	authGroup.POST("/change-password", auth.ChangePasswordHandler)
 	authGroup.GET("/devices/control/:udid/adb-tunnel", ADBTunnelHandler)
 	authGroup.Any("/device/:udid/*path", DeviceProxyHandler)
 	authGroup.Any("/provider/:name/*path", ProviderProxyHandler)
@@ -112,7 +129,6 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/admin/device", AddDevice)
 	authGroup.PUT("/admin/device", UpdateDevice)
 	authGroup.DELETE("/admin/device/:udid", DeleteDevice)
-	authGroup.POST("/admin/device/:udid/release", ReleaseUsedDevice)
 	authGroup.GET("/admin/devices", GetDevices)
 	authGroup.POST("/admin/user", AddUser)
 	authGroup.GET("/admin/users", GetUsers)
@@ -124,6 +140,10 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/admin/files/supervision", UploadSupervisionProfile)
 	authGroup.POST("/admin/files/csr", GenerateCSR)
 	authGroup.DELETE("/admin/files/:id", DeleteFile)
+	// Uploaded device apps (available to all authenticated users, installed via device control)
+	authGroup.GET("/apps", GetApps)
+	authGroup.POST("/apps", UploadApp)
+	authGroup.DELETE("/apps/:id", DeleteApp)
 	authGroup.PUT("/admin/user", UpdateUser)
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
 	authGroup.GET("/admin/global-settings", GetGlobalStreamSettings)
@@ -162,9 +182,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/custom-actions/favorites/:id", AddUserFavorite)
 	authGroup.DELETE("/custom-actions/favorites/:id", RemoveUserFavorite)
 
-	appiumGroup := r.Group("/grid")
-	appiumGroup.Use(AppiumGridMiddleware())
-	appiumGroup.Any("/*path")
+	registerGridRoutes(r.Group("/grid"))
 
 	return r
 }

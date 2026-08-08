@@ -14,7 +14,9 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"log/slog"
+	"os"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -59,7 +61,8 @@ func NewMongoStore(dbName string) (*MongoStore, error) {
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		cancel()
-		log.Fatalf("Could not connect to Mongo server at `%s` - %s", connectionString, err)
+		slog.Error(fmt.Sprintf("Could not connect to Mongo server at `%s` - %s", connectionString, err))
+		os.Exit(1)
 	}
 
 	if err = client.Ping(ctx, nil); err != nil {
@@ -93,17 +96,15 @@ func (m *MongoStore) checkDBConnection() {
 
 		if err != nil {
 			errorCounter++
-			log.WithFields(log.Fields{
-				"error_count": errorCounter,
-				"error":       err,
-			}).Warn("Failed to ping MongoDB")
+			slog.Warn("Failed to ping MongoDB", "error_count", errorCounter, "error", err)
 
 			if errorCounter >= maxErrorCount {
-				log.Fatalf("Lost connection to MongoDB server and failed to reconnect after %d attempts!", maxErrorCount)
+				slog.Error(fmt.Sprintf("Lost connection to MongoDB server and failed to reconnect after %d attempts!", maxErrorCount))
+				os.Exit(1)
 			}
 		} else {
 			if errorCounter > 0 {
-				log.Info("MongoDB connection restored")
+				slog.Info("MongoDB connection restored")
 				errorCounter = 0
 			}
 			time.Sleep(1 * time.Second)

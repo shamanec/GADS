@@ -50,6 +50,19 @@ type RuntimeState struct {
 	Connected     bool
 	ProviderState string
 
+	// Serial is the transport-level identifier used for local device commands
+	// (e.g. `adb -s`). Left empty for devices whose UDID is the transport id —
+	// GetSerial falls back to the UDID then. Only set when the GADS identity
+	// deliberately differs from the transport id (e.g. Android emulators, where
+	// the UDID is synthesized from the AVD name but adb needs `emulator-5554`).
+	Serial string
+
+	// Ephemeral marks a device that exists only in memory (provider DevManager +
+	// hub device store) and must never be persisted to the DB. Set once at
+	// creation for discovered Android emulators, before the device is visible in
+	// DevManager, and read-only afterwards.
+	Ephemeral bool
+
 	// Provider-only runtime fields
 	HardwareModel        string
 	IsResetting          bool
@@ -57,7 +70,9 @@ type RuntimeState struct {
 	StreamJpegQuality    int
 	StreamScalingFactor  int
 	AppiumLastPingTS     int64
+	AppiumLastCommandTS  int64
 	AppiumSessionID      string
+	AppiumSessionCaps    map[string]interface{}
 	IsAppiumUp           bool
 	HasAppiumSession     bool
 	CurrentRotation      string
@@ -71,24 +86,36 @@ type RuntimeState struct {
 
 // Common accessor implementations inherited by all platform types via embedding.
 
-func (r *RuntimeState) GetUDID() string                              { return r.DBDevice.UDID }
-func (r *RuntimeState) GetOS() string                                { return r.DBDevice.OS }
-func (r *RuntimeState) GetDBDevice() *models.DBDevice                { return &r.DBDevice }
-func (r *RuntimeState) GetProviderState() string                     { return r.ProviderState }
-func (r *RuntimeState) SetProviderState(state string)                { r.ProviderState = state }
-func (r *RuntimeState) IsConnected() bool                            { return r.Connected }
-func (r *RuntimeState) SetConnected(connected bool)                  { r.Connected = connected }
-func (r *RuntimeState) GetHost() string                              { return r.Host }
-func (r *RuntimeState) SetHost(host string)                          { r.Host = host }
-func (r *RuntimeState) GetLogger() models.CustomLogger               { return r.Logger }
-func (r *RuntimeState) GetContext() context.Context                  { return r.Context }
-func (r *RuntimeState) GetAppiumPort() string                        { return r.AppiumPort }
-func (r *RuntimeState) SetAppiumPort(port string)                    { r.AppiumPort = port }
-func (r *RuntimeState) GetAppiumSessionID() string                   { return r.AppiumSessionID }
-func (r *RuntimeState) SetAppiumSessionID(id string)                 { r.AppiumSessionID = id }
-func (r *RuntimeState) SetAppiumUp(up bool)                          { r.IsAppiumUp = up }
-func (r *RuntimeState) SetAppiumLastPingTS(ts int64)                 { r.AppiumLastPingTS = ts }
-func (r *RuntimeState) SetHasAppiumSession(has bool)                 { r.HasAppiumSession = has }
+func (r *RuntimeState) GetUDID() string { return r.DBDevice.UDID }
+func (r *RuntimeState) GetSerial() string {
+	if r.Serial != "" {
+		return r.Serial
+	}
+	return r.DBDevice.UDID
+}
+func (r *RuntimeState) IsEphemeral() bool               { return r.Ephemeral }
+func (r *RuntimeState) GetOS() string                   { return r.DBDevice.OS }
+func (r *RuntimeState) GetDBDevice() *models.DBDevice   { return &r.DBDevice }
+func (r *RuntimeState) GetProviderState() string        { return r.ProviderState }
+func (r *RuntimeState) SetProviderState(state string)   { r.ProviderState = state }
+func (r *RuntimeState) IsConnected() bool               { return r.Connected }
+func (r *RuntimeState) SetConnected(connected bool)     { r.Connected = connected }
+func (r *RuntimeState) GetHost() string                 { return r.Host }
+func (r *RuntimeState) SetHost(host string)             { r.Host = host }
+func (r *RuntimeState) GetLogger() models.CustomLogger  { return r.Logger }
+func (r *RuntimeState) GetContext() context.Context     { return r.Context }
+func (r *RuntimeState) GetAppiumPort() string           { return r.AppiumPort }
+func (r *RuntimeState) SetAppiumPort(port string)       { r.AppiumPort = port }
+func (r *RuntimeState) GetAppiumSessionID() string      { return r.AppiumSessionID }
+func (r *RuntimeState) SetAppiumSessionID(id string)    { r.AppiumSessionID = id }
+func (r *RuntimeState) SetAppiumUp(up bool)             { r.IsAppiumUp = up }
+func (r *RuntimeState) SetAppiumLastPingTS(ts int64)    { r.AppiumLastPingTS = ts }
+func (r *RuntimeState) SetAppiumLastCommandTS(ts int64) { r.AppiumLastCommandTS = ts }
+func (r *RuntimeState) SetHasAppiumSession(has bool)    { r.HasAppiumSession = has }
+func (r *RuntimeState) SetAppiumSessionCaps(caps map[string]interface{}) {
+	r.AppiumSessionCaps = caps
+}
+func (r *RuntimeState) GetAppiumSessionCaps() map[string]interface{} { return r.AppiumSessionCaps }
 func (r *RuntimeState) GetIsResetting() bool                         { return r.IsResetting }
 func (r *RuntimeState) SetIsResetting(v bool)                        { r.IsResetting = v }
 func (r *RuntimeState) GetIsAppiumUp() bool                          { return r.IsAppiumUp }
@@ -115,12 +142,26 @@ func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelF
 
 // ToSyncUpdate builds the lightweight struct sent to the hub each second.
 func (r *RuntimeState) ToSyncUpdate() models.ProviderDeviceSync {
-	return models.ProviderDeviceSync{
-		UDID:          r.DBDevice.UDID,
-		Host:          r.Host,
-		Connected:     r.Connected,
-		ProviderState: r.ProviderState,
+	syncUpdate := models.ProviderDeviceSync{
+		UDID:                      r.DBDevice.UDID,
+		Host:                      r.Host,
+		Connected:                 r.Connected,
+		ProviderState:             r.ProviderState,
+		ReportsAppiumSessionState: true,
+		HasAppiumSession:          r.HasAppiumSession,
+		AppiumSessionID:           r.AppiumSessionID,
+		AppiumLastCommandTS:       r.AppiumLastCommandTS,
 	}
+
+	// Ephemeral devices have no DB record the hub could build its store entry
+	// from, so the full device descriptor rides along with every update
+	if r.Ephemeral {
+		deviceCopy := r.DBDevice
+		syncUpdate.Ephemeral = true
+		syncUpdate.EphemeralDevice = &deviceCopy
+	}
+
+	return syncUpdate
 }
 
 // ResetBase cancels the device context, frees the Appium port, and resets state to "init".
@@ -129,7 +170,7 @@ func (r *RuntimeState) ResetBase(reason string) bool {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 	if !r.IsResetting && r.ProviderState != "init" {
-		logger.ProviderLogger.LogInfo("provider", fmt.Sprintf("Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", r.DBDevice.UDID, reason))
+		logger.ProviderLogger.LogInfof("provider", "Resetting LocalDevice for device `%v` with reason: %s. Cancelling context, setting ProviderState to `init`, Healthy to `false` and updating the DB", r.DBDevice.UDID, reason)
 
 		r.IsResetting = true
 		if r.CtxCancel != nil {
@@ -154,7 +195,13 @@ func (r *RuntimeState) Reset(reason string) {
 
 // resetWithError logs an error, resets the device, and returns the error — used by Setup() step methods.
 func (r *RuntimeState) resetWithError(step string, err error) error {
-	logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("Failed to %s for device `%s` - %v", step, r.GetUDID(), err))
+	logger.ProviderLogger.LogErrorf("device_setup", "Failed to %s for device `%s` - %v", step, r.GetUDID(), err)
+	// For iOS devices attach recent go-ios output to the device logs for diagnostics
+	if r.DBDevice.OS == "ios" && r.Logger != nil {
+		if tail := logger.GoIOSLogs.Tail(r.GetUDID(), 150); tail != "" {
+			r.Logger.LogErrorf("go_ios_logs", "Recent go-ios logs for device `%s`:\n%s", r.GetUDID(), tail)
+		}
+	}
 	r.Reset(fmt.Sprintf("Failed to %s", step))
 	return fmt.Errorf("%s: %w", step, err)
 }

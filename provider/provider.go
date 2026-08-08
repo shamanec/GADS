@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var targetAppiumPluginVersion = "0.0.11"
+var targetAppiumPluginVersion = "0.0.12"
 
 func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 	logLevel, _ := flags.GetString("log-level")
@@ -70,7 +70,9 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 
 	// Setup logging for the provider itself
 	logger.SetupLogging(logLevel)
-	logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Starting provider on port `%v`", config.ProviderConfig.Port))
+	// Route go-ios internal logging to per-device capture instead of the terminal
+	logger.SetupGoIOSLogging()
+	logger.ProviderLogger.LogInfof("provider_setup", "Starting provider on port `%v`", config.ProviderConfig.Port)
 
 	// Check if the default workspace exists
 	defaultWorkspace, err := db.GlobalMongoStore.GetDefaultWorkspace()
@@ -101,47 +103,47 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		var didUpdateAppiumPluginNPM = false
 		logger.ProviderLogger.LogInfo("provider_setup", "Checking if GADS Appium plugin is installed on the host NPM")
 		if !providerutil.IsAppiumPluginInstalledNPM() {
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Installing GADS Appium plugin version `%s` globally on host NPM", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "Installing GADS Appium plugin version `%s` globally on host NPM", targetAppiumPluginVersion)
 			err = providerutil.InstallAppiumPluginNPM(targetAppiumPluginVersion)
 			if err != nil {
 				log.Fatalf("Failed to install GADS Appium plugin version `%s` on NPM - %s", targetAppiumPluginVersion, err)
 			}
 			didUpdateAppiumPluginNPM = true
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully installed GADS Appium plugin version `%s` globally on host NPM", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "Successfully installed GADS Appium plugin version `%s` globally on host NPM", targetAppiumPluginVersion)
 		} else if providerutil.ShouldUpdateAppiumPluginNPM(targetAppiumPluginVersion) {
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Updating GADS Appium plugin to version `%s` globally on host NPM", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "Updating GADS Appium plugin to version `%s` globally on host NPM", targetAppiumPluginVersion)
 			err = providerutil.InstallAppiumPluginNPM(targetAppiumPluginVersion)
 			if err != nil {
 				log.Fatalf("Failed to update GADS Appium plugin to version `%s` on NPM - %s", targetAppiumPluginVersion, err)
 			}
 			didUpdateAppiumPluginNPM = true
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully update GADS Appium plugin to version `%s` globally on host NPM", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "Successfully update GADS Appium plugin to version `%s` globally on host NPM", targetAppiumPluginVersion)
 		}
 
 		// Lastly we check if the GADS plugin is installed on Appium at all and install it if not
 		// In case the plugin is installed but we did an update of the version on NPM then we uninstall it from the Appium plugins and then install it again using the target version
 		logger.ProviderLogger.LogInfo("provider_setup", "Checking if GADS plugin is installed on Appium")
 		if !providerutil.IsAppiumPluginInstalled() {
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("GADS plugin version `%s` is not installed on Appium, installing", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "GADS plugin version `%s` is not installed on Appium, installing", targetAppiumPluginVersion)
 			err = providerutil.InstallAppiumPlugin(targetAppiumPluginVersion)
 			if err != nil {
 				log.Fatalf("Failed to install GADS plugin version `%s` on Appium - %s", targetAppiumPluginVersion, err)
 			}
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully installed GADS plugin version `%s` on Appium", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "Successfully installed GADS plugin version `%s` on Appium", targetAppiumPluginVersion)
 		} else if didUpdateAppiumPluginNPM {
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("GADS plugin was updated on NPM to version `%s` and is already installed on Appium, updating for Appium", targetAppiumPluginVersion))
-			logger.ProviderLogger.LogInfo("provider_setup", "Uninstalling current plugin in case GADS plugin version was downgraded or update will not work")
+			logger.ProviderLogger.LogInfof("provider_setup", "GADS plugin was updated on NPM to version `%s` and is already installed on Appium, updating for Appium", targetAppiumPluginVersion)
+			logger.ProviderLogger.LogInfof("provider_setup", "Uninstalling current plugin in case GADS plugin version was downgraded or update will not work")
 			err = providerutil.UninstallAppiumPlugin()
 			if err != nil {
 				log.Fatalf("Failed to uninstall GADS plugin on Appium - %s", err)
 			}
 
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Installing GADS plugin version `%s` on Appium", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "Installing GADS plugin version `%s` on Appium", targetAppiumPluginVersion)
 			err = providerutil.InstallAppiumPlugin(targetAppiumPluginVersion)
 			if err != nil {
 				log.Fatalf("Failed to install GADS plugin version `%s` on Appium - %s", targetAppiumPluginVersion, err)
 			}
-			logger.ProviderLogger.LogInfo("provider_setup", fmt.Sprintf("Successfully installed GADS plugin version `%s` on Appium", targetAppiumPluginVersion))
+			logger.ProviderLogger.LogInfof("provider_setup", "Successfully installed GADS plugin version `%s` on Appium", targetAppiumPluginVersion)
 		}
 	} else {
 		logger.ProviderLogger.LogInfo("provider_setup", "Provider is not configured to set up Appium servers, skipped Appium and GADS Appium plugin checks")
@@ -165,7 +167,7 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		// provider has one selected. Failure is non-fatal so a broadcast
 		// misconfiguration does not stop the provider from serving iOS devices.
 		if err = config.SetupBroadcastFile(); err != nil {
-			logger.ProviderLogger.LogError("provider_setup", fmt.Sprintf("Could not provide Broadcast.ipa file from MongoDB - %s", err))
+			logger.ProviderLogger.LogErrorf("provider_setup", "Could not provide Broadcast.ipa file from MongoDB - %s", err)
 		}
 	}
 
@@ -174,8 +176,8 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		log.Fatalf("Failed to extract embedded resource files - %s", err)
 	}
 
-	// If we want to provide Android devices check if adb is available on PATH
-	if config.ProviderConfig.ProvideAndroid {
+	// If we want to provide Android, Android TV or Android emulator devices check if adb is available on PATH
+	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv || config.ProviderConfig.ProvideAndroidEmulators {
 		if !providerutil.AdbAvailable() {
 			logger.ProviderLogger.LogError("provider", "adb is not available, you need to set up the host as explained in the readme")
 			fmt.Println("adb is not available, you need to set up the host as explained in the readme")
@@ -235,7 +237,7 @@ func updateProviderInDB() {
 	for {
 		err := db.GlobalMongoStore.UpdateProviderTimestamp(config.ProviderConfig.Nickname)
 		if err != nil {
-			logger.ProviderLogger.LogError("update_provider", fmt.Sprintf("Failed to upsert provider in DB - %s", err))
+			logger.ProviderLogger.LogErrorf("update_provider", "Failed to upsert provider in DB - %s", err)
 		}
 
 		time.Sleep(1 * time.Second)
@@ -243,7 +245,7 @@ func updateProviderInDB() {
 }
 
 func extractProviderResourceFiles(destination string, resourceFiles embed.FS) error {
-	files := []string{"gads-settings.apk"}
+	files := []string{"gads-settings.apk", "ios-ddi/BuildManifest.plist", "ios-ddi/022-22070-046.dmg", "ios-ddi/Firmware/022-22070-046.dmg.trustcache"}
 	for _, file := range files {
 		data, err := resourceFiles.ReadFile("resources/" + file)
 		if err != nil {

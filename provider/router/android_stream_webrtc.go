@@ -43,6 +43,8 @@ type AndroidWebRTCSession struct {
 	streamTargetFPS int
 	peerConnection  *webrtc.PeerConnection
 	videoTrack      *webrtc.TrackLocalStaticSample
+	audioTrack      *webrtc.TrackLocalStaticSample
+	audioExtractor  *PCMAudioExtractor
 	wsConn          io.ReadWriteCloser
 	frameChannel    chan AndroidH264Frame
 	ctx             context.Context
@@ -102,7 +104,7 @@ func NewAndroidWebRTCSession(device *models.DBDevice, streamPort string, streamT
 		return nil, fmt.Errorf("failed to add track: %w", err)
 	}
 
-	// Handle RTCP packets
+	// Handle RTCP packets for video
 	go func() {
 		rtcpBuf := make([]byte, 1500)
 		for {
@@ -112,7 +114,41 @@ func NewAndroidWebRTCSession(device *models.DBDevice, streamPort string, streamT
 		}
 	}()
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Created Android WebRTC session for device %s", device.UDID))
+	// Create audio track if enabled
+	if device.AudioStreamEnabled {
+		logger.ProviderLogger.LogInfo("webrtc_session", "Audio track enabled, creating Opus track")
+
+		audioTrack, err := webrtc.NewTrackLocalStaticSample(
+			webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus},
+			"audio",
+			"gads-stream",
+		)
+		if err != nil {
+			logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to create audio track: %v", err)
+			device.AudioStreamEnabled = false
+		} else {
+			session.audioTrack = audioTrack
+
+			audioRtpSender, err := pc.AddTrack(audioTrack)
+			if err != nil {
+				logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to add audio track: %v", err)
+				device.AudioStreamEnabled = false
+			} else {
+				// Handle RTCP packets for audio track
+				go func() {
+					rtcpBuf := make([]byte, 1500)
+					for {
+						if _, _, rtcpErr := audioRtpSender.Read(rtcpBuf); rtcpErr != nil {
+							return
+						}
+					}
+				}()
+				logger.ProviderLogger.LogInfo("webrtc_session", "Audio track successfully added to peer connection")
+			}
+		}
+	}
+
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Created Android WebRTC session for device %s", device.UDID)
 
 	return session, nil
 }
@@ -129,7 +165,7 @@ func (s *AndroidWebRTCSession) Start() error {
 	}
 	s.wsConn = conn
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Connected to Android H.264 stream for device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Connected to Android H.264 stream for device %s", s.device.UDID)
 
 	// Start reading frames from WebSocket
 	go s.readFrames()
@@ -137,6 +173,22 @@ func (s *AndroidWebRTCSession) Start() error {
 	// Start writing frames to WebRTC track
 	go s.writeFrames()
 
+	// Start audio extractor if enabled
+	if s.device.AudioStreamEnabled && s.audioTrack != nil {
+		audioExtractor, err := NewPCMAudioExtractorAndroid(s.device)
+		if err != nil {
+			logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to create audio extractor: %v", err)
+		} else {
+			s.audioExtractor = audioExtractor
+
+			// Start writing audio frames to track
+			go s.writeAudioToTrack()
+
+			logger.ProviderLogger.LogInfo("webrtc_session", "Audio extractor started successfully")
+		}
+	}
+
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Started Android streaming pipeline for device %s", s.device.UDID)
 	return nil
 }
 
@@ -145,13 +197,13 @@ func (s *AndroidWebRTCSession) readFrames() {
 	defer close(s.frameChannel)
 	defer s.wsConn.Close()
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting frame reading for device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Starting frame reading for device %s", s.device.UDID)
 
 	readCount := 0
 	for {
 		select {
 		case <-s.ctx.Done():
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping frame reading for device %s", s.device.UDID))
+			logger.ProviderLogger.LogInfof("stream_webrtc", "Stopping frame reading for device %s", s.device.UDID)
 			return
 		default:
 		}
@@ -161,7 +213,7 @@ func (s *AndroidWebRTCSession) readFrames() {
 		msg, _, err := wsutil.ReadServerData(s.wsConn)
 		if err != nil {
 			if err != io.EOF {
-				logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Error reading from WebSocket for device %s: %s", s.device.UDID, err))
+				logger.ProviderLogger.LogErrorf("stream_webrtc", "Error reading from WebSocket for device %s: %s", s.device.UDID, err)
 			}
 			return
 		}
@@ -193,7 +245,7 @@ func (s *AndroidWebRTCSession) readFrames() {
 		default:
 			// Channel full - drop frame to prevent blocking
 			if readCount%30 == 0 {
-				logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Dropped frame (channel full) for device %s", s.device.UDID))
+				logger.ProviderLogger.LogWarnf("stream_webrtc", "Dropped frame (channel full) for device %s", s.device.UDID)
 			}
 		}
 	}
@@ -206,16 +258,16 @@ func (s *AndroidWebRTCSession) writeFrames() {
 		fallbackDuration = time.Second / time.Duration(s.streamTargetFPS)
 	}
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Starting frame writing for device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Starting frame writing for device %s", s.device.UDID)
 
 	for {
 		select {
 		case <-s.ctx.Done():
-			logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Stopping frame writing for device %s", s.device.UDID))
+			logger.ProviderLogger.LogInfof("stream_webrtc", "Stopping frame writing for device %s", s.device.UDID)
 			return
 		case frame, ok := <-s.frameChannel:
 			if !ok {
-				logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Frame channel closed for device %s", s.device.UDID))
+				logger.ProviderLogger.LogInfof("stream_webrtc", "Frame channel closed for device %s", s.device.UDID)
 				return
 			}
 
@@ -259,12 +311,47 @@ func (s *AndroidWebRTCSession) writeFrames() {
 					Data:     frame.Data,
 					Duration: duration,
 				}); err != nil {
-					logger.ProviderLogger.LogError("stream_webrtc", fmt.Sprintf("Failed to write sample for device %s: %s", s.device.UDID, err))
+					logger.ProviderLogger.LogErrorf("stream_webrtc", "Failed to write sample for device %s: %s", s.device.UDID, err)
 					return
 				}
 			}
 		}
 	}
+}
+
+// writeAudioToTrack reads Opus frames from the audio extractor and writes them to the WebRTC track
+func (s *AndroidWebRTCSession) writeAudioToTrack() {
+	if s.audioExtractor == nil || s.audioTrack == nil {
+		return
+	}
+
+	frameCount := 0
+	// Fixed duration: 960 samples @ 48kHz = exactly 20ms per Opus frame.
+	// Using a constant ensures uniform RTP timestamps, preventing jitter on the receiver.
+	const frameDuration = 20 * time.Millisecond
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Starting audio streaming for device "+s.device.UDID)
+
+	for audioFrame := range s.audioExtractor.GetAudioChannel() {
+		frameCount++
+
+		if err := s.audioTrack.WriteSample(media.Sample{
+			Data:     audioFrame.Data,
+			Duration: frameDuration,
+		}); err != nil {
+			logger.ProviderLogger.LogErrorf("webrtc_session", "Error writing audio sample: %v", err)
+			return
+		}
+
+		if frameCount == 1 {
+			logger.ProviderLogger.LogInfof("webrtc_session", "First audio frame written to WebRTC track for device %s (size: %d bytes)", s.device.UDID, len(audioFrame.Data))
+		}
+		if frameCount%100 == 0 {
+			logger.ProviderLogger.LogDebugf("webrtc_session", "Sent audio frame #%d for device %s", frameCount, s.device.UDID)
+		}
+	}
+
+	logger.ProviderLogger.LogInfo("webrtc_session", "Audio track writing stopped")
 }
 
 // HandleOffer processes SDP offer from client
@@ -289,12 +376,12 @@ func (s *AndroidWebRTCSession) HandleOffer(offer webrtc.SessionDescription) (*we
 	// Add any pending ICE candidates
 	for _, candidate := range s.iceCandidates {
 		if err := s.peerConnection.AddICECandidate(candidate); err != nil {
-			logger.ProviderLogger.LogWarn("stream_webrtc", fmt.Sprintf("Failed to add ICE candidate for device %s: %s", s.device.UDID, err))
+			logger.ProviderLogger.LogWarnf("stream_webrtc", "Failed to add ICE candidate for device %s: %s", s.device.UDID, err)
 		}
 	}
 	s.iceCandidates = nil
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Created answer for Android device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Created answer for Android device %s", s.device.UDID)
 	return &answer, nil
 }
 
@@ -330,11 +417,15 @@ func (s *AndroidWebRTCSession) Close() {
 		s.wsConn.Close()
 	}
 
+	if s.audioExtractor != nil {
+		s.audioExtractor.Close()
+	}
+
 	if s.peerConnection != nil {
 		s.peerConnection.Close()
 	}
 
-	logger.ProviderLogger.LogInfo("stream_webrtc", fmt.Sprintf("Closed Android WebRTC session for device %s", s.device.UDID))
+	logger.ProviderLogger.LogInfof("stream_webrtc", "Closed Android WebRTC session for device %s", s.device.UDID)
 }
 
 // AndroidWebRTCSocket handles WebRTC signaling for Android devices
@@ -343,13 +434,13 @@ func AndroidWebRTCSocket(c *gin.Context) {
 
 	platDev, deviceFound := devices.DevManager.Get(udid)
 	if !deviceFound {
-		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Device with UDID `%s` not found", udid))
+		logger.ProviderLogger.LogErrorf("android_webrtc", "Device with UDID `%s` not found", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	rcDev, isRcDevice := platDev.(devices.RemoteControllable)
 	if !isRcDevice {
-		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Device `%s` does not support streaming", udid))
+		logger.ProviderLogger.LogErrorf("android_webrtc", "Device `%s` does not support streaming", udid)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -357,7 +448,7 @@ func AndroidWebRTCSocket(c *gin.Context) {
 	// Upgrade to WebSocket
 	conn, _, _, err := ws.UpgradeHTTP(c.Request, c.Writer)
 	if err != nil {
-		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to upgrade connection to websocket for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to upgrade connection to websocket for device `%s` - %s", udid, err)
 		return
 	}
 	defer conn.Close()
@@ -365,7 +456,7 @@ func AndroidWebRTCSocket(c *gin.Context) {
 	// Create WebRTC session
 	session, err := NewAndroidWebRTCSession(rcDev.GetDBDevice(), rcDev.GetStreamPort(), rcDev.GetStreamTargetFPS())
 	if err != nil {
-		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to create WebRTC session for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to create WebRTC session for device `%s` - %s", udid, err)
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to create WebRTC session"}`))
 		return
 	}
@@ -373,7 +464,7 @@ func AndroidWebRTCSocket(c *gin.Context) {
 
 	// Start streaming pipeline
 	if err := session.Start(); err != nil {
-		logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to start streaming pipeline for device `%s` - %s", udid, err))
+		logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to start streaming pipeline for device `%s` - %s", udid, err)
 		wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to start streaming"}`))
 		return
 	}
@@ -395,31 +486,31 @@ func AndroidWebRTCSocket(c *gin.Context) {
 
 		data, err := json.Marshal(msg)
 		if err != nil {
-			logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to marshal ICE candidate for device %s: %s", udid, err))
+			logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to marshal ICE candidate for device %s: %s", udid, err)
 			return
 		}
 
 		if err := wsutil.WriteServerText(conn, data); err != nil {
-			logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to send ICE candidate for device %s: %s", udid, err))
+			logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to send ICE candidate for device %s: %s", udid, err)
 		}
 	})
 
 	// Handle connection state changes
 	session.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
-		logger.ProviderLogger.LogInfo("android_webrtc", fmt.Sprintf("WebRTC connection state for device %s: %s", udid, state.String()))
+		logger.ProviderLogger.LogInfof("android_webrtc", "WebRTC connection state for device %s: %s", udid, state.String())
 
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
 			conn.Close()
 		}
 	})
 
-	logger.ProviderLogger.LogInfo("android_webrtc", fmt.Sprintf("WebRTC signaling established for device `%s`", udid))
+	logger.ProviderLogger.LogInfof("android_webrtc", "WebRTC signaling established for device `%s`", udid)
 
 	// Handle signaling messages
 	for {
 		msg, _, err := wsutil.ReadClientData(conn)
 		if err != nil {
-			logger.ProviderLogger.LogDebug("android_webrtc", fmt.Sprintf("Client WebRTC websocket connection for device `%s` closed - %s", udid, err))
+			logger.ProviderLogger.LogDebugf("android_webrtc", "Client WebRTC websocket connection for device `%s` closed - %s", udid, err)
 			return
 		}
 
@@ -429,7 +520,7 @@ func AndroidWebRTCSocket(c *gin.Context) {
 			Candidate *webrtc.ICECandidateInit `json:"candidate,omitempty"`
 		}
 		if err := json.Unmarshal(msg, &signalingMsg); err != nil {
-			logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to unmarshal signaling message for device `%s` - %s", udid, err))
+			logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to unmarshal signaling message for device `%s` - %s", udid, err)
 			continue
 		}
 
@@ -442,7 +533,7 @@ func AndroidWebRTCSocket(c *gin.Context) {
 
 			answer, err := session.HandleOffer(offer)
 			if err != nil {
-				logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to handle offer for device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to handle offer for device `%s` - %s", udid, err)
 				wsutil.WriteServerText(conn, []byte(`{"type":"error","message":"Failed to handle offer"}`))
 				return
 			}
@@ -457,30 +548,30 @@ func AndroidWebRTCSocket(c *gin.Context) {
 
 			data, err := json.Marshal(response)
 			if err != nil {
-				logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to marshal answer for device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to marshal answer for device `%s` - %s", udid, err)
 				return
 			}
 
 			if err := wsutil.WriteServerText(conn, data); err != nil {
-				logger.ProviderLogger.LogError("android_webrtc", fmt.Sprintf("Failed to send answer for device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("android_webrtc", "Failed to send answer for device `%s` - %s", udid, err)
 				return
 			}
 
-			logger.ProviderLogger.LogInfo("android_webrtc", fmt.Sprintf("Sent answer to client for device %s", udid))
+			logger.ProviderLogger.LogInfof("android_webrtc", "Sent answer to client for device %s", udid)
 
 		case "candidate":
 			if signalingMsg.Candidate != nil {
 				if err := session.AddICECandidate(*signalingMsg.Candidate); err != nil {
-					logger.ProviderLogger.LogWarn("android_webrtc", fmt.Sprintf("Failed to add ICE candidate for device `%s` - %s", udid, err))
+					logger.ProviderLogger.LogWarnf("android_webrtc", "Failed to add ICE candidate for device `%s` - %s", udid, err)
 				}
 			}
 
 		case "hangup":
-			logger.ProviderLogger.LogInfo("android_webrtc", fmt.Sprintf("Received hangup for device `%s`", udid))
+			logger.ProviderLogger.LogInfof("android_webrtc", "Received hangup for device `%s`", udid)
 			return
 
 		default:
-			logger.ProviderLogger.LogWarn("android_webrtc", fmt.Sprintf("Unknown signaling message type `%s` for device `%s`", signalingMsg.Type, udid))
+			logger.ProviderLogger.LogWarnf("android_webrtc", "Unknown signaling message type `%s` for device `%s`", signalingMsg.Type, udid)
 		}
 	}
 }

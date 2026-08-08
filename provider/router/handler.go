@@ -26,7 +26,6 @@ func HandleRequests() *gin.Engine {
 
 	r.GET("/info", GetProviderData)
 	r.GET("/devices", DevicesInfo)
-	r.POST("/uploadFile", UploadAndInstallApp)
 
 	pprofGroup := r.Group("/debug/pprof")
 	{
@@ -88,13 +87,14 @@ func HandleRequests() *gin.Engine {
 	deviceGroup.POST("/closeApp", CloseApp)
 	deviceGroup.POST("/reset", ResetDevice)
 	deviceGroup.POST("/killApp", KillApp)
-	deviceGroup.POST("/uploadAndInstallApp", UploadAndInstallApp)
+	deviceGroup.POST("/installStoredApp", InstallStoredApp)
 	deviceAppiumPluginGroup := deviceGroup.Group("/appium-plugin")
 	deviceAppiumPluginGroup.POST("/log", AppiumPluginLog)
 	deviceAppiumPluginGroup.POST("/register", AppiumPluginRegister)
 	deviceAppiumPluginGroup.POST("/session/add/:session_id", AppiumPluginAddSession)
 	deviceAppiumPluginGroup.POST("/session/remove", AppiumPluginRemoveSession)
 	deviceAppiumPluginGroup.POST("/ping", AppiumPluginPing)
+	deviceAppiumPluginGroup.POST("/command", AppiumPluginCommand)
 
 	return r
 }

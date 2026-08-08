@@ -12,6 +12,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,6 +26,12 @@ type CustomLogger interface {
 	LogWarn(eventName string, message string)
 	LogFatal(eventName string, message string)
 	LogPanic(eventName string, message string)
+	LogDebugf(eventName string, format string, args ...any)
+	LogInfof(eventName string, format string, args ...any)
+	LogErrorf(eventName string, format string, args ...any)
+	LogWarnf(eventName string, format string, args ...any)
+	LogFatalf(eventName string, format string, args ...any)
+	LogPanicf(eventName string, format string, args ...any)
 }
 
 type User struct {
@@ -42,7 +49,7 @@ type DBDevice struct {
 	OSVersion    string `json:"os_version" bson:"os_version"`       // OS version of the device
 	IPAddress    string `json:"ip_address" bson:"ip_address"`       // IP address of the device
 	Provider     string `json:"provider" bson:"provider"`           // nickname of the device host(provider)
-	Usage        string `json:"usage" bson:"usage"`                 // what is the device used for: enabled(automation and remote control), automation(only Appium testing), remote(only remote control), disabled
+	Usage        string `json:"usage" bson:"usage"`                 // what is the device used for: enabled(automation and remote control), automation(only Appium testing), control(only remote control), disabled
 	ScreenWidth  string `json:"screen_width" bson:"screen_width"`   // screen width of device
 	ScreenHeight string `json:"screen_height" bson:"screen_height"` // screen height of device
 	DeviceType   string `json:"device_type" bson:"device_type"`     // The type of device - `real` or `emulator`
@@ -51,6 +58,12 @@ type DBDevice struct {
 	UseWebRTCVideo bool          `json:"use_webrtc_video" bson:"use_webrtc_video"` // Should the device use WebRTC video instead of MJPEG
 	WorkspaceID    string        `json:"workspace_id" bson:"workspace_id"`         // ID of the associated workspace
 	StreamType     StreamingType `json:"stream_type" bson:"stream_type"`           // The type of video streaming for the device
+	// Enable audio streaming alongside the WebRTC video stream.
+	AudioStreamEnabled bool `json:"audio_stream_enabled" bson:"audio_stream_enabled"`
+	// Audio input source. Android: "internal" (AudioPlaybackCapture, API 29+, default) or "microphone" (TRRS).
+	AudioInputType string `json:"audio_input_type" bson:"audio_input_type"`
+	// AudioPort is the provider-only host port forwarded to the device audio stream. Runtime state, not persisted.
+	AudioPort string `json:"-" bson:"-"`
 }
 
 // AndroidDisplay represents a physical display on an Android device (e.g. foldable inner/outer screen).
@@ -182,6 +195,7 @@ type DBFileMetadata struct {
 	Description  string `json:"description" bson:"description"`
 	UploadedBy   string `json:"uploaded_by" bson:"uploaded_by"`
 	OriginalName string `json:"original_name" bson:"original_name"`
+	Tenant       string `json:"tenant" bson:"tenant,omitempty"`
 }
 
 type GlobalSettings struct {
@@ -308,8 +322,29 @@ func ValidateDeviceUsageForOS(os, usage string) error {
 		}
 	}
 
+	// Validate Android TV devices can only be used for automation
+	if normalizedOS == "androidtv" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("androidtv devices only support 'automation' usage. Current usage '%s' is not supported. Android TV devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
+	// Validate Roku devices can only be used for automation
+	if normalizedOS == "roku" {
+		if normalizedUsage != "automation" {
+			return fmt.Errorf("roku devices only support 'automation' usage. Current usage '%s' is not supported. Roku devices can only be used for Appium testing and automation", usage)
+		}
+	}
+
 	return nil
 }
+
+// androidTvUDIDPattern matches an explicit IP:PORT address (e.g. 10.30.50.107:5555).
+var androidTvUDIDPattern = regexp.MustCompile(`^([0-9]{1,3}\.){3}[0-9]{1,3}:\d+$`)
+
+// rokuUDIDPattern matches a Roku IP address, optionally with a port (e.g. 10.30.50.112 or 10.30.50.112:8060).
+// Roku is reached over ECP (fixed port 8060), so only the IP is required.
+var rokuUDIDPattern = regexp.MustCompile(`^([0-9]{1,3}\.){3}[0-9]{1,3}(:\d+)?$`)
 
 // ValidateDevice performs comprehensive validation on a device struct
 func ValidateDevice(device *DBDevice) error {
@@ -320,6 +355,21 @@ func ValidateDevice(device *DBDevice) error {
 	// Validate OS and Usage combination
 	if err := ValidateDeviceUsageForOS(device.OS, device.Usage); err != nil {
 		return err
+	}
+
+	// Android TV connects over ADB TCP/IP, so the UDID must be an explicit IP:PORT.
+	// The port is required (not assumed) since it must match what the TV exposes.
+	if strings.ToLower(strings.TrimSpace(device.OS)) == "androidtv" {
+		if !androidTvUDIDPattern.MatchString(device.UDID) {
+			return fmt.Errorf("androidtv devices require the UDID in IP:PORT format (e.g. 10.30.50.107:5555)")
+		}
+	}
+
+	// Roku connects over ECP (fixed port 8060), so the UDID must be the TV IP address.
+	if strings.ToLower(strings.TrimSpace(device.OS)) == "roku" {
+		if !rokuUDIDPattern.MatchString(device.UDID) {
+			return fmt.Errorf("roku devices require the UDID to be the TV IP address (e.g. 10.30.50.112)")
+		}
 	}
 
 	return nil
@@ -333,5 +383,7 @@ type RunningApp struct {
 type DeviceApp struct {
 	AppName          string `json:"app_name" bson:"-"`
 	BundleIdentifier string `json:"bundle_identifier" bson:"-"`
+	Version          string `json:"version" bson:"-"`
 	CanUninstall     bool   `json:"can_uninstall" bson:"-"`
+	IsDevApp         bool   `json:"is_dev_app" bson:"-"`
 }

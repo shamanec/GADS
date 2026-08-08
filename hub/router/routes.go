@@ -17,11 +17,11 @@ import (
 	"GADS/hub/config"
 	"GADS/hub/devices"
 	"GADS/hub/signing"
-	"GADS/provider/logger"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -528,7 +528,7 @@ func DeviceInUseWS(c *gin.Context) {
 		device.ReleaseLock()
 		device.Mu.Unlock()
 
-		logger.ProviderLogger.LogError("device_in_use_ws", fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
+		slog.Error(fmt.Sprintf("Failed upgrading device in-use websocket - %s", err))
 		return
 	}
 
@@ -994,6 +994,133 @@ func DeleteFile(c *gin.Context) {
 	api.OKMessage(c, "File deleted successfully")
 }
 
+// GetApps godoc
+// @Summary      List uploaded device apps
+// @Description  Retrieve the uploaded app files (apk/ipa/zip) stored in MongoDB GridFS for installing on devices
+// @Tags         Hub - Apps
+// @Produce      json
+// @Success      200  {object}  models.FileListResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /apps [get]
+func GetApps(c *gin.Context) {
+	files, err := db.GlobalMongoStore.GetFilesByType("app")
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to retrieve apps - %s", err))
+		return
+	}
+	// The app library is tenant-scoped: users see only their tenant's uploads, admins see all.
+	if c.GetString("role") != "admin" {
+		tenant := c.GetString("tenant")
+		scoped := make([]models.DBFile, 0, len(files))
+		for _, f := range files {
+			if f.Metadata.Tenant != "" && f.Metadata.Tenant == tenant {
+				scoped = append(scoped, f)
+			}
+		}
+		files = scoped
+	}
+	api.OK(c, "Successfully retrieved apps", files)
+}
+
+// UploadApp godoc
+// @Summary      Upload a device app
+// @Description  Upload an .apk/.ipa/.zip/.wgt/.ipk to MongoDB GridFS. Multiple builds can coexist; each is stored under a unique generated name with an optional description and the uploader recorded, to be installed on devices later. The response result contains the new file's id.
+// @Tags         Hub - Apps
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file         formData  file    true   "App file (.apk/.ipa/.zip/.wgt/.ipk)"
+// @Param        description  formData  string  false  "Optional description to tell builds apart"
+// @Success      200          {object}  models.SuccessResponse
+// @Failure      400          {object}  models.ErrorResponse
+// @Failure      500          {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /apps [post]
+func UploadApp(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		api.BadRequest(c, fmt.Sprintf("No file provided in form data - %s", err))
+		return
+	}
+
+	name := strings.ToLower(file.Filename)
+	allowed := false
+	for _, ext := range []string{".apk", ".ipa", ".zip", ".wgt", ".ipk"} {
+		if strings.HasSuffix(name, ext) {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		api.BadRequest(c, "Only .apk, .ipa, .zip, .wgt or .ipk files are allowed for app uploads")
+		return
+	}
+
+	openedFile, err := file.Open()
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to open provided file - %s", err))
+		return
+	}
+	defer openedFile.Close()
+
+	metadata := bson.M{
+		"type":          "app",
+		"description":   c.PostForm("description"),
+		"uploaded_by":   c.GetString("username"),
+		"original_name": file.Filename,
+		"tenant":        c.GetString("tenant"),
+	}
+
+	fileID, err := db.GlobalMongoStore.UploadFileWithMetadataReturningID(openedFile, uuid.NewString(), metadata, false)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to upload app to MongoDB - %s", err))
+		return
+	}
+
+	api.OK(c, fmt.Sprintf("`%s` uploaded successfully", file.Filename), gin.H{"id": fileID})
+}
+
+// DeleteApp godoc
+// @Summary      Delete an uploaded device app
+// @Description  Delete an uploaded app file from MongoDB GridFS by its id. Only files tagged as apps can be deleted. Admins may delete any app; regular users may only delete apps they uploaded.
+// @Tags         Hub - Apps
+// @Produce      json
+// @Param        id   path      string  true  "App file id"
+// @Success      200  {object}  models.SuccessResponse
+// @Failure      400  {object}  models.ErrorResponse
+// @Failure      403  {object}  models.ErrorResponse
+// @Failure      404  {object}  models.ErrorResponse
+// @Failure      500  {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /apps/{id} [delete]
+func DeleteApp(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		api.BadRequest(c, "No file id provided")
+		return
+	}
+
+	// Guard against deleting non-app files (e.g. signing/supervision) through this
+	// all-user endpoint.
+	file, err := db.GlobalMongoStore.GetFileByID(id)
+	if err != nil || file.Metadata.Type != "app" {
+		api.NotFound(c, fmt.Sprintf("No app found with id `%s`", id))
+		return
+	}
+
+	// Admins can delete any uploaded app; regular users only their own uploads.
+	if c.GetString("role") != "admin" && file.Metadata.UploadedBy != c.GetString("username") {
+		api.Forbidden(c, "You can only delete apps you uploaded")
+		return
+	}
+
+	if err := db.GlobalMongoStore.DeleteFileByID(id); err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to delete app - %s", err))
+		return
+	}
+	api.OKMessage(c, "App deleted successfully")
+}
+
 // AddDevice godoc
 // @Summary      Add a new device
 // @Description  Create a new device in the system
@@ -1104,6 +1231,14 @@ func UpdateDevice(c *gin.Context) {
 				dbDevice.StreamType = reqDevice.StreamType
 			}
 
+			if reqDevice.AudioStreamEnabled != dbDevice.AudioStreamEnabled {
+				dbDevice.AudioStreamEnabled = reqDevice.AudioStreamEnabled
+			}
+
+			if reqDevice.AudioInputType != dbDevice.AudioInputType {
+				dbDevice.AudioInputType = reqDevice.AudioInputType
+			}
+
 			if reqDevice.WorkspaceID != "" && reqDevice.WorkspaceID != dbDevice.WorkspaceID {
 				dbDevice.WorkspaceID = reqDevice.WorkspaceID
 			}
@@ -1194,19 +1329,20 @@ func GetDevices(c *gin.Context) {
 	api.OK(c, "Successfully retrieved devices data", adminDeviceData)
 }
 
-// ReleaseUsedDevice godoc
+// ReleaseDevice godoc
 // @Summary      Release a device in use
-// @Description  Force release a device that is currently in use
-// @Tags         Hub - Admin - Devices
-// @Tags         Hub - Devices selection
-// @Accept       json
+// @Description  Release a device that is currently in use. Permission rules: any user may release a device running automation; the current holder may release their own session; admins may release any session; a non-admin cannot release a remote-control session held by another user. Authenticate via Authorization header (Bearer token) or ?token= query param.
+// @Tags         Hub - Devices
 // @Produce      json
-// @Param        udid  path      string  true  "Device UDID"
+// @Param        udid   path   string  true   "Device UDID"
+// @Param        token  query  string  false  "Raw JWT token (alternative to Authorization header)"
 // @Success      200   {object}  models.SuccessResponse
-// @Failure      500   {object}  models.ErrorResponse
+// @Failure      401   {object}  models.ErrorResponse
+// @Failure      403   {object}  models.ErrorResponse
+// @Failure      404   {object}  models.ErrorResponse
 // @Security     BearerAuth
-// @Router       /admin/device/{udid}/release [post]
-func ReleaseUsedDevice(c *gin.Context) {
+// @Router       /devices/control/{udid}/release [post]
+func ReleaseDevice(c *gin.Context) {
 	udid := c.Param("udid")
 
 	releaseDevice, ok := devices.HubDeviceStore.Get(udid)
@@ -1218,10 +1354,36 @@ func ReleaseUsedDevice(c *gin.Context) {
 	releaseDevice.Mu.Lock()
 	defer releaseDevice.Mu.Unlock()
 
-	if releaseDevice.InUseWSConnection != nil {
-		ws.WriteFrame(releaseDevice.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "released by admin"))) //nolint:errcheck
+	// When authentication is enabled, enforce the release permission rules.
+	// With auth disabled there are no user claims, so releasing is unrestricted.
+	if config.GlobalHubConfig.AuthEnabled {
+		claims, err := auth.GetClaimsFromRequest(c)
+		if err != nil || claims.Username == "" {
+			c.Status(http.StatusUnauthorized)
+			return
+		}
+
+		isAdmin := claims.Role == "admin"
+		isHolder := releaseDevice.InUseBy != "" &&
+			releaseDevice.InUseBy == claims.Username &&
+			releaseDevice.InUseByTenant == claims.Tenant
+
+		// A device running automation may be released by anyone (the UI confirms first).
+		// Otherwise only an admin or the current holder may release an in-use device.
+		if !releaseDevice.IsRunningAutomation && !isAdmin && !isHolder {
+			api.Forbidden(c, "You are not allowed to release a device that is in use by another user")
+			return
+		}
 	}
 
+	// Kick any active remote-control session.
+	if releaseDevice.InUseWSConnection != nil {
+		ws.WriteFrame(releaseDevice.InUseWSConnection, ws.NewCloseFrame(ws.NewCloseFrameBody(ws.StatusCode(4000), "device released"))) //nolint:errcheck
+	}
+
+	// Fully reset any (possibly stuck) automation session so the device becomes
+	// available again immediately instead of waiting for the grid session janitor.
+	releaseDevice.ReleaseFromAutomation()
 	releaseDevice.ReleaseLock()
 
 	api.OKMessage(c, "Device was successfully released")
@@ -1355,6 +1517,26 @@ func syncDeviceFields(target *devices.LocalHubDevice, source *models.ProviderDev
 	if target.Host != source.Host {
 		target.Host = source.Host
 	}
+
+	// Appium session truth from the provider - older providers do not report it
+	// (marker false), in which case the hub keeps its own tracking only
+	target.ProviderReportsSessionState = source.ReportsAppiumSessionState
+	if source.ReportsAppiumSessionState {
+		target.ProviderHasSession = source.HasAppiumSession
+		target.ProviderSessionID = source.AppiumSessionID
+		target.ProviderLastCommandTS = source.AppiumLastCommandTS
+		// Track since when the provider stopped reporting a session the hub still
+		// considers live - the janitor releases the device once this persists
+		if target.IsRunningAutomation && target.SessionID != "" && !source.HasAppiumSession {
+			if target.ProviderSessionMissingSinceTS == 0 {
+				target.ProviderSessionMissingSinceTS = time.Now().UnixMilli()
+			}
+		} else {
+			target.ProviderSessionMissingSinceTS = 0
+		}
+	} else {
+		target.ProviderSessionMissingSinceTS = 0
+	}
 }
 
 // ProviderUpdate godoc
@@ -1384,7 +1566,15 @@ func ProviderUpdate(c *gin.Context) {
 		providerDevice := &providerDeviceData.DeviceData[i]
 		hubDevice, ok := devices.HubDeviceStore.Get(providerDevice.UDID)
 		if !ok {
-			continue
+			// Ephemeral devices have no DB record, so the store entry is created
+			// from the provider payload instead of the DB reconciliation loop
+			if providerDevice.Ephemeral && providerDevice.EphemeralDevice != nil {
+				hubDevice = devices.RegisterEphemeralDevice(providerDevice, providerDeviceData.ProviderData.SetupAppiumServers)
+			} else {
+				continue
+			}
+		} else if providerDevice.Ephemeral {
+			devices.RefreshEphemeralDevice(hubDevice, providerDevice, providerDeviceData.ProviderData.SetupAppiumServers)
 		}
 		hubDevice.Mu.Lock()
 		// If device is not connected reset all fields that might allow it to get stuck in Running automation state
@@ -1392,18 +1582,24 @@ func ProviderUpdate(c *gin.Context) {
 			hubDevice.Connected = false
 			hubDevice.ProviderState = providerDevice.ProviderState
 			hubDevice.Host = providerDevice.Host
+			hubDevice.ReleaseFromAutomation()
+			// A disconnected device must not be handed out for automation even though
+			// ReleaseFromAutomation marks devices available by default
 			hubDevice.IsAvailableForAutomation = false
-			hubDevice.IsRunningAutomation = false
-			hubDevice.ReleaseLockIfNotHeld()
-			hubDevice.SessionID = ""
 			hubDevice.Mu.Unlock()
 			continue
 		}
 		// Stamp when we last heard from the provider about this device
 		hubDevice.LastUpdatedTimestamp = time.Now().UnixMilli()
 
+		wasLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		syncDeviceFields(hubDevice, providerDevice)
+		nowLive := hubDevice.Connected && hubDevice.ProviderState == "live"
 		hubDevice.Mu.Unlock()
+		// A device that just (re)connected live may satisfy a queued session request
+		if !wasLive && nowLive {
+			devices.NotifyDeviceFreed()
+		}
 	}
 
 	api.OKMessage(c, "Provider data updated in hub")

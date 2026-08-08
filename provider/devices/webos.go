@@ -31,7 +31,7 @@ func (d *WebOSDevice) Setup() error {
 	defer d.SetupMutex.Unlock()
 
 	d.SetProviderState("preparing")
-	logger.ProviderLogger.LogInfo("webos_device_setup", fmt.Sprintf("Running setup for WebOS device `%v`", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_device_setup", "Running setup for WebOS device `%v`", d.GetUDID())
 
 	d.DBDevice.IPAddress = d.GetUDID()
 
@@ -62,7 +62,7 @@ func getConnectedDevicesWebOS() []string {
 	cmd := exec.Command("ares-setup-device", "--list")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_device_detection", fmt.Sprintf("Failed to get WebOS devices: %s", err))
+		logger.ProviderLogger.LogErrorf("webos_device_detection", "Failed to get WebOS devices: %s", err)
 		return []string{}
 	}
 
@@ -106,7 +106,7 @@ func (d *WebOSDevice) InstallApp(appName string) error {
 	appPath := fmt.Sprintf("%s/%s", config.ProviderConfig.ProviderFolder, appName)
 
 	if strings.HasSuffix(appName, ".ipk") {
-		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing .ipk file directly on device %s", d.GetUDID()))
+		logger.ProviderLogger.LogInfof("webos_install_app", "Installing .ipk file directly on device %s", d.GetUDID())
 
 		installCmd := exec.Command("ares-install", "--device", d.DBDevice.Name, appPath)
 		output, err := installCmd.CombinedOutput()
@@ -114,7 +114,7 @@ func (d *WebOSDevice) InstallApp(appName string) error {
 			return fmt.Errorf("failed to install .ipk: %s. Output: %s", err, string(output))
 		}
 
-		logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", d.GetUDID()))
+		logger.ProviderLogger.LogInfof("webos_install_app", "Successfully installed app on device %s", d.GetUDID())
 		return nil
 	}
 
@@ -125,13 +125,13 @@ func (d *WebOSDevice) InstallApp(appName string) error {
 	}
 	defer os.RemoveAll(tempDir)
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Extracting source code for device %s", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_install_app", "Extracting source code for device %s", d.GetUDID())
 
 	if err := utils.ExtractZipToDir(appPath, tempDir); err != nil {
 		return fmt.Errorf("failed to extract app file: %w", err)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Packaging app for device %s", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_install_app", "Packaging app for device %s", d.GetUDID())
 
 	packageCmd := exec.Command("ares-package", tempDir)
 	output, err := packageCmd.CombinedOutput()
@@ -158,7 +158,7 @@ func (d *WebOSDevice) InstallApp(appName string) error {
 
 	defer os.Remove(ipkFile)
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Installing app on device %s", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_install_app", "Installing app on device %s", d.GetUDID())
 
 	installCmd := exec.Command("ares-install", "--device", d.DBDevice.Name, ipkFile)
 	output, err = installCmd.CombinedOutput()
@@ -166,22 +166,22 @@ func (d *WebOSDevice) InstallApp(appName string) error {
 		return fmt.Errorf("failed to install app: %s. Output: %s", err, string(output))
 	}
 
-	logger.ProviderLogger.LogInfo("webos_install_app", fmt.Sprintf("Successfully installed app on device %s", d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_install_app", "Successfully installed app on device %s", d.GetUDID())
 	return nil
 }
 
 // UninstallApp uninstalls an app from the WebOS device.
 func (d *WebOSDevice) UninstallApp(appID string) error {
-	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Uninstalling app %s from device %s", appID, d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_uninstall_app", "Uninstalling app %s from device %s", appID, d.GetUDID())
 
 	cmd := exec.Command("ares-install", "--device", d.DBDevice.Name, "--remove", appID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_uninstall_app", fmt.Sprintf("Failed to uninstall app %s from device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output)))
+		logger.ProviderLogger.LogErrorf("webos_uninstall_app", "Failed to uninstall app %s from device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output))
 		return fmt.Errorf("failed to uninstall app %s: %w", appID, err)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_uninstall_app", fmt.Sprintf("Successfully uninstalled app %s from device %s", appID, d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_uninstall_app", "Successfully uninstalled app %s from device %s", appID, d.GetUDID())
 	return nil
 }
 
@@ -201,7 +201,9 @@ func (d *WebOSDevice) GetInstalledApps() ([]models.DeviceApp, error) {
 		result = append(result, models.DeviceApp{
 			AppName:          app.Title,
 			BundleIdentifier: app.AppID,
+			Version:          app.Version,
 			CanUninstall:     app.IsDevApp,
+			IsDevApp:         !app.SystemApp,
 		})
 	}
 	return result, nil
@@ -213,7 +215,7 @@ func (d *WebOSDevice) getInstalledAppsWebOS() []WebOSApp {
 	cmd := exec.Command("ares-install", "--device", d.DBDevice.Name, "--listfull")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_list_apps", fmt.Sprintf("Failed to list apps for device %s: %v. Output: %s", d.GetUDID(), err, string(output)))
+		logger.ProviderLogger.LogErrorf("webos_list_apps", "Failed to list apps for device %s: %v. Output: %s", d.GetUDID(), err, string(output))
 		return apps
 	}
 
@@ -257,7 +259,7 @@ func (d *WebOSDevice) getInstalledAppsWebOS() []WebOSApp {
 		apps = append(apps, currentApp)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_list_apps", fmt.Sprintf("Found %d installed apps on device %s", len(apps), d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_list_apps", "Found %d installed apps on device %s", len(apps), d.GetUDID())
 	return apps
 }
 
@@ -272,31 +274,31 @@ func (d *WebOSDevice) GetInstalledAppBundleIDs() []string {
 
 // LaunchApp launches an app on the WebOS device.
 func (d *WebOSDevice) LaunchApp(appID string) error {
-	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Launching app %s on device %s", appID, d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_launch_app", "Launching app %s on device %s", appID, d.GetUDID())
 
 	cmd := exec.Command("ares-launch", "--device", d.DBDevice.Name, appID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_launch_app", fmt.Sprintf("Failed to launch app %s on device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output)))
+		logger.ProviderLogger.LogErrorf("webos_launch_app", "Failed to launch app %s on device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output))
 		return fmt.Errorf("failed to launch app %s: %w", appID, err)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_launch_app", fmt.Sprintf("Successfully launched app %s on device %s", appID, d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_launch_app", "Successfully launched app %s on device %s", appID, d.GetUDID())
 	return nil
 }
 
 // CloseApp closes an app on the WebOS device.
 func (d *WebOSDevice) CloseApp(appID string) error {
-	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Closing app %s on device %s", appID, d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_close_app", "Closing app %s on device %s", appID, d.GetUDID())
 
 	cmd := exec.Command("ares-launch", "--device", d.DBDevice.Name, "--close", appID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		logger.ProviderLogger.LogError("webos_close_app", fmt.Sprintf("Failed to close app %s on device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output)))
+		logger.ProviderLogger.LogErrorf("webos_close_app", "Failed to close app %s on device %s: %v. Output: %s", appID, d.GetUDID(), err, string(output))
 		return fmt.Errorf("failed to close app %s: %w", appID, err)
 	}
 
-	logger.ProviderLogger.LogInfo("webos_close_app", fmt.Sprintf("Successfully closed app %s on device %s", appID, d.GetUDID()))
+	logger.ProviderLogger.LogInfof("webos_close_app", "Successfully closed app %s on device %s", appID, d.GetUDID())
 	return nil
 }
 
@@ -304,4 +306,3 @@ func (d *WebOSDevice) CloseApp(appID string) error {
 func (d *WebOSDevice) KillApp(appID string) error {
 	return d.CloseApp(appID)
 }
-

@@ -38,6 +38,40 @@ func InitHubDevicesData() {
 	HubDeviceStore = NewDeviceStore()
 }
 
+// ephemeralDeviceExpiryMs is how long an ephemeral device stays in the store after
+// its provider stopped reporting it. Long enough to absorb a briefly hiccuping
+// provider update cycle, short enough that a killed emulator disappears promptly.
+const ephemeralDeviceExpiryMs = 15_000
+
+// RegisterEphemeralDevice creates a store entry for a device that exists only in
+// provider memory (no DB record), built entirely from the provider update payload.
+// Mirrors the store entry creation for DB devices in GetLatestDBDevices.
+func RegisterEphemeralDevice(providerDevice *models.ProviderDeviceSync, providerRunsAppium bool) *LocalHubDevice {
+	hubDevice := &LocalHubDevice{
+		Device:                   *providerDevice.EphemeralDevice,
+		IsRunningAutomation:      false,
+		IsAvailableForAutomation: true,
+		LastAutomationActionTS:   0,
+		AppiumEnabled:            providerRunsAppium,
+		Ephemeral:                true,
+		LastEphemeralReportTS:    time.Now().UnixMilli(),
+	}
+	HubDeviceStore.Set(hubDevice.Device.UDID, hubDevice)
+	return hubDevice
+}
+
+// RefreshEphemeralDevice updates an ephemeral device's descriptor from the latest
+// provider update and stamps its report timestamp so it does not expire.
+func RefreshEphemeralDevice(hubDevice *LocalHubDevice, providerDevice *models.ProviderDeviceSync, providerRunsAppium bool) {
+	hubDevice.Mu.Lock()
+	defer hubDevice.Mu.Unlock()
+	if providerDevice.EphemeralDevice != nil {
+		hubDevice.Device = *providerDevice.EphemeralDevice
+	}
+	hubDevice.AppiumEnabled = providerRunsAppium
+	hubDevice.LastEphemeralReportTS = time.Now().UnixMilli()
+}
+
 // Get the latest devices information from MongoDB each second
 func GetLatestDBDevices() {
 	var latestDBDevices []models.DBDevice
@@ -45,9 +79,31 @@ func GetLatestDBDevices() {
 	for {
 		latestDBDevices, _ = db.GlobalMongoStore.GetDevices()
 
-		// Remove devices from the store that are no longer in the DB
+		// Whether each provider runs Appium servers, by nickname. When the lookup
+		// fails the previous per-device values are kept rather than flipped
+		appiumByProvider := map[string]bool{}
+		providersKnown := false
+		if dbProviders, err := db.GlobalMongoStore.GetAllProviders(); err == nil {
+			providersKnown = true
+			for _, dbProvider := range dbProviders {
+				appiumByProvider[dbProvider.Nickname] = dbProvider.SetupAppiumServers
+			}
+		}
+
+		// Remove devices from the store that are no longer in the DB. Ephemeral
+		// devices have no DB record - they expire instead when their provider
+		// stopped reporting them (killed emulator, dead provider)
 		var toDelete []string
 		for _, hubDevice := range HubDeviceStore.All() {
+			if hubDevice.Ephemeral {
+				hubDevice.Mu.RLock()
+				lastReportTS := hubDevice.LastEphemeralReportTS
+				hubDevice.Mu.RUnlock()
+				if time.Now().UnixMilli()-lastReportTS > ephemeralDeviceExpiryMs {
+					toDelete = append(toDelete, hubDevice.Device.UDID)
+				}
+				continue
+			}
 			found := false
 			for _, dbDevice := range latestDBDevices {
 				if dbDevice.UDID == hubDevice.Device.UDID {
@@ -89,6 +145,9 @@ func GetLatestDBDevices() {
 				if hubDevice.Device.WorkspaceID != dbDevice.WorkspaceID {
 					hubDevice.Device.WorkspaceID = dbDevice.WorkspaceID
 				}
+				if providersKnown {
+					hubDevice.AppiumEnabled = providerAppiumEnabled(appiumByProvider, dbDevice.Provider)
+				}
 				hubDevice.Mu.Unlock()
 			} else {
 				HubDeviceStore.Set(dbDevice.UDID, &LocalHubDevice{
@@ -96,11 +155,23 @@ func GetLatestDBDevices() {
 					IsRunningAutomation:      false,
 					IsAvailableForAutomation: true,
 					LastAutomationActionTS:   0,
+					AppiumEnabled:            providerAppiumEnabled(appiumByProvider, dbDevice.Provider),
 				})
 			}
 		}
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// providerAppiumEnabled resolves whether a device's provider runs Appium servers.
+// An unknown nickname (deleted provider, failed lookup) defaults to true so a
+// transient gap never hides working devices from the grid or the UI
+func providerAppiumEnabled(appiumByProvider map[string]bool, nickname string) bool {
+	enabled, ok := appiumByProvider[nickname]
+	if !ok {
+		return true
+	}
+	return enabled
 }
 
 func GetHubDeviceByUDID(udid string) *LocalHubDevice {

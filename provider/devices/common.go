@@ -62,6 +62,11 @@ func syncDevicesToDB() {
 
 	allDevs := DevManager.All()
 	for _, platDev := range allDevs {
+		// Ephemeral devices have no DB record to reconcile against - their
+		// lifecycle is driven purely by discovery (reconcileAndroidEmulators)
+		if platDev.IsEphemeral() {
+			continue
+		}
 		udid := platDev.GetUDID()
 		dbDevice := platDev.GetDBDevice()
 		updatedDevice, ok := updatedDevices[udid]
@@ -118,9 +123,9 @@ func syncDevicesToDB() {
 	// Add new devices from DB
 	for udid, updatedDevice := range updatedDevices {
 		if _, exists := DevManager.Get(udid); !exists {
-			logger.ProviderLogger.LogInfo("device_sync", fmt.Sprintf("New device `%s` detected in DB, adding to provider", udid))
+			logger.ProviderLogger.LogInfof("device_sync", "New device `%s` detected in DB, adding to provider", udid)
 			if err := initializeDevice(updatedDevice); err != nil {
-				logger.ProviderLogger.LogError("device_sync", fmt.Sprintf("Failed to initialize new device `%s` - %s", udid, err))
+				logger.ProviderLogger.LogErrorf("device_sync", "Failed to initialize new device `%s` - %s", udid, err)
 			}
 		}
 	}
@@ -150,26 +155,26 @@ func updateProviderHub() {
 		jsonData, err := json.Marshal(syncPayload)
 		if err != nil {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", "Failed marshaling provider data to json - "+err.Error())
+			logger.ProviderLogger.LogErrorf("hub_sync", "Failed marshaling provider data to json - %s", err)
 			continue
 		}
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/provider-update", config.ProviderConfig.HubAddress), bytes.NewBuffer(jsonData))
 		if err != nil {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", "Failed to create request to update provider data in hub - "+err.Error())
+			logger.ProviderLogger.LogErrorf("hub_sync", "Failed to create request to update provider data in hub - %s", err)
 			continue
 		}
 
 		resp, err := client.Do(req)
 		if err != nil {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", fmt.Sprintf("Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", failureCounter, err))
+			logger.ProviderLogger.LogErrorf("hub_sync", "Failed to execute request to update provider data in hub, hub is probably down, current retry counter is `%v` - %s", failureCounter, err)
 			continue
 		}
 
 		if resp.StatusCode != 200 {
 			failureCounter++
-			logger.ProviderLogger.LogError("hub_sync", fmt.Sprintf("Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", failureCounter, err))
+			logger.ProviderLogger.LogErrorf("hub_sync", "Executed request to update provider data in hub but it was not successful, current retry counter is `%v` - %s", failureCounter, err)
 			continue
 		}
 		failureCounter = 1
@@ -179,23 +184,38 @@ func updateProviderHub() {
 // initializeDevice initializes a single device: sets up DB-level fields, creates a
 // PlatformDevice with Logger/SemVer on RuntimeState, and stores it in DevManager.
 func initializeDevice(dbDevice *models.DBDevice) error {
+	platDev, err := createPlatformDevice(dbDevice)
+	if err != nil {
+		return err
+	}
+
+	DevManager.Set(dbDevice.UDID, platDev)
+
+	return nil
+}
+
+// createPlatformDevice builds a fully initialized PlatformDevice without registering
+// it in DevManager. Split from initializeDevice so callers that need to adjust runtime
+// state first (e.g. mark discovered emulators ephemeral) can do so before the device
+// becomes visible to the other device loops.
+func createPlatformDevice(dbDevice *models.DBDevice) (PlatformDevice, error) {
 	sv, err := semver.NewVersion(dbDevice.OSVersion)
 	if err != nil {
-		return fmt.Errorf("failed to get semver for device `%s` - %s", dbDevice.UDID, err)
+		return nil, fmt.Errorf("failed to get semver for device `%s` - %s", dbDevice.UDID, err)
 	}
 
 	if config.ProviderConfig.SetupAppiumServers {
 		// Check if a capped Appium logs collection already exists for the current device
 		exists, err := db.GlobalMongoStore.CheckCollectionExistsWithDB("appium_logs_new", dbDevice.UDID)
 		if err != nil {
-			logger.ProviderLogger.LogWarn("device_setup", fmt.Sprintf("Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err))
+			logger.ProviderLogger.LogWarnf("device_setup", "Could not check if device collection exists in `appium_logs_new` db, will attempt to create it either way - %s", err)
 		}
 
 		// If it doesn't exist - attempt to create it
 		if !exists {
 			err = db.GlobalMongoStore.CreateCappedCollectionWithDB("appium_logs_new", dbDevice.UDID, 30000, 30)
 			if err != nil {
-				return fmt.Errorf("failed to create capped Appium logs collection for device `%s` - %s", dbDevice.UDID, err)
+				return nil, fmt.Errorf("failed to create capped Appium logs collection for device `%s` - %s", dbDevice.UDID, err)
 			}
 		}
 
@@ -220,20 +240,20 @@ func initializeDevice(dbDevice *models.DBDevice) error {
 	if _, err := os.Stat(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID)); os.IsNotExist(err) {
 		err = os.Mkdir(fmt.Sprintf("%s/device_%s", config.ProviderConfig.ProviderFolder, dbDevice.UDID), os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("could not create logs folder for device `%s` - %s", dbDevice.UDID, err)
+			return nil, fmt.Errorf("could not create logs folder for device `%s` - %s", dbDevice.UDID, err)
 		}
 	}
 
 	// Create a custom logger
 	deviceLogger, err := logger.CreateCustomLogger(fmt.Sprintf("%s/device_%s/device.log", config.ProviderConfig.ProviderFolder, dbDevice.UDID), dbDevice.UDID)
 	if err != nil {
-		return fmt.Errorf("could not create custom logger for device `%s` - %s", dbDevice.UDID, err)
+		return nil, fmt.Errorf("could not create custom logger for device `%s` - %s", dbDevice.UDID, err)
 	}
 
 	// Create PlatformDevice with runtime fields on RuntimeState
 	platDev := newPlatformDevice(dbDevice, *deviceLogger, sv)
 	if platDev == nil {
-		return fmt.Errorf("unsupported OS `%s` for device `%s`", dbDevice.OS, dbDevice.UDID)
+		return nil, fmt.Errorf("unsupported OS `%s` for device `%s`", dbDevice.OS, dbDevice.UDID)
 	}
 
 	// Initialize runtime state
@@ -241,9 +261,7 @@ func initializeDevice(dbDevice *models.DBDevice) error {
 	platDev.SetConnected(false)
 	platDev.SetHost(fmt.Sprintf("%s:%v", config.ProviderConfig.HostAddress, config.ProviderConfig.Port))
 
-	DevManager.Set(dbDevice.UDID, platDev)
-
-	return nil
+	return platDev, nil
 }
 
 // When provider is started and respective devices are taken from the DB, we do the initial device data setup here
@@ -251,7 +269,7 @@ func setupDevices() {
 	dbDevices := getDBProviderDevices()
 	for _, dbDevice := range dbDevices {
 		if err := initializeDevice(dbDevice); err != nil {
-			logger.ProviderLogger.LogError("device_setup", fmt.Sprintf("setupDevices: device `%s` - %s", dbDevice.UDID, err))
+			logger.ProviderLogger.LogErrorf("device_setup", "setupDevices: device `%s` - %s", dbDevice.UDID, err)
 		}
 	}
 }
@@ -289,6 +307,20 @@ func newPlatformDevice(dbDevice *models.DBDevice, deviceLogger models.CustomLogg
 		d.SemVer = sv
 		d.InitialSetupDone = true
 		return d
+	case "androidtv":
+		d := &AndroidTvDevice{}
+		d.DBDevice = *dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
+	case "roku":
+		d := &RokuDevice{}
+		d.DBDevice = *dbDevice
+		d.Logger = deviceLogger
+		d.SemVer = sv
+		d.InitialSetupDone = true
+		return d
 	default:
 		return nil
 	}
@@ -307,11 +339,23 @@ func updateDevices() {
 		defer tizenTicker.Stop()
 	}
 
+	var androidTvTicker *time.Ticker
+	var androidTvChan <-chan time.Time
+
+	if config.ProviderConfig.ProvideAndroidTv {
+		androidTvTicker = time.NewTicker(30 * time.Second)
+		androidTvChan = androidTvTicker.C
+		defer androidTvTicker.Stop()
+	}
+
 	for {
 		select {
 		case <-ticker.C:
 			syncDevicesToDB()
 			connectedDevices := GetConnectedDevicesCommon()
+			if config.ProviderConfig.ProvideAndroidEmulators {
+				connectedDevices = reconcileAndroidEmulators(connectedDevices)
+			}
 
 			// Create a snapshot of devices to iterate over
 			allDevices := DevManager.All()
@@ -329,7 +373,7 @@ func updateDevices() {
 						// Validate device configuration before setup
 						err := models.ValidateDeviceUsageForOS(dbDevice.OS, dbDevice.Usage)
 						if err != nil {
-							logger.ProviderLogger.LogWarn("device_setup_validation", fmt.Sprintf("Device %s has invalid configuration: %s. Skipping setup.", udid, err.Error()))
+							logger.ProviderLogger.LogWarnf("device_setup_validation", "Device %s has invalid configuration: %s. Skipping setup.", udid, err.Error())
 							continue
 						}
 
@@ -345,6 +389,11 @@ func updateDevices() {
 		case <-tizenChan:
 			if tizenChan != nil {
 				handleTizenAutoConnection(GetConnectedDevicesCommon())
+			}
+
+		case <-androidTvChan:
+			if androidTvChan != nil {
+				handleAndroidTvAutoConnection(GetConnectedDevicesCommon())
 			}
 		}
 	}
@@ -367,8 +416,12 @@ func GetConnectedDevicesCommon() []string {
 	var iosDevices []string
 	var tizenDevices []string
 	var webosDevices []string
+	var rokuDevices []string
 
-	if config.ProviderConfig.ProvideAndroid {
+	// Android TV devices connect over ADB just like Android mobile devices, so the same
+	// `adb devices` listing is used; the concrete device type is resolved from the DB OS field.
+	// Emulators also appear in that listing, so providing only emulators needs it too.
+	if config.ProviderConfig.ProvideAndroid || config.ProviderConfig.ProvideAndroidTv || config.ProviderConfig.ProvideAndroidEmulators {
 		androidDevices = getConnectedDevicesAndroid()
 	}
 
@@ -384,10 +437,15 @@ func GetConnectedDevicesCommon() []string {
 		webosDevices = getConnectedDevicesWebOS()
 	}
 
+	if config.ProviderConfig.ProvideRoku {
+		rokuDevices = getConnectedDevicesRoku()
+	}
+
 	connectedDevices = append(connectedDevices, iosDevices...)
 	connectedDevices = append(connectedDevices, androidDevices...)
 	connectedDevices = append(connectedDevices, tizenDevices...)
 	connectedDevices = append(connectedDevices, webosDevices...)
+	connectedDevices = append(connectedDevices, rokuDevices...)
 
 	return connectedDevices
 }
@@ -428,7 +486,7 @@ func applyDeviceStreamSettings(rcDev RemoteControllable) error {
 		// If there's an error (including not found), update the device with global settings
 		err = updateDeviceWithGlobalSettings(rcDev)
 		if err != nil {
-			logger.ProviderLogger.LogError("setupDevices", fmt.Sprintf("Failed to update device `%s` with global settings: %v", udid, err))
+			logger.ProviderLogger.LogErrorf("setupDevices", "Failed to update device `%s` with global settings: %v", udid, err)
 			return err
 		}
 	} else {
