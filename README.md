@@ -18,6 +18,7 @@
 [![GitHub Downloads](https://img.shields.io/github/downloads/shamanec/GADS/total)](https://github.com/shamanec/GADS/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Discord](https://dcbadge.limes.pink/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
+[![ko-fi](https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/shamanec)
 
 🚀 **Self-Hosted Device Farm & Test Automation Platform** - Alternative to AWS Device Farm and Firebase Test Lab for Mobile & Smart TV Testing
 
