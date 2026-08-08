@@ -18,6 +18,7 @@
 [![GitHub Downloads](https://img.shields.io/github/downloads/shamanec/GADS/total)](https://github.com/shamanec/GADS/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Discord](https://dcbadge.limes.pink/api/server/5amWvknKQd?style=flat&theme=clean&compact=true)](https://discord.gg/5amWvknKQd)
+[![ko-fi](https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/shamanec)
 
 🚀 **Self-Hosted Device Farm & Test Automation Platform** - Alternative to AWS Device Farm and Firebase Test Lab for Mobile & Smart TV Testing
 
@@ -92,9 +93,9 @@ The platform architecture consists of two main components:
 
 ## 💻 Platform Support
 
-| OS          | Android Support | iOS Support | Smart TV Support     | Notes                                                                         |
-| ----------- | --------------- | ----------- | -------------------- | ----------------------------------------------------------------------------- |
-| **macOS**   | ✅              | ✅          | ✅ (automation only) | Full support for mobile, Smart TVs support only automated testing             |
+| OS          | Android Support | iOS Support | Smart TV Support     | Notes                                                                                           |
+| ----------- | --------------- | ----------- | -------------------- | ----------------------------------------------------------------------------------------------- |
+| **macOS**   | ✅              | ✅          | ✅ (automation only) | Full support for mobile, Smart TVs support only automated testing                               |
 | **Linux**   | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS, Android TV & Roku |
 | **Windows** | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS, Android TV & Roku |
 
@@ -230,27 +231,9 @@ For more details, refer to the [full FAQ](./docs/faq.md).
 | [go-ios](https://github.com/danielpaulus/go-ios) | Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
 | [Appium](https://github.com/appium)              | It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                 |
 
-## 🎥 Videos
+## 🎥 Video
 
-#### Start hub
-
-https://github.com/user-attachments/assets/7a6dab5a-52d1-4c48-882d-48b67e180c89
-
-#### Add provider configuration
-
-https://github.com/user-attachments/assets/07c94ecf-217e-4185-9465-8b8054ddef7e
-
-#### Add devices and start provider
-
-https://github.com/user-attachments/assets/a1b323da-0169-463e-9a37-b0364fc52480
-
-#### Run Appium tests in parallel with TestNG
-
-https://github.com/user-attachments/assets/cb2da413-6a72-4ead-9433-c4d2b41d5f4b
-
-#### Remote control
-
-https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
+https://github.com/user-attachments/assets/1554fa5d-8117-4dbf-bf89-ed5e23121381
 
 ## 💡 Use Cases
 
