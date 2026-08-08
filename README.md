@@ -92,9 +92,9 @@ The platform architecture consists of two main components:
 
 ## 💻 Platform Support
 
-| OS          | Android Support | iOS Support | Smart TV Support     | Notes                                                                         |
-| ----------- | --------------- | ----------- | -------------------- | ----------------------------------------------------------------------------- |
-| **macOS**   | ✅              | ✅          | ✅ (automation only) | Full support for mobile, Smart TVs support only automated testing             |
+| OS          | Android Support | iOS Support | Smart TV Support     | Notes                                                                                           |
+| ----------- | --------------- | ----------- | -------------------- | ----------------------------------------------------------------------------------------------- |
+| **macOS**   | ✅              | ✅          | ✅ (automation only) | Full support for mobile, Smart TVs support only automated testing                               |
 | **Linux**   | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS, Android TV & Roku |
 | **Windows** | ✅              | ⚠️          | ✅ (automation only) | Limited iOS support due to Xcode dependency. Currently supports Tizen, WebOS, Android TV & Roku |
 
@@ -230,27 +230,7 @@ For more details, refer to the [full FAQ](./docs/faq.md).
 | [go-ios](https://github.com/danielpaulus/go-ios) | Many thanks for creating this CLI tool to communicate with iOS devices, perfect for installing/reinstalling and running WebDriverAgentRunner without Xcode |
 | [Appium](https://github.com/appium)              | It would be impossible to control the devices remotely without Appium for the control and WebDriverAgent for the iOS screen stream, kudos!                 |
 
-## 🎥 Videos
-
-#### Start hub
-
-https://github.com/user-attachments/assets/7a6dab5a-52d1-4c48-882d-48b67e180c89
-
-#### Add provider configuration
-
-https://github.com/user-attachments/assets/07c94ecf-217e-4185-9465-8b8054ddef7e
-
-#### Add devices and start provider
-
-https://github.com/user-attachments/assets/a1b323da-0169-463e-9a37-b0364fc52480
-
-#### Run Appium tests in parallel with TestNG
-
-https://github.com/user-attachments/assets/cb2da413-6a72-4ead-9433-c4d2b41d5f4b
-
-#### Remote control
-
-https://github.com/user-attachments/assets/2d6b29fc-3e83-46be-88c4-d7a563205975
+## 🎥 Video
 
 ## 💡 Use Cases
 
