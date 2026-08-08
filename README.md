@@ -233,6 +233,8 @@ For more details, refer to the [full FAQ](./docs/faq.md).
 
 ## 🎥 Video
 
+https://github.com/user-attachments/assets/1554fa5d-8117-4dbf-bf89-ed5e23121381
+
 ## 💡 Use Cases
 
 ### Mobile Testing 📱
