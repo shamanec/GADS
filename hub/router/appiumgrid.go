@@ -181,15 +181,6 @@ type automationSession struct {
 	LastCommandTS   int64  `json:"last_command_ts"`
 }
 
-// GetAutomationSessions godoc
-// @Summary      Automation sessions overview
-// @Description  Retrieve grid readiness, the queued session request count and the currently active Appium grid sessions
-// @Tags         Hub - Devices
-// @Produce      json
-// @Success      200  {object}  models.APIResponse
-// @Failure      401  {object}  models.ErrorResponse
-// @Security     BearerAuth
-// @Router       /automation-sessions [get]
 func GetAutomationSessions(c *gin.Context) {
 	sessions := []automationSession{}
 	for sessionID, sessionDevice := range devices.AllSessions() {
