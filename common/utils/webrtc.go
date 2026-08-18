@@ -29,16 +29,20 @@ func GenerateWebRTCConfig() webrtc.Configuration {
 			ttl = 3600
 		}
 		username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl, config.ProviderConfig.TURNUsernameSuffix)
-		turnIceServer := webrtc.ICEServer{
-			URLs: []string{
-				fmt.Sprintf("turn:%s:%d?transport=udp", turnConfig.Server, turnConfig.Port),
-				fmt.Sprintf("turn:%s:%d?transport=tcp", turnConfig.Server, turnConfig.Port),
-			},
+		urls := []string{
+			fmt.Sprintf("turn:%s:%d?transport=udp", turnConfig.Server, turnConfig.Port),
+			fmt.Sprintf("turn:%s:%d?transport=tcp", turnConfig.Server, turnConfig.Port),
+		}
+		// TURN over TLS (turns:) is optional — only advertised when a TLS port is configured.
+		if turnConfig.TLSPort > 0 {
+			urls = append(urls, fmt.Sprintf("turns:%s:%d?transport=tcp", turnConfig.Server, turnConfig.TLSPort))
+		}
+		iceServers = append(iceServers, webrtc.ICEServer{
+			URLs:       urls,
 			Username:   username,
 			Credential: password,
-		}
-		iceServers = append(iceServers, turnIceServer)
-		logger.ProviderLogger.LogInfo("webrtc_config", fmt.Sprintf("Applying TURN relay: server=%s:%d suffix=%s", turnConfig.Server, turnConfig.Port, config.ProviderConfig.TURNUsernameSuffix))
+		})
+		logger.ProviderLogger.LogInfo("webrtc_config", fmt.Sprintf("Applying TURN relay: server=%s:%d tls_port=%d suffix=%s", turnConfig.Server, turnConfig.Port, turnConfig.TLSPort, config.ProviderConfig.TURNUsernameSuffix))
 	}
 
 	return webrtc.Configuration{
