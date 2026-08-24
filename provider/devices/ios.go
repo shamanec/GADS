@@ -140,9 +140,9 @@ func (d *IOSDevice) Setup() (retErr error) {
 				return err
 			}
 
-			// Start the broadcast extension via WebDriverAgent
+			// Start the broadcast extension via WebDriverAgent's localized picker endpoint
 			logger.ProviderLogger.LogInfof("ios_device_setup", "Starting broadcast extension on device `%s`", d.GetUDID())
-			if err := d.startBroadcastViaWDA(); err != nil {
+			if err := d.startBroadcastViaPicker(); err != nil {
 				return fmt.Errorf("failed to start broadcast: %w", err)
 			}
 			logger.ProviderLogger.LogInfof("ios_device_setup", "Broadcast extension started on device `%s`", d.GetUDID())
@@ -186,12 +186,15 @@ func (d *IOSDevice) initGoIOSDevice() error {
 	return nil
 }
 
-// startBroadcastViaHFRunner triggers the broadcast extension start through HFRunner.
-func (d *IOSDevice) startBroadcastViaWDA() error {
-	url := fmt.Sprintf("http://localhost:%s/wda/startBroadcast", d.WDAPort)
-	body := strings.NewReader(`{"appName":"GADSBroadcast"}`)
+// startBroadcastViaPicker starts the broadcast through WDA's localized endpoint
+// (/gads/audio/prepare), which drives the RPSystemBroadcastPickerView with labels in
+// PT/EN/ES/FR/DE. Replaces the old Control Center path, which was English-only. WDA
+// selects its default broadcast target (GADSBroadcast).
+func (d *IOSDevice) startBroadcastViaPicker() error {
+	url := fmt.Sprintf("http://localhost:%s/gads/audio/prepare", d.WDAPort)
+
 	client := &http.Client{Timeout: 20 * time.Second}
-	resp, err := client.Post(url, "application/json", body)
+	resp, err := client.Post(url, "application/json", nil)
 	if err != nil {
 		return fmt.Errorf("POST %s failed: %w", url, err)
 	}
@@ -326,6 +329,18 @@ func (d *IOSDevice) allocateAndForwardPorts() error {
 	go d.goIosForward(d.WDAPort, "8100")
 	go d.goIosForward(d.StreamPort, "8765")
 	go d.goIosForward(d.WDAStreamPort, "9100")
+
+	// Audio: forward a host port to the GADSBroadcast extension's PCM server (device port 8766).
+	if d.DBDevice.AudioStreamEnabled {
+		audioPort, err := providerutil.GetFreePort()
+		if err != nil {
+			logger.ProviderLogger.LogWarn("ios_device_setup", fmt.Sprintf("Could not allocate audio port for device `%s` - disabling audio stream: %v", d.GetUDID(), err))
+			d.DBDevice.AudioStreamEnabled = false
+		} else {
+			d.DBDevice.AudioPort = audioPort
+			go d.goIosForward(d.DBDevice.AudioPort, "8766")
+		}
+	}
 	return nil
 }
 
@@ -344,6 +359,7 @@ func (d *IOSDevice) startWebDriverAgent() error {
 		d.Reset("Failed to install WebDriverAgent on device.")
 		return err
 	}
+
 	go d.runWDA()
 	return nil
 }
