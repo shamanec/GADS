@@ -41,6 +41,7 @@ func (m *MongoStore) GetTURNConfig() (models.TURNConfig, error) {
 		turnConfig = models.TURNConfig{
 			Server:       "",
 			Port:         3478,
+			TLSPort:      0, // TURN over TLS (turns:) is optional — 0 keeps it disabled
 			SharedSecret: "",
 			TTL:          3600,
 			Enabled:      false,

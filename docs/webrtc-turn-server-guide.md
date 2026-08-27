@@ -487,6 +487,7 @@ Fill in the following fields:
 | **Enable TURN Server** | ✅ Checked          | -                                     |
 | **TURN Server**        | Hostname or IP      | `turn.example.com` or `203.0.113.50`  |
 | **Port**               | TURN listening port | `3478` (default)                      |
+| **TLS Port**           | `turns:` (TURN over TLS) port — **optional** | `5349`, or `0`/empty to disable TLS |
 | **Shared Secret**      | Secret from Step 2  | `O5V/O/yvaWZs...` (paste full secret) |
 | **TTL (seconds)**      | Credential lifetime | `3600` (1 hour recommended)           |
 
@@ -513,10 +514,13 @@ curl -X POST http://YOUR_HUB_IP:10000/admin/turn-config \
     "enabled": true,
     "server": "turn.example.com",
     "port": 3478,
+    "tls_port": 5349,
     "shared_secret": "YOUR_GENERATED_SECRET",
     "ttl": 3600
   }'
 ```
+
+> **`tls_port` is optional.** Omit it or set it to `0` to disable TURN over TLS (`turns:`) — the hub/providers will then advertise only `turn:` (UDP/TCP). Set it to your coturn `tls-listening-port` (default `5349`) to enable TLS.
 
 ### How Configuration Propagates
 

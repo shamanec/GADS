@@ -86,6 +86,7 @@ type MinioConfig struct {
 type TURNConfig struct {
 	Server       string `json:"server" bson:"server"`
 	Port         int    `json:"port" bson:"port"`
+	TLSPort      int    `json:"tls_port" bson:"tls_port"` // Optional turns: (TURN over TLS) port; 0 (default) disables TLS
 	SharedSecret string `json:"shared_secret" bson:"shared_secret"`
 	TTL          int    `json:"ttl" bson:"ttl"` // Time-to-live in seconds (default: 3600)
 	Enabled      bool   `json:"enabled" bson:"enabled"`

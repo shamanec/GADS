@@ -14,6 +14,7 @@ import (
 	"GADS/common/db"
 	"GADS/hub/config"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,9 +34,20 @@ func GetICEConfig(c *gin.Context) {
 		{"urls": "stun:stun.l.google.com:19302"},
 	}
 
-	// Try to add TURN server if configured and enabled
+	// TURN is optional — add it only when configured and enabled. STUN alone covers
+	// most networks; TURN is the fallback for restrictive ones. A missing/failed TURN
+	// config just yields a STUN-only response, never an error. Each outcome is logged so
+	// an incomplete config (e.g. empty shared secret) is distinguishable from TURN being
+	// intentionally disabled.
 	turnConfig, err := db.GlobalMongoStore.GetTURNConfig()
-	if err == nil && turnConfig.Enabled && turnConfig.Server != "" && turnConfig.SharedSecret != "" {
+	switch {
+	case err != nil:
+		slog.Warn(fmt.Sprintf("ice-config: could not load TURN config, serving STUN only - %s", err))
+	case !turnConfig.Enabled:
+		slog.Debug("ice-config: TURN disabled, serving STUN only")
+	case turnConfig.Server == "" || turnConfig.SharedSecret == "":
+		slog.Warn("ice-config: TURN is enabled but its config is incomplete (missing server or shared secret); serving STUN only")
+	default:
 		// Generate ephemeral credentials using TURN REST API
 		ttl := turnConfig.TTL
 		if ttl == 0 {
@@ -43,16 +55,20 @@ func GetICEConfig(c *gin.Context) {
 		}
 		username, password, _ := auth.GenerateTURNCredentials(turnConfig.SharedSecret, ttl, config.GlobalHubConfig.TURNUsernameSuffix)
 
-		// Add TURN server as fallback for restrictive networks
-		turnServer := map[string]interface{}{
-			"urls": []string{
-				fmt.Sprintf("turn:%s:%d?transport=udp", turnConfig.Server, turnConfig.Port),
-				fmt.Sprintf("turn:%s:%d?transport=tcp", turnConfig.Server, turnConfig.Port),
-			},
+		urls := []string{
+			fmt.Sprintf("turn:%s:%d?transport=udp", turnConfig.Server, turnConfig.Port),
+			fmt.Sprintf("turn:%s:%d?transport=tcp", turnConfig.Server, turnConfig.Port),
+		}
+		// TURN over TLS (turns:) is optional — only advertised when a TLS port is configured.
+		if turnConfig.TLSPort > 0 {
+			urls = append(urls, fmt.Sprintf("turns:%s:%d?transport=tcp", turnConfig.Server, turnConfig.TLSPort))
+		}
+		iceServers = append(iceServers, map[string]interface{}{
+			"urls":       urls,
 			"username":   username,
 			"credential": password,
-		}
-		iceServers = append(iceServers, turnServer)
+		})
+		slog.Info(fmt.Sprintf("ice-config: advertising TURN %s:%d (tls=%t) to client", turnConfig.Server, turnConfig.Port, turnConfig.TLSPort > 0))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"iceServers": iceServers})
