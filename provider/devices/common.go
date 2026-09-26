@@ -52,6 +52,18 @@ func Listener() {
 	go updateProviderHub()
 }
 
+type audioConfig struct {
+	enabled   bool
+	inputType string
+}
+
+// lastDesiredAudioConfig tracks the audio config last seen in the DB per device.
+// syncDevicesToDB reprovisions only when this *desired* value changes: comparing
+// against the runtime DBDevice instead would loop forever, because setup may
+// downgrade AudioStreamEnabled in place (Android <10 internal capture, or a failed
+// iOS audio port allocation).
+var lastDesiredAudioConfig = map[string]audioConfig{}
+
 // syncDevicesToDB polls the DB for device config changes and reconciles DevManager:
 // updates DB fields on existing devices, removes deleted devices, adds new ones.
 func syncDevicesToDB() {
@@ -94,16 +106,31 @@ func syncDevicesToDB() {
 		if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
 			dbDevice.WorkspaceID = updatedDevice.WorkspaceID
 		}
+		needsReset := false
 		if dbDevice.StreamType != updatedDevice.StreamType {
 			dbDevice.StreamType = updatedDevice.StreamType
-			devicesToReset = append(devicesToReset, udid)
+			needsReset = true
 		}
+
+		// Audio streaming (port forwards, broadcast/audio service, WebRTC audio track)
+		// is wired during setup, so a config change requires reprovisioning.
+		desiredAudio := audioConfig{updatedDevice.AudioStreamEnabled, updatedDevice.AudioInputType}
+		if prev, seen := lastDesiredAudioConfig[udid]; seen && prev != desiredAudio {
+			dbDevice.AudioStreamEnabled = updatedDevice.AudioStreamEnabled
+			dbDevice.AudioInputType = updatedDevice.AudioInputType
+			needsReset = true
+		}
+		lastDesiredAudioConfig[udid] = desiredAudio
 
 		// If the provider does not set up Appium servers, force usage to `control`
 		if !config.ProviderConfig.SetupAppiumServers {
 			if dbDevice.Usage != "disabled" {
 				dbDevice.Usage = "control"
 			}
+		}
+
+		if needsReset {
+			devicesToReset = append(devicesToReset, udid)
 		}
 	}
 
@@ -118,6 +145,7 @@ func syncDevicesToDB() {
 			platDev.Reset("Device removed from DB")
 			DevManager.Delete(udid)
 		}
+		delete(lastDesiredAudioConfig, udid)
 	}
 
 	// Add new devices from DB
