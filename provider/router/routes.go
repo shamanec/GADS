@@ -267,6 +267,12 @@ func DeviceInfo(c *gin.Context) {
 		InstalledApps:   platDev.GetInstalledAppBundleIDs(),
 	}
 
+	// Android audio is provisioned per setup run and AudioPort is only set when that
+	// succeeded. Report audio as off for this run without touching the stored config.
+	if resp.DBDevice.OS == "android" && resp.DBDevice.AudioPort == "" {
+		resp.DBDevice.AudioStreamEnabled = false
+	}
+
 	if rcDev, rcOk := platDev.(devices.RemoteControllable); rcOk {
 		resp.StreamTargetFPS = rcDev.GetStreamTargetFPS()
 		resp.StreamJpegQuality = rcDev.GetStreamJpegQuality()

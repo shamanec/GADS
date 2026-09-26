@@ -170,11 +170,13 @@ func (d *AndroidDevice) allocatePorts() error {
 	}
 	d.ADBPort = adbPort
 
+	// AudioPort is runtime-only state: an empty port means audio is not available for
+	// this run, which never touches the audio configuration owned by the hub.
+	d.DBDevice.AudioPort = ""
 	if d.DBDevice.AudioStreamEnabled && d.DBDevice.StreamType == models.AndroidWebRTCGadsH264StreamTypeId {
 		audioPort, err := providerutil.GetFreePort()
 		if err != nil {
-			logger.ProviderLogger.LogWarnf("android_device_setup", "Could not allocate audio port for device `%v` - disabling audio stream: %v", d.GetUDID(), err)
-			d.DBDevice.AudioStreamEnabled = false
+			logger.ProviderLogger.LogWarnf("android_device_setup", "Could not allocate audio port for device `%v` - audio stream unavailable until the device is reprovisioned: %v", d.GetUDID(), err)
 		} else {
 			d.DBDevice.AudioPort = audioPort
 		}
@@ -520,10 +522,13 @@ func (d *AndroidDevice) setupAudioStreaming() {
 	if d.DBDevice.StreamType != models.AndroidWebRTCGadsH264StreamTypeId {
 		return
 	}
+	if d.DBDevice.AudioPort == "" {
+		return
+	}
 	// Internal AudioPlaybackCapture requires Android 10+ (API 29).
 	if d.DBDevice.AudioInputType == "internal" && d.SemVer != nil && d.SemVer.Major() < 10 {
-		logger.ProviderLogger.LogWarnf("android_device_setup", "Internal audio capture requires Android 10+ but device `%s` is on Android %s — disabling audio stream", d.GetUDID(), d.SemVer.String())
-		d.DBDevice.AudioStreamEnabled = false
+		logger.ProviderLogger.LogWarnf("android_device_setup", "Internal audio capture requires Android 10+ but device `%s` is on Android %s — skipping audio stream", d.GetUDID(), d.SemVer.String())
+		d.DBDevice.AudioPort = ""
 		return
 	}
 
@@ -658,7 +663,7 @@ func (d *AndroidDevice) updateScreenSizeADB() error {
 		return nil
 	}
 
-	if err := db.GlobalMongoStore.AddOrUpdateDevice(&d.DBDevice); err != nil {
+	if err := db.GlobalMongoStore.UpdateDeviceScreenSize(d.GetUDID(), d.DBDevice.ScreenWidth, d.DBDevice.ScreenHeight); err != nil {
 		return fmt.Errorf("Failed to upsert new device screen dimensions to DB - %s", err)
 	}
 	return nil
