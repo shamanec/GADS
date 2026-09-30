@@ -64,7 +64,7 @@ func AppiumReverseProxy(c *gin.Context) {
 	path := c.Param("proxyPath")
 
 	proxy := newAppiumProxy(target, path)
-	proxy.ServeHTTP(c.Writer, c.Request)
+	serveAppiumLifecycle(platDev, proxy, path, c.Writer, c.Request)
 }
 
 func newAppiumProxy(target string, path string) *httputil.ReverseProxy {

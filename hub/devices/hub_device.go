@@ -32,6 +32,7 @@ type LocalHubDevice struct {
 	Connected                bool   `json:"connected"`
 	ProviderState            string `json:"provider_state"`
 	LastUpdatedTimestamp     int64  `json:"last_updated_timestamp"`
+	SessionCleanupInProgress bool   `json:"-" bson:"-"` // protected by Mu; blocks reuse until DELETE completes
 	SessionID                string `json:"-"`
 	IsRunningAutomation      bool   `json:"is_running_automation"`
 	LastAutomationActionTS   int64  `json:"last_automation_action_ts"`
@@ -150,8 +151,13 @@ func (d *LocalHubDevice) ClaimForAutomation(newCommandTimeoutMS int64) {
 
 // ReleaseFromAutomation clears the device's automation session state, including its
 // session registry entry, and releases the lock unless a UI or API session holds it.
+// Release is deferred while cleanup owns the claim. The cleanup completion path
+// clears SessionCleanupInProgress before calling this method.
 // The grid session queue is poked so a queued session request can grab the device.
 func (d *LocalHubDevice) ReleaseFromAutomation() {
+	if d.SessionCleanupInProgress {
+		return
+	}
 	if d.SessionID != "" {
 		UnregisterSession(d.SessionID)
 	}

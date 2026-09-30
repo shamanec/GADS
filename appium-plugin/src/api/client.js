@@ -12,7 +12,8 @@ export function createApiClient(config) {
     }
 
     return axios.create({
-        baseURL: `${config.providerUrl}/device/${config.udid}/appium-plugin`
+        baseURL: `${config.providerUrl}/device/${config.udid}/appium-plugin`,
+        timeout: 5000
     })
 }
 
@@ -44,9 +45,9 @@ export class GadsApiClient {
     }
 
     // Notify provider a session was ended
-    async removeSession() {
+    async removeSession(sessionId) {
         try {
-            await this.api.post('/session/remove');
+            await this.api.post('/session/remove', {session_id: sessionId});
         } catch (e) {
             throw new Error(`GADS - Remove session failed, provider down - ${e.message}`)
         }

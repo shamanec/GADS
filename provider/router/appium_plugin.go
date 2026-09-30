@@ -54,18 +54,15 @@ func AppiumPluginAddSession(c *gin.Context) {
 	if dev, ok := devices.DevManager.Get(udid); ok {
 		sessionID := c.Param("session_id")
 		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
-		dev.SetHasAppiumSession(true)
-		dev.SetAppiumSessionID(sessionID)
+		var sessionCaps map[string]interface{}
 		// Newer plugins also send the resolved session capabilities in the body -
 		// optional, older plugins post with no body at all
 		body, err := io.ReadAll(c.Request.Body)
 		defer c.Request.Body.Close()
 		if err == nil && len(body) > 0 {
-			var sessionCaps map[string]interface{}
-			if json.Unmarshal(body, &sessionCaps) == nil && len(sessionCaps) > 0 {
-				dev.SetAppiumSessionCaps(sessionCaps)
-			}
+			_ = json.Unmarshal(body, &sessionCaps)
 		}
+		dev.UpdateAppiumSession(sessionID, sessionCaps)
 		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Session added")
 		return
@@ -78,9 +75,20 @@ func AppiumPluginRemoveSession(c *gin.Context) {
 	udid := c.Param("udid")
 	if dev, ok := devices.DevManager.Get(udid); ok {
 		dev.SetAppiumLastPingTS(time.Now().UnixMilli())
-		dev.SetHasAppiumSession(false)
-		dev.SetAppiumSessionID("")
-		dev.SetAppiumSessionCaps(nil)
+		var event struct {
+			SessionID string `json:"session_id"`
+		}
+		if c.Request.Body != nil {
+			defer c.Request.Body.Close()
+			if err := json.NewDecoder(c.Request.Body).Decode(&event); err != nil && err != io.EOF {
+				api.InternalError(c, "Invalid session cleanup notification")
+				return
+			}
+		}
+		cleared := dev.ClearAppiumSession(event.SessionID)
+		if log := dev.GetLogger(); log != nil {
+			log.LogDebugf("appium_lifecycle", "Cleanup notification udid=%s old_session=%s cleared=%t current_session=%s appium_port=%s", udid, event.SessionID, cleared, dev.GetAppiumSessionID(), dev.GetAppiumPort())
+		}
 		dev.SetAppiumUp(true)
 		api.OKMessage(c, "Session cleared")
 		return

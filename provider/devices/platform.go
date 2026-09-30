@@ -61,6 +61,10 @@ type PlatformDevice interface {
 	SetAppiumPort(port string)
 	SetNewContext(ctx context.Context, cancel context.CancelFunc)
 
+	UpdateAppiumSession(string, map[string]interface{})
+	ClearAppiumSession(string) bool
+	LockAppiumLifecycle() func()
+
 	// Appium state accessors
 	GetAppiumSessionID() string
 	SetAppiumSessionID(id string)

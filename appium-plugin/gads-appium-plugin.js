@@ -110,8 +110,24 @@ class GadsAppium extends BasePlugin {
         // Extract the sessionId and the resolved capabilities
         const sessionId = createSessionResult?.value?.[0]
         if (sessionId) {
+            this.sessionId = sessionId;
             GadsAppium.currentSessionId = sessionId;
-            await GadsAppium.apiClient.addSession(sessionId, createSessionResult?.value?.[1])
+            try {
+                await GadsAppium.apiClient.addSession(sessionId, createSessionResult?.value?.[1])
+            } catch (error) {
+                // Creation already succeeded in Appium. Do not orphan that driver
+                // when provider registration fails and the client receives an error.
+                log.debug(`GADS cleanup after registration failure udid=${this.cfg?.udid} session=${sessionId}`)
+                try {
+                    await driver.deleteSession(sessionId)
+                    await GadsAppium.apiClient.removeSession(sessionId)
+                } catch {
+                    log.debug(`GADS rollback incomplete udid=${this.cfg?.udid} session=${sessionId}`)
+                } finally {
+                    if (GadsAppium.currentSessionId === sessionId) GadsAppium.currentSessionId = ''
+                }
+                throw error
+            }
         }
 
         return createSessionResult
@@ -127,18 +143,18 @@ class GadsAppium extends BasePlugin {
      * @param {string} sessionId    The sessionId to delete
    */
     async deleteSession(next, driver, sessionId) {
-        // If we’re deleting the active session, clear it from the properties
+        log.debug(`GADS cleanup start udid=${GadsAppium.cfg?.udid} session=${sessionId}`)
+        const result = await next()
         if (GadsAppium.currentSessionId === sessionId) {
             GadsAppium.currentSessionId = ''
         }
-
-        // Call through to the driver's deleteSession
-        const deleteSessionResult = await driver.deleteSession?.(sessionId)
-
-        // Notify GADS the session was deleted
-        await GadsAppium.apiClient.removeSession()
-
-        return deleteSessionResult
+        try {
+            await GadsAppium.apiClient.removeSession(sessionId)
+        } catch {
+            log.debug(`GADS cleanup notification failed udid=${GadsAppium.cfg?.udid} session=${sessionId}`)
+        }
+        log.debug(`GADS cleanup complete udid=${GadsAppium.cfg?.udid} session=${sessionId}`)
+        return result
     }
 
     /**
@@ -174,13 +190,16 @@ class GadsAppium extends BasePlugin {
      * @param {string} cause    The cause of the shutdown
    */
     async onUnexpectedShutdown(driver, cause) {
-        log.warn(`GADS: Session ${GadsAppium.currentSessionId} crashed unexpectedly`)
-
-        // Clear the session id and the static action log properties
-        GadsAppium.currentSessionId = ""
-
-        // Notify GADS the driver crashed by clearing the session on GADS side
-        await GadsAppium.apiClient.removeSession()
+        const sessionId = this.sessionId || driver.sessionId
+        log.debug(`GADS unexpected shutdown udid=${GadsAppium.cfg?.udid} session=${sessionId}`)
+        if (GadsAppium.currentSessionId === sessionId) GadsAppium.currentSessionId = ''
+        if (sessionId) {
+            try {
+                await GadsAppium.apiClient.removeSession(sessionId)
+            } catch {
+                log.debug(`GADS shutdown notification failed session=${sessionId}`)
+            }
+        }
     }
 
     /**x

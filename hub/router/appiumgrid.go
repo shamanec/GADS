@@ -38,7 +38,6 @@ const gridCommandTimeout = 90 * time.Second
 // held) for this cool-down so it cannot be grabbed for remote control between
 // back-to-back tests of a suite. Automation is not delayed by it - the device is
 // claimable for a new session right away, which also cancels the cool-down
-const postSessionReleaseCooldown = 5 * time.Second
 
 // Shared HTTP clients for proxying grid traffic to providers, reusing the same
 // connection pool as the device proxy (proxyTransport). Session creation gets a
@@ -276,37 +275,64 @@ func sweepExpiredGridSessions() {
 			hubDevice.SessionID != "" &&
 			hubDevice.ProviderSessionMissingSinceTS > 0 &&
 			hubDevice.ProviderSessionMissingSinceTS <= (now-10000)
-		if !hubDevice.Connected || hubDevice.ProviderState != "live" || idleExpired || providerSaysSessionGone {
-			// Ask the provider to actually close the expired Appium session (best
-			// effort, in the background) - otherwise the app under test keeps running
-			// on the device until the next session overrides it. Pointless when the
-			// provider itself reported the session gone
+		if !hubDevice.SessionCleanupInProgress && (!hubDevice.Connected || hubDevice.ProviderState != "live" || idleExpired || providerSaysSessionGone) {
 			if hubDevice.SessionID != "" && hubDevice.Connected && hubDevice.ProviderState == "live" && !providerSaysSessionGone {
-				go killProviderAppiumSession(hubDevice.Host, hubDevice.Device.UDID, hubDevice.SessionID)
+				startSessionCleanup(hubDevice)
+			} else {
+				hubDevice.ReleaseFromAutomation()
 			}
-			hubDevice.ReleaseFromAutomation()
 		}
 		hubDevice.Mu.Unlock()
 	}
 }
 
-// killProviderAppiumSession sends a session DELETE to the device's provider,
-// used when the hub expires a session on its side. Best effort - failures are
-// only logged, the janitor keeps running either way
-func killProviderAppiumSession(deviceHost string, deviceUDID string, sessionID string) {
+// startSessionCleanup requires device.Mu. Keep the claim until DELETE has
+// completed, without blocking the janitor or any other device on network I/O.
+func startSessionCleanup(device *devices.LocalHubDevice) {
+	if device.SessionCleanupInProgress || device.SessionID == "" {
+		return
+	}
+	host, udid, sessionID := device.Host, device.Device.UDID, device.SessionID
+	device.SessionCleanupInProgress = true
+	device.IsAvailableForAutomation = false
+	slog.Debug("Appium cleanup started", "udid", udid, "session_id", sessionID, "busy", true)
+	go func() {
+		err := killProviderAppiumSession(host, udid, sessionID)
+		device.Mu.Lock()
+		defer device.Mu.Unlock()
+		device.SessionCleanupInProgress = false
+		if device.SessionID != sessionID {
+			return
+		}
+		if err != nil {
+			// Retain the claim; the janitor can reconcile or retry cleanup. A
+			// transport error is not proof that the driver released its resources.
+			slog.Debug("Appium cleanup incomplete; device remains busy", "udid", udid, "session_id", sessionID, "error", err)
+			return
+		}
+		slog.Debug("Appium cleanup completed", "udid", udid, "session_id", sessionID)
+		device.ReleaseFromAutomation()
+	}()
+}
+
+func killProviderAppiumSession(deviceHost, deviceUDID, sessionID string) error {
 	deleteURL := fmt.Sprintf("http://%s/device/%s/appium/session/%s", deviceHost, deviceUDID, sessionID)
 	deleteReq, err := http.NewRequest(http.MethodDelete, deleteURL, nil)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to create cleanup request for expired Appium session `%s` on device `%s` - %s", sessionID, deviceUDID, err))
-		return
+		return err
 	}
 	resp, err := gridCommandClient.Do(deleteReq)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to delete expired Appium session `%s` on device `%s` - %s", sessionID, deviceUDID, err))
-		return
+		return err
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return fmt.Errorf("session DELETE returned HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // gridUser is the automation client identity resolved from its `gads:clientSecret`,
@@ -375,6 +401,10 @@ func resolveGridUser(clientSecret string) (gridUser, *W3CError) {
 // still held via a UI WebSocket or an API lease, whose lock must survive
 func abortAutomationClaim(foundDevice *devices.LocalHubDevice) {
 	foundDevice.Mu.Lock()
+	if foundDevice.SessionCleanupInProgress {
+		foundDevice.Mu.Unlock()
+		return
+	}
 	foundDevice.IsAvailableForAutomation = true
 	foundDevice.IsRunningAutomation = false
 	foundDevice.ReleaseLockIfNotHeld()
@@ -505,8 +535,10 @@ func GridCreateSession(c *gin.Context) {
 		// same client is not raced; any other error releases the lock right away
 		if resp.StatusCode == http.StatusInternalServerError {
 			foundDevice.Mu.Lock()
-			foundDevice.IsAvailableForAutomation = true
-			foundDevice.IsRunningAutomation = false
+			if !foundDevice.SessionCleanupInProgress {
+				foundDevice.IsAvailableForAutomation = true
+				foundDevice.IsRunningAutomation = false
+			}
 			foundDevice.Mu.Unlock()
 			devices.NotifyDeviceFreed()
 			go func() {
@@ -661,7 +693,7 @@ func GridSessionCommand(c *gin.Context) {
 
 	proxyGridSessionRequest(c, foundDevice, sessionID, commandPath, func(statusCode int) {
 		if statusCode == http.StatusInternalServerError {
-			releaseAfterProviderError(foundDevice)
+			releaseAfterProviderError(foundDevice, sessionID)
 		}
 	})
 }
@@ -678,36 +710,28 @@ func GridDeleteSession(c *gin.Context) {
 	}
 
 	proxyGridSessionRequest(c, foundDevice, sessionID, "", func(statusCode int) {
-		// The session was deleted - mark the device claimable for automation right
-		// away, but keep it visibly busy for the cool-down and fully release it
-		// only if no new session claims it in the meantime
 		foundDevice.Mu.Lock()
-		foundDevice.IsAvailableForAutomation = true
-		foundDevice.Mu.Unlock()
-		devices.NotifyDeviceFreed()
-		go func() {
-			time.Sleep(postSessionReleaseCooldown)
-			foundDevice.Mu.Lock()
-			if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - postSessionReleaseCooldown.Milliseconds()) {
-				foundDevice.ReleaseFromAutomation()
-			}
-			foundDevice.Mu.Unlock()
-		}()
-		if statusCode == http.StatusInternalServerError {
-			releaseAfterProviderError(foundDevice)
+		defer foundDevice.Mu.Unlock()
+		if foundDevice.SessionID != sessionID || foundDevice.SessionCleanupInProgress {
+			return
+		}
+		if statusCode == http.StatusOK || statusCode == http.StatusNotFound {
+			foundDevice.ReleaseFromAutomation()
+		} else {
+			startSessionCleanup(foundDevice)
 		}
 	})
 }
 
 // releaseAfterProviderError starts the delayed device release used when the provider
 // answers a session request with a 500 - if no further automation activity happens
-// within 10 seconds the session is considered dead and the device is freed
-func releaseAfterProviderError(foundDevice *devices.LocalHubDevice) {
+// within 10 seconds request cleanup before releasing the device
+func releaseAfterProviderError(foundDevice *devices.LocalHubDevice, sessionID string) {
 	go func() {
 		time.Sleep(10 * time.Second)
 		foundDevice.Mu.Lock()
-		if foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli() - 10000) {
-			foundDevice.ReleaseFromAutomation()
+		if foundDevice.SessionID == sessionID && foundDevice.LastAutomationActionTS <= (time.Now().UnixMilli()-10000) {
+			startSessionCleanup(foundDevice)
 		}
 		foundDevice.Mu.Unlock()
 	}()

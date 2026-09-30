@@ -36,14 +36,16 @@ type RuntimeState struct {
 	DBDevice models.DBDevice
 
 	// Infrastructure
-	Context          context.Context
-	CtxCancel        context.CancelFunc
-	Mutex            sync.Mutex
-	SetupMutex       sync.Mutex
-	Logger           models.CustomLogger
-	SemVer           *semver.Version
-	InitialSetupDone bool
-	AppiumPort       string // port assigned to the device for the Appium server
+	Context              context.Context
+	CtxCancel            context.CancelFunc
+	Mutex                sync.Mutex
+	appiumStateMu        sync.RWMutex
+	AppiumLifecycleMutex sync.Mutex // serializes session creation/deletion, not ordinary commands
+	SetupMutex           sync.Mutex
+	Logger               models.CustomLogger
+	SemVer               *semver.Version
+	InitialSetupDone     bool
+	AppiumPort           string // port assigned to the device for the Appium server
 
 	// Runtime fields synced to hub
 	Host          string
@@ -93,32 +95,66 @@ func (r *RuntimeState) GetSerial() string {
 	}
 	return r.DBDevice.UDID
 }
-func (r *RuntimeState) IsEphemeral() bool               { return r.Ephemeral }
-func (r *RuntimeState) GetOS() string                   { return r.DBDevice.OS }
-func (r *RuntimeState) GetDBDevice() *models.DBDevice   { return &r.DBDevice }
-func (r *RuntimeState) GetProviderState() string        { return r.ProviderState }
-func (r *RuntimeState) SetProviderState(state string)   { r.ProviderState = state }
-func (r *RuntimeState) IsConnected() bool               { return r.Connected }
-func (r *RuntimeState) SetConnected(connected bool)     { r.Connected = connected }
-func (r *RuntimeState) GetHost() string                 { return r.Host }
-func (r *RuntimeState) SetHost(host string)             { r.Host = host }
-func (r *RuntimeState) GetLogger() models.CustomLogger  { return r.Logger }
-func (r *RuntimeState) GetContext() context.Context     { return r.Context }
-func (r *RuntimeState) GetAppiumPort() string           { return r.AppiumPort }
-func (r *RuntimeState) SetAppiumPort(port string)       { r.AppiumPort = port }
-func (r *RuntimeState) GetAppiumSessionID() string      { return r.AppiumSessionID }
-func (r *RuntimeState) SetAppiumSessionID(id string)    { r.AppiumSessionID = id }
-func (r *RuntimeState) SetAppiumUp(up bool)             { r.IsAppiumUp = up }
-func (r *RuntimeState) SetAppiumLastPingTS(ts int64)    { r.AppiumLastPingTS = ts }
-func (r *RuntimeState) SetAppiumLastCommandTS(ts int64) { r.AppiumLastCommandTS = ts }
-func (r *RuntimeState) SetHasAppiumSession(has bool)    { r.HasAppiumSession = has }
+func (r *RuntimeState) IsEphemeral() bool              { return r.Ephemeral }
+func (r *RuntimeState) GetOS() string                  { return r.DBDevice.OS }
+func (r *RuntimeState) GetDBDevice() *models.DBDevice  { return &r.DBDevice }
+func (r *RuntimeState) GetProviderState() string       { return r.ProviderState }
+func (r *RuntimeState) SetProviderState(state string)  { r.ProviderState = state }
+func (r *RuntimeState) IsConnected() bool              { return r.Connected }
+func (r *RuntimeState) SetConnected(connected bool)    { r.Connected = connected }
+func (r *RuntimeState) GetHost() string                { return r.Host }
+func (r *RuntimeState) SetHost(host string)            { r.Host = host }
+func (r *RuntimeState) GetLogger() models.CustomLogger { return r.Logger }
+func (r *RuntimeState) GetContext() context.Context    { return r.Context }
+func (r *RuntimeState) GetAppiumPort() string          { return r.AppiumPort }
+func (r *RuntimeState) SetAppiumPort(port string)      { r.AppiumPort = port }
+func (r *RuntimeState) GetAppiumSessionID() string {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	return r.AppiumSessionID
+}
+func (r *RuntimeState) SetAppiumSessionID(id string) {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	r.AppiumSessionID = id
+}
+func (r *RuntimeState) SetAppiumUp(up bool) {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	r.IsAppiumUp = up
+}
+func (r *RuntimeState) SetAppiumLastPingTS(ts int64) {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	r.AppiumLastPingTS = ts
+}
+func (r *RuntimeState) SetAppiumLastCommandTS(ts int64) {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	r.AppiumLastCommandTS = ts
+}
+func (r *RuntimeState) SetHasAppiumSession(has bool) {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	r.HasAppiumSession = has
+}
 func (r *RuntimeState) SetAppiumSessionCaps(caps map[string]interface{}) {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
 	r.AppiumSessionCaps = caps
 }
-func (r *RuntimeState) GetAppiumSessionCaps() map[string]interface{} { return r.AppiumSessionCaps }
-func (r *RuntimeState) GetIsResetting() bool                         { return r.IsResetting }
-func (r *RuntimeState) SetIsResetting(v bool)                        { r.IsResetting = v }
-func (r *RuntimeState) GetIsAppiumUp() bool                          { return r.IsAppiumUp }
+func (r *RuntimeState) GetAppiumSessionCaps() map[string]interface{} {
+	r.appiumStateMu.RLock()
+	defer r.appiumStateMu.RUnlock()
+	return r.AppiumSessionCaps
+}
+func (r *RuntimeState) GetIsResetting() bool  { return r.IsResetting }
+func (r *RuntimeState) SetIsResetting(v bool) { r.IsResetting = v }
+func (r *RuntimeState) GetIsAppiumUp() bool {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	return r.IsAppiumUp
+}
 func (r *RuntimeState) GetHardwareModelValue() string                { return r.HardwareModel }
 func (r *RuntimeState) SetHardwareModel(model string)                { r.HardwareModel = model }
 func (r *RuntimeState) GetStreamTargetFPS() int                      { return r.StreamTargetFPS }
@@ -142,6 +178,8 @@ func (r *RuntimeState) SetNewContext(ctx context.Context, cancel context.CancelF
 
 // ToSyncUpdate builds the lightweight struct sent to the hub each second.
 func (r *RuntimeState) ToSyncUpdate() models.ProviderDeviceSync {
+	r.appiumStateMu.RLock()
+	defer r.appiumStateMu.RUnlock()
 	syncUpdate := models.ProviderDeviceSync{
 		UDID:                      r.DBDevice.UDID,
 		Host:                      r.Host,
@@ -204,4 +242,30 @@ func (r *RuntimeState) resetWithError(step string, err error) error {
 	}
 	r.Reset(fmt.Sprintf("Failed to %s", step))
 	return fmt.Errorf("%s: %w", step, err)
+}
+
+// LockAppiumLifecycle reserves this device's session transition until the
+// upstream operation completes. Plugin callbacks must not acquire this lock.
+func (r *RuntimeState) LockAppiumLifecycle() func() {
+	r.AppiumLifecycleMutex.Lock()
+	return r.AppiumLifecycleMutex.Unlock
+}
+
+// UpdateAppiumSession publishes a coherent session snapshot to the hub.
+func (r *RuntimeState) UpdateAppiumSession(id string, caps map[string]interface{}) {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	r.AppiumSessionID, r.HasAppiumSession, r.AppiumSessionCaps = id, id != "", caps
+}
+
+// ClearAppiumSession ignores delayed notifications for a superseded session.
+// Empty IDs retain compatibility with older plugins.
+func (r *RuntimeState) ClearAppiumSession(id string) bool {
+	r.appiumStateMu.Lock()
+	defer r.appiumStateMu.Unlock()
+	if id != "" && r.AppiumSessionID != id {
+		return false
+	}
+	r.AppiumSessionID, r.HasAppiumSession, r.AppiumSessionCaps = "", false, nil
+	return true
 }

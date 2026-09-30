@@ -232,11 +232,11 @@ func TestSweepExpiredGridSessions(t *testing.T) {
 
 		sweepExpiredGridSessions()
 
-		device.Mu.RLock()
-		assert.False(t, device.IsRunningAutomation)
-		assert.True(t, device.IsAvailableForAutomation)
-		assert.Equal(t, "", device.SessionID)
-		device.Mu.RUnlock()
+		assert.Eventually(t, func() bool {
+			device.Mu.RLock()
+			defer device.Mu.RUnlock()
+			return !device.IsRunningAutomation && device.IsAvailableForAutomation && device.SessionID == ""
+		}, 3*time.Second, time.Millisecond)
 
 		// The provider-side session DELETE is fired in a background goroutine
 		select {
@@ -297,7 +297,9 @@ func TestSweepExpiredGridSessions(t *testing.T) {
 	})
 
 	t.Run("provider command activity is ignored for old providers without session truth", func(t *testing.T) {
-		device, cleanup := newGridSessionDevice("janitor-old-provider-device", "old-provider-session", "fake-host")
+		fakeProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(`{"value":null}`)) }))
+		defer fakeProvider.Close()
+		device, cleanup := newGridSessionDevice("janitor-old-provider-device", "old-provider-session", strings.TrimPrefix(fakeProvider.URL, "http://"))
 		defer cleanup()
 		device.AppiumNewCommandTimeout = 100
 		device.LastAutomationActionTS = time.Now().UnixMilli() - 5000
@@ -306,10 +308,11 @@ func TestSweepExpiredGridSessions(t *testing.T) {
 
 		sweepExpiredGridSessions()
 
-		device.Mu.RLock()
-		defer device.Mu.RUnlock()
-		assert.False(t, device.IsRunningAutomation)
-		assert.True(t, device.IsAvailableForAutomation)
+		assert.Eventually(t, func() bool {
+			device.Mu.RLock()
+			defer device.Mu.RUnlock()
+			return !device.IsRunningAutomation && device.IsAvailableForAutomation
+		}, 3*time.Second, time.Millisecond)
 	})
 
 	t.Run("session the provider has reported gone for over 10s is released without a provider DELETE", func(t *testing.T) {
@@ -892,12 +895,11 @@ func TestGridSessionLifecycleFlow(t *testing.T) {
 	assert.True(t, device.IsAvailableForAutomation)
 	device.Mu.RUnlock()
 
-	// The full release (session cleared, registry entry removed) happens only after
-	// the post-session cool-down
+	// A successful DELETE releases the session and registry together.
 	assert.Eventually(t, func() bool {
 		_, stillRegistered := devices.DeviceBySession("flow-session")
 		device.Mu.RLock()
 		defer device.Mu.RUnlock()
 		return !stillRegistered && !device.IsRunningAutomation && device.SessionID == ""
-	}, postSessionReleaseCooldown+3*time.Second, 100*time.Millisecond)
+	}, 3*time.Second, 100*time.Millisecond)
 }
