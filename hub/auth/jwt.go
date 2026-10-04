@@ -37,6 +37,12 @@ var (
 	ErrDefaultKeyRequired        = errors.New("default secret key is required but not available")
 )
 
+// TokenIssuer is the `iss` claim stamped on every token the hub issues itself.
+// Only those tokens are backed by a session - tokens from another issuer (e.g.
+// an external identity provider validated with an origin secret key) are taken
+// at face value for as long as their own expiry says.
+const TokenIssuer = "gads"
+
 // JWTClaims defines the structure of claims in the JWT token
 type JWTClaims struct {
 	jwt.RegisteredClaims
@@ -45,6 +51,9 @@ type JWTClaims struct {
 	Scope    []string `json:"scope"`
 	Tenant   string   `json:"tenant"`
 	Origin   string   `json:"origin,omitempty"` // Added origin claim
+	// SessionID points at the session this token was issued for. The session is
+	// what decides whether the token still works - see session.go
+	SessionID string `json:"sid,omitempty"`
 }
 
 // InitSecretCache initializes the secret cache with the database store
@@ -108,35 +117,68 @@ func getDefaultSecretKey() ([]byte, error) {
 	return key, nil
 }
 
-// GenerateJWT generates a JWT token using HS256 with the appropriate secret key
-func GenerateJWT(username, role, tenant string, scope []string, duration time.Duration, origin ...string) (string, error) {
+// GenerateJWT starts a user session and returns a token for it. The token stops
+// working as soon as that session is gone, so its own expiry is only a backstop
+// for the absolute session age
+func GenerateJWT(username, role, tenant string, scope []string, origin ...string) (string, error) {
 	originValue := ""
 	if len(origin) > 0 && origin[0] != "" {
 		originValue = origin[0]
 	}
 
+	return generateSessionJWT(CreateSession(username, ""), role, tenant, scope, originValue)
+}
+
+// GenerateClientCredentialsJWT starts a session for a machine client authenticated
+// through the OAuth2 client credentials flow and returns a token for it. Those
+// sessions have no absolute age limit - the client holds a secret and could
+// authenticate again at any time anyway
+func GenerateClientCredentialsJWT(clientID, username, role, tenant string, scope []string, origin string) (string, error) {
+	return generateSessionJWT(CreateSession(username, clientID), role, tenant, scope, origin)
+}
+
+// generateSessionJWT signs a token bound to a session
+func generateSessionJWT(session *Session, role, tenant string, scope []string, origin string) (string, error) {
 	claims := JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   username,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "gads",
+			Subject:   session.Username,
+			ExpiresAt: sessionTokenExpiry(session),
+			IssuedAt:  jwt.NewNumericDate(session.AuthTime),
+			Issuer:    TokenIssuer,
 		},
-		Username: username,
-		Role:     role,
-		Scope:    scope,
-		Tenant:   tenant,
-		Origin:   originValue,
+		Username:  session.Username,
+		Role:      role,
+		Scope:     scope,
+		Tenant:    tenant,
+		Origin:    origin,
+		SessionID: session.ID,
 	}
 
+	return signClaims(claims)
+}
+
+// sessionTokenExpiry returns the `exp` claim for a session token. The session is
+// what actually ends a login, so the only expiry worth signing into the token is
+// the absolute session age - sessions without one get a token without an expiry
+func sessionTokenExpiry(session *Session) *jwt.NumericDate {
+	maxAge := MaxSessionAge()
+	if session.ClientID != "" || maxAge <= 0 {
+		return nil
+	}
+
+	return jwt.NewNumericDate(session.AuthTime.Add(maxAge))
+}
+
+// signClaims signs the claims with the secret key of their origin, falling back
+// to the default key when the origin has none
+func signClaims(claims JWTClaims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	// Use the specific key for this origin, or default if not specified
 	var secretKey []byte
 	var err error
 
-	if originValue != "" {
-		secretKey, err = getSecretKeyForOrigin(originValue)
+	if claims.Origin != "" {
+		secretKey, err = getSecretKeyForOrigin(claims.Origin)
 		if err != nil {
 			// If we can't get a key for the specific origin, try the default
 			secretKey, err = getDefaultSecretKey()

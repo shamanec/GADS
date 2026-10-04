@@ -100,7 +100,10 @@ func startAppium(d PlatformDevice, capabilities models.AppiumServerCapabilities)
 		return
 	}
 
-	if err := cmd.Wait(); err != nil {
+	logger.ProviderLogger.LogDebugf("appium_lifecycle", "Appium started udid=%s port=%s pid=%d", udid, appiumPort, cmd.Process.Pid)
+	err := cmd.Wait()
+	logger.ProviderLogger.LogDebugf("appium_lifecycle", "Appium exited udid=%s port=%s pid=%d context_canceled=%t error=%t", udid, appiumPort, cmd.Process.Pid, d.GetContext().Err() != nil, err != nil)
+	if err != nil {
 		logger.ProviderLogger.LogErrorf("device_setup", "startAppium: Error waiting for `%s` command to finish, it errored out or device `%v` was disconnected - %v", cmd.Args, udid, err)
 
 		d.Reset("Appium command errored out or device was disconnected.")

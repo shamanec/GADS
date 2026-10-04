@@ -856,7 +856,7 @@ func (d *IOSDevice) updateScreenSize(deviceMachineCode string) error {
 		return fmt.Errorf("could not find `%s` device machine code in the IOSDeviceInfoMap map", deviceMachineCode)
 	}
 
-	if err := db.GlobalMongoStore.AddOrUpdateDevice(&d.DBDevice); err != nil {
+	if err := db.GlobalMongoStore.UpdateDeviceScreenSize(d.GetUDID(), d.DBDevice.ScreenWidth, d.DBDevice.ScreenHeight); err != nil {
 		return fmt.Errorf("failed to update DB with new device dimensions - %s", err)
 	}
 	return nil

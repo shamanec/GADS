@@ -114,8 +114,9 @@ func NewAndroidWebRTCSession(device *models.DBDevice, streamPort string, streamT
 		}
 	}()
 
-	// Create audio track if enabled
-	if device.AudioStreamEnabled {
+	// Create audio track if enabled. AudioPort is only set when the device setup
+	// managed to provision the audio pipeline for this run.
+	if device.AudioStreamEnabled && device.AudioPort != "" {
 		logger.ProviderLogger.LogInfo("webrtc_session", "Audio track enabled, creating Opus track")
 
 		audioTrack, err := webrtc.NewTrackLocalStaticSample(
@@ -124,16 +125,14 @@ func NewAndroidWebRTCSession(device *models.DBDevice, streamPort string, streamT
 			"gads-stream",
 		)
 		if err != nil {
-			logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to create audio track: %v", err)
-			device.AudioStreamEnabled = false
+			logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to create audio track, continuing without audio: %v", err)
 		} else {
-			session.audioTrack = audioTrack
-
 			audioRtpSender, err := pc.AddTrack(audioTrack)
 			if err != nil {
-				logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to add audio track: %v", err)
-				device.AudioStreamEnabled = false
+				logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to add audio track, continuing without audio: %v", err)
 			} else {
+				session.audioTrack = audioTrack
+
 				// Handle RTCP packets for audio track
 				go func() {
 					rtcpBuf := make([]byte, 1500)
@@ -174,7 +173,7 @@ func (s *AndroidWebRTCSession) Start() error {
 	go s.writeFrames()
 
 	// Start audio extractor if enabled
-	if s.device.AudioStreamEnabled && s.audioTrack != nil {
+	if s.audioTrack != nil {
 		audioExtractor, err := NewPCMAudioExtractorAndroid(s.device)
 		if err != nil {
 			logger.ProviderLogger.LogErrorf("webrtc_session", "Failed to create audio extractor: %v", err)

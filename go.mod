@@ -127,3 +127,12 @@ require (
 	golang.org/x/crypto v0.39.0
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+// Upstream jj11hh/opus shares one process-wide Wasm runtime, module and
+// api.Function cache across every Encoder/Decoder, with no synchronization.
+// wazero documents api.Function.Call as not goroutine-safe, so streaming audio
+// from two devices at once corrupts the Wasm stack and aborts the provider with
+// an unrecoverable runtime error ("split stack overflow"), reprovisioning every
+// device. The fork adds a mutex around the Wasm calls.
+// Remove once https://github.com/jj11hh/opus upstreams the fix.
+replace github.com/jj11hh/opus => github.com/gifflet/opus v1.0.2-0.20260922144100-a323d35d8980

@@ -64,7 +64,7 @@ func AppiumReverseProxy(c *gin.Context) {
 	path := c.Param("proxyPath")
 
 	proxy := newAppiumProxy(target, path)
-	proxy.ServeHTTP(c.Writer, c.Request)
+	serveAppiumLifecycle(platDev, proxy, path, c.Writer, c.Request)
 }
 
 func newAppiumProxy(target string, path string) *httputil.ReverseProxy {
@@ -265,6 +265,12 @@ func DeviceInfo(c *gin.Context) {
 		AppiumSessionID: platDev.GetAppiumSessionID(),
 		IsAppiumUp:      platDev.GetIsAppiumUp(),
 		InstalledApps:   platDev.GetInstalledAppBundleIDs(),
+	}
+
+	// Android audio is provisioned per setup run and AudioPort is only set when that
+	// succeeded. Report audio as off for this run without touching the stored config.
+	if resp.DBDevice.OS == "android" && resp.DBDevice.AudioPort == "" {
+		resp.DBDevice.AudioStreamEnabled = false
 	}
 
 	if rcDev, rcOk := platDev.(devices.RemoteControllable); rcOk {

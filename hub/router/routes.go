@@ -594,6 +594,11 @@ func DeviceInUseWS(c *gin.Context) {
 		device.Mu.Lock()
 		device.RefreshLock()
 		device.Mu.Unlock()
+		// Holding a device in the UI counts as using the hub - without this the
+		// user's session could go idle while they sit on the device control page,
+		// which makes no requests of its own. The 30 minute inactivity check
+		// above still ends a session nobody is actually working in
+		auth.TouchSession(claims.SessionID) //nolint:errcheck — the session going away just means the next request gets a 401
 	}
 }
 
@@ -1811,6 +1816,12 @@ func UpdateTURNConfig(c *gin.Context) {
 			return
 		}
 
+		// TLS port is optional: 0 (or empty) disables TURN over TLS (turns:).
+		if config.TLSPort < 0 || config.TLSPort > 65535 {
+			api.BadRequest(c, "TLS port must be between 0 and 65535 (0 disables TLS)")
+			return
+		}
+
 		if config.SharedSecret == "" {
 			api.BadRequest(c, "Shared secret is required when TURN is enabled")
 			return
@@ -1820,6 +1831,7 @@ func UpdateTURNConfig(c *gin.Context) {
 		if config.TTL == 0 {
 			config.TTL = 3600 // Default: 1 hour
 		}
+		// TLS port is intentionally NOT defaulted — leaving it 0 keeps TURN over TLS disabled.
 	}
 
 	err := db.GlobalMongoStore.UpdateTURNConfig(config)

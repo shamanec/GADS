@@ -39,6 +39,16 @@ func (m *MongoStore) AddOrUpdateDevice(device *models.DBDevice) error {
 	return UpsertDocument[models.DBDevice](m.Ctx, coll, filter, *device)
 }
 
+// UpdateDeviceScreenSize persists only the screen dimensions detected by the provider.
+// A full document upsert would also rewrite configuration fields owned by the hub
+// (audio settings, usage, stream type) with the provider's possibly stale in-memory copy.
+func (m *MongoStore) UpdateDeviceScreenSize(udid, screenWidth, screenHeight string) error {
+	coll := m.GetCollection("new_devices")
+	filter := bson.M{"udid": udid}
+	updates := bson.M{"screen_width": screenWidth, "screen_height": screenHeight}
+	return PartialDocumentUpdate(m.Ctx, coll, filter, updates)
+}
+
 func (m *MongoStore) GetProviderDevices(providerNickname string) ([]models.DBDevice, error) {
 	coll := m.GetCollection("new_devices")
 	filter := bson.M{"provider": providerNickname}

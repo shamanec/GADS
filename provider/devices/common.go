@@ -54,6 +54,22 @@ func Listener() {
 
 // syncDevicesToDB polls the DB for device config changes and reconciles DevManager:
 // updates DB fields on existing devices, removes deleted devices, adds new ones.
+// applySetupTimeConfig copies the configuration that is only wired while the device
+// is being set up and reports whether the device has to be reprovisioned for the
+// change to take effect.
+func applySetupTimeConfig(dbDevice *models.DBDevice, updatedDevice *models.DBDevice) bool {
+	if dbDevice.StreamType == updatedDevice.StreamType &&
+		dbDevice.AudioStreamEnabled == updatedDevice.AudioStreamEnabled &&
+		dbDevice.AudioInputType == updatedDevice.AudioInputType {
+		return false
+	}
+
+	dbDevice.StreamType = updatedDevice.StreamType
+	dbDevice.AudioStreamEnabled = updatedDevice.AudioStreamEnabled
+	dbDevice.AudioInputType = updatedDevice.AudioInputType
+	return true
+}
+
 func syncDevicesToDB() {
 	updatedDevices := getDBProviderDevices()
 
@@ -94,8 +110,7 @@ func syncDevicesToDB() {
 		if dbDevice.WorkspaceID != updatedDevice.WorkspaceID {
 			dbDevice.WorkspaceID = updatedDevice.WorkspaceID
 		}
-		if dbDevice.StreamType != updatedDevice.StreamType {
-			dbDevice.StreamType = updatedDevice.StreamType
+		if applySetupTimeConfig(dbDevice, updatedDevice) {
 			devicesToReset = append(devicesToReset, udid)
 		}
 
