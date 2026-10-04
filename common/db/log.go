@@ -33,6 +33,19 @@ func (m *MongoStore) GetAppiumLogs(collectionName string, logLimit int) ([]model
 	return GetDocuments[models.AppiumPluginLog](m.Ctx, coll, bson.D{{}}, findOptions)
 }
 
+// GetAppiumLogsSince returns the Appium logs with a timestamp at or after the provided one, oldest first
+func (m *MongoStore) GetAppiumLogsSince(collectionName string, timestamp int64) ([]models.AppiumPluginLog, error) {
+	coll := m.GetCollectionWithDB(appiumLogDB, collectionName)
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{
+		{Key: "timestamp", Value: 1},
+		{Key: "sequenceNumber", Value: 1},
+	})
+	filter := bson.D{{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: timestamp}}}}
+
+	return GetDocuments[models.AppiumPluginLog](m.Ctx, coll, filter, findOptions)
+}
+
 func (m *MongoStore) GetProviderLogs(collectionName string, logLimit int) ([]models.ProviderLog, error) {
 	coll := m.GetCollectionWithDB(providerLogDB, collectionName)
 	findOptions := options.Find()

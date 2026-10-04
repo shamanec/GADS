@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -108,6 +109,112 @@ func GetAppiumLogs(c *gin.Context) {
 	}
 
 	api.OK(c, "Successfully retrieved Appium logs", logs)
+}
+
+// AppiumLogsSSE godoc
+// @Summary      Appium logs stream
+// @Description  Server-sent events stream of Appium logs from a specific collection. Every event is a JSON array of logs, oldest first - the first one holds the latest logs up to the limit, each next one the logs stored since the previous event
+// @Tags         Hub - Logs
+// @Accept       json
+// @Produce      text/event-stream
+// @Param        collection  query     string  true   "Collection name"
+// @Param        logLimit    query     int     false  "Log limit for the first event (max 1000, default 100)"
+// @Success      200         {object}  []models.AppiumPluginLog
+// @Failure      400         {object}  models.ErrorResponse
+// @Failure      500         {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /appium-logs/stream [get]
+func AppiumLogsSSE(c *gin.Context) {
+	logLimit, _ := strconv.Atoi(c.DefaultQuery("logLimit", "100"))
+	if logLimit > 1000 {
+		logLimit = 1000
+	}
+
+	collectionName := c.DefaultQuery("collection", "")
+	if collectionName == "" {
+		api.BadRequest(c, "Empty collection name provided")
+		return
+	}
+
+	// Start with the same logs GetAppiumLogs returns but oldest first so clients can just append every event
+	logs, err := db.GlobalMongoStore.GetAppiumLogs(collectionName, logLimit)
+	if err != nil {
+		api.InternalError(c, fmt.Sprintf("Failed to get logs - %s", err))
+		return
+	}
+	slices.Reverse(logs)
+	tail := newAppiumLogTail(logs)
+
+	c.Stream(func(w io.Writer) bool {
+		jsonData, _ := json.Marshal(logs)
+		c.SSEvent("", string(jsonData))
+		c.Writer.Flush()
+		time.Sleep(1 * time.Second)
+
+		// On a failed read nothing new is sent and the next poll reads the same logs again
+		newLogs, _ := db.GlobalMongoStore.GetAppiumLogsSince(collectionName, tail.since())
+		logs = tail.unsent(newLogs)
+		return true
+	})
+}
+
+// appiumLogStreamOverlap is how far back in milliseconds each Appium log stream poll reads before the newest sent log.
+// The Appium plugin posts logs without waiting for the previous ones to be stored so they can land slightly out of order,
+// reading a short overlap and skipping the logs that were already sent picks up the late ones
+const appiumLogStreamOverlap int64 = 2000
+
+type appiumLogKey struct {
+	timestamp      int64
+	sequenceNumber int64
+}
+
+func (k appiumLogKey) before(other appiumLogKey) bool {
+	return k.timestamp < other.timestamp || (k.timestamp == other.timestamp && k.sequenceNumber < other.sequenceNumber)
+}
+
+// appiumLogTail keeps track of the logs an Appium log stream already sent
+type appiumLogTail struct {
+	oldest appiumLogKey // Logs older than the first event are history the client did not ask for
+	newest int64
+	sent   map[appiumLogKey]struct{}
+}
+
+// newAppiumLogTail starts tracking a stream from the logs sent in its first event, oldest first
+func newAppiumLogTail(initial []models.AppiumPluginLog) *appiumLogTail {
+	tail := &appiumLogTail{sent: make(map[appiumLogKey]struct{})}
+	if len(initial) > 0 {
+		tail.oldest = appiumLogKey{initial[0].Timestamp, initial[0].SequenceNumber}
+	}
+	tail.unsent(initial)
+	return tail
+}
+
+// since returns the timestamp the next poll should read logs from
+func (t *appiumLogTail) since() int64 {
+	return t.newest - appiumLogStreamOverlap
+}
+
+// unsent returns the logs that were not sent yet and marks them as sent
+func (t *appiumLogTail) unsent(logs []models.AppiumPluginLog) []models.AppiumPluginLog {
+	result := make([]models.AppiumPluginLog, 0, len(logs))
+	for _, appiumLog := range logs {
+		key := appiumLogKey{appiumLog.Timestamp, appiumLog.SequenceNumber}
+		if _, ok := t.sent[key]; ok || key.before(t.oldest) {
+			continue
+		}
+		t.sent[key] = struct{}{}
+		t.newest = max(t.newest, appiumLog.Timestamp)
+		result = append(result, appiumLog)
+	}
+
+	// Logs older than the overlap will not be read again so there is no need to remember them
+	for key := range t.sent {
+		if key.timestamp < t.since() {
+			delete(t.sent, key)
+		}
+	}
+
+	return result
 }
 
 // GetProviderLogs godoc
