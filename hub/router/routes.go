@@ -594,6 +594,11 @@ func DeviceInUseWS(c *gin.Context) {
 		device.Mu.Lock()
 		device.RefreshLock()
 		device.Mu.Unlock()
+		// Holding a device in the UI counts as using the hub - without this the
+		// user's session could go idle while they sit on the device control page,
+		// which makes no requests of its own. The 30 minute inactivity check
+		// above still ends a session nobody is actually working in
+		auth.TouchSession(claims.SessionID) //nolint:errcheck — the session going away just means the next request gets a 401
 	}
 }
 

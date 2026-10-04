@@ -17,3 +17,6 @@ memory/*
 GADS-Remote/*
 GADS-Remote
 design_handoff_gads_modernisation/*
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml

@@ -17,6 +17,8 @@ Run `./GADS hub` with the following flags:
 - `--auth=` - enable/disable authentication. When disabled you can access any UI page/hub endpoint without login token validation, note that this is **highly insecure** and should be used only for development - `true/false`
 - `--mongo-db=` - IP address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`) - tested only on local network
 - `--files-dir=` - directory where the UI static files will be unpacked and served from. By default the app tries to use a temporary folder available on the host automatically. **NB** Use this flag only if you have issues with the default behaviour.
+- `--token-ttl=` - how long an authentication session survives without being used, e.g. `30m`, `2h` (default `1h`). Every request slides it forward, so this is an inactivity timeout - see [Authentication sessions](#authentication-sessions)
+- `--max-session-age=` - maximum total lifetime of a user session no matter how much it is used (default `24h`, use `0` for no limit). Sessions from the OAuth2 client credentials flow are not affected
 
 Then access the hub UI and API on `http://{host-address}:{port}`
 
@@ -30,6 +32,25 @@ If you want to work on the React UI with hot reload you need to add a proxy in `
 4. Run `npm start`
 
 ## Additional notes
+
+### Authentication sessions
+
+Both `POST /authenticate` (username/password) and `POST /oauth/token` (OAuth2 client credentials) start a session and return a token for it. The token is just a key to that session - the session is what decides whether it still works.
+
+Every request made with the token slides its session forward, so a long running automation never loses its authentication mid-run. The token itself never changes, so clients need no special handling - keep sending the one you got.
+
+A session ends when:
+
+- it is **not used for `--token-ttl`** (default 1 hour). This is the only thing that expires an actively working client - keep making requests and the session stays alive indefinitely
+- a **user session** reaches `--max-session-age` (default 24 hours) from the moment of login, no matter how much it is used. After that the user authenticates again. Set `--max-session-age=0` to remove this limit. **Client credentials sessions have no such limit** - the client holds a secret and could authenticate again at any time anyway
+- the user logs out (`POST /logout`), which drops the session immediately - the token stops working even though it is still correctly signed
+- **the hub restarts.** Sessions are held in memory only, so a restart ends all of them and everyone authenticates again
+
+Tokens issued by an external identity provider (validated through an origin secret key) have no session with the hub - they are valid for exactly as long as their own expiry says.
+
+In the UI this means you stay logged in while you work, and holding a device open on the device control page keeps your session alive even though that page makes no requests of its own. The existing 30 minute device inactivity timeout still applies there.
+
+Note that the Appium grid is **not** affected by any of this - `/grid/*` session requests authenticate with the `gads:clientSecret` capability, which does not expire. WebSocket and stream connections are authenticated when they are opened and are not interrupted if the session behind them later ends.
 
 ### Users administration
 
