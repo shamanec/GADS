@@ -16,7 +16,6 @@ import (
 	"GADS/hub/auth/clientcredentials"
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -95,7 +94,7 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 	response := models.AuthResponse{
 		AccessToken: token,
 		TokenType:   "Bearer",
-		ExpiresIn:   3600,
+		ExpiresIn:   int(auth.TokenTTL().Seconds()),
 		Username:    credential.UserID,
 		Role:        userRole,
 	}
@@ -104,12 +103,12 @@ func OAuth2TokenEndpoint(c *gin.Context) {
 }
 
 func generateAccessToken(credential *models.ClientCredentials, origin string, userRole string) (string, error) {
-	token, err := auth.GenerateJWT(
+	token, err := auth.GenerateClientCredentialsJWT(
+		credential.ClientID,
 		credential.UserID,
 		userRole,
 		credential.Tenant,
 		[]string{userRole},
-		time.Hour,
 		origin,
 	)
 	if err != nil {

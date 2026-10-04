@@ -163,7 +163,7 @@ func TestGenerateAndValidateJWTWithMultipleKeys(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Generate token with specific origin
-			token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, tc.origin)
+			token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, tc.origin)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, token)
 
@@ -204,7 +204,7 @@ func TestOriginClaimInToken(t *testing.T) {
 
 	// Generate token with origin
 	origin := "https://web.example.com"
-	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, origin)
+	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, origin)
 	assert.NoError(t, err)
 
 	// Parse token to verify origin is included in claims
@@ -232,7 +232,7 @@ func TestFallbackToDefaultKey(t *testing.T) {
 
 	// Generate token with unknown origin
 	origin := "unknown-origin"
-	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, origin)
+	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, origin)
 	assert.NoError(t, err)
 
 	// Validate token with unknown origin
@@ -304,7 +304,7 @@ func TestGetClaimsFromToken(t *testing.T) {
 
 	// Generate token
 	origin := "https://web.example.com"
-	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, time.Hour, origin)
+	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"}, origin)
 	assert.NoError(t, err)
 
 	// Test cases
