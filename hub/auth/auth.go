@@ -128,7 +128,9 @@ func LoginHandler(c *gin.Context) {
 		api.Unauthorized(c, "Invalid credentials")
 		return
 	}
-	if user.Password != creds.Password {
+	// Users who sign in through SSO have no password - an empty one must not
+	// match the empty password of the request
+	if user.AuthSource == models.AuthSourceOIDC || user.Password == "" || user.Password != creds.Password {
 		api.Unauthorized(c, "Invalid credentials")
 		return
 	}
@@ -254,6 +256,11 @@ func ChangePasswordHandler(c *gin.Context) {
 		return
 	}
 
+	if user.AuthSource == models.AuthSourceOIDC {
+		api.BadRequest(c, "Users who sign in through SSO have no GADS password")
+		return
+	}
+
 	// A wrong current password is a bad request, NOT a 401 - the user is
 	// authenticated. Returning 401 here would trip the UI's global response
 	// interceptor and log the user out instead of showing the error.
@@ -266,6 +273,9 @@ func ChangePasswordHandler(c *gin.Context) {
 		api.InternalError(c, "Failed to update password")
 		return
 	}
+
+	// Whoever knew the old password is signed out everywhere but here
+	DeleteUserSessions(username, c.GetString("session_id"))
 
 	api.OKMessage(c, "Password updated successfully")
 }
@@ -456,6 +466,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("role", claims.Role)
 		c.Set("tenant", claims.Tenant)
 		c.Set("origin", claims.Origin) // Store origin in context
+		c.Set("session_id", claims.SessionID)
 
 		// Continue execution
 		c.Next()

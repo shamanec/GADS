@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>GADS - signing in</title></head>
+<body>
+<p>Signing in...</p>
+<script>
+try {
+  localStorage.setItem('accessToken', {{.Token}});
+  localStorage.setItem('username', {{.Username}});
+  localStorage.setItem('userRole', {{.Role}});
+  window.location.replace('/');
+} catch (e) {
+  document.body.textContent = 'Sign-in failed: ' + e.message;
+}
+</script>
+<noscript><p>JavaScript is required to finish signing in.</p></noscript>
+</body>
+</html>
