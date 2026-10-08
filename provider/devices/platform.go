@@ -22,6 +22,7 @@ type PlatformDevice interface {
 	// Lifecycle
 	Setup() error
 	Reset(reason string)
+	TryBeginSetup() (func(), bool)
 
 	// Apps
 	InstallApp(path string) error
