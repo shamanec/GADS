@@ -100,6 +100,23 @@ func DeleteSession(id string) {
 	delete(sessions, id)
 }
 
+// DeleteUserSessions ends every session of a user except keepID, which can be
+// empty, and returns how many it ended. Sessions of machine clients are left
+// alone: they are ended by revoking the client
+func DeleteUserSessions(username, keepID string) int {
+	sessionsMu.Lock()
+	defer sessionsMu.Unlock()
+
+	deleted := 0
+	for id, session := range sessions {
+		if session.Username == username && session.ClientID == "" && id != keepID {
+			delete(sessions, id)
+			deleted++
+		}
+	}
+	return deleted
+}
+
 // sessionExpired reports whether a session went idle for longer than the token
 // TTL, or whether a user session outlived the absolute session age
 func sessionExpired(session *Session, now time.Time) bool {

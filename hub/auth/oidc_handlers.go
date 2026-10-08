@@ -210,7 +210,7 @@ func SSOCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	err = provisionSSOUser(identity)
+	roleChanged, err := provisionSSOUser(identity)
 	switch {
 	case errors.Is(err, errLocalUserExists):
 		api.Forbidden(c, fmt.Sprintf("User `%s` signs in with a GADS password, not through SSO", identity.Username))
@@ -226,6 +226,11 @@ func SSOCallbackHandler(c *gin.Context) {
 		slog.Error(fmt.Sprintf("Failed to provision SSO user `%s` - %s", identity.Username, err))
 		api.InternalError(c, "Failed to sign in")
 		return
+	}
+
+	// Sessions started with the previous role must not keep it
+	if roleChanged {
+		DeleteUserSessions(identity.Username, "")
 	}
 
 	scopes := []string{"user"}
@@ -265,34 +270,36 @@ func SSOStatusHandler(c *gin.Context) {
 }
 
 // provisionSSOUser creates the account of an SSO identity on its first sign-in
-// and keeps its role in line with the provider afterwards
-func provisionSSOUser(identity oidcIdentity) error {
+// and keeps its role in line with the provider afterwards. It reports whether
+// the role of an existing account changed
+func provisionSSOUser(identity oidcIdentity) (bool, error) {
 	user, err := db.GlobalMongoStore.GetUser(identity.Username)
 	if err == mongo.ErrNoDocuments {
 		err = createSSOUser(identity)
 		if !mongo.IsDuplicateKeyError(err) {
-			return err
+			return false, err
 		}
 		// Another sign-in of the same identity created the account meanwhile
 		user, err = db.GlobalMongoStore.GetUser(identity.Username)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to look up the user: %w", err)
+		return false, fmt.Errorf("failed to look up the user: %w", err)
 	}
 
+	previousRole := user.Role
 	changed, err := reconcileSSOUser(&user, identity)
 	if err != nil || !changed {
-		return err
+		return false, err
 	}
 
 	matched, err := db.GlobalMongoStore.UpdateSSOUser(user.Username, user.OIDCSubject, user.Role)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !matched {
-		return errSSOUserChanged
+		return false, errSSOUserChanged
 	}
-	return nil
+	return user.Role != previousRole, nil
 }
 
 func createSSOUser(identity oidcIdentity) error {

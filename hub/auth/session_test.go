@@ -151,6 +151,28 @@ func TestDeleteSession(t *testing.T) {
 	assert.ErrorIs(t, err, ErrSessionExpired, "a deleted session never comes back")
 }
 
+func TestDeleteUserSessions(t *testing.T) {
+	withTestLifetimes(t, time.Hour, 24*time.Hour)
+	withEmptySessions(t)
+
+	first := CreateSession("testuser", "")
+	second := CreateSession("testuser", "")
+	current := CreateSession("testuser", "")
+	machine := CreateSession("testuser", "ci-client")
+	other := CreateSession("otheruser", "")
+
+	assert.Equal(t, 2, DeleteUserSessions("testuser", current.ID))
+
+	for _, ended := range []*Session{first, second} {
+		_, err := TouchSession(ended.ID)
+		assert.ErrorIs(t, err, ErrSessionExpired)
+	}
+	for _, kept := range []*Session{current, machine, other} {
+		_, err := TouchSession(kept.ID)
+		assert.NoError(t, err, "session %s of %s was ended", kept.ID, kept.Username)
+	}
+}
+
 func TestSweepExpiredSessions(t *testing.T) {
 	withTestLifetimes(t, time.Hour, 24*time.Hour)
 	withEmptySessions(t)

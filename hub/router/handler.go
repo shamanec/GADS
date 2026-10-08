@@ -150,6 +150,7 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.DELETE("/apps/:id", DeleteApp)
 	authGroup.PUT("/admin/user", UpdateUser)
 	authGroup.DELETE("/admin/user/:nickname", DeleteUser)
+	authGroup.DELETE("/admin/user/:nickname/sessions", DeleteUserSessions)
 	authGroup.GET("/admin/global-settings", GetGlobalStreamSettings)
 	authGroup.POST("/admin/global-settings", UpdateGlobalStreamSettings)
 	authGroup.GET("/admin/minio-config", GetMinioConfig)

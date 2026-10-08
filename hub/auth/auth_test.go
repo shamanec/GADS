@@ -129,6 +129,29 @@ func TestAuthMiddlewareRejectsTokenOfDeletedSession(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, authedRequest(t, token).Code)
 }
 
+func TestAuthMiddlewareExposesTheSessionOfTheToken(t *testing.T) {
+	withTestLifetimes(t, time.Hour, 24*time.Hour)
+	withEmptySessions(t)
+	withTestSecretCache(t)
+
+	token, err := GenerateJWT("testuser", "user", "tenant1", []string{"user"})
+	assert.NoError(t, err)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	var sessionID string
+	router.GET("/health", func(c *gin.Context) {
+		sessionID = c.GetString("session_id")
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(httptest.NewRecorder(), request)
+
+	assert.Equal(t, sessionIDOf(t, token), sessionID)
+}
+
 func TestAuthMiddlewareRejectsTokenWithoutSession(t *testing.T) {
 	withTestLifetimes(t, time.Hour, 24*time.Hour)
 	withEmptySessions(t)

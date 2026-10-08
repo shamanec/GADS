@@ -274,6 +274,9 @@ func ChangePasswordHandler(c *gin.Context) {
 		return
 	}
 
+	// Whoever knew the old password is signed out everywhere but here
+	DeleteUserSessions(username, c.GetString("session_id"))
+
 	api.OKMessage(c, "Password updated successfully")
 }
 
@@ -463,6 +466,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("role", claims.Role)
 		c.Set("tenant", claims.Tenant)
 		c.Set("origin", claims.Origin) // Store origin in context
+		c.Set("session_id", claims.SessionID)
 
 		// Continue execution
 		c.Next()
