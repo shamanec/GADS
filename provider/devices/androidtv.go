@@ -23,6 +23,7 @@ type AndroidTvDevice struct {
 func (d *AndroidTvDevice) Setup() error {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+	ctx := d.GetContext()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfof("androidtv_device_setup", "Running setup for Android TV device `%v`", d.GetUDID())
@@ -40,7 +41,10 @@ func (d *AndroidTvDevice) Setup() error {
 		return err
 	}
 
-	d.SetProviderState("live")
+	if err := d.setLiveUnlessReset(ctx); err != nil {
+		logger.ProviderLogger.LogWarnf("androidtv_device_setup", "Setup for device `%v` stopped - %v", d.GetUDID(), err)
+		return err
+	}
 	return nil
 }
 

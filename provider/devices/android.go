@@ -65,6 +65,7 @@ func (d *AndroidDevice) GetADBPort() string                 { return d.ADBPort }
 func (d *AndroidDevice) Setup() (retErr error) {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+	ctx := d.GetContext()
 
 	if time.Now().Before(d.setupBackoffUntil) {
 		return nil
@@ -128,7 +129,10 @@ func (d *AndroidDevice) Setup() (retErr error) {
 		return err
 	}
 
-	d.SetProviderState("live")
+	if err := d.setLiveUnlessReset(ctx); err != nil {
+		logger.ProviderLogger.LogWarnf("android_device_setup", "Setup for device `%v` stopped - %v", d.GetUDID(), err)
+		return err
+	}
 	return nil
 }
 

@@ -11,8 +11,10 @@ package devices
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Masterminds/semver"
@@ -41,6 +43,7 @@ type RuntimeState struct {
 	appiumStateMu        sync.RWMutex
 	AppiumLifecycleMutex sync.Mutex // serializes session creation/deletion, not ordinary commands
 	SetupMutex           sync.Mutex
+	setupRunning         atomic.Bool // a Setup started by the sync loop has not returned yet
 	Logger               models.CustomLogger
 	SemVer               *semver.Version
 	InitialSetupDone     bool
@@ -221,6 +224,32 @@ func (r *RuntimeState) ResetBase(reason string) bool {
 		return true
 	}
 	return false
+}
+
+// errResetDuringSetup stops a Setup whose device was reset while it ran. It does not wrap
+// context.Canceled, so the setup backoff still applies to a device that keeps failing.
+var errResetDuringSetup = errors.New("device was reset while setup was running")
+
+// TryBeginSetup reserves the device for one Setup run and returns the function that ends it.
+// It returns false while the previous run has not returned yet.
+func (r *RuntimeState) TryBeginSetup() (func(), bool) {
+	if !r.setupRunning.CompareAndSwap(false, true) {
+		return nil, false
+	}
+	return func() { r.setupRunning.Store(false) }, true
+}
+
+// setLiveUnlessReset marks the device live unless ctx, the context its Setup started with, was
+// cancelled by a Reset meanwhile. It holds the ResetBase lock, so a concurrent Reset lands either
+// before (and Setup reports errResetDuringSetup) or after the device went live.
+func (r *RuntimeState) setLiveUnlessReset(ctx context.Context) error {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	if ctx.Err() != nil {
+		return errResetDuringSetup
+	}
+	r.ProviderState = "live"
+	return nil
 }
 
 // Reset is the default reset implementation. Platform types with ports or tunnels should override this.
