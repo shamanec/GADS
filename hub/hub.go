@@ -141,6 +141,15 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 		os.Exit(1)
 	}
 
+	// Make usernames unique, SSO users are created by their first sign-in
+	err = db.GlobalMongoStore.CreateUserIndexes()
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to make usernames unique, two concurrent first SSO sign-ins can create a user twice - %s", err))
+	}
+
+	// Sign-in through an OpenID Connect provider comes up in the background
+	configureOIDC(flags)
+
 	// Create database indexes for client credentials
 	err = db.GlobalMongoStore.CreateClientCredentialIndexes()
 	if err != nil {
@@ -332,4 +341,51 @@ func setupResources(resourceFiles embed.FS) error {
 	}
 
 	return nil
+}
+
+// configureOIDC applies the OIDC configuration on start. The --oidc-* flags
+// replace the stored configuration, so a deployment that passes them has a
+// single source of truth; without them the stored configuration is used
+func configureOIDC(flags *pflag.FlagSet) {
+	issuer, _ := flags.GetString("oidc-issuer")
+	if issuer == "" {
+		oidcConfig, err := db.GlobalMongoStore.GetOIDCConfig()
+		if err != nil {
+			slog.Warn(fmt.Sprintf("Failed to get OIDC configuration, SSO is off - %s", err))
+			return
+		}
+		if err := oidcConfig.Validate(); err != nil {
+			slog.Error(fmt.Sprintf("Invalid stored OIDC configuration, SSO is off - %s", err))
+			return
+		}
+		auth.ConfigureOIDC(oidcConfig)
+		return
+	}
+
+	clientID, _ := flags.GetString("oidc-client-id")
+	clientSecret, _ := flags.GetString("oidc-client-secret")
+	redirectURI, _ := flags.GetString("oidc-redirect-uri")
+	adminGroup, _ := flags.GetString("oidc-admin-group")
+	groupsClaim, _ := flags.GetString("oidc-groups-claim")
+
+	oidcConfig := models.OIDCConfig{
+		Enabled:      true,
+		IssuerURL:    issuer,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURI:  redirectURI,
+		AdminGroup:   adminGroup,
+		GroupsClaim:  groupsClaim,
+	}
+
+	if err := oidcConfig.Validate(); err != nil {
+		slog.Error(fmt.Sprintf("Invalid --oidc-* flags, SSO is off - %s", err))
+		return
+	}
+
+	err := db.GlobalMongoStore.UpdateOIDCConfig(oidcConfig)
+	if err != nil {
+		slog.Warn(fmt.Sprintf("Failed to store OIDC configuration from the flags - %s", err))
+	}
+	auth.ConfigureOIDC(oidcConfig)
 }

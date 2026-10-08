@@ -49,6 +49,13 @@ func main() {
 		"\nTokens are automatically renewed while they are being used, so this is effectively an inactivity timeout")
 	hubCmd.Flags().Duration("max-session-age", 24*time.Hour, "Maximum total lifetime of a user session, no matter how many times its token was renewed."+
 		"\nUse 0 for no limit. Tokens from the OAuth2 client credentials flow are not affected")
+	hubCmd.Flags().String("oidc-issuer", "", "Issuer URL of an OpenID Connect provider to sign in through, e.g. https://sso.example.com/realms/example."+
+		"\nWhen set, the --oidc-* flags replace the OIDC configuration stored in the database on every start")
+	hubCmd.Flags().String("oidc-client-id", "", "Client ID of the hub at the OpenID Connect provider")
+	hubCmd.Flags().String("oidc-client-secret", "", "Client secret of the hub at the OpenID Connect provider")
+	hubCmd.Flags().String("oidc-redirect-uri", "", "Callback URL of the hub registered at the provider, e.g. https://gads.example.com/auth/sso/callback")
+	hubCmd.Flags().String("oidc-admin-group", "", "Provider group whose members get the admin role")
+	hubCmd.Flags().String("oidc-groups-claim", "groups", "ID token claim that lists the groups of the user")
 	rootCmd.AddCommand(hubCmd)
 
 	// Provider Command

@@ -34,12 +34,20 @@ type CustomLogger interface {
 	LogPanicf(eventName string, format string, args ...any)
 }
 
+// AuthSourceOIDC marks a user who signs in through the OpenID Connect provider
+// and has no GADS password
+const AuthSourceOIDC = "oidc"
+
 type User struct {
 	Username     string   `json:"username" bson:"username" example:"john_doe"`
 	Password     string   `json:"password" bson:"password,omitempty" example:"secure_password"`
 	Role         string   `json:"role,omitempty" bson:"role" example:"user" enums:"admin,user"`
 	ID           string   `json:"_id" bson:"_id,omitempty" example:"507f1f77bcf86cd799439011"`
 	WorkspaceIDs []string `json:"workspace_ids" bson:"workspace_ids" example:"workspace_id_1,workspace_id_2"`
+	// AuthSource is empty for local users. It is set by the hub only, never taken from a request
+	AuthSource string `json:"auth_source,omitempty" bson:"auth_source,omitempty" example:"oidc" enums:"oidc"`
+	// OIDCSubject is the `sub` claim the account is bound to, so a renamed identity cannot take it over
+	OIDCSubject string `json:"-" bson:"oidc_subject,omitempty"`
 }
 
 type DBDevice struct {

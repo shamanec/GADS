@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/Masterminds/semver v1.5.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/danielpaulus/go-ios v1.2.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gobwas/ws v1.4.0
@@ -20,6 +21,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090
+	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sync v0.15.0
 )
 
@@ -33,6 +35,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.21.1 // indirect
 	github.com/go-openapi/jsonreference v0.21.0 // indirect

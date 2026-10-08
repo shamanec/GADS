@@ -181,6 +181,9 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
+	// Users added here are local, SSO users are created by their first sign-in
+	user.AuthSource = ""
+
 	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		api.InternalError(c, "Failed checking for user in db - "+err.Error())
@@ -243,6 +246,13 @@ func UpdateUser(c *gin.Context) {
 		api.BadRequest(c, "Cannot update non-existing user")
 		return
 	}
+
+	if dbUser.AuthSource == models.AuthSourceOIDC && user.Password != "" {
+		api.BadRequest(c, "Users who sign in through SSO have no GADS password")
+		return
+	}
+	// The source of an account cannot change, an empty value leaves it as it is
+	user.AuthSource = ""
 
 	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {

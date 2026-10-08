@@ -128,7 +128,9 @@ func LoginHandler(c *gin.Context) {
 		api.Unauthorized(c, "Invalid credentials")
 		return
 	}
-	if user.Password != creds.Password {
+	// Users who sign in through SSO have no password - an empty one must not
+	// match the empty password of the request
+	if user.AuthSource == models.AuthSourceOIDC || user.Password == "" || user.Password != creds.Password {
 		api.Unauthorized(c, "Invalid credentials")
 		return
 	}
@@ -251,6 +253,11 @@ func ChangePasswordHandler(c *gin.Context) {
 	user, err := db.GlobalMongoStore.GetUser(username)
 	if err != nil {
 		api.InternalError(c, "Failed to load user")
+		return
+	}
+
+	if user.AuthSource == models.AuthSourceOIDC {
+		api.BadRequest(c, "Users who sign in through SSO have no GADS password")
 		return
 	}
 

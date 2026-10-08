@@ -108,6 +108,10 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/provider-update", ProviderUpdate)
 	// OAuth2 endpoints (unauthenticated)
 	authGroup.POST("/oauth/token", OAuth2TokenEndpoint)
+	// SSO endpoints (unauthenticated)
+	authGroup.GET("/auth/sso/login", auth.SSOLoginHandler)
+	authGroup.GET("/auth/sso/callback", auth.SSOCallbackHandler)
+	authGroup.GET("/auth/sso/status", auth.SSOStatusHandler)
 	// Enable authentication on the endpoints below
 	if config.GlobalHubConfig.AuthEnabled {
 		authGroup.Use(auth.AuthMiddleware())
@@ -150,6 +154,8 @@ func HandleRequests(uiFiles fs.FS) *gin.Engine {
 	authGroup.POST("/admin/global-settings", UpdateGlobalStreamSettings)
 	authGroup.GET("/admin/minio-config", GetMinioConfig)
 	authGroup.POST("/admin/minio-config", UpdateMinioConfig)
+	authGroup.GET("/admin/oidc-config", GetOIDCConfig)
+	authGroup.POST("/admin/oidc-config", UpdateOIDCConfig)
 	authGroup.GET("/admin/turn-config", GetTURNConfig)
 	authGroup.POST("/admin/turn-config", UpdateTURNConfig)
 	authGroup.GET("/ice-config", GetICEConfig)

@@ -51,6 +51,8 @@ type InstalledAppsResponse = APIResponse[[]string]
 type StreamSettingsResponse = APIResponse[StreamSettings]
 type MinioConfigResponse = APIResponse[MinioConfig]
 type TURNConfigResponse = APIResponse[TURNConfig]
+type OIDCConfigResponse = APIResponse[OIDCConfigView]
+type SSOStatusResponse = APIResponse[SSOStatus]
 type SysStatusResponse = APIResponse[SystemStatusResponse]
 type LogsResponse = APIResponse[[]LogEntry]
 
