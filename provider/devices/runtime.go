@@ -17,7 +17,6 @@ import (
 
 	"github.com/Masterminds/semver"
 
-	"GADS/common"
 	"GADS/common/models"
 	"GADS/provider/logger"
 	"GADS/provider/providerutil"
@@ -218,9 +217,7 @@ func (r *RuntimeState) ResetBase(reason string) bool {
 		r.IsResetting = false
 
 		// Free AppiumPort (common to all platforms)
-		common.MutexManager.LocalDevicePorts.Lock()
-		delete(providerutil.UsedPorts, r.AppiumPort)
-		common.MutexManager.LocalDevicePorts.Unlock()
+		providerutil.ReleasePorts(&r.AppiumPort)
 		return true
 	}
 	return false
@@ -232,15 +229,17 @@ func (r *RuntimeState) Reset(reason string) {
 }
 
 // resetWithError logs an error, resets the device, and returns the error — used by Setup() step methods.
-func (r *RuntimeState) resetWithError(step string, err error) error {
-	logger.ProviderLogger.LogErrorf("device_setup", "Failed to %s for device `%s` - %v", step, r.GetUDID(), err)
+// It takes the platform device rather than RuntimeState so the platform's own Reset() runs and frees
+// its ports and tunnels — a method on the embedded RuntimeState would only ever call the base Reset().
+func resetWithError(d PlatformDevice, step string, err error) error {
+	logger.ProviderLogger.LogErrorf("device_setup", "Failed to %s for device `%s` - %v", step, d.GetUDID(), err)
 	// For iOS devices attach recent go-ios output to the device logs for diagnostics
-	if r.DBDevice.OS == "ios" && r.Logger != nil {
-		if tail := logger.GoIOSLogs.Tail(r.GetUDID(), 150); tail != "" {
-			r.Logger.LogErrorf("go_ios_logs", "Recent go-ios logs for device `%s`:\n%s", r.GetUDID(), tail)
+	if d.GetOS() == "ios" && d.GetLogger() != nil {
+		if tail := logger.GoIOSLogs.Tail(d.GetUDID(), 150); tail != "" {
+			d.GetLogger().LogErrorf("go_ios_logs", "Recent go-ios logs for device `%s`:\n%s", d.GetUDID(), tail)
 		}
 	}
-	r.Reset(fmt.Sprintf("Failed to %s", step))
+	d.Reset(fmt.Sprintf("Failed to %s", step))
 	return fmt.Errorf("%s: %w", step, err)
 }
 
