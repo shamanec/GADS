@@ -72,3 +72,35 @@ test('notification failure cannot turn completed DELETE into a failed command', 
     await f.create('b');
     assert.equal(f.Plugin.currentSessionId, 'b');
 });
+
+test('plugin does not declare a generic handle() that would disable direct proxying', () => {
+    const f = fixture();
+    assert.equal(typeof new f.Plugin().handle, 'undefined');
+});
+
+test('session command requests report throttled activity without touching the request', () => {
+    const f = fixture();
+    const sent = [];
+    f.Plugin.apiClient.sendCommand = (data) => {sent.push(data);};
+    f.Plugin.lastCommandReportTs = 0;
+    f.Plugin.reportCommandActivity({method: 'GET', url: '/status'});
+    f.Plugin.reportCommandActivity({method: 'POST', url: '/wd/hub/session/abc/element?x=1'});
+    f.Plugin.reportCommandActivity({method: 'GET', url: '/session/abc/screenshot'});
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].command, 'POST /element');
+    assert.equal(sent[0].session_id, 'abc');
+});
+
+test('session creation and deletion are not reported as command activity', () => {
+    const f = fixture();
+    const sent = [];
+    f.Plugin.apiClient.sendCommand = (data) => {sent.push(data);};
+    f.Plugin.lastCommandReportTs = 0;
+    f.Plugin.reportCommandActivity({method: 'POST', url: '/session'});
+    f.Plugin.reportCommandActivity({method: 'DELETE', url: '/session/abc'});
+    assert.equal(sent.length, 0);
+    f.Plugin.reportCommandActivity({method: 'GET', url: '/session/abc'});
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].command, 'GET /');
+    assert.equal(sent[0].session_id, 'abc');
+});
