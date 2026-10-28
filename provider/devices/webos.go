@@ -29,6 +29,7 @@ type connectedWebOSDevice struct {
 func (d *WebOSDevice) Setup() error {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+	ctx := d.GetContext()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfof("webos_device_setup", "Running setup for WebOS device `%v`", d.GetUDID())
@@ -39,7 +40,10 @@ func (d *WebOSDevice) Setup() error {
 		return err
 	}
 
-	d.SetProviderState("live")
+	if err := d.setLiveUnlessReset(ctx); err != nil {
+		logger.ProviderLogger.LogWarnf("webos_device_setup", "Setup for device `%v` stopped - %v", d.GetUDID(), err)
+		return err
+	}
 	return nil
 }
 

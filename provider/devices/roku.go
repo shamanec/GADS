@@ -62,6 +62,7 @@ func rokuECPURL(udid, path string) string {
 func (d *RokuDevice) Setup() error {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+	ctx := d.GetContext()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfof("roku_device_setup", "Running setup for Roku device `%v`", d.GetUDID())
@@ -73,7 +74,10 @@ func (d *RokuDevice) Setup() error {
 		return err
 	}
 
-	d.SetProviderState("live")
+	if err := d.setLiveUnlessReset(ctx); err != nil {
+		logger.ProviderLogger.LogWarnf("roku_device_setup", "Setup for device `%v` stopped - %v", d.GetUDID(), err)
+		return err
+	}
 	return nil
 }
 

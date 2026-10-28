@@ -50,6 +50,7 @@ type tizenRetryState struct {
 func (d *TizenDevice) Setup() error {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+	ctx := d.GetContext()
 
 	d.SetProviderState("preparing")
 	logger.ProviderLogger.LogInfof("tizen_device_setup", "Running setup for Tizen device `%v`", d.GetUDID())
@@ -64,7 +65,10 @@ func (d *TizenDevice) Setup() error {
 		return err
 	}
 
-	d.SetProviderState("live")
+	if err := d.setLiveUnlessReset(ctx); err != nil {
+		logger.ProviderLogger.LogWarnf("tizen_device_setup", "Setup for device `%v` stopped - %v", d.GetUDID(), err)
+		return err
+	}
 	return nil
 }
 

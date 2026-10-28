@@ -392,8 +392,7 @@ func updateDevices() {
 							continue
 						}
 
-						setContext(platDev)
-						go platDev.Setup()
+						startSetup(platDev)
 					}
 				} else {
 					platDev.Reset("Device is no longer connected.")
@@ -463,6 +462,21 @@ func GetConnectedDevicesCommon() []string {
 	connectedDevices = append(connectedDevices, rokuDevices...)
 
 	return connectedDevices
+}
+
+// startSetup runs Setup in the background on a fresh context. It does nothing while the previous
+// run has not returned: replacing the context under it would let a run cancelled by Reset carry on
+// with the new one, using the ports that Reset released.
+func startSetup(platDev PlatformDevice) {
+	done, ok := platDev.TryBeginSetup()
+	if !ok {
+		return
+	}
+	setContext(platDev)
+	go func() {
+		defer done()
+		platDev.Setup()
+	}()
 }
 
 // setContext creates a new context for a device and stores it on the PlatformDevice's RuntimeState.

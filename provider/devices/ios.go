@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"GADS/common"
 	"GADS/common/constants"
 	"GADS/common/db"
 	"GADS/common/models"
@@ -51,6 +50,7 @@ type IOSDevice struct {
 	WDAPort          string          // host port for WebDriverAgent server (device port 8100)
 	WDAStreamPort    string          // host port for WebDriverAgent MJPEG stream (device port 9100)
 	StreamPort       string          // host port for device video stream (device port 8765)
+	TunnelPort       string          // host port reserved for the go-ios userspace tunnel
 	WDASessionID     string          // current WebDriverAgent session ID
 	GoIOSDeviceEntry ios.DeviceEntry // go-ios library device entry for USB communication
 	GoIOSTunnel      tunnel.Tunnel   // userspace tunnel for iOS 17.4+
@@ -67,6 +67,7 @@ func (d *IOSDevice) GetWDASessionID() string  { return d.WDASessionID }
 func (d *IOSDevice) Setup() (retErr error) {
 	d.SetupMutex.Lock()
 	defer d.SetupMutex.Unlock()
+	ctx := d.GetContext()
 
 	if time.Now().Before(d.setupBackoffUntil) {
 		return nil
@@ -93,16 +94,16 @@ func (d *IOSDevice) Setup() (retErr error) {
 	logger.ProviderLogger.LogInfof("ios_device_setup", "Running setup for device `%v`", d.GetUDID())
 
 	if err := d.initGoIOSDevice(); err != nil {
-		return d.resetWithError("get go-ios DeviceEntry", err)
+		return resetWithError(d, "get go-ios DeviceEntry", err)
 	}
 	if err := d.pair(); err != nil {
-		return d.resetWithError("pair device", err)
+		return resetWithError(d, "pair device", err)
 	}
 	if err := d.checkDeveloperMode(); err != nil {
-		return d.resetWithError("check developer mode status", err)
+		return resetWithError(d, "check developer mode status", err)
 	}
 	if err := d.mountDeveloperImage(); err != nil {
-		return d.resetWithError("mount Developer Disk Image (DDI)", err)
+		return resetWithError(d, "mount Developer Disk Image (DDI)", err)
 	}
 	if err := d.getDeviceInfoAndScreenSize(); err != nil {
 		return err // already reset inside
@@ -112,7 +113,7 @@ func (d *IOSDevice) Setup() (retErr error) {
 	}
 
 	if err := d.allocateAndForwardPorts(); err != nil {
-		return d.resetWithError("allocate or forward ports", err)
+		return resetWithError(d, "allocate or forward ports", err)
 	}
 
 	if err := d.startWebDriverAgent(); err != nil {
@@ -166,14 +167,17 @@ func (d *IOSDevice) Setup() (retErr error) {
 	}
 
 	if err := d.applyStreamConfig(); err != nil {
-		return d.resetWithError("apply device stream settings", err)
+		return resetWithError(d, "apply device stream settings", err)
 	}
 	if err := d.setupAppiumIfNeeded(); err != nil {
 		return err
 	}
 
 	d.InstalledApps = d.GetInstalledAppBundleIDs()
-	d.SetProviderState("live")
+	if err := d.setLiveUnlessReset(ctx); err != nil {
+		logger.ProviderLogger.LogWarnf("ios_device_setup", "Setup for device `%v` stopped - %v", d.GetUDID(), err)
+		return err
+	}
 	return nil
 }
 
@@ -258,12 +262,17 @@ func (d *IOSDevice) getDeviceInfoAndScreenSize() error {
 }
 
 func (d *IOSDevice) setupTunnelIfNeeded() error {
+	// Free a tunnel port still held from a previous run: Reset is a no-op once the device is
+	// already in `init` (e.g. reset concurrently mid-setup), so a port allocated later stays held
+	providerutil.ReleasePorts(&d.TunnelPort)
+
 	tunnelPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogErrorf("ios_device_setup", "Could not allocate free tunnel port for device `%v` - %v", d.GetUDID(), err)
 		d.Reset("Failed to allocate free tunnel port for device.")
 		return err
 	}
+	d.TunnelPort = tunnelPort
 	intTunnelPort, _ := strconv.Atoi(tunnelPort)
 	d.GoIOSDeviceEntry.UserspaceTUNPort = intTunnelPort
 
@@ -305,6 +314,10 @@ func (d *IOSDevice) disableBroadcastExtensionMemoryLimit() {
 }
 
 func (d *IOSDevice) allocateAndForwardPorts() error {
+	// Free ports still held from a previous run: Reset is a no-op once the device is already
+	// in `init` (e.g. reset concurrently mid-setup), so ports allocated later in that run stay held
+	providerutil.ReleasePorts(&d.WDAPort, &d.StreamPort, &d.WDAStreamPort)
+
 	wdaPort, err := providerutil.GetFreePort()
 	if err != nil {
 		return fmt.Errorf("could not allocate free WebDriverAgent port - %w", err)
@@ -385,11 +398,8 @@ func (d *IOSDevice) Reset(reason string) {
 		if d.GoIOSTunnel.Address != "" {
 			d.GoIOSTunnel.Close()
 		}
-		common.MutexManager.LocalDevicePorts.Lock()
-		delete(providerutil.UsedPorts, d.WDAPort)
-		delete(providerutil.UsedPorts, d.StreamPort)
-		delete(providerutil.UsedPorts, d.WDAStreamPort)
-		common.MutexManager.LocalDevicePorts.Unlock()
+		inUse := providerutil.ReleasePorts(&d.WDAPort, &d.StreamPort, &d.WDAStreamPort, &d.TunnelPort)
+		logger.ProviderLogger.LogInfof("provider", "Released host ports for device `%v`, %d ports still allocated on the provider", d.GetUDID(), inUse)
 	}
 }
 

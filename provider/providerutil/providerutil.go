@@ -88,6 +88,22 @@ func GetFreePort() (string, error) {
 	return "", fmt.Errorf("failed to find a free port after %d attempts", maxAttempts)
 }
 
+// ReleasePorts frees the given host ports for reuse and clears the fields holding them,
+// so a later release with stale values cannot free a port already handed to another device.
+// Returns how many ports are still allocated on the provider.
+func ReleasePorts(ports ...*string) int {
+	common.MutexManager.LocalDevicePorts.Lock()
+	defer common.MutexManager.LocalDevicePorts.Unlock()
+	for _, port := range ports {
+		if *port == "" {
+			continue
+		}
+		delete(UsedPorts, *port)
+		*port = ""
+	}
+	return len(UsedPorts)
+}
+
 // Check if adb is available on the host by starting the server
 func AdbAvailable() bool {
 	logger.ProviderLogger.LogInfo("provider_setup", "Checking if adb is set up and available on the host PATH")
