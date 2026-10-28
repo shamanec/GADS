@@ -28,10 +28,10 @@ class GadsAppium extends BasePlugin {
      * Registers the server with the hub, and configures log forwarding.
      *
      * @param {object} _app         placeholder for the Express app
-     * @param {object} _httpServer  placeholder for the HTTP server
+     * @param {object} httpServer   The HTTP server
      * @param {object} cliArgs      Parsed CLI arguments
    */
-    static async updateServer(_app, _httpServer, cliArgs) {
+    static async updateServer(_app, httpServer, cliArgs) {
         // Load config from --plugin-gads-config, which Appium's CLI parser exposes
         // as the nested plugin.gads.config; the flat camelCase key is kept as a
         // fallback for safety
@@ -77,6 +77,10 @@ class GadsAppium extends BasePlugin {
             })
         })
         log.info(`Mirroring logs to -> ${cfg.providerUrl}/logs`)
+
+        // Observe requests instead of using a generic handle(), which disables direct
+        // proxying and breaks proxy-based drivers such as appium-tizen-tv-driver
+        httpServer.on('request', (req) => GadsAppium.reportCommandActivity(req))
 
         setInterval(() => {
             GadsAppium.apiClient.sendPing({
@@ -158,27 +162,24 @@ class GadsAppium extends BasePlugin {
     }
 
     /**
-     * Wraps every driver command (including proxied ones, since a generic handle()
-     * disables Appium's direct proxying) and reports activity to the provider,
-     * throttled to at most one report per 2 seconds. The report is fire-and-forget -
-     * awaiting it would add provider round-trip latency to every command.
-     * @param {*} next
-     * @param {*} driver
-     * @param {*} commandName
-     * @param  {...any} args
-     * @returns
-     */
-    async handle(next, driver, commandName, ...args) {
+     * Reports session command activity to the provider, at most once per 2 seconds
+     * @param {object} req   The incoming HTTP request
+   */
+    static reportCommandActivity(req) {
+        const commandMatch = /\/session\/([^/]+)(\/.*)?$/.exec(req.url?.split('?')[0] ?? '')
+        // deleteSession is handled by its own plugin method, as createSession is
+        if (!commandMatch || (req.method === 'DELETE' && !commandMatch[2])) {
+            return
+        }
         const now = Date.now()
         if (now - GadsAppium.lastCommandReportTs > 2000) {
             GadsAppium.lastCommandReportTs = now
             GadsAppium.apiClient.sendCommand({
-                command: commandName,
-                session_id: GadsAppium.currentSessionId,
+                command: `${req.method} ${commandMatch[2] ?? '/'}`,
+                session_id: commandMatch[1],
                 timestamp: now,
             })
         }
-        return await next()
     }
 
     /**
