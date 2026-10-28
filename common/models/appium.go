@@ -119,7 +119,7 @@ type WDAMjpegProperties struct {
 type WDAMjpegSettingsNew struct {
 	Framerate         int `json:"fps,omitempty"`
 	ScreenshotQuality int `json:"quality,omitempty"`
-	ScalingFactor     int `json:"scaling,omitempty"`
+	ScalingFactor     int `json:"scalingFactor,omitempty"`
 }
 
 type CommonCapabilities struct {
