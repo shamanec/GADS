@@ -33,6 +33,11 @@ func setupAppiumForDevice(d PlatformDevice) error {
 		return err
 	}
 
+	// Free the port a previous run still holds: its Reset is a no-op once the device is already in `init`
+	stalePort := d.GetAppiumPort()
+	providerutil.ReleasePorts(&stalePort)
+	d.SetAppiumPort("")
+
 	appiumPort, err := providerutil.GetFreePort()
 	if err != nil {
 		logger.ProviderLogger.LogErrorf("device_setup", "Could not allocate free Appium port for device `%v` - %v", udid, err)
