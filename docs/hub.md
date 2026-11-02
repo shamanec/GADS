@@ -19,6 +19,7 @@ Run `./GADS hub` with the following flags:
 - `--files-dir=` - directory where the UI static files will be unpacked and served from. By default the app tries to use a temporary folder available on the host automatically. **NB** Use this flag only if you have issues with the default behaviour.
 - `--token-ttl=` - how long an authentication session survives without being used, e.g. `30m`, `2h` (default `1h`). Every request slides it forward, so this is an inactivity timeout - see [Authentication sessions](#authentication-sessions)
 - `--max-session-age=` - maximum total lifetime of a user session no matter how much it is used (default `24h`, use `0` for no limit). Sessions from the OAuth2 client credentials flow are not affected
+- `--oidc-issuer=`, `--oidc-client-id=`, `--oidc-client-secret=`, `--oidc-redirect-uri=`, `--oidc-admin-group=`, `--oidc-groups-claim=` - sign-in through an OpenID Connect provider, see [Sign-in through an OpenID Connect provider](#sign-in-through-an-openid-connect-provider)
 
 Then access the hub UI and API on `http://{host-address}:{port}`
 
@@ -44,6 +45,7 @@ A session ends when:
 - it is **not used for `--token-ttl`** (default 1 hour). This is the only thing that expires an actively working client - keep making requests and the session stays alive indefinitely
 - a **user session** reaches `--max-session-age` (default 24 hours) from the moment of login, no matter how much it is used. After that the user authenticates again. Set `--max-session-age=0` to remove this limit. **Client credentials sessions have no such limit** - the client holds a secret and could authenticate again at any time anyway
 - the user logs out (`POST /logout`), which drops the session immediately - the token stops working even though it is still correctly signed
+- **the user's access changes**: an admin changes their role or password or deletes them, or calls `DELETE /admin/user/{nickname}/sessions`; the user changes their own password (every session but the current one); or they sign in through SSO with a different role than before
 - **the hub restarts.** Sessions are held in memory only, so a restart ends all of them and everyone authenticates again
 
 Tokens issued by an external identity provider (validated through an origin secret key) have no session with the hub - they are valid for exactly as long as their own expiry says.
@@ -51,6 +53,31 @@ Tokens issued by an external identity provider (validated through an origin secr
 In the UI this means you stay logged in while you work, and holding a device open on the device control page keeps your session alive even though that page makes no requests of its own. The existing 30 minute device inactivity timeout still applies there.
 
 Note that the Appium grid is **not** affected by any of this - `/grid/*` session requests authenticate with the `gads:clientSecret` capability, which does not expire. WebSocket and stream connections are authenticated when they are opened and are not interrupted if the session behind them later ends.
+
+### Sign-in through an OpenID Connect provider
+
+Users can sign in through an OpenID Connect provider such as Keycloak by opening `/auth/sso/login` on the hub. `GET /auth/sso/status` tells whether SSO is available and where to start it, so a UI can offer it next to the username/password form.
+
+1. Register the hub at the provider as a confidential client with the authorization code flow and the redirect URI `http(s)://{hub address}/auth/sso/callback`. PKCE (S256) is used, so the provider may require it.
+2. Make the provider put the user's groups into the ID token. In Keycloak, for example, that is a *Group Membership* mapper with the claim name `groups` and *Full group path* off - the group names are compared as they are.
+3. Start the hub with the `--oidc-*` flags, or configure it in `/admin/oidc-config` - the flags replace the stored configuration on every start, the admin API applies at once.
+
+| Flag | Description |
+|------|-------------|
+| `--oidc-issuer` | Issuer URL, e.g. `https://sso.example.com/realms/example` |
+| `--oidc-client-id`, `--oidc-client-secret` | Client of the hub at the provider |
+| `--oidc-redirect-uri` | The callback URL registered at the provider |
+| `--oidc-admin-group` | Members of this group get the `admin` role, everyone else gets `user` |
+| `--oidc-groups-claim` | ID token claim with the groups (default `groups`) |
+
+How SSO users behave:
+
+- The callback page stores the session in the browser's local storage under `accessToken`, `username` and `userRole` - the keys the hub UI reads - and opens the UI.
+- The first sign-in creates the user in the default workspace, named after the `preferred_username` claim. Their role follows the admin group on every sign-in; workspaces are assigned in the `Admin` panel as for any user.
+- SSO users have no GADS password - they cannot sign in with one, and setting one is refused. A local user with the same username is never taken over, and an SSO user stays bound to the identity (`sub`) that created it.
+- The provider is discovered in the background and retried until it answers, so the hub starts without it and SSO comes up once it is reachable.
+- Taking someone out of the admin group at the provider applies on their next sign-in. To apply it at once, end their sessions with `DELETE /admin/user/{nickname}/sessions`.
+- `adb-tunnel` takes the access token of an SSO session with `--token` - see [ADB tunnel](adb-tunnel.md).
 
 ### Users administration
 

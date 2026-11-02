@@ -9,6 +9,8 @@
 
 package models
 
+import "errors"
+
 type Provider struct {
 	OS               string `json:"os" bson:"os"`
 	Nickname         string `json:"nickname" bson:"nickname"`
@@ -81,6 +83,48 @@ type MinioConfig struct {
 	SecretAccessKey string `json:"secret_access_key" bson:"secret_access_key"`
 	UseSSL          bool   `json:"use_ssl" bson:"use_ssl"`
 	Enabled         bool   `json:"enabled" bson:"enabled"`
+}
+
+// OIDCConfig configures sign-in through an OpenID Connect provider such as Keycloak
+type OIDCConfig struct {
+	Enabled      bool   `json:"enabled" bson:"enabled"`
+	IssuerURL    string `json:"issuer_url" bson:"issuer_url" example:"https://sso.example.com/realms/example"`
+	ClientID     string `json:"client_id" bson:"client_id" example:"gads"`
+	ClientSecret string `json:"client_secret" bson:"client_secret"`
+	RedirectURI  string `json:"redirect_uri" bson:"redirect_uri" example:"https://gads.example.com/auth/sso/callback"`
+	AdminGroup   string `json:"admin_group" bson:"admin_group" example:"gads-admins"` // Members get the admin role
+	GroupsClaim  string `json:"groups_claim" bson:"groups_claim" example:"groups"`    // ID token claim listing the groups
+}
+
+// Validate checks that an enabled configuration has everything a sign-in needs
+func (c OIDCConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	if c.IssuerURL == "" || c.ClientID == "" || c.RedirectURI == "" {
+		return errors.New("issuer URL, client ID and redirect URI are required when OIDC is enabled")
+	}
+	if c.ClientSecret == "" {
+		return errors.New("client secret is required when OIDC is enabled")
+	}
+	return nil
+}
+
+// OIDCConfigView is the OIDC configuration as returned by the API, without the client secret
+type OIDCConfigView struct {
+	Enabled         bool   `json:"enabled"`
+	IssuerURL       string `json:"issuer_url" example:"https://sso.example.com/realms/example"`
+	ClientID        string `json:"client_id" example:"gads"`
+	ClientSecretSet bool   `json:"client_secret_set"`
+	RedirectURI     string `json:"redirect_uri" example:"https://gads.example.com/auth/sso/callback"`
+	AdminGroup      string `json:"admin_group" example:"gads-admins"`
+	GroupsClaim     string `json:"groups_claim" example:"groups"`
+}
+
+// SSOStatus tells the UI whether to offer the SSO sign-in
+type SSOStatus struct {
+	Enabled  bool   `json:"enabled"`
+	LoginURL string `json:"login_url" example:"/auth/sso/login"`
 }
 
 type TURNConfig struct {

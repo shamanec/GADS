@@ -181,6 +181,9 @@ func AddUser(c *gin.Context) {
 		return
 	}
 
+	// Users added here are local, SSO users are created by their first sign-in
+	user.AuthSource = ""
+
 	dbUser, err := db.GlobalMongoStore.GetUser(user.Username)
 	if err != nil && err != mongo.ErrNoDocuments {
 		api.InternalError(c, "Failed checking for user in db - "+err.Error())
@@ -244,10 +247,27 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
+	if dbUser.AuthSource == models.AuthSourceOIDC && user.Password != "" {
+		api.BadRequest(c, "Users who sign in through SSO have no GADS password")
+		return
+	}
+	// The source of an account cannot change, an empty value leaves it as it is
+	user.AuthSource = ""
+
 	err = db.GlobalMongoStore.AddOrUpdateUser(user)
 	if err != nil {
 		api.InternalError(c, fmt.Sprintf("Failed adding/updating user - %s", err))
 		return
+	}
+
+	// Tokens carry the role, and whoever knew the old password is signed in.
+	// An admin editing their own account keeps the session they do it from
+	if user.Role != dbUser.Role || user.Password != "" {
+		keepSession := ""
+		if user.Username == c.GetString("username") {
+			keepSession = c.GetString("session_id")
+		}
+		auth.DeleteUserSessions(user.Username, keepSession)
 	}
 
 	api.OKMessage(c, "Successfully updated user")
@@ -272,8 +292,38 @@ func DeleteUser(c *gin.Context) {
 		api.InternalError(c, "Failed to delete user - "+err.Error())
 		return
 	}
+	auth.DeleteUserSessions(nickname, "")
 
 	api.OKMessage(c, "Successfully deleted user")
+}
+
+// DeleteUserSessions godoc
+// @Summary      End the sessions of a user
+// @Description  Sign a user out everywhere, e.g. after their access was changed at the SSO provider
+// @Tags         Hub - Admin - Users
+// @Produce      json
+// @Param        nickname  path      string  true  "User nickname"
+// @Success      200       {object}  models.SuccessResponse
+// @Failure      404       {object}  models.ErrorResponse
+// @Failure      500       {object}  models.ErrorResponse
+// @Security     BearerAuth
+// @Router       /admin/user/{nickname}/sessions [delete]
+func DeleteUserSessions(c *gin.Context) {
+	nickname := c.Param("nickname")
+
+	_, err := db.GlobalMongoStore.GetUser(nickname)
+	if err == mongo.ErrNoDocuments {
+		api.NotFound(c, "User not found")
+		return
+	}
+	if err != nil {
+		api.InternalError(c, "Failed checking for user in db - "+err.Error())
+		return
+	}
+
+	deleted := auth.DeleteUserSessions(nickname, "")
+
+	api.OKMessage(c, fmt.Sprintf("Ended %d sessions of user `%s`", deleted, nickname))
 }
 
 // GetProviders godoc
