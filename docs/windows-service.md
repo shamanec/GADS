@@ -53,6 +53,10 @@ Create a `gads-hub.xml` file in the same directory as `GADS.exe`:
     <env name="HUB_HOST_ADDRESS" value="YOUR_HUB_HOST_ADDRESS"/>
     <env name="HUB_PORT" value="YOUR_HUB_PORT"/>
     <env name="HUB_MONGO_DB" value="YOUR_MONGO_DB_HOST:YOUR_MONGO_DB_PORT"/>
+    <!-- Optional - MongoDB credentials, if your MongoDB instance requires authentication.
+         Both variables must be set together. Never put credentials in <arguments>. -->
+    <env name="GADS_MONGO_USER" value="YOUR_MONGO_USER"/>
+    <env name="GADS_MONGO_PASSWORD" value="YOUR_MONGO_PASSWORD"/>
 
     <!-- Service behavior -->
     <startmode>Automatic</startmode>
@@ -82,6 +86,13 @@ Create a `gads-hub.xml` file in the same directory as `GADS.exe`:
 > - `HUB_HOST_ADDRESS`: The host address of the Hub service.
 > - `HUB_PORT`: The port of the Hub service.
 > - `HUB_MONGO_DB`: The MongoDB host and port of the Hub service.
+> - `GADS_MONGO_USER` / `GADS_MONGO_PASSWORD`: Optional MongoDB credentials (remove these lines if your MongoDB does not require authentication).
+>
+> **Security:** the XML file stores the credentials in plain text. Restrict access to it with NTFS permissions (ACL) so only administrators and the account running the service can read it. WinSW services run as `LocalSystem` by default, e.g. in an elevated PowerShell:
+> ```powershell
+> icacls "C:\GADS\gads-hub.xml" /inheritance:r /grant:r "Administrators:(F)" "SYSTEM:(F)"
+> ```
+> If the service runs under a different account, grant it read access as well: `icacls "C:\GADS\gads-hub.xml" /grant:r "DOMAIN\ServiceAccount:(R)"`.
 
 #### For GADS Provider
 
@@ -107,6 +118,10 @@ Create a `gads-provider.xml` file in the same directory as `GADS.exe`:
     <env name="PROVIDER_MONGO_DB" value="YOUR_MONGO_DB_HOST:YOUR_MONGO_DB_PORT"/>
     <env name="PROVIDER_HUB" value="YOUR_HUB_URL"/>
     <env name="PROVIDER_LOG_LEVEL" value="debug"/>
+    <!-- Optional - MongoDB credentials, if your MongoDB instance requires authentication.
+         Both variables must be set together. Never put credentials in <arguments>. -->
+    <env name="GADS_MONGO_USER" value="YOUR_MONGO_USER"/>
+    <env name="GADS_MONGO_PASSWORD" value="YOUR_MONGO_PASSWORD"/>
     <env name="PATH" value="%NPM_PATH%;%ANDROID_HOME%\platform-tools;%JAVA_HOME%\bin;%PATH%"/>
 
     <!-- Service behavior -->

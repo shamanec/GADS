@@ -370,7 +370,7 @@ Android TV devices are provided over a network ADB connection and support **auto
 
 - Execute `./GADS provider` providing the following flags:
   - `--nickname=` - mandatory, this is used to get the correct provider configuration from MongoDB
-  - `--mongo-db=` - optional, IP address and port of the MongoDB instance (default is `localhost:27017`)
+  - `--mongo-db=` - optional, IP address and port of the MongoDB instance (default is `localhost:27017`). If MongoDB requires authentication, set the `GADS_MONGO_USER` and `GADS_MONGO_PASSWORD` environment variables - see [MongoDB authentication](./hub.md#mongodb-authentication)
   - `--provider-folder=` - optional, folder where provider should store logs and apps and other needed files. Can be relative path to the folder where provider binary is located or full path on the host - `./test`, `.`, `./test/test1`, `/Users/shamanec/Desktop/test` are all valid. Default is the folder where the binary is currently located - `.`
   - `--log-level=` - optional, how verbose should the provider logs be (default is `info`, use `debug` for more log output)
   - `--hub=` - mandatory, the address of the hub instance so the provider can push data to it automatically, e.g `http://192.168.68.109:10000`

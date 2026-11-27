@@ -45,7 +45,13 @@ PROVIDER_NICKNAME=YOUR_PROVIDER_NICKNAME
 PROVIDER_MONGO_DB=YOUR_MONGO_DB_HOST:YOUR_MONGO_DB_PORT
 PROVIDER_HUB=YOUR_HUB_URL
 PROVIDER_LOG_LEVEL=debug
+# Optional - MongoDB credentials, if your MongoDB instance requires authentication.
+# Both variables must be set together. Keep them out of the ExecStart command line.
+GADS_MONGO_USER=YOUR_MONGO_USER
+GADS_MONGO_PASSWORD=YOUR_MONGO_PASSWORD
 ```
+
+> **Security:** if the file contains MongoDB credentials, restrict access to it: `chmod 600 /etc/sysconfig/gads` (and make sure it is owned by the user running the service). Environment variables are not visible in the process command line, unlike flags.
 
 - Create the `gads-provider.service` file in the `/etc/systemd/system/` directory.
 
@@ -96,7 +102,13 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 HUB_HOST_ADDRESS=YOUR_HUB_HOST_ADDRESS
 HUB_PORT=YOUR_HUB_PORT
 HUB_MONGO_DB=YOUR_MONGO_DB_HOST:YOUR_MONGO_DB_PORT
+# Optional - MongoDB credentials, if your MongoDB instance requires authentication.
+# Both variables must be set together. Keep them out of the ExecStart command line.
+GADS_MONGO_USER=YOUR_MONGO_USER
+GADS_MONGO_PASSWORD=YOUR_MONGO_PASSWORD
 ```
+
+> **Security:** if the file contains MongoDB credentials, restrict access to it: `chmod 600 /etc/sysconfig/gads` (and make sure it is owned by the user running the service).
 
 - Create the `gads-hub.service` file in the `/etc/systemd/system/` directory.
 

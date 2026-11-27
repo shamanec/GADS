@@ -28,7 +28,8 @@ var resourceFiles embed.FS
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "GADS"}
-	rootCmd.PersistentFlags().String("mongo-db", "localhost:27017", "The address of the MongoDB instance")
+	rootCmd.PersistentFlags().String("mongo-db", "localhost:27017", "The address of the MongoDB instance."+
+		"\nCredentials can be provided via the GADS_MONGO_USER and GADS_MONGO_PASSWORD environment variables")
 
 	// Hub Command
 	var hubCmd = &cobra.Command{
