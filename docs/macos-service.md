@@ -33,6 +33,16 @@ Paste the following configuration, adjusting the values for your environment:
         <string>--log-level</string>
         <string>info</string>
     </array>
+    <!-- Optional - MongoDB credentials, if your MongoDB instance requires authentication.
+         Both variables must be set together. Keep them here, not in ProgramArguments.
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>GADS_MONGO_USER</key>
+        <string>YOUR_MONGO_USER</string>
+        <key>GADS_MONGO_PASSWORD</key>
+        <string>YOUR_MONGO_PASSWORD</string>
+    </dict>
+    -->
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -53,6 +63,9 @@ To activate the service, you must set the correct system permissions and then bo
 ```bash
 # Set the correct ownership (root is required for LaunchDaemons)
 sudo chown root:wheel /Library/LaunchDaemons/com.gads.provider.plist
+
+# If the plist contains MongoDB credentials, restrict read access to root only
+sudo chmod 600 /Library/LaunchDaemons/com.gads.provider.plist
 
 # Load and start the service
 sudo launchctl bootstrap system /Library/LaunchDaemons/com.gads.provider.plist

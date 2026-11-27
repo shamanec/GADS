@@ -194,6 +194,15 @@ or
 
 - Start MongoDB instance in the way you prefer
 
+If your MongoDB instance requires authentication, create a dedicated user for GADS and provide the credentials to **both hub and providers** through environment variables:
+
+```bash
+export GADS_MONGO_USER=gads
+export GADS_MONGO_PASSWORD='your-strong-password'
+```
+
+This keeps the credentials out of the command line, shell history and logs. See [MongoDB authentication](./docs/hub.md#mongodb-authentication) for details.
+
 #### ⚙️ Hub setup
 
 For detailed instructions on setting up the Hub, refer to the [Hub Setup Docs](./docs/hub.md)

@@ -36,7 +36,15 @@ var (
 )
 
 func InitMongo(dbAddress, dbName string) error {
-	connectionString = fmt.Sprintf("mongodb://%s/?keepAlive=true", dbAddress)
+	uri, err := BuildConnectionString(dbAddress)
+	if err != nil {
+		return err
+	}
+	connectionString = uri
+	// The credentials are only needed to build the connection string. Drop them
+	// from the process environment so that child processes (Appium, adb, ...)
+	// do not inherit them.
+	ClearMongoCredentialsFromEnv()
 	store, err := NewMongoStore(dbName)
 	if err != nil {
 		return err
@@ -61,7 +69,7 @@ func NewMongoStore(dbName string) (*MongoStore, error) {
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		cancel()
-		slog.Error(fmt.Sprintf("Could not connect to Mongo server at `%s` - %s", connectionString, err))
+		slog.Error(fmt.Sprintf("Could not connect to Mongo server at `%s` - %s", RedactMongoURI(connectionString), err))
 		os.Exit(1)
 	}
 

@@ -59,7 +59,9 @@ func StartProvider(flags *pflag.FlagSet, resourceFiles embed.FS) {
 		log.Fatalf("Failed to create provider folder `%s` - %s", providerFolder, err)
 	}
 
-	db.InitMongo(mongoDb, "gads")
+	if err := db.InitMongo(mongoDb, "gads"); err != nil {
+		log.Fatalf("Failed to initialize MongoDB - %s", err)
+	}
 	defer db.GlobalMongoStore.Close()
 
 	// Set up the provider configuration

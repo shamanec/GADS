@@ -15,7 +15,7 @@ Run `./GADS hub` with the following flags:
 - `--host-address=` - local IP address of the host machine, e.g. `192.168.1.6` (default is `localhost`, I would advise against using the default value)
 - `--port=` - port on which the UI and backend service will be served
 - `--auth=` - enable/disable authentication. When disabled you can access any UI page/hub endpoint without login token validation, note that this is **highly insecure** and should be used only for development - `true/false`
-- `--mongo-db=` - IP address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`) - tested only on local network
+- `--mongo-db=` - IP address and port of the MongoDB instance, e.g `192.168.1.6:27017` (default is `localhost:27017`) - tested only on local network. If your MongoDB requires authentication, provide the credentials through the `GADS_MONGO_USER` and `GADS_MONGO_PASSWORD` environment variables - see [MongoDB authentication](#mongodb-authentication)
 - `--files-dir=` - directory where the UI static files will be unpacked and served from. By default the app tries to use a temporary folder available on the host automatically. **NB** Use this flag only if you have issues with the default behaviour.
 - `--token-ttl=` - how long an authentication session survives without being used, e.g. `30m`, `2h` (default `1h`). Every request slides it forward, so this is an inactivity timeout - see [Authentication sessions](#authentication-sessions)
 - `--max-session-age=` - maximum total lifetime of a user session no matter how much it is used (default `24h`, use `0` for no limit). Sessions from the OAuth2 client credentials flow are not affected
@@ -32,6 +32,42 @@ If you want to work on the React UI with hot reload you need to add a proxy in `
 4. Run `npm start`
 
 ## Additional notes
+
+### MongoDB authentication
+
+If your MongoDB instance requires authentication, create a dedicated user for GADS (avoid using an admin/root account), e.g. in `mongosh`:
+
+```js
+use admin
+db.createUser({
+  user: "gads",
+  pwd: "your-strong-password",
+  roles: [
+    { role: "readWrite", db: "gads" },
+    { role: "readWrite", db: "logs" },
+    { role: "readWrite", db: "appium_logs_new" }
+  ]
+})
+```
+
+Then provide the credentials to the hub (and to every provider) through environment variables:
+
+```bash
+export GADS_MONGO_USER=gads
+export GADS_MONGO_PASSWORD='your-strong-password'
+./GADS hub --host-address=192.168.1.6 --port=10000 --mongo-db=192.168.1.6:27017
+```
+
+Notes:
+
+- Both variables must be set together - setting only one of them is a startup error.
+- Special characters in the password are handled automatically, no manual escaping is needed.
+- The variables are removed from the GADS process environment right after startup, so processes spawned by GADS (Appium, adb, ffmpeg, etc.) do not inherit them.
+- Keeping credentials in environment variables (instead of the command line) means they do not show up in the process list, shell history or service arguments. Prefer loading them from a file with restricted permissions, e.g. a systemd `EnvironmentFile` with `chmod 600` - see the [Linux service guide](./linux-service.md).
+- By default MongoDB authenticates the user against the `admin` database. If you created the user in another database, append that database to the address: `--mongo-db=192.168.1.6:27017/myauthdb`.
+- Additional connection options can be passed as query parameters of the address, e.g. `--mongo-db=192.168.1.6:27017/?tls=true&authSource=admin` (supported: `tls`, `authSource`, `replicaSet`, and other options understood by the MongoDB driver).
+- Credentials embedded in the address (`--mongo-db=user:pass@host:27017`) still work for backward compatibility, but this is **deprecated**: the password becomes visible in the process command line and a warning is logged at startup. Use the environment variables instead. Providing credentials both ways is a startup error.
+- MongoDB connection strings are redacted before logging, so credentials do not end up in log files.
 
 ### Authentication sessions
 

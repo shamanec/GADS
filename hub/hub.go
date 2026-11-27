@@ -49,7 +49,7 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	fmt.Printf("UI accessible on http://%s:%v. You can change the address and port with the --host-address and --port flags\n", hostAddress, port)
 
 	mongoDB, _ := flags.GetString("mongo-db")
-	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", mongoDB)
+	fmt.Printf("Using MongoDB instance on %s. You can change the instance with the --mongo-db flag\n", db.RedactMongoURI("mongodb://"+mongoDB))
 
 	authEnabled, _ := flags.GetBool("auth")
 	fmt.Printf("Auth enabled: %v. You can enable/disable authentication on hub endpoints with the --auth flag\n", authEnabled)
@@ -109,7 +109,10 @@ func StartHub(flags *pflag.FlagSet, appVersion string, uiFiles fs.FS, resourceFi
 	// Set the global config for other hub packages to use
 	config.GlobalHubConfig = &hubConfig
 
-	db.InitMongo(mongoDB, "gads")
+	if err := db.InitMongo(mongoDB, "gads"); err != nil {
+		slog.Error(fmt.Sprintf("Failed to initialize MongoDB - %s", err))
+		os.Exit(1)
+	}
 	defer db.GlobalMongoStore.Close()
 	router.InitGridStore(db.GlobalMongoStore)
 

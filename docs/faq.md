@@ -29,4 +29,10 @@
 - *I can load the device but interaction does not work at all/session expired popup appears, why?*
     - There is probably an issue with Appium setup or dependencies. It is quite possible to start Appium server successfully but everything fails due to missing environment variable like `ANDROID_HOME` or something in that line. Observe the respective device Appium logs either in UI or file
 - *When I want to unlock my phone a session expired popup appears, why?*
-  - Make sure your phone is not passcode protected since appium is only unlocking the device and it fails if it lands on the passcode screen 
+  - Make sure your phone is not passcode protected since appium is only unlocking the device and it fails if it lands on the passcode screen
+- *My MongoDB requires authentication - how do I connect GADS to it?*
+  - Set the `GADS_MONGO_USER` and `GADS_MONGO_PASSWORD` environment variables for both the hub and every provider, see [MongoDB authentication](./hub.md#mongodb-authentication). Do not put the password in the `--mongo-db` flag - it would be visible in the process command line
+- *GADS fails to start with an authentication error against MongoDB although the username/password are correct, why?*
+  - MongoDB users belong to a specific database. By default the user is looked up in `admin`; if you created it in another database, append that database to the address, e.g. `--mongo-db=192.168.1.6:27017/myauthdb`
+  - Make sure both `GADS_MONGO_USER` and `GADS_MONGO_PASSWORD` are set - providing only one of them is a startup error
+  - Make sure you are not providing credentials both in the `--mongo-db` address and via the environment variables - this is rejected as well
